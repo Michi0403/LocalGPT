@@ -16,10 +16,6 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
     /// </summary>
     private readonly IDatabaseFileHealthService databaseFileHealth;
     /// <summary>
-    /// Stores the service activity service dependency used by <see cref="DatabaseMigrationCompatibilityService"/> to delegate that application responsibility to its owning collaborator.
-    /// </summary>
-    private readonly IServiceActivityService serviceActivity;
-    /// <summary>
     /// Stores the logger used by <see cref="DatabaseMigrationCompatibilityService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
     private readonly ILogger<DatabaseMigrationCompatibilityService> logger;
@@ -36,15 +32,12 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
     /// Initializes a new <see cref="DatabaseMigrationCompatibilityService"/> instance and captures the dependencies or initial state required by its database migration compatibility workflow.
     /// </summary>
     /// <param name="databaseFileHealth">Database file health service dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
-    /// <param name="serviceActivity">Service activity service dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public DatabaseMigrationCompatibilityService(
         IDatabaseFileHealthService databaseFileHealth,
-        IServiceActivityService serviceActivity,
         ILogger<DatabaseMigrationCompatibilityService> logger)
     {
         this.databaseFileHealth = databaseFileHealth ?? throw new ArgumentNullException(nameof(databaseFileHealth));
-        this.serviceActivity = serviceActivity ?? throw new ArgumentNullException(nameof(serviceActivity));
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         legacyMigrationSignatures = CreateLegacyMigrationSignatures();
     }
@@ -54,25 +47,22 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
     /// </summary>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    public Task PrepareAsync(CancellationToken cancellationToken = default) {
-    try
+    public async Task PrepareAsync(CancellationToken cancellationToken = default)
     {
-        return serviceActivity.RunAsync(
-            nameof(DatabaseMigrationCompatibilityService),
-            nameof(PrepareAsync),
-            PrepareCoreAsync,
-            cancellationToken,
-            "Legacy migration compatibility inspection completed.");
+        try
+        {
+            await PrepareCoreAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Legacy migration compatibility inspection completed.");
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(PrepareAsync)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(PrepareAsync)} failed.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(PrepareAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(PrepareAsync)} failed.");
-        throw;
-    }
-}
 
     /// <summary>
     /// Creates legacy migration signatures as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.

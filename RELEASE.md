@@ -1,9 +1,11 @@
-# LocalGPT 3.8.6
+# LocalGPT 3.8.9
 
-LocalGPT 3.8.6 is a narrow build/startup parity repair on top of 3.8.5. It preserves the post-listen application-worker lifecycle while updating the mandatory operational-diagnostics build guard to validate that lifecycle instead of requiring the old direct database hosted-service registration.
+LocalGPT 3.8.9 keeps the 3.8.3 provider onboarding repair, the 3.8.4 cross-platform per-user path contract, and the 3.8.7 boot dependency-cycle repair while correcting the Council SQL seed artifact restored in 3.8.8.
 
-Kestrel/Blazor remains the startup authority. `LocalGptPostListenHostedServiceCoordinator` is the only direct application hosted service; database initialization, Remote Control polling, runtime-capability synchronization, DX AI-function catalog synchronization, and the four 1-Wire workers remain present and are resolved/started only after `ApplicationStarted`.
+`docs/COUNCIL_KNOWLEDGE_SEED.sql` is executable, idempotent SQLite again. Its 60 source-backed Council knowledge rows come from the supplied historical seed, retain their stable identifiers/content, and now include the current required knowledge lifecycle columns and deterministic source hashes. The script uses `INSERT OR IGNORE`, so rerunning it does not overwrite existing rows under the same identifiers. LocalGPT packages the script as a repair/backup asset and repository reference; application startup does not auto-execute arbitrary SQL.
 
-The 3.8.3 provider-onboarding repairs and 3.8.4 per-user storage/path contract remain included. Windows continues to default to `%LOCALAPPDATA%\LocalGPT`, macOS to the current user's Application Support location, and Linux to `XDG_DATA_HOME/LocalGPT` or `~/.local/share/LocalGPT`. Provider/tool discovery remains separate from application-owned mutable data.
+The `/database` frontend remains a structured SQLite table/knowledge editor. It does not currently provide a generic raw-SQL file executor, so the Council SQL file remains explicitly packaged and referenced rather than being removed behind a nonexistent frontend workflow.
 
-See `CHANGELOG-v3.8.6-STARTUP-GUARD-PARITY-REPAIR.md` and `VALIDATION-v3.8.6-source.md`.
+The established eight `AddHostedService<T>` registrations remain intact. No 3.8.5/3.8.6 post-listen coordinator lifecycle is present.
+
+See `CHANGELOG-v3.8.9-EXECUTABLE-COUNCIL-SQL-SEED-REPAIR.md` and `VALIDATION-v3.8.9-source.md`.

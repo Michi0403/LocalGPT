@@ -44,6 +44,7 @@ namespace LocalGPT.Components.Pages
     /// <value>The active install section value exposed by <see cref="Install"/>.</value>
     private string ActiveInstallSection { get; set; } = "providers";
     /// <summary>Gets the detected per-user/runtime path layout shown on the setup page.</summary>
+    /// <value>The application path layout value exposed by <see cref="Install"/>.</value>
     private LocalGptApplicationPathLayout? ApplicationPathLayout { get; set; }
     /// <summary>
     /// Stores the internal install section user selected state used by <see cref="Install"/> while executing its surrounding workflow.

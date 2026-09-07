@@ -33,10 +33,6 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
     /// </summary>
     private readonly ILocalGptRuntimePolicySeedDataService runtimePolicySeed;
     /// <summary>
-    /// Stores the service activity service dependency used by <see cref="DatabaseInitializationService"/> to delegate that application responsibility to its owning collaborator.
-    /// </summary>
-    private readonly IServiceActivityService serviceActivity;
-    /// <summary>
     /// Stores the database logger readiness dependency used by <see cref="DatabaseInitializationService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly IDatabaseLoggerReadiness databaseLoggerReadiness;
@@ -55,7 +51,6 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
     /// <param name="migrationCompatibility">Injected dependency used by the DatabaseInitializationService.</param>
     /// <param name="catalog">Injected dependency used by the DatabaseInitializationService.</param>
     /// <param name="runtimePolicySeed">Injected dependency used by the DatabaseInitializationService.</param>
-    /// <param name="serviceActivity">Injected dependency used by the DatabaseInitializationService.</param>
     /// <param name="databaseLoggerReadiness">Injected dependency used by the DatabaseInitializationService.</param>
     /// <param name="hostEnvironment">Injected dependency used by the DatabaseInitializationService.</param>
     /// <param name="logger">Injected dependency used by the DatabaseInitializationService.</param>
@@ -65,7 +60,6 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
         IDatabaseMigrationCompatibilityService migrationCompatibility,
         IInitialDataCatalog catalog,
         ILocalGptRuntimePolicySeedDataService runtimePolicySeed,
-        IServiceActivityService serviceActivity,
         IDatabaseLoggerReadiness databaseLoggerReadiness,
         IHostEnvironment hostEnvironment,
         ILogger<DatabaseInitializationService> logger)
@@ -75,7 +69,6 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
         this.migrationCompatibility = migrationCompatibility;
         this.catalog = catalog;
         this.runtimePolicySeed = runtimePolicySeed;
-        this.serviceActivity = serviceActivity;
         this.databaseLoggerReadiness = databaseLoggerReadiness;
         this.hostEnvironment = hostEnvironment;
         this.logger = logger;
@@ -95,25 +88,23 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
     /// </summary>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    public Task InitializeAsync(CancellationToken cancellationToken = default) {
-    try
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        return serviceActivity.RunAsync(
-            nameof(DatabaseInitializationService),
-            nameof(InitializeAsync),
-            InitializeCoreAsync,
-            cancellationToken,
-            "Database migration and deterministic initial data feed completed.");
+        try
+        {
+            logger.LogDebug("Starting boot-critical LocalGPT database initialization without UI/service-activity dependencies.");
+            await InitializeCoreAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Database migration and deterministic initial data feed completed.");
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseInitializationService)}.{nameof(InitializeAsync)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseInitializationService)}.{nameof(InitializeAsync)} failed.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseInitializationService)}.{nameof(InitializeAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseInitializationService)}.{nameof(InitializeAsync)} failed.");
-        throw;
-    }
-}
 
     /// <summary>
     /// Performs initialize core as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -332,9 +323,11 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
 /// Coordinates database initialization behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 /// <param name="initializer">Database initialization service dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Runtime-policy service that reloads persisted overrides only after database initialization completes.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DatabaseInitializationHostedService(
     IDatabaseInitializationService initializer,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<DatabaseInitializationHostedService> logger) : BackgroundService
 {
     /// <summary>
@@ -352,6 +345,17 @@ public sealed class DatabaseInitializationHostedService(
         {
             logger.LogInformation("Starting LocalGPT database initialization in the background.");
             await initializer.InitializeAsync(stoppingToken).ConfigureAwait(false);
+            try
+            {
+                runtimePolicy.Reload();
+                logger.LogInformation("Reloaded persisted LocalGPT runtime policy after database initialization.");
+            }
+            catch (Exception ex)
+            {
+                // The built-in policy seed remains valid and keeps the application usable.
+                // Persisted policy can be retried from the runtime-policy API without taking down the host.
+                logger.LogError(ex, "Persisted LocalGPT runtime policy could not be reloaded after database initialization; the built-in seed remains active.");
+            }
             logger.LogInformation("Background LocalGPT database initialization completed.");
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

@@ -148,6 +148,55 @@ Require-Text 'src/LocalGPT\Diagnostics\LocalGptCircuitDiagnosticsHandler.cs' @(
     'OnCircuitClosedAsync'
 ) 'Blazor circuit diagnostics'
 
+
+# Boot-critical database services must not depend on IServiceActivityService. That service is
+# implemented by ComponentActivityService, which depends on the database-backed runtime-policy
+# graph; routing it back into database initialization creates a hidden singleton cycle that can
+# deadlock host startup before Kestrel listens.
+foreach ($relativePath in @(
+    'src/LocalGPT/Services/Persistence/DatabaseInitializationService.cs',
+    'src/LocalGPT/Services/Persistence/DatabaseMigrationCompatibilityService.cs'
+)) {
+    $path = Join-Path $root $relativePath
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        $failures.Add("Required boot-critical database source is missing: $relativePath")
+        continue
+    }
+    $content = Get-Content -LiteralPath $path -Raw
+    if ($content -match '\bIServiceActivityService\b') {
+        $failures.Add("Boot-critical database source '$relativePath' must not depend on IServiceActivityService; this reintroduces the database/runtime-policy startup cycle.")
+    }
+}
+
+Require-Text 'src/LocalGPT/Services/Persistence/LocalGptRuntimePolicyDataService.cs' @(
+    'CreateSeedDefinition\(seedData\.GetSeed\(\)\)',
+    'Initialized LocalGPT runtime policy from the built-in seed',
+    'private LocalGptRuntimePolicyDefinition CreateSeedDefinition',
+    'private LocalGptRuntimePolicyState BuildState'
+) 'Non-blocking runtime-policy bootstrap'
+Require-Text 'src/LocalGPT/Services/Persistence/DatabaseInitializationService.cs' @(
+    'ILocalGptRuntimePolicyDataService runtimePolicy',
+    'await initializer\.InitializeAsync\(stoppingToken\)\.ConfigureAwait\(false\);',
+    'runtimePolicy\.Reload\(\);',
+    'the built-in seed remains active'
+) 'Post-database persisted runtime-policy reload'
+
+$runtimePolicyPath = Join-Path $root 'src/LocalGPT/Services/Persistence/LocalGptRuntimePolicyDataService.cs'
+if (Test-Path -LiteralPath $runtimePolicyPath -PathType Leaf) {
+    $runtimePolicyText = Get-Content -LiteralPath $runtimePolicyPath -Raw
+    $constructorStart = $runtimePolicyText.IndexOf('public LocalGptRuntimePolicyDataService(', [StringComparison]::Ordinal)
+    $firstMethod = $runtimePolicyText.IndexOf('public string GetString', [StringComparison]::Ordinal)
+    if ($constructorStart -lt 0 -or $firstMethod -le $constructorStart) {
+        $failures.Add('Could not identify the LocalGptRuntimePolicyDataService constructor boundary for startup-cycle validation.')
+    }
+    else {
+        $constructorBlock = $runtimePolicyText.Substring($constructorStart, $firstMethod - $constructorStart)
+        if ($constructorBlock -match 'Reload\(\)\s*;') {
+            $failures.Add('LocalGptRuntimePolicyDataService constructor must not synchronously reload database-backed policy during host construction.')
+        }
+    }
+}
+
 # Controllers are covered centrally, while maintained service/controller files remain
 # kept separate from circuit UI services. This avoids injecting circuit UI services into
 # singleton/boot services, which would break startup.
@@ -162,47 +211,16 @@ Require-TextAcrossFiles $programDiagnosticsFiles @(
     'AddScoped<ControllerRequestLoggingFilter>',
     'Filters\.AddService<ControllerRequestLoggingFilter>',
     'AddScoped<INotificationService',
-    'AddSingleton<DatabaseInitializationHostedService>',
-    'AddHostedService<LocalGptPostListenHostedServiceCoordinator>',
+    'AddHostedService<DatabaseInitializationHostedService>',
+    'AddHostedService<RemoteControlPollingHostedService>',
+    'AddHostedService<LocalGPT\.Services\.Council\.RuntimeCapabilityDirectoryHostedService>',
+    'AddHostedService<DxAiFunctionCatalogHostedService>',
+    'AddHostedService<OneWireTcpHostedService>',
+    'AddHostedService<OneWireDiscoveryHostedService>',
+    'AddHostedService<OneWireCouncilApprovalProcessorHostedService>',
+    'AddHostedService<OneWireWorkProcessorHostedService>',
     'AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>'
-) 'Controller, notifier, and post-listen startup diagnostics registration'
-
-Require-Text 'src/LocalGPT\Services\LocalGptPostListenHostedServiceCoordinator.cs' @(
-    'IHostApplicationLifetime',
-    'ApplicationStarted',
-    'services\.GetRequiredService<DatabaseInitializationHostedService>\(\)',
-    'services\.GetRequiredService<RemoteControlPollingHostedService>\(\)',
-    'services\.GetRequiredService<RuntimeCapabilityDirectoryHostedService>\(\)',
-    'services\.GetRequiredService<DxAiFunctionCatalogHostedService>\(\)',
-    'services\.GetRequiredService<OneWireTcpHostedService>\(\)',
-    'services\.GetRequiredService<OneWireDiscoveryHostedService>\(\)',
-    'services\.GetRequiredService<OneWireCouncilApprovalProcessorHostedService>\(\)',
-    'services\.GetRequiredService<OneWireWorkProcessorHostedService>\(\)',
-    'await\s+worker\.StartAsync\(stoppingToken\)\.ConfigureAwait\(false\)'
-) 'Post-listen worker lifecycle diagnostics'
-
-$serviceRegistrationPath = Join-Path $root 'src/LocalGPT/Program.ServiceRegistration.cs'
-if (Test-Path -LiteralPath $serviceRegistrationPath) {
-    $serviceRegistration = Get-Content -LiteralPath $serviceRegistrationPath -Raw
-    $startupBlockingRegistrations = @(
-        'DatabaseInitializationHostedService',
-        'RemoteControlPollingHostedService',
-        'RuntimeCapabilityDirectoryHostedService',
-        'DxAiFunctionCatalogHostedService',
-        'OneWireTcpHostedService',
-        'OneWireDiscoveryHostedService',
-        'OneWireCouncilApprovalProcessorHostedService',
-        'OneWireWorkProcessorHostedService'
-    )
-    foreach ($workerType in $startupBlockingRegistrations) {
-        if ($serviceRegistration -match ('AddHostedService<' + [regex]::Escape($workerType) + '>')) {
-            $failures.Add("Worker '$workerType' must remain behind LocalGptPostListenHostedServiceCoordinator instead of participating directly in host startup.")
-        }
-        if ($serviceRegistration -notmatch ('AddSingleton<' + [regex]::Escape($workerType) + '>')) {
-            $failures.Add("Post-listen worker '$workerType' must remain registered as a concrete singleton for coordinator resolution.")
-        }
-    }
-}
+) 'Controller, notifier, and startup diagnostics registration'
 Require-Text 'src/LocalGPT\Diagnostics\ControllerRequestLoggingFilter.cs' @(
     'IAsyncActionFilter',
     'ILogger<ControllerRequestLoggingFilter>',
@@ -223,4 +241,4 @@ if ($failures.Count -gt 0) {
     throw "Operational diagnostics validation failed with $($failures.Count) problem(s)."
 }
 
-Write-Output 'Operational diagnostics validation passed for the reviewed InteractiveServer islands, Chat diagnostics, controllers, and post-listen application-worker startup.'
+Write-Output 'Operational diagnostics validation passed for the reviewed InteractiveServer islands, Chat diagnostics, controllers, hosted-service ownership, and non-blocking database/runtime-policy startup.'

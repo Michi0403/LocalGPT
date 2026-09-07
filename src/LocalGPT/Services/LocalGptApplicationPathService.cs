@@ -5,11 +5,18 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Resolves, creates, and documents the LocalGPT per-user storage layout.</summary>
+/// <param name="platform">Platform runtime service dependency used by the local GPT application path workflow to provide the corresponding application capability.</param>
+/// <param name="databaseOptions">Database options value supplied to the local GPT application path operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalGptApplicationPathService(
     IPlatformRuntimeService platform,
     LocalGptDatabaseOptions databaseOptions,
     ILogger<LocalGptApplicationPathService> logger) : ILocalGptApplicationPathService
 {
+    /// <summary>
+    /// Retrieves layout as part of the local GPT application path service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The local GPT application path layout produced by the operation.</returns>
     public LocalGptApplicationPathLayout GetLayout()
     {
         try
@@ -38,6 +45,10 @@ public sealed class LocalGptApplicationPathService(
         }
     }
 
+    /// <summary>
+    /// Ensures and document layout as part of the local GPT application path service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The local GPT application path layout produced by the operation.</returns>
     public LocalGptApplicationPathLayout EnsureAndDocumentLayout()
     {
         var layout = GetLayout();
@@ -70,6 +81,10 @@ public sealed class LocalGptApplicationPathService(
         }
     }
 
+    /// <summary>
+    /// Builds knowledge summary as part of the local GPT application path service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildKnowledgeSummary()
     {
         try

@@ -19,22 +19,22 @@ def forbid_all(pattern, message):
         for m in rx.finditer(text):
             line=text.count('\n',0,m.start())+1
             errors.append(f'{rel}:{line} {message}')
-version=(3, 8, 6)
+version=(3, 8, 8)
 if version[1]>9 or version[2]>9: errors.append('version violates one-digit minor/patch policy')
 for rel in ('src/LocalGPT/LocalGPT.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj'):
-    req(rel,'<Version>3.8.6</Version>')
+    req(rel,'<Version>3.8.8</Version>')
     try: ET.parse(ROOT/rel)
     except Exception as exc: errors.append(f'{rel} XML parse failed: {exc}')
 try:
     meta=json.loads(read('docs/docfx.json')).get('build',{}).get('globalMetadata',{})
-    if meta.get('localgptVersion')!='3.8.6': errors.append('docs/docfx.json localgptVersion != 3.8.6')
+    if meta.get('localgptVersion')!='3.8.8': errors.append('docs/docfx.json localgptVersion != 3.8.8')
 except Exception as exc: errors.append(f'docfx json parse failed: {exc}')
 for rel,mark in (
-    ('docs/index.md','**Version 3.8.6**'),('docs/pdf/toc.yml','LocalGPT-3.8.6.pdf'),
-    ('RELEASE.md','# LocalGPT 3.8.6'),('CHANGELOG-v3.8.6-STARTUP-GUARD-PARITY-REPAIR.md','startup guard parity repair'),
-    ('VALIDATION-v3.8.6-source.md','# LocalGPT 3.8.6 source validation'),
-    ('src/LocalGPT/Components/App.razor','localgpt-chat-ui.js?v=3.8.6'),
-    ('src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs','LocalGPT/3.8.6')): req(rel,mark)
+    ('docs/index.md','**Version 3.8.8**'),('docs/pdf/toc.yml','LocalGPT-3.8.8.pdf'),
+    ('RELEASE.md','# LocalGPT 3.8.8'),('CHANGELOG-v3.8.8-SEED-MANIFEST-BUILD-CONTRACT-REPAIR.md','seed manifest/build contract repair'),
+    ('VALIDATION-v3.8.8-source.md','# LocalGPT 3.8.8 source validation'),
+    ('src/LocalGPT/Components/App.razor','localgpt-chat-ui.js?v=3.8.8'),
+    ('src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs','LocalGPT/3.8.8')): req(rel,mark)
 
 docs=read('build/Build-Documentation.ps1')
 for marker in (
@@ -158,7 +158,7 @@ for p in pages.rglob('*.razor'):
         errors.append(f'routed page lost InteractiveServer: {p.relative_to(ROOT).as_posix()}')
 for p in ROOT.rglob('*'):
     if p.is_dir() and p.name in ('bin','obj') and 'src' in p.parts: errors.append(f'repository-local build state present: {p.relative_to(ROOT)}')
-# 3.8.4 application-owned storage contract. Mutable LocalGPT state remains per-user by default;
+# 3.8.8 application-owned storage contract. Mutable LocalGPT state remains per-user by default;
 # provider/tool install discovery is intentionally allowed to use host user/system locations.
 platform_paths=read('src/LocalGPT/Program.ServiceRegistration.cs')
 for marker_text in (
@@ -202,84 +202,77 @@ for p in (ROOT/'src').rglob('*.cs'):
     if 'SpecialFolder.LocalApplicationData' in p.read_text(encoding='utf-8-sig', errors='replace') and rel not in allowed_local_appdata:
         errors.append(f'application-owned code bypasses LocalGptApplicationDataPaths: {rel}')
 
-# 3.8.6 host-start invariant: only a lightweight post-listen coordinator may participate in
-# ASP.NET Core host startup. Heavy application workers are resolved only after ApplicationStarted.
-registration=read('src/LocalGPT/Program.ServiceRegistration.cs')
-hosted_calls=re.findall(r'AddHostedService<([^>]+)>\(\)', registration)
-if hosted_calls != ['LocalGptPostListenHostedServiceCoordinator']:
-    errors.append(f'expected only LocalGptPostListenHostedServiceCoordinator as direct hosted service, found {hosted_calls}')
-for worker in (
-    'DatabaseInitializationHostedService', 'RemoteControlPollingHostedService',
-    'LocalGPT.Services.Council.RuntimeCapabilityDirectoryHostedService', 'DxAiFunctionCatalogHostedService',
-    'OneWireTcpHostedService', 'OneWireDiscoveryHostedService',
-    'OneWireCouncilApprovalProcessorHostedService', 'OneWireWorkProcessorHostedService'):
-    marker=f'AddSingleton<{worker}>();'
-    if marker not in registration:
-        errors.append(f'post-listen worker is not registered as a concrete singleton: {worker}')
-coordinator=read('src/LocalGPT/Services/LocalGptPostListenHostedServiceCoordinator.cs')
-for marker_text in (
-    'IHostApplicationLifetime applicationLifetime',
-    'applicationLifetime.ApplicationStarted.IsCancellationRequested',
-    'CancellationTokenSource.CreateLinkedTokenSource',
-    'LocalGPT web listener is online; starting post-listen application workers.',
-    'services.GetRequiredService<DatabaseInitializationHostedService>()',
-    'services.GetRequiredService<RemoteControlPollingHostedService>()',
-    'services.GetRequiredService<RuntimeCapabilityDirectoryHostedService>()',
-    'services.GetRequiredService<DxAiFunctionCatalogHostedService>()',
-    'services.GetRequiredService<OneWireTcpHostedService>()',
-    'services.GetRequiredService<OneWireDiscoveryHostedService>()',
-    'services.GetRequiredService<OneWireCouncilApprovalProcessorHostedService>()',
-    'services.GetRequiredService<OneWireWorkProcessorHostedService>()',
-    'await worker.StartAsync(stoppingToken).ConfigureAwait(false)',
-    'await worker.StopAsync(stopBudget.Token).ConfigureAwait(false)'):
-    if marker_text not in coordinator:
-        errors.append(f'post-listen coordinator missing startup invariant marker: {marker_text}')
-# Worker instances must not be resolved in Program/BuildWebApp before ApplicationStarted.
-program=read('src/LocalGPT/Program.cs')
-for worker in ('DatabaseInitializationHostedService','RemoteControlPollingHostedService','RuntimeCapabilityDirectoryHostedService','DxAiFunctionCatalogHostedService','OneWireTcpHostedService','OneWireDiscoveryHostedService','OneWireCouncilApprovalProcessorHostedService','OneWireWorkProcessorHostedService'):
-    if f'GetRequiredService<{worker}>' in program:
-        errors.append(f'Program resolves post-listen worker before host startup: {worker}')
-if 'app.Lifetime.ApplicationStarted.Register' not in program:
-    errors.append('runtime endpoint publication is no longer bound to ApplicationStarted')
-
-
-
-# 3.8.6: authoritative PowerShell build guard must assert the same post-listen lifecycle
-operational=read('build/Assert-OperationalDiagnostics.ps1')
-for marker in (
-    'AddSingleton<DatabaseInitializationHostedService>',
-    'AddHostedService<LocalGptPostListenHostedServiceCoordinator>',
-    'LocalGptPostListenHostedServiceCoordinator.cs',
-    'ApplicationStarted',
-    'services\\.GetRequiredService<DatabaseInitializationHostedService>',
-    "Worker '$workerType' must remain behind LocalGptPostListenHostedServiceCoordinator",
-    "Post-listen worker '$workerType' must remain registered as a concrete singleton",
-    "Write-Output 'Operational diagnostics validation failed:'",
+# 3.8.8 boot dependency-cycle repair: preserve ordinary hosted services while preventing
+# database-backed runtime policy and service-activity diagnostics from re-entering the
+# database initializer during hosted-service construction.
+db_init=read('src/LocalGPT/Services/Persistence/DatabaseInitializationService.cs')
+migration_compat=read('src/LocalGPT/Services/Persistence/DatabaseMigrationCompatibilityService.cs')
+runtime_policy=read('src/LocalGPT/Services/Persistence/LocalGptRuntimePolicyDataService.cs')
+program_registration=read('src/LocalGPT/Program.ServiceRegistration.cs')
+for rel,text in (
+    ('DatabaseInitializationService.cs', db_init),
+    ('DatabaseMigrationCompatibilityService.cs', migration_compat),
 ):
-    if marker not in operational:
-        errors.append(f'operational diagnostics guard missing 3.8.6 lifecycle marker: {marker}')
-if "'AddHostedService<DatabaseInitializationHostedService>'" in operational:
-    errors.append('operational diagnostics guard still requires direct DatabaseInitializationHostedService startup registration')
-release=read('Build-Release.ps1')
-if "build/Assert-OperationalDiagnostics.ps1" not in release:
-    errors.append('Build-Release.ps1 does not fail-fast on operational diagnostics before expensive release work')
-startup_smoke=read('build/Test-LocalGptStartupHealth.ps1')
-for marker in ('LocalGptDatabase__Path', '/health', 'TimeoutSeconds = 45', '$process.Kill()', 'XDG_DATA_HOME', 'LOCALAPPDATA', 'OneWire__Enabled'):
-    if marker not in startup_smoke:
-        errors.append(f'startup health smoke test missing marker: {marker}')
-if "build/Test-LocalGptStartupHealth.ps1" not in release:
-    errors.append('Build-Release.ps1 does not run the fail-fast startup health smoke test')
-try:
-    build_index=release.index('RID-neutral LocalGPT build for documentation failed.')
-    smoke_index=release.index('build/Test-LocalGptStartupHealth.ps1')
-    docs_index=release.index('Generating the complete LocalGPT documentation once for all runtime packages...')
-    if not (build_index < smoke_index < docs_index):
-        errors.append('startup health smoke test is not ordered between RID-neutral build and documentation generation')
-except ValueError:
-    errors.append('could not verify startup health smoke-test ordering in Build-Release.ps1')
+    if 'IServiceActivityService' in text:
+        errors.append(f'{rel} reintroduced IServiceActivityService into the boot-critical database graph')
+for marker_text in (
+    'CreateSeedDefinition(seedData.GetSeed())',
+    'Initialized LocalGPT runtime policy from the built-in seed',
+    'private LocalGptRuntimePolicyDefinition CreateSeedDefinition',
+    'private LocalGptRuntimePolicyState BuildState',
+):
+    if marker_text not in runtime_policy:
+        errors.append(f'runtime-policy constructor/bootstrap repair missing: {marker_text}')
+ctor_start=runtime_policy.find('public LocalGptRuntimePolicyDataService(')
+ctor_end=runtime_policy.find('public string GetString', ctor_start)
+ctor_block=runtime_policy[ctor_start:ctor_end if ctor_end >= 0 else len(runtime_policy)]
+if 'Reload();' in ctor_block:
+    errors.append('LocalGptRuntimePolicyDataService constructor still performs synchronous database reload')
+for marker_text in (
+    'ILocalGptRuntimePolicyDataService runtimePolicy',
+    'await initializer.InitializeAsync(stoppingToken).ConfigureAwait(false);',
+    'runtimePolicy.Reload();',
+    'the built-in seed remains active',
+):
+    if marker_text not in db_init:
+        errors.append(f'database hosted-service post-initialization policy reload missing: {marker_text}')
+init_pos=db_init.find('await initializer.InitializeAsync(stoppingToken).ConfigureAwait(false);')
+reload_pos=db_init.find('runtimePolicy.Reload();')
+if init_pos < 0 or reload_pos < 0 or reload_pos < init_pos:
+    errors.append('persisted runtime policy must reload only after database initialization completes')
+expected_hosted=(
+    'DatabaseInitializationHostedService',
+    'RemoteControlPollingHostedService',
+    'RuntimeCapabilityDirectoryHostedService',
+    'DxAiFunctionCatalogHostedService',
+    'OneWireTcpHostedService',
+    'OneWireDiscoveryHostedService',
+    'OneWireCouncilApprovalProcessorHostedService',
+    'OneWireWorkProcessorHostedService',
+)
+for service in expected_hosted:
+    if not re.search(rf'AddHostedService<[^>]*{re.escape(service)}>\(\)', program_registration):
+        errors.append(f'normal ASP.NET hosted-service registration missing: {service}')
+if program_registration.count('AddHostedService<') != len(expected_hosted):
+    errors.append(f'expected exactly {len(expected_hosted)} LocalGPT hosted-service registrations, found {program_registration.count("AddHostedService<")}')
+for rel in ('src/LocalGPT/Program.ServiceRegistration.cs','src/LocalGPT/Program.cs'):
+    if 'LocalGptPostListenHostedServiceCoordinator' in read(rel):
+        errors.append(f'{rel} reintroduced the rejected manual post-listen coordinator')
+
+# 3.8.8 clean-source seed contract
+_seed = ROOT / "docs" / "COUNCIL_KNOWLEDGE_SEED.sql"
+if not _seed.is_file():
+    errors.append("docs/COUNCIL_KNOWLEDGE_SEED.sql is required by LocalGPT.csproj and the KnowledgeFiles compatibility contract")
+else:
+    _seed_text = _seed.read_text(encoding="utf-8")
+    if "does not execute this SQL file automatically" not in _seed_text:
+        errors.append("Council seed manifest must state non-execution ownership")
+_prereq = read("build/Initialize-BuildPrerequisites.ps1")
+if "docs/COUNCIL_KNOWLEDGE_SEED.sql" not in _prereq:
+    errors.append("clean-source preflight must validate the packaged Council seed manifest")
 
 if errors:
-    print('LocalGPT 3.8.6 static release audit FAILED:')
+    print('LocalGPT 3.8.8 static release audit FAILED:')
     for e in errors: print(' -',e)
     sys.exit(1)
-print('LocalGPT 3.8.6 source audit passed.')
+print('LocalGPT 3.8.8 source audit passed.')

@@ -32,21 +32,29 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// Initializes a new <see cref="LocalGptRuntimePolicyDataService"/> instance and captures the dependencies or initial state required by its LocalGPT runtime policy workflow.
     /// </summary>
     /// <param name="store">Local gpt runtime policy store service dependency used by the LocalGPT runtime policy workflow to provide the corresponding application capability.</param>
+    /// <param name="seedData">Authoritative built-in runtime-policy seed used before persisted database overrides are available.</param>
     /// <param name="regexCompiler">Regex compilation service that owns option and timeout policy.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-    public LocalGptRuntimePolicyDataService(ILocalGptRuntimePolicyStoreService store, IRegexCompilationService regexCompiler, ILogger<LocalGptRuntimePolicyDataService> logger)
+    public LocalGptRuntimePolicyDataService(
+        ILocalGptRuntimePolicyStoreService store,
+        ILocalGptRuntimePolicySeedDataService seedData,
+        IRegexCompilationService regexCompiler,
+        ILogger<LocalGptRuntimePolicyDataService> logger)
     {
         this.store = store;
         this.regexCompiler = regexCompiler;
         this.logger = logger;
         try
         {
-            Reload();
-            logger.LogInformation($"Initialized the database-backed LocalGPT runtime policy service.");
+            // Boot must never synchronously enter the SQLite initializer from a singleton constructor.
+            // The seed is the authoritative safe bootstrap; the hosted database initializer reloads
+            // persisted user policy immediately after migrations and deterministic seeding complete.
+            state = BuildState(CreateSeedDefinition(seedData.GetSeed()));
+            logger.LogInformation("Initialized LocalGPT runtime policy from the built-in seed; persisted overrides will load after database initialization.");
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, $"Could not initialize the LocalGPT runtime policy service: {exception.Message}");
+            logger.LogError(exception, $"Could not initialize the LocalGPT runtime-policy seed state: {exception.Message}");
             throw;
         }
     }
@@ -240,6 +248,61 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         try
         {
             var definition = store.GetDefinition() ?? throw new InvalidDataException("The runtime policy store returned no definition.");
+            var next = BuildState(definition);
+            Volatile.Write(ref state, next);
+            var snapshot = CreateSnapshot(next);
+            logger.LogInformation($"Reloaded {snapshot.Values.Count} values, {snapshot.Collections.Count} collections and {snapshot.RegexPatterns.Count} regexes from the LocalGPT database.");
+            return snapshot;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not reload LocalGPT runtime policy data: {exception.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>Builds a runtime-policy definition from the authoritative compiled-in bootstrap seed without database I/O.</summary>
+    /// <param name="seed">Seed value supplied to the local GPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The local GPT runtime policy definition produced by the operation.</returns>
+    private LocalGptRuntimePolicyDefinition CreateSeedDefinition(LocalGptRuntimePolicySeedModel seed)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(seed);
+            var definition = new LocalGptRuntimePolicyDefinition
+            {
+                Values = seed.Values.ToDictionary(item => item.Key, item => item.Value),
+                Collections = seed.Collections.ToDictionary(
+                    item => item.Key,
+                    item => (IReadOnlyList<string>)item.Values.ToArray()),
+                RegexPatterns = seed.RegexPatterns.ToDictionary(
+                    item => item.Key,
+                    item => new LocalGptRuntimeRegexDefinition
+                    {
+                        Key = item.Key,
+                        Name = item.Name,
+                        Pattern = item.Pattern,
+                        Flags = item.Flags
+                    })
+            };
+            logger.LogTrace($"Created the non-database LocalGPT runtime-policy bootstrap definition from the authoritative seed.");
+            return definition;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not create the LocalGPT runtime-policy bootstrap definition from seed data: {exception.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>Compiles an immutable runtime-policy state from either bootstrap seed data or persisted database data.</summary>
+    /// <param name="definition">Definition value supplied to the local GPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The local GPT runtime policy state produced by the operation.</returns>
+    private LocalGptRuntimePolicyState BuildState(LocalGptRuntimePolicyDefinition definition)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(definition);
             var values = definition.Values ?? throw new InvalidDataException("The runtime policy definition contains no values.");
             if (!values.TryGetValue(LocalGptRuntimeValue.RegexTimeoutMilliseconds, out var timeoutRaw))
                 throw new InvalidDataException("RegexTimeoutMilliseconds is missing from the runtime policy definition.");
@@ -262,15 +325,12 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
                         item => item.Key,
                         item => regexCompiler.Compile(item.Value.Pattern, item.Value.Flags, timeout, item.Value.Name))
                     .ToFrozenDictionary());
-
-            Volatile.Write(ref state, next);
-            var snapshot = CreateSnapshot(next);
-            logger.LogInformation($"Reloaded {snapshot.Values.Count} values, {snapshot.Collections.Count} collections and {snapshot.RegexPatterns.Count} regexes from the LocalGPT database.");
-            return snapshot;
+            logger.LogTrace($"Compiled immutable LocalGPT runtime-policy state with {next.Values.Count} values, {next.Collections.Count} collections, and {next.Patterns.Count} regex patterns.");
+            return next;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, $"Could not reload LocalGPT runtime policy data: {exception.Message}");
+            logger.LogError(exception, $"Could not compile immutable LocalGPT runtime-policy state: {exception.Message}");
             throw;
         }
     }

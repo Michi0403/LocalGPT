@@ -25,6 +25,7 @@ $requiredDocumentationSources = @(
     'docs/architecture/onewire-security.md',
     'docs/engineering/build-validation.md',
     'docs/reference/capability-map.md',
+    'docs/COUNCIL_KNOWLEDGE_SEED.sql',
     'docs/templates/localgpt/public/main.css',
     'docs/templates/localgpt/public/main.js',
     'docs/templates/localgpt/public/favicon.ico',
@@ -41,6 +42,27 @@ if ($missingDocumentationSources.Count -gt 0) {
 }
 Write-Host "Documentation source preflight: $($requiredDocumentationSources.Count) required source file(s) are present." -ForegroundColor DarkGreen
 
+$councilSeedPath = Join-Path $repositoryRoot 'docs/COUNCIL_KNOWLEDGE_SEED.sql'
+$councilSeedSql = [System.IO.File]::ReadAllText($councilSeedPath)
+$requiredCouncilSeedMarkers = @(
+    'INSERT OR IGNORE INTO "CouncilKnowledgeEntries"',
+    '"VerificationStatus"',
+    '"ReviewStatus"',
+    '"LastVerifiedAtUtc"',
+    '"StalenessReason"',
+    '"StalenessDetectedBy"',
+    '"SourceHash"'
+)
+foreach ($marker in $requiredCouncilSeedMarkers) {
+    if ($councilSeedSql.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "The LocalGPT Council knowledge SQL seed is missing executable/current-schema marker '$marker'. Restore docs/COUNCIL_KNOWLEDGE_SEED.sql from the maintained source seed before building."
+    }
+}
+if ($councilSeedSql -match '(?im)^\s*(?:UPDATE|DELETE|DROP|ALTER|REPLACE)\b') {
+    throw 'The LocalGPT Council knowledge SQL seed contains a destructive/non-seed SQL statement. The maintained repair seed must remain INSERT OR IGNORE only.'
+}
+Write-Host 'Council knowledge SQL seed preflight: executable idempotent INSERT statements and current schema fields are present.' -ForegroundColor DarkGreen
+
 $python = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($null -eq $python) { $python = Get-Command python3 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 }
 if ($null -eq $python) {
@@ -49,6 +71,15 @@ if ($null -eq $python) {
 & $python.Source -c "import sys; raise SystemExit(0 if sys.version_info.major >= 3 else 1)"
 if ($LASTEXITCODE -ne 0) { throw 'The resolved Python executable is not Python 3.' }
 Write-Host "Documentation Python preflight: using $($python.Source)." -ForegroundColor DarkGreen
+
+$councilSeedAudit = Join-Path $repositoryRoot 'build/audit_council_sql_seed.py'
+if (-not (Test-Path -LiteralPath $councilSeedAudit -PathType Leaf)) {
+    throw "The Council knowledge SQL seed audit is missing: $councilSeedAudit"
+}
+& $python.Source $councilSeedAudit
+if ($LASTEXITCODE -ne 0) {
+    throw 'The Council knowledge SQL seed failed executable/current-schema validation.'
+}
 
 & (Join-Path $repositoryRoot 'build/Initialize-DevExpressLicense.ps1') -Require:(-not $AllowMissingDevExpressLicense)
 

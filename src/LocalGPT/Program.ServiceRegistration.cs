@@ -183,7 +183,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IInitialDataCatalog, InitialDataCatalog>();
                 builder.Services.AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>();
                 builder.Services.AddSingleton<IDatabaseInitializationService, DatabaseInitializationService>();
-                builder.Services.AddSingleton<DatabaseInitializationHostedService>();
+                builder.Services.AddHostedService<DatabaseInitializationHostedService>();
                 builder.Services.AddSingleton<IDxAiFunctionJsonService, DxAiFunctionJsonService>();
                 builder.Services.AddScoped<IDxAiFunctionCallRecoveryService, DxAiFunctionCallRecoveryService>();
                 builder.Services.AddSingleton<ILocalPathExplorerService, LocalPathExplorerService>();
@@ -246,7 +246,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IRemoteControlConnectorService, RemoteControlConnectorService>();
                 builder.Services.AddHttpClient("LocalGPTRemoteControl")
                     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-                builder.Services.AddSingleton<RemoteControlPollingHostedService>();
+                builder.Services.AddHostedService<RemoteControlPollingHostedService>();
                 builder.Services.AddSingleton<RemoteImportDxParameterReader>();
                 builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();
                 builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
@@ -254,7 +254,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<ICouncilCodeGenerationPlanService, CouncilCodeGenerationPlanService>();
                 builder.Services.AddSingleton<ICouncilSpoolerService, LocalGPT.Services.Council.CouncilSpoolerService>();
                 builder.Services.AddScoped<IRuntimeCapabilityDirectoryService, LocalGPT.Services.Council.RuntimeCapabilityDirectoryService>();
-                builder.Services.AddSingleton<LocalGPT.Services.Council.RuntimeCapabilityDirectoryHostedService>();
+                builder.Services.AddHostedService<LocalGPT.Services.Council.RuntimeCapabilityDirectoryHostedService>();
                 builder.Services.AddScoped<ICouncilPreflightService, LocalGPT.Services.Council.CouncilPreflightService>();
                 builder.Services.AddScoped<IDebugArtifactInspectionService, DebugArtifactInspectionService>();
                 builder.Services.AddSingleton<IUserDxAiFunctionService, UserDxAiFunctionService>();
@@ -265,7 +265,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IDxAiFunctionCatalogService, DxAiFunctionCatalogService>();
                 builder.Services.AddScoped<ICouncilDxFunctionOrchestrator, CouncilDxFunctionOrchestrator>();
                 builder.Services.AddScoped<IPublicServiceMethodInvoker, PublicServiceMethodInvoker>();
-                builder.Services.AddSingleton<DxAiFunctionCatalogHostedService>();
+                builder.Services.AddHostedService<DxAiFunctionCatalogHostedService>();
                 builder.Services.AddScoped<IChatSessionContext, ChatSessionContext>();
                 builder.Services.AddScoped<IDxAiFunctionServiceClient, DxAiFunctionServiceClient>();
 
@@ -308,11 +308,10 @@ namespace LocalGPT
                     provider.GetRequiredService<IOneWireCapabilityCatalog>());
                 builder.Services.AddSingleton<IOneWireOperationExecutor, OneWireOperationExecutor>();
                 builder.Services.AddSingleton<IOneWireMessageDispatcher, OneWireMessageDispatcher>();
-                builder.Services.AddSingleton<OneWireTcpHostedService>();
-                builder.Services.AddSingleton<OneWireDiscoveryHostedService>();
-                builder.Services.AddSingleton<OneWireCouncilApprovalProcessorHostedService>();
-                builder.Services.AddSingleton<OneWireWorkProcessorHostedService>();
-                builder.Services.AddHostedService<LocalGptPostListenHostedServiceCoordinator>();
+                builder.Services.AddHostedService<OneWireTcpHostedService>();
+                builder.Services.AddHostedService<OneWireDiscoveryHostedService>();
+                builder.Services.AddHostedService<OneWireCouncilApprovalProcessorHostedService>();
+                builder.Services.AddHostedService<OneWireWorkProcessorHostedService>();
                 builder.Services.AddSingleton<IOrganicAddonManifestService, OrganicAddonManifestService>();
                 builder.Services.AddScoped<IOrganicSkillRegistryService, OrganicSkillRegistryService>();
                 builder.Services.AddScoped<IModelCapabilitySelfAssessmentService, LocalGPT.Services.Council.Skills.ModelCapabilitySelfAssessmentService>();
@@ -398,9 +397,13 @@ namespace LocalGPT
     /// </summary>
     internal static class LocalGptApplicationDataPaths
     {
+        /// <summary>
+        /// Defines the product name constant used by <see cref="LocalGptApplicationDataPaths"/> so callers and internal logic share the same stable value.
+        /// </summary>
         public const string ProductName = "LocalGPT";
     
         /// <summary>Resolves the host's per-user local application-data base with durable fallbacks.</summary>
+        /// <returns>The string produced by the operation.</returns>
         public static string ResolveUserDataBase()
         {
             var userProfile = Environment.GetFolderPath(
@@ -459,10 +462,15 @@ namespace LocalGPT
             throw new InvalidOperationException("LocalGPT could not resolve a durable per-user application-data directory.");
         }
     
-        /// <summary>Gets the canonical per-user LocalGPT root.</summary>
+        /// <summary>
+        /// Resolves user root for <see cref="LocalGptApplicationDataPaths"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT application data paths workflow.
+        /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public static string ResolveUserRoot() => Path.Combine(ResolveUserDataBase(), ProductName);
     
         /// <summary>Gets a child path under the canonical per-user LocalGPT root.</summary>
+        /// <param name="segments">Segments value supplied to the local GPT application data paths operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public static string ResolveUserPath(params string[] segments)
         {
             var parts = new string[segments.Length + 1];
@@ -472,6 +480,7 @@ namespace LocalGPT
         }
     
         /// <summary>Returns read/discovery-only system-wide LocalGPT roots for the current host.</summary>
+        /// <returns>The collection produced by the operation.</returns>
         public static IReadOnlyList<string> EnumerateSystemWideRoots()
         {
             var candidates = new List<string>();
@@ -501,8 +510,14 @@ namespace LocalGPT
         }
     
         /// <summary>Gets the application directory as a portable/read-only discovery root, not a mutable-data default.</summary>
+        /// <returns>The string produced by the operation.</returns>
         public static string ResolvePortableRoot() => Path.GetFullPath(AppContext.BaseDirectory);
     
+        /// <summary>
+        /// Adds folder candidate for <see cref="LocalGptApplicationDataPaths"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT application data paths workflow.
+        /// </summary>
+        /// <param name="candidates">String dependency used by the local GPT application data paths workflow to provide the corresponding application capability.</param>
+        /// <param name="folder">Folder value supplied to the local GPT application data paths operation and used when producing its result.</param>
         private static void AddFolderCandidate(ICollection<string> candidates, Environment.SpecialFolder folder)
         {
             var value = Environment.GetFolderPath(folder, Environment.SpecialFolderOption.DoNotVerify);
