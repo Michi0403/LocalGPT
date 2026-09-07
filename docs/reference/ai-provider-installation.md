@@ -8,7 +8,7 @@ The command profiles are data, not application policy. A user may update or repl
 
 Source/credit: [Ollama download documentation](https://ollama.com/download/windows).
 
-```
+```localgpt-provider-profile
 {
   "key": "ollama-windows",
   "displayName": "Ollama",
@@ -34,7 +34,7 @@ Source/credit: [Ollama download documentation](https://ollama.com/download/windo
 
 Source/credit: [Ollama Linux installation documentation](https://ollama.com/download/linux).
 
-```
+```localgpt-provider-profile
 {
   "key": "ollama-linux",
   "displayName": "Ollama",
@@ -60,7 +60,7 @@ Source/credit: [Ollama Linux installation documentation](https://ollama.com/down
 
 Source/credit: [Ollama download documentation](https://ollama.com/download).
 
-```
+```localgpt-provider-profile
 {
   "key": "ollama-macos",
   "displayName": "Ollama",
@@ -86,7 +86,7 @@ Source/credit: [Ollama download documentation](https://ollama.com/download).
 
 Source/credit: [LM Studio documentation](https://lmstudio.ai/docs/developer/core/headless).
 
-```
+```localgpt-provider-profile
 {
   "key": "lmstudio-windows",
   "displayName": "LM Studio / llmster",
@@ -108,7 +108,7 @@ Source/credit: [LM Studio documentation](https://lmstudio.ai/docs/developer/core
 
 Source/credit: [LM Studio documentation](https://lmstudio.ai/docs/developer/core/headless).
 
-```
+```localgpt-provider-profile
 {
   "key": "lmstudio-linux",
   "displayName": "LM Studio / llmster",
@@ -130,7 +130,7 @@ Source/credit: [LM Studio documentation](https://lmstudio.ai/docs/developer/core
 
 Source/credit: [LM Studio documentation](https://lmstudio.ai/docs/developer/core/headless).
 
-```
+```localgpt-provider-profile
 {
   "key": "lmstudio-macos",
   "displayName": "LM Studio / llmster",

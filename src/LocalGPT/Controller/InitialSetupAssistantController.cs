@@ -76,19 +76,43 @@ public sealed class InitialSetupAssistantController(
         catch (Exception exception) { logger.LogError(exception, "Saving initial setup hardware failed; hardware values omitted."); return Results.InternalServerError("Hardware could not be saved. Review local logs for details."); }
     }
 
-    /// <summary>Performs one explicit CanIRun.ai lookup with source attribution.</summary>
-    /// <param name="deviceSlug">Device slug value supplied to the initial setup assistant operation and used when producing its result.</param>
+    /// <summary>Performs one explicit CanIRun.ai lookup with reviewed hardware facts and source attribution.</summary>
+    /// <param name="device">Reviewed hardware facts sent only after explicit user approval.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
+    [HttpPost("canirun")]
+    [HumanApprovalRequired("initial-setup.canirun.lookup", "Look up CanIRun.ai recommendations", "Contact canirun.ai with the reviewed accelerator name, system/unified RAM and optional dedicated VRAM, then parse its attributed JSON recommendations.", "Low", "Local machine operator")]
+    public async Task<IResult> CanIRun([FromBody] InitialSetupHardwareDevice device, [FromQuery] bool userConfirmed, CancellationToken cancellationToken)
+    {
+        try { return Results.Ok(await recommendations.GetRecommendationsAsync(device, userConfirmed, cancellationToken).ConfigureAwait(false)); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or HttpRequestException or InvalidDataException or System.Text.Json.JsonException) { return Results.BadRequest(new { Error = exception.Message }); }
+        catch (Exception exception) { logger.LogError(exception, "CanIRun.ai setup lookup failed; hardware facts and response omitted."); return Results.InternalServerError("CanIRun.ai recommendations could not be loaded. Review local logs for details."); }
+    }
+
+    /// <summary>Retains the 3.8.x slug route by resolving the slug to one locally reviewed hardware row before using the JSON recommendation API.</summary>
+    /// <param name="deviceSlug">Legacy CanIRun.ai device slug used only to select a locally reviewed hardware row.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("canirun/{deviceSlug}")]
-    [HumanApprovalRequired("initial-setup.canirun.lookup", "Look up CanIRun.ai recommendations", "Contact canirun.ai for the selected GPU and parse its public model compatibility cards with source attribution.", "Low", "Local machine operator")]
-    public async Task<IResult> CanIRun(string deviceSlug, [FromQuery] bool userConfirmed, CancellationToken cancellationToken)
+    [HumanApprovalRequired("initial-setup.canirun.lookup", "Look up CanIRun.ai recommendations", "Resolve the legacy slug to locally reviewed hardware and contact canirun.ai only after explicit approval.", "Low", "Local machine operator")]
+    public async Task<IResult> CanIRunLegacy(string deviceSlug, [FromQuery] bool userConfirmed, CancellationToken cancellationToken)
     {
-        try { return Results.Ok(await recommendations.GetRecommendationsAsync(deviceSlug, userConfirmed, cancellationToken).ConfigureAwait(false)); }
+        try
+        {
+            var snapshot = await setup.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+            var device = snapshot.Hardware.FirstOrDefault(item =>
+                item.CanIRunSlug.Equals(deviceSlug, StringComparison.OrdinalIgnoreCase)
+                || recommendations.SuggestDeviceSlug(item.Name).Equals(deviceSlug, StringComparison.OrdinalIgnoreCase));
+            if (device is null)
+                throw new ArgumentException("The legacy CanIRun.ai slug does not match a locally reviewed hardware row. Save/review the hardware list or use the hardware-facts endpoint.", nameof(deviceSlug));
+            return Results.Ok(await recommendations.GetRecommendationsAsync(device, userConfirmed, cancellationToken).ConfigureAwait(false));
+        }
         catch (OperationCanceledException) { throw; }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or HttpRequestException or InvalidDataException) { return Results.BadRequest(new { Error = exception.Message }); }
-        catch (Exception exception) { logger.LogError(exception, "CanIRun.ai setup lookup failed; response omitted."); return Results.InternalServerError("CanIRun.ai recommendations could not be loaded. Review local logs for details."); }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or HttpRequestException or InvalidDataException or System.Text.Json.JsonException) { return Results.BadRequest(new { Error = exception.Message }); }
+        catch (Exception exception) { logger.LogError(exception, "Legacy CanIRun.ai setup lookup failed; hardware facts and response omitted."); return Results.InternalServerError("CanIRun.ai recommendations could not be loaded. Review local logs for details."); }
     }
 
     /// <summary>Lists knowledge-backed provider bootstrap profiles for this operating system.</summary>

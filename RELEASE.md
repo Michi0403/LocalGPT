@@ -1,11 +1,11 @@
-# LocalGPT 3.8.9
+# LocalGPT 3.9.1
 
-LocalGPT 3.8.9 keeps the 3.8.3 provider onboarding repair, the 3.8.4 cross-platform per-user path contract, and the 3.8.7 boot dependency-cycle repair while correcting the Council SQL seed artifact restored in 3.8.8.
+LocalGPT 3.9.1 is the build-guard repair for the 3.9.0 local-runtime Setup completion.
 
-`docs/COUNCIL_KNOWLEDGE_SEED.sql` is executable, idempotent SQLite again. Its 60 source-backed Council knowledge rows come from the supplied historical seed, retain their stable identifiers/content, and now include the current required knowledge lifecycle columns and deterministic source hashes. The script uses `INSERT OR IGNORE`, so rerunning it does not overwrite existing rows under the same identifiers. LocalGPT packages the script as a repair/backup asset and repository reference; application startup does not auto-execute arbitrary SQL.
+The 3.9.0 source correctly added Ollama lifecycle control, provider-profile v2 parsing, first-model bootstrap, CanIRun JSON recommendations, and system/unified-memory flow, but two new Ollama profile-prefix checks were implemented directly in `InitialSetupAssistantPanel.razor`. The maintained text-service ownership build guard rejects that component-owned string policy before compilation.
 
-The `/database` frontend remains a structured SQLite table/knowledge editor. It does not currently provide a generic raw-SQL file executor, so the Council SQL file remains explicitly packaged and referenced rather than being removed behind a nonexistent frontend workflow.
+3.9.1 keeps that guard unchanged and moves both Setup classification sites onto the already existing provider-owned `IAiProviderBootstrapService.IsOllamaProfile(...)` policy. The follow-up source review also found and removed the next constructor-initialization guard violation in the new CanIRun JSON request by moving the fixed JSON media type out of the `StringContent` constructor literal.
 
-The established eight `AddHostedService<T>` registrations remain intact. No 3.8.5/3.8.6 post-listen coordinator lifecycle is present.
+No 3.9.0 feature is rolled back. Provider bootstrap v2/fallback parsing, explicit Ollama Start / Stop / Restart / Refresh, manual first-model installation, CanIRun opt-in JSON recommendations, reviewed RAM/unified-memory flow, the eight hosted services, the 15 InteractiveServer boundaries, and the executable Council SQL seed are preserved.
 
-See `CHANGELOG-v3.8.9-EXECUTABLE-COUNCIL-SQL-SEED-REPAIR.md` and `VALIDATION-v3.8.9-source.md`.
+See `CHANGELOG-v3.9.1-TEXT-SERVICE-OWNERSHIP-BUILD-REPAIR.md` and `VALIDATION-v3.9.1-source.md`. The full feature scope introduced in 3.9.0 remains documented in `CHANGELOG-v3.9.0-LOCAL-RUNTIME-SETUP-COMPLETION.md`.

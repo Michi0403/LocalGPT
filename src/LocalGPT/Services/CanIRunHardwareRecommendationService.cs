@@ -1,27 +1,29 @@
 using System.Globalization;
-using System.Net;
+using System.Text;
 using System.Text.Json;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
-/// <summary>Fetches explicitly approved CanIRun.ai device pages and converts their public model-card metadata into bounded LocalGPT recommendations.</summary>
+/// <summary>Posts explicitly approved hardware facts to CanIRun.ai's JSON recommendation API and converts the bounded response into LocalGPT recommendations.</summary>
 /// <param name="httpClientFactory">Creates the redirect-disabled HTTP client dedicated to the optional CanIRun.ai lookup.</param>
-/// <param name="regexPatterns">Provides database-backed parsers for model cards and HTML data attributes.</param>
 /// <param name="runtimePolicy">Database-backed operator runtime policy.</param>
-/// <param name="logger">Writes lookup diagnostics without copying page bodies into logs.</param>
+/// <param name="logger">Writes lookup diagnostics without copying request hardware values or response bodies into logs.</param>
 public sealed class CanIRunHardwareRecommendationService(
     IHttpClientFactory httpClientFactory,
-    IRegexPatternService regexPatterns,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CanIRunHardwareRecommendationService> logger) : ICanIRunHardwareRecommendationService
 {
+    /// <summary>Stores the fixed JSON media type used for the optional CanIRun.ai request.</summary>
+    private const string JsonMediaType = "application/json";
+    /// <summary>Stores the fixed HTTPS JSON recommendation endpoint used only after explicit user opt-in.</summary>
+    private readonly Uri recommendationUri = new("https://canirun.ai/api/recommend", UriKind.Absolute);
 
-    /// <summary>Fetches one explicitly approved CanIRun.ai device page and parses its public recommendation cards.</summary>
+    /// <summary>Posts one explicitly approved hardware profile to the maintained CanIRun.ai recommendation endpoint.</summary>
     /// <inheritdoc />
     public async Task<IReadOnlyList<CanIRunModelRecommendation>> GetRecommendationsAsync(
-        string deviceSlug,
+        InitialSetupHardwareDevice device,
         bool userConfirmedWebLookup,
         CancellationToken cancellationToken = default)
     {
@@ -29,60 +31,54 @@ public sealed class CanIRunHardwareRecommendationService(
         {
             if (!userConfirmedWebLookup)
                 throw new InvalidOperationException("CanIRun.ai lookup requires explicit user opt-in for this web request.");
-            var slug = NormalizeSlug(deviceSlug);
-            if (string.IsNullOrWhiteSpace(slug))
-                throw new ArgumentException("A CanIRun.ai device slug is required.", nameof(deviceSlug));
+            ArgumentNullException.ThrowIfNull(device);
+            if (string.IsNullOrWhiteSpace(device.Name))
+                throw new ArgumentException("A reviewed GPU / accelerator name is required for CanIRun.ai recommendations.", nameof(device));
+            if (device.SystemMemoryGiB is not > 0)
+                throw new ArgumentException("Total system / unified memory is required for CanIRun.ai recommendations. Detect it locally or enter the reviewed GiB value first.", nameof(device));
 
-            var uri = new Uri($"https://www.canirun.ai/device/{Uri.EscapeDataString(slug)}/", UriKind.Absolute);
-            ValidateCanIRunUri(uri);
+            ValidateCanIRunUri(recommendationUri);
+            var gpu = new Dictionary<string, object?>
+            {
+                ["name"] = Bound(device.Name, 240)
+            };
+            if (device.DedicatedVramGiB is > 0)
+                gpu["vramGb"] = Math.Round(device.DedicatedVramGiB.Value, 2, MidpointRounding.AwayFromZero);
+
+            var payload = new Dictionary<string, object?>
+            {
+                ["hardware"] = new Dictionary<string, object?>
+                {
+                    ["ramGb"] = Math.Round(device.SystemMemoryGiB.Value, 2, MidpointRounding.AwayFromZero),
+                    ["gpu"] = gpu
+                }
+            };
+
             var client = httpClientFactory.CreateClient("LocalGPTCanIRun");
-            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("LocalGPT/3.8.9 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
+            using var request = new HttpRequestMessage(HttpMethod.Post, recommendationUri)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, JsonMediaType)
+            };
+            request.Headers.UserAgent.ParseAdd("LocalGPT/3.9.1 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if ((int)response.StatusCode is >= 300 and < 400)
-                throw new InvalidOperationException("CanIRun.ai redirects are not followed automatically. Review the configured device slug.");
+                throw new InvalidOperationException("CanIRun.ai redirects are not followed automatically.");
             response.EnsureSuccessStatusCode();
-            var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (html.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumPageCharacters)))
-                throw new InvalidDataException("The CanIRun.ai response exceeded LocalGPT's bounded page size.");
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (json.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumPageCharacters)))
+                throw new InvalidDataException("The CanIRun.ai response exceeded LocalGPT's bounded response size.");
 
-            var cardRegex = await regexPatterns.GetRegexAsync("builtin.canirun-model-card-pattern").ConfigureAwait(false)
-                ?? throw new InvalidOperationException("The CanIRun.ai model-card regex is unavailable.");
-            var attributeRegex = await regexPatterns.GetRegexAsync("builtin.html-data-attribute-pattern").ConfigureAwait(false)
-                ?? throw new InvalidOperationException("The HTML data-attribute regex is unavailable.");
-            var recommendations = new List<CanIRunModelRecommendation>();
-            foreach (System.Text.RegularExpressions.Match card in cardRegex.Matches(html))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var attributes = ParseAttributes(card.Groups["attrs"].Value, attributeRegex);
-                if (!attributes.TryGetValue("model-id", out var modelId) || string.IsNullOrWhiteSpace(modelId))
-                    continue;
-                var selectedQuantIndex = ParseInt(attributes.GetValueOrDefault("selected-quant"), -1);
-                var (quantization, vram) = ParseSelectedQuant(attributes.GetValueOrDefault("quants"), selectedQuantIndex);
-                recommendations.Add(new CanIRunModelRecommendation
-                {
-                    ModelId = Bound(modelId, 240),
-                    ModelName = Bound(attributes.GetValueOrDefault("model-name") ?? modelId, 240),
-                    Grade = Bound(attributes.GetValueOrDefault("grade") ?? string.Empty, 16),
-                    Status = Bound(attributes.GetValueOrDefault("status") ?? string.Empty, 48),
-                    Score = ParseInt(attributes.GetValueOrDefault("score"), 0),
-                    Quantization = Bound(quantization, 48),
-                    RequiredVramGiB = vram,
-                    Publisher = Bound(attributes.GetValueOrDefault("provider") ?? string.Empty, 120),
-                    DeviceSlug = slug,
-                    SourceUrl = uri.ToString()
-                });
-                if (recommendations.Count >= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumRecommendations)))
-                    break;
-            }
-
+            using var document = JsonDocument.Parse(json);
+            var recommendations = ParseRecommendations(document.RootElement, device.Name, recommendationUri.ToString(), cancellationToken);
             var result = recommendations
+                .Where(item => !string.IsNullOrWhiteSpace(item.ModelId))
                 .GroupBy(item => item.ModelId, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.OrderByDescending(item => item.Score).First())
                 .OrderByDescending(item => item.Score)
                 .ThenBy(item => item.ModelName, StringComparer.OrdinalIgnoreCase)
+                .Take(Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumRecommendations)))
                 .ToList();
-            logger.LogInformation("Loaded {RecommendationCount} CanIRun.ai recommendation card(s) for user-approved device slug {DeviceSlug}.", result.Count, slug);
+            logger.LogInformation("Loaded {RecommendationCount} CanIRun.ai JSON recommendation(s) for one user-approved hardware profile.", result.Count);
             return result;
         }
         catch (OperationCanceledException exception)
@@ -92,12 +88,12 @@ public sealed class CanIRunHardwareRecommendationService(
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "CanIRun.ai lookup failed; response content was omitted from logs.");
+            logger.LogError(exception, "CanIRun.ai lookup failed; hardware facts and response content were omitted from logs.");
             throw;
         }
     }
 
-    /// <summary>Builds an editable CanIRun.ai device slug from a local GPU display name without performing a network request.</summary>
+    /// <summary>Builds the legacy editable CanIRun.ai slug without performing a network request.</summary>
     /// <inheritdoc />
     public string SuggestDeviceSlug(string hardwareName)
     {
@@ -114,139 +110,304 @@ public sealed class CanIRunHardwareRecommendationService(
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Suggesting a CanIRun.ai device slug failed.");
+            logger.LogError(exception, "Suggesting a legacy CanIRun.ai device slug failed.");
             throw;
         }
     }
 
-    /// <summary>
-    /// Parses attributes as part of the can i run hardware recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="attributeText">Attribute text value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <param name="attributeRegex">Attribute regex value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <returns>The dictionary string string produced by the operation.</returns>
-    private Dictionary<string, string> ParseAttributes(string attributeText, System.Text.RegularExpressions.Regex attributeRegex)
+    /// <summary>Finds recommendation objects in the public JSON response while tolerating harmless response-envelope changes.</summary>
+    /// <param name="root">Root JSON element returned by CanIRun.ai.</param>
+    /// <param name="deviceName">Reviewed accelerator name associated with the request.</param>
+    /// <param name="sourceUrl">Attributed API source URL stored with each recommendation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop parsing.</param>
+    /// <returns>The bounded recommendation candidates extracted from the response.</returns>
+    private List<CanIRunModelRecommendation> ParseRecommendations(JsonElement root, string deviceName, string sourceUrl, CancellationToken cancellationToken)
     {
         try
         {
-            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (System.Text.RegularExpressions.Match match in attributeRegex.Matches(attributeText))
+            var candidates = new List<JsonElement>();
+            CollectRecommendationObjects(root, candidates, depth: 0, cancellationToken);
+            var limit = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumRecommendations));
+            var result = new List<CanIRunModelRecommendation>();
+            foreach (var candidate in candidates)
             {
-                var name = match.Groups["name"].Value;
-                if (string.IsNullOrWhiteSpace(name))
+                cancellationToken.ThrowIfCancellationRequested();
+                var item = ParseRecommendation(candidate, deviceName, sourceUrl);
+                if (item is null)
                     continue;
-                values[name] = WebUtility.HtmlDecode(match.Groups["value"].Value);
+                result.Add(item);
+                if (result.Count >= limit * 4)
+                    break;
             }
-            return values;
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Parsing CanIRun.ai HTML attributes failed; attribute text was omitted from logs.");
+            logger.LogError(exception, "Parsing the CanIRun.ai JSON recommendation response failed; response content was omitted.");
             throw;
         }
     }
 
-    /// <summary>
-    /// Parses selected quant as part of the can i run hardware recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="json">Json value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <param name="selectedIndex">Selected index value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <returns>The string quantization double vram gi b produced by the operation.</returns>
-    private (string Quantization, double? VramGiB) ParseSelectedQuant(string? json, int selectedIndex)
+    /// <summary>Collects object candidates from common recommendation envelopes without binding LocalGPT to one presentation shape.</summary>
+    /// <param name="element">Current JSON element being traversed.</param>
+    /// <param name="result">Bounded destination collection for object candidates.</param>
+    /// <param name="depth">Current recursion depth used by the response-envelope safety bound.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop traversal.</param>
+    private void CollectRecommendationObjects(JsonElement element, List<JsonElement> result, int depth, CancellationToken cancellationToken)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(json))
-                return (string.Empty, null);
-            using var document = JsonDocument.Parse(json);
-            if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() == 0)
-                return (string.Empty, null);
-            var index = Math.Clamp(selectedIndex, 0, document.RootElement.GetArrayLength() - 1);
-            var quant = document.RootElement[index];
-            var name = quant.TryGetProperty("name", out var nameValue) ? nameValue.GetString() ?? string.Empty : string.Empty;
-            double? vram = quant.TryGetProperty("vramGB", out var vramValue) && vramValue.TryGetDouble(out var parsed) ? parsed : null;
-            return (name, vram);
+            if (depth > 6 || result.Count >= 512)
+                return;
+            cancellationToken.ThrowIfCancellationRequested();
+            if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.Object)
+                        result.Add(item);
+                    CollectRecommendationObjects(item, result, depth + 1, cancellationToken);
+                }
+                return;
+            }
+            if (element.ValueKind != JsonValueKind.Object)
+                return;
+            foreach (var property in element.EnumerateObject())
+            {
+                if (property.Value.ValueKind is JsonValueKind.Array or JsonValueKind.Object)
+                    CollectRecommendationObjects(property.Value, result, depth + 1, cancellationToken);
+            }
         }
-        catch (JsonException exception)
+        catch (OperationCanceledException exception)
         {
-            logger.LogWarning(exception, "Ignored malformed CanIRun.ai quantization metadata; JSON content was omitted.");
-            return (string.Empty, null);
+            logger.LogDebug(exception, "Collecting CanIRun.ai recommendation candidates was cancelled.");
+            throw;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Parsing CanIRun.ai quantization metadata failed; JSON content was omitted.");
+            logger.LogError(exception, "Collecting CanIRun.ai recommendation candidates failed; response content was omitted.");
             throw;
         }
     }
 
-    /// <summary>
-    /// Normalizes slug as part of the can i run hardware recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="value">Value value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string NormalizeSlug(string value)
+    /// <summary>Normalizes one JSON object into the stable LocalGPT recommendation shape when it contains a model identity.</summary>
+    /// <param name="candidate">Candidate JSON object discovered in the response.</param>
+    /// <param name="deviceName">Reviewed accelerator name associated with the request.</param>
+    /// <param name="sourceUrl">Attributed API source URL stored with the normalized recommendation.</param>
+    /// <returns>The normalized recommendation, or <see langword="null"/> when the object is not a model recommendation.</returns>
+    private CanIRunModelRecommendation? ParseRecommendation(JsonElement candidate, string deviceName, string sourceUrl)
     {
         try
         {
-            var slug = (value ?? string.Empty).Trim().Trim('/').ToLowerInvariant();
-            if (slug.Length > 120 || slug.Any(character => !(char.IsLetterOrDigit(character) || character == '-')))
-                throw new ArgumentException("CanIRun.ai device slugs may contain only letters, numbers and hyphens.", nameof(value));
-            return slug;
+            var model = TryGetObject(candidate, "model");
+            var compatibility = TryGetObject(candidate, "compatibility");
+            var modelId = FirstString(candidate, "modelId", "model_id", "modelSlug", "slug");
+            if (string.IsNullOrWhiteSpace(modelId) && model is { } modelElement)
+                modelId = FirstString(modelElement, "modelId", "model_id", "modelSlug", "slug", "id");
+            if (string.IsNullOrWhiteSpace(modelId))
+                modelId = FirstString(candidate, "id");
+            if (string.IsNullOrWhiteSpace(modelId))
+                return null;
+
+            var modelName = FirstString(candidate, "modelName", "model_name", "displayName");
+            if (string.IsNullOrWhiteSpace(modelName) && model is { } namedModel)
+                modelName = FirstString(namedModel, "name", "displayName", "modelName", "id");
+            if (string.IsNullOrWhiteSpace(modelName))
+                modelName = FirstString(candidate, "name");
+            var grade = FirstString(candidate, "grade", "tier", "rating");
+            if (string.IsNullOrWhiteSpace(grade) && compatibility is { } compatibilityElement)
+                grade = FirstString(compatibilityElement, "grade", "tier", "rating");
+            var status = FirstString(candidate, "status", "runStatus", "compatibilityStatus", "verdict");
+            if (string.IsNullOrWhiteSpace(status) && compatibility is { } statusCompatibility)
+                status = FirstString(statusCompatibility, "status", "verdict", "label");
+            var score = FirstInt(candidate, "score", "compatibilityScore", "rankScore");
+            if (score == 0 && compatibility is { } scoreCompatibility)
+                score = FirstInt(scoreCompatibility, "score", "compatibilityScore", "rankScore");
+            var quantization = FirstString(candidate, "quantization", "quant", "recommendedQuantization", "selectedQuantization");
+            var requiredVram = FirstDouble(candidate, "requiredVramGb", "requiredVRAMGb", "vramGb", "memoryGb", "memoryRequiredGb");
+            var publisher = FirstString(candidate, "publisher", "provider", "organization", "author");
+            if (string.IsNullOrWhiteSpace(publisher) && model is { } publisherModel)
+                publisher = FirstString(publisherModel, "publisher", "provider", "organization", "author");
+
+            if (TryGetObject(candidate, "quantization") is { } quantizationObject)
+            {
+                if (string.IsNullOrWhiteSpace(quantization))
+                    quantization = FirstString(quantizationObject, "name", "id", "format");
+                requiredVram ??= FirstDouble(quantizationObject, "vramGb", "requiredVramGb", "memoryGb");
+            }
+            if (TryGetObject(candidate, "selectedQuantization") is { } selectedQuantization)
+            {
+                if (string.IsNullOrWhiteSpace(quantization))
+                    quantization = FirstString(selectedQuantization, "name", "id", "format");
+                requiredVram ??= FirstDouble(selectedQuantization, "vramGb", "requiredVramGb", "memoryGb");
+            }
+            if (TryGetObject(candidate, "recommendedQuantization") is { } recommendedQuantization)
+            {
+                if (string.IsNullOrWhiteSpace(quantization))
+                    quantization = FirstString(recommendedQuantization, "name", "id", "format");
+                requiredVram ??= FirstDouble(recommendedQuantization, "vramGb", "requiredVramGb", "memoryGb");
+            }
+
+            return new CanIRunModelRecommendation
+            {
+                ModelId = Bound(modelId, 240),
+                ModelName = Bound(string.IsNullOrWhiteSpace(modelName) ? modelId : modelName, 240),
+                Grade = Bound(grade, 32),
+                Status = Bound(status, 80),
+                Score = score,
+                Quantization = Bound(quantization, 64),
+                RequiredVramGiB = requiredVram,
+                Publisher = Bound(publisher, 120),
+                DeviceSlug = Bound(deviceName, 240),
+                SourceUrl = sourceUrl
+            };
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or FormatException)
+        {
+            logger.LogDebug(exception, "Ignored one unrecognized CanIRun.ai recommendation object.");
+            return null;
+        }
+    }
+
+    /// <summary>Returns a case-insensitive nested object property when present.</summary>
+    /// <param name="element">JSON object that may contain the requested property.</param>
+    /// <param name="name">Property name to match without case sensitivity.</param>
+    /// <returns>The nested object element, or <see langword="null"/> when absent or not an object.</returns>
+    private JsonElement? TryGetObject(JsonElement element, string name)
+    {
+        try
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+                return null;
+            foreach (var property in element.EnumerateObject())
+                if (property.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && property.Value.ValueKind == JsonValueKind.Object)
+                    return property.Value;
+            return null;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Normalizing CanIRun.ai device slug failed.");
+            logger.LogError(exception, "Reading a CanIRun.ai nested recommendation object failed; response content was omitted.");
             throw;
         }
     }
 
-    /// <summary>
-    /// Validates can i run URI as part of the can i run hardware recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="uri">Uri value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
+    /// <summary>Returns the first matching scalar property as text.</summary>
+    /// <param name="element">JSON object containing candidate scalar properties.</param>
+    /// <param name="names">Ordered property names to try.</param>
+    /// <returns>The first scalar text value, or an empty string when none match.</returns>
+    private string FirstString(JsonElement element, params string[] names)
+    {
+        try
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+                return string.Empty;
+            foreach (var name in names)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (!property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (property.Value.ValueKind == JsonValueKind.String)
+                        return property.Value.GetString() ?? string.Empty;
+                    if (property.Value.ValueKind is JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False)
+                        return property.Value.ToString();
+                }
+            }
+            return string.Empty;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading a CanIRun.ai scalar text property failed; response content was omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Returns the first matching integer property using invariant parsing.</summary>
+    /// <param name="element">JSON object containing candidate integer properties.</param>
+    /// <param name="names">Ordered property names to try.</param>
+    /// <returns>The first parsed integer value, or zero when none match.</returns>
+    private int FirstInt(JsonElement element, params string[] names)
+    {
+        try
+        {
+            foreach (var name in names)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (!property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out var value))
+                        return value;
+                    if (property.Value.ValueKind == JsonValueKind.String && int.TryParse(property.Value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+                        return value;
+                }
+            }
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading a CanIRun.ai integer property failed; response content was omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Returns the first matching floating-point property using invariant parsing.</summary>
+    /// <param name="element">JSON object containing candidate floating-point properties.</param>
+    /// <param name="names">Ordered property names to try.</param>
+    /// <returns>The first parsed floating-point value, or <see langword="null"/> when none match.</returns>
+    private double? FirstDouble(JsonElement element, params string[] names)
+    {
+        try
+        {
+            foreach (var name in names)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (!property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetDouble(out var value))
+                        return value;
+                    if (property.Value.ValueKind == JsonValueKind.String && double.TryParse(property.Value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+                        return value;
+                }
+            }
+            return null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading a CanIRun.ai floating-point property failed; response content was omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Enforces the fixed HTTPS allowlist for the optional CanIRun.ai request.</summary>
+    /// <param name="uri">Request URI to validate before the external call.</param>
     private void ValidateCanIRunUri(Uri uri)
     {
         try
         {
             if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("CanIRun.ai lookups require HTTPS.");
-            if (!uri.Host.Equals("www.canirun.ai", StringComparison.OrdinalIgnoreCase)
-                && !uri.Host.Equals("canirun.ai", StringComparison.OrdinalIgnoreCase))
+            if (!uri.Host.Equals("canirun.ai", StringComparison.OrdinalIgnoreCase)
+                && !uri.Host.Equals("www.canirun.ai", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("CanIRun.ai lookup host is not allowlisted.");
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Validating CanIRun.ai lookup URI failed.");
+            logger.LogError(exception, "CanIRun.ai request URI validation failed.");
             throw;
         }
     }
 
-    /// <summary>
-    /// Parses int as part of the can i run hardware recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="value">Value value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <param name="fallback">Fallback value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <returns>The int produced by the operation.</returns>
-    private int ParseInt(string? value, int fallback)
-    {
-        try
-        {
-            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Parsing bounded CanIRun.ai integer metadata failed.");
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Performs bound as part of the can i run hardware recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="value">Value value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <param name="maximum">Maximum value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string Bound(string value, int maximum)
+    /// <summary>Trims and bounds one externally sourced text value before it enters the stable recommendation model.</summary>
+    /// <param name="value">Externally sourced text to normalize.</param>
+    /// <param name="maximum">Maximum number of characters retained.</param>
+    /// <returns>The trimmed value truncated to the requested bound.</returns>
+    private string Bound(string? value, int maximum)
     {
         try
         {
@@ -255,8 +416,9 @@ public sealed class CanIRunHardwareRecommendationService(
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Bounding CanIRun.ai text metadata failed; text was omitted from logs.");
+            logger.LogError(exception, "Bounding a CanIRun.ai recommendation value failed; response content was omitted.");
             throw;
         }
     }
+
 }

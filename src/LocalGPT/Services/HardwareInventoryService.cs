@@ -91,6 +91,26 @@ public sealed class HardwareInventoryService(
     }
 }
 
+    /// <summary>Returns total physical/system memory through the existing platform-specific read-only probe.</summary>
+    /// <inheritdoc />
+    public async Task<long?> GetSystemMemoryBytesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await platformProbe.ProbeSystemMemoryBytesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "System-memory hardware probe was cancelled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "System-memory hardware probe was unavailable.");
+            return null;
+        }
+    }
+
     /// <summary>
     /// Performs probe nvidia as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

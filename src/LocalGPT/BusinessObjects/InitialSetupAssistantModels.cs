@@ -164,6 +164,9 @@ public sealed class InitialSetupHardwareDevice
     /// </summary>
     /// <value>The dedicated vram gi b value exposed by <see cref="InitialSetupHardwareDevice"/>.</value>
     public double? DedicatedVramGiB { get; set; }
+    /// <summary>Gets or sets total system/unified memory in GiB for compatibility requests and reviewed host persistence.</summary>
+    /// <value>Total system memory in GiB, or <see langword="null"/> when it has not been detected or entered.</value>
+    public double? SystemMemoryGiB { get; set; }
     /// <summary>
     /// Gets or sets the source value that forms part of the initial setup hardware device state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -172,12 +175,12 @@ public sealed class InitialSetupHardwareDevice
     /// <summary>Gets or sets whether the device participates in recommendation and benchmark setup.</summary>
     /// <value>The selected value exposed by <see cref="InitialSetupHardwareDevice"/>.</value>
     public bool Selected { get; set; } = true;
-    /// <summary>Gets or sets an editable CanIRun.ai device slug used only after explicit web opt-in.</summary>
-    /// <value>The can i run slug value exposed by <see cref="InitialSetupHardwareDevice"/>.</value>
+    /// <summary>Retains the legacy CanIRun.ai device slug field for backwards-compatible request deserialization; 3.9+ hardware lookups use explicit hardware facts instead.</summary>
+    /// <value>The legacy device slug value, which is no longer required by the setup UI.</value>
     public string CanIRunSlug { get; set; } = string.Empty;
 }
 
-/// <summary>Represents one model recommendation parsed from an explicitly requested CanIRun.ai device page.</summary>
+/// <summary>Represents one model recommendation parsed from an explicitly requested CanIRun.ai JSON hardware recommendation response.</summary>
 public sealed class CanIRunModelRecommendation
 {
     /// <summary>
@@ -214,8 +217,8 @@ public sealed class CanIRunModelRecommendation
     /// <summary>Gets or sets the model provider/publisher reported by CanIRun.ai.</summary>
     /// <value>The publisher value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
     public string Publisher { get; set; } = string.Empty;
-    /// <summary>Gets or sets the source GPU slug used for this recommendation.</summary>
-    /// <value>The device slug value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
+    /// <summary>Gets or sets the source hardware label retained in the legacy device-slug field for backwards-compatible serialization.</summary>
+    /// <value>The reviewed accelerator name associated with this recommendation.</value>
     public string DeviceSlug { get; set; } = string.Empty;
     /// <summary>Gets or sets the local provider endpoint/physical-host route whose accelerator produced this compatibility lookup.</summary>
     /// <value>The LocalGPT endpoint associated with the source hardware row; it is never sent to CanIRun.ai.</value>

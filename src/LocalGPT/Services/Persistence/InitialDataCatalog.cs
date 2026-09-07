@@ -53,6 +53,7 @@ public sealed class InitialDataCatalog(
         new("builtin.canirun-model-card-pattern", """<article\b(?<attrs>[^>]*\bdata-model-id=\x22[^\x22]+\x22[^>]*)>""", "i,c"),
         new("builtin.html-data-attribute-pattern", """\bdata-(?<name>[a-z0-9-]+)=\x22(?<value>[^\x22]*)\x22""", "i,c"),
         new("builtin.ai-provider-bootstrap-block", """```localgpt-provider-profile\s*(?<json>\{.*?\})\s*```""", "i,s,c"),
+        new("builtin.ai-provider-bootstrap-block-v2", """```localgpt-provider-profile[^\r\n]*\r?\n(?<json>.*?)\r?\n```""", "i,s,c"),
         new("builtin.provider-model-token-pattern", """^[A-Za-z0-9][A-Za-z0-9._/:+@-]{0,239}$""", "c"),
         new("HarmonyFinal", "<\\|start\\|>assistant<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|$)|<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|<\\|start\\|>|$)", "i,s,c"),
         new("HarmonyThinking", "<\\|start\\|>assistant<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)|<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)", "i,s,c"),

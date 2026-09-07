@@ -60,25 +60,29 @@ public interface IInitialSetupAssistantService
 /// <summary>Fetches and parses explicitly requested CanIRun.ai hardware recommendations.</summary>
 public interface ICanIRunHardwareRecommendationService
 {
-    /// <summary>Fetches one explicitly selected CanIRun.ai device page and returns bounded model recommendations with attribution.</summary>
-    /// <param name="deviceSlug">Device slug value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
+    /// <summary>Posts reviewed hardware facts to CanIRun.ai's JSON recommendation API and returns bounded attributed model recommendations.</summary>
+    /// <param name="device">Reviewed hardware facts to send after opt-in; LocalGPT endpoint/host identifiers are not transmitted.</param>
     /// <param name="userConfirmedWebLookup">Value indicating whether user confirmed web lookup should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The collection produced by the operation.</returns>
-    Task<IReadOnlyList<CanIRunModelRecommendation>> GetRecommendationsAsync(string deviceSlug, bool userConfirmedWebLookup, CancellationToken cancellationToken = default);
-    /// <summary>Derives an editable initial CanIRun.ai slug from a hardware display name.</summary>
-    /// <param name="hardwareName">Hardware name value supplied to the can i run hardware recommendation operation and used when producing its result.</param>
-    /// <returns>The string produced by the operation.</returns>
+    Task<IReadOnlyList<CanIRunModelRecommendation>> GetRecommendationsAsync(InitialSetupHardwareDevice device, bool userConfirmedWebLookup, CancellationToken cancellationToken = default);
+    /// <summary>Retains the legacy editable slug helper for backwards-compatible callers; the 3.9 setup workflow no longer requires a slug.</summary>
+    /// <param name="hardwareName">Hardware name value supplied to the compatibility helper.</param>
+    /// <returns>A normalized legacy slug.</returns>
     string SuggestDeviceSlug(string hardwareName);
 }
 
-/// <summary>Runs knowledge-backed local AI provider/model bootstrap operations through the common LocalGPT console engine.</summary>
+/// <summary>Runs knowledge-backed local AI provider/model bootstrap operations through LocalGPT runtime services and the common bounded console where appropriate.</summary>
 public interface IAiProviderBootstrapService
 {
     /// <summary>Returns provider bootstrap profiles for the current platform from the Knowledge Database.</summary>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<AiProviderBootstrapProfile>> GetProfilesAsync(CancellationToken cancellationToken = default);
+    /// <summary>Classifies a bootstrap profile through the provider service so UI/controller callers do not duplicate provider-key string policy.</summary>
+    /// <param name="profile">Provider bootstrap profile to classify.</param>
+    /// <returns><see langword="true"/> when the profile represents Ollama; otherwise <see langword="false"/>.</returns>
+    bool IsOllamaProfile(AiProviderBootstrapProfile profile);
     /// <summary>Checks whether a provider's command-line runtime is available.</summary>
     /// <param name="profileKey">Profile key value supplied to the AI provider bootstrap operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
@@ -95,9 +99,7 @@ public interface IAiProviderBootstrapService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The local console command result produced by the operation.</returns>
     Task<LocalConsoleCommandResult> InstallAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default);
-    /// <summary>
-    /// Performs start as part of the AI provider bootstrap service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
+    /// <summary>Starts the selected provider after explicit confirmation; Ollama uses its maintained process lifecycle service rather than a foreground <c>ollama serve</c> console command.</summary>
     /// <param name="profileKey">Profile key value supplied to the AI provider bootstrap operation and used when producing its result.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>

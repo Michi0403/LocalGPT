@@ -30,21 +30,23 @@ public sealed class InitialSetupStatusFunction(IInitialSetupAssistantService set
     }
 }
 
-/// <summary>Fetches CanIRun.ai recommendations only after the normal human approval gate authorizes the exact device lookup.</summary>
+/// <summary>Fetches CanIRun.ai recommendations only after the normal human approval gate authorizes the reviewed hardware facts.</summary>
 /// <param name="recommendations">CanIRun.ai recommendation service.</param>
+/// <param name="setup">Initial setup service used only to resolve the backwards-compatible legacy slug to locally reviewed hardware.</param>
 /// <param name="json">DXFunction JSON service.</param>
 /// <param name="logger">Logger used for diagnostics.</param>
-public sealed class CanIRunRecommendationsFunction(ICanIRunHardwareRecommendationService recommendations, IDxAiFunctionJsonService json, ILogger<CanIRunRecommendationsFunction> logger) : IDxAiFunctionHandler
+public sealed class CanIRunRecommendationsFunction(ICanIRunHardwareRecommendationService recommendations, IInitialSetupAssistantService setup, IDxAiFunctionJsonService json, ILogger<CanIRunRecommendationsFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the optional attributed web lookup capability.</summary>
     /// <value>The descriptor value exposed by <see cref="CanIRunRecommendationsFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "initial.setup.canirun.recommendations", "POST", "/api/dxai/functions/initial.setup.canirun.recommendations/invoke",
-        "Fetches public CanIRun.ai model compatibility cards for one user-selected GPU slug and returns them with source attribution.",
-        "deviceSlug is required.", "Optional external web access to canirun.ai only. Requires fresh human confirmation and is never automatic.",
+        "Fetches public CanIRun.ai JSON model recommendations for one user-reviewed hardware profile and returns them with source attribution.",
+        "hardwareName plus systemMemoryGiB are preferred; dedicatedVramGiB is optional. deviceSlug remains accepted as a legacy selector for a locally reviewed hardware row.",
+        "Optional external web access to canirun.ai only. The accelerator name, system/unified RAM and optional dedicated VRAM are sent only after fresh human confirmation and never automatically.",
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false,
         SupportsDeferredApprovalRequest: true, Source: "DIHandler",
-        ParameterSchemaJson: """{"type":"object","required":["deviceSlug"],"properties":{"deviceSlug":{"type":"string","maxLength":120}},"additionalProperties":false}""");
+        ParameterSchemaJson: """{"type":"object","properties":{"hardwareName":{"type":"string","maxLength":240},"systemMemoryGiB":{"type":"number","exclusiveMinimum":0},"dedicatedVramGiB":{"type":"number","minimum":0},"deviceSlug":{"type":"string","maxLength":120}},"additionalProperties":false}""");
 
     /// <summary>Runs the explicitly approved CanIRun.ai lookup.</summary>
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
@@ -56,10 +58,33 @@ public sealed class CanIRunRecommendationsFunction(ICanIRunHardwareRecommendatio
         {
             var binding = json.Bind<CanIRunLookupRequest>(request.Parameters);
             if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-            return json.Success(await recommendations.GetRecommendationsAsync(binding.Value.DeviceSlug, userConfirmedWebLookup: true, cancellationToken).ConfigureAwait(false));
+            var value = binding.Value;
+            InitialSetupHardwareDevice? device = null;
+            if (!string.IsNullOrWhiteSpace(value.HardwareName) && value.SystemMemoryGiB is > 0)
+            {
+                device = new InitialSetupHardwareDevice
+                {
+                    Name = value.HardwareName.Trim(),
+                    SystemMemoryGiB = value.SystemMemoryGiB,
+                    DedicatedVramGiB = value.DedicatedVramGiB,
+                    Selected = true,
+                    Source = "DXFunctionReviewed"
+                };
+            }
+            else if (!string.IsNullOrWhiteSpace(value.DeviceSlug))
+            {
+                var snapshot = await setup.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+                device = snapshot.Hardware.FirstOrDefault(item =>
+                    item.CanIRunSlug.Equals(value.DeviceSlug, StringComparison.OrdinalIgnoreCase)
+                    || recommendations.SuggestDeviceSlug(item.Name).Equals(value.DeviceSlug, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (device is null)
+                return json.InvalidParameters("Provide hardwareName plus systemMemoryGiB, or a legacy deviceSlug that matches one locally reviewed hardware row.");
+            return json.Success(await recommendations.GetRecommendationsAsync(device, userConfirmedWebLookup: true, cancellationToken).ConfigureAwait(false));
         }
         catch (OperationCanceledException exception) { logger.LogDebug(exception, "CanIRun.ai DXFunction lookup was cancelled."); throw; }
-        catch (Exception exception) { logger.LogError(exception, "CanIRun.ai DXFunction lookup failed; response content omitted."); return new DxAiFunctionInvocationResult { Succeeded = false, Status = "Failed", Error = "CanIRun.ai recommendations could not be loaded. Review LocalGPT logs." }; }
+        catch (Exception exception) { logger.LogError(exception, "CanIRun.ai DXFunction lookup failed; hardware facts and response content omitted."); return new DxAiFunctionInvocationResult { Succeeded = false, Status = "Failed", Error = "CanIRun.ai recommendations could not be loaded. Review LocalGPT logs." }; }
     }
 }
 
@@ -276,9 +301,22 @@ public sealed class CreateInitialBenchmarkTeamFunction(IInitialSetupAssistantSer
     }
 }
 
-/// <summary>Parameter object for one optional CanIRun.ai device lookup.</summary>
-public sealed class CanIRunLookupRequest { /// <summary>Gets or sets the CanIRun.ai device slug.</summary>
-    public string DeviceSlug { get; set; } = string.Empty; }
+/// <summary>Parameter object for one optional CanIRun.ai hardware recommendation lookup.</summary>
+public sealed class CanIRunLookupRequest
+{
+    /// <summary>Gets or sets the reviewed accelerator name sent to CanIRun.ai.</summary>
+    /// <value>The reviewed accelerator name.</value>
+    public string HardwareName { get; set; } = string.Empty;
+    /// <summary>Gets or sets total reviewed system/unified memory in GiB sent to CanIRun.ai.</summary>
+    /// <value>Total reviewed system/unified memory in GiB.</value>
+    public double? SystemMemoryGiB { get; set; }
+    /// <summary>Gets or sets optional reviewed dedicated VRAM in GiB sent to CanIRun.ai when known.</summary>
+    /// <value>Reviewed dedicated VRAM in GiB, or <see langword="null"/> when unknown.</value>
+    public double? DedicatedVramGiB { get; set; }
+    /// <summary>Gets or sets the legacy CanIRun.ai device slug used only to select locally reviewed hardware.</summary>
+    /// <value>The legacy local hardware selector slug.</value>
+    public string DeviceSlug { get; set; } = string.Empty;
+}
 /// <summary>Parameter object for one provider profile operation.</summary>
 public sealed class ProviderProfileActionRequest { /// <summary>Gets or sets the provider profile key.</summary>
     public string ProfileKey { get; set; } = string.Empty; }

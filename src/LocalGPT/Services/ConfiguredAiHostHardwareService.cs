@@ -217,14 +217,23 @@ public sealed class ConfiguredAiHostHardwareService(
                 throw new InvalidOperationException("Automatic hardware probing is local-only. Configure or import hardware for remote hosts on /install.");
             var existing = await GetForEndpointAsync(endpoint, cancellationToken).ConfigureAwait(false);
             if (existing?.IsUserConfirmed == true)
-                return existing;
+            {
+                if (existing.SystemMemoryBytes is > 0)
+                    return existing;
+                var detectedSystemMemoryBytes = await hardwareInventory.GetSystemMemoryBytesAsync(cancellationToken).ConfigureAwait(false);
+                return detectedSystemMemoryBytes is > 0
+                    ? await BackfillDetectedSystemMemoryAsync(existing, detectedSystemMemoryBytes.Value, cancellationToken).ConfigureAwait(false)
+                    : existing;
+            }
             var hardware = await hardwareInventory.GetHardwareAsync(cancellationToken).ConfigureAwait(false);
+            var systemMemoryBytes = await hardwareInventory.GetSystemMemoryBytesAsync(cancellationToken).ConfigureAwait(false);
             var draft = CreateDraft(endpoint, existing);
             draft.HostName = Environment.MachineName;
             draft.OperatingSystem = RuntimeInformation.OSDescription;
             draft.Architecture = RuntimeInformation.OSArchitecture.ToString();
             var cpu = hardware.FirstOrDefault(item => item.Kind == OneWireHardwareKind.Cpu);
             if (cpu is not null) draft.CpuName = cpu.Name;
+            if (systemMemoryBytes is > 0) draft.SystemMemoryGiB = systemMemoryBytes.Value / 1024d / 1024d / 1024d;
             var detectedGpus = hardware.Where(item => item.Kind == OneWireHardwareKind.Gpu).Take(32).ToList();
             draft.Gpus = detectedGpus.Select((item, index) => new ConfiguredAiHostGpu
             {
@@ -305,6 +314,40 @@ public sealed class ConfiguredAiHostHardwareService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Creating configured-host hardware draft failed; endpoint details were omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Backfills only missing total system memory on a user-confirmed local profile without replacing any confirmed hardware facts.</summary>
+    /// <param name="profile">Existing user-confirmed host profile whose system-memory value is currently unknown.</param>
+    /// <param name="systemMemoryBytes">Read-only local probe result containing total physical system memory in bytes.</param>
+    /// <param name="cancellationToken">Cancellation token for persistence.</param>
+    /// <returns>The persisted profile with the newly detected system-memory value.</returns>
+    private async Task<ConfiguredAiHostHardwareProfile> BackfillDetectedSystemMemoryAsync(ConfiguredAiHostHardwareProfile profile, long systemMemoryBytes, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (systemMemoryBytes <= 0 || profile.SystemMemoryBytes is > 0)
+                return profile;
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var entity = await db.ConfiguredAiHostHardwareProfiles.SingleAsync(item => item.Id == profile.Id, cancellationToken).ConfigureAwait(false);
+            if (entity.SystemMemoryBytes is not > 0)
+            {
+                entity.SystemMemoryBytes = systemMemoryBytes;
+                entity.LastDetectedAtUtc = DateTime.UtcNow;
+                entity.UpdatedAtUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            Hydrate(entity);
+            return entity;
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Backfilling configured-host system memory was cancelled.");
+            else
+                logger.LogError(exception, "Backfilling configured-host system memory failed; existing confirmed hardware was preserved.");
             throw;
         }
     }

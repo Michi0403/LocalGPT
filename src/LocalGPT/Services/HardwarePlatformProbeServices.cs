@@ -49,6 +49,28 @@ public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwareP
         }
     }
 
+    /// <summary>Returns total physical memory reported by Windows without changing device state.</summary>
+    /// <inheritdoc />
+    public async Task<long?> ProbeSystemMemoryBytesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            const string script = "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory";
+            var lines = await RunProbeAsync("powershell", $"-NoProfile -NonInteractive -Command \"{script}\"", cancellationToken).ConfigureAwait(false);
+            return lines.Select(line => long.TryParse(line.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value > 0 ? (long?)value : null)
+                .FirstOrDefault(value => value is > 0);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Windows physical-memory discovery was unavailable.");
+            return null;
+        }
+    }
+
     /// <summary>
     /// Performs run probe as part of the windows hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -137,6 +159,44 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         {
             System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(UnixHardwarePlatformProbeService), nameof(ProbePlatformGpusAsync), exception);
             throw;
+        }
+    }
+
+    /// <summary>Returns total physical memory from macOS <c>hw.memsize</c> or Linux <c>/proc/meminfo</c>.</summary>
+    /// <inheritdoc />
+    public async Task<long?> ProbeSystemMemoryBytesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var lines = await RunProbeAsync("/usr/sbin/sysctl", "-n hw.memsize", cancellationToken).ConfigureAwait(false);
+                return lines.Select(line => long.TryParse(line.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value > 0 ? (long?)value : null)
+                    .FirstOrDefault(value => value is > 0);
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var memInfo = await ReadTrimmedFileAsync("/proc/meminfo", cancellationToken).ConfigureAwait(false);
+                var memTotal = memInfo.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .FirstOrDefault(line => line.StartsWith("MemTotal:", StringComparison.OrdinalIgnoreCase));
+                if (string.IsNullOrWhiteSpace(memTotal))
+                    return null;
+                var parts = memTotal.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (parts.Length >= 2 && long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var kib) && kib > 0)
+                    return checked(kib * 1024L);
+            }
+
+            return null;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or OverflowException)
+        {
+            logger.LogDebug(exception, "Unix physical-memory discovery was unavailable.");
+            return null;
         }
     }
 

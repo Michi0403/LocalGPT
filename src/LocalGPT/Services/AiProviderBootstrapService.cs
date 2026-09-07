@@ -12,6 +12,7 @@ namespace LocalGPT.Services;
 /// <param name="jsonText">Applies the maintained LocalGPT JSON policy when reading provider profiles from Knowledge.</param>
 /// <param name="platformRuntime">Platform runtime service used to select the operating-system-specific provider bootstrap token.</param>
 /// <param name="ollamaPlatform">Platform-owned Ollama executable resolver used to keep Finder/desktop launches independent of shell PATH setup.</param>
+/// <param name="ollamaProcesses">Existing Ollama process lifecycle service used instead of running a long-lived <c>ollama serve</c> command in the bounded foreground console.</param>
 /// <param name="lmStudioPlatform">Platform-owned LM Studio/llmster executable resolver used to keep Finder/desktop launches independent of shell PATH setup.</param>
 /// <param name="logger">Writes bounded provider-bootstrap diagnostics without logging command text.</param>
 /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
@@ -27,6 +28,7 @@ public sealed class AiProviderBootstrapService(
     IAiProviderConfigurationRegistryService providerRegistry,
     IPlatformRuntimeService platformRuntime,
     IOllamaPlatformService ollamaPlatform,
+    IOllamaProcessService ollamaProcesses,
     ILmStudioPlatformService lmStudioPlatform,
     ILogger<AiProviderBootstrapService> logger) : IAiProviderBootstrapService
 {
@@ -37,15 +39,22 @@ public sealed class AiProviderBootstrapService(
     {
         try
         {
-            var blockRegex = await regexPatterns.GetRegexAsync("builtin.ai-provider-bootstrap-block").ConfigureAwait(false)
-                ?? throw new InvalidOperationException("The AI-provider bootstrap profile regex is unavailable.");
+            var blockRegexV2 = await regexPatterns.GetRegexAsync("builtin.ai-provider-bootstrap-block-v2").ConfigureAwait(false);
+            var blockRegexV1 = await regexPatterns.GetRegexAsync("builtin.ai-provider-bootstrap-block").ConfigureAwait(false);
+            if (blockRegexV2 is null && blockRegexV1 is null)
+                throw new InvalidOperationException("The AI-provider bootstrap profile regex is unavailable.");
             var platform = platformRuntime.ProviderBootstrapToken;
             var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: 500, cancellationToken).ConfigureAwait(false);
             var profiles = new List<AiProviderBootstrapProfile>();
             foreach (var entry in entries.OrderByDescending(item => item.IsUserApproved).ThenByDescending(item => item.UpdatedAtUtc))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                foreach (System.Text.RegularExpressions.Match match in blockRegex.Matches(entry.Content ?? string.Empty))
+                var content = entry.Content ?? string.Empty;
+                var v2Matches = blockRegexV2?.Matches(content);
+                var matches = v2Matches is { Count: > 0 } ? v2Matches : blockRegexV1?.Matches(content);
+                if (matches is null)
+                    continue;
+                foreach (System.Text.RegularExpressions.Match match in matches)
                 {
                     try
                     {
@@ -120,13 +129,20 @@ public sealed class AiProviderBootstrapService(
         catch (Exception exception) { logger.LogError(exception, "Provider installation failed for profile {ProfileKey}; command text was omitted.", profileKey); throw; }
     }
 
-    /// <summary>Runs the profile's user-confirmed runtime start command.</summary>
+    /// <summary>Starts the selected runtime after explicit confirmation, using the maintained Ollama lifecycle service when the profile represents Ollama.</summary>
     /// <inheritdoc />
     public async Task<LocalConsoleCommandResult> StartAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
         {
             var profile = await RequireProfileAsync(profileKey, cancellationToken).ConfigureAwait(false);
+            if (IsOllamaProfile(profile))
+            {
+                if (!userConfirmed)
+                    throw new InvalidOperationException("Starting Ollama requires explicit user confirmation.");
+                var status = await ollamaProcesses.StartAsync(cancellationToken).ConfigureAwait(false);
+                return CreateOllamaProcessResult(status);
+            }
             return await ExecuteProfileCommandAsync(profile, "Start provider", profile.StartCommand, isReadOnly: false, userConfirmed, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException exception) { logger.LogDebug(exception, "Provider startup was cancelled."); throw; }
@@ -343,6 +359,47 @@ public sealed class AiProviderBootstrapService(
         {
             logger.LogWarning(exception, "Could not resolve provider executable for profile {ProfileKey}; inherited PATH will be used.", profile.Key);
             return null;
+        }
+    }
+
+    /// <summary>Checks the provider kind and profile key against LocalGPT's Ollama bootstrap identifiers.</summary>
+    /// <param name="profile">Provider bootstrap profile being classified.</param>
+    /// <returns><see langword="true"/> when the profile represents Ollama; otherwise <see langword="false"/>.</returns>
+    public bool IsOllamaProfile(AiProviderBootstrapProfile profile)
+    {
+        try
+        {
+            return profile.ProviderKind.Equals("Ollama", StringComparison.OrdinalIgnoreCase)
+                || profile.Key.StartsWith("ollama-", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Determining whether a provider bootstrap profile is Ollama failed; command text was omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Adapts the existing Ollama process lifecycle status to the bootstrap action result contract used by HTTP/DXFunction callers.</summary>
+    /// <param name="status">Ollama lifecycle status produced by the maintained process service.</param>
+    /// <returns>A console-shaped result that preserves the bootstrap service's existing public action contract.</returns>
+    private LocalConsoleCommandResult CreateOllamaProcessResult(OllamaProcessStatus status)
+    {
+        try
+        {
+            return new LocalConsoleCommandResult
+            {
+                OperationId = Guid.NewGuid(),
+                Succeeded = status.IsRunning,
+                ExitCode = status.IsRunning ? 0 : null,
+                Shell = nameof(IOllamaProcessService),
+                StandardOutput = status.Message,
+                Status = status.Message
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Adapting Ollama lifecycle status to the provider bootstrap result failed; executable and command values were omitted.");
+            throw;
         }
     }
 

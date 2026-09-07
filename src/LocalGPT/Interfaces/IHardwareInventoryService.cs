@@ -13,4 +13,8 @@ public interface IHardwareInventoryService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<OneWireHardwareDescriptor>> GetHardwareAsync(CancellationToken cancellationToken = default);
+    /// <summary>Returns total physical/system memory through the maintained platform hardware probe.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the read-only probe.</param>
+    /// <returns>Total physical memory in bytes, or <see langword="null"/> when unavailable.</returns>
+    Task<long?> GetSystemMemoryBytesAsync(CancellationToken cancellationToken = default);
 }

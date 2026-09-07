@@ -91,14 +91,14 @@ public sealed class InitialSetupAssistantService(
                 throw new InvalidOperationException("CanIRun.ai lookup requires explicit user opt-in for this web request.");
             ArgumentNullException.ThrowIfNull(devices);
             var combined = new List<CanIRunModelRecommendation>();
-            foreach (var device in devices.Where(item => item.Selected && !string.IsNullOrWhiteSpace(item.CanIRunSlug)).Take(32))
+            foreach (var device in devices.Where(item => item.Selected && !string.IsNullOrWhiteSpace(item.Name)).Take(32))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var endpoint = device.Endpoint ?? string.Empty;
                 var hostKey = string.IsNullOrWhiteSpace(device.HostKey) && !string.IsNullOrWhiteSpace(endpoint)
                     ? configuredHardware.GetHostKey(endpoint)
                     : device.HostKey;
-                var items = await canIRun.GetRecommendationsAsync(device.CanIRunSlug, userConfirmedWebLookup: true, cancellationToken).ConfigureAwait(false);
+                var items = await canIRun.GetRecommendationsAsync(device, userConfirmedWebLookup: true, cancellationToken).ConfigureAwait(false);
                 foreach (var item in items)
                 {
                     combined.Add(new CanIRunModelRecommendation
@@ -286,6 +286,9 @@ public sealed class InitialSetupAssistantService(
                 draft.GpuVendor = (primary.Vendor ?? string.Empty).Trim();
                 draft.DedicatedVramGiB = primary.DedicatedVramGiB;
             }
+            var reviewedSystemMemoryGiB = selected.Select(item => item.SystemMemoryGiB).FirstOrDefault(value => value is > 0);
+            if (reviewedSystemMemoryGiB is > 0)
+                draft.SystemMemoryGiB = reviewedSystemMemoryGiB;
             draft.SourceKind = selected.Select(item => item.Source).FirstOrDefault(item => !string.IsNullOrWhiteSpace(item)) ?? "Manual";
             draft.Confidence = "UserConfirmed";
             var saved = await configuredHardware.SaveAsync(draft, cancellationToken).ConfigureAwait(false);
@@ -429,6 +432,9 @@ public sealed class InitialSetupAssistantService(
         try
         {
             var profiles = await configuredHardware.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            long? localSystemMemoryBytes = null;
+            if (profiles.Any(profile => profile.HostKey.Equals("local-machine", StringComparison.OrdinalIgnoreCase) && profile.SystemMemoryBytes is not > 0))
+                localSystemMemoryBytes = await hardwareInventory.GetSystemMemoryBytesAsync(cancellationToken).ConfigureAwait(false);
             var configured = profiles
                 .SelectMany(profile => profile.Gpus.Select(gpu => new InitialSetupHardwareDevice
                 {
@@ -438,6 +444,11 @@ public sealed class InitialSetupAssistantService(
                     Name = gpu.Name,
                     Vendor = gpu.Vendor,
                     DedicatedVramGiB = gpu.DedicatedMemoryBytes is > 0 ? gpu.DedicatedMemoryBytes.Value / 1024d / 1024d / 1024d : null,
+                    SystemMemoryGiB = profile.SystemMemoryBytes is > 0
+                        ? profile.SystemMemoryBytes.Value / 1024d / 1024d / 1024d
+                        : profile.HostKey.Equals("local-machine", StringComparison.OrdinalIgnoreCase) && localSystemMemoryBytes is > 0
+                            ? localSystemMemoryBytes.Value / 1024d / 1024d / 1024d
+                            : null,
                     Source = profile.SourceKind,
                     Selected = true
                 }))
@@ -447,6 +458,8 @@ public sealed class InitialSetupAssistantService(
                 return configured;
 
             var detected = await hardwareInventory.GetHardwareAsync(cancellationToken).ConfigureAwait(false);
+            var systemMemoryBytes = await hardwareInventory.GetSystemMemoryBytesAsync(cancellationToken).ConfigureAwait(false);
+            var systemMemoryGiB = systemMemoryBytes is > 0 ? systemMemoryBytes.Value / 1024d / 1024d / 1024d : (double?)null;
             return detected
                 .Where(item => item.Kind == OneWireHardwareKind.Gpu)
                 .Select((gpu, index) => new InitialSetupHardwareDevice
@@ -457,6 +470,7 @@ public sealed class InitialSetupAssistantService(
                     Name = gpu.Name,
                     Vendor = gpu.Vendor,
                     DedicatedVramGiB = gpu.DedicatedMemoryBytes is > 0 ? gpu.DedicatedMemoryBytes.Value / 1024d / 1024d / 1024d : null,
+                    SystemMemoryGiB = systemMemoryGiB,
                     Source = "LocalProbe",
                     Selected = true
                 }).ToList();

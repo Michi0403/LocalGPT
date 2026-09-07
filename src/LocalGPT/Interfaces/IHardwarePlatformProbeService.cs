@@ -9,4 +9,8 @@ public interface IHardwarePlatformProbeService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbePlatformGpusAsync(CancellationToken cancellationToken = default);
+    /// <summary>Returns total physical/system memory in bytes when the current platform can report it safely.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the read-only probe.</param>
+    /// <returns>Total physical memory in bytes, or <see langword="null"/> when unavailable.</returns>
+    Task<long?> ProbeSystemMemoryBytesAsync(CancellationToken cancellationToken = default);
 }
