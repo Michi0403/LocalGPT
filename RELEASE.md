@@ -1,11 +1,11 @@
-# LocalGPT 3.9.1
+# LocalGPT 3.9.2
 
-LocalGPT 3.9.1 is the build-guard repair for the 3.9.0 local-runtime Setup completion.
+LocalGPT 3.9.2 repairs the installed-app runtime failure that prevented the unified Setup guide from initializing on macOS.
 
-The 3.9.0 source correctly added Ollama lifecycle control, provider-profile v2 parsing, first-model bootstrap, CanIRun JSON recommendations, and system/unified-memory flow, but two new Ollama profile-prefix checks were implemented directly in `InitialSetupAssistantPanel.razor`. The maintained text-service ownership build guard rejects that component-owned string policy before compilation.
+The supplied runtime log shows an invalid inherited process current directory causing optional hardware probes to fail in `Interop.Sys.GetCwd()`. That exception propagated through the Setup snapshot and produced the red `Initial setup refresh failed` state. The same invalid-current-directory dependency also caused the optional file logger to throw while DevExpress was rendering the form, terminating the Blazor circuit.
 
-3.9.1 keeps that guard unchanged and moves both Setup classification sites onto the already existing provider-owned `IAiProviderBootstrapService.IsOllamaProfile(...)` policy. The follow-up source review also found and removed the next constructor-initialization guard violation in the new CanIRun JSON request by moving the fixed JSON media type out of the `StringContent` constructor literal.
+3.9.2 removes that dependency from the Setup path: the generated macOS launcher uses the durable per-user LocalGPT runtime directory, startup can repair an already-invalid inherited current directory, hardware probes are explicitly rooted and best-effort, optional hardware failure no longer aborts the Setup snapshot, the file logger uses per-user logs, and the bounded provider/model console uses the durable runtime directory when no explicit working directory is supplied.
 
-No 3.9.0 feature is rolled back. Provider bootstrap v2/fallback parsing, explicit Ollama Start / Stop / Restart / Refresh, manual first-model installation, CanIRun opt-in JSON recommendations, reviewed RAM/unified-memory flow, the eight hosted services, the 15 InteractiveServer boundaries, and the executable Council SQL seed are preserved.
+The intended unified workflow is preserved: hardware review, optional CanIRun.ai recommendations, provider selection, Ollama Start/Stop/Restart/Refresh, endpoint registration, direct first-model install, one-click recommendation-driven model installs, installed-model selection, and benchmark-team creation remain in the Setup guide.
 
-See `CHANGELOG-v3.9.1-TEXT-SERVICE-OWNERSHIP-BUILD-REPAIR.md` and `VALIDATION-v3.9.1-source.md`. The full feature scope introduced in 3.9.0 remains documented in `CHANGELOG-v3.9.0-LOCAL-RUNTIME-SETUP-COMPLETION.md`.
+See `CHANGELOG-v3.9.2-PACKAGED-SETUP-RUNTIME-REPAIR.md` and `VALIDATION-v3.9.2-source.md`. The feature scope introduced in 3.9.0 and the build-guard repair in 3.9.1 remain preserved.

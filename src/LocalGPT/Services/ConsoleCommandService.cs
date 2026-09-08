@@ -212,7 +212,7 @@ public sealed class ConsoleCommandService(
         try
         {
             if (string.IsNullOrWhiteSpace(value))
-                return Environment.CurrentDirectory;
+                return LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory();
             var fullPath = Path.GetFullPath(value);
             if (!Directory.Exists(fullPath))
                 throw new DirectoryNotFoundException($"Working directory does not exist: {fullPath}");

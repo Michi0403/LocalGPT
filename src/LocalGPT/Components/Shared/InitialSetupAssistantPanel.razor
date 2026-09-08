@@ -83,7 +83,7 @@
                 @if (recommendations.Count > 0)
                 {
                     <div class="initial-setup-model-list">
-                        @foreach (var item in recommendations.Take(24))
+                        @foreach (var item in recommendations)
                         {
                             <div class="initial-setup-model-row" @key="@(item.DeviceEndpoint + item.ModelId)">
                                 <strong>@item.ModelName</strong>
@@ -163,7 +163,7 @@
                 else
                 {
                     <div class="initial-setup-model-list">
-                        @foreach (var choice in modelChoices.Take(32))
+                        @foreach (var choice in modelChoices)
                         {
                             <div class="initial-setup-model-row" @key="choice.ProviderModelId">
                                 <label class="form-check">

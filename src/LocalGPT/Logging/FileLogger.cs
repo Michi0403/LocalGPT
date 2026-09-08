@@ -44,9 +44,7 @@ namespace LocalGPT.Logging
         public FileLogger(string categoryName, IOptionsMonitor<FileLoggerCoreOptions> optionsSnapshot)
         {
             _options = optionsSnapshot.CurrentValue;
-            _realPath = string.IsNullOrWhiteSpace(_options.FilePath)
-                ? Path.Combine(Directory.GetCurrentDirectory(), "LocalGPT.log")
-                : _options.FilePath;
+            _realPath = ResolveLogPath(_options);
 
 
             _loggingThread = new Thread(ProcessLogQueue)
@@ -55,6 +53,38 @@ namespace LocalGPT.Logging
                 Name = "FileLoggerBackgroundThread"
             };
             _loggingThread.Start();
+        }
+
+        /// <summary>Resolves the file logger target without consulting the process current directory, which may be invalid after an installed application bundle is replaced.</summary>
+        /// <param name="options">Current file logger options.</param>
+        /// <returns>A writable per-user default, a safe relative-path resolution under that default, or an explicitly configured path outside the application bundle.</returns>
+        private string ResolveLogPath(FileLoggerCoreOptions options)
+        {
+            try
+            {
+                var defaultPath = LocalGptApplicationDataPaths.ResolveUserPath("logs", "LocalGPT.log");
+                var configured = options.FilePath?.Trim();
+                if (string.IsNullOrWhiteSpace(configured))
+                    return defaultPath;
+
+                if (!Path.IsPathRooted(configured))
+                    return Path.Combine(LocalGptApplicationDataPaths.ResolveUserPath("logs"), configured);
+
+                var fullConfigured = Path.GetFullPath(configured);
+                var applicationRoot = Path.GetFullPath(AppContext.BaseDirectory);
+                var relativeToApplication = Path.GetRelativePath(applicationRoot, fullConfigured);
+                var outsideApplication = relativeToApplication.Equals("..", StringComparison.Ordinal)
+                    || relativeToApplication.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                    || Path.IsPathRooted(relativeToApplication);
+                if (!outsideApplication)
+                    return defaultPath;
+
+                return fullConfigured;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                return Path.Combine(Path.GetTempPath(), "LocalGPT", "logs", "LocalGPT.log");
+            }
         }
 
         /// <summary>

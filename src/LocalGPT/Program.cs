@@ -111,9 +111,12 @@ namespace LocalGPT
         /// <returns>The web application produced by the operation.</returns>
         public static WebApplication BuildWebApp(string[]? args = null)
         {
+            var repairedCurrentDirectory = LocalGptApplicationDataPaths.RepairInvalidCurrentDirectory();
             var exeDir = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
             using var loggerFactory = LoggerFactory.Create(logging => logging.AddConsole());
             var logger = loggerFactory.CreateLogger("Startup");
+            if (repairedCurrentDirectory)
+                logger.LogWarning("The inherited process working directory no longer existed; LocalGPT repaired it to the per-user runtime directory before startup continued.");
             //EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
 
             var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions(args));

@@ -64,7 +64,22 @@ public sealed class HardwareInventoryService(
                     if (result.All(existing => !string.Equals(existing.LaneKey, gpu.LaneKey, StringComparison.OrdinalIgnoreCase)))
                         result.Add(gpu);
 
-                foreach (var gpu in await platformProbe.ProbePlatformGpusAsync(cancellationToken).ConfigureAwait(false))
+                IReadOnlyList<OneWireHardwareDescriptor> platformGpus;
+                try
+                {
+                    platformGpus = await platformProbe.ProbePlatformGpusAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    logger.LogDebug(exception, "Platform GPU discovery was unavailable; the remaining hardware inventory stays usable.");
+                    platformGpus = [];
+                }
+
+                foreach (var gpu in platformGpus)
                 {
                     if (result.All(existing => !string.Equals(existing.LaneKey, gpu.LaneKey, StringComparison.OrdinalIgnoreCase) &&
                                                !string.Equals(existing.Name, gpu.Name, StringComparison.OrdinalIgnoreCase)))
@@ -146,13 +161,15 @@ public sealed class HardwareInventoryService(
             return result;
     
     }
-    catch (Exception __serviceMethodException)
+    catch (OperationCanceledException exception)
     {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(HardwareInventoryService)}.{nameof(ProbeNvidiaAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(HardwareInventoryService)}.{nameof(ProbeNvidiaAsync)} failed.");
+        logger.LogDebug(exception, $"Service method {nameof(HardwareInventoryService)}.{nameof(ProbeNvidiaAsync)} was canceled.");
         throw;
+    }
+    catch (Exception exception)
+    {
+        logger.LogDebug(exception, "Optional NVIDIA discovery was unavailable; non-NVIDIA and manually configured hardware remain usable.");
+        return [];
     }
 }
 
@@ -179,7 +196,8 @@ public sealed class HardwareInventoryService(
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
+                    WorkingDirectory = LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory()
                 }
             };
             if (!process.Start()) return [];
@@ -189,9 +207,18 @@ public sealed class HardwareInventoryService(
             var output = await outputTask.ConfigureAwait(false);
             return output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or OperationCanceledException)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogDebug(ex, "Hardware probe {Probe} is unavailable; user-configured hardware routes remain usable.", fileName);
+            logger.LogDebug(exception, "Hardware probe {Probe} timed out; user-configured hardware routes remain usable.", fileName);
+            return [];
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(exception, "Hardware probe {Probe} is unavailable; user-configured hardware routes remain usable.", fileName);
             return [];
         }
     }

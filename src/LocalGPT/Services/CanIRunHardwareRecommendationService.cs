@@ -59,7 +59,7 @@ public sealed class CanIRunHardwareRecommendationService(
             {
                 Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, JsonMediaType)
             };
-            request.Headers.UserAgent.ParseAdd("LocalGPT/3.9.1 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
+            request.Headers.UserAgent.ParseAdd("LocalGPT/3.9.2 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if ((int)response.StatusCode is >= 300 and < 400)
                 throw new InvalidOperationException("CanIRun.ai redirects are not followed automatically.");
@@ -136,8 +136,6 @@ public sealed class CanIRunHardwareRecommendationService(
                 if (item is null)
                     continue;
                 result.Add(item);
-                if (result.Count >= limit * 4)
-                    break;
             }
             return result;
         }

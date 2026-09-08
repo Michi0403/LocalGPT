@@ -19,22 +19,22 @@ def forbid_all(pattern, message):
         for m in rx.finditer(text):
             line=text.count('\n',0,m.start())+1
             errors.append(f'{rel}:{line} {message}')
-version=(3, 9, 1)
+version=(3, 9, 2)
 if version[1]>9 or version[2]>9: errors.append('version violates one-digit minor/patch policy')
 for rel in ('src/LocalGPT/LocalGPT.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj'):
-    req(rel,'<Version>3.9.1</Version>')
+    req(rel,'<Version>3.9.2</Version>')
     try: ET.parse(ROOT/rel)
     except Exception as exc: errors.append(f'{rel} XML parse failed: {exc}')
 try:
     meta=json.loads(read('docs/docfx.json')).get('build',{}).get('globalMetadata',{})
-    if meta.get('localgptVersion')!='3.9.1': errors.append('docs/docfx.json localgptVersion != 3.9.1')
+    if meta.get('localgptVersion')!='3.9.2': errors.append('docs/docfx.json localgptVersion != 3.9.2')
 except Exception as exc: errors.append(f'docfx json parse failed: {exc}')
 for rel,mark in (
-    ('docs/index.md','**Version 3.9.1**'),('docs/pdf/toc.yml','LocalGPT-3.9.1.pdf'),
-    ('RELEASE.md','# LocalGPT 3.9.1'),('CHANGELOG-v3.9.1-TEXT-SERVICE-OWNERSHIP-BUILD-REPAIR.md','text-service ownership build repair'),
-    ('VALIDATION-v3.9.1-source.md','# LocalGPT 3.9.1 source validation'),
-    ('src/LocalGPT/Components/App.razor','localgpt-chat-ui.js?v=3.9.1'),
-    ('src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs','LocalGPT/3.9.1')): req(rel,mark)
+    ('docs/index.md','**Version 3.9.2**'),('docs/pdf/toc.yml','LocalGPT-3.9.2.pdf'),
+    ('RELEASE.md','# LocalGPT 3.9.2'),('CHANGELOG-v3.9.2-PACKAGED-SETUP-RUNTIME-REPAIR.md','packaged Setup runtime repair'),
+    ('VALIDATION-v3.9.2-source.md','# LocalGPT 3.9.2 source validation'),
+    ('src/LocalGPT/Components/App.razor','localgpt-chat-ui.js?v=3.9.2'),
+    ('src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs','LocalGPT/3.9.2')): req(rel,mark)
 
 docs=read('build/Build-Documentation.ps1')
 for marker in (
@@ -461,7 +461,7 @@ for path in ROOT.rglob('*'):
     if path.is_file() and path.suffix.lower() in ('.pyc','.pyo'):
         errors.append(f'repository-local compiled Python file present: {path.relative_to(ROOT)}')
 
-# 3.9.1 build-guard repair. Reproduce the maintained PowerShell guard predicates in
+# 3.9.2 build-guard repair. Reproduce the maintained PowerShell guard predicates in
 # Python so source-only release preparation can catch the same policy failures without pwsh.
 text_baseline_path = ROOT / 'build' / 'text-service-ownership-baseline.json'
 try:
@@ -530,20 +530,72 @@ for path in (ROOT / 'src' / 'LocalGPT').rglob('*'):
 interface_text = read('src/LocalGPT/Interfaces/IInitialSetupAssistantService.cs')
 for marker_text in ('bool IsOllamaProfile(AiProviderBootstrapProfile profile);',):
     if marker_text not in interface_text:
-        errors.append(f'3.9.1 provider classification ownership marker missing: {marker_text}')
+        errors.append(f'3.9.2 provider classification ownership marker missing: {marker_text}')
 panel_391 = read('src/LocalGPT/Components/Shared/InitialSetupAssistantPanel.razor')
 for marker_text in ('Providers.IsOllamaProfile(profile)', 'FirstOrDefault(Providers.IsOllamaProfile)'):
     if marker_text not in panel_391:
-        errors.append(f'3.9.1 Setup provider-classification delegation missing: {marker_text}')
+        errors.append(f'3.9.2 Setup provider-classification delegation missing: {marker_text}')
 if '.StartsWith("ollama-", StringComparison.OrdinalIgnoreCase)' in panel_391:
-    errors.append('3.9.1 Setup component still owns an Ollama profile-prefix StartsWith check')
+    errors.append('3.9.2 Setup component still owns an Ollama profile-prefix StartsWith check')
 canirun_391 = read('src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs')
 for marker_text in ('private const string JsonMediaType = "application/json";', 'Encoding.UTF8, JsonMediaType'):
     if marker_text not in canirun_391:
-        errors.append(f'3.9.1 CanIRun constructor-literal guard repair missing: {marker_text}')
+        errors.append(f'3.9.2 CanIRun constructor-literal guard repair missing: {marker_text}')
+
+# 3.9.2 packaged-runtime setup repair: the launcher, logger, optional hardware probes,
+# and bounded provider command runner must not depend on a potentially deleted current directory.
+paths = read('src/LocalGPT/Program.ServiceRegistration.cs')
+for marker_text in ('ResolveProcessWorkingDirectory()', 'RepairInvalidCurrentDirectory()', 'Directory.SetCurrentDirectory(ResolveProcessWorkingDirectory())'):
+    if marker_text not in paths:
+        errors.append(f'3.9.2 process working-directory repair missing: {marker_text}')
+program_392 = read('src/LocalGPT/Program.cs')
+if 'LocalGptApplicationDataPaths.RepairInvalidCurrentDirectory()' not in program_392:
+    errors.append('3.9.2 startup no longer repairs an invalid inherited current directory')
+launcher_392 = read('build/NativeReleasePackaging.ps1')
+for marker_text in ('cd "$USER_DATA_DIR/runtime"', 'durable per-user runtime working directory'):
+    if marker_text not in launcher_392:
+        errors.append(f'3.9.2 macOS launcher working-directory repair missing: {marker_text}')
+if 'cd "$APP" || { show_failure "The packaged application directory could not be opened:' in launcher_392:
+    errors.append('3.9.2 macOS launcher still makes the replaceable application bundle its process working directory')
+file_logger_392 = read('src/LocalGPT/Logging/FileLogger.cs')
+for marker_text in ('ResolveLogPath(_options)', 'LocalGptApplicationDataPaths.ResolveUserPath("logs", "LocalGPT.log")', 'Path.GetTempPath()', 'AppContext.BaseDirectory'):
+    if marker_text not in file_logger_392:
+        errors.append(f'3.9.2 file-logger runtime-path repair missing: {marker_text}')
+if 'Directory.GetCurrentDirectory()' in file_logger_392:
+    errors.append('3.9.2 FileLogger still depends on Directory.GetCurrentDirectory()')
+console_392 = read('src/LocalGPT/Services/ConsoleCommandService.cs')
+if 'return LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory();' not in console_392:
+    errors.append('3.9.2 bounded console still lacks the stable default working directory used by provider/model installs')
+if 'return Environment.CurrentDirectory;' in console_392:
+    errors.append('3.9.2 bounded console still uses Environment.CurrentDirectory as its blank-request default')
+hardware_392 = read('src/LocalGPT/Services/HardwareInventoryService.cs')
+for marker_text in ('WorkingDirectory = LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory()', 'Optional NVIDIA discovery was unavailable', 'platformGpus = []'):
+    if marker_text not in hardware_392:
+        errors.append(f'3.9.2 hardware inventory best-effort repair missing: {marker_text}')
+platform_392 = read('src/LocalGPT/Services/HardwarePlatformProbeServices.cs')
+if platform_392.count('WorkingDirectory = LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory()') != 2:
+    errors.append('3.9.2 platform hardware probes must both use the stable process working directory')
+setup_392 = read('src/LocalGPT/Services/InitialSetupAssistantService.cs')
+for marker_text in ('Optional hardware discovery was unavailable while building initial setup snapshot', 'provider, Ollama, model, and recommendation controls remain usable.', 'hardware = [];'):
+    if marker_text not in setup_392:
+        errors.append(f'3.9.2 setup optional-hardware isolation missing: {marker_text}')
+panel_392 = read('src/LocalGPT/Components/Shared/InitialSetupAssistantPanel.razor')
+for marker_text in ('Start Ollama', 'Stop Ollama', 'Restart Ollama', 'Fetch attributed recommendations', 'Download / install model', 'Install model', 'Register endpoint in LocalGPT'):
+    if marker_text not in panel_392:
+        errors.append(f'3.9.2 unified setup workflow regressed required UI marker: {marker_text}')
+for forbidden in ('recommendations.Take(24)', 'modelChoices.Take(32)'):
+    if forbidden in panel_392:
+        errors.append(f'3.9.2 unified setup workflow still hides fetched recommendations behind a Razor-only truncation: {forbidden}')
+if '.Take(96)' in setup_392:
+    errors.append('3.9.2 model-choice mapping still truncates CanIRun recommendations before the unified Setup form can offer each one')
+canirun_392 = read('src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs')
+if 'limit * 4' in canirun_392:
+    errors.append('3.9.2 CanIRun parser retains the overflowing recommendation-limit multiplication that can collapse an unlimited policy to one result')
+if 'result.Count >= 512' not in canirun_392:
+    errors.append('3.9.2 CanIRun JSON traversal lost its explicit 512-object safety bound')
 
 if errors:
-    print('LocalGPT 3.9.1 static release audit FAILED:')
+    print('LocalGPT 3.9.2 static release audit FAILED:')
     for e in errors: print(' -',e)
     sys.exit(1)
-print('LocalGPT 3.9.1 source audit passed.')
+print('LocalGPT 3.9.2 source audit passed.')

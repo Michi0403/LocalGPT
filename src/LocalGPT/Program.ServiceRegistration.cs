@@ -478,6 +478,40 @@ namespace LocalGPT
             Array.Copy(segments, 0, parts, 1, segments.Length);
             return Path.Combine(parts);
         }
+
+        /// <summary>Returns an existing durable working directory for child processes without depending on the launcher's current directory.</summary>
+        /// <returns>The canonical per-user LocalGPT runtime directory, or a per-user temporary fallback when the durable path cannot be created.</returns>
+        public static string ResolveProcessWorkingDirectory()
+        {
+            try
+            {
+                var runtimeDirectory = ResolveUserPath("runtime");
+                Directory.CreateDirectory(runtimeDirectory);
+                return runtimeDirectory;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                var fallback = Path.Combine(Path.GetTempPath(), ProductName, "runtime");
+                Directory.CreateDirectory(fallback);
+                return fallback;
+            }
+        }
+
+        /// <summary>Repairs an invalid inherited current directory without changing normal source/development launches.</summary>
+        /// <returns><see langword="true"/> when the process current directory had to be repaired; otherwise <see langword="false"/>.</returns>
+        public static bool RepairInvalidCurrentDirectory()
+        {
+            try
+            {
+                _ = Directory.GetCurrentDirectory();
+                return false;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                Directory.SetCurrentDirectory(ResolveProcessWorkingDirectory());
+                return true;
+            }
+        }
     
         /// <summary>Returns read/discovery-only system-wide LocalGPT roots for the current host.</summary>
         /// <returns>The collection produced by the operation.</returns>

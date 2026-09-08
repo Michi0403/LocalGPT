@@ -93,7 +93,8 @@ public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwareP
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
+                    WorkingDirectory = LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory()
                 }
             };
             if (!process.Start()) return [];
@@ -103,9 +104,18 @@ public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwareP
             var output = await outputTask.ConfigureAwait(false);
             return output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
-        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or OperationCanceledException)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogDebug(exception, "Windows GPU process probe is unavailable.");
+            logger.LogDebug(exception, "Windows hardware process probe timed out.");
+            return [];
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(exception, "Windows hardware process probe is unavailable.");
             return [];
         }
     }
@@ -157,8 +167,8 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         }
         catch (Exception exception)
         {
-            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(UnixHardwarePlatformProbeService), nameof(ProbePlatformGpusAsync), exception);
-            throw;
+            logger.LogDebug(exception, "Unix platform GPU discovery was unavailable; manual hardware configuration remains usable.");
+            return [];
         }
     }
 
@@ -423,7 +433,8 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
+                    WorkingDirectory = LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory()
                 }
             };
             if (!process.Start()) return [];
@@ -433,7 +444,16 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
             var output = await outputTask.ConfigureAwait(false);
             return output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
         }
-        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or OperationCanceledException)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogDebug(exception, "Unix hardware process probe timed out.");
+            return [];
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or IOException or UnauthorizedAccessException)
         {
             logger.LogDebug(exception, "Unix hardware process probe is unavailable.");
             return [];

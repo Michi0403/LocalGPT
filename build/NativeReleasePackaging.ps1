@@ -1196,8 +1196,8 @@ if ! verify_runtime_architecture; then
   exit 1
 fi
 
-cd "$APP" || { show_failure "The packaged application directory could not be opened: $APP"; exit 1; }
-printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Starting $PRODUCT from $BIN with an automatically selected loopback port (macOS port 5000 is commonly occupied by AirPlay Receiver)." >>"$LOG_FILE"
+cd "$USER_DATA_DIR/runtime" || { show_failure "The per-user runtime working directory could not be opened: $USER_DATA_DIR/runtime"; exit 1; }
+printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Starting $PRODUCT from $BIN with a durable per-user runtime working directory and an automatically selected loopback port (macOS port 5000 is commonly occupied by AirPlay Receiver)." >>"$LOG_FILE"
 "$BIN" --port 0 >>"$LOG_FILE" 2>&1 &
 pid=$!
 

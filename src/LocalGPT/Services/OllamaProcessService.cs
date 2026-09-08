@@ -67,7 +67,7 @@ public sealed class OllamaProcessService(
             var startInfo = new ProcessStartInfo
             {
                 FileName = executable,
-                WorkingDirectory = Path.GetDirectoryName(executable) ?? Environment.CurrentDirectory,
+                WorkingDirectory = Path.GetDirectoryName(executable) ?? LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory(),
                 UseShellExecute = isGuiExecutable,
                 CreateNoWindow = !isGuiExecutable
             };
@@ -162,7 +162,7 @@ public sealed class OllamaProcessService(
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = executable,
-                    WorkingDirectory = Path.GetDirectoryName(executable) ?? Environment.CurrentDirectory,
+                    WorkingDirectory = Path.GetDirectoryName(executable) ?? LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory(),
                     UseShellExecute = isGuiExecutable,
                     CreateNoWindow = !isGuiExecutable
                 };

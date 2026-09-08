@@ -34,7 +34,20 @@ public sealed class InitialSetupAssistantService(
     {
         try
         {
-            var hardware = await BuildHardwareListAsync(cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<InitialSetupHardwareDevice> hardware;
+            try
+            {
+                hardware = await BuildHardwareListAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "Optional hardware discovery was unavailable while building initial setup snapshot; provider, Ollama, model, and recommendation controls remain usable.");
+                hardware = [];
+            }
             var profiles = await providerBootstrap.GetProfilesAsync(cancellationToken).ConfigureAwait(false);
             IReadOnlyList<MultiModelCouncilModelCandidate> candidates;
             try
@@ -169,8 +182,7 @@ public sealed class InitialSetupAssistantService(
             foreach (var recommendation in effectiveRecommendations
                 .GroupBy(item => item.ModelId, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.OrderByDescending(item => item.Score).First())
-                .OrderByDescending(item => item.Score)
-                .Take(96))
+                .OrderByDescending(item => item.Score))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var providerId = await providerBootstrap.ResolveModelIdAsync(profileKey, recommendation.ModelId, cancellationToken).ConfigureAwait(false);
