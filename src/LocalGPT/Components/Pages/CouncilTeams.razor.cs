@@ -353,7 +353,18 @@ namespace LocalGPT.Components.Pages
                 .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            await InvokeAsync(() => _providerModels = candidates).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                _providerModels = candidates;
+                var migrated = ReconcileEditorProviderModelBindings();
+                if (migrated > 0)
+                {
+                    Logger.LogInformation(
+                        "Council Teams reconciled {BindingCount} persisted provider-model binding(s) to current unique provider identities in the editor.",
+                        migrated);
+                    RefreshAdvancedJson();
+                }
+            }).ConfigureAwait(false);
         }
         catch (ObjectDisposedException)
         {

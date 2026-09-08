@@ -500,37 +500,24 @@ namespace LocalGPT.Components.Pages
             foreach (var raw in values.Where(value => !string.IsNullOrWhiteSpace(value)))
             {
                 var value = raw.Trim();
-                var exact = OllamaCandidates.FirstOrDefault(candidate =>
-                    candidate.SelectionKey.Equals(value, StringComparison.OrdinalIgnoreCase));
-                if (exact is not null)
+                var resolved = identity.ResolveEquivalentCandidate(value, OllamaCandidates, out var isAmbiguous);
+                if (resolved is not null)
                 {
-                    if (!normalized.Contains(exact.SelectionKey, StringComparer.OrdinalIgnoreCase))
-                        normalized.Add(exact.SelectionKey);
+                    if (!normalized.Contains(resolved.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                        normalized.Add(resolved.SelectionKey);
                     continue;
                 }
 
                 if (identity.LooksProviderQualified(value))
-                {
                     unavailable.Add(value);
-                    if (!normalized.Contains(value, StringComparer.OrdinalIgnoreCase))
-                        normalized.Add(value);
-                    continue;
-                }
 
-                var byModel = OllamaCandidates
-                    .Where(candidate => candidate.ModelName.Equals(value, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (byModel.Count == 1)
-                {
-                    if (!normalized.Contains(byModel[0].SelectionKey, StringComparer.OrdinalIgnoreCase))
-                        normalized.Add(byModel[0].SelectionKey);
-                    continue;
-                }
-
-                // A bare legacy value is retained when no unique mapping is possible. The runtime
-                // will reject ambiguity rather than substituting a provider host silently.
+                // Retain unmatched or ambiguous saved values. Runtime preflight rejects ambiguity
+                // rather than silently substituting another provider host or another model size.
                 if (!normalized.Contains(value, StringComparer.OrdinalIgnoreCase))
                     normalized.Add(value);
+
+                if (isAmbiguous)
+                    Logger.LogInformation("Saved {SelectionScope} provider-model binding remained unchanged because multiple current candidates were equivalent.", selectionScope);
             }
 
             if (unavailable.Count > 0)
@@ -556,22 +543,12 @@ namespace LocalGPT.Components.Pages
     private List<string> NormalizeProviderSelectionKeys(IEnumerable<string> values)
     {
         var normalized = new List<string>();
+        var identity = new ProviderModelIdentity();
         foreach (var raw in values.Where(value => !string.IsNullOrWhiteSpace(value)))
         {
             var value = raw.Trim();
-            var exact = OllamaCandidates.FirstOrDefault(candidate =>
-                candidate.SelectionKey.Equals(value, StringComparison.OrdinalIgnoreCase));
-            if (exact is not null)
-            {
-                if (!normalized.Contains(exact.SelectionKey, StringComparer.OrdinalIgnoreCase))
-                    normalized.Add(exact.SelectionKey);
-                continue;
-            }
-
-            var byModel = OllamaCandidates
-                .Where(candidate => candidate.ModelName.Equals(value, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            var resolved = byModel.Count == 1 ? byModel[0].SelectionKey : value;
+            var candidate = identity.ResolveEquivalentCandidate(value, OllamaCandidates, out _);
+            var resolved = candidate?.SelectionKey ?? value;
             if (!normalized.Contains(resolved, StringComparer.OrdinalIgnoreCase))
                 normalized.Add(resolved);
         }

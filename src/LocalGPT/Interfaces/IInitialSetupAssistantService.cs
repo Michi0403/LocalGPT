@@ -17,6 +17,21 @@ public interface IInitialSetupAssistantService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<InitialSetupModelChoice>> BuildModelChoicesAsync(string profileKey, IReadOnlyList<CanIRunModelRecommendation> recommendations, CancellationToken cancellationToken = default);
+    /// <summary>Searches the selected provider's official public model catalog after an explicit user action, independently from CanIRun.ai.</summary>
+    /// <param name="profileKey">Selected platform/provider bootstrap profile.</param>
+    /// <param name="query">Optional provider-catalog search text. An empty value requests the provider's default catalog view.</param>
+    /// <param name="userConfirmedWebLookup">Value indicating whether the user explicitly requested the provider-owned network lookup.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>Bounded provider-safe catalog choices that may be installed through the existing provider bootstrap path.</returns>
+    Task<IReadOnlyList<InitialSetupModelChoice>> SearchProviderCatalogAsync(string profileKey, string query, bool userConfirmedWebLookup, CancellationToken cancellationToken = default);
+    /// <summary>Resolves one CanIRun.ai hardware-fit recommendation against the selected provider's official catalog after an explicit user action.</summary>
+    /// <param name="profileKey">Selected platform/provider bootstrap profile.</param>
+    /// <param name="recommendationId">Attributed CanIRun.ai recommendation identifier.</param>
+    /// <param name="displayName">Human-readable recommendation name used only as an additional conservative identity candidate.</param>
+    /// <param name="userConfirmedWebLookup">Value indicating whether the user explicitly requested the provider-owned network lookup.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The bounded catalog candidates together with a unique provider-safe match when one can be proven conservatively.</returns>
+    Task<InitialSetupProviderCatalogResolution> ResolveProviderCatalogRecommendationAsync(string profileKey, string recommendationId, string displayName, bool userConfirmedWebLookup, CancellationToken cancellationToken = default);
     /// <summary>Loads optional attributed CanIRun.ai recommendations for each selected hardware row while preserving the local physical-host/endpoint association.</summary>
     /// <param name="devices">Initial setup hardware device dependency used by the initial setup assistant workflow to provide the corresponding application capability.</param>
     /// <param name="userConfirmedWebLookup">Value indicating whether user confirmed web lookup should apply to this operation.</param>

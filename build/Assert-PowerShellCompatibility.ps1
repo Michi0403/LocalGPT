@@ -76,7 +76,7 @@ foreach ($file in $scriptFiles) {
     # into a long build.
     $tokens = $null
     $parseErrors = $null
-    [void][System.Management.Automation.Language.Parser]::ParseInput(
+    $scriptAst = [System.Management.Automation.Language.Parser]::ParseInput(
         $content,
         [ref]$tokens,
         [ref]$parseErrors)
@@ -85,6 +85,26 @@ foreach ($file in $scriptFiles) {
         $line = $parseError.Extent.StartLineNumber
         $message = $parseError.Message
         $failures.Add("${relative}:$line has a PowerShell parser error: $message")
+    }
+    # Windows PowerShell 5.1 exposes Join-Path with only Path + ChildPath positional
+    # arguments. PowerShell 6+ added AdditionalChildPath, so a bare three-argument
+    # Join-Path expression can pass modern pwsh validation yet fail late in a Windows
+    # documentation build. Reject that shape before the long DocFX/PDF pipeline starts.
+    $joinPathCommands = @($scriptAst.FindAll({
+        param($node)
+        if (-not ($node -is [System.Management.Automation.Language.CommandAst])) { return $false }
+        $commandName = $node.GetCommandName()
+        return -not [string]::IsNullOrWhiteSpace($commandName) -and
+            [string]::Equals($commandName, 'Join-Path', [System.StringComparison]::OrdinalIgnoreCase)
+    }, $true))
+    foreach ($commandAst in $joinPathCommands) {
+        $arguments = @($commandAst.CommandElements | Select-Object -Skip 1)
+        $namedParameterCount = @($arguments | Where-Object { $_ -is [System.Management.Automation.Language.CommandParameterAst] }).Count
+        if ($namedParameterCount -eq 0 -and $arguments.Count -gt 2) {
+            $relative = Get-RepositoryRelativePath -Path $file.FullName
+            $line = $commandAst.Extent.StartLineNumber
+            $failures.Add("${relative}:$line passes more than Path + ChildPath positionally to Join-Path. Windows PowerShell 5.1 has no AdditionalChildPath parameter; nest Join-Path calls instead.")
+        }
     }
     foreach ($match in [regex]::Matches($content, $unsupportedContainsPattern)) {
         $line = [regex]::Matches($content.Substring(0, $match.Index), "`r`n|`r|`n").Count + 1

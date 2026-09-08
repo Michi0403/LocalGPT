@@ -205,6 +205,61 @@ function Assert-LocalGptDocumentationPayload {
 
 $appVersion = Resolve-ProjectVersion -ProjectPath $appProject
 
+function Get-ReleaseSourceFingerprint {
+    $rootFull = [IO.Path]::GetFullPath($root).TrimEnd([char[]]@('\', '/'))
+    $rootPrefix = $rootFull + [IO.Path]::DirectorySeparatorChar
+    $excludedSegments = @('.git', 'artifacts', 'bin', 'obj', '__pycache__', '.pytest_cache', 'packages')
+    $fingerprintLines = New-Object 'System.Collections.Generic.List[string]'
+    $files = @(Get-ChildItem -LiteralPath $rootFull -File -Recurse -Force -ErrorAction SilentlyContinue | Sort-Object FullName)
+    foreach ($file in $files) {
+        if (-not $file.FullName.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        $relative = $file.FullName.Substring($rootPrefix.Length).Replace('\', '/')
+        $segments = @($relative -split '/')
+        if (@($segments | Where-Object { $_ -in $excludedSegments }).Count -gt 0) { continue }
+        if ($relative.StartsWith('src/LocalGPT/wwwroot/help-docs/', [StringComparison]::OrdinalIgnoreCase)) { continue }
+        if ($relative.StartsWith('.github/pages/', [StringComparison]::OrdinalIgnoreCase)) { continue }
+        if ($file.Extension -in @('.pyc', '.pyo')) { continue }
+        $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        [void]$fingerprintLines.Add("$relative`t$hash")
+    }
+    if ($fingerprintLines.Count -eq 0) { throw 'Release source fingerprint cannot be computed from an empty source set.' }
+    $payload = [Text.Encoding]::UTF8.GetBytes(($fingerprintLines -join "`n"))
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha.ComputeHash($payload))).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha.Dispose()
+    }
+}
+
+function Initialize-ReleaseArtifactSourceIdentity {
+    param([Parameter(Mandatory)][string]$Version)
+    New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
+    $markerPath = Join-Path $artifacts "LocalGPT-$Version-SOURCE-SHA256.txt"
+    $existingFingerprint = if (Test-Path -LiteralPath $markerPath -PathType Leaf) { ([string](Get-Content -LiteralPath $markerPath -Raw -Encoding UTF8)).Trim().ToLowerInvariant() } else { '' }
+    $sourceChanged = -not [string]::Equals($existingFingerprint, $script:releaseSourceFingerprint, [StringComparison]::Ordinal)
+    if ($ForceRebuildArtifacts -or $sourceChanged) {
+        $reason = if ($ForceRebuildArtifacts) { 'forced rebuild' } elseif ([string]::IsNullOrWhiteSpace($existingFingerprint)) { 'missing source fingerprint' } else { 'source fingerprint changed' }
+        Write-Host "Clearing same-version release artifacts for $Version because $reason; stale signed/notarized payloads must not be reused." -ForegroundColor Yellow
+        $versionDirectory = Join-Path $artifacts $Version
+        Remove-Item -LiteralPath $versionDirectory -Recurse -Force -ErrorAction SilentlyContinue
+        Get-ChildItem -LiteralPath $artifacts -File -Force -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.Name -ne [IO.Path]::GetFileName($markerPath) -and
+                ($_.Name -like "*-$Version-*" -or $_.Name -like "*-$Version.*" -or $_.Name -like "LocalGPT-$Version*")
+            } |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $artifacts 'LocalGPT.app') -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $artifacts 'staging') -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    [IO.File]::WriteAllText($markerPath, "$($script:releaseSourceFingerprint)`n", (New-Object Text.UTF8Encoding($false)))
+}
+
+$script:releaseSourceFingerprint = Get-ReleaseSourceFingerprint
+Initialize-ReleaseArtifactSourceIdentity -Version $appVersion
+
+
 function Prepare-LocalGptDocumentation {
     if ($script:documentationPrepared) { return }
 
@@ -476,6 +531,10 @@ function Test-VersionDirectoryName {
 function Test-ExistingReleaseBundleComplete {
     param([Parameter(Mandatory)][string]$Version)
     $versionDirectory = Join-Path $artifacts $Version
+    $sourceFingerprintPath = Join-Path $versionDirectory 'SOURCE-SHA256.txt'
+    if (-not (Test-Path -LiteralPath $sourceFingerprintPath -PathType Leaf)) { return $false }
+    $bundleSourceFingerprint = ([string](Get-Content -LiteralPath $sourceFingerprintPath -Raw -Encoding UTF8)).Trim().ToLowerInvariant()
+    if (-not [string]::Equals($bundleSourceFingerprint, $script:releaseSourceFingerprint, [StringComparison]::Ordinal)) { return $false }
     $checksumPath = Join-Path $versionDirectory 'SHA256SUMS.txt'
     if (-not (Test-Path -LiteralPath $checksumPath -PathType Leaf)) { return $false }
     $lines = @(Get-Content -LiteralPath $checksumPath -Encoding UTF8 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
@@ -579,6 +638,8 @@ function Complete-ReleaseBundle {
         Move-OrReuseReleaseFile -SourcePath $WindowsX64SetupExecutablePath -DestinationDirectory $versionDirectory | Out-Null
     }
 
+    $sourceFingerprintPath = Join-Path $versionDirectory 'SOURCE-SHA256.txt'
+    [IO.File]::WriteAllText($sourceFingerprintPath, "$($script:releaseSourceFingerprint)`n", (New-Object Text.UTF8Encoding($false)))
     $checksumPath = Join-Path $versionDirectory 'SHA256SUMS.txt'
     $checksumLines = foreach ($file in Get-ChildItem -LiteralPath $versionDirectory -File | Sort-Object Name) {
         if ($file.Name -eq 'SHA256SUMS.txt') { continue }

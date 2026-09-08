@@ -300,7 +300,7 @@ function Save-LocalGptDocumentationHtmlCache {
     New-Item -ItemType Directory -Path (Join-Path $temporary 'site') -Force | Out-Null
     try {
         foreach ($entry in Get-ChildItem -LiteralPath $SiteRoot -Force) {
-            Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path $temporary 'site' $entry.Name) -Recurse -Force
+            Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path (Join-Path $temporary 'site') $entry.Name) -Recurse -Force
         }
         $Manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $temporary 'manifest.json') -Encoding utf8
         Remove-LocalGptTemporaryPath -Path $CacheEntryRoot -Attempts 8 -DelayMilliseconds 250
@@ -3432,9 +3432,14 @@ foreach ($publishRoot in $publishRoots) {
     }
 }
 
-# The source-tree/runtime documentation snapshot is also the embedded help payload. Keep the
-# already size-controlled PDF beside the HTML so the in-app documentation mechanism remains fully offline.
-if (Test-Path -LiteralPath $sourceWebRoot -PathType Container) {
+# The source-tree/runtime documentation snapshot is also the embedded help payload. Release
+# documentation requires the complete PDF, while normal Debug builds intentionally publish HTML-only
+# help. Keep this validation aligned with Directory.Build.targets on Windows, macOS, and Linux so an
+# HTML-only developer build never fails merely because -RequirePdf was not requested.
+if ($RequirePdf -or $pdfGenerated) {
+    if (-not (Test-Path -LiteralPath $sourceWebRoot -PathType Container)) {
+        throw "Runtime help-docs tree was not published: $sourceWebRoot"
+    }
     $sourcePdfPath = Join-Path $sourceWebRoot $pdfName
     if (-not (Test-Path -LiteralPath $sourcePdfPath -PathType Leaf)) {
         throw "Embedded LocalGPT documentation PDF was not published into the runtime help-docs tree: $sourcePdfPath"

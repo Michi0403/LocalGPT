@@ -424,29 +424,25 @@ namespace LocalGPT.Services
             try
             {
                 var normalizedBinding = savedBinding.Trim();
-                var exact = candidates.FirstOrDefault(candidate =>
-                    string.Equals(candidate.SelectionKey, normalizedBinding, StringComparison.OrdinalIgnoreCase));
-                if (exact is not null)
-                    return exact.SelectionKey;
-
-                var legacyMatches = candidates
-                    .Where(candidate => string.Equals(candidate.ModelName, normalizedBinding, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (legacyMatches.Count == 1)
+                var identity = new ProviderModelIdentity();
+                var reconciled = identity.ResolveEquivalentCandidate(normalizedBinding, candidates, out var isAmbiguous);
+                if (reconciled is not null)
                 {
-                    logger.LogInformation(
-                        "Council team {TeamKey} resolved legacy bare model assignment {LegacyModel} for {RoleOrStep} to provider-qualified identity {SelectionKey} for this run.",
-                        team.Key,
-                        normalizedBinding,
-                        roleOrStep,
-                        legacyMatches[0].SelectionKey);
-                    return legacyMatches[0].SelectionKey;
+                    if (!string.Equals(reconciled.SelectionKey, normalizedBinding, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogInformation(
+                            "Council team {TeamKey} reconciled saved model assignment for {RoleOrStep} to the current provider-qualified identity {SelectionKey} for this run.",
+                            team.Key,
+                            roleOrStep,
+                            reconciled.SelectionKey);
+                    }
+                    return reconciled.SelectionKey;
                 }
 
-                if (legacyMatches.Count > 1)
+                if (isAmbiguous)
                 {
                     throw new InvalidOperationException(
-                        $"Council team '{team.DisplayName}' stores legacy model assignment '{normalizedBinding}' for '{roleOrStep}', but that model exists on multiple connected providers/hosts. Open Council Teams and bind the exact provider-qualified model; LocalGPT will not guess a host.");
+                        $"Council team '{team.DisplayName}' stores model assignment '{normalizedBinding}' for '{roleOrStep}', but the saved model exists on multiple connected providers/hosts. Open Council Teams and choose the exact provider-qualified model; LocalGPT will not guess a host.");
                 }
 
                 return normalizedBinding;

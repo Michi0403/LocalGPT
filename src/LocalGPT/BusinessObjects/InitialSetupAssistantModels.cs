@@ -149,6 +149,12 @@ public sealed class InitialSetupHardwareDevice
     /// <summary>Gets or sets the normalized physical-host key when already known.</summary>
     /// <value>The host key value exposed by <see cref="InitialSetupHardwareDevice"/>.</value>
     public string HostKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets the detected or reviewed CPU/model name for the physical host.</summary>
+    /// <value>The CPU/model identity; it remains separate from accelerator rows.</value>
+    public string CpuName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the user-reviewed CanIRun.ai hardware label when its catalog uses a different accelerator variant name.</summary>
+    /// <value>The external hardware-catalog label; an empty value means use the local accelerator name.</value>
+    public string CanIRunHardwareName { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the name value that forms part of the initial setup hardware device state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -217,6 +223,12 @@ public sealed class CanIRunModelRecommendation
     /// <summary>Gets or sets the model provider/publisher reported by CanIRun.ai.</summary>
     /// <value>The publisher value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
     public string Publisher { get; set; } = string.Empty;
+    /// <summary>Gets or sets the exact Ollama model token when CanIRun.ai exposes provider-specific install metadata.</summary>
+    /// <value>The Ollama model identifier, or an empty string when the response did not provide one.</value>
+    public string OllamaModelId { get; set; } = string.Empty;
+    /// <summary>Gets or sets the exact LM Studio catalog identifier when CanIRun.ai exposes provider-specific install metadata.</summary>
+    /// <value>The LM Studio model identifier, or an empty string when the response did not provide one.</value>
+    public string LmStudioModelId { get; set; } = string.Empty;
     /// <summary>Gets or sets the source hardware label retained in the legacy device-slug field for backwards-compatible serialization.</summary>
     /// <value>The reviewed accelerator name associated with this recommendation.</value>
     public string DeviceSlug { get; set; } = string.Empty;
@@ -267,6 +279,9 @@ public sealed class AiProviderBootstrapProfile
     /// <summary>Gets or sets the knowledge/source URL shown to the user.</summary>
     /// <value>The source URL value exposed by <see cref="AiProviderBootstrapProfile"/>.</value>
     public string SourceUrl { get; set; } = string.Empty;
+    /// <summary>Gets or sets the official provider model catalog URL shown independently from CanIRun.ai recommendations.</summary>
+    /// <value>The provider-owned model catalog/search URL.</value>
+    public string ModelCatalogUrl { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the detect command value that forms part of the AI provider bootstrap profile state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -314,9 +329,33 @@ public sealed class InitialSetupModelChoice
     /// <summary>Gets or sets the provider-qualified LocalGPT selection key when the model is currently installed.</summary>
     /// <value>The selection key value exposed by <see cref="InitialSetupModelChoice"/>.</value>
     public string SelectionKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether LocalGPT has a provider-safe one-click installation mapping for this recommendation.</summary>
+    /// <value><see langword="true"/> when the provider model identifier can be used for an explicit install action.</value>
+    public bool CanInstall { get; set; } = true;
+    /// <summary>Gets or sets a short mapping note when a recommendation is visible but not safely one-click installable.</summary>
+    /// <value>The mapping status shown beside the recommendation.</value>
+    public string MappingStatus { get; set; } = string.Empty;
     /// <summary>Gets or sets whether the selected provider already exposes this model.</summary>
     /// <value>The is installed value exposed by <see cref="InitialSetupModelChoice"/>.</value>
     public bool IsInstalled { get; set; }
+    /// <summary>Gets or sets whether the row originated from the selected provider's installed/runtime inventory.</summary>
+    /// <value><see langword="true"/> for provider-discovered local models.</value>
+    public bool IsProviderInventory { get; set; }
+    /// <summary>Gets or sets whether the row originated from an explicit search of the selected provider's official public model catalog.</summary>
+    /// <value><see langword="true"/> for provider-owned online catalog results.</value>
+    public bool IsProviderCatalogEntry { get; set; }
+    /// <summary>Gets or sets whether CanIRun.ai identified this model as a hardware-fit discovery for the reviewed host.</summary>
+    /// <value><see langword="true"/> when attributed CanIRun.ai recommendation data is attached.</value>
+    public bool IsHardwareRecommended { get; set; }
+    /// <summary>Gets or sets whether the selected provider can safely re-run its install/pull operation to check or refresh an installed model.</summary>
+    /// <value><see langword="true"/> when an explicit provider-safe update/check action is available.</value>
+    public bool CanCheckUpdate { get; set; }
+    /// <summary>Gets or sets the official provider catalog URL for discovering additional installable models outside CanIRun.ai.</summary>
+    /// <value>The provider-owned model-detail URL when exact, otherwise a provider-owned search/catalog URL.</value>
+    public string ProviderCatalogUrl { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether <see cref="ProviderCatalogUrl"/> identifies an exact provider model page rather than a broader catalog/search page.</summary>
+    /// <value><see langword="true"/> when the provider link resolves directly to this provider model identifier.</value>
+    public bool IsProviderCatalogUrlExact { get; set; }
     /// <summary>
     /// Gets or sets the recommendation score value that forms part of the initial setup model choice state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -327,9 +366,36 @@ public sealed class InitialSetupModelChoice
     /// </summary>
     /// <value>The recommendation grade value exposed by <see cref="InitialSetupModelChoice"/>.</value>
     public string RecommendationGrade { get; set; } = string.Empty;
+    /// <summary>Gets or sets the attributed CanIRun.ai model-detail URL for this recommendation.</summary>
+    /// <value>The source URL retained with the recommendation.</value>
+    public string SourceUrl { get; set; } = string.Empty;
+    /// <summary>Gets or sets the recommended quantization returned by CanIRun.ai when available.</summary>
+    /// <value>The recommended quantization label.</value>
+    public string Quantization { get; set; } = string.Empty;
+    /// <summary>Gets or sets the estimated memory requirement for the recommended quantization.</summary>
+    /// <value>The required memory in GiB, or <see langword="null"/> when unavailable.</value>
+    public double? RequiredVramGiB { get; set; }
+    /// <summary>Carries the CanIRun.ai compatibility classification displayed beside this provider-mapped model choice.</summary>
+    /// <value>The recommendation status label.</value>
+    public string RecommendationStatus { get; set; } = string.Empty;
     /// <summary>Gets or sets whether the user selected the model for installation/benchmark setup.</summary>
     /// <value>The selected value exposed by <see cref="InitialSetupModelChoice"/>.</value>
     public bool Selected { get; set; }
+}
+
+
+/// <summary>Represents one explicit provider-catalog resolution attempt for a hardware-fit recommendation.</summary>
+public sealed class InitialSetupProviderCatalogResolution
+{
+    /// <summary>Gets or sets the unique conservative provider match when one was found.</summary>
+    /// <value>The provider-safe matched choice, or <see langword="null"/> when the result is ambiguous or absent.</value>
+    public InitialSetupModelChoice? Match { get; set; }
+    /// <summary>Gets or sets the bounded provider-owned catalog candidates inspected for this explicit resolution action.</summary>
+    /// <value>The provider catalog candidates retained for user review.</value>
+    public List<InitialSetupModelChoice> Candidates { get; set; } = [];
+    /// <summary>Gets or sets the bounded provider search query derived from the recommendation identity.</summary>
+    /// <value>The provider catalog search query used for this resolution attempt.</value>
+    public string Query { get; set; } = string.Empty;
 }
 
 /// <summary>

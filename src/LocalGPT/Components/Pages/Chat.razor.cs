@@ -302,20 +302,37 @@ namespace LocalGPT.Components.Pages
     /// Gets the selected council provider models collection maintained or exposed by this chat instance for downstream processing.
     /// </summary>
     /// <value>The selected council provider models value exposed by <see cref="Chat"/>.</value>
-    IReadOnlyList<ProviderModelReference> SelectedCouncilProviderModels => OllamaCandidates
-        .Where(candidate => SelectedCouncilModelNames.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
-        .Select(candidate => candidate.ToReference())
-        .ToList();
+    IReadOnlyList<ProviderModelReference> SelectedCouncilProviderModels
+    {
+        get
+        {
+            var identity = new ProviderModelIdentity();
+            return SelectedCouncilModelNames
+                .Select(value => identity.ResolveEquivalentCandidate(value, OllamaCandidates, out _))
+                .Where(candidate => candidate is not null)
+                .Select(candidate => candidate!.ToReference())
+                .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+        }
+    }
     /// <summary>
     /// Gets the unavailable council selections collection maintained or exposed by this chat instance for downstream processing.
     /// </summary>
     /// <value>The unavailable council selections value exposed by <see cref="Chat"/>.</value>
-    IReadOnlyList<string> UnavailableCouncilSelections => SelectedCouncilModelNames
-        .Where(value => new ProviderModelIdentity().LooksProviderQualified(value))
-        .Where(value => !OllamaCandidates.Any(candidate => candidate.SelectionKey.Equals(value, StringComparison.OrdinalIgnoreCase)))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    IReadOnlyList<string> UnavailableCouncilSelections
+    {
+        get
+        {
+            var identity = new ProviderModelIdentity();
+            return SelectedCouncilModelNames
+                .Where(value => identity.LooksProviderQualified(value))
+                .Where(value => identity.ResolveEquivalentCandidate(value, OllamaCandidates, out _) is null)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+    }
     /// <summary>
     /// Determines whether selection endpoint still configured for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>

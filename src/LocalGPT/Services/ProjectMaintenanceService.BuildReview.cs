@@ -358,7 +358,7 @@ namespace LocalGPT.Services
             {
                 FileName = executable,
                 Arguments = arguments,
-                WorkingDirectory = Directory.Exists(workingDirectory) ? workingDirectory! : Path.GetDirectoryName(executable) ?? Environment.CurrentDirectory,
+                WorkingDirectory = Directory.Exists(workingDirectory) ? workingDirectory! : Path.GetDirectoryName(executable) ?? LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory(),
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

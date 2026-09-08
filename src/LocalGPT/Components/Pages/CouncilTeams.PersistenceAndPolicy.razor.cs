@@ -332,10 +332,53 @@ namespace LocalGPT.Components.Pages
     /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> UnavailableRoleModelKeys(OrganicCouncilRoleDefinition role) =>
         role.AssignedModelKeys
-            .Where(selectionKey => !_providerModels.Any(candidate =>
-                string.Equals(candidate.SelectionKey, selectionKey, StringComparison.OrdinalIgnoreCase)))
+            .Where(selectionKey => !IsWorkflowModelAvailable(selectionKey))
             .OrderBy(selectionKey => selectionKey, StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+    /// <summary>Reconciles persisted provider-qualified model keys to the current unique provider/host identity without guessing across models or hosts.</summary>
+    /// <returns>The number of saved bindings migrated in the editor state.</returns>
+    private int ReconcileEditorProviderModelBindings()
+    {
+        var migrated = 0;
+        foreach (var role in _editor.Roles)
+        {
+            role.AssignedModelKeys ??= [];
+            role.AssignedModelKeys = role.AssignedModelKeys
+                .Select(value => ReconcileProviderModelKey(value, ref migrated))
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        foreach (var step in _editor.WorkflowSteps)
+        {
+            step.AssignedModelName = ReconcileProviderModelKey(step.AssignedModelName, ref migrated);
+            step.RoleResultSynthesisModelName = ReconcileProviderModelKey(step.RoleResultSynthesisModelName, ref migrated);
+            step.XChildModelName = ReconcileProviderModelKey(step.XChildModelName, ref migrated);
+        }
+
+        return migrated;
+    }
+
+    /// <summary>Returns the current provider selection key when one saved value has exactly one safe equivalent candidate.</summary>
+    /// <param name="savedKey">Persisted selection key or legacy bare model name.</param>
+    /// <param name="migrated">Counter incremented only when the stored spelling changes.</param>
+    /// <returns>The current unique key, or the untouched saved key when no safe unique match exists.</returns>
+    private string ReconcileProviderModelKey(string? savedKey, ref int migrated)
+    {
+        if (string.IsNullOrWhiteSpace(savedKey))
+            return string.Empty;
+
+        var normalized = savedKey.Trim();
+        var resolved = new ProviderModelIdentity().ResolveEquivalentCandidate(normalized, _providerModels, out _);
+        if (resolved is null)
+            return normalized;
+
+        if (!string.Equals(resolved.SelectionKey, normalized, StringComparison.OrdinalIgnoreCase))
+            migrated++;
+        return resolved.SelectionKey;
+    }
 
     /// <summary>Returns whether a role uses an exact provider-qualified model pool.</summary>
     /// <param name="role">Role whose AI assignment policy is inspected.</param>
@@ -376,9 +419,12 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="selectionKey">Selection key value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    private bool IsWorkflowModelAvailable(string selectionKey) =>
-        _providerModels.Any(candidate =>
-            string.Equals(candidate.SelectionKey, selectionKey, StringComparison.OrdinalIgnoreCase));
+    private bool IsWorkflowModelAvailable(string selectionKey)
+    {
+        if (string.IsNullOrWhiteSpace(selectionKey))
+            return false;
+        return new ProviderModelIdentity().ResolveEquivalentCandidate(selectionKey, _providerModels, out _) is not null;
+    }
 
     /// <summary>
     /// Performs toggle runtime class for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.

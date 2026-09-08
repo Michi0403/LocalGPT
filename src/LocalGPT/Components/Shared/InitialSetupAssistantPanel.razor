@@ -5,6 +5,7 @@
 @inject IOllamaProcessService OllamaProcesses
 @inject IConsoleCommandService Console
 @inject ILogger<InitialSetupAssistantPanel> Logger
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 @implements IDisposable
 
 <section class="initial-setup-assistant" aria-label="AI-guided initial setup assistant">
@@ -39,8 +40,8 @@
         }
         <div class="initial-setup-grid">
             <article class="initial-setup-card">
-                <h4>1. Hardware list</h4>
-                <p>Use local detection, paste/import HWiNFO text, or edit the list yourself. Multi-GPU hosts remain a list all the way into the persisted host profile.</p>
+                <h4>1. Local host hardware</h4>
+                <p>LocalGPT detects the physical host CPU, RAM/unified memory and every GPU it can identify. The optional CanIRun.ai hardware match is separate so a user can choose the catalog variant without overwriting LocalGPT's detected hardware facts.</p>
                 <label>Physical host endpoint
                     <input class="form-control" @bind="hardwareEndpoint" />
                 </label>
@@ -48,18 +49,20 @@
                     @foreach (var device in hardware)
                     {
                         <div class="initial-setup-hardware-row" @key="device.Key">
-                            <input type="checkbox" @bind="device.Selected" aria-label="Use hardware device" />
-                            <input class="form-control" @bind="device.Endpoint" placeholder="Provider endpoint / physical host" />
-                            <input class="form-control" @bind="device.Name" placeholder="GPU / accelerator" />
-                            <input class="form-control" @bind="device.Vendor" placeholder="Vendor" />
-                            <input class="form-control" type="number" step="0.25" min="0" @bind="device.DedicatedVramGiB" placeholder="VRAM GiB" />
-                            <input class="form-control" type="number" step="0.25" min="0" @bind="device.SystemMemoryGiB" placeholder="RAM / unified GiB" />
-                            <button type="button" class="localgpt-native-button" @onclick="() => RemoveHardware(device)">Remove</button>
+                            <label class="initial-setup-hardware-use"><input type="checkbox" @bind="device.Selected" /> Use this host/device row</label>
+                            <label>Provider endpoint / physical host<input class="form-control" @bind="device.Endpoint" /></label>
+                            <label>CPU / SoC<input class="form-control" @bind="device.CpuName" /></label>
+                            <label>GPU / accelerator (optional)<input class="form-control" @bind="device.Name" /></label>
+                            <label>GPU vendor<input class="form-control" @bind="device.Vendor" /></label>
+                            <label>Dedicated VRAM GiB<input class="form-control" type="number" step="0.25" min="0" @bind="device.DedicatedVramGiB" /></label>
+                            <label>System / unified RAM GiB<input class="form-control" type="number" step="0.25" min="0" @bind="device.SystemMemoryGiB" /></label>
+                            <label class="initial-setup-hardware-canirun">CanIRun.ai hardware match (optional catalog variant)<input class="form-control" @bind="device.CanIRunHardwareName" /></label>
+                            <button type="button" class="localgpt-native-button initial-setup-hardware-remove" @onclick="() => RemoveHardware(device)">Remove row</button>
                         </div>
                     }
                 </div>
                 <div class="initial-setup-actions">
-                    <button type="button" class="localgpt-native-button" @onclick="AddHardware">Add GPU</button>
+                    <button type="button" class="localgpt-native-button" @onclick="AddHardware">Add hardware row</button>
                     <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="DetectLocalHardwareAsync">Detect local hardware</button>
                     <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="SaveHardwareAsync">Save reviewed list</button>
                 </div>
@@ -73,13 +76,13 @@
             </article>
 
             <article class="initial-setup-card">
-                <h4>2. Optional CanIRun.ai recommendations</h4>
-                <p><strong>Credit:</strong> compatibility data is fetched from <a href="https://www.canirun.ai/" target="_blank" rel="noopener noreferrer">CanIRun.ai by midudev</a> only after you opt in. LocalGPT does not enable this web lookup by default.</p>
+                <h4>2. Optional CanIRun.ai hardware-fit model discovery</h4>
+                <p><strong>Credit:</strong> <a href="https://www.canirun.ai/" target="_blank" rel="noopener noreferrer">CanIRun.ai by midudev</a> can discover open models that fit the reviewed consumer hardware, including models the user may not already know. This optional web lookup is independent from the provider's own model inventory/catalog.</p>
                 <label class="form-check">
                     <input class="form-check-input" type="checkbox" @bind="canIRunOptIn" />
-                    <span>I want LocalGPT to send the selected hardware name plus reviewed system/unified RAM and, when known, dedicated VRAM to CanIRun.ai.</span>
+                    <span>I want LocalGPT to send the reviewed CPU, selected accelerator/CanIRun.ai variant, system/unified RAM and, when known, dedicated VRAM to CanIRun.ai. LocalGPT endpoint and host identifiers are not sent.</span>
                 </label>
-                <button type="button" class="localgpt-native-button" disabled="@(busy || !canIRunOptIn)" @onclick="LoadRecommendationsAsync">Fetch attributed recommendations</button>
+                <button type="button" class="localgpt-native-button" disabled="@(busy || !canIRunOptIn)" @onclick="LoadRecommendationsAsync">Find hardware-fit models</button>
                 @if (recommendations.Count > 0)
                 {
                     <div class="initial-setup-model-list">
@@ -99,7 +102,7 @@
 
             <article class="initial-setup-card">
                 <h4>3. Local AI provider</h4>
-                <p>Commands come from the local Knowledge Database. Install/start/download actions use the shared bounded console and require your explicit confirmation.</p>
+                <p>Commands come from the local Knowledge Database. Install/download actions use the shared bounded console; Ollama lifecycle actions use LocalGPT's process service. Mutating actions require your explicit confirmation.</p>
                 <label>Provider profile
                     <select class="form-select" @bind="selectedProviderKey" @bind:after="ProviderSelectionChangedAsync">
                         <option value="">Choose provider</option>
@@ -116,13 +119,17 @@
                         <code>@SelectedProvider.Endpoint</code>
                         @if (IsSelectedOllama)
                         {
-                            <span>Ollama: @(ollamaStatus.IsInstalled ? "installed" : "not detected") · runtime @(ollamaStatus.IsRunning ? "running" : "stopped")</span>
+                            <span>Ollama: @T(ollamaStatus.IsInstalled ? "installed" : "not detected") · @T("runtime") @T(ollamaStatus.IsRunning ? "running" : "stopped")</span>
                             @if (!string.IsNullOrWhiteSpace(ollamaStatus.ExecutablePath))
                             {
                                 <code>@ollamaStatus.ExecutablePath</code>
                             }
                         }
                         <a href="@SelectedProvider.SourceUrl" target="_blank" rel="noopener noreferrer">Provider installation source</a>
+                        @if (!string.IsNullOrWhiteSpace(SelectedProvider.ModelCatalogUrl))
+                        {
+                            <a href="@SelectedProvider.ModelCatalogUrl" target="_blank" rel="noopener noreferrer">Browse official provider model catalog</a>
+                        }
                         <small>If a guided install/start action is unavailable for this host, open the vendor source, complete the vendor setup, then use Detect again. LocalGPT keeps manual and guided paths equivalent.</small>
                     </div>
                     <div class="initial-setup-actions">
@@ -131,6 +138,7 @@
                         <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="InstallProviderAsync">Install (confirmed)</button>
                         @if (IsSelectedOllama)
                         {
+                            <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="GuidedOllamaSetupAsync">@T("Set up Ollama (confirmed: install / start / register)")</button>
                             <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsInstalled || ollamaStatus.IsRunning)" @onclick="StartOllamaAsync">Start Ollama</button>
                             <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsRunning)" @onclick="StopOllamaAsync">Stop Ollama</button>
                             <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsInstalled)" @onclick="RestartOllamaAsync">Restart Ollama</button>
@@ -146,19 +154,29 @@
             </article>
 
             <article class="initial-setup-card">
-                <h4>4. Models on the selected provider</h4>
-                <p>Recommendations are mapped through provider aliases from Knowledge. Installed state comes from the normal provider/model runtime. CanIRun.ai is optional: you can bootstrap the first model directly.</p>
+                <h4>4. Provider models and hardware-fit discoveries</h4>
+                <p>Installed models and knowledge-backed provider catalog mappings are always shown. CanIRun.ai adds hardware-fit discoveries when you opt in; it does not gate the provider model list.</p>
                 @if (SelectedProvider is not null)
                 {
                     <label>Model ID
                         <input class="form-control" @bind="manualModelId" placeholder="Provider model ID, for example qwen3:4b" />
                     </label>
                     <button type="button" class="localgpt-native-button" disabled="@(busy || string.IsNullOrWhiteSpace(manualModelId))" @onclick="InstallManualModelAsync">Download / install model</button>
-                    <small>The model ID is validated as one safe provider token and then installed through the same provider bootstrap service as recommendation-driven downloads.</small>
+                    <small>The provider model ID is validated as one safe token and installed through the same provider bootstrap service. Use the official provider catalog link to discover additional models even when CanIRun.ai is unavailable.</small>
+                    @if (!string.IsNullOrWhiteSpace(SelectedProvider.ModelCatalogUrl))
+                    {
+                        <div class="initial-setup-provider-catalog-search">
+                            <label>Official provider catalog search
+                                <input class="form-control" @bind="providerCatalogQuery" placeholder="Optional search, for example qwen or deepseek" />
+                            </label>
+                            <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="SearchProviderCatalogAsync">Search official provider catalog</button>
+                            <small>This user-triggered lookup contacts only the selected provider's maintained public catalog. It does not send LocalGPT endpoints, hardware facts, or CanIRun.ai state.</small>
+                        </div>
+                    }
                 }
                 @if (modelChoices.Count == 0)
                 {
-                    <p>No recommendation/provider mapping is loaded yet. Enter a model ID above, or use the installed-model list below for the benchmark team.</p>
+                    <p>No provider model entries are currently available. You can still enter a provider model ID manually or browse the selected provider's official catalog.</p>
                 }
                 else
                 {
@@ -170,13 +188,72 @@
                                     <input class="form-check-input" type="checkbox" @bind="choice.Selected" />
                                     <span><strong>@choice.DisplayName</strong> → <code>@choice.ProviderModelId</code></span>
                                 </label>
-                                <span>Grade @choice.RecommendationGrade · score @choice.RecommendationScore · @(choice.IsInstalled ? "installed" : "missing")</span>
-                                @if (!choice.IsInstalled)
+                                <span>
+                                    @(choice.IsInstalled ? T("installed") : choice.CanInstall ? T("available to install") : T("manual provider ID required"))
+                                    @if (choice.IsProviderInventory) { <text> @T("· provider inventory")</text> }
+                                    @if (choice.IsProviderCatalogEntry) { <text> @T("· official provider catalog")</text> }
+                                    @if (choice.IsHardwareRecommended) { <text> @T("· CanIRun.ai hardware-fit discovery")</text> }
+                                    @if (!string.IsNullOrWhiteSpace(choice.RecommendationGrade)) { <text> @T("· grade") @choice.RecommendationGrade</text> }
+                                    @if (choice.RecommendationScore > 0) { <text> @T("· score") @choice.RecommendationScore</text> }
+                                    @if (!string.IsNullOrWhiteSpace(choice.RecommendationStatus)) { <text> · @choice.RecommendationStatus</text> }
+                                    @if (!string.IsNullOrWhiteSpace(choice.Quantization)) { <text> · @choice.Quantization</text> }
+                                    @if (choice.RequiredVramGiB is > 0) { <text> · @choice.RequiredVramGiB.Value.ToString("0.##") GiB</text> }
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(choice.SourceUrl))
+                                {
+                                    <a href="@choice.SourceUrl" target="_blank" rel="noopener noreferrer">CanIRun.ai model</a>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(choice.ProviderCatalogUrl))
+                                {
+                                    <a href="@choice.ProviderCatalogUrl" target="_blank" rel="noopener noreferrer">@T(choice.IsProviderCatalogUrlExact ? "Provider model page" : "Search provider catalog for this model")</a>
+                                }
+                                @if (!choice.IsInstalled && choice.CanInstall)
                                 {
                                     <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => InstallModelAsync(choice)">Install model</button>
                                 }
+                                else if (choice.IsInstalled && choice.CanCheckUpdate)
+                                {
+                                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => CheckUpdateModelAsync(choice)">Check / refresh model</button>
+                                }
+                                else if (!choice.IsInstalled && choice.IsHardwareRecommended)
+                                {
+                                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => ResolveAndInstallModelAsync(choice)">@T("Resolve & install model")</button>
+                                    <small>@T(choice.MappingStatus) @T("LocalGPT can check the selected provider's official catalog before installing; ambiguous results remain review-only.")</small>
+                                }
+                                else if (!choice.IsInstalled)
+                                {
+                                    <small>@T(choice.MappingStatus) @T("Enter the provider model ID above to install manually.")</small>
+                                }
                             </div>
                         }
+                    </div>
+                }
+                @if (providerCatalogChoices.Count > 0)
+                {
+                    <div class="initial-setup-provider-catalog-results">
+                        <h5>Official provider catalog results</h5>
+                        <p>These are provider-owned search results and remain independent from CanIRun.ai hardware-fit discoveries.</p>
+                        <div class="initial-setup-model-list">
+                            @foreach (var choice in providerCatalogChoices)
+                            {
+                                <div class="initial-setup-model-row" @key="choice.ProviderModelId">
+                                    <span><strong>@choice.DisplayName</strong> → <code>@choice.ProviderModelId</code></span>
+                                    <span>@(choice.IsInstalled ? T("installed") : choice.CanInstall ? T("available to install") : T("manual provider ID required")) @T("· official provider catalog")</span>
+                                    @if (!string.IsNullOrWhiteSpace(choice.ProviderCatalogUrl))
+                                    {
+                                        <a href="@choice.ProviderCatalogUrl" target="_blank" rel="noopener noreferrer">@T("Provider model page")</a>
+                                    }
+                                    @if (!choice.IsInstalled && choice.CanInstall)
+                                    {
+                                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => InstallModelAsync(choice)">Install model</button>
+                                    }
+                                    else if (choice.IsInstalled && choice.CanCheckUpdate)
+                                    {
+                                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => CheckUpdateModelAsync(choice)">Check / refresh model</button>
+                                    }
+                                </div>
+                            }
+                        </div>
                     </div>
                 }
             </article>
@@ -196,8 +273,8 @@
                             var selected = selectedModels.Contains(model.SelectionKey);
                             var preferred = preferredCuratorModels.Contains(model.SelectionKey);
                             <div class="initial-setup-installed-row" @key="model.SelectionKey">
-                                <label><input type="checkbox" checked="@selected" @onchange="args => ToggleModel(model.SelectionKey, args)" /> Use</label>
-                                <label><input type="checkbox" checked="@preferred" @onchange="args => TogglePreferredModel(model.SelectionKey, args)" /> Curator</label>
+                                <label><input type="checkbox" checked="@selected" @onchange="args => ToggleModel(model.SelectionKey, args)" /> @T("Use")</label>
+                                <label><input type="checkbox" checked="@preferred" @onchange="args => TogglePreferredModel(model.SelectionKey, args)" /> @T("Curator")</label>
                                 <strong>@model.DisplayName</strong>
                                 <code>@model.EndpointLabel</code>
                             </div>
@@ -218,6 +295,17 @@
 </section>
 
 @code {
+    /// <summary>Returns one setup-assistant string through the maintained LocalGPT localization catalog.</summary>
+    /// <param name="source">English source text used as the exact localization-catalog lookup value.</param>
+    /// <returns>The localized setup-assistant text, or the maintained fallback when no culture-specific value exists.</returns>
+    private string T(string source) => Localization.GetText(source);
+
+    /// <summary>Formats one localized setup-assistant sentence using the current UI culture.</summary>
+    /// <param name="source">English source text used as the exact localization-catalog lookup value.</param>
+    /// <param name="args">Values inserted into the localized format string.</param>
+    /// <returns>The localized and culture-formatted setup-assistant sentence.</returns>
+    private string TF(string source, params object?[] args) => string.Format(CultureInfo.CurrentUICulture, T(source), args);
+
     /// <summary>
     /// Stores the internal snapshot state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
     /// </summary>
@@ -234,6 +322,8 @@
     /// Stores the in-memory model choices collection maintained internally by <see cref="InitialSetupAssistantPanel"/> for its current workflow state.
     /// </summary>
     private readonly List<InitialSetupModelChoice> modelChoices = [];
+    /// <summary>Stores provider-owned catalog search results separately from installed inventory and CanIRun.ai discovery state.</summary>
+    private readonly List<InitialSetupModelChoice> providerCatalogChoices = [];
     /// <summary>
     /// Stores the in-memory selected models collection maintained internally by <see cref="InitialSetupAssistantPanel"/> for its current workflow state.
     /// </summary>
@@ -248,6 +338,8 @@
     private string selectedProviderKey = string.Empty;
     /// <summary>Stores the explicit provider model ID used to bootstrap a first model without a recommendation lookup.</summary>
     private string manualModelId = string.Empty;
+    /// <summary>Stores optional user-entered search text for the selected provider's official public model catalog.</summary>
+    private string providerCatalogQuery = string.Empty;
     /// <summary>Stores the current Ollama process status resolved by the existing lifecycle service.</summary>
     private OllamaProcessStatus ollamaStatus = new(false, false, null, Array.Empty<OllamaProcessInfo>(), string.Empty, "Ollama process status not checked yet.");
     /// <summary>
@@ -291,6 +383,7 @@
     protected override async Task OnInitializedAsync()
     {
         Console.Changed += OnConsoleChanged;
+        benchmarkTeamName = T("Hardware-curated initial benchmark");
         await RefreshAsync().ConfigureAwait(false);
     }
 
@@ -303,7 +396,23 @@
         try
         {
             await SetBusyAsync(true).ConfigureAwait(false);
-            var value = await Setup.GetSnapshotAsync().ConfigureAwait(false);
+            InitialSetupAssistantSnapshot value;
+            var recoveryMode = false;
+            try
+            {
+                value = await Setup.GetSnapshotAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(exception, "Initial setup snapshot was unavailable; rendering the provider/Ollama recovery surface instead of hiding the setup form.");
+                value = await BuildRecoverySnapshotAsync().ConfigureAwait(false);
+                recoveryMode = true;
+            }
+
             OllamaProcessStatus processStatus;
             try
             {
@@ -312,7 +421,7 @@
             catch (Exception exception)
             {
                 Logger.LogWarning(exception, "Ollama process status was unavailable during setup refresh; provider/model setup remains usable.");
-                processStatus = ollamaStatus with { Message = "Ollama process status is temporarily unavailable." };
+                processStatus = ollamaStatus with { Message = T("Ollama process status is temporarily unavailable.") };
             }
             await InvokeAsync(() =>
             {
@@ -329,17 +438,52 @@
                 foreach (var model in value.InstalledModels) selectedModels.Add(model.SelectionKey);
                 if (preferredCuratorModels.Count == 0)
                     foreach (var key in value.RecommendedCuratorModelKeys) preferredCuratorModels.Add(key);
-                var ollamaSummary = processStatus.IsInstalled ? $" Ollama runtime: {(processStatus.IsRunning ? "running" : "stopped")}." : string.Empty;
-                statusText = $"{value.Hardware.Count} hardware device(s), {value.ProviderProfiles.Count} provider profile(s), {value.InstalledModels.Count} installed model(s).{ollamaSummary}";
+                var ollamaSummary = processStatus.IsInstalled
+                    ? " " + TF("Ollama runtime: {0}.", processStatus.IsRunning ? T("running") : T("stopped"))
+                    : string.Empty;
+                statusText = recoveryMode
+                    ? T("Setup loaded in recovery mode. Provider/Ollama controls remain available.") + ollamaSummary
+                    : TF("{0} hardware device(s), {1} provider profile(s), {2} installed model(s).", value.Hardware.Count, value.ProviderProfiles.Count, value.InstalledModels.Count) + ollamaSummary;
             }).ConfigureAwait(false);
             await RebuildModelChoicesAsync().ConfigureAwait(false);
         }
+        catch (OperationCanceledException exception)
+        {
+            Logger.LogDebug(exception, "Refreshing initial setup assistant was cancelled.");
+        }
         catch (Exception exception)
         {
-            Logger.LogError(exception, "Refreshing initial setup assistant failed.");
-            await SetStatusAsync("Initial setup refresh failed. Review LocalGPT logs.").ConfigureAwait(false);
+            Logger.LogError(exception, "Refreshing initial setup assistant failed after recovery handling.");
+            await SetStatusAsync(T("Setup refresh failed after recovery handling. Provider controls may require a page reload; review LocalGPT logs.")).ConfigureAwait(false);
         }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    /// <summary>Builds a minimal provider-first snapshot so an unrelated setup dependency cannot hide Ollama lifecycle and manual model controls.</summary>
+    /// <returns>A recovery snapshot populated with provider profiles when the provider knowledge service is available.</returns>
+    private async Task<InitialSetupAssistantSnapshot> BuildRecoverySnapshotAsync()
+    {
+        IReadOnlyList<AiProviderBootstrapProfile> profiles = [];
+        try
+        {
+            profiles = await Providers.GetProfilesAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Provider profiles were unavailable while building the setup recovery snapshot.");
+        }
+
+        return new InitialSetupAssistantSnapshot
+        {
+            Hardware = hardware.ToList(),
+            ProviderProfiles = profiles.ToList(),
+            InstalledModels = snapshot?.InstalledModels.ToList() ?? [],
+            RecommendedCuratorModelKeys = snapshot?.RecommendedCuratorModelKeys.ToList() ?? [],
+            Platform = snapshot?.Platform ?? Environment.OSVersion.ToString(),
+            IsOnboardingCompleted = snapshot?.IsOnboardingCompleted ?? false,
+            CanStartAiGuidedSetup = snapshot?.CanStartAiGuidedSetup ?? false,
+            AiGuidedSetupRoute = snapshot?.AiGuidedSetupRoute ?? "/chat?team=initial-setup-assistant&starter=initial-setup-council-start&autoStartCouncil=true&newCouncil=true"
+        };
     }
 
     /// <summary>
@@ -350,6 +494,7 @@
         hardware.Add(new InitialSetupHardwareDevice
         {
             Endpoint = hardwareEndpoint,
+            CpuName = hardware.Select(item => item.CpuName).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty,
             SystemMemoryGiB = hardware.Select(item => item.SystemMemoryGiB).FirstOrDefault(value => value is > 0),
             Source = "Manual",
             Selected = true
@@ -374,7 +519,7 @@
             _ = await Setup.DetectHardwareAsync(hardwareEndpoint, userConfirmed: true).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
-        catch (Exception exception) { Logger.LogError(exception, "Initial setup local hardware detection failed."); await SetStatusAsync("Hardware detection failed. Review LocalGPT logs.").ConfigureAwait(false); }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup local hardware detection failed."); await SetStatusAsync(T("Hardware detection failed. Review LocalGPT logs.")).ConfigureAwait(false); }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
@@ -388,10 +533,10 @@
         {
             await SetBusyAsync(true).ConfigureAwait(false);
             var saved = await Setup.SaveHardwareListAsync(hardware, hardwareEndpoint, userConfirmed: true).ConfigureAwait(false);
-            await SetStatusAsync($"Hardware list saved for {saved.Count} physical host(s).").ConfigureAwait(false);
+            await SetStatusAsync(TF("Hardware list saved for {0} physical host(s).", saved.Count)).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
-        catch (Exception exception) { Logger.LogError(exception, "Initial setup hardware save failed."); await SetStatusAsync("Hardware list could not be saved. Review LocalGPT logs.").ConfigureAwait(false); }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup hardware save failed."); await SetStatusAsync(T("Hardware list could not be saved. Review LocalGPT logs.")).ConfigureAwait(false); }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
@@ -413,7 +558,7 @@
                 await InvokeAsync(() => hwInfoText = text).ConfigureAwait(false);
             }
         }
-        catch (Exception exception) { Logger.LogError(exception, "Reading HWiNFO file in setup assistant failed."); await SetStatusAsync("HWiNFO file could not be read.").ConfigureAwait(false); }
+        catch (Exception exception) { Logger.LogError(exception, "Reading HWiNFO file in setup assistant failed."); await SetStatusAsync(T("HWiNFO file could not be read.")).ConfigureAwait(false); }
     }
 
     /// <summary>
@@ -428,7 +573,7 @@
             _ = await Setup.ImportHwInfoAsync(hardwareEndpoint, hwInfoText, userConfirmed: true).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
-        catch (Exception exception) { Logger.LogError(exception, "Initial setup HWiNFO import failed; report text omitted."); await SetStatusAsync("HWiNFO import failed. Review the report and LocalGPT logs.").ConfigureAwait(false); }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup HWiNFO import failed; report text omitted."); await SetStatusAsync(T("HWiNFO import failed. Review the report and LocalGPT logs.")).ConfigureAwait(false); }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
@@ -442,10 +587,10 @@
         {
             await SetBusyAsync(true).ConfigureAwait(false);
             var reduced = await Setup.GetHardwareRecommendationsAsync(hardware, canIRunOptIn).ConfigureAwait(false);
-            await InvokeAsync(() => { recommendations.Clear(); recommendations.AddRange(reduced); statusText = $"Loaded {reduced.Count} attributed CanIRun.ai recommendation(s) without merging physical hosts."; }).ConfigureAwait(false);
+            await InvokeAsync(() => { recommendations.Clear(); recommendations.AddRange(reduced); statusText = TF("Loaded {0} attributed CanIRun.ai recommendation(s) without merging physical hosts.", reduced.Count); }).ConfigureAwait(false);
             await RebuildModelChoicesAsync().ConfigureAwait(false);
         }
-        catch (Exception exception) { Logger.LogError(exception, "CanIRun.ai setup recommendation lookup failed."); await SetStatusAsync("CanIRun.ai lookup failed. Review LocalGPT logs.").ConfigureAwait(false); }
+        catch (Exception exception) { Logger.LogError(exception, "CanIRun.ai setup recommendation lookup failed."); await SetStatusAsync(T("CanIRun.ai lookup failed. Review LocalGPT logs.")).ConfigureAwait(false); }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
@@ -453,7 +598,39 @@
     /// Performs provider selection changed for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task ProviderSelectionChangedAsync() => RebuildModelChoicesAsync();
+    private async Task ProviderSelectionChangedAsync()
+    {
+        await InvokeAsync(() => providerCatalogChoices.Clear()).ConfigureAwait(false);
+        await RebuildModelChoicesAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Searches the selected provider's official model catalog only after this explicit button action.</summary>
+    /// <returns>A task that completes after bounded provider catalog results are rendered.</returns>
+    private async Task SearchProviderCatalogAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedProviderKey))
+            return;
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var values = await Setup.SearchProviderCatalogAsync(selectedProviderKey, providerCatalogQuery, userConfirmedWebLookup: true).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                providerCatalogChoices.Clear();
+                providerCatalogChoices.AddRange(values);
+                statusText = TF("Loaded {0} bounded result(s) from the selected provider's official catalog.", values.Count);
+            }).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Official provider catalog lookup failed; search text and response content omitted.");
+            await SetStatusAsync(T("Official provider catalog search failed. Installed models, maintained mappings, manual model IDs, and CanIRun.ai remain independent and usable.")).ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
 
     /// <summary>
     /// Performs rebuild model choices for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
@@ -461,7 +638,7 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RebuildModelChoicesAsync()
     {
-        if (string.IsNullOrWhiteSpace(selectedProviderKey) || recommendations.Count == 0)
+        if (string.IsNullOrWhiteSpace(selectedProviderKey))
         {
             await InvokeAsync(() => modelChoices.Clear()).ConfigureAwait(false);
             return;
@@ -480,35 +657,85 @@
                 }
             }).ConfigureAwait(false);
         }
-        catch (Exception exception) { Logger.LogError(exception, "Building setup model choices failed."); await SetStatusAsync("Provider model mapping could not be refreshed.").ConfigureAwait(false); }
+        catch (Exception exception) { Logger.LogError(exception, "Building setup model choices failed."); await SetStatusAsync(T("Provider model mapping could not be refreshed.")).ConfigureAwait(false); }
     }
 
     /// <summary>
     /// Performs detect provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task DetectProviderAsync() => await RunProviderActionAsync("Provider detection", key => Providers.DetectAsync(key)).ConfigureAwait(false);
+    private async Task DetectProviderAsync() => await RunProviderActionAsync(T("Provider detection"), key => Providers.DetectAsync(key)).ConfigureAwait(false);
     /// <summary>
     /// Lists provider models for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task ListProviderModelsAsync() => await RunProviderActionAsync("Provider model listing", key => Providers.ListModelsAsync(key)).ConfigureAwait(false);
+    private async Task ListProviderModelsAsync() => await RunProviderActionAsync(T("Provider model listing"), key => Providers.ListModelsAsync(key)).ConfigureAwait(false);
     /// <summary>
     /// Performs install provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task InstallProviderAsync() => await RunProviderActionAsync("Provider installation", key => Providers.InstallAsync(key, true)).ConfigureAwait(false);
+    private async Task InstallProviderAsync() => await RunProviderActionAsync(T("Provider installation"), key => Providers.InstallAsync(key, true)).ConfigureAwait(false);
+    /// <summary>Runs the explicit guided Ollama path: install only when missing, start only when stopped, then register the loopback endpoint.</summary>
+    /// <returns>A task that completes after the guided setup action has refreshed provider/model state.</returns>
+    private async Task GuidedOllamaSetupAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedProviderKey) || !IsSelectedOllama)
+            return;
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var processStatus = await OllamaProcesses.GetStatusAsync().ConfigureAwait(false);
+            if (!processStatus.IsInstalled)
+            {
+                var install = await Providers.InstallAsync(selectedProviderKey, true).ConfigureAwait(false);
+                if (!install.Succeeded)
+                {
+                    await SetStatusAsync(T("Ollama installation did not complete successfully. Review the shared console and provider source before retrying.")).ConfigureAwait(false);
+                    return;
+                }
+                processStatus = await OllamaProcesses.GetStatusAsync().ConfigureAwait(false);
+            }
+
+            if (!processStatus.IsInstalled)
+            {
+                await SetStatusAsync(T("The installer completed, but LocalGPT still cannot find the Ollama executable. Open the provider source if the macOS app needs one manual launch, then use this guided action again.")).ConfigureAwait(false);
+                return;
+            }
+
+            if (!processStatus.IsRunning)
+                processStatus = await OllamaProcesses.StartAsync().ConfigureAwait(false);
+            if (!processStatus.IsRunning)
+            {
+                await SetStatusAsync(TF("Ollama is installed but did not reach the running state: {0}", T(processStatus.Message))).ConfigureAwait(false);
+                return;
+            }
+
+            var endpoint = await Providers.ConfigureEndpointAsync(selectedProviderKey, true).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+            await SetStatusAsync(TF("Ollama guided setup completed. Runtime is running and {0} is registered in LocalGPT.", endpoint)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Guided Ollama setup failed; command and endpoint details omitted.");
+            await SetStatusAsync(T("Guided Ollama setup failed. Review the shared console and LocalGPT logs; completed steps remain intact for the next retry.")).ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>Starts Ollama through the existing process lifecycle service, never through a bounded foreground <c>ollama serve</c> command.</summary>
     /// <returns>A task that completes after the explicit lifecycle action and setup refresh.</returns>
-    private Task StartOllamaAsync() => RunOllamaProcessActionAsync("Ollama startup", cancellationToken => OllamaProcesses.StartAsync(cancellationToken));
+    private Task StartOllamaAsync() => RunOllamaProcessActionAsync(T("Ollama startup"), cancellationToken => OllamaProcesses.StartAsync(cancellationToken));
 
     /// <summary>Stops Ollama through the existing process lifecycle service.</summary>
     /// <returns>A task that completes after the explicit lifecycle action and setup refresh.</returns>
-    private Task StopOllamaAsync() => RunOllamaProcessActionAsync("Ollama stop", cancellationToken => OllamaProcesses.StopAsync(cancellationToken));
+    private Task StopOllamaAsync() => RunOllamaProcessActionAsync(T("Ollama stop"), cancellationToken => OllamaProcesses.StopAsync(cancellationToken));
 
     /// <summary>Restarts Ollama through the existing process lifecycle service.</summary>
     /// <returns>A task that completes after the explicit lifecycle action and setup refresh.</returns>
-    private Task RestartOllamaAsync() => RunOllamaProcessActionAsync("Ollama restart", cancellationToken => OllamaProcesses.RestartAsync(cancellationToken));
+    private Task RestartOllamaAsync() => RunOllamaProcessActionAsync(T("Ollama restart"), cancellationToken => OllamaProcesses.RestartAsync(cancellationToken));
 
     /// <summary>Runs one explicit Ollama lifecycle action and then refreshes provider/model discovery.</summary>
     /// <param name="label">Human-readable status label for the lifecycle operation.</param>
@@ -523,13 +750,13 @@
             await SetBusyAsync(true).ConfigureAwait(false);
             var result = await action(default).ConfigureAwait(false);
             await InvokeAsync(() => ollamaStatus = result).ConfigureAwait(false);
-            await SetStatusAsync($"{label}: {result.Message}").ConfigureAwait(false);
+            await SetStatusAsync(TF("{0}: {1}", label, T(result.Message))).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
         catch (Exception exception)
         {
             Logger.LogError(exception, "Initial setup Ollama lifecycle action failed; executable path omitted.");
-            await SetStatusAsync($"{label} failed. Review LocalGPT logs.").ConfigureAwait(false);
+            await SetStatusAsync(TF("{0} failed. Review LocalGPT logs.", label)).ConfigureAwait(false);
         }
         finally
         {
@@ -541,7 +768,7 @@
     /// Starts provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartProviderAsync() => await RunProviderActionAsync("Provider startup", key => Providers.StartAsync(key, true)).ConfigureAwait(false);
+    private async Task StartProviderAsync() => await RunProviderActionAsync(T("Provider startup"), key => Providers.StartAsync(key, true)).ConfigureAwait(false);
     /// <summary>
     /// Performs configure provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
@@ -553,13 +780,13 @@
         {
             await SetBusyAsync(true).ConfigureAwait(false);
             var endpoint = await Providers.ConfigureEndpointAsync(selectedProviderKey, true).ConfigureAwait(false);
-            await SetStatusAsync($"Provider registration: configured {endpoint}.").ConfigureAwait(false);
+            await SetStatusAsync(TF("Provider registration: configured {0}.", endpoint)).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
         catch (Exception exception)
         {
             Logger.LogError(exception, "Initial setup provider endpoint registration failed; endpoint details omitted.");
-            await SetStatusAsync("Provider registration failed. Review LocalGPT logs.").ConfigureAwait(false);
+            await SetStatusAsync(T("Provider registration failed. Review LocalGPT logs.")).ConfigureAwait(false);
         }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
@@ -577,10 +804,10 @@
         {
             await SetBusyAsync(true).ConfigureAwait(false);
             var result = await action(selectedProviderKey).ConfigureAwait(false);
-            await SetStatusAsync($"{label}: {result.Status}.").ConfigureAwait(false);
+            await SetStatusAsync(TF("{0}: {1}.", label, T(result.Status))).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
-        catch (Exception exception) { Logger.LogError(exception, "Initial setup provider action failed; provider command omitted."); await SetStatusAsync($"{label} failed. Review LocalGPT logs.").ConfigureAwait(false); }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup provider action failed; provider command omitted."); await SetStatusAsync(TF("{0} failed. Review LocalGPT logs.", label)).ConfigureAwait(false); }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
@@ -595,13 +822,13 @@
             await SetBusyAsync(true).ConfigureAwait(false);
             var resolved = await Providers.ResolveModelIdAsync(selectedProviderKey, manualModelId).ConfigureAwait(false);
             var result = await Providers.InstallModelAsync(selectedProviderKey, resolved, true).ConfigureAwait(false);
-            await SetStatusAsync($"Model installation: {result.Status}.").ConfigureAwait(false);
+            await SetStatusAsync(TF("Model installation: {0}.", T(result.Status))).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
         catch (Exception exception)
         {
             Logger.LogError(exception, "Initial setup manual model install failed; model identifier omitted.");
-            await SetStatusAsync("Model installation failed. Review the model ID and LocalGPT logs.").ConfigureAwait(false);
+            await SetStatusAsync(T("Model installation failed. Review the model ID and LocalGPT logs.")).ConfigureAwait(false);
         }
         finally
         {
@@ -609,22 +836,98 @@
         }
     }
 
-    /// <summary>
-    /// Performs install model for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
-    /// </summary>
-    /// <param name="choice">Initial setup model choice dependency used by the initial setup assistant panel workflow to provide the corresponding application capability.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
+    /// <summary>Resolves an unmapped hardware-fit recommendation through the official provider catalog and installs it only when one conservative exact provider match is found.</summary>
+    /// <param name="choice">Hardware-fit recommendation that does not yet have a provider-safe install identifier.</param>
+    /// <returns>A task that completes after provider-catalog resolution and, when unambiguous, the explicit install action.</returns>
+    private async Task ResolveAndInstallModelAsync(InitialSetupModelChoice choice)
+    {
+        if (string.IsNullOrWhiteSpace(selectedProviderKey) || choice is null || !choice.IsHardwareRecommended)
+            return;
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var resolution = await Setup.ResolveProviderCatalogRecommendationAsync(
+                selectedProviderKey,
+                choice.RecommendationId,
+                choice.DisplayName,
+                userConfirmedWebLookup: true).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                providerCatalogChoices.Clear();
+                providerCatalogChoices.AddRange(resolution.Candidates);
+            }).ConfigureAwait(false);
+
+            if (resolution.Match is null)
+            {
+                await SetStatusAsync(resolution.Candidates.Count == 0
+                    ? T("No official provider model match was found for this hardware-fit recommendation. The CanIRun.ai source and provider search link remain available for review.")
+                    : T("No unambiguous official provider match was found. Review the provider catalog results below; LocalGPT will not guess an install ID.")).ConfigureAwait(false);
+                return;
+            }
+
+            var match = resolution.Match;
+            await InvokeAsync(() =>
+            {
+                choice.ProviderModelId = match.ProviderModelId;
+                choice.ProviderCatalogUrl = match.ProviderCatalogUrl;
+                choice.IsProviderCatalogUrlExact = match.IsProviderCatalogUrlExact;
+                choice.CanInstall = match.CanInstall;
+                choice.IsProviderCatalogEntry = true;
+                choice.MappingStatus = "CanIRun.ai hardware-fit discovery matched uniquely in the selected provider catalog.";
+            }).ConfigureAwait(false);
+
+            if (match.IsInstalled)
+            {
+                await RefreshAsync().ConfigureAwait(false);
+                await SetStatusAsync(T("The official provider match is already installed; LocalGPT refreshed the model inventory.")).ConfigureAwait(false);
+                return;
+            }
+            if (!match.CanInstall)
+            {
+                await SetStatusAsync(T("A unique provider model page was found, but this provider profile does not define a model-install action.")).ConfigureAwait(false);
+                return;
+            }
+
+            var result = await Providers.InstallModelAsync(selectedProviderKey, match.ProviderModelId, true).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+            await SetStatusAsync(TF("Provider-matched model installation: {0}.", T(result.Status))).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Resolving and installing a hardware-fit provider model failed; model identifiers were omitted.");
+            await SetStatusAsync(T("Provider model resolution or installation failed. Review the provider catalog results, shared console, and LocalGPT logs.")).ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Runs the selected provider's explicit install/pull operation for an installed model so the provider can check and refresh its local copy.</summary>
+    /// <param name="choice">Installed provider model to check/refresh.</param>
+    /// <returns>A task that completes after the provider action and setup refresh.</returns>
+    private Task CheckUpdateModelAsync(InitialSetupModelChoice choice) => InstallModelAsync(choice);
+
+    /// <summary>Installs one provider-safe model choice exposed by provider inventory or hardware-aware discovery.</summary>
+    /// <param name="choice">Provider model choice whose validated provider identifier should be installed.</param>
+    /// <returns>A task that completes after the provider action and setup refresh.</returns>
     private async Task InstallModelAsync(InitialSetupModelChoice choice)
     {
-        if (string.IsNullOrWhiteSpace(selectedProviderKey)) return;
+        if (string.IsNullOrWhiteSpace(selectedProviderKey) || !choice.CanInstall) return;
         try
         {
             await SetBusyAsync(true).ConfigureAwait(false);
             var result = await Providers.InstallModelAsync(selectedProviderKey, choice.ProviderModelId, true).ConfigureAwait(false);
-            await SetStatusAsync($"Model installation: {result.Status}.").ConfigureAwait(false);
+            if (result.Succeeded)
+            {
+                choice.IsInstalled = true;
+                choice.IsProviderInventory = true;
+                choice.CanCheckUpdate = IsSelectedOllama;
+            }
+            await SetStatusAsync(TF("Model installation: {0}.", T(result.Status))).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
-        catch (Exception exception) { Logger.LogError(exception, "Initial setup model install failed; model identifier omitted."); await SetStatusAsync("Model installation failed. Review LocalGPT logs.").ConfigureAwait(false); }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup model install failed; model identifier omitted."); await SetStatusAsync(T("Model installation failed. Review LocalGPT logs.")).ConfigureAwait(false); }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
@@ -666,9 +969,9 @@
                 PreferredCuratorModelKeys = preferredCuratorModels.ToList(),
                 UserConfirmed = true
             }).ConfigureAwait(false);
-            await SetStatusAsync($"Council team '{saved.DisplayName}' is ready in Council Teams.").ConfigureAwait(false);
+            await SetStatusAsync(TF("Council team '{0}' is ready in Council Teams.", saved.DisplayName)).ConfigureAwait(false);
         }
-        catch (Exception exception) { Logger.LogError(exception, "Creating initial benchmark team from setup panel failed."); await SetStatusAsync("Benchmark team could not be created. Review LocalGPT logs.").ConfigureAwait(false); }
+        catch (Exception exception) { Logger.LogError(exception, "Creating initial benchmark team from setup panel failed."); await SetStatusAsync(T("Benchmark team could not be created. Review LocalGPT logs.")).ConfigureAwait(false); }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 

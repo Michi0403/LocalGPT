@@ -611,7 +611,7 @@
                                     <span>Default single-model target</span>
                                     <select class="form-select" @bind="step.XChildModelName" disabled="@(!step.XFunctionsEnabled || !step.XCanStartSingleModel)">
                                         <option value="">Use the current Council leader</option>
-                                        @if (!string.IsNullOrWhiteSpace(step.XChildModelName) && !_providerModels.Any(model => model.SelectionKey.Equals(step.XChildModelName, StringComparison.OrdinalIgnoreCase)))
+                                        @if (!string.IsNullOrWhiteSpace(step.XChildModelName) && !IsWorkflowModelAvailable(step.XChildModelName))
                                         {
                                             <option value="@step.XChildModelName">Saved but unavailable · @step.XChildModelName</option>
                                         }

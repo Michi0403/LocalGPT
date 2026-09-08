@@ -140,9 +140,8 @@ namespace LocalGPT.Components.Pages
             if (session is null || !CouncilText.ContainsText(session.Provider, "Ollama"))
                 return false;
 
-            return !OllamaCandidates.Any(candidate =>
-                candidate.IsInstalled &&
-                candidate.SelectionKey.Equals(session.SelectionKey, StringComparison.OrdinalIgnoreCase));
+            var resolved = new ProviderModelIdentity().ResolveEquivalentCandidate(session.SelectionKey, OllamaCandidates, out _);
+            return resolved is null || !resolved.IsInstalled;
         }
         catch (Exception ex)
         {
@@ -240,9 +239,13 @@ namespace LocalGPT.Components.Pages
             var selectedModels = DiagnosticCouncilModelNames.Count > 0
             ? DiagnosticCouncilModelNames
             : SelectedCouncilModelNames;
-            var selectedProviderModels = OllamaCandidates
-                .Where(candidate => selectedModels.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
-                .Select(candidate => candidate.ToReference())
+            var identity = new ProviderModelIdentity();
+            var selectedProviderModels = selectedModels
+                .Select(value => identity.ResolveEquivalentCandidate(value, OllamaCandidates, out _))
+                .Where(candidate => candidate is not null)
+                .Select(candidate => candidate!.ToReference())
+                .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
                 .ToList();
             var selectedEndpoint = selectedProviderModels
                 .FirstOrDefault(model => model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))

@@ -1,11 +1,7 @@
-# LocalGPT 3.9.2
+# LocalGPT 3.9.9
 
-LocalGPT 3.9.2 repairs the installed-app runtime failure that prevented the unified Setup guide from initializing on macOS.
+LocalGPT 3.9.9 closes the remaining setup feedback carried forward after 3.9.8: provider-owned links are exposed beside model choices, compatible-but-unmapped CanIRun.ai recommendations gain a conservative official-catalog resolution/install path, the shared ASCII command feed strips terminal control noise and preserves monospace layout, and Ollama gains one explicit guided install/start/register action with macOS recovery guidance.
 
-The supplied runtime log shows an invalid inherited process current directory causing optional hardware probes to fail in `Interop.Sys.GetCwd()`. That exception propagated through the Setup snapshot and produced the red `Initial setup refresh failed` state. The same invalid-current-directory dependency also caused the optional file logger to throw while DevExpress was rendering the form, terminating the Blazor circuit.
+Ambiguous provider matches are intentionally never guessed. The working Council/team self-cleanup mechanism and existing routed `InteractiveServer` architecture are preserved.
 
-3.9.2 removes that dependency from the Setup path: the generated macOS launcher uses the durable per-user LocalGPT runtime directory, startup can repair an already-invalid inherited current directory, hardware probes are explicitly rooted and best-effort, optional hardware failure no longer aborts the Setup snapshot, the file logger uses per-user logs, and the bounded provider/model console uses the durable runtime directory when no explicit working directory is supplied.
-
-The intended unified workflow is preserved: hardware review, optional CanIRun.ai recommendations, provider selection, Ollama Start/Stop/Restart/Refresh, endpoint registration, direct first-model install, one-click recommendation-driven model installs, installed-model selection, and benchmark-team creation remain in the Setup guide.
-
-See `CHANGELOG-v3.9.2-PACKAGED-SETUP-RUNTIME-REPAIR.md` and `VALIDATION-v3.9.2-source.md`. The feature scope introduced in 3.9.0 and the build-guard repair in 3.9.1 remain preserved.
+See `CHANGELOG-v3.9.9-PROVIDER-MODEL-LINK-INSTALL-CONSOLE-OLLAMA-GUIDE.md` and `VALIDATION-v3.9.9-source.md`.

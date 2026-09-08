@@ -222,20 +222,12 @@ namespace LocalGPT.Components.Pages
                .ToList();
 
            var normalizedSelections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+           var identity = new ProviderModelIdentity();
            foreach (var selected in SelectedModels)
            {
-               var exact = Candidates.FirstOrDefault(candidate => candidate.SelectionKey.Equals(selected, StringComparison.OrdinalIgnoreCase));
-               if (exact is not null)
-               {
-                   normalizedSelections.Add(exact.SelectionKey);
-                   continue;
-               }
-
-               var byModel = Candidates
-                   .Where(candidate => candidate.ModelName.Equals(selected, StringComparison.OrdinalIgnoreCase))
-                   .ToList();
-               if (byModel.Count == 1)
-                   normalizedSelections.Add(byModel[0].SelectionKey);
+               var resolved = identity.ResolveEquivalentCandidate(selected, Candidates, out _);
+               if (resolved is not null)
+                   normalizedSelections.Add(resolved.SelectionKey);
            }
            SelectedModels.Clear();
            foreach (var selection in normalizedSelections)

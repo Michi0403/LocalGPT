@@ -18,7 +18,7 @@ public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> l
         var roots = new List<string>();
         Add(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         Add(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-        Add(Environment.CurrentDirectory);
+        Add(LocalGptApplicationDataPaths.ResolveSafeCurrentDirectory());
         Add(AppContext.BaseDirectory);
         try
         {
@@ -72,7 +72,7 @@ public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> l
         ArgumentNullException.ThrowIfNull(request);
         var result = new LocalPathBrowseResult { RequestedPath = request.Path ?? string.Empty, SuggestedRoots = GetSuggestedRoots().ToList() };
         var requested = string.IsNullOrWhiteSpace(request.Path)
-            ? result.SuggestedRoots.FirstOrDefault() ?? Environment.CurrentDirectory
+            ? result.SuggestedRoots.FirstOrDefault() ?? LocalGptApplicationDataPaths.ResolveSafeCurrentDirectory()
             : request.Path.Trim();
         try
         {

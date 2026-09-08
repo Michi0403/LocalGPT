@@ -159,6 +159,9 @@ namespace LocalGPT
                 builder.Services.AddScoped<IInitialSetupAssistantService, InitialSetupAssistantService>();
                 builder.Services.AddHttpClient("LocalGPTCanIRun")
                     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+                builder.Services.AddHttpClient("LocalGPTProviderCatalog", client =>
+                    client.Timeout = TimeSpan.FromSeconds(10))
+                    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = true });
 
                 var configuredDatabasePath = builder.Configuration[$"{LocalGptDatabaseOptions.SectionName}:Path"];
                 var memoryDbPath = string.IsNullOrWhiteSpace(configuredDatabasePath)
@@ -495,6 +498,23 @@ namespace LocalGPT
                 Directory.CreateDirectory(fallback);
                 return fallback;
             }
+        }
+
+        /// <summary>Returns the current directory when it is still valid, otherwise a durable per-user runtime directory.</summary>
+        /// <returns>A directory that exists and can safely be used for runtime path discovery.</returns>
+        public static string ResolveSafeCurrentDirectory()
+        {
+            try
+            {
+                var current = Directory.GetCurrentDirectory();
+                if (!string.IsNullOrWhiteSpace(current) && Directory.Exists(current))
+                    return current;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Fall through to the durable runtime directory.
+            }
+            return ResolveProcessWorkingDirectory();
         }
 
         /// <summary>Repairs an invalid inherited current directory without changing normal source/development launches.</summary>

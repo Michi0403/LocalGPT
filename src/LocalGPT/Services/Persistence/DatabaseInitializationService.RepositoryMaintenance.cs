@@ -2,6 +2,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -25,30 +26,33 @@ public sealed partial class DatabaseInitializationService
         try
         {
             var sourceVersion = ResolveLocalGptSourceVersion(repositoryRoot);
-            foreach (var path in Directory.EnumerateFiles(repositoryRoot, "CHANGELOG-v*.md", SearchOption.TopDirectoryOnly)
-                         .OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
+            if (Directory.Exists(repositoryRoot))
             {
-                var match = RepositoryReleaseChangelogPattern.Match(Path.GetFileName(path));
-                if (!match.Success)
-                    continue;
+                foreach (var path in Directory.EnumerateFiles(repositoryRoot, "CHANGELOG-v*.md", SearchOption.TopDirectoryOnly)
+                             .OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
+                {
+                    var match = RepositoryReleaseChangelogPattern.Match(Path.GetFileName(path));
+                    if (!match.Success)
+                        continue;
 
-                var version = match.Groups["version"].Value;
-                var summary = ReadReleaseSummary(path, version);
-                EnsureVersion(project, version, repositoryRoot, summary);
-                EnsureRevision(project, "main", $"seed-v{version}", repositoryRoot, summary);
+                    var version = match.Groups["version"].Value;
+                    var summary = ReadReleaseSummary(path, version);
+                    EnsureVersion(project, version, repositoryRoot, summary);
+                    EnsureRevision(project, "main", $"seed-v{version}", repositoryRoot, summary);
+                }
             }
 
             EnsureVersion(
                 project,
                 sourceVersion,
                 repositoryRoot,
-                $"Current LocalGPT source release {sourceVersion} detected from src/LocalGPT/LocalGPT.csproj; repository-derived runtime requirements remain authoritative.");
+                $"Current running LocalGPT release {sourceVersion} reconciled from maintained source/package version evidence; repository-derived runtime requirements remain authoritative when source files are present.");
             EnsureRevision(
                 project,
                 "main",
                 $"seed-v{sourceVersion}",
                 repositoryRoot,
-                $"Current LocalGPT source release {sourceVersion} reconciled from the maintained repository rather than a manually copied seed tail.");
+                $"Current running LocalGPT release {sourceVersion} reconciled without requiring a source tree inside an installed package.");
 
             var currentVersion = SelectNewestProjectVersion(project, sourceVersion);
             project.CurrentVersion = currentVersion;
@@ -66,26 +70,67 @@ public sealed partial class DatabaseInitializationService
         }
     }
 
-    /// <summary>Reads the package version declared by the current LocalGPT source tree.</summary>
-    /// <param name="repositoryRoot">Current repository root.</param>
-    /// <returns>The declared LocalGPT package version.</returns>
+    /// <summary>Resolves the running LocalGPT release from the maintained project file when present, otherwise from package/assembly metadata in installed deployments.</summary>
+    /// <param name="repositoryRoot">Current repository or packaged runtime root.</param>
+    /// <returns>The normalized three-part LocalGPT package version.</returns>
     private string ResolveLocalGptSourceVersion(string repositoryRoot)
     {
         try
         {
             var projectPath = Path.Combine(repositoryRoot, "src", "LocalGPT", "LocalGPT.csproj");
-            if (!File.Exists(projectPath))
-                throw new FileNotFoundException("The LocalGPT project file used for source-backed version reconciliation was not found.", projectPath);
+            if (File.Exists(projectPath))
+            {
+                var document = XDocument.Load(projectPath, LoadOptions.None);
+                var version = document.Descendants("Version").Select(item => item.Value.Trim()).FirstOrDefault(item => !string.IsNullOrWhiteSpace(item));
+                if (string.IsNullOrWhiteSpace(version))
+                    throw new InvalidDataException("The LocalGPT project file does not declare a Version element.");
+                return NormalizeRunningVersion(version);
+            }
 
-            var document = XDocument.Load(projectPath, LoadOptions.None);
-            var version = document.Descendants("Version").Select(item => item.Value.Trim()).FirstOrDefault(item => !string.IsNullOrWhiteSpace(item));
-            if (string.IsNullOrWhiteSpace(version))
-                throw new InvalidDataException("The LocalGPT project file does not declare a Version element.");
-            return version;
+            var assembly = typeof(DatabaseInitializationService).Assembly;
+            var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (!string.IsNullOrWhiteSpace(informational))
+            {
+                var normalized = NormalizeRunningVersion(informational);
+                logger.LogInformation("LocalGPT source project file is not packaged; release history is using running package version {Version}.", normalized);
+                return normalized;
+            }
+
+            var assemblyVersion = assembly.GetName().Version;
+            if (assemblyVersion is not null)
+            {
+                var normalized = $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{Math.Max(0, assemblyVersion.Build)}";
+                logger.LogInformation("LocalGPT source project file is not packaged; release history is using assembly version {Version}.", normalized);
+                return normalized;
+            }
+
+            throw new InvalidDataException("The installed LocalGPT package did not expose usable version metadata.");
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Resolving the LocalGPT source version from the maintained project file failed.");
+            logger.LogError(exception, "Resolving the running LocalGPT release version failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Normalizes informational/package metadata to the maintained three-part release version used by LocalGPT project history.</summary>
+    /// <param name="value">Package or informational version text.</param>
+    /// <returns>The normalized <c>major.minor.patch</c> version.</returns>
+    private string NormalizeRunningVersion(string value)
+    {
+        try
+        {
+            var core = (value ?? string.Empty).Trim();
+            var metadataIndex = core.IndexOfAny(['+', '-']);
+            if (metadataIndex > 0)
+                core = core[..metadataIndex];
+            if (!Version.TryParse(core, out var parsed) || parsed.Build < 0)
+                throw new InvalidDataException("The running LocalGPT package version is not a valid three-part release version.");
+            return $"{parsed.Major}.{parsed.Minor}.{parsed.Build}";
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Normalizing the running LocalGPT release version failed.");
             throw;
         }
     }

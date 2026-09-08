@@ -161,6 +161,8 @@ public sealed class ConsoleCommandService(
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 RedirectStandardInput = false,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 WorkingDirectory = ResolveWorkingDirectory(request.WorkingDirectory)
@@ -259,13 +261,14 @@ public sealed class ConsoleCommandService(
         {
             if (line is null)
                 return;
+            var normalized = NormalizeTerminalDisplayText(line);
             if (capture.Length < Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)))
             {
                 var remaining = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)) - capture.Length;
-                var bounded = line.Length <= remaining ? line : line[..remaining];
+                var bounded = normalized.Length <= remaining ? normalized : normalized[..remaining];
                 capture.AppendLine(bounded);
             }
-            Publish(operationId, displayName, stream, line);
+            Publish(operationId, displayName, stream, normalized);
         }
         catch (Exception exception)
         {
@@ -284,13 +287,14 @@ public sealed class ConsoleCommandService(
     {
         try
         {
+            var normalized = NormalizeTerminalDisplayText(text);
             recentOutput.Enqueue(new LocalConsoleOutputEvent
             {
                 OperationId = operationId,
                 TimestampUtc = DateTimeOffset.UtcNow,
                 DisplayName = BoundDisplayName(displayName),
                 Stream = stream,
-                Text = text.Length <= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumEventCharacters)) ? text : text[..Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumEventCharacters))]
+                Text = normalized.Length <= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumEventCharacters)) ? normalized : normalized[..Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumEventCharacters))]
             });
             while (recentOutput.Count > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumRecentEvents)))
                 recentOutput.TryDequeue(out _);
@@ -299,6 +303,117 @@ public sealed class ConsoleCommandService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Publishing local console event failed; event text was omitted from logs.");
+        }
+    }
+
+    /// <summary>Normalizes one redirected terminal line for plain monospace UI surfaces by applying common cursor-rewrite controls and removing ANSI/OSC control sequences.</summary>
+    /// <param name="text">One redirected stdout/stderr line.</param>
+    /// <returns>Plain Unicode text representing the final visible terminal line state.</returns>
+    private string NormalizeTerminalDisplayText(string text)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+            var visible = new StringBuilder(text.Length);
+            var cursor = 0;
+            for (var index = 0; index < text.Length; index++)
+            {
+                var character = text[index];
+                if (character == '\u001b')
+                {
+                    if (index + 1 >= text.Length)
+                        break;
+                    if (text[index + 1] == '[')
+                    {
+                        var end = index + 2;
+                        while (end < text.Length && (text[end] < '@' || text[end] > '~'))
+                            end++;
+                        if (end >= text.Length)
+                            break;
+                        var final = text[end];
+                        var parameters = text[(index + 2)..end];
+                        if (final == 'G')
+                            cursor = Math.Clamp(ResolveAnsiColumn(parameters) - 1, 0, visible.Length);
+                        else if (final is 'H' or 'f')
+                            cursor = 0;
+                        else if (final == 'K' && cursor < visible.Length)
+                            visible.Length = cursor;
+                        index = end;
+                        continue;
+                    }
+                    if (text[index + 1] == ']')
+                    {
+                        index += 2;
+                        while (index < text.Length && text[index] != '\a')
+                        {
+                            if (text[index] == '\u001b' && index + 1 < text.Length && text[index + 1] == '\\')
+                            {
+                                index++;
+                                break;
+                            }
+                            index++;
+                        }
+                        continue;
+                    }
+                    index++;
+                    continue;
+                }
+                if (character == '\r')
+                {
+                    cursor = 0;
+                    continue;
+                }
+                if (character == '\b')
+                {
+                    cursor = Math.Max(0, cursor - 1);
+                    continue;
+                }
+                if (character == '\t')
+                {
+                    character = ' ';
+                    var spaces = 4 - (cursor % 4);
+                    for (var count = 0; count < spaces; count++)
+                    {
+                        if (cursor < visible.Length)
+                            visible[cursor] = ' ';
+                        else
+                            visible.Append(' ');
+                        cursor++;
+                    }
+                    continue;
+                }
+                if (char.IsControl(character))
+                    continue;
+                if (cursor < visible.Length)
+                    visible[cursor] = character;
+                else
+                    visible.Append(character);
+                cursor++;
+            }
+            return visible.ToString().TrimEnd();
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Normalizing redirected terminal display text failed; output text was omitted from logs.");
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Resolves the one-based ANSI cursor column used by the bounded plain-text terminal normalizer.</summary>
+    /// <param name="parameters">CSI parameter text preceding the cursor-column command.</param>
+    /// <returns>A one-based cursor column, defaulting to one when the terminal omitted it.</returns>
+    private int ResolveAnsiColumn(string parameters)
+    {
+        try
+        {
+            var value = parameters.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+            return int.TryParse(value, out var column) && column > 0 ? column : 1;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Resolving one ANSI cursor column failed.");
+            return 1;
         }
     }
 

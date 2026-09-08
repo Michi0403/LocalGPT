@@ -417,6 +417,7 @@ public sealed class AiProviderBootstrapService(
             profile.Platform = profile.Platform.Trim().ToLowerInvariant();
             profile.Endpoint = profile.Endpoint.Trim();
             profile.SourceUrl = profile.SourceUrl.Trim();
+            profile.ModelCatalogUrl = profile.ModelCatalogUrl.Trim();
             profile.ModelAliases = new Dictionary<string, string>(profile.ModelAliases ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
         }
         catch (Exception exception)

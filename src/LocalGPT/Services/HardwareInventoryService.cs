@@ -1,7 +1,5 @@
 using LocalGPT.Interfaces;
 using LocalGPT.WireProtocol;
-using System.Diagnostics;
-using System.Globalization;
 using System.Runtime.InteropServices;
 
 namespace LocalGPT.Services;
@@ -47,20 +45,21 @@ public sealed class HardwareInventoryService(
                 if (cached is not null && DateTimeOffset.UtcNow - cacheUtc < TimeSpan.FromMinutes(2))
                     return cached.Select(Clone).ToList();
 
+                var cpuName = await GetCpuNameAsync(cancellationToken).ConfigureAwait(false);
                 var result = new List<OneWireHardwareDescriptor>
                 {
                     new()
                     {
                         Kind = OneWireHardwareKind.Cpu,
                         Index = 0,
-                        Name = $"{RuntimeInformation.ProcessArchitecture} CPU",
-                        Vendor = RuntimeInformation.OSDescription,
+                        Name = string.IsNullOrWhiteSpace(cpuName) ? $"{RuntimeInformation.ProcessArchitecture} CPU" : cpuName,
+                        Vendor = InferVendor(cpuName),
                         LogicalProcessorCount = Environment.ProcessorCount,
                         IsOnline = true
                     }
                 };
 
-                foreach (var gpu in await ProbeNvidiaAsync(cancellationToken).ConfigureAwait(false))
+                foreach (var gpu in await platformProbe.ProbeNvidiaGpusAsync(cancellationToken).ConfigureAwait(false))
                     if (result.All(existing => !string.Equals(existing.LaneKey, gpu.LaneKey, StringComparison.OrdinalIgnoreCase)))
                         result.Add(gpu);
 
@@ -106,6 +105,26 @@ public sealed class HardwareInventoryService(
     }
 }
 
+    /// <summary>Returns the CPU/model name through the existing platform-specific read-only probe.</summary>
+    /// <inheritdoc />
+    public async Task<string> GetCpuNameAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return (await platformProbe.ProbeCpuNameAsync(cancellationToken).ConfigureAwait(false)).Trim();
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "CPU hardware probe was cancelled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "CPU hardware probe was unavailable.");
+            return string.Empty;
+        }
+    }
+
     /// <summary>Returns total physical/system memory through the existing platform-specific read-only probe.</summary>
     /// <inheritdoc />
     public async Task<long?> GetSystemMemoryBytesAsync(CancellationToken cancellationToken = default)
@@ -123,103 +142,6 @@ public sealed class HardwareInventoryService(
         {
             logger.LogDebug(exception, "System-memory hardware probe was unavailable.");
             return null;
-        }
-    }
-
-    /// <summary>
-    /// Performs probe nvidia as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The collection produced by the operation.</returns>
-    private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeNvidiaAsync(CancellationToken cancellationToken)
-    {
-    try
-    {
-            var lines = await RunProbeAsync(
-                "nvidia-smi",
-                "--query-gpu=index,name,memory.total --format=csv,noheader,nounits",
-                cancellationToken).ConfigureAwait(false);
-            var result = new List<OneWireHardwareDescriptor>();
-            foreach (var line in lines)
-            {
-                var parts = line.Split(',', StringSplitOptions.TrimEntries);
-                if (parts.Length < 2 || !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
-                    continue;
-                long? bytes = null;
-                if (parts.Length >= 3 && long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var mib))
-                    bytes = mib * 1024L * 1024L;
-                result.Add(new OneWireHardwareDescriptor
-                {
-                    Kind = OneWireHardwareKind.Gpu,
-                    Index = index,
-                    Name = parts[1],
-                    Vendor = "NVIDIA",
-                    DedicatedMemoryBytes = bytes,
-                    IsOnline = true
-                });
-            }
-            return result;
-    
-    }
-    catch (OperationCanceledException exception)
-    {
-        logger.LogDebug(exception, $"Service method {nameof(HardwareInventoryService)}.{nameof(ProbeNvidiaAsync)} was canceled.");
-        throw;
-    }
-    catch (Exception exception)
-    {
-        logger.LogDebug(exception, "Optional NVIDIA discovery was unavailable; non-NVIDIA and manually configured hardware remain usable.");
-        return [];
-    }
-}
-
-
-    /// <summary>
-    /// Performs run probe as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="fileName">File name value supplied to the hardware inventory operation and used when producing its result.</param>
-    /// <param name="arguments">Arguments value supplied to the hardware inventory operation and used when producing its result.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The collection produced by the operation.</returns>
-    private async Task<IReadOnlyList<string>> RunProbeAsync(string fileName, string arguments, CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(3));
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = fileName,
-                    Arguments = arguments,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory()
-                }
-            };
-            if (!process.Start()) return [];
-            var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
-            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
-            if (process.ExitCode != 0) return [];
-            var output = await outputTask.ConfigureAwait(false);
-            return output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        }
-        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            logger.LogDebug(exception, "Hardware probe {Probe} timed out; user-configured hardware routes remain usable.", fileName);
-            return [];
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or IOException or UnauthorizedAccessException)
-        {
-            logger.LogDebug(exception, "Hardware probe {Probe} is unavailable; user-configured hardware routes remain usable.", fileName);
-            return [];
         }
     }
 

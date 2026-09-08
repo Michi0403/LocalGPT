@@ -18,7 +18,7 @@ public sealed class CanIRunHardwareRecommendationService(
     /// <summary>Stores the fixed JSON media type used for the optional CanIRun.ai request.</summary>
     private const string JsonMediaType = "application/json";
     /// <summary>Stores the fixed HTTPS JSON recommendation endpoint used only after explicit user opt-in.</summary>
-    private readonly Uri recommendationUri = new("https://canirun.ai/api/recommend", UriKind.Absolute);
+    private readonly Uri recommendationUri = new("https://www.canirun.ai/api/recommend", UriKind.Absolute);
 
     /// <summary>Posts one explicitly approved hardware profile to the maintained CanIRun.ai recommendation endpoint.</summary>
     /// <inheritdoc />
@@ -32,44 +32,45 @@ public sealed class CanIRunHardwareRecommendationService(
             if (!userConfirmedWebLookup)
                 throw new InvalidOperationException("CanIRun.ai lookup requires explicit user opt-in for this web request.");
             ArgumentNullException.ThrowIfNull(device);
-            if (string.IsNullOrWhiteSpace(device.Name))
-                throw new ArgumentException("A reviewed GPU / accelerator name is required for CanIRun.ai recommendations.", nameof(device));
+            var hardwareName = string.IsNullOrWhiteSpace(device.CanIRunHardwareName) ? device.Name : device.CanIRunHardwareName;
+            if (string.IsNullOrWhiteSpace(hardwareName) && string.IsNullOrWhiteSpace(device.CpuName))
+                throw new ArgumentException("A reviewed accelerator or CPU name is required for CanIRun.ai recommendations.", nameof(device));
             if (device.SystemMemoryGiB is not > 0)
                 throw new ArgumentException("Total system / unified memory is required for CanIRun.ai recommendations. Detect it locally or enter the reviewed GiB value first.", nameof(device));
 
             ValidateCanIRunUri(recommendationUri);
-            var gpu = new Dictionary<string, object?>
+            var hardware = new Dictionary<string, object?>
             {
-                ["name"] = Bound(device.Name, 240)
+                ["ramGb"] = Math.Round(device.SystemMemoryGiB.Value, 2, MidpointRounding.AwayFromZero)
             };
-            if (device.DedicatedVramGiB is > 0)
-                gpu["vramGb"] = Math.Round(device.DedicatedVramGiB.Value, 2, MidpointRounding.AwayFromZero);
+            if (!string.IsNullOrWhiteSpace(hardwareName))
+            {
+                var gpu = new Dictionary<string, object?>
+                {
+                    ["name"] = Bound(hardwareName, 240)
+                };
+                if (device.DedicatedVramGiB is > 0)
+                    gpu["vramGb"] = Math.Round(device.DedicatedVramGiB.Value, 2, MidpointRounding.AwayFromZero);
+                hardware["gpu"] = gpu;
+            }
+            if (!string.IsNullOrWhiteSpace(device.CpuName))
+                hardware["cpu"] = new Dictionary<string, object?> { ["name"] = Bound(device.CpuName, 240) };
 
             var payload = new Dictionary<string, object?>
             {
-                ["hardware"] = new Dictionary<string, object?>
-                {
-                    ["ramGb"] = Math.Round(device.SystemMemoryGiB.Value, 2, MidpointRounding.AwayFromZero),
-                    ["gpu"] = gpu
-                }
+                ["hardware"] = hardware
             };
 
             var client = httpClientFactory.CreateClient("LocalGPTCanIRun");
-            using var request = new HttpRequestMessage(HttpMethod.Post, recommendationUri)
-            {
-                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, JsonMediaType)
-            };
-            request.Headers.UserAgent.ParseAdd("LocalGPT/3.9.2 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            if ((int)response.StatusCode is >= 300 and < 400)
-                throw new InvalidOperationException("CanIRun.ai redirects are not followed automatically.");
+            var requestJson = JsonSerializer.Serialize(payload);
+            using var response = await SendRecommendationRequestAsync(client, requestJson, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (json.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumPageCharacters)))
                 throw new InvalidDataException("The CanIRun.ai response exceeded LocalGPT's bounded response size.");
 
             using var document = JsonDocument.Parse(json);
-            var recommendations = ParseRecommendations(document.RootElement, device.Name, recommendationUri.ToString(), cancellationToken);
+            var recommendations = ParseRecommendations(document.RootElement, hardwareName, recommendationUri.ToString(), cancellationToken);
             var result = recommendations
                 .Where(item => !string.IsNullOrWhiteSpace(item.ModelId))
                 .GroupBy(item => item.ModelId, StringComparer.OrdinalIgnoreCase)
@@ -89,6 +90,56 @@ public sealed class CanIRunHardwareRecommendationService(
         catch (Exception exception)
         {
             logger.LogError(exception, "CanIRun.ai lookup failed; hardware facts and response content were omitted from logs.");
+            throw;
+        }
+    }
+
+    /// <summary>Posts the approved JSON payload while following only bounded HTTPS redirects that stay on CanIRun.ai.</summary>
+    /// <param name="client">Redirect-disabled HTTP client used by the optional web lookup.</param>
+    /// <param name="requestJson">Serialized approved hardware payload.</param>
+    /// <param name="cancellationToken">Cancellation token for the web request.</param>
+    /// <returns>The final HTTP response; the caller owns disposal.</returns>
+    private async Task<HttpResponseMessage> SendRecommendationRequestAsync(HttpClient client, string requestJson, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUri = recommendationUri;
+            for (var redirectCount = 0; redirectCount <= 2; redirectCount++)
+            {
+                ValidateCanIRunUri(currentUri);
+                using var request = new HttpRequestMessage(HttpMethod.Post, currentUri)
+                {
+                    Content = new StringContent(requestJson, Encoding.UTF8, JsonMediaType)
+                };
+                request.Headers.UserAgent.ParseAdd("LocalGPT/3.9.9 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
+                var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                if ((int)response.StatusCode is < 300 or >= 400)
+                    return response;
+
+                var location = response.Headers.Location;
+                if (location is null)
+                {
+                    response.Dispose();
+                    throw new InvalidOperationException("CanIRun.ai returned a redirect without a destination.");
+                }
+                var redirectedUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+                ValidateCanIRunUri(redirectedUri);
+                response.Dispose();
+                if (redirectCount >= 2)
+                    throw new InvalidOperationException("CanIRun.ai exceeded LocalGPT's bounded redirect limit.");
+                currentUri = redirectedUri;
+            }
+
+            throw new InvalidOperationException("CanIRun.ai redirect handling did not produce a response.");
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "CanIRun.ai request redirect handling was cancelled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "CanIRun.ai request redirect handling failed; request payload was omitted.");
             throw;
         }
     }
@@ -127,7 +178,6 @@ public sealed class CanIRunHardwareRecommendationService(
         {
             var candidates = new List<JsonElement>();
             CollectRecommendationObjects(root, candidates, depth: 0, cancellationToken);
-            var limit = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumRecommendations));
             var result = new List<CanIRunModelRecommendation>();
             foreach (var candidate in candidates)
             {
@@ -250,6 +300,20 @@ public sealed class CanIRunHardwareRecommendationService(
                 requiredVram ??= FirstDouble(recommendedQuantization, "vramGb", "requiredVramGb", "memoryGb");
             }
 
+            var ollamaModelId = FirstString(candidate, "ollamaModelId", "ollama_model_id", "ollamaModel", "ollama_model", "ollama");
+            if (string.IsNullOrWhiteSpace(ollamaModelId) && model is { } ollamaModel)
+                ollamaModelId = FirstString(ollamaModel, "ollamaModelId", "ollama_model_id", "ollamaModel", "ollama_model", "ollama");
+            if (string.IsNullOrWhiteSpace(ollamaModelId) && TryGetObject(candidate, "ollama") is { } ollamaObject)
+                ollamaModelId = FirstString(ollamaObject, "modelId", "model", "name", "id", "command");
+            ollamaModelId = NormalizeOllamaModelId(ollamaModelId);
+
+            var lmStudioModelId = FirstString(candidate, "lmStudioModelId", "lmstudioModelId", "lm_studio_model_id", "lmStudioModel", "lmstudioModel", "lmstudio");
+            if (string.IsNullOrWhiteSpace(lmStudioModelId) && model is { } lmStudioModel)
+                lmStudioModelId = FirstString(lmStudioModel, "lmStudioModelId", "lmstudioModelId", "lm_studio_model_id", "lmStudioModel", "lmstudioModel", "lmstudio");
+            if (string.IsNullOrWhiteSpace(lmStudioModelId) && TryGetObject(candidate, "lmstudio") is { } lmStudioObject)
+                lmStudioModelId = FirstString(lmStudioObject, "modelId", "model", "name", "id", "command");
+            lmStudioModelId = NormalizeLmStudioModelId(lmStudioModelId);
+
             return new CanIRunModelRecommendation
             {
                 ModelId = Bound(modelId, 240),
@@ -260,14 +324,91 @@ public sealed class CanIRunHardwareRecommendationService(
                 Quantization = Bound(quantization, 64),
                 RequiredVramGiB = requiredVram,
                 Publisher = Bound(publisher, 120),
+                OllamaModelId = Bound(ollamaModelId, 240),
+                LmStudioModelId = Bound(lmStudioModelId, 240),
                 DeviceSlug = Bound(deviceName, 240),
-                SourceUrl = sourceUrl
+                SourceUrl = BuildModelSourceUrl(modelId, sourceUrl)
             };
         }
         catch (Exception exception) when (exception is InvalidOperationException or FormatException)
         {
             logger.LogDebug(exception, "Ignored one unrecognized CanIRun.ai recommendation object.");
             return null;
+        }
+    }
+
+    /// <summary>Extracts one safe Ollama model token from an API scalar that may contain a raw token or an <c>ollama run/pull</c> command.</summary>
+    /// <param name="value">CanIRun.ai scalar value associated with Ollama metadata.</param>
+    /// <returns>The provider token, or an empty string when the scalar does not expose one safely.</returns>
+    private string NormalizeOllamaModelId(string value)
+    {
+        try
+        {
+            var candidate = value?.Trim() ?? string.Empty;
+            if (candidate.Length == 0)
+                return string.Empty;
+            var tokens = candidate.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (tokens.Length >= 3
+                && tokens[0].Equals("ollama", StringComparison.OrdinalIgnoreCase)
+                && (tokens[1].Equals("run", StringComparison.OrdinalIgnoreCase) || tokens[1].Equals("pull", StringComparison.OrdinalIgnoreCase)))
+                candidate = tokens[2];
+            else if (tokens.Length != 1)
+                return string.Empty;
+            return candidate.Trim('`', '"', '\'');
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Ignoring unrecognized CanIRun.ai Ollama model metadata.");
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Extracts one safe LM Studio catalog identifier from a raw ID or an <c>lms get</c> command.</summary>
+    /// <param name="value">CanIRun.ai scalar value associated with LM Studio metadata.</param>
+    /// <returns>The provider token, or an empty string when the scalar does not expose one safely.</returns>
+    private string NormalizeLmStudioModelId(string value)
+    {
+        try
+        {
+            var candidate = value?.Trim() ?? string.Empty;
+            if (candidate.Length == 0)
+                return string.Empty;
+            var tokens = candidate.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (tokens.Length >= 3
+                && tokens[0].Equals("lms", StringComparison.OrdinalIgnoreCase)
+                && tokens[1].Equals("get", StringComparison.OrdinalIgnoreCase))
+                candidate = tokens[2];
+            else if (tokens.Length != 1)
+                return string.Empty;
+            candidate = candidate.Trim('`', '"', '\'');
+            return candidate.Length <= 240 && candidate.All(character => char.IsLetterOrDigit(character) || character is '-' or '_' or '.' or '/' or '@')
+                ? candidate
+                : string.Empty;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Ignoring unrecognized CanIRun.ai LM Studio model metadata.");
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Builds an attributed model-detail URL when the recommendation ID is a safe CanIRun.ai path segment.</summary>
+    /// <param name="modelId">CanIRun.ai model identifier.</param>
+    /// <param name="fallbackSourceUrl">Canonical recommendation API URL used when no safe detail URL can be produced.</param>
+    /// <returns>The attributed source URL retained with the recommendation.</returns>
+    private string BuildModelSourceUrl(string modelId, string fallbackSourceUrl)
+    {
+        try
+        {
+            var candidate = modelId?.Trim() ?? string.Empty;
+            if (candidate.Length > 0 && candidate.Length <= 240 && candidate.All(character => char.IsLetterOrDigit(character) || character is '-' or '_' or '.'))
+                return $"https://www.canirun.ai/model/{candidate}";
+            return fallbackSourceUrl;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Building a CanIRun.ai model-detail source URL failed.");
+            return fallbackSourceUrl;
         }
     }
 

@@ -49,6 +49,32 @@ public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwareP
         }
     }
 
+    /// <summary>Returns NVIDIA GPUs from <c>nvidia-smi</c> when the optional vendor utility is installed.</summary>
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeNvidiaGpusAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var executable = ResolveOptionalExecutable("nvidia-smi", [string.Empty, ".exe", ".cmd", ".bat"]);
+            if (string.IsNullOrWhiteSpace(executable))
+                return [];
+            var lines = await RunProbeAsync(
+                executable,
+                "--query-gpu=index,name,memory.total --format=csv,noheader,nounits",
+                cancellationToken).ConfigureAwait(false);
+            return ParseNvidiaGpus(lines);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Optional Windows NVIDIA discovery was unavailable.");
+            return [];
+        }
+    }
+
     /// <summary>Returns total physical memory reported by Windows without changing device state.</summary>
     /// <inheritdoc />
     public async Task<long?> ProbeSystemMemoryBytesAsync(CancellationToken cancellationToken = default)
@@ -68,6 +94,89 @@ public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwareP
         {
             logger.LogDebug(exception, "Windows physical-memory discovery was unavailable.");
             return null;
+        }
+    }
+
+    /// <summary>Returns the processor model reported by Windows CIM without changing device state.</summary>
+    /// <inheritdoc />
+    public async Task<string> ProbeCpuNameAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            const string script = "Get-CimInstance Win32_Processor | Select-Object -First 1 -ExpandProperty Name";
+            var lines = await RunProbeAsync("powershell", $"-NoProfile -NonInteractive -Command \"{script}\"", cancellationToken).ConfigureAwait(false);
+            return lines.FirstOrDefault(line => !string.IsNullOrWhiteSpace(line))?.Trim() ?? string.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Windows CPU discovery was unavailable.");
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Resolves an optional Windows executable from PATH before process launch.</summary>
+    /// <param name="fileName">Executable base name.</param>
+    /// <param name="extensions">Candidate Windows executable extensions.</param>
+    /// <returns>Resolved path, or an empty string when unavailable.</returns>
+    private string ResolveOptionalExecutable(string fileName, IReadOnlyList<string> extensions)
+    {
+        try
+        {
+            foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                foreach (var extension in extensions)
+                {
+                    var candidate = Path.Combine(directory, fileName + extension);
+                    if (File.Exists(candidate))
+                        return candidate;
+                }
+            }
+            return string.Empty;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            logger.LogDebug(exception, "Optional Windows hardware executable {Executable} could not be resolved from PATH.", fileName);
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Parses bounded <c>nvidia-smi</c> CSV output into provider-neutral GPU descriptors.</summary>
+    /// <param name="lines">CSV output rows.</param>
+    /// <returns>Parsed NVIDIA GPU descriptors.</returns>
+    private IReadOnlyList<OneWireHardwareDescriptor> ParseNvidiaGpus(IReadOnlyList<string> lines)
+    {
+        try
+        {
+            var result = new List<OneWireHardwareDescriptor>();
+            foreach (var line in lines)
+            {
+                var parts = line.Split(',', StringSplitOptions.TrimEntries);
+                if (parts.Length < 2 || !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
+                    continue;
+                long? bytes = null;
+                if (parts.Length >= 3 && long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var mib) && mib > 0)
+                    bytes = checked(mib * 1024L * 1024L);
+                result.Add(new OneWireHardwareDescriptor
+                {
+                    Kind = OneWireHardwareKind.Gpu,
+                    Index = index,
+                    Name = parts[1],
+                    Vendor = "NVIDIA",
+                    DedicatedMemoryBytes = bytes,
+                    IsOnline = true
+                });
+            }
+            return result;
+        }
+        catch (Exception exception) when (exception is OverflowException or ArgumentException)
+        {
+            logger.LogDebug(exception, "Optional Windows NVIDIA output could not be parsed safely.");
+            return [];
         }
     }
 
@@ -172,6 +281,34 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         }
     }
 
+    /// <summary>Returns NVIDIA GPUs from <c>nvidia-smi</c> on Linux when the optional vendor utility is installed; macOS skips this irrelevant probe.</summary>
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeNvidiaGpusAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return [];
+            var executable = ResolveOptionalExecutable("nvidia-smi");
+            if (string.IsNullOrWhiteSpace(executable))
+                return [];
+            var lines = await RunProbeAsync(
+                executable,
+                "--query-gpu=index,name,memory.total --format=csv,noheader,nounits",
+                cancellationToken).ConfigureAwait(false);
+            return ParseNvidiaGpus(lines);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Optional Linux NVIDIA discovery was unavailable.");
+            return [];
+        }
+    }
+
     /// <summary>Returns total physical memory from macOS <c>hw.memsize</c> or Linux <c>/proc/meminfo</c>.</summary>
     /// <inheritdoc />
     public async Task<long?> ProbeSystemMemoryBytesAsync(CancellationToken cancellationToken = default)
@@ -207,6 +344,47 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         {
             logger.LogDebug(exception, "Unix physical-memory discovery was unavailable.");
             return null;
+        }
+    }
+
+    /// <summary>Returns the CPU/model name from macOS sysctl or Linux procfs without changing device state.</summary>
+    /// <inheritdoc />
+    public async Task<string> ProbeCpuNameAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var brand = await RunProbeAsync("/usr/sbin/sysctl", "-n machdep.cpu.brand_string", cancellationToken).ConfigureAwait(false);
+                var name = brand.FirstOrDefault(line => !string.IsNullOrWhiteSpace(line))?.Trim() ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(name))
+                    return name;
+                var model = await RunProbeAsync("/usr/sbin/sysctl", "-n hw.model", cancellationToken).ConfigureAwait(false);
+                return model.FirstOrDefault(line => !string.IsNullOrWhiteSpace(line))?.Trim() ?? string.Empty;
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var cpuInfo = await ReadTrimmedFileAsync("/proc/cpuinfo", cancellationToken).ConfigureAwait(false);
+                foreach (var label in new[] { "model name", "Hardware", "Processor" })
+                {
+                    var line = cpuInfo.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .FirstOrDefault(item => item.StartsWith(label + ":", StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrWhiteSpace(line))
+                        return line[(line.IndexOf(':') + 1)..].Trim();
+                }
+            }
+
+            return string.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogDebug(exception, "Unix CPU discovery was unavailable.");
+            return string.Empty;
         }
     }
 
@@ -408,6 +586,64 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         {
             logger.LogDebug(exception, "Optional Unix hardware field could not be read.");
             return string.Empty;
+        }
+    }
+
+    /// <summary>Resolves an optional Unix executable from PATH before process launch.</summary>
+    /// <param name="fileName">Executable base name.</param>
+    /// <returns>Resolved path, or an empty string when unavailable.</returns>
+    private string ResolveOptionalExecutable(string fileName)
+    {
+        try
+        {
+            foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var candidate = Path.Combine(directory, fileName);
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+            return string.Empty;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            logger.LogDebug(exception, "Optional Unix hardware executable {Executable} could not be resolved from PATH.", fileName);
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Parses bounded <c>nvidia-smi</c> CSV output into provider-neutral GPU descriptors.</summary>
+    /// <param name="lines">CSV output rows.</param>
+    /// <returns>Parsed NVIDIA GPU descriptors.</returns>
+    private IReadOnlyList<OneWireHardwareDescriptor> ParseNvidiaGpus(IReadOnlyList<string> lines)
+    {
+        try
+        {
+            var result = new List<OneWireHardwareDescriptor>();
+            foreach (var line in lines)
+            {
+                var parts = line.Split(',', StringSplitOptions.TrimEntries);
+                if (parts.Length < 2 || !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
+                    continue;
+                long? bytes = null;
+                if (parts.Length >= 3 && long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var mib) && mib > 0)
+                    bytes = checked(mib * 1024L * 1024L);
+                result.Add(new OneWireHardwareDescriptor
+                {
+                    Kind = OneWireHardwareKind.Gpu,
+                    Index = index,
+                    Name = parts[1],
+                    Vendor = "NVIDIA",
+                    DedicatedMemoryBytes = bytes,
+                    IsOnline = true
+                });
+            }
+            return result;
+        }
+        catch (Exception exception) when (exception is OverflowException or ArgumentException)
+        {
+            logger.LogDebug(exception, "Optional Linux NVIDIA output could not be parsed safely.");
+            return [];
         }
     }
 

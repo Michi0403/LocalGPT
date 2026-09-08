@@ -190,30 +190,23 @@ public sealed class ProviderModelRuntimeService(
             if (referenceCache.TryGetValue(requested, out var cached))
                 return cached;
             var candidates = await GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
-            var exact = candidates.FirstOrDefault(candidate =>
-                candidate.SelectionKey.Equals(requested, StringComparison.OrdinalIgnoreCase));
-            if (exact is not null)
+            var identity = new ProviderModelIdentity();
+            var reconciled = identity.ResolveEquivalentCandidate(requested, candidates, out var isAmbiguous);
+            if (reconciled is not null)
             {
-                var resolved = exact.ToReference();
+                var resolved = reconciled.ToReference();
+                referenceCache[requested] = resolved;
                 referenceCache[resolved.SelectionKey] = resolved;
                 return resolved;
             }
 
-            var byModel = candidates
-                .Where(candidate => candidate.ModelName.Equals(requested, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (byModel.Count == 1)
-            {
-                var resolved = byModel[0].ToReference();
-                referenceCache[resolved.SelectionKey] = resolved;
-                return resolved;
-            }
-            if (byModel.Count > 1)
+            if (isAmbiguous)
             {
                 throw new InvalidOperationException(
-                    $"Model name '{requested}' is exposed by multiple providers. Select the provider-qualified model entry instead of using the bare model name.");
+                    $"Model binding '{requested}' is exposed by multiple providers or hosts. Select the exact provider/host identity; LocalGPT will not guess a route.");
             }
-            if (new ProviderModelIdentity().LooksProviderQualified(requested))
+
+            if (identity.LooksProviderQualified(requested))
             {
                 throw new KeyNotFoundException(
                     $"The provider-qualified model '{requested}' is no longer available. Refresh provider models instead of falling back to another provider.");

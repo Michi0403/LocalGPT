@@ -17,4 +17,8 @@ public interface IHardwareInventoryService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the read-only probe.</param>
     /// <returns>Total physical memory in bytes, or <see langword="null"/> when unavailable.</returns>
     Task<long?> GetSystemMemoryBytesAsync(CancellationToken cancellationToken = default);
+    /// <summary>Returns the detected CPU/model name through the maintained platform hardware probe.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the read-only probe.</param>
+    /// <returns>The CPU/model name, or an empty string when unavailable.</returns>
+    Task<string> GetCpuNameAsync(CancellationToken cancellationToken = default);
 }

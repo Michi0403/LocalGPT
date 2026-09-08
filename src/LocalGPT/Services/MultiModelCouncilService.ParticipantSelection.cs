@@ -50,6 +50,22 @@ namespace LocalGPT.Services
                         continue;
                     }
 
+                    var identity = new ProviderModelIdentity();
+                    var reconciledCandidate = identity.ResolveEquivalentCandidate(
+                        requestedReference.SelectionKey,
+                        currentCandidates,
+                        out var isAmbiguous);
+                    if (reconciledCandidate is not null)
+                    {
+                        references.Add(reconciledCandidate.ToReference());
+                        continue;
+                    }
+                    if (isAmbiguous)
+                    {
+                        throw new InvalidOperationException(
+                            $"The saved Council model route '{requestedReference.SelectionKey}' matches multiple current provider routes. LocalGPT will not guess a host.");
+                    }
+
                     if (IsConfiguredProviderEndpoint(requestedReference)
                         && !HasReachableProviderEndpoint(currentCandidates, requestedReference))
                     {
@@ -93,7 +109,17 @@ namespace LocalGPT.Services
                         if (!currentBySelectionKey.TryGetValue(requested, out var currentCandidate))
                         {
                             var identity = new ProviderModelIdentity();
-                            if (identity.TryParseSelectionKey(requested, out var savedReference)
+                            var reconciledCandidate = identity.ResolveEquivalentCandidate(requested, currentCandidates, out var isAmbiguous);
+                            if (reconciledCandidate is not null)
+                            {
+                                resolved = reconciledCandidate.ToReference();
+                            }
+                            else if (isAmbiguous)
+                            {
+                                throw new InvalidOperationException(
+                                    $"The saved Council model route '{requested}' matches multiple current provider routes. LocalGPT will not guess a host.");
+                            }
+                            else if (identity.TryParseSelectionKey(requested, out var savedReference)
                                 && IsConfiguredProviderEndpoint(savedReference)
                                 && !HasReachableProviderEndpoint(currentCandidates, savedReference))
                             {

@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 namespace LocalGPT.Logging
 {
@@ -16,6 +17,8 @@ namespace LocalGPT.Logging
         /// Stores the internal disposed state used by <see cref="FileLoggerProvider"/> while executing its surrounding workflow.
         /// </summary>
         private bool disposed;
+        /// <summary>Tracks whether the provider already reported a logger-construction failure to avoid repeating the same console warning for every category.</summary>
+        private int creationFailureReported;
 
         /// <summary>
         /// Initializes a new <see cref="FileLoggerProvider"/> instance and captures the dependencies or initial state required by its file logger workflow.
@@ -33,7 +36,16 @@ namespace LocalGPT.Logging
         /// <returns>The i logger produced by the operation.</returns>
         public ILogger CreateLogger(string categoryName)
         {
-            return new FileLogger(categoryName, options);
+            try
+            {
+                return new FileLogger(categoryName, options);
+            }
+            catch (Exception exception)
+            {
+                if (Interlocked.Exchange(ref creationFailureReported, 1) == 0)
+                    Console.Error.WriteLine($"LocalGPT file logging was disabled because its target could not be initialized: {exception.Message}");
+                return NullLogger.Instance;
+            }
         }
 
         /// <summary>

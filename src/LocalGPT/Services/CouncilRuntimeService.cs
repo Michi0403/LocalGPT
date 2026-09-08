@@ -460,7 +460,7 @@ namespace LocalGPT.Services
             {
                 foreach (var start in new[]
  {
-                Directory.GetCurrentDirectory(),
+                LocalGptApplicationDataPaths.ResolveSafeCurrentDirectory(),
                 AppContext.BaseDirectory
             })
                 {

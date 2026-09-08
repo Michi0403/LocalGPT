@@ -220,14 +220,23 @@ public sealed class RunProviderModelBenchmarkFunction(
             ArgumentNullException.ThrowIfNull(candidates);
             ArgumentNullException.ThrowIfNull(options);
             var explicitKeys = NormalizeKeys(options.ModelSelectionKeys);
-            missing = explicitKeys
-                .Where(key => !candidates.Any(candidate => candidate.SelectionKey.Equals(key, StringComparison.OrdinalIgnoreCase)))
+            var identity = new ProviderModelIdentity();
+            var resolvedExplicit = explicitKeys
+                .Select(key => (Key: key, Candidate: identity.ResolveEquivalentCandidate(key, candidates, out _)))
+                .ToList();
+            missing = resolvedExplicit
+                .Where(item => item.Candidate is null)
+                .Select(item => item.Key)
                 .ToList();
             if (missing.Count > 0)
                 return [];
 
+            var resolvedKeys = resolvedExplicit
+                .Where(item => item.Candidate is not null)
+                .Select(item => item.Candidate!.SelectionKey)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             IEnumerable<MultiModelCouncilModelCandidate> selected = explicitKeys.Count > 0
-                ? candidates.Where(candidate => explicitKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                ? candidates.Where(candidate => resolvedKeys.Contains(candidate.SelectionKey))
                 : options.AllDiscoveredModels
                     ? candidates.Where(candidate => candidate.IsInstalled && candidate.SupportsBenchmark)
                     : [];
@@ -265,14 +274,23 @@ public sealed class RunProviderModelBenchmarkFunction(
             }
 
             var explicitKeys = NormalizeKeys(options.ReviewerSelectionKeys);
-            missing = explicitKeys
-                .Where(key => !candidates.Any(candidate => candidate.SelectionKey.Equals(key, StringComparison.OrdinalIgnoreCase)))
+            var identity = new ProviderModelIdentity();
+            var resolvedExplicit = explicitKeys
+                .Select(key => (Key: key, Candidate: identity.ResolveEquivalentCandidate(key, candidates, out _)))
+                .ToList();
+            missing = resolvedExplicit
+                .Where(item => item.Candidate is null)
+                .Select(item => item.Key)
                 .ToList();
             if (missing.Count > 0)
                 return [];
 
+            var resolvedKeys = resolvedExplicit
+                .Where(item => item.Candidate is not null)
+                .Select(item => item.Candidate!.SelectionKey)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             IEnumerable<MultiModelCouncilModelCandidate> selected = explicitKeys.Count > 0
-                ? candidates.Where(candidate => explicitKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                ? candidates.Where(candidate => resolvedKeys.Contains(candidate.SelectionKey))
                 : candidates.Where(candidate => candidate.IsInstalled && candidate.SupportsBenchmark);
             return selected
                 .Where(candidate => candidate.SupportsBenchmark)

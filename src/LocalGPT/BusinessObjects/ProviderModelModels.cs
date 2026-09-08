@@ -242,6 +242,155 @@ internal readonly struct ProviderModelIdentity
     }
 
     /// <summary>
+    /// Resolves one current provider/model candidate that is safely equivalent to a persisted binding.
+    /// </summary>
+    /// <param name="savedBinding">Persisted provider-qualified selection key or legacy bare model name.</param>
+    /// <param name="candidates">Current provider-qualified model catalog.</param>
+    /// <param name="isAmbiguous">Receives <see langword="true"/> when more than one current candidate could represent the saved binding.</param>
+    /// <returns>The uniquely equivalent current candidate, or <see langword="null"/> when no safe unique match exists.</returns>
+    public MultiModelCouncilModelCandidate? ResolveEquivalentCandidate(
+        string? savedBinding,
+        IReadOnlyList<MultiModelCouncilModelCandidate> candidates,
+        out bool isAmbiguous)
+    {
+        isAmbiguous = false;
+        if (string.IsNullOrWhiteSpace(savedBinding) || candidates.Count == 0)
+            return null;
+
+        var requested = savedBinding.Trim();
+        var exact = candidates
+            .Where(candidate => string.Equals(candidate.SelectionKey, requested, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (exact.Count == 1)
+            return exact[0];
+        if (exact.Count > 1)
+        {
+            isAmbiguous = true;
+            return null;
+        }
+
+        if (TryParseSelectionKey(requested, out var savedReference))
+        {
+            var identity = this;
+            var qualifiedMatches = candidates
+                .Where(candidate => identity.ProviderKindsEquivalent(savedReference.ProviderKind, candidate.ProviderKind))
+                .Where(candidate => identity.EndpointsEquivalent(savedReference.ProviderKind, savedReference.Endpoint, candidate.Endpoint))
+                .Where(candidate => identity.ModelNamesEquivalent(savedReference.ModelName, candidate.ModelName))
+                .ToList();
+            if (qualifiedMatches.Count == 1)
+                return qualifiedMatches[0];
+            if (qualifiedMatches.Count > 1)
+                isAmbiguous = true;
+            return null;
+        }
+
+        var modelIdentity = this;
+        var bareMatches = candidates
+            .Where(candidate => modelIdentity.ModelNamesEquivalent(requested, candidate.ModelName))
+            .ToList();
+        if (bareMatches.Count == 1)
+            return bareMatches[0];
+        if (bareMatches.Count > 1)
+            isAmbiguous = true;
+        return null;
+    }
+
+    /// <summary>
+    /// Determines whether a current candidate represents the same persisted provider/model identity.
+    /// </summary>
+    /// <param name="savedBinding">Persisted provider-qualified selection key or legacy bare model name.</param>
+    /// <param name="candidate">Current candidate to compare.</param>
+    /// <returns><see langword="true"/> only when the supplied candidate is the unique safe reconciliation target.</returns>
+    public bool IsEquivalentCandidate(string? savedBinding, MultiModelCouncilModelCandidate candidate)
+    {
+        var resolved = ResolveEquivalentCandidate(savedBinding, [candidate], out _);
+        return resolved is not null;
+    }
+
+    /// <summary>
+    /// Determines whether two provider model tokens identify the same concrete model, treating only an explicit <c>:latest</c> suffix as optional.
+    /// </summary>
+    /// <param name="left">First provider model token.</param>
+    /// <param name="right">Second provider model token.</param>
+    /// <returns><see langword="true"/> when the concrete provider tokens are equivalent.</returns>
+    public bool ModelNamesEquivalent(string? left, string? right)
+    {
+        var leftToken = NormalizeModelToken(left);
+        var rightToken = NormalizeModelToken(right);
+        return string.Equals(leftToken, rightToken, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether two provider kinds are equivalent for persisted binding reconciliation.
+    /// </summary>
+    /// <param name="left">First provider kind.</param>
+    /// <param name="right">Second provider kind.</param>
+    /// <returns><see langword="true"/> when both provider kinds address the same provider protocol family.</returns>
+    private bool ProviderKindsEquivalent(string? left, string? right)
+    {
+        var leftKind = left?.Trim() ?? string.Empty;
+        var rightKind = right?.Trim() ?? string.Empty;
+        return string.Equals(leftKind, rightKind, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether two endpoints identify the same host route for the supplied provider kind.
+    /// </summary>
+    /// <param name="providerKind">Provider protocol family that owns the endpoint.</param>
+    /// <param name="left">First endpoint.</param>
+    /// <param name="right">Second endpoint.</param>
+    /// <returns><see langword="true"/> when both endpoints normalize to the same provider route.</returns>
+    private bool EndpointsEquivalent(string? providerKind, string? left, string? right)
+    {
+        if (string.Equals(providerKind, ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+            return EndpointAuthoritiesEquivalent(left, right);
+
+        var leftEndpoint = string.Equals(providerKind, ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(providerKind, ProviderModelKinds.OpenAI, StringComparison.OrdinalIgnoreCase)
+                ? NormalizeOpenAiCompatibleEndpoint(left)
+                : NormalizeEndpoint(left);
+        var rightEndpoint = string.Equals(providerKind, ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(providerKind, ProviderModelKinds.OpenAI, StringComparison.OrdinalIgnoreCase)
+                ? NormalizeOpenAiCompatibleEndpoint(right)
+                : NormalizeEndpoint(right);
+        return string.Equals(leftEndpoint, rightEndpoint, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether two Ollama endpoint authorities refer to the same scheme, normalized host and port without allowing cross-host substitution.
+    /// </summary>
+    /// <param name="left">First Ollama endpoint.</param>
+    /// <param name="right">Second Ollama endpoint.</param>
+    /// <returns><see langword="true"/> when both authorities are equal.</returns>
+    private bool EndpointAuthoritiesEquivalent(string? left, string? right)
+    {
+        var leftEndpoint = NormalizeEndpoint(left);
+        var rightEndpoint = NormalizeEndpoint(right);
+        if (!Uri.TryCreate(leftEndpoint, UriKind.Absolute, out var leftUri)
+            || !Uri.TryCreate(rightEndpoint, UriKind.Absolute, out var rightUri))
+        {
+            return string.Equals(leftEndpoint, rightEndpoint, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(leftUri.Scheme, rightUri.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(leftUri.Host, rightUri.Host, StringComparison.OrdinalIgnoreCase)
+            && leftUri.Port == rightUri.Port;
+    }
+
+    /// <summary>
+    /// Normalizes one provider model token while preserving its concrete size and variant identity.
+    /// </summary>
+    /// <param name="modelName">Provider model token to normalize.</param>
+    /// <returns>The normalized concrete provider model token.</returns>
+    private string NormalizeModelToken(string? modelName)
+    {
+        var token = modelName?.Trim() ?? string.Empty;
+        return token.EndsWith(":latest", StringComparison.OrdinalIgnoreCase)
+            ? token[..^7]
+            : token;
+    }
+
+    /// <summary>
     /// Normalizes OpenAI compatible endpoint for <see cref="ProviderModelIdentity"/>, keeping the operation consistent with the state and invariants of the surrounding provider model identity workflow.
     /// </summary>
     /// <param name="endpoint">Endpoint value supplied to the provider model identity operation and used when producing its result.</param>

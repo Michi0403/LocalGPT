@@ -50,7 +50,7 @@ namespace LocalGPT.Services
                     {
                     Path.Combine(AppContext.BaseDirectory, relativePath),
                     Path.Combine(env.ContentRootPath, relativePath),
-                    Path.Combine(Directory.GetCurrentDirectory(), relativePath)
+                    Path.Combine(LocalGptApplicationDataPaths.ResolveSafeCurrentDirectory(), relativePath)
                 }.Distinct(StringComparer.OrdinalIgnoreCase);
 
                     var path = candidatePaths.FirstOrDefault(System.IO.File.Exists);
