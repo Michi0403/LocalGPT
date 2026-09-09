@@ -730,6 +730,17 @@ function Publish-UnixRuntime {
         ) -FailureMessage "LocalGPT application publish failed for $Rid $mode."
         $appExecutable = 'LocalGPT'
         if (-not (Test-Path -LiteralPath (Join-Path $publishFolder $appExecutable) -PathType Leaf)) { throw "Published LocalGPT apphost is missing for $Rid $mode." }
+        $publishedAssemblyPath = Join-Path $publishFolder 'LocalGPT.dll'
+        if (-not (Test-Path -LiteralPath $publishedAssemblyPath -PathType Leaf)) { throw "Published LocalGPT managed assembly is missing for $Rid $mode." }
+        $publishedAssemblyVersion = [Reflection.AssemblyName]::GetAssemblyName($publishedAssemblyPath).Version
+        $publishedSemanticVersion = "$($publishedAssemblyVersion.Major).$($publishedAssemblyVersion.Minor).$($publishedAssemblyVersion.Build)"
+        if (-not [string]::Equals($publishedSemanticVersion, $appVersion, [StringComparison]::Ordinal)) {
+            throw "Published LocalGPT assembly identity mismatch for $Rid ${mode}: expected $appVersion, found $publishedSemanticVersion. Refusing to package a stale runtime."
+        }
+        $utf8NoBom = New-Object Text.UTF8Encoding($false)
+        [IO.File]::WriteAllText((Join-Path $publishFolder 'RELEASE-VERSION.txt'), "$appVersion`n", $utf8NoBom)
+        [IO.File]::WriteAllText((Join-Path $publishFolder 'SOURCE-SHA256.txt'), "$($script:releaseSourceFingerprint)`n", $utf8NoBom)
+        Write-Host "Stamped $Rid runtime payload with version $appVersion and source fingerprint $($script:releaseSourceFingerprint)." -ForegroundColor DarkCyan
         Copy-LocalGptRuntimeDocumentation -SourceRoot $script:documentationCacheRoot -DestinationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
         Assert-LocalGptDocumentationPayload -DocumentationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
         $protocolDirectory = Join-Path $publishFolder 'protocol'; New-Item -ItemType Directory -Path $protocolDirectory -Force | Out-Null

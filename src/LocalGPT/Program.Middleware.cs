@@ -140,6 +140,10 @@ namespace LocalGPT
                 var directory = LocalGptApplicationDataPaths.ResolveUserPath("runtime");
                 Directory.CreateDirectory(directory);
 
+                var assemblyVersion = typeof(Program).Assembly.GetName().Version;
+                var semanticVersion = assemblyVersion is null
+                    ? "unknown"
+                    : $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
                 var payload = new
                 {
                     ProcessId = Environment.ProcessId,
@@ -147,6 +151,8 @@ namespace LocalGPT
                     Port = port,
                     OneWirePort,
                     OneWireDiscoveryPort,
+                    Version = semanticVersion,
+                    ExecutablePath = Environment.ProcessPath ?? string.Empty,
                     StartedAtUtc = DateTimeOffset.UtcNow
                 };
 

@@ -117,6 +117,13 @@ namespace LocalGPT
             var logger = loggerFactory.CreateLogger("Startup");
             if (repairedCurrentDirectory)
                 logger.LogWarning("The inherited process working directory no longer existed; LocalGPT repaired it to the per-user runtime directory before startup continued.");
+            var runtimeAssemblyVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown";
+            logger.LogInformation(
+                "LocalGPT runtime identity: assembly={AssemblyVersion}; executable={ExecutablePath}; base={BaseDirectory}; workingDirectory={WorkingDirectory}.",
+                runtimeAssemblyVersion,
+                Environment.ProcessPath ?? "unknown",
+                AppContext.BaseDirectory,
+                LocalGptApplicationDataPaths.ResolveSafeCurrentDirectory());
             //EnsureGeneratedStaticWebAssetContentRoots(exeDir, logger);
 
             var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions(args));

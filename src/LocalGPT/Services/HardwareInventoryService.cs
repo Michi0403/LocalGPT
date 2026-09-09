@@ -59,7 +59,22 @@ public sealed class HardwareInventoryService(
                     }
                 };
 
-                foreach (var gpu in await platformProbe.ProbeNvidiaGpusAsync(cancellationToken).ConfigureAwait(false))
+                IReadOnlyList<OneWireHardwareDescriptor> nvidiaGpus;
+                try
+                {
+                    nvidiaGpus = await platformProbe.ProbeNvidiaGpusAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    logger.LogDebug(exception, "Optional NVIDIA discovery was unavailable; the remaining hardware inventory stays usable.");
+                    nvidiaGpus = [];
+                }
+
+                foreach (var gpu in nvidiaGpus)
                     if (result.All(existing => !string.Equals(existing.LaneKey, gpu.LaneKey, StringComparison.OrdinalIgnoreCase)))
                         result.Add(gpu);
 

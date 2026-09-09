@@ -962,10 +962,15 @@ HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 APP=$(CDPATH= cd -- "$HERE/../Resources/app" && pwd)
 BIN="$APP/__EXECUTABLE__"
 PRODUCT="__PRODUCT__"
+EXPECTED_VERSION="__VERSION__"
 LOG_DIR="$HOME/Library/Logs/$PRODUCT"
 LOG_FILE="$LOG_DIR/launcher.log"
 USER_DATA_DIR="$HOME/Library/Application Support/$PRODUCT"
 USER_CACHE_DIR="$HOME/Library/Caches/$PRODUCT"
+APP_LOG_DIR="$USER_DATA_DIR/logs"
+APP_LOG_FILE="$APP_LOG_DIR/LocalGPT.log"
+RUNTIME_VERSION_FILE="$APP/RELEASE-VERSION.txt"
+RUNTIME_SOURCE_FILE="$APP/SOURCE-SHA256.txt"
 SHOW_CONSOLE="${LOCALGPT_SHOW_CONSOLE:-1}"
 
 read_endpoint() {
@@ -979,10 +984,37 @@ read_endpoint() {
       rm -f "$f" 2>/dev/null || true
       continue
     fi
+    endpoint_version=$(sed -nE 's/.*"[Vv]ersion"[[:space:]]*:[[:space:]]*"([^\"]+)".*/\1/p' "$f" | head -n 1)
+    endpoint_executable=$(sed -nE 's/.*"[Ee]xecutable[Pp]ath"[[:space:]]*:[[:space:]]*"([^\"]+)".*/\1/p' "$f" | head -n 1)
     url=$(sed -nE 's/.*"([Bb]ase[Uu]rl|[Uu]rl)"[[:space:]]*:[[:space:]]*"([^\"]+)".*/\2/p' "$f" | head -n 1)
     case "${url:-}" in
-      http://127.0.0.1:*|http://localhost:*|https://127.0.0.1:*|https://localhost:*) printf '%s' "$url"; return 0 ;;
+      http://127.0.0.1:*|http://localhost:*|https://127.0.0.1:*|https://localhost:*) ;;
+      *) continue ;;
     esac
+
+    packaged_owner=0
+    if [ -n "${endpoint_executable:-}" ] && [ "$endpoint_executable" = "$BIN" ]; then
+      packaged_owner=1
+    elif [ -n "${owner_pid:-}" ] && kill -0 "$owner_pid" 2>/dev/null; then
+      owner_command=$(/bin/ps -p "$owner_pid" -o command= 2>/dev/null || true)
+      case "${owner_command:-}" in *"$BIN"*) packaged_owner=1 ;; esac
+    fi
+
+    if [ "$packaged_owner" -eq 1 ]; then
+      if [ -z "${owner_pid:-}" ] || [ -z "${endpoint_version:-}" ] || [ "$endpoint_version" != "$EXPECTED_VERSION" ]; then
+        printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Rejecting stale installed runtime endpoint ${f}: pid=${owner_pid:-unknown} version=${endpoint_version:-missing} executable=${endpoint_executable:-missing}; launcher expects version=$EXPECTED_VERSION executable=$BIN." >>"$LOG_FILE" 2>/dev/null || true
+        if [ -n "${owner_pid:-}" ] && kill -0 "$owner_pid" 2>/dev/null; then
+          /bin/kill -TERM "$owner_pid" 2>/dev/null || true
+        fi
+        rm -f "$f" 2>/dev/null || true
+        continue
+      fi
+    else
+      printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Preserving alternate runtime rendezvous endpoint ${f}: pid=${owner_pid:-unknown} version=${endpoint_version:-legacy-or-unspecified} executable=${endpoint_executable:-alternate-or-unspecified}." >>"$LOG_FILE" 2>/dev/null || true
+    fi
+
+    printf '%s' "$url"
+    return 0
   done
   return 1
 }
@@ -1021,7 +1053,7 @@ end run
 APPLESCRIPT
 }
 ensure_user_storage() {
-  for target in "$USER_DATA_DIR" "$USER_DATA_DIR/runtime" "$LOG_DIR" "$USER_CACHE_DIR"; do
+  for target in "$USER_DATA_DIR" "$USER_DATA_DIR/runtime" "$APP_LOG_DIR" "$LOG_DIR" "$USER_CACHE_DIR"; do
     if ensure_writable_dir "$target"; then
       continue
     fi
@@ -1132,13 +1164,28 @@ verify_runtime_architecture() {
   return 0
 }
 
+
+verify_bundle_identity() {
+  [ -f "$RUNTIME_VERSION_FILE" ] || { show_failure "The packaged runtime identity file is missing: $RUNTIME_VERSION_FILE"; return 1; }
+  [ -f "$RUNTIME_SOURCE_FILE" ] || { show_failure "The packaged source fingerprint is missing: $RUNTIME_SOURCE_FILE"; return 1; }
+  runtime_version=$(tr -d '\r\n' <"$RUNTIME_VERSION_FILE")
+  runtime_source=$(tr -d '\r\n' <"$RUNTIME_SOURCE_FILE")
+  [ "$runtime_version" = "$EXPECTED_VERSION" ] || { show_failure "Runtime/package version mismatch: launcher expects $EXPECTED_VERSION but payload reports $runtime_version. Refusing to launch stale application files."; return 1; }
+  case "$runtime_source" in
+    ''|*[!0-9a-fA-F]*) show_failure "The packaged source fingerprint is invalid: $RUNTIME_SOURCE_FILE"; return 1 ;;
+  esac
+  [ "${#runtime_source}" -eq 64 ] || { show_failure "The packaged source fingerprint has the wrong length: $RUNTIME_SOURCE_FILE"; return 1; }
+  printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Runtime identity: version=$runtime_version source=$runtime_source app=$APP" >>"$LOG_FILE" 2>/dev/null || true
+  return 0
+}
+
 terminate_stale_processes() {
   [ -x /usr/bin/pgrep ] || return 0
   stale_pids=$(/usr/bin/pgrep -f "$BIN" 2>/dev/null || true)
   [ -n "${stale_pids:-}" ] || return 0
   for stale_pid in $stale_pids; do
     [ "$stale_pid" = "$$" ] && continue
-    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Stopping stale $PRODUCT process $stale_pid that has no responding runtime endpoint." >>"$LOG_FILE" 2>/dev/null || true
+    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Stopping stale $PRODUCT process $stale_pid that is not accepted by the current launcher identity." >>"$LOG_FILE" 2>/dev/null || true
     /bin/kill -TERM "$stale_pid" 2>/dev/null || true
   done
   sleep 1
@@ -1172,6 +1219,9 @@ if ! ensure_user_storage; then
 fi
 
 ensure_native_launcher_process "$@"
+if ! verify_bundle_identity; then
+  exit 1
+fi
 
 if open_startup_terminal; then
   terminal_opened=1
@@ -1197,7 +1247,9 @@ if ! verify_runtime_architecture; then
 fi
 
 cd "$USER_DATA_DIR/runtime" || { show_failure "The per-user runtime working directory could not be opened: $USER_DATA_DIR/runtime"; exit 1; }
-printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Starting $PRODUCT from $BIN with a durable per-user runtime working directory and an automatically selected loopback port (macOS port 5000 is commonly occupied by AirPlay Receiver)." >>"$LOG_FILE"
+export PWD="$USER_DATA_DIR/runtime"
+export LoggingCore__FileCore__FilePath="$APP_LOG_FILE"
+printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Starting $PRODUCT from $BIN with workingDirectory=$(pwd -P), applicationLog=$APP_LOG_FILE, and an automatically selected loopback port (macOS port 5000 is commonly occupied by AirPlay Receiver)." >>"$LOG_FILE"
 "$BIN" --port 0 >>"$LOG_FILE" 2>&1 &
 pid=$!
 
@@ -1237,7 +1289,7 @@ fi
 show_failure "$PRODUCT did not publish a healthy local HTTP endpoint within 5 minutes. The stuck process was terminated; inspect the launcher log and start the application again."
 exit 1
 '@
-    Write-Utf8NoBom $Destination ($template.Replace('__PRODUCT__', $ProductName).Replace('__EXECUTABLE__', $BinaryRelativePath))
+    Write-Utf8NoBom $Destination ($template.Replace('__PRODUCT__', $ProductName).Replace('__EXECUTABLE__', $BinaryRelativePath).Replace('__VERSION__', $Version))
     Set-UnixExecutable $Destination
 }
 function Remove-NonTargetMacRuntimeAssets([string]$AppPath,[string]$RuntimeIdentifier) {
@@ -1375,8 +1427,10 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
     $identifier = "io.github.michi0403.$($ProductName.ToLowerInvariant())"
     $appName = [IO.Path]::GetFileName($AppPath)
     $pkgRoot = Join-Path ([IO.Path]::GetTempPath()) ("pkg-root-" + [Guid]::NewGuid().ToString('N'))
+    $pkgScripts = Join-Path ([IO.Path]::GetTempPath()) ("pkg-scripts-" + [Guid]::NewGuid().ToString('N'))
     $applicationsRoot = Join-Path $pkgRoot 'Applications'
     New-Item -ItemType Directory -Path $applicationsRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $pkgScripts -Force | Out-Null
     try {
         # Root-mode packaging makes the payload layout explicit:
         # /Applications/<Product>.app/Contents/... instead of relying on component inference.
@@ -1387,6 +1441,106 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
             throw "macOS PKG staging does not contain a complete application bundle: $applicationsRoot/$appName"
         }
 
+
+        $lifecycleTemplate = @'
+#!/bin/sh
+set -u
+PRODUCT="__PRODUCT__"
+EXECUTABLE="__EXECUTABLE__"
+APP_PATH="/Applications/$PRODUCT.app"
+APP_BIN="$APP_PATH/Contents/Resources/app/$EXECUTABLE"
+MARKER="/private/tmp/io.github.michi0403.__PRODUCT_LOWER__.was-running"
+
+resolve_console_home() {
+  console_user=$(/usr/bin/stat -f '%Su' /dev/console 2>/dev/null || true)
+  case "${console_user:-}" in ''|root|loginwindow) return 1 ;; esac
+  console_home=$(/usr/bin/dscl . -read "/Users/$console_user" NFSHomeDirectory 2>/dev/null | /usr/bin/awk '{print $2}' || true)
+  [ -n "${console_home:-}" ] || console_home="/Users/$console_user"
+  printf '%s' "$console_home"
+}
+
+remove_runtime_endpoint() {
+  if console_home=$(resolve_console_home); then
+    endpoint_file="$console_home/Library/Application Support/$PRODUCT/runtime/server.json"
+    [ -f "$endpoint_file" ] || return 0
+    owner_pid=$(sed -nE 's/.*"[Pp]rocess[Ii]d"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$endpoint_file" | head -n 1)
+    endpoint_executable=$(sed -nE 's/.*"[Ee]xecutable[Pp]ath"[[:space:]]*:[[:space:]]*"([^\"]+)".*/\1/p' "$endpoint_file" | head -n 1)
+    if [ -n "${owner_pid:-}" ] && ! /bin/kill -0 "$owner_pid" 2>/dev/null; then
+      /bin/rm -f "$endpoint_file" 2>/dev/null || true
+      return 0
+    fi
+    installed_owner=0
+    if [ -n "${endpoint_executable:-}" ] && [ "$endpoint_executable" = "$APP_BIN" ]; then
+      installed_owner=1
+    elif [ -n "${owner_pid:-}" ] && /bin/kill -0 "$owner_pid" 2>/dev/null; then
+      owner_command=$(/bin/ps -p "$owner_pid" -o command= 2>/dev/null || true)
+      case "${owner_command:-}" in *"$APP_BIN"*) installed_owner=1 ;; esac
+    fi
+    if [ "$installed_owner" -eq 1 ]; then
+      /bin/rm -f "$endpoint_file" 2>/dev/null || true
+    fi
+  fi
+}
+stop_running_product() {
+  pids=""
+  if console_home=$(resolve_console_home); then
+    endpoint_file="$console_home/Library/Application Support/$PRODUCT/runtime/server.json"
+    if [ -f "$endpoint_file" ]; then
+      owner_pid=$(sed -nE 's/.*"[Pp]rocess[Ii]d"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$endpoint_file" | head -n 1)
+      if [ -n "${owner_pid:-}" ] && /bin/kill -0 "$owner_pid" 2>/dev/null; then
+        owner_command=$(/bin/ps -p "$owner_pid" -o command= 2>/dev/null || true)
+        case "${owner_command:-}" in *"$APP_BIN"*) pids="$pids $owner_pid" ;; esac
+      fi
+    fi
+  fi
+  if [ -x /usr/bin/pgrep ]; then
+    matched_pids=$(/usr/bin/pgrep -f "$APP_BIN" 2>/dev/null || true)
+    [ -z "${matched_pids:-}" ] || pids="$pids $matched_pids"
+  fi
+  [ -n "${pids:-}" ] || return 0
+  : >"$MARKER" 2>/dev/null || true
+  for pid in $pids; do /bin/kill -TERM "$pid" 2>/dev/null || true; done
+  i=0
+  while [ $i -lt 20 ]; do
+    remaining=""
+    for pid in $pids; do
+      if /bin/kill -0 "$pid" 2>/dev/null; then remaining="$remaining $pid"; fi
+    done
+    [ -z "$remaining" ] && return 0
+    /bin/sleep 0.25
+    i=$((i+1))
+  done
+  for pid in $pids; do
+    if /bin/kill -0 "$pid" 2>/dev/null; then /bin/kill -KILL "$pid" 2>/dev/null || true; fi
+  done
+}
+'@
+        $lifecycleCommon = $lifecycleTemplate.Replace('__PRODUCT__', $ProductName).Replace('__EXECUTABLE__', $ExecutableName).Replace('__PRODUCT_LOWER__', $ProductName.ToLowerInvariant())
+        $preinstall = $lifecycleCommon + @'
+
+stop_running_product
+remove_runtime_endpoint
+exit 0
+'@
+        $postinstall = $lifecycleCommon + @'
+
+remove_runtime_endpoint
+if [ -f "$MARKER" ]; then
+  /bin/rm -f "$MARKER" 2>/dev/null || true
+  console_user=$(/usr/bin/stat -f '%Su' /dev/console 2>/dev/null || true)
+  case "${console_user:-}" in ''|root|loginwindow) exit 0 ;; esac
+  console_uid=$(/usr/bin/id -u "$console_user" 2>/dev/null || true)
+  if [ -n "${console_uid:-}" ] && [ -x /bin/launchctl ]; then
+    /bin/launchctl asuser "$console_uid" /usr/bin/sudo -u "$console_user" /usr/bin/open "$APP_PATH" >/dev/null 2>&1 || true
+  fi
+fi
+exit 0
+'@
+        Write-Utf8NoBom (Join-Path $pkgScripts 'preinstall') $preinstall
+        Write-Utf8NoBom (Join-Path $pkgScripts 'postinstall') $postinstall
+        Set-UnixExecutable (Join-Path $pkgScripts 'preinstall')
+        Set-UnixExecutable (Join-Path $pkgScripts 'postinstall')
+
         Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
         Resolve-MacDistributionSigning
         $pkgBuildArguments = @(
@@ -1394,7 +1548,8 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
             '--identifier', $identifier,
             '--version', $Version,
             '--install-location', '/',
-            '--ownership', 'recommended'
+            '--ownership', 'recommended',
+            '--scripts', $pkgScripts
         )
         if ($script:MacInstallerSigningIdentity) { $pkgBuildArguments += @('--sign', $script:MacInstallerSigningIdentity) }
         $pkgBuildArguments += $Destination
@@ -1432,6 +1587,7 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
     }
     finally {
         Remove-Item -LiteralPath $pkgRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $pkgScripts -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 function New-AppImage([string]$Source,[string]$Destination) {
