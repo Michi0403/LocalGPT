@@ -333,7 +333,7 @@ namespace LocalGPT
                 builder.Services.AddDevExpressAI();
                 builder.Services.AddScoped<INotificationService, NotificationService>();
                 builder.Services.Configure<CircuitOptions>(options =>
-                    options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30));
+                    options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(2));
                 builder.Services.AddOptions();
                 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
                 {

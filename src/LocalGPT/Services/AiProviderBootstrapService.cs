@@ -129,6 +129,20 @@ public sealed class AiProviderBootstrapService(
         catch (Exception exception) { logger.LogError(exception, "Provider installation failed for profile {ProfileKey}; command text was omitted.", profileKey); throw; }
     }
 
+    /// <summary>Runs the profile's user-confirmed update command, falling back to the maintained install command for older customized profile records.</summary>
+    /// <inheritdoc />
+    public async Task<LocalConsoleCommandResult> UpdateAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var profile = await RequireProfileAsync(profileKey, cancellationToken).ConfigureAwait(false);
+            var command = string.IsNullOrWhiteSpace(profile.UpdateCommand) ? profile.InstallCommand : profile.UpdateCommand;
+            return await ExecuteProfileCommandAsync(profile, "Update provider", command, isReadOnly: false, userConfirmed, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception) { logger.LogDebug(exception, "Provider update was cancelled."); throw; }
+        catch (Exception exception) { logger.LogError(exception, "Provider update failed for profile {ProfileKey}; command text was omitted.", profileKey); throw; }
+    }
+
     /// <summary>Starts the selected runtime after explicit confirmation, using the maintained Ollama lifecycle service when the profile represents Ollama.</summary>
     /// <inheritdoc />
     public async Task<LocalConsoleCommandResult> StartAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default)
@@ -291,7 +305,7 @@ public sealed class AiProviderBootstrapService(
                 Environment = BuildProviderCommandEnvironment(profile),
                 IsReadOnly = isReadOnly,
                 UserConfirmed = userConfirmed,
-                TimeoutSeconds = isReadOnly ? 30 : 600
+                TimeoutSeconds = isReadOnly ? 30 : 3600
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException exception) { logger.LogDebug(exception, "Executing provider bootstrap command was cancelled."); throw; }
@@ -418,6 +432,7 @@ public sealed class AiProviderBootstrapService(
             profile.Endpoint = profile.Endpoint.Trim();
             profile.SourceUrl = profile.SourceUrl.Trim();
             profile.ModelCatalogUrl = profile.ModelCatalogUrl.Trim();
+            profile.UpdateCommand = profile.UpdateCommand?.Trim() ?? string.Empty;
             profile.ModelAliases = new Dictionary<string, string>(profile.ModelAliases ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
         }
         catch (Exception exception)

@@ -32,6 +32,11 @@ public sealed class InitialSetupAssistantService(
     IHttpClientFactory httpClientFactory,
     ILogger<InitialSetupAssistantService> logger) : IInitialSetupAssistantService
 {
+    /// <summary>Synchronizes the last successful provider candidate snapshot within this scoped setup workflow so one UI refresh does not repeat slow remote-provider probes.</summary>
+    private readonly object providerCandidateCacheSync = new();
+    /// <summary>Stores the last successful provider candidate discovery for reuse by model mapping and explicit provider-catalog annotation in the same setup scope.</summary>
+    private IReadOnlyList<MultiModelCouncilModelCandidate>? cachedProviderCandidates;
+
     /// <summary>Builds current hardware/provider/model state without changing the machine.</summary>
     /// <inheritdoc />
     public async Task<InitialSetupAssistantSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
@@ -66,6 +71,7 @@ public sealed class InitialSetupAssistantService(
             try
             {
                 candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
+                RememberProviderCandidates(candidates);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
@@ -212,7 +218,7 @@ public sealed class InitialSetupAssistantService(
             IReadOnlyList<MultiModelCouncilModelCandidate> providerCandidates;
             try
             {
-                providerCandidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
+                providerCandidates = await GetProviderCandidatesAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -393,6 +399,51 @@ public sealed class InitialSetupAssistantService(
         }
     }
 
+    /// <summary>Returns the last successful provider candidate snapshot for this scoped setup workflow, querying providers only when no snapshot has been established yet.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop a required provider discovery.</param>
+    /// <returns>The cached or newly discovered provider candidates.</returns>
+    private async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetProviderCandidatesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            lock (providerCandidateCacheSync)
+            {
+                if (cachedProviderCandidates is not null)
+                    return cachedProviderCandidates;
+            }
+
+            var candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
+            RememberProviderCandidates(candidates);
+            return candidates;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Provider candidate discovery failed while establishing the scoped initial-setup snapshot.");
+            throw;
+        }
+    }
+
+    /// <summary>Stores one detached provider candidate snapshot for reuse by subsequent setup mapping/catalog operations in the same scoped service instance.</summary>
+    /// <param name="candidates">Successfully discovered provider candidates.</param>
+    private void RememberProviderCandidates(IReadOnlyList<MultiModelCouncilModelCandidate> candidates)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(candidates);
+            var detached = candidates.ToArray();
+            lock (providerCandidateCacheSync)
+                cachedProviderCandidates = detached;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Remembering the scoped initial-setup provider candidate snapshot failed.");
+        }
+    }
+
     /// <summary>Compares provider endpoints while tolerating historic loopback spelling and OpenAI-compatible <c>/v1</c> normalization.</summary>
     /// <param name="providerKind">Provider kind controlling endpoint path normalization.</param>
     /// <param name="left">First endpoint.</param>
@@ -448,7 +499,7 @@ public sealed class InitialSetupAssistantService(
             IReadOnlyList<MultiModelCouncilModelCandidate> candidates;
             try
             {
-                candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
+                candidates = await GetProviderCandidatesAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
@@ -684,7 +735,7 @@ public sealed class InitialSetupAssistantService(
                     && !uri.Host.Equals("www.lmstudio.ai", StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Provider catalog requests are restricted to maintained HTTPS provider hosts.");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("LocalGPT/3.9.9");
+            request.Headers.UserAgent.ParseAdd("LocalGPT/4.0.1");
             var client = httpClientFactory.CreateClient("LocalGPTProviderCatalog");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();

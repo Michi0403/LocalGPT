@@ -46,8 +46,6 @@ public sealed class ConsoleCommandService(
                 StartInfo = resolved,
                 EnableRaisingEvents = true
             };
-            process.OutputDataReceived += (_, args) => AppendOutput(operationId, request.DisplayName, "stdout", args.Data, stdout);
-            process.ErrorDataReceived += (_, args) => AppendOutput(operationId, request.DisplayName, "stderr", args.Data, stderr);
 
             logger.LogInformation(
                 "Starting local console operation {OperationId} ({DisplayName}) using {Shell}; read-only: {IsReadOnly}.",
@@ -58,8 +56,8 @@ public sealed class ConsoleCommandService(
 
             if (!process.Start())
                 throw new InvalidOperationException("The local command process could not be started.");
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+            var stdoutPump = PumpOutputAsync(process.StandardOutput, operationId, request.DisplayName, "stdout", stdout);
+            var stderrPump = PumpOutputAsync(process.StandardError, operationId, request.DisplayName, "stderr", stderr);
 
             using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutSource.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
@@ -68,16 +66,19 @@ public sealed class ConsoleCommandService(
             {
                 await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
                 process.WaitForExit();
+                await Task.WhenAll(stdoutPump, stderrPump).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 timedOut = true;
                 KillProcessTree(process);
+                await DrainOutputPumpsAsync(stdoutPump, stderrPump).ConfigureAwait(false);
                 Publish(operationId, request.DisplayName, "system", $"Command timed out after {timeoutSeconds} second(s).");
             }
             catch (OperationCanceledException)
             {
                 KillProcessTree(process);
+                await DrainOutputPumpsAsync(stdoutPump, stderrPump).ConfigureAwait(false);
                 Publish(operationId, request.DisplayName, "system", "Command cancelled.");
                 logger.LogDebug("Local console operation {OperationId} was cancelled.", operationId);
                 throw;
@@ -247,6 +248,226 @@ public sealed class ConsoleCommandService(
         }
     }
 
+    /// <summary>Reads redirected terminal output without losing carriage-return or cursor-rewrite progress frames such as provider download percentages.</summary>
+    /// <param name="reader">Redirected stdout or stderr reader.</param>
+    /// <param name="operationId">Identifier of the current console operation.</param>
+    /// <param name="displayName">Human-readable operation name.</param>
+    /// <param name="stream">Console stream label.</param>
+    /// <param name="capture">Bounded command-result capture buffer for this stream.</param>
+    /// <returns>A task that completes after the redirected stream reaches end-of-file.</returns>
+    private async Task PumpOutputAsync(StreamReader reader, Guid operationId, string displayName, string stream, StringBuilder capture)
+    {
+        try
+        {
+            var buffer = new char[2048];
+            var pending = new StringBuilder();
+            var lastProgressPercentages = new Dictionary<string, int>(StringComparer.Ordinal);
+            string lastPublishedText = string.Empty;
+            while (true)
+            {
+                var read = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false);
+                if (read <= 0)
+                    break;
+
+                for (var index = 0; index < read; index++)
+                {
+                    var character = buffer[index];
+                    if (character is '\r' or '\n')
+                    {
+                        PublishOutputFrame(operationId, displayName, stream, pending, capture, character == '\r', ref lastPublishedText, lastProgressPercentages);
+                        pending.Clear();
+                        continue;
+                    }
+                    pending.Append(character);
+                }
+
+                PublishProgressSnapshot(operationId, displayName, stream, pending, capture, ref lastPublishedText, lastProgressPercentages);
+            }
+
+            PublishOutputFrame(operationId, displayName, stream, pending, capture, false, ref lastPublishedText, lastProgressPercentages);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Process-tree cleanup can dispose redirected streams while a timeout/cancellation is being completed.
+        }
+        catch (IOException exception)
+        {
+            logger.LogDebug(exception, "Redirected local console stream closed while output was being drained.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading redirected local console output failed; output text was omitted from logs.");
+        }
+    }
+
+    /// <summary>Publishes a complete newline/carriage-return frame while suppressing terminal spinner rewrites that contain no useful progress value.</summary>
+    /// <param name="operationId">Identifier of the current console operation.</param>
+    /// <param name="displayName">Human-readable operation name.</param>
+    /// <param name="stream">Console stream label.</param>
+    /// <param name="pending">Current redirected terminal frame.</param>
+    /// <param name="capture">Bounded command-result capture buffer.</param>
+    /// <param name="isRewrite">Value indicating whether a carriage return ended this frame.</param>
+    /// <param name="lastPublishedText">Last normalized frame published for this stream.</param>
+    /// <param name="lastProgressPercentages">Last percentage published for each stable provider progress identity.</param>
+    private void PublishOutputFrame(
+        Guid operationId,
+        string displayName,
+        string stream,
+        StringBuilder pending,
+        StringBuilder capture,
+        bool isRewrite,
+        ref string lastPublishedText,
+        Dictionary<string, int> lastProgressPercentages)
+    {
+        try
+        {
+            if (pending.Length == 0)
+                return;
+            var normalized = NormalizeTerminalDisplayText(pending.ToString());
+            if (string.IsNullOrWhiteSpace(normalized))
+                return;
+
+            if (isRewrite)
+            {
+                if (!TryGetProgressPercentage(normalized, out var percentage, out var progressKey))
+                    return;
+                if (!ShouldPublishProgress(progressKey, percentage, lastProgressPercentages))
+                    return;
+            }
+            else if (normalized.Equals(lastPublishedText, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            lastPublishedText = normalized;
+            AppendOutput(operationId, displayName, stream, normalized, capture);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Publishing redirected local console frame failed; output text was omitted from logs.");
+        }
+    }
+
+    /// <summary>Surfaces the latest useful percentage from a still-open terminal rewrite line without waiting for a newline.</summary>
+    /// <param name="operationId">Identifier of the current console operation.</param>
+    /// <param name="displayName">Human-readable operation name.</param>
+    /// <param name="stream">Console stream label.</param>
+    /// <param name="pending">Current redirected terminal frame.</param>
+    /// <param name="capture">Bounded command-result capture buffer.</param>
+    /// <param name="lastPublishedText">Last normalized frame published for this stream.</param>
+    /// <param name="lastProgressPercentages">Last percentage published for each stable provider progress identity.</param>
+    private void PublishProgressSnapshot(
+        Guid operationId,
+        string displayName,
+        string stream,
+        StringBuilder pending,
+        StringBuilder capture,
+        ref string lastPublishedText,
+        Dictionary<string, int> lastProgressPercentages)
+    {
+        try
+        {
+            if (pending.Length == 0)
+                return;
+            var normalized = NormalizeTerminalDisplayText(pending.ToString());
+            if (!TryGetProgressPercentage(normalized, out var percentage, out var progressKey))
+                return;
+            if (!ShouldPublishProgress(progressKey, percentage, lastProgressPercentages))
+                return;
+
+            lastPublishedText = normalized;
+            AppendOutput(operationId, displayName, stream, normalized, capture);
+
+            // Repeated ANSI cursor rewrites can otherwise keep the whole animation history in memory until EOF.
+            pending.Clear();
+            pending.Append(normalized);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Publishing redirected local console progress failed; output text was omitted from logs.");
+        }
+    }
+
+    /// <summary>Records a percentage only when its stable progress identity moves to a different value.</summary>
+    /// <param name="progressKey">Stable provider progress prefix, such as one Ollama layer identifier.</param>
+    /// <param name="percentage">Current bounded integer percentage.</param>
+    /// <param name="lastProgressPercentages">Last percentage published for each progress identity.</param>
+    /// <returns><see langword="true"/> when this percentage should be surfaced.</returns>
+    private bool ShouldPublishProgress(string progressKey, int percentage, Dictionary<string, int> lastProgressPercentages)
+    {
+        try
+        {
+            if (lastProgressPercentages.TryGetValue(progressKey, out var previous) && previous == percentage)
+                return false;
+            lastProgressPercentages[progressKey] = percentage;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Deduplicating redirected local console progress failed; the current bounded percentage will remain visible.");
+            return true;
+        }
+    }
+
+    /// <summary>Finds a bounded integer percentage and a stable prefix identity in one normalized terminal frame.</summary>
+    /// <param name="text">Normalized terminal text.</param>
+    /// <param name="percentage">Parsed percentage when present.</param>
+    /// <param name="progressKey">Stable text prefix before the percentage, bounded for dictionary use.</param>
+    /// <returns><see langword="true"/> when a value from 0 through 100 immediately precedes a percent sign.</returns>
+    private bool TryGetProgressPercentage(string text, out int percentage, out string progressKey)
+    {
+        percentage = 0;
+        progressKey = string.Empty;
+        try
+        {
+            for (var index = text.Length - 1; index >= 0; index--)
+            {
+                if (text[index] != '%')
+                    continue;
+                var end = index - 1;
+                var start = end;
+                while (start >= 0 && char.IsDigit(text[start]))
+                    start--;
+                start++;
+                if (start > end)
+                    continue;
+                if (int.TryParse(text[start..(end + 1)], out var value) && value is >= 0 and <= 100)
+                {
+                    percentage = value;
+                    var prefix = text[..start].TrimEnd();
+                    if (prefix.Length > 192)
+                        prefix = prefix[^192..];
+                    progressKey = string.IsNullOrWhiteSpace(prefix) ? "progress" : prefix;
+                    return true;
+                }
+            }
+            return false;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Parsing redirected local console percentage failed; output text was omitted from logs.");
+            percentage = 0;
+            progressKey = string.Empty;
+            return false;
+        }
+    }
+
+    /// <summary>Best-effort drains redirected stdout/stderr after a killed process so the final diagnostic text is not lost.</summary>
+    /// <param name="stdoutPump">Standard-output pump task.</param>
+    /// <param name="stderrPump">Standard-error pump task.</param>
+    /// <returns>A task that completes after both pumps finish or their stream cleanup is observed.</returns>
+    private async Task DrainOutputPumpsAsync(Task stdoutPump, Task stderrPump)
+    {
+        try
+        {
+            await Task.WhenAll(stdoutPump, stderrPump).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Redirected local console streams could not be fully drained after process cleanup.");
+        }
+    }
+
     /// <summary>
     /// Performs append output as part of the console command service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -262,6 +483,8 @@ public sealed class ConsoleCommandService(
             if (line is null)
                 return;
             var normalized = NormalizeTerminalDisplayText(line);
+            if (string.IsNullOrWhiteSpace(normalized))
+                return;
             if (capture.Length < Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)))
             {
                 var remaining = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)) - capture.Length;

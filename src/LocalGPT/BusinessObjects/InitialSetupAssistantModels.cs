@@ -292,6 +292,9 @@ public sealed class AiProviderBootstrapProfile
     /// </summary>
     /// <value>The install command value exposed by <see cref="AiProviderBootstrapProfile"/>.</value>
     public string InstallCommand { get; set; } = string.Empty;
+    /// <summary>Gets or sets the knowledge-backed provider update command. An empty value falls back to the install command for backward-compatible profiles.</summary>
+    /// <value>The provider update command exposed by <see cref="AiProviderBootstrapProfile"/>.</value>
+    public string UpdateCommand { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the start command value that forms part of the AI provider bootstrap profile state consumed or produced by the surrounding workflow.
     /// </summary>

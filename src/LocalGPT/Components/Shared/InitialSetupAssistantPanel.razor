@@ -4,6 +4,7 @@
 @inject IAiProviderBootstrapService Providers
 @inject IOllamaProcessService OllamaProcesses
 @inject IConsoleCommandService Console
+@inject CouncilTextService CouncilText
 @inject ILogger<InitialSetupAssistantPanel> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 @implements IDisposable
@@ -124,6 +125,10 @@
                             {
                                 <code>@ollamaStatus.ExecutablePath</code>
                             }
+                            @if (ollamaUpdateRequired)
+                            {
+                                <div class="alert alert-warning" role="status">@T("A model requires a newer Ollama runtime. Update Ollama with explicit confirmation, then retry the model installation.")</div>
+                            }
                         }
                         <a href="@SelectedProvider.SourceUrl" target="_blank" rel="noopener noreferrer">Provider installation source</a>
                         @if (!string.IsNullOrWhiteSpace(SelectedProvider.ModelCatalogUrl))
@@ -142,6 +147,7 @@
                             <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsInstalled || ollamaStatus.IsRunning)" @onclick="StartOllamaAsync">Start Ollama</button>
                             <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsRunning)" @onclick="StopOllamaAsync">Stop Ollama</button>
                             <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsInstalled)" @onclick="RestartOllamaAsync">Restart Ollama</button>
+                            <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsInstalled)" @onclick="UpdateOllamaAsync">@T("Update Ollama (confirmed)")</button>
                             <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="RefreshAsync">Refresh Ollama / models</button>
                         }
                         else
@@ -366,6 +372,14 @@
     /// Stores the internal busy state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
     /// </summary>
     private bool busy;
+    /// <summary>Tracks whether a provider model pull reported that the installed Ollama runtime is too old for that model.</summary>
+    private bool ollamaUpdateRequired;
+    /// <summary>Marks that console output changed and a renderer refresh should be coalesced into the active worker.</summary>
+    private int consoleRenderPending;
+    /// <summary>Ensures only one bounded console-render worker is active for this component.</summary>
+    private int consoleRenderWorkerRunning;
+    /// <summary>Cancels the console-render worker when the component is disposed.</summary>
+    private readonly CancellationTokenSource consoleRenderCancellation = new();
     /// <summary>
     /// Gets the selected provider value that forms part of the initial setup assistant panel state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -374,7 +388,14 @@
     /// <summary>Reports whether the selected setup profile resolves to LocalGPT's Ollama provider path.</summary>
     /// <value><see langword="true"/> when the selected profile represents Ollama; otherwise <see langword="false"/>.</value>
     private bool IsSelectedOllama => SelectedProvider is { } profile
-        && Providers.IsOllamaProfile(profile);
+        && IsOllamaProfileForRender(profile);
+
+    /// <summary>Classifies an Ollama profile locally for render-time checks so frequent UI refreshes do not invoke a decorated service method.</summary>
+    /// <param name="profile">Provider bootstrap profile being classified for the setup UI.</param>
+    /// <returns><see langword="true"/> when the profile uses LocalGPT's maintained Ollama provider identity; otherwise <see langword="false"/>.</returns>
+    private bool IsOllamaProfileForRender(AiProviderBootstrapProfile profile)
+        => profile.ProviderKind.Equals("Ollama", StringComparison.OrdinalIgnoreCase)
+            || CouncilText.StartsWithText(profile.Key, "ollama-", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="InitialSetupAssistantPanel"/>, updating the state required by the surrounding workflow.
@@ -433,7 +454,7 @@
                     && value.ProviderProfiles.All(item => !item.Key.Equals(selectedProviderKey, StringComparison.OrdinalIgnoreCase)))
                     selectedProviderKey = string.Empty;
                 if (string.IsNullOrWhiteSpace(selectedProviderKey) && processStatus.IsInstalled)
-                    selectedProviderKey = value.ProviderProfiles.FirstOrDefault(Providers.IsOllamaProfile)?.Key ?? string.Empty;
+                    selectedProviderKey = value.ProviderProfiles.FirstOrDefault(IsOllamaProfileForRender)?.Key ?? string.Empty;
                 selectedModels.Clear();
                 foreach (var model in value.InstalledModels) selectedModels.Add(model.SelectionKey);
                 if (preferredCuratorModels.Count == 0)
@@ -725,6 +746,88 @@
         }
     }
 
+    /// <summary>Updates Ollama through the selected knowledge-backed profile while preserving the pre-update running/stopped state.</summary>
+    /// <returns>A task that completes after the update, lifecycle recovery, and setup refresh.</returns>
+    private async Task UpdateOllamaAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedProviderKey) || !IsSelectedOllama || !ollamaStatus.IsInstalled)
+            return;
+        var wasRunning = false;
+        var runtimeStoppedForUpdate = false;
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var before = await OllamaProcesses.GetStatusAsync().ConfigureAwait(false);
+            wasRunning = before.IsRunning;
+            if (wasRunning)
+            {
+                var stopped = await OllamaProcesses.StopAsync().ConfigureAwait(false);
+                runtimeStoppedForUpdate = !stopped.IsRunning;
+                if (!runtimeStoppedForUpdate)
+                {
+                    await SetStatusAsync(T("Ollama could not be stopped safely for the update. The update was not started.")).ConfigureAwait(false);
+                    return;
+                }
+            }
+
+            var update = await Providers.UpdateAsync(selectedProviderKey, true).ConfigureAwait(false);
+            if (!update.Succeeded)
+            {
+                if (wasRunning && runtimeStoppedForUpdate)
+                    await RestoreOllamaAfterUpdateAttemptAsync().ConfigureAwait(false);
+                await SetStatusAsync(T("Ollama update did not complete successfully. The previous runtime was preserved where possible; review the shared console and provider source.")).ConfigureAwait(false);
+                return;
+            }
+
+            var after = await OllamaProcesses.GetStatusAsync().ConfigureAwait(false);
+            if (!after.IsInstalled)
+            {
+                if (wasRunning && runtimeStoppedForUpdate)
+                    await RestoreOllamaAfterUpdateAttemptAsync().ConfigureAwait(false);
+                await SetStatusAsync(T("The Ollama updater completed, but LocalGPT can no longer resolve the executable. Use the provider source and Detect before retrying.")).ConfigureAwait(false);
+                return;
+            }
+            if (wasRunning && !after.IsRunning)
+                after = await OllamaProcesses.StartAsync().ConfigureAwait(false);
+
+            await InvokeAsync(() =>
+            {
+                ollamaStatus = after;
+                ollamaUpdateRequired = false;
+            }).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+            await SetStatusAsync(after.IsRunning
+                ? T("Ollama update completed and the runtime is running again. You can retry the model installation now.")
+                : T("Ollama update completed. The runtime remains stopped because it was stopped before the update.")).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Updating Ollama from the initial setup assistant failed; command and executable details omitted.");
+            if (wasRunning && runtimeStoppedForUpdate)
+                await RestoreOllamaAfterUpdateAttemptAsync().ConfigureAwait(false);
+            await SetStatusAsync(T("Ollama update failed. Review the shared console and LocalGPT logs before retrying.")).ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Best-effort restores a previously running Ollama process after an update attempt that did not complete.</summary>
+    /// <returns>A task that completes after the lifecycle recovery attempt.</returns>
+    private async Task RestoreOllamaAfterUpdateAttemptAsync()
+    {
+        try
+        {
+            var restored = await OllamaProcesses.StartAsync().ConfigureAwait(false);
+            await InvokeAsync(() => ollamaStatus = restored).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Ollama could not be restarted after an update attempt; executable details omitted.");
+        }
+    }
+
     /// <summary>Starts Ollama through the existing process lifecycle service, never through a bounded foreground <c>ollama serve</c> command.</summary>
     /// <returns>A task that completes after the explicit lifecycle action and setup refresh.</returns>
     private Task StartOllamaAsync() => RunOllamaProcessActionAsync(T("Ollama startup"), cancellationToken => OllamaProcesses.StartAsync(cancellationToken));
@@ -822,8 +925,11 @@
             await SetBusyAsync(true).ConfigureAwait(false);
             var resolved = await Providers.ResolveModelIdAsync(selectedProviderKey, manualModelId).ConfigureAwait(false);
             var result = await Providers.InstallModelAsync(selectedProviderKey, resolved, true).ConfigureAwait(false);
+            if (await HandleOllamaUpdateRequirementAsync(result).ConfigureAwait(false))
+                return;
             await SetStatusAsync(TF("Model installation: {0}.", T(result.Status))).ConfigureAwait(false);
-            await RefreshAsync().ConfigureAwait(false);
+            if (result.Succeeded)
+                await RefreshAsync().ConfigureAwait(false);
         }
         catch (Exception exception)
         {
@@ -889,7 +995,10 @@
             }
 
             var result = await Providers.InstallModelAsync(selectedProviderKey, match.ProviderModelId, true).ConfigureAwait(false);
-            await RefreshAsync().ConfigureAwait(false);
+            if (await HandleOllamaUpdateRequirementAsync(result).ConfigureAwait(false))
+                return;
+            if (result.Succeeded)
+                await RefreshAsync().ConfigureAwait(false);
             await SetStatusAsync(TF("Provider-matched model installation: {0}.", T(result.Status))).ConfigureAwait(false);
         }
         catch (Exception exception)
@@ -900,6 +1009,32 @@
         finally
         {
             await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Recognizes the provider's explicit "newer Ollama required" model-pull response and exposes the confirmed updater action instead of treating it as an opaque install failure.</summary>
+    /// <param name="result">Provider model-install result whose bounded stdout/stderr may contain the runtime compatibility response.</param>
+    /// <returns><see langword="true"/> when the user should update Ollama before retrying this model.</returns>
+    private async Task<bool> HandleOllamaUpdateRequirementAsync(LocalConsoleCommandResult result)
+    {
+        try
+        {
+            if (!IsSelectedOllama || result.Succeeded)
+                return false;
+            var diagnostic = string.Concat(result.StandardError, Environment.NewLine, result.StandardOutput);
+            var requiresUpdate = CouncilText.ContainsText(diagnostic, "requires a newer version of Ollama", StringComparison.OrdinalIgnoreCase)
+                || CouncilText.ContainsText(diagnostic, "Please download the latest version", StringComparison.OrdinalIgnoreCase);
+            if (!requiresUpdate)
+                return false;
+
+            await InvokeAsync(() => ollamaUpdateRequired = true).ConfigureAwait(false);
+            await SetStatusAsync(T("This model requires a newer Ollama runtime. Use Update Ollama (confirmed), then retry the model installation; LocalGPT will not update the runtime without that separate confirmation.")).ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Recognizing an Ollama model/runtime compatibility response failed; provider output was omitted.");
+            return false;
         }
     }
 
@@ -918,14 +1053,16 @@
         {
             await SetBusyAsync(true).ConfigureAwait(false);
             var result = await Providers.InstallModelAsync(selectedProviderKey, choice.ProviderModelId, true).ConfigureAwait(false);
+            if (await HandleOllamaUpdateRequirementAsync(result).ConfigureAwait(false))
+                return;
             if (result.Succeeded)
             {
                 choice.IsInstalled = true;
                 choice.IsProviderInventory = true;
                 choice.CanCheckUpdate = IsSelectedOllama;
+                await RefreshAsync().ConfigureAwait(false);
             }
             await SetStatusAsync(TF("Model installation: {0}.", T(result.Status))).ConfigureAwait(false);
-            await RefreshAsync().ConfigureAwait(false);
         }
         catch (Exception exception) { Logger.LogError(exception, "Initial setup model install failed; model identifier omitted."); await SetStatusAsync(T("Model installation failed. Review LocalGPT logs.")).ConfigureAwait(false); }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
@@ -978,7 +1115,46 @@
     /// <summary>
     /// Handles the console changed lifecycle or event notification for <see cref="InitialSetupAssistantPanel"/>, updating the state required by the surrounding workflow.
     /// </summary>
-    private void OnConsoleChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnConsoleChanged()
+    {
+        Interlocked.Exchange(ref consoleRenderPending, 1);
+        if (Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
+            _ = RefreshConsoleRenderAsync();
+    }
+
+    /// <summary>Coalesces high-frequency provider progress frames so terminal percentages remain live without flooding the Blazor circuit with one render per terminal rewrite.</summary>
+    /// <returns>A task that completes after the latest bounded console state has been rendered.</returns>
+    private async Task RefreshConsoleRenderAsync()
+    {
+        try
+        {
+            while (!consoleRenderCancellation.IsCancellationRequested)
+            {
+                await Task.Delay(250, consoleRenderCancellation.Token).ConfigureAwait(false);
+                Interlocked.Exchange(ref consoleRenderPending, 0);
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+
+                if (Volatile.Read(ref consoleRenderPending) == 0)
+                    break;
+            }
+        }
+        catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
+        {
+            // Component disposal cancels any delayed renderer refresh.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The circuit may dispose this component while a delayed progress render is pending.
+        }
+        finally
+        {
+            Interlocked.Exchange(ref consoleRenderWorkerRunning, 0);
+            if (Volatile.Read(ref consoleRenderPending) != 0
+                && !consoleRenderCancellation.IsCancellationRequested
+                && Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
+                _ = RefreshConsoleRenderAsync();
+        }
+    }
     /// <summary>
     /// Sets busy for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
@@ -998,6 +1174,8 @@
     public void Dispose()
     {
         Console.Changed -= OnConsoleChanged;
+        consoleRenderCancellation.Cancel();
+        consoleRenderCancellation.Dispose();
         GC.SuppressFinalize(this);
     }
 }

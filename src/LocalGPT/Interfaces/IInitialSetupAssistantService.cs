@@ -114,6 +114,12 @@ public interface IAiProviderBootstrapService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The local console command result produced by the operation.</returns>
     Task<LocalConsoleCommandResult> InstallAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default);
+    /// <summary>Updates the selected provider after explicit confirmation using its knowledge-backed update command, with the install command as a backward-compatible fallback.</summary>
+    /// <param name="profileKey">Profile key value supplied to the AI provider bootstrap operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local console command result produced by the operation.</returns>
+    Task<LocalConsoleCommandResult> UpdateAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default);
     /// <summary>Starts the selected provider after explicit confirmation; Ollama uses its maintained process lifecycle service rather than a foreground <c>ollama serve</c> console command.</summary>
     /// <param name="profileKey">Profile key value supplied to the AI provider bootstrap operation and used when producing its result.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>

@@ -1,7 +1,7 @@
-# LocalGPT 3.9.9
+# LocalGPT 4.0.1
 
-LocalGPT 3.9.9 closes the remaining setup feedback carried forward after 3.9.8: provider-owned links are exposed beside model choices, compatible-but-unmapped CanIRun.ai recommendations gain a conservative official-catalog resolution/install path, the shared ASCII command feed strips terminal control noise and preserves monospace layout, and Ollama gains one explicit guided install/start/register action with macOS recovery guidance.
+LocalGPT 4.0.1 is a focused follow-up to 4.0.0. It repairs the text-service ownership build failure reported by the first local compile and replaces the slow Windows Ollama guided updater path with a direct streaming download of the official Ollama installer while keeping clean percentage progress in the shared console.
 
-Ambiguous provider matches are intentionally never guessed. The working Council/team self-cleanup mechanism and existing routed `InteractiveServer` architecture are preserved.
+The 4.0.0 provider-model discovery, update confirmation, console cleanup, provider-candidate reuse, InteractiveServer retention, Council recovery, and render-mode ownership remain unchanged. Mutating provider commands now also have a one-hour requested timeout so large model/runtime downloads are not killed by the previous ten-minute request limit.
 
-See `CHANGELOG-v3.9.9-PROVIDER-MODEL-LINK-INSTALL-CONSOLE-OLLAMA-GUIDE.md` and `VALIDATION-v3.9.9-source.md`.
+See `CHANGELOG-v4.0.1-TEXT-OWNERSHIP-FAST-OLLAMA-DOWNLOAD.md` and `VALIDATION-v4.0.1-source.md`.

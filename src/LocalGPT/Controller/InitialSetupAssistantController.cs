@@ -169,6 +169,21 @@ public sealed class InitialSetupAssistantController(
         catch (Exception exception) { logger.LogError(exception, "Provider installation failed for profile {ProfileKey}; command details omitted.", profileKey); return Results.InternalServerError("Provider installation failed. Review local logs for details."); }
     }
 
+    /// <summary>Updates the selected provider through its knowledge-backed update command after fresh confirmation.</summary>
+    /// <param name="profileKey">Profile key value supplied to the initial setup assistant operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
+    [HttpPost("providers/{profileKey}/update")]
+    [HumanApprovalRequired("initial-setup.provider.update", "Update AI provider", "Run the exact knowledge-backed provider update command after user review.", "High", "Local machine operator")]
+    public async Task<IResult> UpdateProvider(string profileKey, [FromQuery] bool userConfirmed, CancellationToken cancellationToken)
+    {
+        try { return Results.Ok(await providers.UpdateAsync(profileKey, userConfirmed, cancellationToken).ConfigureAwait(false)); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or KeyNotFoundException or InvalidDataException) { return Results.BadRequest(new { Error = exception.Message }); }
+        catch (Exception exception) { logger.LogError(exception, "Provider update failed for profile {ProfileKey}; command details omitted.", profileKey); return Results.InternalServerError("Provider update failed. Review local logs for details."); }
+    }
+
     /// <summary>Starts the selected provider through its knowledge-backed command.</summary>
     /// <param name="profileKey">Profile key value supplied to the initial setup assistant operation and used when producing its result.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>

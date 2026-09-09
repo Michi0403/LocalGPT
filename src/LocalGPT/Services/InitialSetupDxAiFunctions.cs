@@ -209,6 +209,34 @@ public sealed class InstallProviderBootstrapFunction(IAiProviderBootstrapService
     }
 }
 
+/// <summary>Updates a provider from a local knowledge profile after fresh human confirmation.</summary>
+/// <param name="providers">Provider bootstrap service.</param>
+/// <param name="json">DXFunction JSON service.</param>
+/// <param name="logger">Logger used for diagnostics.</param>
+public sealed class UpdateProviderBootstrapFunction(IAiProviderBootstrapService providers, IDxAiFunctionJsonService json, ILogger<UpdateProviderBootstrapFunction> logger) : IDxAiFunctionHandler
+{
+    /// <summary>Describes provider update.</summary>
+    /// <value>The descriptor value exposed by <see cref="UpdateProviderBootstrapFunction"/>.</value>
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "initial.setup.provider.update", "POST", "/api/dxai/functions/initial.setup.provider.update/invoke",
+        "Updates the selected AI provider using the exact update command stored in the local Knowledge Database, or its maintained install command for older profiles.", "profileKey is required.",
+        "Consequential local-machine change from user-maintainable knowledge. Requires fresh human confirmation; never automatic.",
+        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false,
+        SupportsDeferredApprovalRequest: true, Source: "DIHandler",
+        ParameterSchemaJson: """{"type":"object","required":["profileKey"],"properties":{"profileKey":{"type":"string","maxLength":160}},"additionalProperties":false}""");
+
+    /// <summary>Runs provider update.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        try { var binding = json.Bind<ProviderProfileActionRequest>(request.Parameters); if (!binding.Succeeded) return json.InvalidParameters(binding.Error); return json.Success(await providers.UpdateAsync(binding.Value.ProfileKey, true, cancellationToken).ConfigureAwait(false)); }
+        catch (OperationCanceledException exception) { logger.LogDebug(exception, "Provider update DXFunction was cancelled."); throw; }
+        catch (Exception exception) { logger.LogError(exception, "Provider update DXFunction failed; command content omitted."); return new DxAiFunctionInvocationResult { Succeeded = false, Status = "Failed", Error = "Provider update failed. Review LocalGPT logs." }; }
+    }
+}
+
 /// <summary>Starts a provider runtime from a knowledge profile after fresh human confirmation.</summary>
 /// <param name="providers">Provider bootstrap service.</param>
 /// <param name="json">DXFunction JSON service.</param>

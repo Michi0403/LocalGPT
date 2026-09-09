@@ -2164,5 +2164,14 @@
   "Text.Set␠up␠Ollama␠(confirmed:␠install␠/␠start␠/␠register)": "Set up Ollama (confirmed: install / start / register)",
   "Text.The␠installer␠completed,␠but␠LocalGPT␠still␠cannot␠find␠the␠Ollama␠executable.␠Open␠the␠provider␠source␠if␠the␠macOS␠app␠needs␠one␠manual␠launch,␠then␠use␠this␠guided␠action␠again.": "The installer completed, but LocalGPT still cannot find the Ollama executable. Open the provider source if the macOS app needs one manual launch, then use this guided action again.",
   "Text.The␠official␠provider␠match␠is␠already␠installed;␠LocalGPT␠refreshed␠the␠model␠inventory.": "The official provider match is already installed; LocalGPT refreshed the model inventory.",
-  "Text.CanIRun.ai␠hardware-fit␠discovery␠matched␠uniquely␠in␠the␠selected␠provider␠catalog.": "CanIRun.ai hardware-fit discovery matched uniquely in the selected provider catalog."
+  "Text.CanIRun.ai␠hardware-fit␠discovery␠matched␠uniquely␠in␠the␠selected␠provider␠catalog.": "CanIRun.ai hardware-fit discovery matched uniquely in the selected provider catalog.",
+  "Text.A␠model␠requires␠a␠newer␠Ollama␠runtime.␠Update␠Ollama␠with␠explicit␠confirmation,␠then␠retry␠the␠model␠installation.": "A model requires a newer Ollama runtime. Update Ollama with explicit confirmation, then retry the model installation.",
+  "Text.Update␠Ollama␠(confirmed)": "Update Ollama (confirmed)",
+  "Text.Ollama␠could␠not␠be␠stopped␠safely␠for␠the␠update.␠The␠update␠was␠not␠started.": "Ollama could not be stopped safely for the update. The update was not started.",
+  "Text.Ollama␠update␠did␠not␠complete␠successfully.␠The␠previous␠runtime␠was␠preserved␠where␠possible;␠review␠the␠shared␠console␠and␠provider␠source.": "Ollama update did not complete successfully. The previous runtime was preserved where possible; review the shared console and provider source.",
+  "Text.The␠Ollama␠updater␠completed,␠but␠LocalGPT␠can␠no␠longer␠resolve␠the␠executable.␠Use␠the␠provider␠source␠and␠Detect␠before␠retrying.": "The Ollama updater completed, but LocalGPT can no longer resolve the executable. Use the provider source and Detect before retrying.",
+  "Text.Ollama␠update␠completed␠and␠the␠runtime␠is␠running␠again.␠You␠can␠retry␠the␠model␠installation␠now.": "Ollama update completed and the runtime is running again. You can retry the model installation now.",
+  "Text.Ollama␠update␠completed.␠The␠runtime␠remains␠stopped␠because␠it␠was␠stopped␠before␠the␠update.": "Ollama update completed. The runtime remains stopped because it was stopped before the update.",
+  "Text.Ollama␠update␠failed.␠Review␠the␠shared␠console␠and␠LocalGPT␠logs␠before␠retrying.": "Ollama update failed. Review the shared console and LocalGPT logs before retrying.",
+  "Text.This␠model␠requires␠a␠newer␠Ollama␠runtime.␠Use␠Update␠Ollama␠(confirmed),␠then␠retry␠the␠model␠installation;␠LocalGPT␠will␠not␠update␠the␠runtime␠without␠that␠separate␠confirmation.": "This model requires a newer Ollama runtime. Use Update Ollama (confirmed), then retry the model installation; LocalGPT will not update the runtime without that separate confirmation."
 }
