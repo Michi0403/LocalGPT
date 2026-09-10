@@ -1,7 +1,9 @@
-# LocalGPT 4.0.7
+# LocalGPT 4.0.8
 
-LocalGPT 4.0.7 completes the Windows setup compile repair from 4.0.6. The installer setup logger now explicitly imports `System.IO` as well as `System`, matching the installer project's no-implicit-usings compilation surface.
+LocalGPT 4.0.8 fixes versioned documentation contamination during in-place source updates. A previous-version `LocalGPT-*.pdf` left under `docs/` could be copied by DocFX into the generated site during an HTML-only Debug build, then correctly rejected by the strict GitHub Pages snapshot validator after the expensive documentation pass.
 
-The early installer restore/build preflight introduced in 4.0.6 remains in place, and application runtime, Council/provider behavior, `server.json` rendezvous semantics, Ollama handling, macOS ownership/signing/notarization, and packaging behavior are otherwise unchanged.
+The documentation generator now removes only non-current versioned LocalGPT PDFs from its generated `_site` tree before that tree is cached or published. Source PDFs are not deleted, the current-version PDF path remains intact, and the Pages validator still requires either exactly one current PDF or an explicit `pdfAvailable=false` HTML-only result.
 
-See `CHANGELOG-v4.0.7-INSTALLER-COMPILE-SURFACE-REPAIR.md` and `VALIDATION-v4.0.7-source.md`.
+The 4.0.7 installer compile-surface repair and early installer compilation preflight remain unchanged.
+
+See `CHANGELOG-v4.0.8-DOCUMENTATION-PDF-VERSION-HYGIENE.md` and `VALIDATION-v4.0.8-source.md`.

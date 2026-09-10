@@ -286,6 +286,27 @@ function Restore-LocalGptDocumentationHtmlCache {
     }
 }
 
+function Remove-LocalGptStaleGeneratedDocumentationPdfs {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$ExpectedPdfName
+    )
+
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) { return 0 }
+
+    $removedCount = 0
+    foreach ($pdf in @(Get-ChildItem -LiteralPath $Root -File -Filter 'LocalGPT-*.pdf' -ErrorAction SilentlyContinue)) {
+        if ([string]::Equals($pdf.Name, $ExpectedPdfName, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        Remove-Item -LiteralPath $pdf.FullName -Force
+        $removedCount++
+    }
+
+    if ($removedCount -gt 0) {
+        Write-Host "Removed $removedCount stale versioned LocalGPT PDF(s) from generated documentation output before publication." -ForegroundColor DarkCyan
+    }
+    return $removedCount
+}
+
 function Save-LocalGptDocumentationHtmlCache {
     param(
         [Parameter(Mandatory)][string]$CacheEntryRoot,
@@ -3015,6 +3036,12 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
             }
         }
     }
+
+    # DocFX treats LocalGPT-*.pdf as a resource so an in-place source update can copy a real
+    # previous-version handbook from docs/ into _site. The current build owns _site, therefore
+    # remove only non-current versioned PDFs from this generated tree before it is cached or
+    # published. Keep the source PDF untouched and keep the Pages validator strict.
+    [void](Remove-LocalGptStaleGeneratedDocumentationPdfs -Root $siteRoot -ExpectedPdfName $pdfName)
 
     if ($docfxBuildSucceeded -and $htmlPreflightValidated -and -not $documentationHtmlCacheReused) {
         $cacheManifest = [ordered]@{
