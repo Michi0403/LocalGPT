@@ -941,6 +941,13 @@ if ($sharedWirePackageDirectory) {
     Write-Host "Updated shared LocalGPT protocol/release-packaging package cache: $sharedWirePackageDirectory" -ForegroundColor Green
 }
 
+# Compile the dependency-light installer before the multi-hour documentation/notarization lane.
+# This deliberately catches setup-only source failures while the release can still fail cheaply.
+Write-Host "Preflighting the LocalGPT installer compile before expensive documentation and native packaging..." -ForegroundColor Cyan
+Invoke-DotNet -Arguments @("restore", $setupProject, "--disable-parallel", "--force-evaluate") -FailureMessage "LocalGPT installer preflight restore failed."
+Invoke-DotNet -Arguments @("build", $setupProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1") -FailureMessage "LocalGPT installer preflight compile failed."
+Write-Host "LocalGPT installer compile preflight passed." -ForegroundColor Green
+
 Prepare-LocalGptDocumentation
 
 try {
