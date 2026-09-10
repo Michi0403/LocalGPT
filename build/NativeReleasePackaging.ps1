@@ -1424,10 +1424,18 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
         return $false
     }
 
+    $productbuild = Get-ExternalCommandPath 'productbuild'
+    if (-not $productbuild) {
+        Write-Warning "productbuild is unavailable; a distribution PKG cannot be produced safely, so $Destination was not produced."
+        return $false
+    }
+
     $identifier = "io.github.michi0403.$($ProductName.ToLowerInvariant())"
     $appName = [IO.Path]::GetFileName($AppPath)
     $pkgRoot = Join-Path ([IO.Path]::GetTempPath()) ("pkg-root-" + [Guid]::NewGuid().ToString('N'))
     $pkgScripts = Join-Path ([IO.Path]::GetTempPath()) ("pkg-scripts-" + [Guid]::NewGuid().ToString('N'))
+    $componentPackage = Join-Path ([IO.Path]::GetTempPath()) ("pkg-component-" + [Guid]::NewGuid().ToString('N') + '.pkg')
+    $expandedPackage = Join-Path ([IO.Path]::GetTempPath()) ("pkg-expanded-" + [Guid]::NewGuid().ToString('N'))
     $applicationsRoot = Join-Path $pkgRoot 'Applications'
     New-Item -ItemType Directory -Path $applicationsRoot -Force | Out-Null
     New-Item -ItemType Directory -Path $pkgScripts -Force | Out-Null
@@ -1551,16 +1559,15 @@ exit 0
             '--ownership', 'recommended',
             '--scripts', $pkgScripts
         )
-        if ($script:MacInstallerSigningIdentity) { $pkgBuildArguments += @('--sign', $script:MacInstallerSigningIdentity) }
-        $pkgBuildArguments += $Destination
+        $pkgBuildArguments += $componentPackage
         & $pkgbuild @pkgBuildArguments 2>&1 | ForEach-Object { Write-Host $_ }
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
-            Write-Warning "pkgbuild failed while creating $Destination. The DMG and TAR.GZ remain available."
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $componentPackage -PathType Leaf)) {
+            Write-Warning "pkgbuild failed while creating the component package for $Destination. The DMG and TAR.GZ remain available."
             Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
             return $false
         }
 
-        $payloadLines = @(& $pkgutil --payload-files $Destination 2>&1 | ForEach-Object { [string]$_ })
+        $payloadLines = @(& $pkgutil --payload-files $componentPackage 2>&1 | ForEach-Object { [string]$_ })
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "pkgutil could not inspect $Destination. The unverified PKG was removed."
             Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
@@ -1582,12 +1589,63 @@ exit 0
             return $false
         }
 
-        Write-Host "Validated PKG payload root /Applications/$appName with Info.plist and executable content." -ForegroundColor Green
+        Write-Host "Validated component PKG payload root /Applications/$appName with Info.plist and executable content." -ForegroundColor Green
+
+        Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+        $productBuildArguments = @('--package', $componentPackage)
+        if ($script:MacInstallerSigningIdentity) { $productBuildArguments += @('--sign', $script:MacInstallerSigningIdentity) }
+        $productBuildArguments += $Destination
+        & $productbuild @productBuildArguments 2>&1 | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
+            Write-Warning "productbuild failed while creating the installable distribution package $Destination."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+
+        Remove-Item -LiteralPath $expandedPackage -Recurse -Force -ErrorAction SilentlyContinue
+        & $pkgutil --expand-full $Destination $expandedPackage 2>&1 | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $expandedPackage -PathType Container)) {
+            Write-Warning "pkgutil could not expand/read the final distribution PKG $Destination. The unreadable package was removed."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+        $expandedFiles = @(Get-ChildItem -LiteralPath $expandedPackage -Recurse -Force -File -ErrorAction SilentlyContinue)
+        if ($expandedFiles.Count -eq 0) {
+            Write-Warning "The final distribution PKG $Destination expanded without readable package content. The package was removed."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+        if ($script:MacInstallerSigningIdentity) {
+            & $pkgutil --check-signature $Destination 2>&1 | ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "The final distribution PKG signature could not be validated for $Destination. The package was removed."
+                Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+                return $false
+            }
+        }
+
+        $installerTool = Get-ExternalCommandPath 'installer'
+        if (-not $installerTool) {
+            Write-Warning "macOS installer is unavailable; Installer.app readability cannot be preflighted, so $Destination was removed."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+        $choiceReadback = @(& $installerTool -pkg $Destination -target / -showChoicesXML 2>&1 | ForEach-Object { [string]$_ })
+        if ($LASTEXITCODE -ne 0 -or $choiceReadback.Count -eq 0) {
+            $choiceReadback | ForEach-Object { Write-Warning $_ }
+            Write-Warning "macOS Installer could not read the final distribution PKG $Destination. The unreadable package was removed."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+
+        Write-Host "Created, expanded, and Installer-read the final macOS distribution PKG successfully: $Destination" -ForegroundColor Green
         return $true
     }
     finally {
         Remove-Item -LiteralPath $pkgRoot -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $pkgScripts -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $componentPackage -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $expandedPackage -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 function New-AppImage([string]$Source,[string]$Destination) {
