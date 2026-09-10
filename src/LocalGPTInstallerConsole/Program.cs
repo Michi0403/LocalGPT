@@ -39,6 +39,32 @@ internal static class Program
     /// </summary>
     private static readonly HttpClient Http = CreateHttpClient();
 
+    /// <summary>Resolves the durable LocalGPT setup transcript path beneath the current per-user installation root, with a temporary fallback when necessary.</summary>
+    /// <returns>An absolute writable path for LocalGPT setup diagnostics.</returns>
+    private static string ResolveSetupLogPath()
+    {
+        try
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (!string.IsNullOrWhiteSpace(localAppData))
+            {
+                var root = Path.Combine(localAppData, "LocalGPT");
+                Directory.CreateDirectory(root);
+                var candidate = Path.Combine(root, "LocalGPT.Setup.log");
+                using (File.Open(candidate, FileMode.Append, FileAccess.Write, FileShare.ReadWrite)) { }
+                return candidate;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"LocalGPT setup could not prepare its normal log directory: {exception.Message}");
+        }
+
+        var fallbackRoot = Path.Combine(Path.GetTempPath(), "LocalGPT");
+        Directory.CreateDirectory(fallbackRoot);
+        return Path.Combine(fallbackRoot, "LocalGPT.Setup.log");
+    }
+
     /// <summary>
     /// Stores the shared read-only slim models value used by <see cref="Program"/> across instances of the containing type.
     /// </summary>
@@ -213,16 +239,18 @@ internal static class Program
 
             ColorConsoleLoggerConfiguration colorLoggerProviderOptions = new ColorConsoleLoggerConfiguration() { EventId = 0 };
             ColorConsoleLoggerProvider colorLoggerProvider = new ColorConsoleLoggerProvider(colorLoggerProviderOptions);
-
+            var setupLogPath = ResolveSetupLogPath();
+            SetupFileLoggerProvider setupFileLoggerProvider = new SetupFileLoggerProvider(setupLogPath);
 
             using var loggerFactory = LoggerFactory.Create(configure =>
             {
                 configure.ClearProviders();
                 configure.AddProvider(colorLoggerProvider);
-                //configure.AddProvider()
+                configure.AddProvider(setupFileLoggerProvider);
             });
             var logger = loggerFactory.CreateLogger("Startup");
             logger.LogInformation("Configured app configuration.");
+            logger.LogInformation("Persistent setup transcript: {SetupLogPath}", setupLogPath);
 
             if (options.ShowHelp)
             {

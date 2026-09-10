@@ -69,6 +69,11 @@ namespace LocalGPT.Helper
 
                 Console.ForegroundColor = config.LogLevelToColorMap[logLevel];
                 Console.Write($"{formatter(state, exception)}");
+                if (exception is not null)
+                {
+                    Console.WriteLine();
+                    Console.Write(exception);
+                }
 
                 Console.ForegroundColor = originalColor;
                 Console.WriteLine();

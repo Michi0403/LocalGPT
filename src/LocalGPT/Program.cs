@@ -100,8 +100,41 @@ namespace LocalGPT
         [STAThread]
         static void Main(string[] args)
         {
-            var app = BuildWebApp(args);
-            app.Run();
+            try
+            {
+                TryAppendBootstrapDiagnostic($"LocalGPT process starting. assembly={typeof(Program).Assembly.GetName().Version}; executable={Environment.ProcessPath ?? "unknown"}; base={AppContext.BaseDirectory}");
+                var app = BuildWebApp(args);
+                app.Run();
+            }
+            catch (Exception exception)
+            {
+                TryAppendBootstrapDiagnostic("LocalGPT terminated during startup or host execution.", exception);
+                Console.Error.WriteLine(exception);
+                throw;
+            }
+        }
+
+        /// <summary>Appends an early-start or fatal diagnostic directly to the durable LocalGPT log without depending on the configured logger pipeline.</summary>
+        /// <param name="message">Diagnostic message to persist.</param>
+        /// <param name="exception">Optional exception to include in full.</param>
+        private static void TryAppendBootstrapDiagnostic(string message, Exception? exception = null)
+        {
+            try
+            {
+                var logPath = LocalGptApplicationDataPaths.ResolveUserPath("LocalGPT.log");
+                var directory = Path.GetDirectoryName(logPath);
+                if (!string.IsNullOrWhiteSpace(directory))
+                    Directory.CreateDirectory(directory);
+
+                var entry = $"{DateTimeOffset.UtcNow:O} [Bootstrap] {message}";
+                if (exception is not null)
+                    entry += Environment.NewLine + exception;
+                File.AppendAllText(logPath, entry + Environment.NewLine);
+            }
+            catch (Exception diagnosticException) when (diagnosticException is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Trace.TraceError($"LocalGPT could not persist bootstrap diagnostics: {diagnosticException}");
+            }
         }
 
         /// <summary>

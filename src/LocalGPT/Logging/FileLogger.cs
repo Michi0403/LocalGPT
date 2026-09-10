@@ -62,13 +62,13 @@ namespace LocalGPT.Logging
         {
             try
             {
-                var defaultPath = LocalGptApplicationDataPaths.ResolveUserPath("logs", "LocalGPT.log");
+                var defaultPath = LocalGptApplicationDataPaths.ResolveUserPath("LocalGPT.log");
                 var configured = options.FilePath?.Trim();
                 if (string.IsNullOrWhiteSpace(configured))
                     return defaultPath;
 
                 if (!Path.IsPathRooted(configured))
-                    return Path.Combine(LocalGptApplicationDataPaths.ResolveUserPath("logs"), configured);
+                    return LocalGptApplicationDataPaths.ResolveUserPath(configured);
 
                 var fullConfigured = Path.GetFullPath(configured);
                 var applicationRoot = Path.GetFullPath(AppContext.BaseDirectory);
@@ -83,7 +83,7 @@ namespace LocalGPT.Logging
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
-                return Path.Combine(Path.GetTempPath(), "LocalGPT", "logs", "LocalGPT.log");
+                return Path.Combine(Path.GetTempPath(), "LocalGPT", "LocalGPT.log");
             }
         }
 

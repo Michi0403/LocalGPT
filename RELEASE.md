@@ -1,7 +1,7 @@
-# LocalGPT 4.0.4
+# LocalGPT 4.0.5
 
-LocalGPT 4.0.4 fixes the macOS PKG handoff so a package that macOS Installer cannot read is no longer shipped. The PKG is built as a `productbuild` distribution package around the validated component payload and is re-opened by both `pkgutil` and `installer -showChoicesXML` before release handoff.
+LocalGPT 4.0.5 restores durable application and setup diagnostics to the obvious per-user LocalGPT data root on Windows and macOS, including bootstrap/fatal logging before the normal application logger is fully available.
 
-The 4.0.2/4.0.3 runtime identity, updater lifecycle, alternate-host `server.json` rendezvous handling, Ollama fast download/update path, console progress, setup recovery and render ownership remain intact.
+The 4.0.4 macOS PKG validation, runtime/source identity, alternate-host `server.json` rendezvous handling, Ollama install/update path, provider/model discovery, setup recovery, Council behavior and render ownership remain intact.
 
-See `CHANGELOG-v4.0.4-MACOS-PKG-READABILITY-REPAIR.md` and `VALIDATION-v4.0.4-source.md`.
+See `CHANGELOG-v4.0.5-DURABLE-LOGGING-RECOVERY.md` and `VALIDATION-v4.0.5-source.md`.
