@@ -251,6 +251,8 @@ internal static class Program
             var logger = loggerFactory.CreateLogger("Startup");
             logger.LogInformation("Configured app configuration.");
             logger.LogInformation("Persistent setup transcript: {SetupLogPath}", setupLogPath);
+            SetupOperatorConsole.Start(logger);
+            SetupOperatorConsole.ThrowIfCancellationRequested();
 
             if (options.ShowHelp)
             {
@@ -272,6 +274,7 @@ internal static class Program
 
             try
             {
+                SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
                 {
                     if (options.InstallOllama)
@@ -281,11 +284,16 @@ internal static class Program
                     }
 
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error in InstallOllama.");
                 }
                
+                SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
                 {
                     if (options.PullOllamaModels)
@@ -295,20 +303,30 @@ internal static class Program
                         await PullModelsAsync(ollamaExe, GetModelSet(options.Range), logger).ConfigureAwait(false);
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error in PullOllamaModels.");
                 }
 
+                SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
                 {
                     if (options.InstallLocalGptWin)
                         await InstallLocalGptAsync(options, logger).ConfigureAwait(false);
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error in InstallLocalGptWin.");
                 }
+                SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
                 {
                     if (options.DesktopShortcuts || options.StartMenuShortcuts)
@@ -318,6 +336,7 @@ internal static class Program
                 {
                     logger.LogError(ex, "Error in ProvisionWindowsShortcuts.");
                 }
+                SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
                 {
                     if (options.SetupLearningBase)
@@ -328,15 +347,23 @@ internal static class Program
                             : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [LocalGptRepo];
 
                         foreach (var repo in repos)
+                        {
+                            SetupOperatorConsole.ThrowIfCancellationRequested();
                             await ImportGitHubSourceToLearningBaseAsync(repo, options, logger).ConfigureAwait(false);
+                        }
                         logger.LogInformation("Downloaded repositories include LocalGPT learning-source manifests. Run the LocalGPT learning-base importer to apply the manifest regexes and store compact documentation/source maps in the knowledge database.");
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error in SetupLearningBase.");
                 }
 
+                SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
                 {
                     if (options.StartLocalGpt)
@@ -351,6 +378,10 @@ internal static class Program
                 logger.LogDebug("Done.");
                 return 0;
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error in Setup: {ex.ToString()}");
@@ -359,10 +390,19 @@ internal static class Program
                 return 1;
             }
         }
+        catch (OperationCanceledException ex)
+        {
+            Console.WriteLine($"Setup cancelled: {ex.Message}");
+            return 130;
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"Error in RunAsync {ex.ToString()}");
             return -1;
+        }
+        finally
+        {
+            SetupOperatorConsole.Stop();
         }
     }
 
@@ -398,6 +438,10 @@ internal static class Program
 
             AddDirectoryToUserPathIfMissing(Path.GetDirectoryName(existing)!, logger);
             logger.LogInformation($"Ollama installer finished. Resolved ollama.exe: {existing}");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -564,6 +608,10 @@ internal static class Program
                 await RunProcessAsync(ollamaExe, $"pull {model}", logger).ConfigureAwait(false);
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in PullModelsAsync. ollamaExe {ollamaExe.ToString()} models {string.Join(", ", models)}");
@@ -619,6 +667,10 @@ internal static class Program
 
             logger.LogDebug($"LocalGPT installed to '{targetPath}'.");
             logger.LogInformation($"LocalGPT app and setup/bootstrap files now reside in '{targetPath}'.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -1555,6 +1607,10 @@ internal static class Program
 
             logger.LogInformation($"Imported {repo} at commit {remoteSha}");
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error importing repo {repo} {ex}");
@@ -1692,8 +1748,8 @@ internal static class Program
         {
             ValidateRepo(repo, logger);
             var latestUrl = $"https://api.github.com/repos/{repo}/releases/latest";
-            using var stream = await Http.GetStreamAsync(latestUrl).ConfigureAwait(false);
-            using var json = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
+            using var stream = await Http.GetStreamAsync(latestUrl, SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
+            using var json = await JsonDocument.ParseAsync(stream, cancellationToken: SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
 
             var root = json.RootElement;
             var tagName = root.TryGetProperty("tag_name", out var tag) ? tag.GetString() : "unknown";
@@ -1765,6 +1821,10 @@ internal static class Program
 
             await DownloadFileAsync(downloadUrl, outFile, logger, options).ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in DownloadLatestReleaseAssetAsync. repo {repo} outFile {outFile} setupAsset={setupAsset}");
@@ -1788,6 +1848,10 @@ internal static class Program
             var url = $"https://api.github.com/repos/{repo}/zipball";
             await DownloadFileAsync(url, outFile, logger, options).ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in DownloadGitHubSourceZipAsync. repo {repo.ToString()} outFile {outFile.ToString()}");
@@ -1809,11 +1873,11 @@ internal static class Program
 
             var repoUrl = $"https://api.github.com/repos/{repo}";
 
-            using var repoResponse = await Http.GetAsync(repoUrl).ConfigureAwait(false);
+            using var repoResponse = await Http.GetAsync(repoUrl, SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
             repoResponse.EnsureSuccessStatusCode();
 
-            using var repoStream = await repoResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using var repoJson = await JsonDocument.ParseAsync(repoStream).ConfigureAwait(false);
+            using var repoStream = await repoResponse.Content.ReadAsStreamAsync(SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
+            using var repoJson = await JsonDocument.ParseAsync(repoStream, cancellationToken: SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
 
             var defaultBranch = repoJson.RootElement.GetProperty("default_branch").GetString();
 
@@ -1822,11 +1886,11 @@ internal static class Program
 
             var branchUrl = $"https://api.github.com/repos/{repo}/branches/{defaultBranch}";
 
-            using var branchResponse = await Http.GetAsync(branchUrl).ConfigureAwait(false);
+            using var branchResponse = await Http.GetAsync(branchUrl, SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
             branchResponse.EnsureSuccessStatusCode();
 
-            using var branchStream = await branchResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using var branchJson = await JsonDocument.ParseAsync(branchStream).ConfigureAwait(false);
+            using var branchStream = await branchResponse.Content.ReadAsStreamAsync(SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
+            using var branchJson = await JsonDocument.ParseAsync(branchStream, cancellationToken: SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
 
             var sha = branchJson.RootElement
                 .GetProperty("commit")
@@ -1838,6 +1902,10 @@ internal static class Program
 
             logger.LogInformation($"Resolved {repo}@{defaultBranch}: {sha}");
             return sha;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -1949,7 +2017,8 @@ internal static class Program
                     logger.LogInformation($"Downloading attempt {attempt}/{maxAttempts}: {url}");
                     logger.LogInformation($"Target: {outFile}");
 
-                    using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, SetupOperatorConsole.CancellationToken);
 
                     using var request = new HttpRequestMessage(HttpMethod.Get, url);
                     request.Headers.UserAgent.ParseAdd("LocalGptSetupTool/1.0");
@@ -2036,6 +2105,10 @@ internal static class Program
                     logger.LogInformation($"Download complete: {outFile} ({FormatBytes(actualSize, logger)})");
                     return;
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, $"Download attempt {attempt}/{maxAttempts} failed.");
@@ -2056,9 +2129,13 @@ internal static class Program
                         throw;
                     }
 
-                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt)).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt), SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -2102,7 +2179,7 @@ internal static class Program
                 catch (IOException ex) when (i < 10)
                 {
                     logger.LogWarning(ex, $"Move failed because file is locked. Retry {i}/10...");
-                    await Task.Delay(300).ConfigureAwait(false);
+                    await Task.Delay(300, SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -2117,6 +2194,10 @@ internal static class Program
             {
                 File.Move(source, destination, overwrite: false);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -2232,7 +2313,7 @@ internal static class Program
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = false
+                CreateNoWindow = true
             };
 
             process.OutputDataReceived += (_, e) => { if (e.Data is not null) logger.LogInformation(e.Data); };
@@ -2241,12 +2322,26 @@ internal static class Program
             if (!process.Start())
                 throw new InvalidOperationException($"Could not start process: {fileName}");
 
+            using var processRegistration = SetupOperatorConsole.TrackProcess(process, Path.GetFileName(fileName));
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            await process.WaitForExitAsync().ConfigureAwait(false);
+            try
+            {
+                await process.WaitForExitAsync(SetupOperatorConsole.CancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+                throw;
+            }
 
             if (process.ExitCode != 0)
                 throw new InvalidOperationException($"Command failed with exit code {process.ExitCode}: {fileName} {arguments}");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

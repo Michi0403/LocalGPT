@@ -2,29 +2,36 @@
 @using Microsoft.JSInterop
 @inject ICouncilGameSessionService Games
 @inject IConsoleCommandService Console
+@inject IConsoleOperatorService Operator
 @inject IJSRuntime JS
 @inject ILogger<ChatGameConsole> Logger
 @implements IAsyncDisposable
 
 <section id="@elementId"
-         class="chat-game-console @(snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
+         class="chat-game-console @(operatorMode ? "chat-game-console-operator" : snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
          tabindex="0"
          data-localgpt-game-console
          data-localgpt-copyable="true"
          data-scale-mode="@fullscreenScaleMode.ToLowerInvariant()"
-         aria-label="Persistent ASCII game screen">
+         aria-label="Persistent LocalGPT ASCII game and operator console">
     <header class="chat-game-console-header">
         <div>
-            <strong>@(snapshot?.DisplayName ?? (consoleOutput.Count > 0 ? "ASCII command console" : "ASCII game console"))</strong>
-            <small>@(snapshot is null ? (consoleOutput.Count > 0 ? "Live bounded LocalGPT terminal output. Start a game any time to replace this surface." : "Start a directly playable runtime-class game.") : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}")</small>
+            <strong>@(operatorMode ? "LOCALGPT // MATRIX OPERATOR" : snapshot?.DisplayName ?? (consoleOutput.Count > 0 ? "ASCII command console" : "ASCII game console"))</strong>
+            <small>@OperatorHeaderText</small>
         </div>
         <div class="chat-game-console-actions">
-            @if (snapshot is null)
+            <button type="button"
+                    class="ascii-operator-toggle @(operatorMode ? "is-active" : string.Empty)"
+                    aria-pressed="@operatorMode"
+                    @onclick="ToggleOperatorModeAsync">
+                @(operatorMode ? "Operator OFF" : "Operator ON")
+            </button>
+            @if (!operatorMode && snapshot is null)
             {
                 <button type="button" @onclick="StartDoomAsync">Play ASCII corridor</button>
                 <button type="button" @onclick="StartDragonAsync">Play Green Dragon story</button>
             }
-            else
+            else if (!operatorMode && snapshot is not null)
             {
                 <label>
                     <span>Control</span>
@@ -61,15 +68,47 @@
             <button type="button"
                     class="chat-game-console-close"
                     @onclick="CloseAsync"
-                    aria-label="Close ASCII game console"
-                    title="Close ASCII game console">
+                    aria-label="Close ASCII console"
+                    title="Close ASCII console">
                 <span aria-hidden="true">×</span>
                 <span>Close</span>
             </button>
         </div>
     </header>
 
-    @if (snapshot is null)
+    @if (operatorMode)
+    {
+        <div class="ascii-operator-stage" aria-busy="@OperatorBusyState">
+            <div class="ascii-operator-output" role="log" aria-live="polite">
+                <pre class="chat-game-screen">@OperatorConsoleText</pre>
+            </div>
+            <form class="ascii-operator-command-row" @onsubmit="SubmitOperatorLineAsync" @onsubmit:preventDefault="true">
+                <span class="ascii-operator-prompt" aria-hidden="true">λ</span>
+                <label class="visually-hidden" for="@($"{elementId}-shell")">Operator shell</label>
+                <select id="@($"{elementId}-shell")" value="@operatorShell" @onchange="ChangeOperatorShell" disabled="@operatorSubmitting">
+                    @foreach (var shell in availableShells)
+                    {
+                        <option value="@shell.Shell">@shell.DisplayName</option>
+                    }
+                </select>
+                <label class="visually-hidden" for="@($"{elementId}-command")">ASCII operator command</label>
+                <input id="@($"{elementId}-command")"
+                       type="text"
+                       spellcheck="false"
+                       autocomplete="off"
+                       placeholder=":help or enter a @OperatorShellLabel command"
+                       @bind="operatorInput"
+                       @bind:event="oninput"
+                       disabled="@operatorSubmitting" />
+                <button type="submit" disabled="@operatorSubmitting">@(operatorSubmitting ? "QUEUING…" : "RUN")</button>
+            </form>
+            <div class="ascii-operator-status" role="status">
+                <span>@operatorStatus</span>
+                <span>@ActiveJobText</span>
+            </div>
+        </div>
+    }
+    else if (snapshot is null)
     {
         <div class="chat-game-console-placeholder">
             @if (consoleOutput.Count > 0)
@@ -81,7 +120,7 @@
                 <pre>┌──────────────────────────────────────────────────────────────────────────────┐
 │  /Chat ASCII surface ready                                                  │
 │  Provider/toolchain commands appear here when no game is running.           │
-│  One authoritative game frame replaces the command feed while a game runs.  │
+│  OPERATOR ON opens LocalGPT's shell/job/signal layer without another window.│
 └──────────────────────────────────────────────────────────────────────────────┘</pre>
             }
         </div>
@@ -190,6 +229,20 @@
     /// Stores the internal fullscreen scale mode state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
     /// </summary>
     private string fullscreenScaleMode = "Fit";
+    /// <summary>Stores whether the LocalGPT meta/operator layer currently owns the shared ASCII surface.</summary>
+    private bool operatorMode;
+    /// <summary>Stores whether an operator line is currently being parsed and queued.</summary>
+    private bool operatorSubmitting;
+    /// <summary>Retains the unsent command text typed into the Matrix operator prompt until the user submits it.</summary>
+    private string operatorInput = string.Empty;
+    /// <summary>Stores the bounded status returned by the operator command service.</summary>
+    private string operatorStatus = "Operator layer ready. Enter :help for LocalGPT meta commands.";
+    /// <summary>Stores the shell selected behind LocalGPT's ASCII wall.</summary>
+    private LocalConsoleShellKind operatorShell = LocalConsoleShellKind.Auto;
+    /// <summary>Stores the working directory retained by this renderer-owned operator session.</summary>
+    private string operatorWorkingDirectory = string.Empty;
+    /// <summary>Retains the host-resolved shell choices displayed by the embedded operator selector.</summary>
+    private IReadOnlyList<LocalConsoleShellDescriptor> availableShells = [];
     /// <summary>
     /// Gets a value indicating whether show control guide applies to the chat game console state.
     /// </summary>
@@ -210,6 +263,23 @@
     /// </summary>
     /// <value>The console text value exposed by <see cref="ChatGameConsole"/>.</value>
     private string ConsoleText => Console.GetRecentDisplayText(160);
+    /// <summary>Gets the bounded command transcript or the Matrix-style idle frame shown when no operator output exists yet.</summary>
+    /// <value>Visible operator transcript text that never opens or embeds an external terminal window.</value>
+    private string OperatorConsoleText => consoleOutput.Count > 0 ? Console.GetRecentDisplayText(240) : "┌─ LOCALGPT MATRIX OPERATOR ───────────────────────────────────────────────────┐" + Environment.NewLine + "│ Embedded shell/process control ready. No external terminal window is opened. │" + Environment.NewLine + "│ :help lists LocalGPT meta commands; ordinary lines run in the selected shell. │" + Environment.NewLine + "└──────────────────────────────────────────────────────────────────────────────┘";
+    /// <summary>Gets the header status that identifies whether the ASCII wall currently belongs to the game or operator control plane.</summary>
+    /// <value>A compact status line describing the selected shell, active jobs, or current game turn.</value>
+    private string OperatorHeaderText => operatorMode
+        ? $"Embedded {OperatorShellLabel} · {ActiveJobText} · game state preserved behind this wall"
+        : snapshot is null ? (consoleOutput.Count > 0 ? "Live bounded LocalGPT terminal output. Operator mode can take interactive control." : "Start a directly playable runtime-class game or open the operator layer.") : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}";
+    /// <summary>Gets the concise host-shell token rendered beside the Matrix operator command row.</summary>
+    /// <value>The selected shell label, using <c>pwsh</c> for the PowerShell backend.</value>
+    private string OperatorShellLabel => operatorShell == LocalConsoleShellKind.PowerShell ? "pwsh" : operatorShell.ToString().ToLowerInvariant();
+    /// <summary>Gets the ARIA busy-state text for an operator submission that is currently being queued.</summary>
+    /// <value><c>true</c> while submission is in progress; otherwise <c>false</c>.</value>
+    private string OperatorBusyState => operatorSubmitting ? "true" : "false";
+    /// <summary>Gets the visible count of service-owned shell jobs without disclosing any submitted command text.</summary>
+    /// <value>A bounded human-readable active-job count for the operator status strip.</value>
+    private string ActiveJobText => $"{Console.GetActiveOperations().Count} active job(s)";
 
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="ChatGameConsole"/>, updating the state required by the surrounding workflow.
@@ -220,6 +290,9 @@
         Games.Changed += OnGameChanged;
         Console.Changed += OnConsoleChanged;
         consoleOutput = Console.GetRecentOutput(160);
+        availableShells = Operator.GetAvailableShells();
+        if (availableShells.Count > 0 && !availableShells.Any(item => item.Shell == operatorShell))
+            operatorShell = availableShells[0].Shell;
         snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
     }
 
@@ -246,9 +319,96 @@
             await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             attached = true;
         }
-        var inputEnabled = CanSubmitHumanControl;
+        var inputEnabled = CanSubmitHumanControl && !operatorMode;
         await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
         await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+    }
+
+    /// <summary>Toggles the embedded operator layer while keeping game and running-process state alive behind the shared ASCII wall.</summary>
+    /// <returns>A task that completes after the renderer has switched modes.</returns>
+    private async Task ToggleOperatorModeAsync()
+    {
+        try
+        {
+            operatorMode = !operatorMode;
+            if (operatorMode)
+            {
+                availableShells = Operator.GetAvailableShells();
+                Console.PublishOperatorMessage($"Operator layer enabled with {OperatorShellLabel}. :help lists meta commands.");
+            }
+            operatorStatus = operatorMode
+                ? "Operator layer enabled. Game input is paused while this command row owns the ASCII wall."
+                : "Operator layer hidden. Running jobs continue in the background.";
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Toggling the LocalGPT ASCII operator layer failed.");
+        }
+    }
+
+    /// <summary>Updates the renderer-owned shell selection from one installed backend descriptor.</summary>
+    /// <param name="args">Shell selection change event.</param>
+    private void ChangeOperatorShell(ChangeEventArgs args)
+    {
+        try
+        {
+            if (Enum.TryParse<LocalConsoleShellKind>(args.Value?.ToString(), true, out var shell) && availableShells.Any(item => item.Shell == shell))
+            {
+                operatorShell = shell;
+                operatorStatus = $"Selected {OperatorShellLabel}. Ordinary lines run behind the ASCII wall.";
+            }
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Changing the LocalGPT ASCII operator shell failed.");
+        }
+    }
+
+    /// <summary>Submits one human-entered operator line without ever opening an external terminal window.</summary>
+    /// <returns>A task that completes after LocalGPT has parsed the line or queued its shell job.</returns>
+    private async Task SubmitOperatorLineAsync()
+    {
+        if (operatorSubmitting || string.IsNullOrWhiteSpace(operatorInput))
+            return;
+
+        operatorSubmitting = true;
+        var submitted = operatorInput;
+        try
+        {
+            var result = await Operator.SubmitAsync(new LocalConsoleOperatorRequest
+            {
+                Input = submitted,
+                Shell = operatorShell,
+                WorkingDirectory = operatorWorkingDirectory,
+                UserConfirmed = true
+            }).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                operatorShell = result.SelectedShell;
+                operatorWorkingDirectory = result.WorkingDirectory;
+                operatorStatus = result.Message;
+                if (result.Accepted)
+                    operatorInput = string.Empty;
+                consoleOutput = Console.GetRecentOutput(240);
+                StateHasChanged();
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception)
+        {
+            Logger.LogDebug(exception, "Submitting the LocalGPT ASCII operator line was cancelled.");
+            operatorStatus = "Operator request cancelled.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Submitting the LocalGPT ASCII operator line failed; command text was omitted from diagnostics.");
+            operatorStatus = "Operator request failed. Review LocalGPT diagnostics.";
+        }
+        finally
+        {
+            operatorSubmitting = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

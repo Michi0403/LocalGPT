@@ -9,16 +9,20 @@ namespace LocalGPT.Services;
 /// <summary>Runs explicitly bounded local commands through one cross-platform console abstraction and publishes sanitized live output for LocalGPT UI surfaces.</summary>
 /// <param name="platform">Cross-platform console adapter used to start and supervise local commands.</param>
 /// <param name="runtimePolicy">Database-backed operator runtime policy.</param>
+/// <param name="supervisedTasks">Process-wide supervisor used for intentionally concurrent operator commands.</param>
 /// <param name="logger">Writes command lifecycle diagnostics without logging command arguments or output.</param>
 public sealed class ConsoleCommandService(
     ILocalConsolePlatformService platform,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    ISupervisedTaskRunner supervisedTasks,
     ILogger<ConsoleCommandService> logger) : IConsoleCommandService
 {
     /// <summary>
     /// Stores the internal recent output state used by <see cref="ConsoleCommandService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly ConcurrentQueue<LocalConsoleOutputEvent> recentOutput = new();
+    /// <summary>Tracks service-owned commands that can be cancelled or signalled from the ASCII operator layer.</summary>
+    private readonly ConcurrentDictionary<Guid, RunningConsoleOperation> activeOperations = new();
 
     /// <summary>Raised after bounded console output changes so renderer-owned components can request a refresh.</summary>
     public event Action? Changed;
@@ -27,83 +31,15 @@ public sealed class ConsoleCommandService(
     /// <inheritdoc />
     public async Task<LocalConsoleCommandResult> ExecuteAsync(LocalConsoleCommandRequest request, CancellationToken cancellationToken = default)
     {
+        RunningConsoleOperation? operation = null;
         try
         {
-            ArgumentNullException.ThrowIfNull(request);
-            if (!request.IsReadOnly && !request.UserConfirmed)
-                throw new InvalidOperationException("Fresh user confirmation is required for a consequential local console command.");
-
-            var operationId = Guid.NewGuid();
-            var resolved = ResolveStartInfo(request);
-            var maximumTimeoutSeconds = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumTimeoutSeconds));
-            var timeoutSeconds = request.TimeoutSeconds <= 0 ? maximumTimeoutSeconds : Math.Min(request.TimeoutSeconds, maximumTimeoutSeconds);
-            var stdout = new StringBuilder();
-            var stderr = new StringBuilder();
-            Publish(operationId, request.DisplayName, "command", BuildDisplayCommand(request, resolved));
-
-            using var process = new Process
-            {
-                StartInfo = resolved,
-                EnableRaisingEvents = true
-            };
-
-            logger.LogInformation(
-                "Starting local console operation {OperationId} ({DisplayName}) using {Shell}; read-only: {IsReadOnly}.",
-                operationId,
-                BoundDisplayName(request.DisplayName),
-                request.Shell,
-                request.IsReadOnly);
-
-            if (!process.Start())
-                throw new InvalidOperationException("The local command process could not be started.");
-            var stdoutPump = PumpOutputAsync(process.StandardOutput, operationId, request.DisplayName, "stdout", stdout);
-            var stderrPump = PumpOutputAsync(process.StandardError, operationId, request.DisplayName, "stderr", stderr);
-
-            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutSource.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-            var timedOut = false;
-            try
-            {
-                await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
-                process.WaitForExit();
-                await Task.WhenAll(stdoutPump, stderrPump).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                timedOut = true;
-                KillProcessTree(process);
-                await DrainOutputPumpsAsync(stdoutPump, stderrPump).ConfigureAwait(false);
-                Publish(operationId, request.DisplayName, "system", $"Command timed out after {timeoutSeconds} second(s).");
-            }
-            catch (OperationCanceledException)
-            {
-                KillProcessTree(process);
-                await DrainOutputPumpsAsync(stdoutPump, stderrPump).ConfigureAwait(false);
-                Publish(operationId, request.DisplayName, "system", "Command cancelled.");
-                logger.LogDebug("Local console operation {OperationId} was cancelled.", operationId);
-                throw;
-            }
-
-            int? exitCode = timedOut ? -2 : process.HasExited ? process.ExitCode : null;
-            var succeeded = !timedOut && exitCode == 0;
-            var status = timedOut ? "TimedOut" : succeeded ? "Completed" : "Failed";
-            Publish(operationId, request.DisplayName, "system", $"{status}; exit code {(exitCode?.ToString() ?? "n/a")}.");
-            logger.LogInformation(
-                "Local console operation {OperationId} completed with status {Status} and exit code {ExitCode}.",
-                operationId,
-                status,
-                exitCode);
-
-            return new LocalConsoleCommandResult
-            {
-                OperationId = operationId,
-                Succeeded = succeeded,
-                ExitCode = exitCode,
-                Shell = DescribeShell(request, resolved),
-                StandardOutput = BoundCapture(stdout.ToString()),
-                StandardError = BoundCapture(stderr.ToString()),
-                Status = status
-            };
+            ValidateRequest(request);
+            operation = CreateOperation(request);
+            if (!activeOperations.TryAdd(operation.OperationId, operation))
+                throw new InvalidOperationException("The local console operation could not be registered.");
+            Changed?.Invoke();
+            return await ExecuteCoreAsync(request, operation, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException exception)
         {
@@ -114,6 +50,353 @@ public sealed class ConsoleCommandService(
         {
             logger.LogError(exception, "Executing local console command failed; command text, arguments and output were omitted from logs.");
             throw;
+        }
+        finally
+        {
+            if (operation is not null)
+                CompleteOperation(operation);
+        }
+    }
+
+    /// <summary>
+    /// Performs start as part of the console command service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public Guid Start(LocalConsoleCommandRequest request)
+    {
+        try
+        {
+            ValidateRequest(request);
+            var operation = CreateOperation(request);
+            if (!activeOperations.TryAdd(operation.OperationId, operation))
+                throw new InvalidOperationException("The local console operation could not be registered.");
+
+            Publish(operation.OperationId, request.DisplayName, "system", $"Queued operator job {operation.OperationId.ToString("N")[..8]} using {operation.Shell}.");
+            supervisedTasks.Run(
+                nameof(ConsoleCommandService),
+                $"ASCII operator job {operation.OperationId:N}",
+                async _ =>
+                {
+                    try
+                    {
+                        await ExecuteCoreAsync(request, operation, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException exception)
+                    {
+                        logger.LogDebug(exception, "Background local console operation {OperationId} was cancelled.", operation.OperationId);
+                    }
+                    catch (Exception exception)
+                    {
+                        logger.LogError(exception, "Background local console operation {OperationId} failed; command text and output were omitted from logs.", operation.OperationId);
+                        Publish(operation.OperationId, request.DisplayName, "system", "Command failed. Review the visible console output and LocalGPT diagnostics.");
+                    }
+                    finally
+                    {
+                        CompleteOperation(operation);
+                    }
+                });
+            Changed?.Invoke();
+            return operation.OperationId;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Starting supervised local console command failed; command text and arguments were omitted from logs.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Retrieves active operations as part of the console command service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public IReadOnlyList<LocalConsoleOperationSnapshot> GetActiveOperations()
+    {
+        try
+        {
+            return activeOperations.Values
+                .OrderByDescending(operation => operation.StartedUtc)
+                .Select(operation => new LocalConsoleOperationSnapshot
+                {
+                    OperationId = operation.OperationId,
+                    DisplayName = operation.DisplayName,
+                    ProcessId = operation.ProcessId,
+                    Shell = operation.Shell,
+                    Status = operation.Status,
+                    StartedUtc = operation.StartedUtc
+                })
+                .ToArray();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading active local console operations failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether cel as part of the console command service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public bool Cancel(Guid operationId)
+    {
+        try
+        {
+            if (!activeOperations.TryGetValue(operationId, out var operation))
+                return false;
+            operation.Status = "Cancelling";
+            operation.Cancellation.Cancel();
+            Publish(operationId, operation.DisplayName, "system", "Cancellation requested by the ASCII operator layer.");
+            Changed?.Invoke();
+            return true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Cancelling local console operation {OperationId} failed.", operationId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Performs send signal as part of the console command service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public async Task SendSignalAsync(Guid operationId, LocalConsoleSignalKind signal, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!activeOperations.TryGetValue(operationId, out var operation))
+                throw new InvalidOperationException("The requested console operation is no longer active.");
+            if (operation.ProcessId is not int processId)
+                throw new InvalidOperationException("The requested console operation has not started its process yet.");
+
+            await platform.SendSignalAsync(processId, signal, cancellationToken).ConfigureAwait(false);
+            Publish(operationId, operation.DisplayName, "system", $"Sent {signal} to process {processId}.");
+            if (signal == LocalConsoleSignalKind.Kill)
+                operation.Status = "Kill requested";
+            else if (signal == LocalConsoleSignalKind.Terminate)
+                operation.Status = "Termination requested";
+            Changed?.Invoke();
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "Signal delivery for local console operation {OperationId} was cancelled.", operationId);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Sending {Signal} to local console operation {OperationId} failed.", signal, operationId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Retrieves available shells as part of the console command service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public IReadOnlyList<LocalConsoleShellDescriptor> GetAvailableShells()
+    {
+        try
+        {
+            return platform.GetAvailableShells();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Discovering local console shell backends failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Performs clear recent output as part of the console command service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public void ClearRecentOutput()
+    {
+        try
+        {
+            while (recentOutput.TryDequeue(out _)) { }
+            Changed?.Invoke();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Clearing recent local console output failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Publishes operator message as part of the console command service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public void PublishOperatorMessage(string text)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+            Publish(Guid.Empty, "ASCII operator", "system", text);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Publishing ASCII operator status failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Executes one already-registered operation while preserving timeout, cancellation, output and process-control ownership.</summary>
+    /// <param name="request">Validated command request.</param>
+    /// <param name="operation">Registered operation state.</param>
+    /// <param name="externalCancellationToken">Optional caller cancellation.</param>
+    /// <returns>The completed command result.</returns>
+    private async Task<LocalConsoleCommandResult> ExecuteCoreAsync(LocalConsoleCommandRequest request, RunningConsoleOperation operation, CancellationToken externalCancellationToken)
+    {
+        try
+        {
+            var resolved = ResolveStartInfo(request);
+            var maximumTimeoutSeconds = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumTimeoutSeconds));
+            var timeoutSeconds = request.TimeoutSeconds <= 0 ? maximumTimeoutSeconds : Math.Min(request.TimeoutSeconds, maximumTimeoutSeconds);
+            var stdout = new StringBuilder();
+            var stderr = new StringBuilder();
+            Publish(operation.OperationId, request.DisplayName, "command", BuildDisplayCommand(request, resolved));
+
+            using var process = new Process { StartInfo = resolved, EnableRaisingEvents = true };
+            operation.Status = "Starting";
+            logger.LogInformation(
+                "Starting local console operation {OperationId} ({DisplayName}) using {Shell}; read-only: {IsReadOnly}.",
+                operation.OperationId,
+                BoundDisplayName(request.DisplayName),
+                operation.Shell,
+                request.IsReadOnly);
+
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken, operation.Cancellation.Token);
+            linkedCancellation.Token.ThrowIfCancellationRequested();
+            if (!process.Start())
+                throw new InvalidOperationException("The local command process could not be started.");
+            operation.ProcessId = process.Id;
+            operation.Process = process;
+            operation.Status = "Running";
+            Changed?.Invoke();
+
+            var stdoutPump = PumpOutputAsync(process.StandardOutput, operation.OperationId, request.DisplayName, "stdout", stdout);
+            var stderrPump = PumpOutputAsync(process.StandardError, operation.OperationId, request.DisplayName, "stderr", stderr);
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(linkedCancellation.Token);
+            timeoutSource.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+            var timedOut = false;
+            try
+            {
+                await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
+                process.WaitForExit();
+                await Task.WhenAll(stdoutPump, stderrPump).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!linkedCancellation.IsCancellationRequested)
+            {
+                timedOut = true;
+                operation.Status = "TimedOut";
+                KillProcessTree(process);
+                await DrainOutputPumpsAsync(stdoutPump, stderrPump).ConfigureAwait(false);
+                Publish(operation.OperationId, request.DisplayName, "system", $"Command timed out after {timeoutSeconds} second(s).");
+            }
+            catch (OperationCanceledException)
+            {
+                operation.Status = "Cancelled";
+                KillProcessTree(process);
+                await DrainOutputPumpsAsync(stdoutPump, stderrPump).ConfigureAwait(false);
+                Publish(operation.OperationId, request.DisplayName, "system", "Command cancelled.");
+                logger.LogDebug("Local console operation {OperationId} was cancelled.", operation.OperationId);
+                throw;
+            }
+            finally
+            {
+                operation.Process = null;
+            }
+
+            int? exitCode = timedOut ? -2 : process.HasExited ? process.ExitCode : null;
+            var succeeded = !timedOut && exitCode == 0;
+            var status = timedOut ? "TimedOut" : succeeded ? "Completed" : "Failed";
+            operation.Status = status;
+            Publish(operation.OperationId, request.DisplayName, "system", $"{status}; exit code {(exitCode?.ToString() ?? "n/a")}.");
+            logger.LogInformation(
+                "Local console operation {OperationId} completed with status {Status} and exit code {ExitCode}.",
+                operation.OperationId,
+                status,
+                exitCode);
+
+            return new LocalConsoleCommandResult
+            {
+                OperationId = operation.OperationId,
+                Succeeded = succeeded,
+                ExitCode = exitCode,
+                Shell = DescribeShell(request, resolved),
+                StandardOutput = BoundCapture(stdout.ToString()),
+                StandardError = BoundCapture(stderr.ToString()),
+                Status = status
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            operation.Status = "Failed";
+            logger.LogError(exception, "Executing registered local console operation {OperationId} failed; command values were omitted from logs.", operation.OperationId);
+            throw;
+        }
+    }
+
+    /// <summary>Validates the confirmation boundary before a command is registered or started.</summary>
+    /// <param name="request">Command request to validate.</param>
+    private void ValidateRequest(LocalConsoleCommandRequest request)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            if (!request.IsReadOnly && !request.UserConfirmed)
+                throw new InvalidOperationException("Fresh user confirmation is required for a consequential local console command.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Validating local console request failed; command values were omitted from logs.");
+            throw;
+        }
+    }
+
+    /// <summary>Creates service-owned mutable state for one command operation.</summary>
+    /// <param name="request">Validated command request.</param>
+    /// <returns>The registered operation state.</returns>
+    private RunningConsoleOperation CreateOperation(LocalConsoleCommandRequest request)
+    {
+        try
+        {
+            return new RunningConsoleOperation
+            {
+                OperationId = Guid.NewGuid(),
+                DisplayName = BoundDisplayName(request.DisplayName),
+                Shell = platform.ResolveShell(request.Shell),
+                StartedUtc = DateTimeOffset.UtcNow,
+                Status = "Queued"
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating local console operation state failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Removes and disposes one completed operation from the active registry.</summary>
+    /// <param name="operation">Operation state to complete.</param>
+    private void CompleteOperation(RunningConsoleOperation operation)
+    {
+        try
+        {
+            activeOperations.TryRemove(operation.OperationId, out _);
+            operation.Cancellation.Dispose();
+            Changed?.Invoke();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Completing local console operation {OperationId} failed.", operation.OperationId);
         }
     }
 
@@ -180,6 +463,8 @@ public sealed class ConsoleCommandService(
                     break;
                 case LocalConsoleShellKind.PowerShell:
                 case LocalConsoleShellKind.Bash:
+                case LocalConsoleShellKind.Zsh:
+                case LocalConsoleShellKind.Sh:
                 case LocalConsoleShellKind.Cmd:
                     var shellCommand = platform.CreateShellCommand(shell, RequireCommandText(request));
                     startInfo.FileName = shellCommand.Executable;
@@ -735,6 +1020,36 @@ public sealed class ConsoleCommandService(
         {
             logger.LogWarning(exception, "Best-effort local console process-tree cleanup failed after timeout or cancellation.");
         }
+    }
+
+    /// <summary>Mutable ownership state for one active command; never exposed directly outside the service.</summary>
+    private sealed class RunningConsoleOperation
+    {
+        /// <summary>Stable operation identifier.</summary>
+        /// <value>The operation identifier value exposed by <see cref="RunningConsoleOperation"/>.</value>
+        public Guid OperationId { get; init; }
+        /// <summary>Bounded human-readable operation name.</summary>
+        /// <value>The display name value exposed by <see cref="RunningConsoleOperation"/>.</value>
+        public string DisplayName { get; init; } = string.Empty;
+        /// <summary>Resolved concrete shell.</summary>
+        /// <value>The shell value exposed by <see cref="RunningConsoleOperation"/>.</value>
+        public LocalConsoleShellKind Shell { get; init; }
+        /// <summary>UTC registration time.</summary>
+        /// <value>The started UTC value exposed by <see cref="RunningConsoleOperation"/>.</value>
+        public DateTimeOffset StartedUtc { get; init; }
+        /// <summary>Service-owned cancellation source used by the meta layer.</summary>
+        /// <value>The cancellation value exposed by <see cref="RunningConsoleOperation"/>.</value>
+        public CancellationTokenSource Cancellation { get; } = new();
+        /// <summary>Currently running process when one has started.</summary>
+        /// <value>The process value exposed by <see cref="RunningConsoleOperation"/>.</value>
+        public Process? Process { get; set; }
+        /// <summary>Operating-system process identifier when known.</summary>
+        /// <value>The process identifier value exposed by <see cref="RunningConsoleOperation"/>.</value>
+        public int? ProcessId { get; set; }
+        /// <summary>Bounded lifecycle status.</summary>
+        /// <value>The status value exposed by <see cref="RunningConsoleOperation"/>.</value>
+        public string Status { get; set; } = string.Empty;
+
     }
 
 }

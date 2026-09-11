@@ -154,6 +154,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
                 builder.Services.AddScoped<IFirstRunOnboardingService, FirstRunOnboardingService>();
                 builder.Services.AddSingleton<IConsoleCommandService, ConsoleCommandService>();
+                builder.Services.AddSingleton<IConsoleOperatorService, ConsoleOperatorService>();
                 builder.Services.AddScoped<ICanIRunHardwareRecommendationService, CanIRunHardwareRecommendationService>();
                 builder.Services.AddScoped<IAiProviderBootstrapService, AiProviderBootstrapService>();
                 builder.Services.AddScoped<IInitialSetupAssistantService, InitialSetupAssistantService>();

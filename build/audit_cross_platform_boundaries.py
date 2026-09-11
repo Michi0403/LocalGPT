@@ -48,6 +48,8 @@ approved_os_branch_files = {
     "src/LocalGPT/Program.ServiceRegistration.cs",
     "src/LocalGPT/Services/PlatformRuntimeServices.cs",
     "src/LocalGPT/Services/HardwarePlatformProbeServices.cs",
+    # Concrete Windows/Unix implementations for embedded shell and signal semantics.
+    "src/LocalGPT/Services/LocalConsolePlatformServices.cs",
 }
 os_pattern = re.compile(r"\b(?:OperatingSystem\.Is(?:Windows|Linux|MacOS)|RuntimeInformation\.IsOSPlatform|OSPlatform\.(?:Windows|Linux|OSX))")
 for path in APP.rglob("*.cs"):

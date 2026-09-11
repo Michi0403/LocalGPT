@@ -14,6 +14,10 @@ public enum LocalConsoleShellKind
     PowerShell,
     /// <summary>Runs the command through Bash.</summary>
     Bash,
+    /// <summary>Runs the command through Z shell when it is available.</summary>
+    Zsh,
+    /// <summary>Runs the command through a POSIX sh-compatible shell.</summary>
+    Sh,
     /// <summary>Runs the command through Windows cmd.exe.</summary>
     Cmd
 }
@@ -133,6 +137,118 @@ public sealed class LocalConsoleCommandResult
     /// </summary>
     /// <value>The status value exposed by <see cref="LocalConsoleCommandResult"/>.</value>
     public string Status { get; set; } = string.Empty;
+}
+
+/// <summary>Identifies an operator-level signal that can be sent to one active LocalGPT console process.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum LocalConsoleSignalKind
+{
+    /// <summary>Requests an interrupt comparable to SIGINT on Unix-like hosts.</summary>
+    Interrupt,
+    /// <summary>Requests graceful termination comparable to SIGTERM on Unix-like hosts.</summary>
+    Terminate,
+    /// <summary>Requests an immediate kill comparable to SIGKILL or a process-tree kill.</summary>
+    Kill,
+    /// <summary>Requests a hangup comparable to SIGHUP on Unix-like hosts.</summary>
+    Hangup
+}
+
+/// <summary>Describes one shell backend that LocalGPT can use behind its own ASCII operator surface.</summary>
+public sealed class LocalConsoleShellDescriptor
+{
+    /// <summary>
+    /// Gets or sets the shell value that forms part of the local console shell state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The shell kind exposed by <see cref="LocalConsoleShellDescriptor"/>.</value>
+    public LocalConsoleShellKind Shell { get; set; }
+    /// <summary>
+    /// Gets or sets the display name value that forms part of the local console shell state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The display name exposed by <see cref="LocalConsoleShellDescriptor"/>.</value>
+    public string DisplayName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the resolved executable used for this shell backend.</summary>
+    /// <value>The executable exposed by <see cref="LocalConsoleShellDescriptor"/>.</value>
+    public string Executable { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether this shell is the host-preferred default.</summary>
+    /// <value>The default-shell state exposed by <see cref="LocalConsoleShellDescriptor"/>.</value>
+    public bool IsDefault { get; set; }
+    /// <summary>Gets or sets the operator signals supported for processes on the current operating system.</summary>
+    /// <value>The supported signal collection exposed by <see cref="LocalConsoleShellDescriptor"/>.</value>
+    public List<LocalConsoleSignalKind> SupportedSignals { get; set; } = [];
+}
+
+/// <summary>Represents one currently running command behind LocalGPT's ASCII operator surface.</summary>
+public sealed class LocalConsoleOperationSnapshot
+{
+    /// <summary>
+    /// Gets or sets the stable operation identifier used to identify or correlate this local console operation snapshot instance with related application state.
+    /// </summary>
+    /// <value>The operation identifier exposed by <see cref="LocalConsoleOperationSnapshot"/>.</value>
+    public Guid OperationId { get; set; }
+    /// <summary>
+    /// Gets or sets the display name value that forms part of the local console operation snapshot state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The display name exposed by <see cref="LocalConsoleOperationSnapshot"/>.</value>
+    public string DisplayName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the operating-system process identifier when the process has started.</summary>
+    /// <value>The process identifier exposed by <see cref="LocalConsoleOperationSnapshot"/>.</value>
+    public int? ProcessId { get; set; }
+    /// <summary>
+    /// Gets or sets the shell value that forms part of the local console operation snapshot state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The shell exposed by <see cref="LocalConsoleOperationSnapshot"/>.</value>
+    public LocalConsoleShellKind Shell { get; set; }
+    /// <summary>
+    /// Gets or sets the status value that forms part of the local console operation snapshot state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The status exposed by <see cref="LocalConsoleOperationSnapshot"/>.</value>
+    public string Status { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the started UTC associated with this local console operation snapshot state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The start timestamp exposed by <see cref="LocalConsoleOperationSnapshot"/>.</value>
+    public DateTimeOffset StartedUtc { get; set; }
+}
+
+/// <summary>Represents one line submitted to the reusable LocalGPT ASCII operator command layer.</summary>
+public sealed class LocalConsoleOperatorRequest
+{
+    /// <summary>
+    /// Gets or sets the input value that forms part of the local console operator state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The input text exposed by <see cref="LocalConsoleOperatorRequest"/>.</value>
+    public string Input { get; set; } = string.Empty;
+    /// <summary>Gets or sets the currently selected shell for ordinary command lines.</summary>
+    /// <value>The shell exposed by <see cref="LocalConsoleOperatorRequest"/>.</value>
+    public LocalConsoleShellKind Shell { get; set; } = LocalConsoleShellKind.Auto;
+    /// <summary>Gets or sets the working directory used for ordinary command lines.</summary>
+    /// <value>The working directory exposed by <see cref="LocalConsoleOperatorRequest"/>.</value>
+    public string WorkingDirectory { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether the human explicitly submitted this consequential line.</summary>
+    /// <value>The confirmation state exposed by <see cref="LocalConsoleOperatorRequest"/>.</value>
+    public bool UserConfirmed { get; set; }
+}
+
+/// <summary>Represents the immediate result of parsing one ASCII operator line.</summary>
+public sealed class LocalConsoleOperatorResult
+{
+    /// <summary>
+    /// Gets or sets a value indicating whether accepted applies to the local console operator state.
+    /// </summary>
+    /// <value>The accepted state exposed by <see cref="LocalConsoleOperatorResult"/>.</value>
+    public bool Accepted { get; set; }
+    /// <summary>Gets or sets the shell that should remain selected after the line is processed.</summary>
+    /// <value>The selected shell exposed by <see cref="LocalConsoleOperatorResult"/>.</value>
+    public LocalConsoleShellKind SelectedShell { get; set; } = LocalConsoleShellKind.Auto;
+    /// <summary>Gets or sets the working directory retained by the current ASCII operator session.</summary>
+    /// <value>The working directory exposed by <see cref="LocalConsoleOperatorResult"/>.</value>
+    public string WorkingDirectory { get; set; } = string.Empty;
+    /// <summary>Gets or sets a bounded human-readable response suitable for the ASCII control row.</summary>
+    /// <value>The message exposed by <see cref="LocalConsoleOperatorResult"/>.</value>
+    public string Message { get; set; } = string.Empty;
+    /// <summary>Gets or sets the started operation identifier when an ordinary shell command was queued.</summary>
+    /// <value>The operation identifier exposed by <see cref="LocalConsoleOperatorResult"/>.</value>
+    public Guid? OperationId { get; set; }
 }
 
 /// <summary>Represents one GPU/device candidate used by the first-run hardware assistant.</summary>
