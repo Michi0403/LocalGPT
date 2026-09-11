@@ -1975,13 +1975,45 @@ function Invoke-LocalGptBrowserPdf {
                 [void]$process.Start()
                 $stdoutTask = $process.StandardOutput.ReadToEndAsync()
                 $stderrTask = $process.StandardError.ReadToEndAsync()
-                if (-not $process.WaitForExit($browserPdfTimeoutMilliseconds)) {
+                # Chromium/Edge can finish --print-to-pdf yet keep the browser process alive for the
+                # full timeout because background/profile processes remain attached. Observe the PDF itself while
+                # the process is running; once a complete %%EOF-bearing file has remained stable for several
+                # checks, the render is complete and the lingering browser tree can be closed immediately.
+                $pdfCompletedBeforeProcessExit = $false
+                $processDeadline = [DateTime]::UtcNow.AddMilliseconds($browserPdfTimeoutMilliseconds)
+                $liveLastObservedLength = -1L
+                $liveStableLengthChecks = 0
+                while (-not $process.HasExited -and [DateTime]::UtcNow -lt $processDeadline) {
+                    $livePdfFile = Get-Item -LiteralPath $PdfPath -ErrorAction SilentlyContinue
+                    if ($null -ne $livePdfFile -and $livePdfFile.Length -ge $MinimumBytes) {
+                        if ([long]$livePdfFile.Length -eq $liveLastObservedLength) {
+                            $liveStableLengthChecks++
+                        }
+                        else {
+                            $liveLastObservedLength = [long]$livePdfFile.Length
+                            $liveStableLengthChecks = 0
+                        }
+                        if ($liveStableLengthChecks -ge 4 -and (Test-LocalGptCompletePdf -Path $PdfPath -MinimumBytes $MinimumBytes)) {
+                            $pdfCompletedBeforeProcessExit = $true
+                            break
+                        }
+                    }
+                    Start-Sleep -Milliseconds 500
+                }
+                if ($pdfCompletedBeforeProcessExit) {
+                    Stop-PortableProcessTree -Process $process
+                    try { $process.WaitForExit() } catch { }
+                    $lastExitCode = 0
+                    $diagnostics.Add("Browser PDF output reached a complete stable state before the browser process exited; the lingering renderer was terminated after PDF validation.")
+                }
+                elseif (-not $process.HasExited) {
                     Stop-PortableProcessTree -Process $process
                     try { $process.WaitForExit() } catch { }
                     $lastExitCode = -2
                     $diagnostics.Add("Browser PDF renderer exceeded the configured timeout of $browserPdfTimeoutMilliseconds ms and was terminated.")
                 }
                 else {
+                    try { $process.WaitForExit() } catch { }
                     $lastExitCode = [int]$process.ExitCode
                 }
                 $output = @()

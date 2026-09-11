@@ -1,9 +1,11 @@
-# LocalGPT 4.0.8
+# LocalGPT 4.0.9
 
-LocalGPT 4.0.8 fixes versioned documentation contamination during in-place source updates. A previous-version `LocalGPT-*.pdf` left under `docs/` could be copied by DocFX into the generated site during an HTML-only Debug build, then correctly rejected by the strict GitHub Pages snapshot validator after the expensive documentation pass.
+LocalGPT 4.0.9 repairs two macOS release-pipeline defects exposed by the real 4.0.8 coordinator run.
 
-The documentation generator now removes only non-current versioned LocalGPT PDFs from its generated `_site` tree before that tree is cached or published. Source PDFs are not deleted, the current-version PDF path remains intact, and the Pages validator still requires either exactly one current PDF or an explicit `pdfAvailable=false` HTML-only result.
+The apphost JIT entitlement is now a checked-in minimal plist rather than PowerShell-generated XML. The same file is validated with `plutil` during the early macOS trust preflight, then normalized and linted again immediately before `codesign`. A malformed entitlement therefore fails before the expensive documentation lane instead of at the first signed macOS payload.
 
-The 4.0.7 installer compile-surface repair and early installer compilation preflight remain unchanged.
+The browser PDF path also stops treating its 480-second safety timeout as a normal completion wait. It observes the output while the browser is alive and accepts a stable, structurally complete PDF as soon as it has a `%PDF-` header and `%%EOF` trailer, closing only the lingering browser process. Durable chunk reuse and the genuine timeout path remain unchanged.
 
-See `CHANGELOG-v4.0.8-DOCUMENTATION-PDF-VERSION-HYGIENE.md` and `VALIDATION-v4.0.8-source.md`.
+The 4.0.8 documentation-PDF version hygiene and 4.0.7 installer preflight repairs are retained.
+
+See `CHANGELOG-v4.0.9-MACOS-SIGNING-PDF-RENDER-LATENCY-REPAIR.md` and `VALIDATION-v4.0.9-source.md`.

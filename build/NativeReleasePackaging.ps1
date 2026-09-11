@@ -385,18 +385,15 @@ function Sign-MacBundle([string]$AppPath) {
     if ($script:MacApplicationSigningIdentity) {
         $fileCommand = Get-ExternalCommandPath 'file'
         if (-not $fileCommand) { throw "The macOS 'file' utility is required for Developer ID signing." }
+        $entitlementsSourcePath = Join-Path $PSScriptRoot 'assets/mac-apphost-entitlements.plist'
+        if (-not (Test-Path -LiteralPath $entitlementsSourcePath -PathType Leaf)) { throw "macOS apphost entitlements asset is missing: $entitlementsSourcePath" }
+        $plutil = Get-ExternalCommandPath 'plutil'
+        if (-not $plutil) { throw 'plutil is required to validate macOS apphost entitlements before Developer ID signing.' }
         $entitlementsPath = Join-Path ([IO.Path]::GetTempPath()) ("$ProductName-notarization-" + [Guid]::NewGuid().ToString('N') + '.entitlements.plist')
-        $entitlements = @'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>com.apple.security.cs.allow-jit</key>
-  <true/>
-</dict>
-</plist>
-'@
-        Write-Utf8NoBom $entitlementsPath $entitlements
+        & $plutil -convert xml1 -o $entitlementsPath $entitlementsSourcePath 2>&1 | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $entitlementsPath -PathType Leaf)) { throw "Failed to normalize macOS apphost entitlements with plutil: $entitlementsSourcePath" }
+        & $plutil -lint $entitlementsPath 2>&1 | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0) { throw "Normalized macOS apphost entitlements failed plutil validation: $entitlementsPath" }
         try {
             $appHost = [IO.Path]::GetFullPath((Join-Path $AppPath "Contents/Resources/app/$ExecutableName"))
             $machOFiles = [Collections.Generic.List[IO.FileInfo]]::new()

@@ -52,11 +52,22 @@ if ($AllowUnsignedMacPackages) {
 # multi-hour coordinator run from quietly returning ad-hoc/unnotarized packages by mistake.
 $env:MACOS_REQUIRE_NOTARIZATION = '1'
 
-$requiredTools = @('security','codesign','pkgbuild','hdiutil','xcrun')
+$requiredTools = @('security','codesign','pkgbuild','hdiutil','xcrun','plutil')
 $missingTools = @($requiredTools | Where-Object { -not (Get-ExternalCommandPath $_) })
 if ($missingTools.Count -gt 0) {
     throw "$ProductName macOS public-release signing requires Xcode command-line tools. Missing: $($missingTools -join ', ')."
 }
+
+$entitlementsSourcePath = Join-Path $PSScriptRoot 'assets/mac-apphost-entitlements.plist'
+if (-not (Test-Path -LiteralPath $entitlementsSourcePath -PathType Leaf)) {
+    throw "$ProductName macOS apphost entitlements asset is missing before the release starts: $entitlementsSourcePath"
+}
+$plutil = Get-ExternalCommandPath 'plutil'
+& $plutil -lint $entitlementsSourcePath 2>&1 | ForEach-Object { Write-Host $_ }
+if ($LASTEXITCODE -ne 0) {
+    throw "$ProductName macOS apphost entitlements are not a valid property list. No expensive build work has been performed: $entitlementsSourcePath"
+}
+Write-Host "$ProductName macOS apphost entitlements preflight passed." -ForegroundColor Green
 
 $security = Get-ExternalCommandPath 'security'
 $identityLines = @(& $security find-identity -v 2>$null | ForEach-Object { [string]$_ })
