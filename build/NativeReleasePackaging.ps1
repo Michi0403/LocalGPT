@@ -60,6 +60,41 @@ function Get-ExternalCommandPath([string]$Name) {
     if ($command -and -not [string]::IsNullOrWhiteSpace([string]$command.Source)) { return [string]$command.Source }
     return $null
 }
+function Get-MacFileInventory([string]$AppPath) {
+    if (-not $isMacHost) { return @() }
+    $fileCommand = Get-ExternalCommandPath 'file'
+    if (-not $fileCommand) { throw "The macOS 'file' utility is required to inspect native bundle files." }
+
+    $files = @(Get-ChildItem -LiteralPath $AppPath -File -Recurse -ErrorAction Stop)
+    if ($files.Count -eq 0) { return @() }
+
+    # `file` used to be invoked once per bundle file. On macOS every native child launch can emit
+    # a MallocStackLogging diagnostic from PowerShell before exec, turning a documentation-bearing
+    # app into hundreds of warning lines and thousands of process launches across architecture
+    # validation and signing. Brief-mode batches preserve one result per input while staying well
+    # below macOS command-line limits.
+    $inventory = [Collections.Generic.List[object]]::new()
+    $batchSize = 96
+    for ($offset = 0; $offset -lt $files.Count; $offset += $batchSize) {
+        $count = [Math]::Min($batchSize, $files.Count - $offset)
+        $batch = @($files[$offset..($offset + $count - 1)])
+        $paths = @($batch | ForEach-Object { $_.FullName })
+        $descriptions = @(& $fileCommand -b @paths 2>$null | ForEach-Object { [string]$_ })
+        if ($LASTEXITCODE -ne 0) {
+            throw "The macOS 'file' utility failed while inspecting a $count-file bundle batch starting at index $offset."
+        }
+        if ($descriptions.Count -ne $batch.Count) {
+            throw "The macOS 'file' utility returned $($descriptions.Count) descriptions for $($batch.Count) bundle files; refusing to trust an incomplete architecture inventory."
+        }
+        for ($index = 0; $index -lt $batch.Count; $index++) {
+            $inventory.Add([pscustomobject]@{
+                File = $batch[$index]
+                Description = $descriptions[$index]
+            })
+        }
+    }
+    return @($inventory)
+}
 function Resolve-HomebrewFormulaExecutable([string]$Name,[string]$Formula) {
     $direct = Get-ExternalCommandPath $Name
     if ($direct) { return $direct }
@@ -376,15 +411,13 @@ function Test-MacNotarizationRequired {
     if (-not $value) { return $false }
     return @('1','true','yes','on') -contains $value.ToLowerInvariant()
 }
-function Sign-MacBundle([string]$AppPath) {
+function Sign-MacBundle([string]$AppPath,[IO.FileInfo[]]$KnownMachOFiles = @()) {
     if (-not $isMacHost) { return }
     Resolve-MacDistributionSigning
     $codesign = Get-ExternalCommandPath 'codesign'
     if (-not $codesign) { throw 'codesign is required to prepare macOS application bundles.' }
 
     if ($script:MacApplicationSigningIdentity) {
-        $fileCommand = Get-ExternalCommandPath 'file'
-        if (-not $fileCommand) { throw "The macOS 'file' utility is required for Developer ID signing." }
         $entitlementsSourcePath = Join-Path $PSScriptRoot 'assets/mac-apphost-entitlements.plist'
         if (-not (Test-Path -LiteralPath $entitlementsSourcePath -PathType Leaf)) { throw "macOS apphost entitlements asset is missing: $entitlementsSourcePath" }
         $plutil = Get-ExternalCommandPath 'plutil'
@@ -397,9 +430,13 @@ function Sign-MacBundle([string]$AppPath) {
         try {
             $appHost = [IO.Path]::GetFullPath((Join-Path $AppPath "Contents/Resources/app/$ExecutableName"))
             $machOFiles = [Collections.Generic.List[IO.FileInfo]]::new()
-            foreach ($item in Get-ChildItem -LiteralPath $AppPath -File -Recurse -ErrorAction Stop) {
-                $description = [string](& $fileCommand $item.FullName 2>$null)
-                if ($LASTEXITCODE -eq 0 -and $description -match 'Mach-O') { $machOFiles.Add($item) }
+            if ($KnownMachOFiles.Count -gt 0) {
+                foreach ($item in $KnownMachOFiles) { $machOFiles.Add($item) }
+            }
+            else {
+                foreach ($record in @(Get-MacFileInventory $AppPath)) {
+                    if ($record.Description -match 'Mach-O') { $machOFiles.Add($record.File) }
+                }
             }
             foreach ($item in @($machOFiles | Sort-Object { $_.FullName.Length } -Descending)) {
                 $signArguments = @('--force','--options','runtime','--timestamp','--sign',$script:MacApplicationSigningIdentity)
@@ -1313,21 +1350,19 @@ function Remove-NonTargetMacRuntimeAssets([string]$AppPath,[string]$RuntimeIdent
     }
 }
 function Assert-MacBundleArchitecture([string]$AppPath,[string]$RuntimeIdentifier) {
-    if (-not $isMacHost) { return }
-
-    $fileCommand = Get-ExternalCommandPath 'file'
-    if (-not $fileCommand) { throw "The macOS 'file' utility is required to validate native bundle architecture." }
+    if (-not $isMacHost) { return @() }
 
     $expectedPattern = if ($RuntimeIdentifier.EndsWith('arm64')) { '\barm64e?\b' } elseif ($RuntimeIdentifier.EndsWith('x64')) { '\bx86_64\b' } else { throw "Unsupported macOS runtime identifier for architecture validation: $RuntimeIdentifier" }
-    $machOCount = 0
+    $machOFiles = [Collections.Generic.List[IO.FileInfo]]::new()
     $mismatches = [Collections.Generic.List[string]]::new()
     $inventory = [Collections.Generic.List[string]]::new()
 
-    foreach ($item in Get-ChildItem -LiteralPath $AppPath -File -Recurse -ErrorAction Stop) {
-        $description = [string](& $fileCommand $item.FullName 2>$null)
-        if ($LASTEXITCODE -ne 0 -or $description -notmatch 'Mach-O') { continue }
+    foreach ($record in @(Get-MacFileInventory $AppPath)) {
+        if ($record.Description -notmatch 'Mach-O') { continue }
 
-        $machOCount++
+        $item = $record.File
+        $description = [string]$record.Description
+        $machOFiles.Add($item)
         $relative = Get-RelativePathPortable -BasePath $AppPath -TargetPath $item.FullName
         $entry = "$relative => $description"
         $inventory.Add($entry)
@@ -1346,7 +1381,7 @@ function Assert-MacBundleArchitecture([string]$AppPath,[string]$RuntimeIdentifie
     ) + @($inventory)
     Write-Utf8NoBom $manifestPath (($manifestLines -join [Environment]::NewLine) + [Environment]::NewLine)
 
-    if ($machOCount -eq 0) {
+    if ($machOFiles.Count -eq 0) {
         throw "No Mach-O payload was found in $AppPath. Refusing to ship a macOS application whose native architecture cannot be verified. Manifest: $manifestPath"
     }
     if ($mismatches.Count -gt 0) {
@@ -1354,8 +1389,9 @@ function Assert-MacBundleArchitecture([string]$AppPath,[string]$RuntimeIdentifie
         throw "The $RuntimeIdentifier bundle contains native component(s) without the required architecture. Exact offending file(s):$([Environment]::NewLine)$details$([Environment]::NewLine)Full architecture inventory: $manifestPath"
     }
 
-    Write-Host "Validated $machOCount Mach-O component(s) in $ProductName.app for $RuntimeIdentifier; no incompatible Intel/ARM-only payload was found." -ForegroundColor Green
+    Write-Host "Validated $($machOFiles.Count) Mach-O component(s) in $ProductName.app for $RuntimeIdentifier using batched bundle inspection; no incompatible Intel/ARM-only payload was found." -ForegroundColor Green
     Write-Host "Native architecture manifest: $manifestPath" -ForegroundColor DarkCyan
+    return @($machOFiles)
 }
 
 function New-Dmg([string]$AppPath,[string]$Destination) {
@@ -1881,8 +1917,8 @@ if ($Rid.StartsWith('osx-')) {
 <plist version="1.0"><dict><key>CFBundleName</key><string>$ProductName</string><key>CFBundleDisplayName</key><string>$ProductName</string><key>CFBundleIdentifier</key><string>io.github.michi0403.$($ProductName.ToLowerInvariant())</string><key>CFBundleVersion</key><string>$Version</string><key>CFBundleShortVersionString</key><string>$Version</string><key>CFBundleExecutable</key><string>$ProductName</string><key>CFBundlePackageType</key><string>APPL</string><key>LSArchitecturePriority</key><array><string>$launchArchitecture</string></array>$nativeExecutionPlist$iconPlist<key>NSHighResolutionCapable</key><true/></dict></plist>
 "@
     Write-Utf8NoBom (Join-Path $app 'Contents/Info.plist') $infoPlist
-    Assert-MacBundleArchitecture $app $Rid
-    Sign-MacBundle $app
+    $validatedMachOFiles = @(Assert-MacBundleArchitecture $app $Rid)
+    Sign-MacBundle $app -KnownMachOFiles $validatedMachOFiles
     $tarDestination = Join-Path $OutputDirectory "$base.tar.gz"
     $tar = if ($ForceRebuildArtifacts) { $tarDestination } else { Resolve-ExistingReleaseArtifactPath $tarDestination }
     if (-not $ForceRebuildArtifacts -and (Test-Path -LiteralPath $tar -PathType Leaf) -and (Get-Item -LiteralPath $tar).Length -gt 1048576) {

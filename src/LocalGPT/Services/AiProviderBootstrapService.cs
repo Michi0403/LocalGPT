@@ -32,6 +32,104 @@ public sealed class AiProviderBootstrapService(
     ILmStudioPlatformService lmStudioPlatform,
     ILogger<AiProviderBootstrapService> logger) : IAiProviderBootstrapService
 {
+    /// <summary>Maintained offline Ollama alias baseline additively merged into older persisted bootstrap profiles; live provider search remains authoritative for newer/community models.</summary>
+    private readonly IReadOnlyDictionary<string, string> MaintainedOllamaModelAliases =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+        ["gemma3-270m"] = "gemma3:270m",
+        ["qwen2.5-coder-0.5b"] = "qwen2.5-coder:0.5b",
+        ["qwen2.5-0.5b"] = "qwen2.5:0.5b",
+        ["qwen3-0.6b"] = "qwen3:0.6b",
+        ["qwen3.5-0.8b"] = "qwen3.5:0.8b",
+        ["gemma3-1b"] = "gemma3:1b",
+        ["llama3.2-1b"] = "llama3.2:1b",
+        ["llama-guard3-1b"] = "llama-guard3:1b",
+        ["tinyllama-1.1b"] = "tinyllama:1.1b",
+        ["deepseek-r1-1.5b"] = "deepseek-r1:1.5b",
+        ["qwen2.5-1.5b"] = "qwen2.5:1.5b",
+        ["qwen2.5-coder-1.5b"] = "qwen2.5-coder:1.5b",
+        ["qwen3-1.7b"] = "qwen3:1.7b",
+        ["codegemma-2b"] = "codegemma:2b",
+        ["gemma2-2b"] = "gemma2:2b",
+        ["gemma3n-e2b"] = "gemma3n:e2b",
+        ["gemma4-e2b"] = "gemma4:e2b",
+        ["qwen3-vl-2b"] = "qwen3-vl:2b",
+        ["qwen3.5-2b"] = "qwen3.5:2b",
+        ["llama3.2-3b"] = "llama3.2:3b",
+        ["qwen2.5-3b"] = "qwen2.5:3b",
+        ["qwen2.5-coder-3b"] = "qwen2.5-coder:3b",
+        ["phi3-3.8b"] = "phi3:3.8b",
+        ["gemma3-4b"] = "gemma3:4b",
+        ["gemma3n-e4b"] = "gemma3n:e4b",
+        ["gemma4-e4b"] = "gemma4:e4b",
+        ["qwen3-4b"] = "qwen3:4b",
+        ["qwen3-vl-4b"] = "qwen3-vl:4b",
+        ["qwen3.5-4b"] = "qwen3.5:4b",
+        ["deepseek-coder-6.7b"] = "deepseek-coder:6.7b",
+        ["codegemma-7b"] = "codegemma:7b",
+        ["deepseek-r1-7b"] = "deepseek-r1:7b",
+        ["llama2-7b"] = "llama2:7b",
+        ["llama2-uncensored-7b"] = "llama2-uncensored:7b",
+        ["mistral-7b"] = "mistral:7b",
+        ["qwen2.5-7b"] = "qwen2.5:7b",
+        ["qwen2.5-coder-7b"] = "qwen2.5-coder:7b",
+        ["deepseek-r1-8b"] = "deepseek-r1:8b",
+        ["llama3-8b"] = "llama3:8b",
+        ["llama3.1-8b"] = "llama3.1:8b",
+        ["llama-guard3-8b"] = "llama-guard3:8b",
+        ["qwen3-8b"] = "qwen3:8b",
+        ["qwen3-vl-8b"] = "qwen3-vl:8b",
+        ["gemma2-9b"] = "gemma2:9b",
+        ["qwen3.5-9b"] = "qwen3.5:9b",
+        ["gemma3-12b"] = "gemma3:12b",
+        ["gemma4-12b"] = "gemma4:12b",
+        ["mistral-nemo-12b"] = "mistral-nemo:12b",
+        ["llama2-13b"] = "llama2:13b",
+        ["phi3-14b"] = "phi3:14b",
+        ["phi-4-14b"] = "phi4:14b",
+        ["qwen2.5-14b"] = "qwen2.5:14b",
+        ["qwen2.5-coder-14b"] = "qwen2.5-coder:14b",
+        ["qwen3-14b"] = "qwen3:14b",
+        ["deepseek-r1-14b"] = "deepseek-r1:14b",
+        ["deepseek-coder-v2-16b"] = "deepseek-coder-v2:16b",
+        ["deepseek-v2-16b"] = "deepseek-v2:16b",
+        ["gpt-oss-20b"] = "gpt-oss:20b",
+        ["mistral-small-22b"] = "mistral-small:22b",
+        ["mistral-small-24b"] = "mistral-small:24b",
+        ["gemma4-26b"] = "gemma4:26b",
+        ["gemma2-27b"] = "gemma2:27b",
+        ["gemma3-27b"] = "gemma3:27b",
+        ["qwen3.5-27b"] = "qwen3.5:27b",
+        ["qwen3.6-27b"] = "qwen3.6:27b",
+        ["qwen3-30b"] = "qwen3:30b",
+        ["qwen3-vl-30b"] = "qwen3-vl:30b",
+        ["qwen3-coder-30b"] = "qwen3-coder:30b",
+        ["gemma4-31b"] = "gemma4:31b",
+        ["deepseek-r1-32b"] = "deepseek-r1:32b",
+        ["qwen2.5-32b"] = "qwen2.5:32b",
+        ["qwen2.5-coder-32b"] = "qwen2.5-coder:32b",
+        ["qwen3-32b"] = "qwen3:32b",
+        ["qwen3-vl-32b"] = "qwen3-vl:32b",
+        ["deepseek-coder-33b"] = "deepseek-coder:33b",
+        ["command-r-35b"] = "command-r:35b",
+        ["qwen3.5-35b"] = "qwen3.5:35b",
+        ["qwen3.6-35b"] = "qwen3.6:35b",
+        ["llama3.3-70b"] = "llama3.3:70b",
+        ["deepseek-r1-70b"] = "deepseek-r1:70b",
+        ["llama2-uncensored-70b"] = "llama2-uncensored:70b",
+        ["qwen2.5-72b"] = "qwen2.5:72b",
+        ["gpt-oss-120b"] = "gpt-oss:120b",
+        ["qwen3.5-122b"] = "qwen3.5:122b",
+        ["qwen3-vl-235b"] = "qwen3-vl:235b",
+        ["qwen3-235b"] = "qwen3:235b",
+        ["llama3.1-405b"] = "llama3.1:405b",
+        ["llama3.2-11b-vision"] = "llama3.2-vision:11b",
+        ["llama4-scout"] = "llama4:scout",
+        ["llama4-maverick"] = "llama4:maverick",
+        ["mixtral-8x7b"] = "mixtral:8x7b",
+        ["mixtral-8x22b"] = "mixtral:8x22b",
+        };
+
 
     /// <summary>Returns provider bootstrap profiles from local knowledge for the current operating-system family.</summary>
     /// <inheritdoc />
@@ -417,6 +515,7 @@ public sealed class AiProviderBootstrapService(
         }
     }
 
+
     /// <summary>
     /// Normalizes profile as part of the AI provider bootstrap service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -434,6 +533,15 @@ public sealed class AiProviderBootstrapService(
             profile.ModelCatalogUrl = profile.ModelCatalogUrl.Trim();
             profile.UpdateCommand = profile.UpdateCommand?.Trim() ?? string.Empty;
             profile.ModelAliases = new Dictionary<string, string>(profile.ModelAliases ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
+            if (profile.ProviderKind.Equals("Ollama", StringComparison.OrdinalIgnoreCase)
+                || profile.Key.StartsWith("ollama-", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var maintainedAlias in MaintainedOllamaModelAliases)
+                {
+                    if (!profile.ModelAliases.ContainsKey(maintainedAlias.Key))
+                        profile.ModelAliases[maintainedAlias.Key] = maintainedAlias.Value;
+                }
+            }
         }
         catch (Exception exception)
         {

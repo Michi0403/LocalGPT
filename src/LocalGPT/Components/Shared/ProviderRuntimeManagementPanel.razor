@@ -107,29 +107,43 @@
                             </div>
                         }
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="@T("Bind address")" ColSpanMd="4">
-                        <DxComboBox Data="@bindAddressChoices" @bind-Value="management.Ollama.BindAddress" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="@T("Port")" ColSpanMd="2">
-                        <DxSpinEdit @bind-Value="management.Ollama.Port" Min="1" Max="65535" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="@T("Runtime context tokens (0 = Ollama default)")" ColSpanMd="6">
-                        <DxSpinEdit @bind-Value="management.Ollama.ContextLengthTokens" Min="0" Max="1048576" Increment="256" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="@T("Keep alive (empty = Ollama default)")" ColSpanMd="4">
-                        <DxTextBox @bind-Text="management.Ollama.KeepAlive" NullText="5m / 0 / -1" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="@T("Max loaded models (0 = default)")" ColSpanMd="3">
-                        <DxSpinEdit @bind-Value="management.Ollama.MaxLoadedModels" Min="0" Max="64" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="@T("Parallel requests (0 = default)")" ColSpanMd="3">
-                        <DxSpinEdit @bind-Value="management.Ollama.ParallelRequests" Min="0" Max="64" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="@T("Max queued requests (0 = default)")" ColSpanMd="2">
-                        <DxSpinEdit @bind-Value="management.Ollama.MaxQueue" Min="0" Max="65536" />
+                    <DxFormLayoutItem ColSpanMd="12">
+                        <div class="provider-runtime-settings-grid">
+                            <label class="provider-runtime-field">
+                                <span>@T("Bind address")</span>
+                                <DxComboBox Data="@bindAddressChoices" @bind-Value="management.Ollama.BindAddress" />
+                            </label>
+                            <label class="provider-runtime-field">
+                                <span>@T("Port")</span>
+                                <DxSpinEdit @bind-Value="management.Ollama.Port" Min="1" Max="65535" />
+                            </label>
+                            <label class="provider-runtime-field">
+                                <span>@T("Runtime context tokens (0 = Ollama default)")</span>
+                                <DxSpinEdit @bind-Value="management.Ollama.ContextLengthTokens" Min="0" Max="1048576" Increment="256" />
+                            </label>
+                            <label class="provider-runtime-field">
+                                <span>@T("Keep alive (empty = Ollama default)")</span>
+                                <DxTextBox @bind-Text="management.Ollama.KeepAlive" NullText="5m / 0 / -1" />
+                            </label>
+                            <label class="provider-runtime-field">
+                                <span>@T("Max loaded models (0 = default)")</span>
+                                <DxSpinEdit @bind-Value="management.Ollama.MaxLoadedModels" Min="0" Max="64" />
+                            </label>
+                            <label class="provider-runtime-field">
+                                <span>@T("Parallel requests (0 = default)")</span>
+                                <DxSpinEdit @bind-Value="management.Ollama.ParallelRequests" Min="0" Max="64" />
+                            </label>
+                            <label class="provider-runtime-field">
+                                <span>@T("Max queued requests (0 = default)")</span>
+                                <DxSpinEdit @bind-Value="management.Ollama.MaxQueue" Min="0" Max="65536" />
+                            </label>
+                        </div>
                     </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="12">
-                        <DxCheckBox @bind-Checked="management.Ollama.DisableCloud" Text="@T("Local-only Ollama: disable cloud features when LocalGPT starts the server")" />
+                        <label class="provider-runtime-checkbox-row">
+                            <DxCheckBox @bind-Checked="management.Ollama.DisableCloud" />
+                            <span>@T("Local-only Ollama: disable cloud features when LocalGPT starts the server")</span>
+                        </label>
                     </DxFormLayoutItem>
                     @if (IsNetworkExposed(management.Ollama.BindAddress))
                     {
@@ -160,7 +174,10 @@
                         <DxSpinEdit @bind-Value="management.LmStudio.Port" Min="1" Max="65535" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="6">
-                        <DxCheckBox @bind-Checked="management.LmStudio.EnableCors" Text="@T("Enable CORS for LocalGPT-started LM Studio server")" />
+                        <label class="provider-runtime-checkbox-row">
+                            <DxCheckBox @bind-Checked="management.LmStudio.EnableCors" />
+                            <span>@T("Enable CORS for LocalGPT-started LM Studio server")</span>
+                        </label>
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="@T("Load context tokens (0 = automatic)")" ColSpanMd="4">
                         <DxSpinEdit @bind-Value="management.LmStudio.ContextLengthTokens" Min="0" Max="1048576" Increment="256" />
@@ -195,11 +212,16 @@
                     <h5>@T("Downloaded model inventory")</h5>
                     <p>@T("Use Unload to release RAM without deleting files. Ollama supports permanent deletion here; LM Studio permanent file removal stays with its supported My Models interface.")</p>
                 </div>
-                @if (management.IsOllama)
-                {
-                    <DxCheckBox @bind-Checked="permanentDeleteConfirmed" Text="@T("I understand that Remove permanently deletes the selected Ollama model files")" />
-                }
             </div>
+            @if (management.IsOllama)
+            {
+                <div class="provider-runtime-delete-confirmation" role="group" aria-label="@T("I understand that Remove permanently deletes the selected Ollama model files")">
+                    <label class="provider-runtime-checkbox-row">
+                        <DxCheckBox @bind-Checked="permanentDeleteConfirmed" />
+                        <span>@T("I understand that Remove permanently deletes the selected Ollama model files")</span>
+                    </label>
+                </div>
+            }
 
             <DxGrid Data="@management.Models"
                     PageSize="12"

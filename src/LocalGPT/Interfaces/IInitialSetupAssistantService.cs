@@ -20,10 +20,11 @@ public interface IInitialSetupAssistantService
     /// <summary>Searches the selected provider's official public model catalog after an explicit user action, independently from CanIRun.ai.</summary>
     /// <param name="profileKey">Selected platform/provider bootstrap profile.</param>
     /// <param name="query">Optional provider-catalog search text. An empty value requests the provider's default catalog view.</param>
+    /// <param name="hardwareRecommendations">Current attributed CanIRun.ai rows used only to annotate exact provider catalog matches with hardware-fit evidence.</param>
     /// <param name="userConfirmedWebLookup">Value indicating whether the user explicitly requested the provider-owned network lookup.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>Bounded provider-safe catalog choices that may be installed through the existing provider bootstrap path.</returns>
-    Task<IReadOnlyList<InitialSetupModelChoice>> SearchProviderCatalogAsync(string profileKey, string query, bool userConfirmedWebLookup, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<InitialSetupModelChoice>> SearchProviderCatalogAsync(string profileKey, string query, IReadOnlyList<CanIRunModelRecommendation> hardwareRecommendations, bool userConfirmedWebLookup, CancellationToken cancellationToken = default);
     /// <summary>Resolves one CanIRun.ai hardware-fit recommendation against the selected provider's official catalog after an explicit user action.</summary>
     /// <param name="profileKey">Selected platform/provider bootstrap profile.</param>
     /// <param name="recommendationId">Attributed CanIRun.ai recommendation identifier.</param>
@@ -75,7 +76,7 @@ public interface IInitialSetupAssistantService
 /// <summary>Fetches and parses explicitly requested CanIRun.ai hardware recommendations.</summary>
 public interface ICanIRunHardwareRecommendationService
 {
-    /// <summary>Posts reviewed hardware facts to CanIRun.ai's JSON recommendation API and returns bounded attributed model recommendations.</summary>
+    /// <summary>Posts reviewed hardware facts only after opt-in, then returns attributed CanIRun.ai recommendation and bounded full-catalog compatibility rows.</summary>
     /// <param name="device">Reviewed hardware facts to send after opt-in; LocalGPT endpoint/host identifiers are not transmitted.</param>
     /// <param name="userConfirmedWebLookup">Value indicating whether user confirmed web lookup should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>

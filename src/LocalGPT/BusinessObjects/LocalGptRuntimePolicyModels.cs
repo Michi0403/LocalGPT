@@ -402,8 +402,10 @@ public enum LocalGptRuntimeValue
     ConsoleMaximumTimeoutSeconds,
     /// <summary>Maximum characters accepted from an opted-in CanIRun.ai response.</summary>
     CanIRunMaximumPageCharacters,
-    /// <summary>Maximum CanIRun.ai recommendations retained from a response.</summary>
+    /// <summary>Maximum CanIRun.ai recommendations retained from the compact recommendation response.</summary>
     CanIRunMaximumRecommendations,
+    /// <summary>Maximum public CanIRun.ai catalog rows evaluated through the compatibility endpoint after explicit user opt-in.</summary>
+    CanIRunMaximumCatalogCompatibilityRows,
     /// <summary>Maximum localization catalog bytes accepted by operator policy.</summary>
     LocalizationMaximumCatalogBytes,
     /// <summary>Maximum localization catalog entries accepted by operator policy.</summary>

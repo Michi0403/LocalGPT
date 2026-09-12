@@ -141,6 +141,7 @@ public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolic
                     new(LocalGptRuntimeValue.ConsoleMaximumTimeoutSeconds, nameof(LocalGptRuntimeValue.ConsoleMaximumTimeoutSeconds), "2147483647", "System.Int32"),
                     new(LocalGptRuntimeValue.CanIRunMaximumPageCharacters, nameof(LocalGptRuntimeValue.CanIRunMaximumPageCharacters), "2147483647", "System.Int32"),
                     new(LocalGptRuntimeValue.CanIRunMaximumRecommendations, nameof(LocalGptRuntimeValue.CanIRunMaximumRecommendations), "2147483647", "System.Int32"),
+                    new(LocalGptRuntimeValue.CanIRunMaximumCatalogCompatibilityRows, nameof(LocalGptRuntimeValue.CanIRunMaximumCatalogCompatibilityRows), "1024", "System.Int32"),
                     new(LocalGptRuntimeValue.LocalizationMaximumCatalogBytes, nameof(LocalGptRuntimeValue.LocalizationMaximumCatalogBytes), "2147483647", "System.Int32"),
                     new(LocalGptRuntimeValue.LocalizationMaximumCatalogEntries, nameof(LocalGptRuntimeValue.LocalizationMaximumCatalogEntries), "2147483647", "System.Int32"),
                     new(LocalGptRuntimeValue.CouncilTeamMaximumRoles, nameof(LocalGptRuntimeValue.CouncilTeamMaximumRoles), "2147483647", "System.Int32"),

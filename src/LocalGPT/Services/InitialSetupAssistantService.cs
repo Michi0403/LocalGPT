@@ -36,6 +36,12 @@ public sealed class InitialSetupAssistantService(
     private readonly object providerCandidateCacheSync = new();
     /// <summary>Stores the last successful provider candidate discovery for reuse by model mapping and explicit provider-catalog annotation in the same setup scope.</summary>
     private IReadOnlyList<MultiModelCouncilModelCandidate>? cachedProviderCandidates;
+    /// <summary>Maximum provider families expanded from one explicit provider-owned search result page.</summary>
+    private const int ProviderCatalogMaximumFamilies = 40;
+    /// <summary>Maximum concrete provider model identifiers retained from one explicit provider-owned search.</summary>
+    private const int ProviderCatalogMaximumModelIds = 2048;
+    /// <summary>Maximum concurrent provider-owned tag-page requests during one explicit catalog search.</summary>
+    private const int ProviderCatalogMaximumConcurrentRequests = 6;
 
     /// <summary>Builds current hardware/provider/model state without changing the machine.</summary>
     /// <inheritdoc />
@@ -408,6 +414,37 @@ public sealed class InitialSetupAssistantService(
         }
     }
 
+    /// <summary>Finds attributed CanIRun.ai evidence that resolves conservatively to one provider-owned catalog identifier.</summary>
+    /// <param name="profile">Selected provider profile.</param>
+    /// <param name="providerModelId">Provider-native model identifier returned by the provider-owned catalog.</param>
+    /// <param name="recommendations">Current attributed hardware-fit rows.</param>
+    /// <returns>The strongest matching hardware-fit row, or <see langword="null"/> when no conservative provider mapping exists.</returns>
+    private CanIRunModelRecommendation? FindProviderCatalogRecommendation(
+        AiProviderBootstrapProfile profile,
+        string providerModelId,
+        IReadOnlyList<CanIRunModelRecommendation> recommendations)
+    {
+        try
+        {
+            return recommendations
+                .Select(recommendation => new
+                {
+                    Recommendation = recommendation,
+                    ProviderId = ResolveRecommendationProviderId(profile, recommendation)
+                })
+                .Where(item => !string.IsNullOrWhiteSpace(item.ProviderId)
+                    && ModelNamesEquivalent(item.ProviderId, providerModelId))
+                .OrderByDescending(item => item.Recommendation.Score)
+                .Select(item => item.Recommendation)
+                .FirstOrDefault();
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Matching provider-owned catalog results to attributed hardware evidence failed; identifiers were omitted.");
+            return null;
+        }
+    }
+
     /// <summary>Returns the last successful provider candidate snapshot for this scoped setup workflow, querying providers only when no snapshot has been established yet.</summary>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop a required provider discovery.</param>
     /// <returns>The cached or newly discovered provider candidates.</returns>
@@ -483,6 +520,7 @@ public sealed class InitialSetupAssistantService(
     public async Task<IReadOnlyList<InitialSetupModelChoice>> SearchProviderCatalogAsync(
         string profileKey,
         string query,
+        IReadOnlyList<CanIRunModelRecommendation> hardwareRecommendations,
         bool userConfirmedWebLookup,
         CancellationToken cancellationToken = default)
     {
@@ -491,6 +529,7 @@ public sealed class InitialSetupAssistantService(
             if (!userConfirmedWebLookup)
                 throw new InvalidOperationException("Official provider catalog lookup requires an explicit user action.");
             ArgumentException.ThrowIfNullOrWhiteSpace(profileKey);
+            ArgumentNullException.ThrowIfNull(hardwareRecommendations);
             var boundedQuery = (query ?? string.Empty).Trim();
             if (boundedQuery.Length > 120)
                 throw new InvalidDataException("Provider catalog search text is limited to 120 characters.");
@@ -499,7 +538,7 @@ public sealed class InitialSetupAssistantService(
                 .FirstOrDefault(item => item.Key.Equals(profileKey.Trim(), StringComparison.OrdinalIgnoreCase))
                 ?? throw new KeyNotFoundException("The selected provider bootstrap profile is unavailable.");
             using var lookupTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            lookupTimeout.CancelAfter(TimeSpan.FromSeconds(20));
+            lookupTimeout.CancelAfter(TimeSpan.FromSeconds(60));
             var lookupToken = lookupTimeout.Token;
             var catalogUri = BuildProviderCatalogSearchUri(profile, boundedQuery);
             var html = await DownloadProviderCatalogPageAsync(catalogUri, lookupToken).ConfigureAwait(false);
@@ -527,9 +566,10 @@ public sealed class InitialSetupAssistantService(
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var installedCandidate = scopedCandidates.FirstOrDefault(item => item.IsInstalled && ModelNamesEquivalent(item.ModelName, providerId));
+                var recommendation = FindProviderCatalogRecommendation(profile, providerId, hardwareRecommendations);
                 choices.Add(new InitialSetupModelChoice
                 {
-                    RecommendationId = providerId,
+                    RecommendationId = recommendation?.ModelId ?? providerId,
                     ProviderModelId = providerId,
                     DisplayName = providerId,
                     SelectionKey = installedCandidate?.SelectionKey ?? string.Empty,
@@ -539,7 +579,14 @@ public sealed class InitialSetupAssistantService(
                     IsProviderInventory = installedCandidate is not null,
                     IsProviderCatalogEntry = true,
                     IsProviderCatalogKnown = true,
-                    HardwareCompatibilityNote = BuildHardwareCompatibilityNote(providerId, recommendation: null),
+                    HardwareCompatibilityNote = BuildHardwareCompatibilityNote(providerId, recommendation),
+                    IsHardwareRecommended = recommendation is not null,
+                    RecommendationGrade = recommendation?.Grade ?? string.Empty,
+                    RecommendationScore = recommendation?.Score ?? 0,
+                    RecommendationStatus = recommendation?.Status ?? string.Empty,
+                    Quantization = recommendation?.Quantization ?? string.Empty,
+                    RequiredVramGiB = recommendation?.RequiredVramGiB,
+                    SourceUrl = recommendation?.SourceUrl ?? string.Empty,
                     CanCheckUpdate = installedCandidate is not null && canInstall && isOllamaProfile,
                     ProviderCatalogUrl = BuildProviderCatalogModelUrl(profile, providerId),
                     IsProviderCatalogUrlExact = true,
@@ -581,7 +628,7 @@ public sealed class InitialSetupAssistantService(
             ArgumentException.ThrowIfNullOrWhiteSpace(profileKey);
             ArgumentException.ThrowIfNullOrWhiteSpace(recommendationId);
             var query = BuildProviderCatalogResolutionQuery(recommendationId, displayName);
-            var candidates = await SearchProviderCatalogAsync(profileKey, query, true, cancellationToken).ConfigureAwait(false);
+            var candidates = await SearchProviderCatalogAsync(profileKey, query, [], true, cancellationToken).ConfigureAwait(false);
             var matches = candidates
                 .Where(candidate => IsConservativeProviderCatalogMatch(candidate.ProviderModelId, recommendationId, displayName))
                 .ToList();
@@ -746,7 +793,7 @@ public sealed class InitialSetupAssistantService(
                     && !uri.Host.Equals("www.lmstudio.ai", StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Provider catalog requests are restricted to maintained HTTPS provider hosts.");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("LocalGPT/4.1.7");
+            request.Headers.UserAgent.ParseAdd("LocalGPT/4.2.0");
             var client = httpClientFactory.CreateClient("LocalGPTProviderCatalog");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -764,12 +811,12 @@ public sealed class InitialSetupAssistantService(
         }
     }
 
-    /// <summary>Expands a bounded set of provider family pages so the UI receives concrete Ollama tags and LM Studio catalog identifiers instead of only family names.</summary>
+    /// <summary>Expands provider-owned search results into concrete Ollama tags or LM Studio catalog identifiers while preserving bounded network and memory use.</summary>
     /// <param name="profile">Selected provider profile.</param>
     /// <param name="landingHtml">Bounded provider catalog/search HTML.</param>
     /// <param name="query">Optional user search text.</param>
     /// <param name="cancellationToken">Cancellation token for the bounded provider lookup.</param>
-    /// <returns>At most sixty concrete provider model identifiers.</returns>
+    /// <returns>Concrete provider model identifiers from every bounded search-result family and its provider-owned variants page.</returns>
     private async Task<IReadOnlyList<string>> LoadProviderCatalogModelIdsAsync(
         AiProviderBootstrapProfile profile,
         string landingHtml,
@@ -779,38 +826,63 @@ public sealed class InitialSetupAssistantService(
         try
         {
             var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var families = ExtractProviderCatalogFamilyIds(profile, landingHtml, query).Take(6).ToList();
-            if (providerBootstrap.IsOllamaProfile(profile))
+            var isOllama = providerBootstrap.IsOllamaProfile(profile);
+            var families = ExtractProviderCatalogFamilyIds(profile, landingHtml, query)
+                .Take(ProviderCatalogMaximumFamilies)
+                .ToList();
+
+            if (isOllama)
             {
                 foreach (var family in families)
                     values.Add(family);
-            }
 
-            foreach (var family in families)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var familyUri = BuildProviderCatalogFamilyUri(profile, family);
-                var familyHtml = await DownloadProviderCatalogPageAsync(familyUri, cancellationToken).ConfigureAwait(false);
-                foreach (var providerId in ExtractProviderCatalogModelIds(profile, familyHtml, query))
+                using var concurrency = new SemaphoreSlim(ProviderCatalogMaximumConcurrentRequests, ProviderCatalogMaximumConcurrentRequests);
+                var tasks = families
+                    .Select(family => LoadProviderCatalogFamilyModelIdsAsync(profile, family, query, concurrency, cancellationToken))
+                    .ToArray();
+                var expanded = await Task.WhenAll(tasks).ConfigureAwait(false);
+                foreach (var familyModels in expanded)
                 {
-                    values.Add(providerId);
-                    if (values.Count >= 60)
+                    foreach (var providerId in familyModels)
+                    {
+                        values.Add(providerId);
+                        if (values.Count >= ProviderCatalogMaximumModelIds)
+                            break;
+                    }
+                    if (values.Count >= ProviderCatalogMaximumModelIds)
                         break;
                 }
-                if (values.Count >= 60)
+            }
+            else
+            {
+                foreach (var family in families)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var familyUri = BuildProviderCatalogFamilyUri(profile, family);
+                    var familyHtml = await DownloadProviderCatalogPageAsync(familyUri, cancellationToken).ConfigureAwait(false);
+                    foreach (var providerId in ExtractProviderCatalogModelIds(profile, familyHtml, query))
+                    {
+                        values.Add(providerId);
+                        if (values.Count >= ProviderCatalogMaximumModelIds)
+                            break;
+                    }
+                    if (values.Count >= ProviderCatalogMaximumModelIds)
+                        break;
+                }
+            }
+
+            foreach (var providerId in ExtractProviderCatalogModelIds(profile, landingHtml, query))
+            {
+                values.Add(providerId);
+                if (values.Count >= ProviderCatalogMaximumModelIds)
                     break;
             }
 
-            if (values.Count == 0)
-            {
-                foreach (var providerId in ExtractProviderCatalogModelIds(profile, landingHtml, query))
-                {
-                    values.Add(providerId);
-                    if (values.Count >= 60)
-                        break;
-                }
-            }
-            return values.OrderBy(item => item, StringComparer.OrdinalIgnoreCase).Take(60).ToList();
+            return values
+                .OrderBy(GetApproximateParameterBillions)
+                .ThenBy(item => item, StringComparer.OrdinalIgnoreCase)
+                .Take(ProviderCatalogMaximumModelIds)
+                .ToList();
         }
         catch (OperationCanceledException exception)
         {
@@ -824,7 +896,52 @@ public sealed class InitialSetupAssistantService(
         }
     }
 
-    /// <summary>Extracts bounded provider-family identifiers from the provider's catalog landing/search page.</summary>
+    /// <summary>Loads one provider-owned variants page behind the shared bounded concurrency gate and treats an individual family-page failure as a partial catalog result.</summary>
+    /// <param name="profile">Selected provider profile.</param>
+    /// <param name="family">Provider family identifier from the provider-owned search page.</param>
+    /// <param name="query">Original user search text.</param>
+    /// <param name="concurrency">Shared request concurrency gate.</param>
+    /// <param name="cancellationToken">Cancellation token for the explicit lookup.</param>
+    /// <returns>Concrete model identifiers found for this family, or an empty collection when that one family page is unavailable.</returns>
+    private async Task<IReadOnlyList<string>> LoadProviderCatalogFamilyModelIdsAsync(
+        AiProviderBootstrapProfile profile,
+        string family,
+        string query,
+        SemaphoreSlim concurrency,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var familyUri = BuildProviderCatalogTagsUri(profile, family);
+                var familyHtml = await DownloadProviderCatalogPageAsync(familyUri, cancellationToken).ConfigureAwait(false);
+                return ExtractProviderCatalogModelIds(profile, familyHtml, query);
+            }
+            finally
+            {
+                concurrency.Release();
+            }
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(exception, "One provider catalog family variants page reached the per-request timeout; the remaining provider-owned search results remain usable.");
+            return [];
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "Provider catalog family expansion was cancelled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogInformation(exception, "One provider catalog family variants page was unavailable; the remaining provider-owned search results remain usable.");
+            return [];
+        }
+    }
+
+    /// <summary>Extracts bounded provider-family identifiers from the provider's catalog landing/search page, including Ollama community namespaces.</summary>
     /// <param name="profile">Selected provider profile.</param>
     /// <param name="html">Bounded provider HTML.</param>
     /// <param name="query">Optional user search text.</param>
@@ -837,24 +954,18 @@ public sealed class InitialSetupAssistantService(
             var isOllama = providerBootstrap.IsOllamaProfile(profile);
             foreach (var href in ExtractHrefValues(html))
             {
-                if (values.Count >= 40)
+                if (values.Count >= ProviderCatalogMaximumFamilies)
                     break;
-                var decoded = WebUtility.HtmlDecode(href).Trim();
+
                 string candidate;
                 if (isOllama)
                 {
-                    const string prefix = "/library/";
-                    var index = decoded.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
-                    if (index < 0)
+                    if (!TryExtractOllamaCatalogIdentifier(href, familyOnly: true, out candidate))
                         continue;
-                    var path = decoded[(index + prefix.Length)..].Split('?', '#')[0].Trim('/');
-                    var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length != 1 || parts[0].Contains(':'))
-                        continue;
-                    candidate = parts[0];
                 }
                 else if (profile.DisplayName.Contains("LM Studio", StringComparison.OrdinalIgnoreCase))
                 {
+                    var decoded = WebUtility.HtmlDecode(href).Trim();
                     const string prefix = "/models/";
                     var index = decoded.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
                     if (index < 0)
@@ -863,17 +974,17 @@ public sealed class InitialSetupAssistantService(
                     var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length != 1)
                         continue;
-                    candidate = parts[0];
+                    candidate = Uri.UnescapeDataString(parts[0]).Trim();
                 }
                 else
                 {
                     continue;
                 }
 
-                candidate = Uri.UnescapeDataString(candidate).Trim();
                 if (!string.IsNullOrWhiteSpace(candidate) && CatalogQueryMatches(candidate, query))
                     values.Add(candidate);
             }
+
             return values.OrderBy(item => item, StringComparer.OrdinalIgnoreCase).ToList();
         }
         catch (Exception exception)
@@ -891,17 +1002,158 @@ public sealed class InitialSetupAssistantService(
     {
         try
         {
-            var escaped = Uri.EscapeDataString(family);
             if (providerBootstrap.IsOllamaProfile(profile))
-                return new Uri($"https://ollama.com/library/{escaped}", UriKind.Absolute);
+                return BuildOllamaCatalogUri(family, includeTagsPage: false);
             if (profile.DisplayName.Contains("LM Studio", StringComparison.OrdinalIgnoreCase))
-                return new Uri($"https://lmstudio.ai/models/{escaped}", UriKind.Absolute);
+                return new Uri($"https://lmstudio.ai/models/{Uri.EscapeDataString(family)}", UriKind.Absolute);
             throw new InvalidOperationException("The selected provider does not have a maintained family catalog adapter.");
         }
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Building provider catalog family URI failed for profile {ProfileKey}.", profile.Key);
             throw;
+        }
+    }
+
+    /// <summary>Builds the provider-owned variants/tags URI for a bounded family identifier.</summary>
+    /// <param name="profile">Selected provider profile.</param>
+    /// <param name="family">Provider family identifier extracted from provider-owned HTML.</param>
+    /// <returns>The fixed-origin variants page for this family.</returns>
+    private Uri BuildProviderCatalogTagsUri(AiProviderBootstrapProfile profile, string family)
+    {
+        try
+        {
+            if (providerBootstrap.IsOllamaProfile(profile))
+                return BuildOllamaCatalogUri(family, includeTagsPage: true);
+            return BuildProviderCatalogFamilyUri(profile, family);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Building provider catalog variants URI failed for profile {ProfileKey}.", profile.Key);
+            throw;
+        }
+    }
+
+    /// <summary>Builds an Ollama-owned detail or tags URI for either an official family or a two-segment community namespace/model identifier.</summary>
+    /// <param name="providerId">Validated Ollama family or namespace/model identifier.</param>
+    /// <param name="includeTagsPage">Whether the URI should target the provider's full tags page.</param>
+    /// <returns>A fixed-origin HTTPS URI on ollama.com.</returns>
+    private Uri BuildOllamaCatalogUri(string providerId, bool includeTagsPage)
+    {
+        try
+        {
+            var family = providerId.Split(':', 2)[0].Trim();
+            var parts = family.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length is < 1 or > 2 || parts.Any(part => !IsSafeOllamaCatalogSegment(part)))
+                throw new InvalidDataException("The Ollama catalog identifier was not a safe provider-owned path.");
+
+            var escaped = string.Join("/", parts.Select(Uri.EscapeDataString));
+            var path = parts.Length == 1 ? $"/library/{escaped}" : $"/{escaped}";
+            if (includeTagsPage)
+                path += "/tags";
+            return new Uri($"https://ollama.com{path}", UriKind.Absolute);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Building an Ollama provider catalog URI failed; model identifier was omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Parses one provider-owned Ollama link into a pull identifier while excluding navigation routes and unsafe path syntax.</summary>
+    /// <param name="href">Provider-owned or relative href value.</param>
+    /// <param name="familyOnly">Whether tags should be collapsed to the containing family.</param>
+    /// <param name="providerId">Validated provider-native identifier when parsing succeeds.</param>
+    /// <returns><see langword="true"/> only for official library or two-segment community model links on ollama.com.</returns>
+    private bool TryExtractOllamaCatalogIdentifier(string href, bool familyOnly, out string providerId)
+    {
+        providerId = string.Empty;
+        try
+        {
+            var decoded = WebUtility.HtmlDecode(href ?? string.Empty).Trim();
+            if (!Uri.TryCreate(new Uri("https://ollama.com", UriKind.Absolute), decoded, out var uri)
+                || (!uri.Host.Equals("ollama.com", StringComparison.OrdinalIgnoreCase)
+                    && !uri.Host.Equals("www.ollama.com", StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            var segments = uri.AbsolutePath
+                .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(Uri.UnescapeDataString)
+                .ToArray();
+            if (segments.Length == 0)
+                return false;
+
+            string family;
+            string? tag = null;
+            if (segments[0].Equals("library", StringComparison.OrdinalIgnoreCase))
+            {
+                if (segments.Length < 2)
+                    return false;
+                (family, tag) = SplitOllamaFamilyAndTag(segments[1]);
+            }
+            else
+            {
+                var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "api", "blog", "download", "library", "models", "pricing", "search", "settings", "signin", "signup"
+                };
+                if (segments.Length < 2 || reserved.Contains(segments[0]))
+                    return false;
+                var split = SplitOllamaFamilyAndTag(segments[1]);
+                family = $"{segments[0]}/{split.Family}";
+                tag = split.Tag;
+            }
+
+            var familyParts = family.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (familyParts.Length is < 1 or > 2 || familyParts.Any(part => !IsSafeOllamaCatalogSegment(part)))
+                return false;
+            if (!string.IsNullOrWhiteSpace(tag) && !IsSafeOllamaCatalogSegment(tag))
+                return false;
+
+            providerId = familyOnly || string.IsNullOrWhiteSpace(tag) ? family : $"{family}:{tag}";
+            return true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Ignoring an unrecognized Ollama catalog link while parsing provider-owned HTML.");
+            providerId = string.Empty;
+            return false;
+        }
+    }
+
+    /// <summary>Splits an Ollama model path segment into the family and optional tag portion.</summary>
+    /// <param name="value">Decoded model segment.</param>
+    /// <returns>The family and optional tag portions.</returns>
+    private (string Family, string? Tag) SplitOllamaFamilyAndTag(string value)
+    {
+        try
+        {
+            var parts = (value ?? string.Empty).Trim().Split(':', 2);
+            return (parts[0], parts.Length == 2 ? parts[1] : null);
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Splitting an Ollama provider model segment failed.");
+            return (string.Empty, null);
+        }
+    }
+
+    /// <summary>Validates one Ollama path segment without allowing shell syntax, traversal tokens, path separators, or whitespace.</summary>
+    /// <param name="value">Decoded provider path segment.</param>
+    /// <returns><see langword="true"/> when the segment is safe to place under the fixed Ollama origin.</returns>
+    private bool IsSafeOllamaCatalogSegment(string value)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(value) || value.Length > 160 || value is "." or ".." || value.Contains("..", StringComparison.Ordinal))
+                return false;
+            return value.All(character => char.IsLetterOrDigit(character)
+                || character is '-' or '_' or '.' or '+' or '@');
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Validating an Ollama catalog path segment failed.");
+            return false;
         }
     }
 
@@ -945,7 +1197,7 @@ public sealed class InitialSetupAssistantService(
     /// <param name="profile">Selected provider profile.</param>
     /// <param name="html">Bounded provider HTML.</param>
     /// <param name="query">Optional search text used to filter providers whose landing page has no server-side query endpoint.</param>
-    /// <returns>At most sixty provider model identifiers.</returns>
+    /// <returns>Bounded provider model identifiers, including Ollama official tags and community namespace/model tags.</returns>
     private IReadOnlyList<string> ExtractProviderCatalogModelIds(AiProviderBootstrapProfile profile, string html, string query)
     {
         try
@@ -955,22 +1207,18 @@ public sealed class InitialSetupAssistantService(
             var isOllama = providerBootstrap.IsOllamaProfile(profile);
             foreach (var href in hrefs)
             {
-                if (values.Count >= 60)
+                if (values.Count >= ProviderCatalogMaximumModelIds)
                     break;
-                var decoded = WebUtility.HtmlDecode(href).Trim();
+
                 string candidate;
                 if (isOllama)
                 {
-                    const string prefix = "/library/";
-                    var index = decoded.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
-                    if (index < 0)
+                    if (!TryExtractOllamaCatalogIdentifier(href, familyOnly: false, out candidate))
                         continue;
-                    candidate = decoded[(index + prefix.Length)..].Split('?', '#')[0].Trim('/');
-                    if (candidate.Contains('/'))
-                        candidate = candidate.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
                 }
                 else if (profile.DisplayName.Contains("LM Studio", StringComparison.OrdinalIgnoreCase))
                 {
+                    var decoded = WebUtility.HtmlDecode(href).Trim();
                     const string prefix = "/models/";
                     var index = decoded.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
                     if (index < 0)
@@ -979,21 +1227,23 @@ public sealed class InitialSetupAssistantService(
                     var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length != 2)
                         continue;
-                    candidate = $"{parts[0]}/{parts[1]}";
+                    candidate = $"{Uri.UnescapeDataString(parts[0])}/{Uri.UnescapeDataString(parts[1])}".Trim();
                 }
                 else
                 {
                     continue;
                 }
 
-                candidate = Uri.UnescapeDataString(candidate).Trim();
-                if (string.IsNullOrWhiteSpace(candidate))
-                    continue;
-                if (!CatalogQueryMatches(candidate, query))
+                if (string.IsNullOrWhiteSpace(candidate) || !CatalogQueryMatches(candidate, query))
                     continue;
                 values.Add(candidate);
             }
-            return values.OrderBy(item => item, StringComparer.OrdinalIgnoreCase).ToList();
+
+            return values
+                .OrderBy(GetApproximateParameterBillions)
+                .ThenBy(item => item, StringComparer.OrdinalIgnoreCase)
+                .Take(ProviderCatalogMaximumModelIds)
+                .ToList();
         }
         catch (Exception exception)
         {
@@ -1077,7 +1327,23 @@ public sealed class InitialSetupAssistantService(
         try
         {
             if (providerBootstrap.IsOllamaProfile(profile))
-                return $"https://ollama.com/library/{Uri.EscapeDataString(providerModelId).Replace("%3A", ":", StringComparison.OrdinalIgnoreCase)}";
+            {
+                var family = providerModelId.Split(':', 2)[0];
+                var familyParts = family.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (familyParts.Length is < 1 or > 2 || familyParts.Any(part => !IsSafeOllamaCatalogSegment(part)))
+                    return profile.ModelCatalogUrl;
+
+                var modelParts = providerModelId.Split(':', 2);
+                if (modelParts.Length == 2 && !IsSafeOllamaCatalogSegment(modelParts[1]))
+                    return profile.ModelCatalogUrl;
+
+                var escapedFamily = string.Join("/", familyParts.Select(Uri.EscapeDataString));
+                var escapedModel = modelParts.Length == 2 ? $"{escapedFamily}:{Uri.EscapeDataString(modelParts[1])}" : escapedFamily;
+                return familyParts.Length == 1
+                    ? $"https://ollama.com/library/{escapedModel}"
+                    : $"https://ollama.com/{escapedModel}";
+            }
+
             if (profile.DisplayName.Contains("LM Studio", StringComparison.OrdinalIgnoreCase))
             {
                 var escaped = string.Join("/", providerModelId.Split('/').Select(Uri.EscapeDataString));
@@ -1458,6 +1724,28 @@ public sealed class InitialSetupAssistantService(
         try
         {
             var value = recommendationId?.Trim() ?? string.Empty;
+            var explicitMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["gemma3n-e2b"] = "gemma3n:e2b",
+                ["gemma3n-e4b"] = "gemma3n:e4b",
+                ["gemma4-e2b"] = "gemma4:e2b",
+                ["gemma4-e4b"] = "gemma4:e4b",
+                ["gemma4-26b-a4b"] = "gemma4:26b",
+                ["gemma4-26b-a4b-it"] = "gemma4:26b",
+                ["llama3.2-11b-vision"] = "llama3.2-vision:11b",
+                ["llama4-scout"] = "llama4:scout",
+                ["llama4-scout-17b"] = "llama4:scout",
+                ["llama4-maverick"] = "llama4:maverick",
+                ["llama4-maverick-17b"] = "llama4:maverick",
+                ["mixtral-8x7b"] = "mixtral:8x7b",
+                ["mixtral-8x22b"] = "mixtral:8x22b",
+                ["qwen3-30b-a3b"] = "qwen3:30b",
+                ["qwen3.5-35b-a3b"] = "qwen3.5:35b",
+                ["qwen3-vl-30b-a3b"] = "qwen3-vl:30b"
+            };
+            if (explicitMappings.TryGetValue(value, out var explicitProviderId))
+                return explicitProviderId;
+
             var separator = value.LastIndexOf('-');
             if (separator <= 0 || separator >= value.Length - 1)
                 return null;
@@ -1468,19 +1756,34 @@ public sealed class InitialSetupAssistantService(
             var knownFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "gpt-oss",
-                "qwen3",
-                "qwen3.5",
                 "qwen2.5",
                 "qwen2.5-coder",
+                "qwen3",
+                "qwen3-coder",
+                "qwen3-vl",
+                "qwen3.5",
+                "qwen3.6",
+                "llama2",
+                "llama2-uncensored",
+                "llama3",
                 "llama3.1",
                 "llama3.2",
                 "llama3.3",
                 "deepseek-r1",
+                "deepseek-v2",
+                "deepseek-coder",
+                "deepseek-coder-v2",
                 "gemma2",
                 "gemma3",
+                "gemma4",
                 "codegemma",
                 "codellama",
-                "llama2-uncensored",
+                "mistral",
+                "mistral-nemo",
+                "mistral-small",
+                "tinyllama",
+                "command-r",
+                "llama-guard3",
                 "phi3",
                 "phi4",
                 "deepscaler"
@@ -1531,7 +1834,7 @@ public sealed class InitialSetupAssistantService(
             var value = providerModelId ?? string.Empty;
             var match = System.Text.RegularExpressions.Regex.Match(
                 value,
-                @"(?<![a-z0-9])(?<size>\d+(?:\.\d+)?)(?<unit>[bm])(?:\b|$)",
+                @"(?<size>\d+(?:\.\d+)?)(?<unit>[bm])(?:\b|$)",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase,
                 TimeSpan.FromSeconds(1));
             if (!match.Success
