@@ -267,10 +267,12 @@
 }
 
 .ascii-operator-stage {
+    height: 24rem;
+    max-height: min(24rem, 58vh);
     min-height: 17rem;
     min-width: 0;
     display: grid;
-    grid-template-rows: minmax(12rem, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr) auto auto;
     background:
         linear-gradient(rgba(0, 255, 70, .025) 50%, transparent 50%),
         #020704;

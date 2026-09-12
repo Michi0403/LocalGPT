@@ -22,16 +22,29 @@ public sealed class CouncilHardwareRoadConfigurationService(
     {
         try
         {
-            var existing = (existingRoutes ?? [])
+            var requestedModelNames = modelNames
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var existingList = (existingRoutes ?? [])
                 .Where(route => route is not null && !string.IsNullOrWhiteSpace(route.ModelName))
+                .ToList();
+
+            if (existingList.Count == requestedModelNames.Count
+                && existingList.Select(route => route.ModelName.Trim()).SequenceEqual(requestedModelNames, StringComparer.OrdinalIgnoreCase)
+                && existingList.All(IsAlreadyNormalized))
+            {
+                logger.LogTrace("Council hardware roads are already synchronized for {RouteCount} model(s).", existingList.Count);
+                return existingRoutes as IReadOnlyList<OneWireCouncilModelRoute> ?? existingList;
+            }
+
+            var existing = existingList
                 .GroupBy(route => route.ModelName.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
 
             var synchronized = new List<OneWireCouncilModelRoute>();
-            foreach (var modelName in modelNames
-                         .Where(name => !string.IsNullOrWhiteSpace(name))
-                         .Select(name => name.Trim())
-                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var modelName in requestedModelNames)
             {
                 if (!existing.TryGetValue(modelName, out var route))
                 {
@@ -54,13 +67,54 @@ public sealed class CouncilHardwareRoadConfigurationService(
                 synchronized.Add(Normalize(route));
             }
 
-            logger.LogInformation("Synchronized {RouteCount} council hardware road configuration(s).", synchronized.Count);
+            logger.LogDebug("Synchronized {RouteCount} changed council hardware road configuration(s).", synchronized.Count);
             return synchronized;
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Could not synchronize council hardware road configurations.");
             throw;
+        }
+    }
+
+
+    /// <summary>Checks whether one existing road already satisfies the normalization invariants used by <see cref="Normalize(OneWireCouncilModelRoute)"/>.</summary>
+    /// <param name="route">Existing route inspected without mutating it.</param>
+    /// <returns><see langword="true"/> when a synchronization pass would not normalize any route field.</returns>
+    private bool IsAlreadyNormalized(OneWireCouncilModelRoute route)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(route.ModelName) || route.ModelName != route.ModelName.Trim())
+                return false;
+            if (string.IsNullOrWhiteSpace(route.HardwareName) || route.HardwareName != route.HardwareName.Trim())
+                return false;
+            if (route.HardwareKind == OneWireHardwareKind.Auto ? route.HardwareIndex != -1 : route.HardwareIndex < 0)
+                return false;
+            if (route.MinOutputTokens < 1 || route.MinOutputTokens > 262144 || route.MaxOutputTokens < route.MinOutputTokens || route.MaxOutputTokens > 262144)
+                return false;
+            if (route.MinContextTokens < 256 || route.MinContextTokens > 1048576 || route.MaxContextTokens < route.MinContextTokens || route.MaxContextTokens > 1048576)
+                return false;
+            if (route.MaxConcurrentModelsOnLane is < 1 or > 16)
+                return false;
+            if (route.LoadPercentOverride is { } load && (load < 0 || load > 100 || load % 5 != 0))
+                return false;
+
+            var isOllamaRoute = string.IsNullOrWhiteSpace(route.ProviderKind)
+                || route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase);
+            if (!isOllamaRoute)
+                return route.OllamaNumGpu is null;
+            return route.HardwareKind switch
+            {
+                OneWireHardwareKind.Cpu => route.OllamaNumGpu == 0,
+                OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator => route.OllamaNumGpu is null or > 0,
+                _ => route.OllamaNumGpu is null or >= 0
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Checking an existing council hardware road for normalization drift failed; the route will be normalized again.");
+            return false;
         }
     }
 

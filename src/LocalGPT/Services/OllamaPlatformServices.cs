@@ -27,6 +27,130 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
     /// <returns>The absolute model-store path, or <see langword="null"/> when this platform is unsupported.</returns>
     public abstract string? ResolveDefaultModelDirectory();
 
+    /// <summary>Returns platform-specific mounted storage roots that can be inspected without traversing the host filesystem recursively.</summary>
+    /// <returns>Mounted roots suitable for user review.</returns>
+    public virtual IReadOnlyList<string> ResolveMountedStorageRoots()
+    {
+        try
+        {
+            return DriveInfo.GetDrives()
+                .Where(drive => drive.IsReady)
+                .Select(drive => drive.RootDirectory.FullName)
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(ExecutablePathComparer)
+                .OrderBy(path => path, ExecutablePathComparer)
+                .Take(64)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Ollama mounted-storage discovery failed: {0}", exception);
+            return [];
+        }
+    }
+
+    /// <summary>Discovers existing Ollama model stores by checking documented, inherited, linked, and shallow mounted-volume candidates.</summary>
+    /// <returns>Provider-shaped directories containing both <c>blobs</c> and <c>manifests</c>.</returns>
+    public IReadOnlyList<string> DiscoverModelDirectories()
+    {
+        try
+        {
+            var discovered = new HashSet<string>(ExecutablePathComparer);
+            var candidates = new List<string>();
+            var defaultDirectory = ResolveDefaultModelDirectory();
+            var inheritedDirectory = Environment.GetEnvironmentVariable("OLLAMA_MODELS");
+            AddCandidate(candidates, defaultDirectory);
+            AddCandidate(candidates, inheritedDirectory);
+
+            if (!string.IsNullOrWhiteSpace(defaultDirectory))
+            {
+                try
+                {
+                    var info = new DirectoryInfo(defaultDirectory);
+                    var target = info.Exists ? info.ResolveLinkTarget(returnFinalTarget: true) : null;
+                    AddCandidate(candidates, target?.FullName);
+                }
+                catch
+                {
+                    // Link inspection is optional evidence and must not block provider management.
+                }
+            }
+
+            foreach (var root in ResolveMountedStorageRoots())
+            {
+                AddKnownStoreShapes(candidates, root);
+                try
+                {
+                    foreach (var child in Directory.EnumerateDirectories(root).Take(64))
+                        AddKnownStoreShapes(candidates, child);
+                }
+                catch
+                {
+                    // A mounted volume can disappear or reject enumeration while the workbench is open.
+                }
+            }
+
+            foreach (var candidate in candidates.Take(1024))
+            {
+                try
+                {
+                    var fullPath = Path.GetFullPath(candidate);
+                    if (Directory.Exists(Path.Combine(fullPath, "blobs"))
+                        && Directory.Exists(Path.Combine(fullPath, "manifests")))
+                    {
+                        discovered.Add(fullPath);
+                    }
+                }
+                catch
+                {
+                    // Candidate paths are advisory only; invalid/inaccessible paths are skipped.
+                }
+            }
+
+            return discovered.OrderBy(path => path, ExecutablePathComparer).ToList();
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Ollama model-store discovery failed: {0}", exception);
+            return [];
+        }
+    }
+
+    /// <summary>Adds a non-empty path candidate to the bounded provider-store discovery list.</summary>
+    /// <param name="candidates">Candidate collection being assembled.</param>
+    /// <param name="path">Optional path to add.</param>
+    private void AddCandidate(List<string> candidates, string? path)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(path))
+                candidates.Add(Environment.ExpandEnvironmentVariables(path.Trim()));
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceWarning("Skipping an invalid Ollama model-store path candidate: {0}", exception.Message);
+        }
+    }
+
+    /// <summary>Adds common Ollama store layouts below one reviewed mounted-volume path.</summary>
+    /// <param name="candidates">Candidate collection being assembled.</param>
+    /// <param name="root">Mounted root or shallow child directory.</param>
+    private void AddKnownStoreShapes(List<string> candidates, string root)
+    {
+        try
+        {
+            AddCandidate(candidates, root);
+            AddCandidate(candidates, Path.Combine(root, "models"));
+            AddCandidate(candidates, Path.Combine(root, ".ollama", "models"));
+            AddCandidate(candidates, Path.Combine(root, "ollama", "models"));
+            AddCandidate(candidates, Path.Combine(root, "Ollama", "models"));
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceWarning("Skipping invalid Ollama model-store shapes below a mounted root: {0}", exception.Message);
+        }
+    }
+
     /// <summary>
     /// Resolves executable for <see cref="OllamaPlatformServiceBase"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama platform service base workflow.
     /// </summary>
@@ -131,6 +255,27 @@ public sealed class WindowsOllamaPlatformService : OllamaPlatformServiceBase
     }
 }
 
+    /// <summary>Returns ready Windows drive roots so removable or secondary drives can host an Ollama model store.</summary>
+    /// <returns>Ready filesystem drive roots.</returns>
+    public override IReadOnlyList<string> ResolveMountedStorageRoots()
+    {
+        try
+        {
+            return DriveInfo.GetDrives()
+                .Where(drive => drive.IsReady)
+                .Select(drive => drive.RootDirectory.FullName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .Take(64)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Windows mounted-drive discovery failed: {0}", exception);
+            return [];
+        }
+    }
+
     /// <summary>
     /// Retrieves known executable candidates as part of the windows Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -214,6 +359,23 @@ public sealed class MacOsOllamaPlatformService : OllamaPlatformServiceBase
     }
 }
 
+    /// <summary>Returns mounted macOS volumes below <c>/Volumes</c> for explicit storage selection and bounded provider-store discovery.</summary>
+    /// <returns>Currently mounted volume directories.</returns>
+    public override IReadOnlyList<string> ResolveMountedStorageRoots()
+    {
+        try
+        {
+            return Directory.Exists("/Volumes")
+                ? Directory.EnumerateDirectories("/Volumes").Take(64).ToList()
+                : [];
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("macOS mounted-volume discovery failed: {0}", exception);
+            return [];
+        }
+    }
+
     /// <summary>
     /// Retrieves known executable candidates as part of the mac OS Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -263,6 +425,37 @@ public sealed class LinuxOllamaPlatformService : OllamaPlatformServiceBase
         throw;
     }
 }
+
+    /// <summary>Returns common Linux user/removable mount roots without traversing the host root filesystem.</summary>
+    /// <returns>Ready mounted storage directories visible below common mount parents.</returns>
+    public override IReadOnlyList<string> ResolveMountedStorageRoots()
+    {
+        try
+        {
+            var roots = new HashSet<string>(StringComparer.Ordinal);
+            var homeUser = Environment.UserName;
+            foreach (var parent in new[] { "/mnt", "/media", string.IsNullOrWhiteSpace(homeUser) ? string.Empty : Path.Combine("/run/media", homeUser) })
+            {
+                if (string.IsNullOrWhiteSpace(parent) || !Directory.Exists(parent))
+                    continue;
+                try
+                {
+                    foreach (var child in Directory.EnumerateDirectories(parent).Take(64))
+                        roots.Add(child);
+                }
+                catch
+                {
+                    // Individual mount parents may not be enumerable for the current service user.
+                }
+            }
+            return roots.OrderBy(path => path, StringComparer.Ordinal).ToList();
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Linux mounted-volume discovery failed: {0}", exception);
+            return [];
+        }
+    }
 
     /// <summary>
     /// Retrieves known executable candidates as part of the linux Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.

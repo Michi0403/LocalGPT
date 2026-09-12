@@ -409,6 +409,7 @@ namespace LocalGPT.Components.Pages
                         ScheduleLiveCouncilListRefresh();
                         if (!isDisposed
                             && CouncilLiveSessions.GetSummary(runId) is { } latest
+                            && latest.IsRunning
                             && latest.UpdatedAtUtc > lastAttachedLiveCouncilUpdatedAtUtc)
                         {
                             OnCouncilLiveSessionChanged(runId);

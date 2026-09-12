@@ -66,6 +66,47 @@
                         </div>
                         <small>@management.ModelDirectoryGuidance</small>
                     </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Storage evidence")" ColSpanMd="12">
+                        <div class="provider-runtime-storage-evidence">
+                            <div>
+                                <span>@T("Provider documented model-store default")</span>
+                                <code>@(string.IsNullOrWhiteSpace(management.ProviderDefaultModelDirectory) ? T("Not resolved") : management.ProviderDefaultModelDirectory)</code>
+                            </div>
+                            <div>
+                                <span>@T("Inherited OLLAMA_MODELS")</span>
+                                <code>@(string.IsNullOrWhiteSpace(management.InheritedModelDirectory) ? T("Not set") : management.InheritedModelDirectory)</code>
+                            </div>
+                            <div>
+                                <span>@T("LocalGPT model-store override")</span>
+                                <code>@(string.IsNullOrWhiteSpace(management.Ollama.ModelDirectory) ? T("Not set") : management.Ollama.ModelDirectory)</code>
+                            </div>
+                            <div>
+                                <span>@T("Effective model store")</span>
+                                <code>@(string.IsNullOrWhiteSpace(management.EffectiveModelDirectory) ? T("Not resolved") : management.EffectiveModelDirectory)</code>
+                                <small>@T("Effective source"): @T(management.EffectiveModelDirectorySource)</small>
+                            </div>
+                        </div>
+                        @if (management.DetectedModelDirectories.Count > 0)
+                        {
+                            <div class="provider-runtime-storage-list">
+                                <strong>@T("Detected Ollama stores (blobs + manifests)")</strong>
+                                @foreach (var path in management.DetectedModelDirectories)
+                                {
+                                    <span><small>@T("Detected store")</small><code>@path</code></span>
+                                }
+                            </div>
+                        }
+                        @if (management.MountedStorageRoots.Count > 0)
+                        {
+                            <div class="provider-runtime-storage-list">
+                                <strong>@T("Mounted storage roots")</strong>
+                                @foreach (var path in management.MountedStorageRoots)
+                                {
+                                    <span><small>@T("Mounted destination")</small><code>@path</code></span>
+                                }
+                            </div>
+                        }
+                    </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="@T("Bind address")" ColSpanMd="4">
                         <DxComboBox Data="@bindAddressChoices" @bind-Value="management.Ollama.BindAddress" />
                     </DxFormLayoutItem>

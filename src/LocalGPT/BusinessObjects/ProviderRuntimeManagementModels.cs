@@ -128,6 +128,24 @@ public sealed class ProviderRuntimeManagementSnapshot
     /// <summary>Gets or sets the effective or provider-managed model directory shown to the user.</summary>
     /// <value>The model-directory description or path.</value>
     public string ModelDirectory { get; set; } = string.Empty;
+    /// <summary>Records the provider-documented default model-store directory independently from LocalGPT overrides and filesystem discovery.</summary>
+    /// <value>The documented provider default path when one is known.</value>
+    public string ProviderDefaultModelDirectory { get; set; } = string.Empty;
+    /// <summary>Records an inherited <c>OLLAMA_MODELS</c> environment path independently from LocalGPT's persisted override.</summary>
+    /// <value>The inherited environment path, or an empty string when it is not set.</value>
+    public string InheritedModelDirectory { get; set; } = string.Empty;
+    /// <summary>Records the best effective Ollama model-store path LocalGPT can resolve from supported configuration and bounded filesystem evidence.</summary>
+    /// <value>The effective local model-store path.</value>
+    public string EffectiveModelDirectory { get; set; } = string.Empty;
+    /// <summary>Classifies the evidence that selected <see cref="EffectiveModelDirectory"/>: LocalGPT override, inherited environment, filesystem link, detected provider store, or documented default.</summary>
+    /// <value>The effective model-directory source classification.</value>
+    public string EffectiveModelDirectorySource { get; set; } = string.Empty;
+    /// <summary>Lists mounted storage roots exposed by the platform boundary as explicit model-store destinations.</summary>
+    /// <value>Ready local or removable mount roots visible to the LocalGPT process.</value>
+    public List<string> MountedStorageRoots { get; set; } = [];
+    /// <summary>Lists bounded filesystem candidates that were positively identified as Ollama stores by their <c>blobs</c> and <c>manifests</c> layout.</summary>
+    /// <value>Detected provider-shaped Ollama model directories.</value>
+    public List<string> DetectedModelDirectories { get; set; } = [];
     /// <summary>Gets or sets whether LocalGPT may persist the model-directory setting for this provider.</summary>
     /// <value><see langword="true"/> when the directory is directly configurable through LocalGPT.</value>
     public bool ModelDirectoryEditable { get; set; }

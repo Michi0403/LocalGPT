@@ -198,6 +198,7 @@
                                     @(choice.IsInstalled ? T("installed") : choice.CanInstall ? T("available to install") : T("manual provider ID required"))
                                     @if (choice.IsProviderInventory) { <text> @T("· provider inventory")</text> }
                                     @if (choice.IsProviderCatalogEntry) { <text> @T("· official provider catalog")</text> }
+                                    @if (choice.IsProviderCatalogKnown) { <text> @T("· provider catalog known")</text> }
                                     @if (choice.IsHardwareRecommended) { <text> @T("· CanIRun.ai hardware-fit discovery")</text> }
                                     @if (!string.IsNullOrWhiteSpace(choice.RecommendationGrade)) { <text> @T("· grade") @choice.RecommendationGrade</text> }
                                     @if (choice.RecommendationScore > 0) { <text> @T("· score") @choice.RecommendationScore</text> }
@@ -205,6 +206,10 @@
                                     @if (!string.IsNullOrWhiteSpace(choice.Quantization)) { <text> · @choice.Quantization</text> }
                                     @if (choice.RequiredVramGiB is > 0) { <text> · @choice.RequiredVramGiB.Value.ToString("0.##") GiB</text> }
                                 </span>
+                                @if (!string.IsNullOrWhiteSpace(choice.HardwareCompatibilityNote))
+                                {
+                                    <small class="initial-setup-evidence-note"><strong>@T("Hardware-fit evidence"):</strong> @choice.HardwareCompatibilityNote</small>
+                                }
                                 @if (!string.IsNullOrWhiteSpace(choice.SourceUrl))
                                 {
                                     <a href="@choice.SourceUrl" target="_blank" rel="noopener noreferrer">CanIRun.ai model</a>
@@ -244,7 +249,11 @@
                             {
                                 <div class="initial-setup-model-row" @key="choice.ProviderModelId">
                                     <span><strong>@choice.DisplayName</strong> → <code>@choice.ProviderModelId</code></span>
-                                    <span>@(choice.IsInstalled ? T("installed") : choice.CanInstall ? T("available to install") : T("manual provider ID required")) @T("· official provider catalog")</span>
+                                    <span>@(choice.IsInstalled ? T("installed") : choice.CanInstall ? T("available to install") : T("manual provider ID required")) @T("· official provider catalog") @T("· provider catalog known")</span>
+                                    @if (!string.IsNullOrWhiteSpace(choice.HardwareCompatibilityNote))
+                                    {
+                                        <small class="initial-setup-evidence-note"><strong>@T("Hardware-fit evidence"):</strong> @choice.HardwareCompatibilityNote</small>
+                                    }
                                     @if (!string.IsNullOrWhiteSpace(choice.ProviderCatalogUrl))
                                     {
                                         <a href="@choice.ProviderCatalogUrl" target="_blank" rel="noopener noreferrer">@T("Provider model page")</a>

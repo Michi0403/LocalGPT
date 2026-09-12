@@ -92,9 +92,12 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
     {
         try
         {
-            logger.LogDebug("Starting boot-critical LocalGPT database initialization without UI/service-activity dependencies.");
-            await InitializeCoreAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogInformation("Database migration and deterministic initial data feed completed.");
+            logger.LogTrace("Checking whether boot-critical LocalGPT database initialization is required.");
+            var initializedNow = await InitializeCoreAsync(cancellationToken).ConfigureAwait(false);
+            if (initializedNow)
+                logger.LogInformation("Database migration and deterministic initial data feed completed.");
+            else
+                logger.LogTrace("Database initialization request reused the already initialized LocalGPT store.");
         }
         catch (Exception __serviceMethodException)
         {
@@ -110,19 +113,19 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
     /// Performs initialize core as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task InitializeCoreAsync(CancellationToken cancellationToken)
+    /// <returns>A task whose result is <see langword="true"/> only when this call performed migration/seeding work.</returns>
+    private async Task<bool> InitializeCoreAsync(CancellationToken cancellationToken)
     {
     try
     {
             if (IsInitializedStorePresent())
-                return;
+                return false;
 
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 if (IsInitializedStorePresent())
-                    return;
+                    return false;
 
                 await databaseFileHealth.EnsureHealthyOrRecoverAsync(cancellationToken).ConfigureAwait(false);
                 await migrationCompatibility.PrepareAsync(cancellationToken).ConfigureAwait(false);
@@ -140,6 +143,7 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
                 initialized = true;
                 databaseLoggerReadiness.MarkReady();
                 logger.LogInformation("LocalGPT database migration and initial data feed completed.");
+                return true;
             }
             finally
             {

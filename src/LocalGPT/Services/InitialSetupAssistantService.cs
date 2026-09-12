@@ -250,6 +250,8 @@ public sealed class InitialSetupAssistantService(
                     MappingStatus = "Installed model reported by the selected provider.",
                     IsInstalled = true,
                     IsProviderInventory = true,
+                    IsProviderCatalogKnown = true,
+                    HardwareCompatibilityNote = "Installed provider model. CanIRun.ai evidence is optional and does not gate provider availability.",
                     IsHardwareRecommended = false,
                     CanCheckUpdate = isOllamaProfile && hasInstallModelAction,
                     ProviderCatalogUrl = BuildProviderCatalogModelUrl(profile, providerId),
@@ -277,6 +279,8 @@ public sealed class InitialSetupAssistantService(
                         MappingStatus = "Knowledge-backed provider catalog mapping.",
                         IsInstalled = installedCandidate is not null,
                         IsProviderInventory = installedCandidate is not null,
+                        IsProviderCatalogKnown = true,
+                        HardwareCompatibilityNote = BuildHardwareCompatibilityNote(providerId, recommendation: null),
                         CanCheckUpdate = installedCandidate is not null && isOllamaProfile && hasInstallModelAction,
                         ProviderCatalogUrl = BuildProviderCatalogModelUrl(profile, providerId),
                         IsProviderCatalogUrlExact = true,
@@ -316,6 +320,8 @@ public sealed class InitialSetupAssistantService(
                         MappingStatus = canInstall ? "CanIRun.ai hardware-fit discovery mapped to the selected provider." : "Provider install ID needs review.",
                         IsInstalled = installedCandidate is not null,
                         IsProviderInventory = installedCandidate is not null,
+                        IsProviderCatalogKnown = hasProviderId,
+                        HardwareCompatibilityNote = BuildHardwareCompatibilityNote(providerId, recommendation),
                         CanCheckUpdate = installedCandidate is not null && canInstall && isOllamaProfile,
                         ProviderCatalogUrl = hasProviderId
                             ? BuildProviderCatalogModelUrl(profile, providerId)
@@ -334,6 +340,8 @@ public sealed class InitialSetupAssistantService(
                 choice.Quantization = recommendation.Quantization;
                 choice.RequiredVramGiB = recommendation.RequiredVramGiB;
                 choice.SourceUrl = recommendation.SourceUrl;
+                choice.IsProviderCatalogKnown = choice.IsProviderCatalogKnown || hasProviderId;
+                choice.HardwareCompatibilityNote = BuildHardwareCompatibilityNote(choice.ProviderModelId, recommendation);
                 if (installedCandidate is not null)
                 {
                     choice.IsInstalled = true;
@@ -345,6 +353,7 @@ public sealed class InitialSetupAssistantService(
 
             return choices.Values
                 .OrderByDescending(item => item.IsInstalled)
+                .ThenBy(item => GetApproximateParameterBillions(item.ProviderModelId))
                 .ThenByDescending(item => item.IsHardwareRecommended)
                 .ThenByDescending(item => item.RecommendationScore)
                 .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -529,6 +538,8 @@ public sealed class InitialSetupAssistantService(
                     IsInstalled = installedCandidate is not null,
                     IsProviderInventory = installedCandidate is not null,
                     IsProviderCatalogEntry = true,
+                    IsProviderCatalogKnown = true,
+                    HardwareCompatibilityNote = BuildHardwareCompatibilityNote(providerId, recommendation: null),
                     CanCheckUpdate = installedCandidate is not null && canInstall && isOllamaProfile,
                     ProviderCatalogUrl = BuildProviderCatalogModelUrl(profile, providerId),
                     IsProviderCatalogUrlExact = true,
@@ -735,7 +746,7 @@ public sealed class InitialSetupAssistantService(
                     && !uri.Host.Equals("www.lmstudio.ai", StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Provider catalog requests are restricted to maintained HTTPS provider hosts.");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("LocalGPT/4.1.6");
+            request.Headers.UserAgent.ParseAdd("LocalGPT/4.1.7");
             var client = httpClientFactory.CreateClient("LocalGPTProviderCatalog");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -1469,6 +1480,9 @@ public sealed class InitialSetupAssistantService(
                 "gemma3",
                 "codegemma",
                 "codellama",
+                "llama2-uncensored",
+                "phi3",
+                "phi4",
                 "deepscaler"
             };
             return knownFamilies.Contains(family) ? $"{family}:{size}" : null;
@@ -1477,6 +1491,63 @@ public sealed class InitialSetupAssistantService(
         {
             logger.LogWarning(exception, "Inferring a conservative Ollama recommendation identifier failed.");
             return null;
+        }
+    }
+
+    /// <summary>Builds a short evidence note without treating optional CanIRun.ai data as provider-catalog authority.</summary>
+    /// <param name="providerModelId">Provider-native model identifier.</param>
+    /// <param name="recommendation">Optional attributed CanIRun.ai hardware-fit evidence.</param>
+    /// <returns>A bounded compatibility/evidence note for the setup UI.</returns>
+    private string BuildHardwareCompatibilityNote(string providerModelId, CanIRunModelRecommendation? recommendation)
+    {
+        try
+        {
+            if (recommendation is not null)
+            {
+                var grade = string.IsNullOrWhiteSpace(recommendation.Grade) ? "ungraded" : recommendation.Grade.Trim();
+                var memory = recommendation.RequiredVramGiB is > 0 ? $"; estimated memory {recommendation.RequiredVramGiB.Value:0.##} GiB" : string.Empty;
+                return $"CanIRun.ai hardware-fit evidence: {grade}, score {recommendation.Score}{memory}. Provider catalog availability is tracked independently.";
+            }
+
+            var parameters = GetApproximateParameterBillions(providerModelId);
+            return double.IsFinite(parameters) && parameters < double.MaxValue
+                ? $"Provider catalog model (~{parameters:0.##}B parameters). No CanIRun.ai hardware-fit evidence is attached; provider availability does not imply hardware suitability."
+                : "Provider catalog model. No CanIRun.ai hardware-fit evidence is attached; provider availability does not imply hardware suitability.";
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Building provider/model hardware compatibility evidence failed; model identifier omitted from logs.");
+            return "Provider availability and optional hardware-fit evidence are tracked independently.";
+        }
+    }
+
+    /// <summary>Extracts a rough parameter count from provider model tags so setup can list lighter models before larger variants.</summary>
+    /// <param name="providerModelId">Provider-native model identifier containing an optional size tag.</param>
+    /// <returns>Approximate billions of parameters, or <see cref="double.MaxValue"/> when no size can be inferred.</returns>
+    private double GetApproximateParameterBillions(string providerModelId)
+    {
+        try
+        {
+            var value = providerModelId ?? string.Empty;
+            var match = System.Text.RegularExpressions.Regex.Match(
+                value,
+                @"(?<![a-z0-9])(?<size>\d+(?:\.\d+)?)(?<unit>[bm])(?:\b|$)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+                TimeSpan.FromSeconds(1));
+            if (!match.Success
+                || !double.TryParse(match.Groups["size"].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var size))
+                return double.MaxValue;
+            return match.Groups["unit"].Value.Equals("m", StringComparison.OrdinalIgnoreCase) ? size / 1000d : size;
+        }
+        catch (System.Text.RegularExpressions.RegexMatchTimeoutException exception)
+        {
+            logger.LogDebug(exception, "Inferring an approximate provider-model parameter count timed out; model identifier omitted from logs.");
+            return double.MaxValue;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Inferring an approximate provider-model parameter count failed; model identifier omitted from logs.");
+            return double.MaxValue;
         }
     }
 

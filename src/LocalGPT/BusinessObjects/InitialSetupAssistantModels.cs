@@ -463,6 +463,12 @@ public sealed class InitialSetupModelChoice
     /// <summary>Gets or sets whether the row originated from an explicit search of the selected provider's official public model catalog.</summary>
     /// <value><see langword="true"/> for provider-owned online catalog results.</value>
     public bool IsProviderCatalogEntry { get; set; }
+    /// <summary>Gets or sets whether LocalGPT has a maintained or provider-confirmed install identifier independent from CanIRun.ai evidence.</summary>
+    /// <value><see langword="true"/> when provider catalog availability is known.</value>
+    public bool IsProviderCatalogKnown { get; set; }
+    /// <summary>Gets or sets the bounded compatibility/evidence note that keeps provider availability separate from optional CanIRun.ai hardware-fit evidence.</summary>
+    /// <value>The compatibility evidence shown to the user.</value>
+    public string HardwareCompatibilityNote { get; set; } = string.Empty;
     /// <summary>Gets or sets whether CanIRun.ai identified this model as a hardware-fit discovery for the reviewed host.</summary>
     /// <value><see langword="true"/> when attributed CanIRun.ai recommendation data is attached.</value>
     public bool IsHardwareRecommended { get; set; }

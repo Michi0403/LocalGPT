@@ -347,10 +347,49 @@ public sealed class ProviderRuntimeManagementService(
     try
     {
                 snapshot.ModelDirectoryEditable = true;
-                snapshot.ModelDirectory = string.IsNullOrWhiteSpace(snapshot.Ollama.ModelDirectory)
-                    ? ollamaPlatform.ResolveDefaultModelDirectory() ?? string.Empty
-                    : snapshot.Ollama.ModelDirectory;
-                snapshot.ModelDirectoryGuidance = "Changing the directory affects LocalGPT-started Ollama after restart. Existing model files are not moved implicitly; relocate them deliberately while Ollama is stopped.";
+                snapshot.ProviderDefaultModelDirectory = NormalizeModelDirectoryEvidence(ollamaPlatform.ResolveDefaultModelDirectory());
+                snapshot.InheritedModelDirectory = NormalizeModelDirectoryEvidence(Environment.GetEnvironmentVariable("OLLAMA_MODELS"));
+                snapshot.MountedStorageRoots = ollamaPlatform.ResolveMountedStorageRoots()
+                    .Where(path => !string.IsNullOrWhiteSpace(path))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                snapshot.DetectedModelDirectories = ollamaPlatform.DiscoverModelDirectories()
+                    .Where(path => !string.IsNullOrWhiteSpace(path))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+
+                var localOverride = NormalizeModelDirectoryEvidence(snapshot.Ollama.ModelDirectory);
+                var defaultLinkTarget = ResolveDirectoryLinkTarget(snapshot.ProviderDefaultModelDirectory);
+                if (!string.IsNullOrWhiteSpace(localOverride))
+                {
+                    snapshot.EffectiveModelDirectory = localOverride;
+                    snapshot.EffectiveModelDirectorySource = "LocalGPT override";
+                }
+                else if (!string.IsNullOrWhiteSpace(snapshot.InheritedModelDirectory))
+                {
+                    snapshot.EffectiveModelDirectory = snapshot.InheritedModelDirectory;
+                    snapshot.EffectiveModelDirectorySource = "Inherited OLLAMA_MODELS environment";
+                }
+                else if (!string.IsNullOrWhiteSpace(defaultLinkTarget))
+                {
+                    snapshot.EffectiveModelDirectory = defaultLinkTarget;
+                    snapshot.EffectiveModelDirectorySource = "Filesystem link target";
+                }
+                else if (snapshot.DetectedModelDirectories.Count == 1
+                    && !snapshot.DetectedModelDirectories[0].Equals(snapshot.ProviderDefaultModelDirectory, StringComparison.Ordinal))
+                {
+                    snapshot.EffectiveModelDirectory = snapshot.DetectedModelDirectories[0];
+                    snapshot.EffectiveModelDirectorySource = "Detected provider-shaped store";
+                }
+                else
+                {
+                    snapshot.EffectiveModelDirectory = snapshot.ProviderDefaultModelDirectory;
+                    snapshot.EffectiveModelDirectorySource = string.IsNullOrWhiteSpace(snapshot.ProviderDefaultModelDirectory)
+                        ? "Unresolved"
+                        : "Provider documented default";
+                }
+                snapshot.ModelDirectory = snapshot.EffectiveModelDirectory;
+                snapshot.ModelDirectoryGuidance = "Changing the LocalGPT override affects LocalGPT-started Ollama after restart. Existing model files are not moved implicitly; relocate them deliberately while Ollama is stopped.";
                 try
                 {
                     using var tagsRequest = new HttpRequestMessage(HttpMethod.Get, BuildProviderUri(profile, "/api/tags"));
@@ -765,6 +804,52 @@ public sealed class ProviderRuntimeManagementService(
         throw;
     }
 }
+
+    /// <summary>Normalizes optional provider-storage evidence without creating directories or treating an inaccessible path as a management failure.</summary>
+    /// <param name="value">Optional provider/default/environment path.</param>
+    /// <returns>An absolute normalized path when it can be resolved, otherwise an empty string.</returns>
+    private string NormalizeModelDirectoryEvidence(string? value)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+            var expanded = Environment.ExpandEnvironmentVariables(value.Trim());
+            if (expanded.Equals("~", StringComparison.Ordinal) || expanded.StartsWith("~/", StringComparison.Ordinal) || expanded.StartsWith("~\\", StringComparison.Ordinal))
+            {
+                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                if (!string.IsNullOrWhiteSpace(home))
+                    expanded = expanded.Length == 1 ? home : Path.Combine(home, expanded[2..]);
+            }
+            return Path.GetFullPath(expanded);
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Normalizing optional provider model-directory evidence failed; path value was omitted.");
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Resolves a documented default model directory through a filesystem symbolic-link chain when the host exposes one.</summary>
+    /// <param name="path">Normalized documented default path.</param>
+    /// <returns>The final linked directory target, or an empty string when the path is not a resolvable link.</returns>
+    private string ResolveDirectoryLinkTarget(string path)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return string.Empty;
+            var info = new DirectoryInfo(path);
+            if (!info.Exists || string.IsNullOrWhiteSpace(info.LinkTarget))
+                return string.Empty;
+            return info.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? string.Empty;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Resolving the optional provider model-directory link target failed; path value was omitted.");
+            return string.Empty;
+        }
+    }
 
     /// <summary>Populates disk capacity using the longest mounted-drive path that contains the configured Ollama model directory.</summary>
     /// <param name="snapshot">Snapshot value supplied to the provider runtime management operation and used when producing its result.</param>

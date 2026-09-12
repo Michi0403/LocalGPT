@@ -196,7 +196,9 @@ namespace LocalGPT.Services
                 }
 
                 if (sessions.Count == 0)
-                    throw new InvalidOperationException("❌ No AI providers configured. Check appsettings.json or Installation page.");
+                {
+                    logger.LogWarning("No active AI provider sessions are currently available. Returning an empty recoverable chat selector while provider discovery can recover.");
+                }
 
                 return new CompositeChatClient(
                     logger,

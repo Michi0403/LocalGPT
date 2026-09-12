@@ -311,9 +311,20 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                 await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
                 using var reader = new StreamReader(stream);
 
-                while (!reader.EndOfStream)
+                while (true)
                 {
-                    var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    string? line;
+                    try
+                    {
+                        line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (HttpIOException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException("The Ollama streaming response ended while the LocalGPT operation was being cancelled.", cancellationToken);
+                    }
+                    if (line is null)
+                        break;
                     if (string.IsNullOrWhiteSpace(line))
                         continue;
 

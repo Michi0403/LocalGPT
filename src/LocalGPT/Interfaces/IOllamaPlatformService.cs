@@ -21,4 +21,12 @@ public interface IOllamaPlatformService
     /// <summary>Resolves Ollama's documented default model-store directory for the current platform.</summary>
     /// <returns>The absolute default model-store path when it can be determined.</returns>
     string? ResolveDefaultModelDirectory();
+
+    /// <summary>Returns mounted storage roots that are reasonable user-selectable destinations for an Ollama model store.</summary>
+    /// <returns>A bounded collection of ready local or removable filesystem roots.</returns>
+    IReadOnlyList<string> ResolveMountedStorageRoots();
+
+    /// <summary>Discovers existing provider-shaped Ollama model stores without recursively crawling an entire filesystem.</summary>
+    /// <returns>Directories that contain both Ollama <c>blobs</c> and <c>manifests</c> subdirectories.</returns>
+    IReadOnlyList<string> DiscoverModelDirectories();
 }

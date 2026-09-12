@@ -404,7 +404,6 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     {
         FlushBatch(currentLogger, operation);
         currentLogger.LogInformation(
-            exception,
             "Service operation {Operation} was cancelled after {ElapsedMilliseconds} ms.",
             operation,
             elapsedMilliseconds);

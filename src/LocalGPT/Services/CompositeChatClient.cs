@@ -112,7 +112,7 @@ public class CompositeChatClient : IChatClient
     {
 
         AvailableChatClients = chatClients.ToList();
-        SelectedSession = AvailableChatClients[0];
+        SelectedSession = AvailableChatClients.FirstOrDefault();
         _logger = logger;
         _featureReportService = featureReportService;
         _bootstrapService = bootstrapService;

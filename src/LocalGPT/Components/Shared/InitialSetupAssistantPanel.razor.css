@@ -14,7 +14,7 @@
 .initial-setup-installed-row { grid-template-columns: auto auto minmax(12rem, 1fr) minmax(8rem, auto); align-items: center; }
 .initial-setup-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .initial-setup-provider-detail { display: grid; gap: .35rem; }
-.initial-setup-console { max-height: 24rem; overflow: auto; margin: 0; padding: .75rem; border-radius: .45rem; background: #080b0d; color: #d8ffd8; font-family: "Cascadia Mono","Consolas","DejaVu Sans Mono",monospace; white-space: pre; overflow-wrap: normal; word-break: normal; tab-size: 4; font-variant-ligatures: none; }
+.initial-setup-console { height: 24rem; max-height: min(24rem, 52vh); min-height: 14rem; overflow: auto; margin: 0; padding: .75rem; border-radius: .45rem; background: #080b0d; color: #d8ffd8; font-family: "Cascadia Mono","Consolas","DejaVu Sans Mono",monospace; white-space: pre; overflow-wrap: normal; word-break: normal; tab-size: 4; font-variant-ligatures: none; }
 @media (max-width: 900px) { .initial-setup-hardware-row { grid-template-columns: 1fr; } .initial-setup-hardware-use, .initial-setup-hardware-canirun { grid-column: 1; } .initial-setup-installed-row { grid-template-columns: 1fr; } }
 
 .initial-setup-heading-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: flex-end; }
@@ -25,3 +25,5 @@
     gap: 0.55rem;
     margin-top: 0.75rem;
 }
+
+.initial-setup-evidence-note { display: block; opacity: .86; overflow-wrap: anywhere; }
