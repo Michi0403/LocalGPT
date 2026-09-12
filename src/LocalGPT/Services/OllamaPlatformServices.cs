@@ -23,6 +23,10 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
     /// <value>The executable name value exposed by <see cref="OllamaPlatformServiceBase"/>.</value>
     protected virtual string ExecutableName => "ollama";
 
+    /// <summary>Resolves the documented provider-default model-store directory for this platform.</summary>
+    /// <returns>The absolute model-store path, or <see langword="null"/> when this platform is unsupported.</returns>
+    public abstract string? ResolveDefaultModelDirectory();
+
     /// <summary>
     /// Resolves executable for <see cref="OllamaPlatformServiceBase"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama platform service base workflow.
     /// </summary>
@@ -110,6 +114,24 @@ public sealed class WindowsOllamaPlatformService : OllamaPlatformServiceBase
     protected override string ExecutableName => "ollama.exe";
 
     /// <summary>
+    /// Resolves default model directory as part of the windows Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public override string? ResolveDefaultModelDirectory()
+    {
+    try
+    {
+                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                return string.IsNullOrWhiteSpace(home) ? null : Path.Combine(home, ".ollama", "models");
+    }
+    catch (Exception exception)
+    {
+        System.Diagnostics.Trace.TraceError("WindowsOllamaPlatformService.ResolveDefaultModelDirectory failed: {0}", exception);
+        throw;
+    }
+}
+
+    /// <summary>
     /// Retrieves known executable candidates as part of the windows Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
@@ -175,6 +197,24 @@ public sealed class MacOsOllamaPlatformService : OllamaPlatformServiceBase
     public override string PlatformName => "macOS";
 
     /// <summary>
+    /// Resolves default model directory as part of the mac OS Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public override string? ResolveDefaultModelDirectory()
+    {
+    try
+    {
+                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                return string.IsNullOrWhiteSpace(home) ? null : Path.Combine(home, ".ollama", "models");
+    }
+    catch (Exception exception)
+    {
+        System.Diagnostics.Trace.TraceError("MacOsOllamaPlatformService.ResolveDefaultModelDirectory failed: {0}", exception);
+        throw;
+    }
+}
+
+    /// <summary>
     /// Retrieves known executable candidates as part of the mac OS Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
@@ -209,6 +249,22 @@ public sealed class LinuxOllamaPlatformService : OllamaPlatformServiceBase
     public override string PlatformName => "Linux";
 
     /// <summary>
+    /// Resolves default model directory as part of the linux Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public override string? ResolveDefaultModelDirectory() {
+    try
+    {
+        return "/usr/share/ollama/.ollama/models";
+    }
+    catch (Exception exception)
+    {
+        System.Diagnostics.Trace.TraceError("LinuxOllamaPlatformService.ResolveDefaultModelDirectory failed: {0}", exception);
+        throw;
+    }
+}
+
+    /// <summary>
     /// Retrieves known executable candidates as part of the linux Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
@@ -234,6 +290,22 @@ public sealed class GenericOllamaPlatformService : OllamaPlatformServiceBase
     /// </summary>
     /// <inheritdoc />
     public override string PlatformName => "Other";
+
+    /// <summary>
+    /// Resolves default model directory as part of the generic Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <inheritdoc />
+    public override string? ResolveDefaultModelDirectory() {
+    try
+    {
+        return null;
+    }
+    catch (Exception exception)
+    {
+        System.Diagnostics.Trace.TraceError("GenericOllamaPlatformService.ResolveDefaultModelDirectory failed: {0}", exception);
+        throw;
+    }
+}
 
     /// <summary>
     /// Retrieves known executable candidates as part of the generic Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.

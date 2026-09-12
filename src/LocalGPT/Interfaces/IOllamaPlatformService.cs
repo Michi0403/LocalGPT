@@ -17,4 +17,8 @@ public interface IOllamaPlatformService
     /// <param name="executable">Absolute executable path returned by <see cref="ResolveExecutable"/>.</param>
     /// <returns><see langword="true"/> when the executable should be launched as a GUI application.</returns>
     bool IsGuiExecutable(string executable);
+
+    /// <summary>Resolves Ollama's documented default model-store directory for the current platform.</summary>
+    /// <returns>The absolute default model-store path when it can be determined.</returns>
+    string? ResolveDefaultModelDirectory();
 }

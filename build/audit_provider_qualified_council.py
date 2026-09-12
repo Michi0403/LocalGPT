@@ -241,7 +241,7 @@ def main() -> int:
     contains("DXFunction handlers are discovered automatically for startup catalog seeding", program, "typeof(IDxAiFunctionHandler).IsAssignableFrom")
     contains("benchmark applied event exists", benchmark_models, "ProviderModelBenchmarkAppliedEvent")
     contains("batch applied event exists", benchmark_models, "ProviderModelBenchmarkBatchAppliedEvent")
-    contains("provider runtime aliases LocalGPT configuration root", runtime, "using ConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;")
+    contains("provider runtime aliases LocalGPT configuration root", runtime, "using LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;")
     contains("configured Ollama enumeration is materialized", runtime, "private IReadOnlyList<OllamaCoreOptions> EnumerateOllama")
     excludes("configured Ollama enumeration does not yield", runtime, "yield return primary")
     contains("single-model panel text is service-owned", panel, "CouncilText.ProviderModelReviewerSummary")

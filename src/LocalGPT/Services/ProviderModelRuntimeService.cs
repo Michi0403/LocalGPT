@@ -1,7 +1,7 @@
 using Azure;
 using Azure.AI.OpenAI;
 using LocalGPT.BusinessObjects;
-using ConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
+using LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
@@ -28,7 +28,7 @@ namespace LocalGPT.Services;
 /// <param name="functionRegistry">Devexpress ai function registry dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 /// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 public sealed class ProviderModelRuntimeService(
-    IOptionsMonitor<ConfigurationRoot> optionsRoot,
+    IOptionsMonitor<LocalGptConfigurationRoot> optionsRoot,
     ILoggerFactory loggerFactory,
     ILogger<ProviderModelRuntimeService> logger,
     CouncilRuntimeService councilRuntime,

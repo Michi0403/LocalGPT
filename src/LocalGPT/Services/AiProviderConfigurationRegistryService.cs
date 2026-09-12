@@ -42,6 +42,29 @@ public sealed class AiProviderConfigurationRegistryService(
                 HealthTimeoutSeconds = item?.HealthTimeoutSeconds ?? 45
             };
 
+            OllamaRuntimeManagementOptions CloneOllamaRuntime(OllamaRuntimeManagementOptions? item) => new()
+            {
+                ModelDirectory = item?.ModelDirectory ?? string.Empty,
+                BindAddress = item?.BindAddress ?? "127.0.0.1",
+                Port = item?.Port ?? 11434,
+                ContextLengthTokens = item?.ContextLengthTokens ?? 0,
+                KeepAlive = item?.KeepAlive ?? string.Empty,
+                MaxLoadedModels = item?.MaxLoadedModels ?? 0,
+                ParallelRequests = item?.ParallelRequests ?? 0,
+                MaxQueue = item?.MaxQueue ?? 0,
+                DisableCloud = item?.DisableCloud ?? false
+            };
+
+            LmStudioRuntimeManagementOptions CloneLmStudioRuntime(LmStudioRuntimeManagementOptions? item) => new()
+            {
+                BindAddress = item?.BindAddress ?? "127.0.0.1",
+                Port = item?.Port ?? 1234,
+                EnableCors = item?.EnableCors ?? false,
+                ContextLengthTokens = item?.ContextLengthTokens ?? 0,
+                GpuOffload = item?.GpuOffload ?? "auto",
+                TtlSeconds = item?.TtlSeconds ?? 0
+            };
+
             OpenAICompatOptions CloneOpenAi(OpenAICompatOptions? item) => new()
             {
                 Endpoint = item?.Endpoint ?? string.Empty,
@@ -76,8 +99,10 @@ public sealed class AiProviderConfigurationRegistryService(
             {
                 OllamaCore = detachedPrimaryOllama,
                 OllamaCores = detachedAdditionalOllamas,
+                OllamaRuntime = CloneOllamaRuntime(source.OllamaRuntime),
                 ChatGPTLocalCore = CloneLocalOpenAi(source.ChatGPTLocalCore),
                 ChatGPTLocalCores = (source.ChatGPTLocalCores ?? []).Select(CloneLocalOpenAi).ToList(),
+                LmStudioRuntime = CloneLmStudioRuntime(source.LmStudioRuntime),
                 OpenAICore = CloneOpenAi(source.OpenAICore),
                 OpenAIServiceCore = CloneAzure(source.OpenAIServiceCore)
             };
@@ -138,6 +163,29 @@ public sealed class AiProviderConfigurationRegistryService(
                 WorkingDir = item?.WorkingDir,
                 StartCommand = item?.StartCommand,
                 HealthTimeoutSeconds = item?.HealthTimeoutSeconds ?? 45
+            };
+
+            OllamaRuntimeManagementOptions CloneOllamaRuntime(OllamaRuntimeManagementOptions? item) => new()
+            {
+                ModelDirectory = item?.ModelDirectory ?? string.Empty,
+                BindAddress = item?.BindAddress ?? "127.0.0.1",
+                Port = item?.Port ?? 11434,
+                ContextLengthTokens = item?.ContextLengthTokens ?? 0,
+                KeepAlive = item?.KeepAlive ?? string.Empty,
+                MaxLoadedModels = item?.MaxLoadedModels ?? 0,
+                ParallelRequests = item?.ParallelRequests ?? 0,
+                MaxQueue = item?.MaxQueue ?? 0,
+                DisableCloud = item?.DisableCloud ?? false
+            };
+
+            LmStudioRuntimeManagementOptions CloneLmStudioRuntime(LmStudioRuntimeManagementOptions? item) => new()
+            {
+                BindAddress = item?.BindAddress ?? "127.0.0.1",
+                Port = item?.Port ?? 1234,
+                EnableCors = item?.EnableCors ?? false,
+                ContextLengthTokens = item?.ContextLengthTokens ?? 0,
+                GpuOffload = item?.GpuOffload ?? "auto",
+                TtlSeconds = item?.TtlSeconds ?? 0
             };
 
             OpenAICompatOptions CloneOpenAi(OpenAICompatOptions? item) => new()
@@ -229,6 +277,9 @@ public sealed class AiProviderConfigurationRegistryService(
                     .Select(endpoint => CloneOllama(registry[endpoint]))
                     .ToList();
             }
+
+            target.OllamaRuntime = CloneOllamaRuntime(draft.OllamaRuntime);
+            target.LmStudioRuntime = CloneLmStudioRuntime(draft.LmStudioRuntime);
 
             // Other provider families remain normal detached editor fields. The important distinction is that none of
             // these objects alias IOptionsMonitor.CurrentValue while the user is editing the page.

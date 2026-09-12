@@ -1,0 +1,591 @@
+@using LocalGPT.BusinessObjects
+@inject IProviderRuntimeManagementService RuntimeManagement
+@inject IOllamaProcessService OllamaProcesses
+@inject ILogger<ProviderRuntimeManagementPanel> Logger
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
+
+<section class="provider-runtime-workbench" aria-label="Provider runtime and model storage management">
+    <header class="provider-runtime-heading">
+        <div>
+            <h4>@T("Provider runtime, storage & model cleanup")</h4>
+            <p>@T("Inspect downloaded model disk usage, unload memory, remove provider-supported model files, and tune the local runtime without leaving LocalGPT.")</p>
+        </div>
+        <DxButton Text="@T("Refresh provider runtime")" Enabled="@(!busy)" RenderStyle="ButtonRenderStyle.Secondary" Click="RefreshAsync" />
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(statusText))
+    {
+        <div class="alert @(statusIsError ? "alert-danger" : "alert-info")" role="status">@statusText</div>
+    }
+
+    @if (management is null)
+    {
+        <p>@T("Loading provider runtime management…")</p>
+    }
+    else
+    {
+        <div class="provider-runtime-summary">
+            <div><span>@T("Provider")</span><strong>@management.ProviderName</strong></div>
+            <div><span>@T("Downloaded models")</span><strong>@management.Models.Count</strong></div>
+            <div><span>@T("Model storage")</span><strong>@FormatBytes(management.InstalledModelBytes)</strong></div>
+            @if (management.DiskFreeBytes.HasValue)
+            {
+                <div><span>@T("Filesystem free")</span><strong>@FormatBytes(management.DiskFreeBytes.Value)</strong></div>
+            }
+        </div>
+
+        @if (management.DiskFreeBytes is > 0 && management.DiskTotalBytes is > 0 && management.DiskFreeBytes.Value < Math.Max(20L * 1024 * 1024 * 1024, management.DiskTotalBytes.Value / 10))
+        {
+            <div class="alert alert-warning" role="alert">
+                @T("Model storage is low on free space. Unload models to release RAM; permanently remove unneeded downloads before the filesystem is exhausted.")
+            </div>
+        }
+
+        <DxFormLayout CssClass="provider-runtime-form">
+            <DxFormLayoutGroup Caption="@T("LocalGPT generation defaults")" ColSpanMd="12">
+                <DxFormLayoutItem Caption="@T("Default maximum output tokens")" ColSpanMd="6">
+                    <DxSpinEdit @bind-Value="management.DefaultMaxOutputTokens" Min="128" Max="1048576" Increment="256" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="@T("Default context tokens")" ColSpanMd="6">
+                    <DxSpinEdit @bind-Value="management.DefaultContextTokens" Min="128" Max="1048576" Increment="256" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem ColSpanMd="12">
+                    <div class="provider-runtime-actions">
+                        <DxButton Text="@T("Save LocalGPT token defaults")" Enabled="@(!busy)" RenderStyle="ButtonRenderStyle.Primary" Click="SaveTokenDefaultsAsync" />
+                    </div>
+                </DxFormLayoutItem>
+            </DxFormLayoutGroup>
+
+            @if (management.IsOllama)
+            {
+                <DxFormLayoutGroup Caption="@T("Ollama storage & server")" ColSpanMd="12">
+                    <DxFormLayoutItem Caption="@T("Model storage directory")" ColSpanMd="12">
+                        <div class="provider-runtime-path-row">
+                            <DxTextBox @bind-Text="management.Ollama.ModelDirectory" NullText="@management.ModelDirectory" />
+                            <DxButton Text="@T("Browse")" RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!busy)" Click="ShowModelDirectoryPickerAsync" />
+                        </div>
+                        <small>@management.ModelDirectoryGuidance</small>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Bind address")" ColSpanMd="4">
+                        <DxComboBox Data="@bindAddressChoices" @bind-Value="management.Ollama.BindAddress" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Port")" ColSpanMd="2">
+                        <DxSpinEdit @bind-Value="management.Ollama.Port" Min="1" Max="65535" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Runtime context tokens (0 = Ollama default)")" ColSpanMd="6">
+                        <DxSpinEdit @bind-Value="management.Ollama.ContextLengthTokens" Min="0" Max="1048576" Increment="256" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Keep alive (empty = Ollama default)")" ColSpanMd="4">
+                        <DxTextBox @bind-Text="management.Ollama.KeepAlive" NullText="5m / 0 / -1" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Max loaded models (0 = default)")" ColSpanMd="3">
+                        <DxSpinEdit @bind-Value="management.Ollama.MaxLoadedModels" Min="0" Max="64" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Parallel requests (0 = default)")" ColSpanMd="3">
+                        <DxSpinEdit @bind-Value="management.Ollama.ParallelRequests" Min="0" Max="64" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Max queued requests (0 = default)")" ColSpanMd="2">
+                        <DxSpinEdit @bind-Value="management.Ollama.MaxQueue" Min="0" Max="65536" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="12">
+                        <DxCheckBox @bind-Checked="management.Ollama.DisableCloud" Text="@T("Local-only Ollama: disable cloud features when LocalGPT starts the server")" />
+                    </DxFormLayoutItem>
+                    @if (IsNetworkExposed(management.Ollama.BindAddress))
+                    {
+                        <DxFormLayoutItem ColSpanMd="12">
+                            <div class="alert alert-warning" role="alert">@T("This bind address exposes Ollama beyond localhost. Protect the host with firewall/network controls and expose only networks you trust.")</div>
+                        </DxFormLayoutItem>
+                    }
+                    <DxFormLayoutItem ColSpanMd="12">
+                        <div class="provider-runtime-actions">
+                            <DxButton Text="@T("Save Ollama settings")" Enabled="@(!busy)" RenderStyle="ButtonRenderStyle.Primary" Click="SaveOllamaSettingsAsync" />
+                            <DxButton Text="@T("Save & restart Ollama")" Enabled="@(!busy)" RenderStyle="ButtonRenderStyle.Warning" Click="SaveAndRestartOllamaAsync" />
+                        </div>
+                        <small>@T("A new model directory changes OLLAMA_MODELS for LocalGPT-started Ollama. LocalGPT does not silently move old blobs/manifests; stop Ollama and relocate existing data deliberately before deleting the old store.")</small>
+                    </DxFormLayoutItem>
+                </DxFormLayoutGroup>
+            }
+            else if (management.IsLmStudio)
+            {
+                <DxFormLayoutGroup Caption="@T("LM Studio model load & server")" ColSpanMd="12">
+                    <DxFormLayoutItem Caption="@T("Model storage directory")" ColSpanMd="12">
+                        <div class="provider-runtime-readonly-path"><strong>@management.ModelDirectory</strong></div>
+                        <small>@management.ModelDirectoryGuidance</small>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Server bind address")" ColSpanMd="4">
+                        <DxComboBox Data="@bindAddressChoices" @bind-Value="management.LmStudio.BindAddress" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Server port")" ColSpanMd="2">
+                        <DxSpinEdit @bind-Value="management.LmStudio.Port" Min="1" Max="65535" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="6">
+                        <DxCheckBox @bind-Checked="management.LmStudio.EnableCors" Text="@T("Enable CORS for LocalGPT-started LM Studio server")" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Load context tokens (0 = automatic)")" ColSpanMd="4">
+                        <DxSpinEdit @bind-Value="management.LmStudio.ContextLengthTokens" Min="0" Max="1048576" Increment="256" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("GPU offload")" ColSpanMd="4">
+                        <DxComboBox Data="@gpuOffloadChoices" @bind-Value="management.LmStudio.GpuOffload" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="@T("Idle unload TTL seconds (0 = provider default)")" ColSpanMd="4">
+                        <DxSpinEdit @bind-Value="management.LmStudio.TtlSeconds" Min="0" Max="604800" Increment="60" />
+                    </DxFormLayoutItem>
+                    @if (IsNetworkExposed(management.LmStudio.BindAddress) || management.LmStudio.EnableCors)
+                    {
+                        <DxFormLayoutItem ColSpanMd="12">
+                            <div class="alert alert-warning" role="alert">@T("LM Studio warns that non-loopback binding or CORS increases exposure. Configure authentication in LM Studio Developer settings before using this on an untrusted network.")</div>
+                        </DxFormLayoutItem>
+                    }
+                    <DxFormLayoutItem ColSpanMd="12">
+                        <div class="provider-runtime-actions">
+                            <DxButton Text="@T("Save LM Studio defaults")" Enabled="@(!busy)" RenderStyle="ButtonRenderStyle.Primary" Click="SaveLmStudioSettingsAsync" />
+                            <DxButton Text="@T("Save & restart LM Studio server")" Enabled="@(!busy)" RenderStyle="ButtonRenderStyle.Warning" Click="SaveAndRestartLmStudioServerAsync" />
+                        </div>
+                        <small>@T("LM Studio authentication remains in the existing OpenAI-compatible provider API Key field and LM Studio Developer settings; LocalGPT does not duplicate or expose stored credentials in this runtime panel.")</small>
+                    </DxFormLayoutItem>
+                </DxFormLayoutGroup>
+            }
+        </DxFormLayout>
+
+        @if (management.Models.Count > 0)
+        {
+            <div class="provider-runtime-model-header">
+                <div>
+                    <h5>@T("Downloaded model inventory")</h5>
+                    <p>@T("Use Unload to release RAM without deleting files. Ollama supports permanent deletion here; LM Studio permanent file removal stays with its supported My Models interface.")</p>
+                </div>
+                @if (management.IsOllama)
+                {
+                    <DxCheckBox @bind-Checked="permanentDeleteConfirmed" Text="@T("I understand that Remove permanently deletes the selected Ollama model files")" />
+                }
+            </div>
+
+            <DxGrid Data="@management.Models"
+                    PageSize="12"
+                    ShowFilterRow="true"
+                    HighlightRowOnHover="true"
+                    CssClass="provider-runtime-grid">
+                <Columns>
+                    <DxGridDataColumn FieldName="@nameof(ProviderManagedModelInfo.DisplayName)" Caption="@T("Model")" MinWidth="260" />
+                    <DxGridDataColumn FieldName="@nameof(ProviderManagedModelInfo.ParameterSize)" Caption="@T("Parameters")" Width="110px" />
+                    <DxGridDataColumn FieldName="@nameof(ProviderManagedModelInfo.Architecture)" Caption="@T("Architecture")" Width="140px" />
+                    <DxGridDataColumn Caption="@T("Max context")" Width="120px">
+                        <CellDisplayTemplate Context="contextCell">
+                            @{ var model = (ProviderManagedModelInfo)contextCell.DataItem; }
+                            <span>@(model.MaxContextLengthTokens.HasValue ? $"{model.MaxContextLengthTokens.Value:N0}" : "—")</span>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="@T("Disk")" Width="125px">
+                        <CellDisplayTemplate Context="sizeCell">
+                            @{ var model = (ProviderManagedModelInfo)sizeCell.DataItem; }
+                            <span>@FormatBytes(model.SizeBytes)</span>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="@T("Memory")" Width="105px">
+                        <CellDisplayTemplate Context="memoryCell">
+                            @{ var model = (ProviderManagedModelInfo)memoryCell.DataItem; }
+                            <span class="@(model.IsLoaded ? "provider-model-loaded" : string.Empty)">@(model.IsLoaded ? T("loaded") : T("not loaded"))</span>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="@T("Actions")" MinWidth="320">
+                        <CellDisplayTemplate Context="actionCell">
+                            @{ var model = (ProviderManagedModelInfo)actionCell.DataItem; }
+                            <div class="provider-runtime-model-actions">
+                                @if (management.IsLmStudio)
+                                {
+                                    <DxButton Text="@T("Estimate")" Enabled="@(!busy)" RenderStyle="ButtonRenderStyle.Secondary" Click="@(() => EstimateLmStudioModelAsync(model))" />
+                                    @if (!model.IsLoaded)
+                                    {
+                                        <DxButton Text="@T("Load")" Enabled="@(!busy)" RenderStyle="ButtonRenderStyle.Primary" Click="@(() => LoadLmStudioModelAsync(model))" />
+                                    }
+                                }
+                                @if (model.CanUnload)
+                                {
+                                    <DxButton Text="@T("Unload")" Enabled="@(!busy)" RenderStyle="ButtonRenderStyle.Warning" Click="@(() => UnloadModelAsync(model))" />
+                                }
+                                @if (model.CanDelete)
+                                {
+                                    <DxButton Text="@T("Remove permanently")" Enabled="@(!busy && permanentDeleteConfirmed)" RenderStyle="ButtonRenderStyle.Danger" Click="@(() => DeleteModelAsync(model))" />
+                                }
+                                else if (management.IsLmStudio)
+                                {
+                                    <span class="provider-runtime-provider-owned">@T("Delete in LM Studio → My Models")</span>
+                                }
+                            </div>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                </Columns>
+            </DxGrid>
+        }
+        else
+        {
+            <p>@T("No downloaded models are visible through the selected provider right now.")</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(actionDetail))
+        {
+            <pre class="provider-runtime-action-detail" aria-live="polite">@actionDetail</pre>
+        }
+    }
+
+    <LocalPathExplorer Visible="@pathPickerVisible"
+                       VisibleChanged="OnPathPickerVisibleChangedAsync"
+                       SelectedPath="@selectedPath"
+                       SelectedPathChanged="OnModelDirectorySelectedAsync"
+                       SelectionMode="Directory"
+                       IncludeFiles="false"
+                       Title="@T("Choose Ollama model storage directory")" />
+</section>
+
+@code {
+    /// <summary>Identifies the local Ollama or LM Studio bootstrap profile whose storage, runtime, and model lifecycle state is displayed by this workbench.</summary>
+    /// <value>The selected provider profile.</value>
+    [Parameter, EditorRequired] public AiProviderBootstrapProfile Profile { get; set; } = new();
+
+    /// <summary>Gets or sets the callback raised after provider model inventory changes.</summary>
+    /// <value>The parent refresh callback.</value>
+    [Parameter] public EventCallback InventoryChanged { get; set; }
+
+    /// <summary>Holds the detached provider inventory, disk capacity, token defaults, and runtime settings currently being edited in the workbench.</summary>
+    private ProviderRuntimeManagementSnapshot? management;
+    /// <summary>Stores the profile key used for the most recent refresh.</summary>
+    private string loadedProfileKey = string.Empty;
+    /// <summary>Prevents overlapping provider lifecycle operations while a refresh, persistence action, restart, load, unload, estimate, or delete is in flight.</summary>
+    private bool busy;
+    /// <summary>Stores whether a destructive Ollama deletion has fresh explicit human confirmation.</summary>
+    private bool permanentDeleteConfirmed;
+    /// <summary>Holds the bounded human-readable result of the latest provider-management operation without exposing model paths in diagnostics.</summary>
+    private string statusText = string.Empty;
+    /// <summary>Stores whether the current status represents an operation failure.</summary>
+    private bool statusIsError;
+    /// <summary>Holds bounded provider-owned estimate or lifecycle output shown beneath the model grid for human review.</summary>
+    private string actionDetail = string.Empty;
+    /// <summary>Stores whether the reusable local path explorer is visible.</summary>
+    private bool pathPickerVisible;
+    /// <summary>Stores the current path selected through the reusable host-path explorer.</summary>
+    private string selectedPath = string.Empty;
+    /// <summary>Stores safe local-provider bind choices: loopback-only or all IPv4 interfaces for deliberate LAN access.</summary>
+    private readonly string[] bindAddressChoices = ["127.0.0.1", "0.0.0.0"];
+    /// <summary>Stores reviewable LM Studio GPU-offload choices including representative fractional modes.</summary>
+    private readonly string[] gpuOffloadChoices = ["auto", "off", "0.25", "0.5", "0.75", "max"];
+
+    /// <summary>Refreshes the management snapshot when the selected provider changes.</summary>
+    /// <returns>A task that completes after the new provider state is rendered.</returns>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Profile.Key) || Profile.Key.Equals(loadedProfileKey, StringComparison.OrdinalIgnoreCase))
+            return;
+        loadedProfileKey = Profile.Key;
+        await RefreshAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Refreshes downloaded/loaded models, disk state, and persisted runtime settings.</summary>
+    /// <returns>A task that completes after state is refreshed.</returns>
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var value = await RuntimeManagement.GetSnapshotAsync(Profile).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                management = value;
+                selectedPath = value.ModelDirectory;
+                statusText = value.Status;
+                statusIsError = false;
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Refreshing provider runtime workbench failed; model and path details omitted.");
+            await SetStatusAsync(T("Provider runtime refresh failed. Existing provider configuration was not changed."), true).ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Persists the reviewed LocalGPT-wide output and context token defaults without changing provider-specific runtime limits.</summary>
+    /// <returns>A task that completes after persistence.</returns>
+    private async Task SaveTokenDefaultsAsync()
+    {
+        if (management is null)
+            return;
+        await RunAsync(
+            T("LocalGPT token defaults saved."),
+            () => RuntimeManagement.SaveLocalGptTokenDefaultsAsync(management.DefaultMaxOutputTokens, management.DefaultContextTokens)).ConfigureAwait(false);
+    }
+
+    /// <summary>Persists reviewed Ollama storage, bind, context, concurrency, queue, keep-alive, and cloud policy while leaving the running process unchanged.</summary>
+    /// <returns>A task that completes after persistence.</returns>
+    private async Task SaveOllamaSettingsAsync()
+    {
+        if (management is null)
+            return;
+        await RunAsync(T("Ollama runtime settings saved. Restart Ollama to apply launch-environment changes."), async () =>
+        {
+            await RuntimeManagement.SaveOllamaRuntimeOptionsAsync(management.Ollama).ConfigureAwait(false);
+            UpdateSelectedProfileEndpoint(management.Ollama.BindAddress, management.Ollama.Port, openAiCompatible: false);
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>Persists reviewed Ollama runtime settings, synchronizes the local provider endpoint, and restarts the LocalGPT-managed Ollama process so launch environment changes take effect.</summary>
+    /// <returns>A task that completes after persistence and restart.</returns>
+    private async Task SaveAndRestartOllamaAsync()
+    {
+        if (management is null)
+            return;
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            await RuntimeManagement.SaveOllamaRuntimeOptionsAsync(management.Ollama).ConfigureAwait(false);
+            UpdateSelectedProfileEndpoint(management.Ollama.BindAddress, management.Ollama.Port, openAiCompatible: false);
+            var status = await OllamaProcesses.RestartAsync().ConfigureAwait(false);
+            await SetStatusAsync(T(status.Message), !status.IsRunning).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Saving/restarting Ollama from provider workbench failed; path details omitted.");
+            await SetStatusAsync(T("Ollama settings were not fully applied. Review the shared ASCII console and LocalGPT logs."), true).ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Saves LM Studio load/server defaults without changing the running server.</summary>
+    /// <returns>A task that completes after persistence.</returns>
+    private async Task SaveLmStudioSettingsAsync()
+    {
+        if (management is null)
+            return;
+        await RunAsync(T("LM Studio runtime defaults saved."), async () =>
+        {
+            await RuntimeManagement.SaveLmStudioRuntimeOptionsAsync(management.LmStudio).ConfigureAwait(false);
+            UpdateSelectedProfileEndpoint(management.LmStudio.BindAddress, management.LmStudio.Port, openAiCompatible: true);
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>Saves LM Studio defaults and restarts its documented local HTTP server.</summary>
+    /// <returns>A task that completes after the reviewed server restart.</returns>
+    private async Task SaveAndRestartLmStudioServerAsync()
+    {
+        if (management is null)
+            return;
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            await RuntimeManagement.SaveLmStudioRuntimeOptionsAsync(management.LmStudio).ConfigureAwait(false);
+            UpdateSelectedProfileEndpoint(management.LmStudio.BindAddress, management.LmStudio.Port, openAiCompatible: true);
+            var result = await RuntimeManagement.RestartLmStudioServerAsync(Profile, management.LmStudio, userConfirmed: true).ConfigureAwait(false);
+            await SetStatusAsync(T(result.Message), !result.Succeeded).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Restarting LM Studio server from provider workbench failed.");
+            await SetStatusAsync(T("LM Studio server restart failed. Review the shared ASCII console for the provider-owned error."), true).ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Unloads one selected model from provider memory without deleting files.</summary>
+    /// <param name="model">Selected downloaded model row.</param>
+    /// <returns>A task that completes after provider unload and refresh.</returns>
+    private async Task UnloadModelAsync(ProviderManagedModelInfo model)
+    {
+        await RunModelActionAsync(
+            () => RuntimeManagement.UnloadModelAsync(Profile, model.ModelId, userConfirmed: true),
+            refreshParent: false).ConfigureAwait(false);
+    }
+
+    /// <summary>Permanently deletes one Ollama model after the destructive-action acknowledgement is selected.</summary>
+    /// <param name="model">Selected downloaded Ollama model row.</param>
+    /// <returns>A task that completes after permanent removal and inventory refresh.</returns>
+    private async Task DeleteModelAsync(ProviderManagedModelInfo model)
+    {
+        if (!permanentDeleteConfirmed)
+            return;
+        await RunModelActionAsync(
+            () => RuntimeManagement.DeleteModelAsync(Profile, model.ModelId, userConfirmed: true),
+            refreshParent: true).ConfigureAwait(false);
+        await InvokeAsync(() => permanentDeleteConfirmed = false).ConfigureAwait(false);
+    }
+
+    /// <summary>Estimates LM Studio memory requirements without loading the selected model.</summary>
+    /// <param name="model">Selected downloaded LM Studio model row.</param>
+    /// <returns>A task that completes after the estimate appears in the workbench.</returns>
+    private async Task EstimateLmStudioModelAsync(ProviderManagedModelInfo model)
+    {
+        if (management is null)
+            return;
+        await RunModelActionAsync(
+            () => RuntimeManagement.EstimateLmStudioModelAsync(Profile, model.ModelId, management.LmStudio),
+            refreshAfter: false,
+            refreshParent: false).ConfigureAwait(false);
+    }
+
+    /// <summary>Loads one LM Studio model with the reviewed context, GPU, and TTL defaults.</summary>
+    /// <param name="model">Selected downloaded LM Studio model row.</param>
+    /// <returns>A task that completes after loading and inventory refresh.</returns>
+    private async Task LoadLmStudioModelAsync(ProviderManagedModelInfo model)
+    {
+        if (management is null)
+            return;
+        await RunModelActionAsync(
+            () => RuntimeManagement.LoadLmStudioModelAsync(Profile, model.ModelId, management.LmStudio, userConfirmed: true),
+            refreshParent: false).ConfigureAwait(false);
+    }
+
+    /// <summary>Executes a provider model action while preserving bounded output and refresh semantics.</summary>
+    /// <param name="action">Provider action to execute.</param>
+    /// <param name="refreshAfter">Whether the provider inventory should be refreshed afterward.</param>
+    /// <param name="refreshParent">Whether the parent setup model inventory should also be refreshed.</param>
+    /// <returns>A task that completes after action handling.</returns>
+    private async Task RunModelActionAsync(Func<Task<ProviderModelManagementResult>> action, bool refreshAfter = true, bool refreshParent = false)
+    {
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var result = await action().ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                actionDetail = result.Message;
+                statusText = result.Succeeded ? T("Provider model action completed.") : T("Provider model action failed.");
+                statusIsError = !result.Succeeded;
+            }).ConfigureAwait(false);
+            if (refreshAfter)
+                await RefreshAsync().ConfigureAwait(false);
+            if (refreshParent && InventoryChanged.HasDelegate)
+                await InventoryChanged.InvokeAsync().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Provider model lifecycle action failed; model identifier omitted.");
+            await SetStatusAsync(T("Provider model action failed. Review the shared ASCII console and provider state before retrying."), true).ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Executes a simple persistence action with common busy/error handling.</summary>
+    /// <param name="successText">Status text displayed after success.</param>
+    /// <param name="action">Asynchronous persistence action.</param>
+    /// <returns>A task that completes after action handling.</returns>
+    private async Task RunAsync(string successText, Func<Task> action)
+    {
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            await action().ConfigureAwait(false);
+            await SetStatusAsync(successText, false).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Provider runtime settings action failed; reviewed values omitted.");
+            await SetStatusAsync(T("Provider runtime settings could not be saved. Existing configuration remains available."), true).ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Shows the reusable DevExpress host-path browser for Ollama model storage selection.</summary>
+    /// <returns>A completed task after UI state changes.</returns>
+    private Task ShowModelDirectoryPickerAsync() => InvokeAsync(() => pathPickerVisible = true);
+
+    /// <summary>Synchronizes the reusable host-path explorer visibility state after the user opens or dismisses the Ollama model-directory chooser.</summary>
+    /// <param name="visible">New popup visibility.</param>
+    /// <returns>A task that completes after UI state changes.</returns>
+    private Task OnPathPickerVisibleChangedAsync(bool visible) => InvokeAsync(() => pathPickerVisible = visible);
+
+    /// <summary>Applies a path selected through the read-only host-path explorer to the detached Ollama settings.</summary>
+    /// <param name="path">Selected host directory.</param>
+    /// <returns>A task that completes after UI state changes.</returns>
+    private Task OnModelDirectorySelectedAsync(string path) => InvokeAsync(() =>
+    {
+        selectedPath = path;
+        pathPickerVisible = false;
+        if (management is not null && management.IsOllama)
+            management.Ollama.ModelDirectory = path;
+    });
+
+    /// <summary>Updates the operation-interlock flag through the Blazor renderer dispatcher so DevExpress action controls remain consistent during asynchronous work.</summary>
+    /// <param name="value">New busy state.</param>
+    /// <returns>A task that completes after UI state changes.</returns>
+    private Task SetBusyAsync(bool value) => InvokeAsync(() => busy = value);
+
+    /// <summary>Publishes one bounded provider-management outcome through the Blazor renderer dispatcher and records whether the message represents an error.</summary>
+    /// <param name="text">Status text.</param>
+    /// <param name="isError">Whether the status represents a failure.</param>
+    /// <returns>A task that completes after UI state changes.</returns>
+    private Task SetStatusAsync(string text, bool isError) => InvokeAsync(() =>
+    {
+        statusText = text;
+        statusIsError = isError;
+    });
+
+    /// <summary>Updates the selected local bootstrap profile immediately after a reviewed runtime port change so refresh/actions target the new endpoint.</summary>
+    /// <param name="bindAddress">Reviewed provider bind address.</param>
+    /// <param name="port">Reviewed provider port.</param>
+    /// <param name="openAiCompatible">Whether the endpoint requires the OpenAI-compatible <c>/v1</c> suffix.</param>
+    private void UpdateSelectedProfileEndpoint(string bindAddress, int port, bool openAiCompatible)
+    {
+        var host = bindAddress.Equals("0.0.0.0", StringComparison.OrdinalIgnoreCase) ? "127.0.0.1" : bindAddress;
+        Profile.Endpoint = $"http://{host}:{port}{(openAiCompatible ? "/v1" : string.Empty)}";
+    }
+
+    /// <summary>Returns whether a bind address intentionally exposes a provider beyond local loopback.</summary>
+    /// <param name="bindAddress">Reviewed bind host/address.</param>
+    /// <returns><see langword="true"/> when the address is not a recognized loopback value.</returns>
+    private bool IsNetworkExposed(string bindAddress)
+    {
+        var value = bindAddress?.Trim() ?? string.Empty;
+        return !(value.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("localhost", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Formats a nullable byte value for compact DevExpress-grid display.</summary>
+    /// <param name="bytes">Byte count.</param>
+    /// <returns>A compact binary-size label.</returns>
+    private string FormatBytes(long? bytes)
+    {
+        if (!bytes.HasValue || bytes.Value < 0)
+            return "—";
+        var value = (double)bytes.Value;
+        var units = new[] { "B", "KiB", "MiB", "GiB", "TiB" };
+        var index = 0;
+        while (value >= 1024 && index < units.Length - 1)
+        {
+            value /= 1024;
+            index++;
+        }
+        return $"{value:0.##} {units[index]}";
+    }
+
+    /// <summary>Returns one localized provider-management string.</summary>
+    /// <param name="source">English source text used as the localization lookup value.</param>
+    /// <returns>The localized string or source fallback.</returns>
+    private string T(string source) => Localization.GetText(source);
+}

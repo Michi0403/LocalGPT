@@ -157,12 +157,16 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IConsoleOperatorService, ConsoleOperatorService>();
                 builder.Services.AddScoped<ICanIRunHardwareRecommendationService, CanIRunHardwareRecommendationService>();
                 builder.Services.AddScoped<IAiProviderBootstrapService, AiProviderBootstrapService>();
+                builder.Services.AddScoped<IProviderRuntimeManagementService, ProviderRuntimeManagementService>();
                 builder.Services.AddScoped<IInitialSetupAssistantService, InitialSetupAssistantService>();
                 builder.Services.AddHttpClient("LocalGPTCanIRun")
                     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
                 builder.Services.AddHttpClient("LocalGPTProviderCatalog", client =>
                     client.Timeout = TimeSpan.FromSeconds(10))
                     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = true });
+                builder.Services.AddHttpClient("LocalGPTProviderRuntime", client =>
+                    client.Timeout = TimeSpan.FromSeconds(30))
+                    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
                 var configuredDatabasePath = builder.Configuration[$"{LocalGptDatabaseOptions.SectionName}:Path"];
                 var memoryDbPath = string.IsNullOrWhiteSpace(configuredDatabasePath)

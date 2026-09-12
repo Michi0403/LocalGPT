@@ -21,6 +21,11 @@ namespace LocalGPT.BusinessObjects
         /// <value>The Ollama cores value exposed by <see cref="AICoreOptions"/>.</value>
         public List<OllamaCoreOptions> OllamaCores { get; set; } = new(); // Additional independently reachable Ollama hosts/preferred models
         /// <summary>
+        /// Gets or sets LocalGPT-owned launch defaults for the local Ollama process without changing independently configured remote hosts.
+        /// </summary>
+        /// <value>The local Ollama runtime-management options.</value>
+        public OllamaRuntimeManagementOptions OllamaRuntime { get; set; } = new();
+        /// <summary>
         /// Gets or sets the OpenAI service core value that forms part of the AI core state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The OpenAI service core value exposed by <see cref="AICoreOptions"/>.</value>
@@ -35,6 +40,11 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         /// <value>The ChatGPT local cores value exposed by <see cref="AICoreOptions"/>.</value>
         public List<ChatGPTLocalCoreOptions> ChatGPTLocalCores { get; set; } = new(); // Additional independently reachable OpenAI-compatible hosts/models
+        /// <summary>
+        /// Gets or sets LocalGPT-owned LM Studio CLI/server defaults used by the provider-management workbench.
+        /// </summary>
+        /// <value>The local LM Studio runtime-management options.</value>
+        public LmStudioRuntimeManagementOptions LmStudioRuntime { get; set; } = new();
         /// <summary>
         /// Gets or sets the OpenAI core value that forms part of the AI core state consumed or produced by the surrounding workflow.
         /// </summary>

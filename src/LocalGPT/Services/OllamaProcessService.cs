@@ -1,6 +1,8 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 using System.Diagnostics;
+using Microsoft.Extensions.Options;
 
 namespace LocalGPT.Services;
 
@@ -8,9 +10,11 @@ namespace LocalGPT.Services;
 /// Coordinates Ollama process behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 /// <param name="platform">Resolves the operating-system-specific Ollama executable without leaking platform path policy into the shared process coordinator.</param>
+/// <param name="optionsRoot">Current LocalGPT configuration containing reviewed local Ollama launch defaults.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OllamaProcessService(
     IOllamaPlatformService platform,
+    IOptionsMonitor<LocalGptConfigurationRoot> optionsRoot,
     ILogger<OllamaProcessService> logger) : IOllamaProcessService
 {
     /// <summary>
@@ -72,7 +76,10 @@ public sealed class OllamaProcessService(
                 CreateNoWindow = !isGuiExecutable
             };
             if (!isGuiExecutable)
+            {
                 startInfo.ArgumentList.Add("serve");
+                ApplyLocalRuntimeEnvironment(startInfo);
+            }
 
             Process.Start(startInfo)?.Dispose();
             logger.LogInformation("Started Ollama through the resolved local executable; executable path was omitted from logs.");
@@ -167,7 +174,10 @@ public sealed class OllamaProcessService(
                     CreateNoWindow = !isGuiExecutable
                 };
                 if (!isGuiExecutable)
+                {
                     startInfo.ArgumentList.Add("serve");
+                    ApplyLocalRuntimeEnvironment(startInfo);
+                }
 
                 Process.Start(startInfo)?.Dispose();
                 await WaitForProcessStateAsync(expectedRunning: true, cancellationToken).ConfigureAwait(false);
@@ -191,6 +201,60 @@ public sealed class OllamaProcessService(
             logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(RestartAsync)} was canceled.");
         else
             logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(RestartAsync)} failed.");
+        throw;
+    }
+}
+
+    /// <summary>Applies reviewed LocalGPT Ollama runtime settings only to a LocalGPT-owned CLI launch.</summary>
+    /// <param name="startInfo">Process start information for the resolved Ollama CLI.</param>
+    private void ApplyLocalRuntimeEnvironment(ProcessStartInfo startInfo)
+    {
+    try
+    {
+                var runtime = optionsRoot.CurrentValue.AICore?.OllamaRuntime ?? new OllamaRuntimeManagementOptions();
+                if (!string.IsNullOrWhiteSpace(runtime.ModelDirectory))
+                    startInfo.Environment["OLLAMA_MODELS"] = NormalizeConfiguredModelDirectory(runtime.ModelDirectory);
+                if (!string.IsNullOrWhiteSpace(runtime.BindAddress) && runtime.Port is > 0 and <= 65535)
+                    startInfo.Environment["OLLAMA_HOST"] = $"{runtime.BindAddress.Trim()}:{runtime.Port}";
+                if (runtime.ContextLengthTokens > 0)
+                    startInfo.Environment["OLLAMA_CONTEXT_LENGTH"] = runtime.ContextLengthTokens.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (!string.IsNullOrWhiteSpace(runtime.KeepAlive))
+                    startInfo.Environment["OLLAMA_KEEP_ALIVE"] = runtime.KeepAlive.Trim();
+                if (runtime.MaxLoadedModels > 0)
+                    startInfo.Environment["OLLAMA_MAX_LOADED_MODELS"] = runtime.MaxLoadedModels.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (runtime.ParallelRequests > 0)
+                    startInfo.Environment["OLLAMA_NUM_PARALLEL"] = runtime.ParallelRequests.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (runtime.MaxQueue > 0)
+                    startInfo.Environment["OLLAMA_MAX_QUEUE"] = runtime.MaxQueue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (runtime.DisableCloud)
+                    startInfo.Environment["OLLAMA_NO_CLOUD"] = "1";
+    }
+    catch (Exception exception)
+    {
+        logger.LogDebug(exception, "Provider/runtime helper OllamaProcessService.ApplyLocalRuntimeEnvironment failed; caller-controlled path/model values were omitted.");
+        throw;
+    }
+}
+
+    /// <summary>Expands environment variables and a leading user-home marker for a persisted Ollama model directory without invoking a shell.</summary>
+    /// <param name="value">Persisted model directory.</param>
+    /// <returns>The absolute model-store path.</returns>
+    private string NormalizeConfiguredModelDirectory(string value)
+    {
+    try
+    {
+                var expanded = Environment.ExpandEnvironmentVariables(value.Trim());
+                if (expanded.Equals("~", StringComparison.Ordinal) || expanded.StartsWith("~/", StringComparison.Ordinal) || expanded.StartsWith("~\\", StringComparison.Ordinal))
+                {
+                    var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    if (!string.IsNullOrWhiteSpace(home))
+                        expanded = expanded.Length == 1 ? home : Path.Combine(home, expanded[2..]);
+                }
+                return Path.GetFullPath(expanded);
+    }
+    catch (Exception exception)
+    {
+        logger.LogDebug(exception, "Provider/runtime helper OllamaProcessService.NormalizeConfiguredModelDirectory failed; caller-controlled path/model values were omitted.");
         throw;
     }
 }

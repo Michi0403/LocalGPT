@@ -264,6 +264,13 @@
                 }
             </article>
 
+            @if (SelectedProvider is not null)
+            {
+                <article class="initial-setup-card initial-setup-wide">
+                    <ProviderRuntimeManagementPanel Profile="@SelectedProvider" InventoryChanged="RefreshAsync" />
+                </article>
+            }
+
             <article class="initial-setup-card initial-setup-wide">
                 <h4>5. Hardware-curated benchmark Council</h4>
                 <p>Select installed provider-qualified models. Mark the strongest ones as curator models; the saved team binds curator/director/reviewer roles to that stronger pool while benchmark-subject roles can exercise the broader selection.</p>

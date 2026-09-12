@@ -117,6 +117,7 @@ $documentationCacheManifestPath = ""
 $documentationCacheManifestData = $null
 $documentationHtmlCacheReused = $false
 $sharedPdfLockStream = $null
+$sharedDocumentationResourceLockStream = $null
 $documentationCoreSucceeded = $false
 $polishedXmlPath = Join-Path $documentationWorkRoot "LocalGPT.xml"
 $documentationLockStream = $null
@@ -139,22 +140,135 @@ if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_PDF_MAX_PAGES, [r
 }
 $browserPdfTimeoutMilliseconds = 480000
 $configuredBrowserTimeout = 0
-if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_PDF_TIMEOUT, [ref]$configuredBrowserTimeout) -and $configuredBrowserTimeout -gt 0) {
+$browserPdfTimeoutExplicit = [int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_PDF_TIMEOUT, [ref]$configuredBrowserTimeout) -and $configuredBrowserTimeout -gt 0
+if ($browserPdfTimeoutExplicit) {
     $browserPdfTimeoutMilliseconds = $configuredBrowserTimeout
 }
-$browserPdfChunkPages = 100
-try {
-    $availableMemory = [long][GC]::GetGCMemoryInfo().TotalAvailableMemoryBytes
-    if ($availableMemory -gt 0) {
-        if ($availableMemory -le 8589934592L) { $browserPdfChunkPages = 50 }
-        elseif ($availableMemory -le 17179869184L) { $browserPdfChunkPages = 80 }
-        elseif ($availableMemory -le 34359738368L) { $browserPdfChunkPages = 120 }
-        else { $browserPdfChunkPages = 160 }
+function Get-LocalGptDocumentationSystemMemoryBytes {
+    $configuredBytes = 0L
+    if ([long]::TryParse([string]$env:FUTURE2_DOCUMENTATION_SYSTEM_MEMORY_BYTES, [ref]$configuredBytes) -and $configuredBytes -gt 0) {
+        return $configuredBytes
     }
-} catch { }
+
+    try {
+        if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
+            $value = [string](& /usr/sbin/sysctl -n hw.memsize 2>$null | Select-Object -First 1)
+            $bytes = 0L
+            if ([long]::TryParse($value.Trim(), [ref]$bytes) -and $bytes -gt 0) { return $bytes }
+        }
+        elseif ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux)) {
+            $memInfo = Get-Content -LiteralPath '/proc/meminfo' -ErrorAction SilentlyContinue | Where-Object { $_ -match '^MemTotal:\s+(\d+)\s+kB' } | Select-Object -First 1
+            if ($null -ne $memInfo -and [string]$memInfo -match '^MemTotal:\s+(\d+)\s+kB') { return ([long]$Matches[1] * 1024L) }
+        }
+        elseif ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) {
+            $computerSystem = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -ne $computerSystem -and [long]$computerSystem.TotalPhysicalMemory -gt 0) { return [long]$computerSystem.TotalPhysicalMemory }
+        }
+    } catch { }
+
+    try {
+        $fallback = [long][GC]::GetGCMemoryInfo().TotalAvailableMemoryBytes
+        if ($fallback -gt 0) { return $fallback }
+    } catch { }
+    return 0L
+}
+
+$documentationSystemMemoryBytes = Get-LocalGptDocumentationSystemMemoryBytes
+$documentationSystemMemoryGiB = if ($documentationSystemMemoryBytes -gt 0) { [Math]::Round($documentationSystemMemoryBytes / 1GB, 1) } else { 0.0 }
+$browserPdfChunkPages = 100
+$browserJavaScriptHeapMb = 4096
+$documentationNodeHeapMb = 4096
+$docfxBuildMaxParallelism = 8
+$documentationLowMemoryMode = $false
+if ($documentationSystemMemoryBytes -gt 0) {
+    if ($documentationSystemMemoryBytes -le 10GB) {
+        $browserPdfChunkPages = 8
+        $browserJavaScriptHeapMb = 768
+        $documentationNodeHeapMb = 1024
+        $docfxBuildMaxParallelism = 1
+        $documentationLowMemoryMode = $true
+    }
+    elseif ($documentationSystemMemoryBytes -le 16GB) {
+        $browserPdfChunkPages = 16
+        $browserJavaScriptHeapMb = 1024
+        $documentationNodeHeapMb = 1536
+        $docfxBuildMaxParallelism = 2
+        $documentationLowMemoryMode = $true
+    }
+    elseif ($documentationSystemMemoryBytes -le 24GB) {
+        $browserPdfChunkPages = 32
+        $browserJavaScriptHeapMb = 1536
+        $documentationNodeHeapMb = 2048
+        $docfxBuildMaxParallelism = 3
+    }
+    elseif ($documentationSystemMemoryBytes -le 32GB) {
+        $browserPdfChunkPages = 50
+        $browserJavaScriptHeapMb = 2048
+        $documentationNodeHeapMb = 2048
+        $docfxBuildMaxParallelism = 4
+    }
+    elseif ($documentationSystemMemoryBytes -le 48GB) {
+        $browserPdfChunkPages = 75
+        $browserJavaScriptHeapMb = 3072
+        $documentationNodeHeapMb = 3072
+        $docfxBuildMaxParallelism = 6
+    }
+    elseif ($documentationSystemMemoryBytes -le 96GB) {
+        $browserPdfChunkPages = 100
+        $browserJavaScriptHeapMb = 4096
+        $documentationNodeHeapMb = 4096
+        $docfxBuildMaxParallelism = 8
+    }
+    else {
+        $browserPdfChunkPages = 120
+        $browserJavaScriptHeapMb = 4096
+        $documentationNodeHeapMb = 4096
+        $docfxBuildMaxParallelism = 10
+    }
+}
+if ([string]::Equals([string]$env:FUTURE2_DOCUMENTATION_LOW_MEMORY, '1', [StringComparison]::OrdinalIgnoreCase) -or
+    [string]::Equals([string]$env:FUTURE2_DOCUMENTATION_LOW_MEMORY, 'true', [StringComparison]::OrdinalIgnoreCase)) {
+    $documentationLowMemoryMode = $true
+    $browserPdfChunkPages = [Math]::Min($browserPdfChunkPages, 8)
+    $browserJavaScriptHeapMb = [Math]::Min($browserJavaScriptHeapMb, 768)
+    $documentationNodeHeapMb = [Math]::Min($documentationNodeHeapMb, 1024)
+    $docfxBuildMaxParallelism = 1
+}
 $configuredBrowserChunkPages = 0
-if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_PDF_CHUNK_PAGES, [ref]$configuredBrowserChunkPages) -and $configuredBrowserChunkPages -ge 20) {
+if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_PDF_CHUNK_PAGES, [ref]$configuredBrowserChunkPages) -and $configuredBrowserChunkPages -ge 5) {
     $browserPdfChunkPages = [Math]::Min(250, $configuredBrowserChunkPages)
+}
+$configuredBrowserHeapMb = 0
+if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_JS_HEAP_MB, [ref]$configuredBrowserHeapMb) -and $configuredBrowserHeapMb -ge 256) {
+    $browserJavaScriptHeapMb = [Math]::Min(8192, $configuredBrowserHeapMb)
+}
+$configuredNodeHeapMb = 0
+if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_NODE_HEAP_MB, [ref]$configuredNodeHeapMb) -and $configuredNodeHeapMb -ge 256) {
+    $documentationNodeHeapMb = [Math]::Min(8192, $configuredNodeHeapMb)
+}
+$configuredDocfxParallelism = 0
+if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_DOCFX_MAX_PARALLELISM, [ref]$configuredDocfxParallelism) -and $configuredDocfxParallelism -ge 1) {
+    $docfxBuildMaxParallelism = [Math]::Min(32, $configuredDocfxParallelism)
+}
+# Constrained hosts must fail a sick browser quickly enough to recycle it rather than spending
+# many minutes inside one chunk. An operator-supplied timeout remains authoritative.
+if ($documentationLowMemoryMode -and -not $browserPdfTimeoutExplicit) {
+    $browserPdfTimeoutMilliseconds = [Math]::Min($browserPdfTimeoutMilliseconds, 90000)
+}
+$browserPdfPostRenderStabilityMilliseconds = if ($documentationLowMemoryMode) { 15000 } else { 180000 }
+$browserPdfChunkRetries = if ($documentationLowMemoryMode) { 1 } else { 1 }
+$configuredBrowserChunkRetries = 0
+if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_PDF_CHUNK_RETRIES, [ref]$configuredBrowserChunkRetries) -and $configuredBrowserChunkRetries -ge 0) {
+    $browserPdfChunkRetries = [Math]::Min(5, $configuredBrowserChunkRetries)
+}
+$monolithicPdfFallbackOverride = [string]::Equals([string]$env:FUTURE2_DOCUMENTATION_ALLOW_MONOLITHIC_PDF_FALLBACK, '1', [StringComparison]::OrdinalIgnoreCase) -or
+    [string]::Equals([string]$env:FUTURE2_DOCUMENTATION_ALLOW_MONOLITHIC_PDF_FALLBACK, 'true', [StringComparison]::OrdinalIgnoreCase)
+$allowMonolithicPdfFallback = (-not $documentationLowMemoryMode) -or $monolithicPdfFallbackOverride
+$documentationSerializeHeavyStages = $documentationLowMemoryMode -or
+    [string]::Equals([string]$env:FUTURE2_DOCUMENTATION_SERIALIZE_HEAVY_STAGES, '1', [StringComparison]::OrdinalIgnoreCase) -or
+    [string]::Equals([string]$env:FUTURE2_DOCUMENTATION_SERIALIZE_HEAVY_STAGES, 'true', [StringComparison]::OrdinalIgnoreCase)
+if ($documentationSystemMemoryGiB -gt 0) {
+    Write-Host ("LocalGPT documentation memory policy: {0:n1} GiB system RAM -> {1} PDF page(s)/chunk, Chromium JS heap {2} MiB, Node heap {3} MiB, DocFX max parallelism {4}, browser timeout {5} ms, chunk retries {6}. Low-memory mode={7}; monolithic fallback={8}." -f $documentationSystemMemoryGiB,$browserPdfChunkPages,$browserJavaScriptHeapMb,$documentationNodeHeapMb,$docfxBuildMaxParallelism,$browserPdfTimeoutMilliseconds,$browserPdfChunkRetries,$documentationLowMemoryMode,$allowMonolithicPdfFallback) -ForegroundColor DarkCyan
 }
 $pdfCompressionTriggerBytes = 134217728L
 # A standalone handbook larger than 256 MiB is already too large for a sane desktop-app release.
@@ -355,6 +469,23 @@ function Save-LocalGptDocumentationPdfCache {
     $manifest | Add-Member -NotePropertyName pdfBytes -NotePropertyValue $PdfBytes -Force
     $manifest | Add-Member -NotePropertyName pdfCachedAtUtc -NotePropertyValue ([DateTime]::UtcNow.ToString('O')) -Force
     $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+}
+
+function Enter-LocalGptSharedDocumentationResourceLock {
+    $lockPath = Join-Path ([IO.Path]::GetTempPath()) 'future2-localgpt-publisherstudio-documentation-heavy.lock'
+    $waitingMessageWritten = $false
+    while ($true) {
+        try {
+            return [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        }
+        catch [IO.IOException] {
+            if (-not $waitingMessageWritten) {
+                Write-Host "Another LocalGPT/PublisherStudio heavyweight documentation stage is active. Waiting to protect this memory-constrained host." -ForegroundColor DarkCyan
+                $waitingMessageWritten = $true
+            }
+            Start-Sleep -Seconds 2
+        }
+    }
 }
 
 function Enter-LocalGptSharedPdfLock {
@@ -1490,8 +1621,7 @@ function New-LocalGptHtmlPrintBook {
             Relative = $relative
             Anchor = $anchor
             Title = $title
-            Html = $html
-            Body = $body
+            Body = if ($FrontMatterOnly) { '' } else { $body }
             IsApi = $isApi
             ApiKind = $apiKind
             ApiDisplayName = $apiDisplayName
@@ -1906,6 +2036,38 @@ function Stop-PortableProcessTree {
     try { $Process.Kill() } catch { }
 }
 
+function Stop-LocalGptDocumentationBrowserProfileProcesses {
+    param([Parameter(Mandatory)][string]$ProfileRoot)
+
+    # Browser children sometimes outlive the parent process. Kill only processes whose command line
+    # contains this build's unique temporary profile path, so a developer's normal browser session
+    # is never targeted.
+    try {
+        if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) {
+            foreach ($candidate in @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue)) {
+                $commandLine = [string]$candidate.CommandLine
+                if (-not [string]::IsNullOrWhiteSpace($commandLine) -and $commandLine.IndexOf($ProfileRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                    try { Stop-Process -Id ([int]$candidate.ProcessId) -Force -ErrorAction SilentlyContinue } catch { }
+                }
+            }
+        }
+        else {
+            $psPath = if (Test-Path -LiteralPath '/bin/ps' -PathType Leaf) { '/bin/ps' } else { 'ps' }
+            foreach ($line in @(& $psPath '-axo' 'pid=,command=' 2>$null)) {
+                if ([string]$line -notmatch '^\s*(\d+)\s+(.*)$') { continue }
+                $pidValue = 0
+                if (-not [int]::TryParse([string]$Matches[1], [ref]$pidValue) -or $pidValue -le 1 -or $pidValue -eq $PID) { continue }
+                $commandLine = [string]$Matches[2]
+                if ($commandLine.IndexOf($ProfileRoot, [StringComparison]::Ordinal) -lt 0) { continue }
+                try { & /bin/kill -TERM $pidValue 2>$null } catch { }
+                Start-Sleep -Milliseconds 150
+                try { & /bin/kill -KILL $pidValue 2>$null } catch { }
+            }
+        }
+    }
+    catch { }
+}
+
 function Invoke-LocalGptBrowserPdf {
     param(
         [Parameter(Mandatory)][string]$BrowserPath,
@@ -1925,15 +2087,21 @@ function Invoke-LocalGptBrowserPdf {
         [pscustomobject]@{ Name = "tagged"; AccessibilityMode = "tagged-pdf-required"; ExtraFlags = @("--export-tagged-pdf", "--generate-pdf-document-outline") },
         [pscustomobject]@{ Name = "compatibility"; AccessibilityMode = "html-accessibility-fallback"; ExtraFlags = @() }
     )
+    # On constrained hosts do not multiply a sick renderer by retrying the legacy headless engine.
+    # The outer chunk retry will instead recycle the entire renderer with a fresh isolated profile.
+    $headlessModes = if ($documentationLowMemoryMode) { @("--headless=new") } else { @("--headless=new", "--headless") }
 
     foreach ($renderProfile in $renderProfiles) {
-        foreach ($headlessMode in @("--headless=new", "--headless")) {
+        foreach ($headlessMode in $headlessModes) {
             Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
             # Keep Chromium's volatile profile outside the print-book directory. Chromium child
             # processes can retire profile files asynchronously, which makes recursive Remove-Item
             # race with disappearing files on Windows PowerShell.
             $profileRoot = Join-Path $profileParentRoot ("browser-profile-" + [Guid]::NewGuid().ToString('N'))
-            New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
+            $profileCacheRoot = Join-Path $profileRoot 'cache'
+            $profileCrashRoot = Join-Path $profileRoot 'crash'
+            New-Item -ItemType Directory -Path $profileCacheRoot -Force | Out-Null
+            New-Item -ItemType Directory -Path $profileCrashRoot -Force | Out-Null
             try {
                 $arguments = @(
                     $headlessMode,
@@ -1951,11 +2119,13 @@ function Invoke-LocalGptBrowserPdf {
                     "--no-service-autorun",
                     "--no-first-run",
                     "--no-default-browser-check",
+                    "--disk-cache-dir=$profileCacheRoot",
+                    "--crash-dumps-dir=$profileCrashRoot",
                     "--allow-file-access-from-files",
                     "--hide-scrollbars",
                     "--run-all-compositor-stages-before-draw",
                     "--virtual-time-budget=180000",
-                    "--js-flags=--max-old-space-size=4096",
+                    "--js-flags=--max-old-space-size=$browserJavaScriptHeapMb",
                     "--disable-features=BackForwardCache,CalculateNativeWinOcclusion,MediaRouter,OptimizationHints,Translate,msEdgeStartupBoost,msEdgeBackgroundMode",
                     "--print-to-pdf-no-header",
                     "--no-pdf-header-footer"
@@ -2016,6 +2186,7 @@ function Invoke-LocalGptBrowserPdf {
                     try { $process.WaitForExit() } catch { }
                     $lastExitCode = [int]$process.ExitCode
                 }
+                Stop-LocalGptDocumentationBrowserProfileProcesses -ProfileRoot $profileRoot
                 $output = @()
                 try { $output += @(([string]$stdoutTask.Result -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } catch { }
                 try { $output += @(([string]$stderrTask.Result -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } catch { }
@@ -2026,7 +2197,8 @@ function Invoke-LocalGptBrowserPdf {
                 }
                 $lastObservedLength = -1L
                 $stableLengthChecks = 0
-                for ($attempt = 0; $attempt -lt 360; $attempt++) {
+                $postRenderPollCount = [Math]::Max(8, [int][Math]::Ceiling($browserPdfPostRenderStabilityMilliseconds / 500.0))
+                for ($attempt = 0; $attempt -lt $postRenderPollCount; $attempt++) {
                     $pdfFile = Get-Item -LiteralPath $PdfPath -ErrorAction SilentlyContinue
                     if ($null -ne $pdfFile -and $pdfFile.Length -gt 0) {
                         if ($pdfFile.Length -eq $lastObservedLength) {
@@ -2063,12 +2235,47 @@ function Invoke-LocalGptBrowserPdf {
                 }
             }
             finally {
+                Stop-LocalGptDocumentationBrowserProfileProcesses -ProfileRoot $profileRoot
                 Remove-LocalGptTemporaryPath -Path $profileRoot -Attempts 8 -DelayMilliseconds 250
             }
         }
     }
 
     return [pscustomobject]@{ Succeeded = $false; ExitCode = $lastExitCode; Diagnostics = @($diagnostics); HeadlessMode = ""; RenderMode = ""; AccessibilityMode = "unavailable" }
+}
+
+
+function Invoke-LocalGptBrowserPdfWithRetry {
+    param(
+        [Parameter(Mandatory)][string]$BrowserPath,
+        [Parameter(Mandatory)][string]$HtmlPath,
+        [Parameter(Mandatory)][string]$PdfPath,
+        [Parameter(Mandatory)][string]$WorkingRoot,
+        [Parameter(Mandatory)][string]$ContextLabel,
+        [long]$MinimumBytes = 1048576
+    )
+
+    $combinedDiagnostics = [System.Collections.Generic.List[string]]::new()
+    $lastResult = $null
+    $maximumAttempts = 1 + $browserPdfChunkRetries
+    for ($renderAttempt = 1; $renderAttempt -le $maximumAttempts; $renderAttempt++) {
+        if ($renderAttempt -gt 1) {
+            Write-Host "Retrying $ContextLabel with a fresh isolated browser profile (attempt $renderAttempt of $maximumAttempts)..." -ForegroundColor Yellow
+            Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
+            if ($documentationLowMemoryMode) {
+                [GC]::Collect(2, [GCCollectionMode]::Optimized, $true, $true)
+                [GC]::WaitForPendingFinalizers()
+            }
+            Start-Sleep -Milliseconds 500
+        }
+        $lastResult = Invoke-LocalGptBrowserPdf -BrowserPath $BrowserPath -HtmlPath $HtmlPath -PdfPath $PdfPath -WorkingRoot $WorkingRoot -MinimumBytes $MinimumBytes
+        foreach ($line in @($lastResult.Diagnostics)) { $combinedDiagnostics.Add("attempt $renderAttempt/${maximumAttempts}: $line") }
+        if ($lastResult.Succeeded) {
+            return [pscustomobject]@{ Succeeded = $true; ExitCode = [int]$lastResult.ExitCode; Diagnostics = @($combinedDiagnostics); HeadlessMode = [string]$lastResult.HeadlessMode; RenderMode = [string]$lastResult.RenderMode; AccessibilityMode = [string]$lastResult.AccessibilityMode; AttemptCount = $renderAttempt }
+        }
+    }
+    $exitCode = if ($null -ne $lastResult) { [int]$lastResult.ExitCode } else { -1 }
+    return [pscustomobject]@{ Succeeded = $false; ExitCode = $exitCode; Diagnostics = @($combinedDiagnostics); HeadlessMode = ''; RenderMode = ''; AccessibilityMode = 'unavailable'; AttemptCount = $maximumAttempts }
 }
 
 
@@ -2108,7 +2315,7 @@ function Invoke-LocalGptChunkedBrowserPdf {
             Remove-Item -LiteralPath $frontMatterPdf -Force -ErrorAction SilentlyContinue
             Write-Host "Printing complete documentation PDF cover/index for $indexedPages source pages with the installed browser..." -ForegroundColor DarkCyan
             $timer = [Diagnostics.Stopwatch]::StartNew()
-            $frontMatterResult = Invoke-LocalGptBrowserPdf -BrowserPath $BrowserPath -HtmlPath $frontMatterHtml -PdfPath $frontMatterPdf -WorkingRoot $chunkRoot -MinimumBytes 65536
+            $frontMatterResult = Invoke-LocalGptBrowserPdfWithRetry -BrowserPath $BrowserPath -HtmlPath $frontMatterHtml -PdfPath $frontMatterPdf -WorkingRoot $chunkRoot -ContextLabel "documentation PDF cover/index" -MinimumBytes 65536
             $timer.Stop()
             if (-not $frontMatterResult.Succeeded) {
                 foreach ($line in @($frontMatterResult.Diagnostics)) { $diagnostics.Add([string]$line) }
@@ -2118,6 +2325,11 @@ function Invoke-LocalGptChunkedBrowserPdf {
             Write-Host ("Completed PDF cover/index in {0:n1}s ({1:n0} bytes)." -f $timer.Elapsed.TotalSeconds,(Get-Item -LiteralPath $frontMatterPdf).Length) -ForegroundColor DarkGreen
         }
         $chunkPdfs.Add($frontMatterPdf)
+        Remove-Item -LiteralPath $frontMatterHtml -Force -ErrorAction SilentlyContinue
+        if ($documentationLowMemoryMode) {
+            [GC]::Collect(2, [GCCollectionMode]::Optimized, $true, $true)
+            [GC]::WaitForPendingFinalizers()
+        }
 
         $chunkNumber = 0
         for ($start = 0; $start -lt $TotalPageCount; $start += $ChunkPages) {
@@ -2133,7 +2345,7 @@ function Invoke-LocalGptChunkedBrowserPdf {
                 Remove-Item -LiteralPath $chunkPdf -Force -ErrorAction SilentlyContinue
                 Write-Host "Printing documentation PDF chunk $chunkNumber ($writtenPages source pages; start $start of $TotalPageCount) with the installed browser..." -ForegroundColor DarkCyan
                 $timer = [Diagnostics.Stopwatch]::StartNew()
-                $result = Invoke-LocalGptBrowserPdf -BrowserPath $BrowserPath -HtmlPath $htmlPath -PdfPath $chunkPdf -WorkingRoot $chunkRoot -MinimumBytes 65536
+                $result = Invoke-LocalGptBrowserPdfWithRetry -BrowserPath $BrowserPath -HtmlPath $htmlPath -PdfPath $chunkPdf -WorkingRoot $chunkRoot -ContextLabel "documentation PDF chunk $chunkNumber" -MinimumBytes 65536
                 $timer.Stop()
                 if (-not $result.Succeeded) {
                     foreach ($line in @($result.Diagnostics)) { $diagnostics.Add([string]$line) }
@@ -2143,6 +2355,11 @@ function Invoke-LocalGptChunkedBrowserPdf {
                 Write-Host ("Completed documentation PDF chunk {0} in {1:n1}s ({2:n0} bytes)." -f $chunkNumber,$timer.Elapsed.TotalSeconds,(Get-Item -LiteralPath $chunkPdf).Length) -ForegroundColor DarkGreen
             }
             $chunkPdfs.Add($chunkPdf)
+            Remove-Item -LiteralPath $htmlPath -Force -ErrorAction SilentlyContinue
+            if ($documentationLowMemoryMode) {
+                [GC]::Collect(2, [GCCollectionMode]::Optimized, $true, $true)
+                [GC]::WaitForPendingFinalizers()
+            }
         }
 
         Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
@@ -2650,6 +2867,9 @@ function Invoke-LocalGptDocfxWithRetry {
 }
 
 $documentationLockStream = Enter-LocalGptDocumentationLock -Path $documentationLockPath
+if ($documentationSerializeHeavyStages) {
+    $sharedDocumentationResourceLockStream = Enter-LocalGptSharedDocumentationResourceLock
+}
 New-Item -ItemType Directory -Path $documentationWorkRoot -Force | Out-Null
 
 @($manifestPath, $configPath, $PSCommandPath) | ForEach-Object {
@@ -3004,7 +3224,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                     Set-Content -LiteralPath $apiTocPath -Value $updatedApiTocText -Encoding utf8
                 }
 
-                $buildResult = Invoke-LocalGptDocfxWithRetry -Arguments @("build", $configPath) -ReadableRoot $apiRoot -ResetRootOnRetry $siteRoot
+                $buildResult = Invoke-LocalGptDocfxWithRetry -Arguments @("build", $configPath, "--maxParallelism", [string]$docfxBuildMaxParallelism) -ReadableRoot $apiRoot -ResetRootOnRetry $siteRoot
                 $apiHtmlRoot = Join-Path $siteRoot "api"
                 $apiHtmlCount = @(Get-ChildItem -LiteralPath $apiHtmlRoot -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue).Count
                 $docfxBuildSucceeded = $buildResult.ExitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $siteRoot "index.html") -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $apiHtmlRoot "index.html") -PathType Leaf) -and $apiHtmlCount -gt 1
@@ -3134,16 +3354,18 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
             Remove-Item -Force -ErrorAction SilentlyContinue
         Remove-LocalGptTemporaryPath -Path $printBookRoot
         $pdfSourcePageCount = @(Get-LocalGptPrintPageFiles -SiteRoot $siteRoot).Count
+        $requiresChunkedBrowserPdf = -not [string]::IsNullOrWhiteSpace($PackagingTool) -and $pdfSourcePageCount -gt $browserPdfChunkPages
 
         # Prefer one browser-printed book while the API graph remains within a bounded source-page count.
         # It uses the same rendered HTML as the working site, embeds shared fonts once, and permits compact
-        # print-only formatting. The official DocFX PDF plug-in remains the reliable compatibility fallback.
+        # print-only formatting. The DocFX PDF plug-in remains a compatibility fallback only for
+        # non-chunked, non-low-memory builds unless an operator explicitly accepts the monolithic risk.
         if ($pdfSourcePageCount -gt 0) {
             $browserResult = $null
             try {
                 $browser = Find-LocalGptDocumentationBrowser
                 if ($null -ne $browser) {
-                    if (-not [string]::IsNullOrWhiteSpace($PackagingTool) -and $pdfSourcePageCount -gt $browserPdfChunkPages) {
+                    if ($requiresChunkedBrowserPdf) {
                         Write-Host "Printing $pdfSourcePageCount DocFX HTML pages in adaptive chunks of up to $browserPdfChunkPages pages with $($browser.Name); LocalGPT.ReleasePackaging will merge the chunks without a commercial PDF dependency." -ForegroundColor Cyan
                         $browserChunkCacheRoot = Join-Path $documentationCacheEntryRoot 'browser-pdf-chunks'
                         $browserResult = Invoke-LocalGptChunkedBrowserPdf -BrowserPath $browser.Path -SiteRoot $siteRoot -PdfPath $pdfPath -WorkingRoot $printBookRoot -PackagingTool $PackagingTool -TotalPageCount $pdfSourcePageCount -ChunkPages $browserPdfChunkPages -ChunkCacheRoot $browserChunkCacheRoot -MinimumBytes $minimumCompletePdfBytes
@@ -3196,6 +3418,12 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
             }
         }
 
+        if (-not $pdfGenerated -and (($requiresChunkedBrowserPdf -and -not $monolithicPdfFallbackOverride) -or -not $allowMonolithicPdfFallback)) {
+            $browserDiagnostics = @($warnings | Where-Object { $_ -match '(?i)browser|Edge|Chrome|Chromium' } | Select-Object -Last 8) -join ' | '
+            if ([string]::IsNullOrWhiteSpace($browserDiagnostics)) { $browserDiagnostics = 'No browser diagnostic was captured.' }
+            throw "LocalGPT PDF rendering could not complete through the bounded browser path. The monolithic DocFX/Playwright fallback is disabled for chunked or low-memory documentation builds because it can exhaust memory and bypass durable chunk recovery. Set FUTURE2_DOCUMENTATION_ALLOW_MONOLITHIC_PDF_FALLBACK=1 only for an intentional operator override. Browser diagnostics: $browserDiagnostics"
+        }
+
         if (-not $pdfGenerated) {
             Get-ChildItem -LiteralPath $siteRoot -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue |
                 Remove-Item -Force -ErrorAction SilentlyContinue
@@ -3217,10 +3445,10 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                         $env:DOCFX_PDF_TIMEOUT = [string]$pdfTimeoutMilliseconds
                     }
                     if ([string]::IsNullOrWhiteSpace($env:NODE_OPTIONS)) {
-                        $env:NODE_OPTIONS = "--max-old-space-size=4096"
+                        $env:NODE_OPTIONS = "--max-old-space-size=$documentationNodeHeapMb"
                     }
                     elseif ($env:NODE_OPTIONS -notmatch '(?i)--max-old-space-size(?:=|\s)') {
-                        $env:NODE_OPTIONS = "$($env:NODE_OPTIONS) --max-old-space-size=4096"
+                        $env:NODE_OPTIONS = "$($env:NODE_OPTIONS) --max-old-space-size=$documentationNodeHeapMb"
                     }
 
                     if (-not (Ensure-LocalGptDocfxToolForPdfFallback)) {
@@ -3361,6 +3589,10 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
     $documentationCoreSucceeded = $true
 }
 finally {
+    if ($null -ne $sharedDocumentationResourceLockStream) {
+        $sharedDocumentationResourceLockStream.Dispose()
+        $sharedDocumentationResourceLockStream = $null
+    }
     if ($null -ne $sharedPdfLockStream) {
         $sharedPdfLockStream.Dispose()
         $sharedPdfLockStream = $null
@@ -3450,7 +3682,18 @@ foreach ($publishRoot in $publishRoots) {
         nodeArchitecture = $nodeArchitectureUsed
         pdfTimeoutMilliseconds = $pdfTimeoutMilliseconds
         browserPdfTimeoutMilliseconds = $browserPdfTimeoutMilliseconds
+        browserPdfPostRenderStabilityMilliseconds = $browserPdfPostRenderStabilityMilliseconds
         browserPdfChunkPages = $browserPdfChunkPages
+        browserPdfChunkRetries = $browserPdfChunkRetries
+        allowMonolithicPdfFallback = $allowMonolithicPdfFallback
+        monolithicPdfFallbackOverride = $monolithicPdfFallbackOverride
+        documentationSystemMemoryBytes = $documentationSystemMemoryBytes
+        documentationSystemMemoryGiB = $documentationSystemMemoryGiB
+        documentationLowMemoryMode = $documentationLowMemoryMode
+        documentationSerializeHeavyStages = $documentationSerializeHeavyStages
+        browserJavaScriptHeapMb = $browserJavaScriptHeapMb
+        documentationNodeHeapMb = $documentationNodeHeapMb
+        docfxBuildMaxParallelism = $docfxBuildMaxParallelism
         documentationCacheRoot = $documentationToolCacheRoot
         maximumSanePdfBytes = $maximumSanePdfBytes
         completeApiReference = $documentationMode -eq "docfx" -and $apiYamlCount -gt 1 -and $apiHtmlCount -gt 1 -and $unresolvedAssemblyReferences.Count -eq 0
