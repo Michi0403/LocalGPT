@@ -1,5 +1,7 @@
 <div align="center">
 
+<img width="2408" height="1506" alt="26541C46-4CA9-41BA-8494-CF1EADD29C49" src="https://github.com/user-attachments/assets/a454f09b-4c07-4afc-b82a-0adab24b22eb" />
+
 # LocalGPT
 
 ### User-owned AI and software infrastructure — from one machine to independent AI centers.
