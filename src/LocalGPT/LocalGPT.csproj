@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>4.2.0</Version>
+    <Version>4.2.1</Version>
+    <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -1343,4 +1344,9 @@
     <None Update="Configuration\OrganicAddons\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="Configuration\EmbeddedBoards\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\ConsoleProductIdentity.cs" Link="ConsoleProductIdentity.cs" />
+  </ItemGroup>
+
 </Project>

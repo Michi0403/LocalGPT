@@ -19,4 +19,9 @@
     <!-- High and critical advisories block owner-side builds; lower severities remain visible. -->
     <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="RepositoryUrl" Value="$(RepositoryUrl)" />
+    <AssemblyMetadata Include="Owner" Value="$(Authors)" />
+    <AssemblyMetadata Include="License" Value="$(PackageLicenseExpression)" />
+  </ItemGroup>
 </Project>

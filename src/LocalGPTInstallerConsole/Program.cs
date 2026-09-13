@@ -23,10 +23,6 @@ using System.Threading.Tasks;
 internal static class Program
 {
     /// <summary>
-    /// Defines the LocalGPT repo constant used by <see cref="Program"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const string LocalGptRepo = "Michi0403/LocalGPT";
-    /// <summary>
     /// Defines the LocalGPT ZIP name constant used by <see cref="Program"/> so callers and internal logic share the same stable value.
     /// </summary>
     private const string LocalGptZipName = "LocalGPTByMichi0403.zip";
@@ -134,7 +130,7 @@ internal static class Program
     /// </summary>
     private static readonly string[] RecommendedRepos =
     [
-        "Michi0403/LocalGPT",
+        global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug,
         "TelegramBots/Telegram.Bot",
         "Michi0403/TacosPortalOpen",
         "Michi0403/OpenMorph.NET",
@@ -174,6 +170,7 @@ internal static class Program
     {
         var launchedByDoubleClick = args.Length == 0 && Environment.UserInteractive;
 
+        global::ProjectConsoleIdentity.ConsoleProductIdentity.WriteStartupHeader();
         Console.WriteLine($"Your args to string {ArgsToString(args)}");
         var options = CliOptions.Parse(args);
         if(args.Length<=0)
@@ -344,7 +341,7 @@ internal static class Program
                         Directory.CreateDirectory(options.LearningBasePath);
                         var repos = options.ImportRecommended
                             ? RecommendedRepos.Concat(options.ExtraRepos).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
-                            : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [LocalGptRepo];
+                            : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug];
 
                         foreach (var repo in repos)
                         {
@@ -633,7 +630,7 @@ internal static class Program
             var zipPath = options.LocalGptZipPath ?? Path.Combine(Environment.CurrentDirectory, LocalGptZipName);
 
             await DownloadLatestReleaseAssetAsync(
-                LocalGptRepo,
+                global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug,
                 zipPath,
                 logger,
                 options,
@@ -656,7 +653,7 @@ internal static class Program
             var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
 
             await DownloadLatestReleaseAssetAsync(
-                LocalGptRepo,
+                global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug,
                 setupZipPath,
                 logger,
                 options,
@@ -2824,7 +2821,8 @@ internal sealed class CliOptions
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public static void PrintHelp(ILogger logger)
     {
-        logger.LogInformation("""
+        var repositorySlug = global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug;
+        logger.LogInformation($"""
 LocalGPT setup helper
 
 Usage:
@@ -2834,7 +2832,7 @@ Common examples:
   localgpt-setup --install-ollama
   localgpt-setup --pull-models --range RTX3060
   localgpt-setup --install-localgpt --force-delete
-  localgpt-setup --setup-learning-base --repo Michi0403/LocalGPT --force-delete
+  localgpt-setup --setup-learning-base --repo {repositorySlug} --force-delete
   localgpt-setup --setup-learning-base --repo id-Software/DOOM
   localgpt-setup --setup-learning-base --repo lotgd/lotgd
   localgpt-setup --setup-learning-base --repo php/doc-en

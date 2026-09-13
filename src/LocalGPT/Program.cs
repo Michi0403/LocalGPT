@@ -102,6 +102,7 @@ namespace LocalGPT
         {
             try
             {
+                global::ProjectConsoleIdentity.ConsoleProductIdentity.WriteStartupHeader();
                 TryAppendBootstrapDiagnostic($"LocalGPT process starting. assembly={typeof(Program).Assembly.GetName().Version}; executable={Environment.ProcessPath ?? "unknown"}; base={AppContext.BaseDirectory}");
                 var app = BuildWebApp(args);
                 app.Run();
