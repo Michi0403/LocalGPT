@@ -3,11 +3,9 @@
 @inject IInitialSetupAssistantService Setup
 @inject IAiProviderBootstrapService Providers
 @inject IOllamaProcessService OllamaProcesses
-@inject IConsoleCommandService Console
 @inject CouncilTextService CouncilText
 @inject ILogger<InitialSetupAssistantPanel> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
-@implements IDisposable
 
 <section class="initial-setup-assistant" aria-label="AI-guided initial setup assistant">
     <header class="initial-setup-heading">
@@ -103,7 +101,25 @@
 
             <article class="initial-setup-card">
                 <h4>3. Local AI provider</h4>
-                <p>Commands come from the local Knowledge Database. Install/download actions use the shared bounded console; Ollama lifecycle actions use LocalGPT's process service. Mutating actions require your explicit confirmation.</p>
+                <p>Commands come from the local Knowledge Database. Install/download actions use the shared bounded console; Ollama lifecycle actions use LocalGPT's process service. Mutating actions require your explicit confirmation. Saved hosts are shown independently from reachability, so an offline remote Council host never removes the setup path for this computer.</p>
+                @if (snapshot.ConfiguredProviderHosts.Count > 0)
+                {
+                    <div class="initial-setup-configured-hosts" aria-label="Configured AI hosts">
+                        <strong>Configured AI hosts</strong>
+                        @foreach (var configuredHost in snapshot.ConfiguredProviderHosts)
+                        {
+                            <div class="initial-setup-configured-host" @key="@(configuredHost.ProviderKind + configuredHost.Endpoint)">
+                                <span>@configuredHost.ProviderKind · @(configuredHost.IsPrimary ? "primary" : "additional") · @(configuredHost.IsLoopback ? "this computer" : "remote")</span>
+                                <code>@configuredHost.Endpoint</code>
+                                @if (!string.IsNullOrWhiteSpace(configuredHost.ModelName))
+                                {
+                                    <small>Preferred model: @configuredHost.ModelName</small>
+                                }
+                            </div>
+                        }
+                        <small>Reachability is checked separately. Use System → Install to add, remove, promote, or test individual host bindings.</small>
+                    </div>
+                }
                 <label>Provider profile
                     <select class="form-select" @bind="selectedProviderKey" @bind:after="ProviderSelectionChangedAsync">
                         <option value="">Choose provider</option>
@@ -323,7 +339,7 @@
             <article class="initial-setup-card initial-setup-wide">
                 <h4>Shared ASCII command console</h4>
                 <p>The same bounded command feed appears in Chat's ASCII console whenever no game is running.</p>
-                <pre class="initial-setup-console" aria-live="polite">@Console.GetRecentDisplayText(120)</pre>
+                <LocalConsoleFeed CssClass="initial-setup-console" MaxLines="120" />
             </article>
         </div>
     }
@@ -403,12 +419,6 @@
     private bool busy;
     /// <summary>Tracks whether a provider model pull reported that the installed Ollama runtime is too old for that model.</summary>
     private bool ollamaUpdateRequired;
-    /// <summary>Marks that console output changed and a renderer refresh should be coalesced into the active worker.</summary>
-    private int consoleRenderPending;
-    /// <summary>Ensures only one bounded console-render worker is active for this component.</summary>
-    private int consoleRenderWorkerRunning;
-    /// <summary>Cancels the console-render worker when the component is disposed.</summary>
-    private readonly CancellationTokenSource consoleRenderCancellation = new();
     /// <summary>
     /// Gets the selected provider value that forms part of the initial setup assistant panel state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -432,7 +442,6 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
-        Console.Changed += OnConsoleChanged;
         benchmarkTeamName = T("Hardware-curated initial benchmark");
         await RefreshAsync().ConfigureAwait(false);
     }
@@ -489,7 +498,7 @@
                 if (preferredCuratorModels.Count == 0)
                     foreach (var key in value.RecommendedCuratorModelKeys) preferredCuratorModels.Add(key);
                 var ollamaSummary = processStatus.IsInstalled
-                    ? " " + TF("Ollama runtime: {0}.", processStatus.IsRunning ? T("running") : T("stopped"))
+                    ? " " + TF("Ollama runtime: {0}.", processStatus.IsRunning ? (processStatus.IsResponsive ? T("running") : T("running but unresponsive")) : T("stopped"))
                     : string.Empty;
                 statusText = recoveryMode
                     ? T("Setup loaded in recovery mode. Provider/Ollama controls remain available.") + ollamaSummary
@@ -527,6 +536,7 @@
         {
             Hardware = hardware.ToList(),
             ProviderProfiles = profiles.ToList(),
+            ConfiguredProviderHosts = snapshot?.ConfiguredProviderHosts.ToList() ?? [],
             InstalledModels = snapshot?.InstalledModels.ToList() ?? [],
             RecommendedCuratorModelKeys = snapshot?.RecommendedCuratorModelKeys.ToList() ?? [],
             Platform = snapshot?.Platform ?? Environment.OSVersion.ToString(),
@@ -1142,49 +1152,6 @@
     }
 
     /// <summary>
-    /// Handles the console changed lifecycle or event notification for <see cref="InitialSetupAssistantPanel"/>, updating the state required by the surrounding workflow.
-    /// </summary>
-    private void OnConsoleChanged()
-    {
-        Interlocked.Exchange(ref consoleRenderPending, 1);
-        if (Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
-            _ = RefreshConsoleRenderAsync();
-    }
-
-    /// <summary>Coalesces high-frequency provider progress frames so terminal percentages remain live without flooding the Blazor circuit with one render per terminal rewrite.</summary>
-    /// <returns>A task that completes after the latest bounded console state has been rendered.</returns>
-    private async Task RefreshConsoleRenderAsync()
-    {
-        try
-        {
-            while (!consoleRenderCancellation.IsCancellationRequested)
-            {
-                await Task.Delay(250, consoleRenderCancellation.Token).ConfigureAwait(false);
-                Interlocked.Exchange(ref consoleRenderPending, 0);
-                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
-
-                if (Volatile.Read(ref consoleRenderPending) == 0)
-                    break;
-            }
-        }
-        catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
-        {
-            // Component disposal cancels any delayed renderer refresh.
-        }
-        catch (ObjectDisposedException)
-        {
-            // The circuit may dispose this component while a delayed progress render is pending.
-        }
-        finally
-        {
-            Interlocked.Exchange(ref consoleRenderWorkerRunning, 0);
-            if (Volatile.Read(ref consoleRenderPending) != 0
-                && !consoleRenderCancellation.IsCancellationRequested
-                && Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
-                _ = RefreshConsoleRenderAsync();
-        }
-    }
-    /// <summary>
     /// Sets busy for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <param name="value">Value indicating whether value should apply to this operation.</param>
@@ -1197,14 +1164,5 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetStatusAsync(string value) => InvokeAsync(() => statusText = value);
 
-    /// <summary>
-    /// Releases resources owned by <see cref="InitialSetupAssistantPanel"/> and leaves the initial setup assistant panel workflow in a safely disposed state.
-    /// </summary>
-    public void Dispose()
-    {
-        Console.Changed -= OnConsoleChanged;
-        consoleRenderCancellation.Cancel();
-        consoleRenderCancellation.Dispose();
-        GC.SuppressFinalize(this);
-    }
+
 }

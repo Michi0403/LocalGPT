@@ -24,6 +24,7 @@ namespace LocalGPT.Services
     /// <param name="knowledgeService">Council knowledge service dependency used by the chat client workflow to provide the corresponding application capability.</param>
     /// <param name="chatUploadWorkspaces">Chat upload workspace service dependency used by the chat client workflow to provide the corresponding application capability.</param>
     /// <param name="promptConfigService">Prompt config service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="asciiExperience">Circuit-scoped ASCII chat presentation state used to tell providers whether the shared terminal is open and whether optional ASCII fun is enabled.</param>
     /// <param name="variableStoreService">Variable store service dependency used by the chat client workflow to provide the corresponding application capability.</param>
     /// <param name="systemVariables">System variable definition service dependency used by the chat client workflow to provide the corresponding application capability.</param>
     /// <param name="functionRegistry">Devexpress ai function registry dependency used by the chat client workflow to provide the corresponding application capability.</param>
@@ -41,6 +42,7 @@ namespace LocalGPT.Services
           ICouncilKnowledgeService knowledgeService,
           IChatUploadWorkspaceService chatUploadWorkspaces,
           IPromptConfigService promptConfigService,
+          IChatAsciiExperienceState asciiExperience,
           IVariableStoreService variableStoreService,
           ISystemVariableDefinitionService systemVariables,
           IDxAiFunctionRegistry functionRegistry,
@@ -211,6 +213,7 @@ namespace LocalGPT.Services
                     systemVariables,
                     councilRuntime,
                     councilText,
+                    asciiExperience,
                     sessions.ToArray());
             }
             catch (Exception ex)

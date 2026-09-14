@@ -2254,5 +2254,12 @@
   "Text.Provider␠availability␠is␠known␠independently␠from␠CanIRun.ai␠hardware-fit␠evidence.": "Provider availability is known independently from CanIRun.ai hardware-fit evidence.",
   "Text.Storage␠evidence": "Storage evidence",
   "Text.Detected␠store": "Detected store",
-  "Text.Mounted␠destination": "Mounted destination"
+  "Text.Mounted␠destination": "Mounted destination",
+  "Text.running␠but␠unresponsive": "running but unresponsive",
+  "Phrase.ASCII␠fun␠mode␠(contextual)": "ASCII fun mode (contextual)",
+  "Text.ASCII␠fun␠mode␠(contextual)": "ASCII fun mode (contextual)",
+  "Phrase.Show␠ASCII␠terminal": "Show ASCII terminal",
+  "Text.Show␠ASCII␠terminal": "Show ASCII terminal",
+  "Phrase.Hide␠ASCII␠terminal": "Hide ASCII terminal",
+  "Text.Hide␠ASCII␠terminal": "Hide ASCII terminal"
 }

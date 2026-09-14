@@ -1591,7 +1591,11 @@ function New-LocalGptHtmlPrintBook {
 
     $allPages = @(Get-LocalGptPrintPageFiles -SiteRoot $SiteRoot)
     if ($allPages.Count -eq 0) { throw "The DocFX site did not contain printable HTML pages." }
-    $pages = if ($FrontMatterOnly) { @($allPages) } elseif ($MaximumPages -gt 0) { @($allPages | Select-Object -Skip $StartIndex -First $MaximumPages) } else { @($allPages | Select-Object -Skip $StartIndex) }
+    $pages = @(
+        if ($FrontMatterOnly) { $allPages }
+        elseif ($MaximumPages -gt 0) { $allPages | Select-Object -Skip $StartIndex -First $MaximumPages }
+        else { $allPages | Select-Object -Skip $StartIndex }
+    )
     if ($pages.Count -eq 0) { throw "The requested DocFX print-book slice did not contain any pages (start=$StartIndex; maximum=$MaximumPages; total=$($allPages.Count))." }
 
     $anchorMap = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([StringComparer]::OrdinalIgnoreCase)

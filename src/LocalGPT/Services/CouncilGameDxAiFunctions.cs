@@ -127,13 +127,33 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
-    /// <summary>
-    /// Performs integer for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
-    /// </summary>
-    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
-    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
-    /// <param name="fallback">Fallback value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
-    /// <returns>The int produced by the operation.</returns>
+    /// <summary>Reads a bounded string-array parameter used by pregenerated ASCII frame sets.</summary>
+    /// <param name="parameters">Parameters object supplied to the Council game DXFunction.</param>
+    /// <param name="name">Array property name.</param>
+    /// <returns>The string values in the array, ignoring non-string items.</returns>
+    public IReadOnlyList<string> Strings(JsonElement parameters, string name)
+    {
+        try
+        {
+            if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array)
+                return [];
+            return value.EnumerateArray()
+                .Where(item => item.ValueKind == JsonValueKind.String)
+                .Select(item => item.GetString() ?? string.Empty)
+                .ToArray();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council game string-array parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
+
+    /// <summary>Reads an integer parameter with a fallback.</summary>
+    /// <param name="parameters">Parameters object supplied to the Council game DXFunction.</param>
+    /// <param name="name">Integer property name.</param>
+    /// <param name="fallback">Fallback returned when the property is absent or not an integer.</param>
+    /// <returns>The requested integer or the fallback.</returns>
     public int Integer(JsonElement parameters, string name, int fallback)
     {
         try
@@ -166,12 +186,12 @@ public sealed class StartCouncilGameFunction(
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.session.start", "POST", "/api/dxai/functions/localgpt.game.session.start/invoke",
         "Starts a directly playable /Chat ASCII game session. Human and AI players receive the same control contract.",
-        "JSON parameters: gameKey ascii-doom or green-dragon; teamKey optional; conversationId optional; controlMode Human, Ai or Shared; directorMode Deterministic or CouncilModelPreferred; gameDirectorModelName and creatureDirectorCount optional; autoplayEnabled and autoplayDelayMilliseconds optional.",
+        "JSON parameters: gameKey ascii-doom or green-dragon; teamKey optional; conversationId optional; controlMode Human, Ai or Shared; directorMode Deterministic or CouncilModelPreferred; gameDirectorModelName and creatureDirectorCount optional; autoplayEnabled and autoplayDelayMilliseconds optional; frameWidth and frameHeight optional terminal-cell dimensions.",
         "Starts only an original LocalGPT runtime-class game session. It does not execute the original DOOM engine or include commercial assets.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
-        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayEnabled":{"type":"boolean"},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000}},"additionalProperties":false}
+        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayEnabled":{"type":"boolean"},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000},"frameWidth":{"type":"integer","minimum":20,"maximum":240},"frameHeight":{"type":"integer","minimum":8,"maximum":100}},"additionalProperties":false}
         """);
 
     /// <summary>
@@ -201,6 +221,8 @@ public sealed class StartCouncilGameFunction(
                 DirectorMode = directorMode,
                 GameDirectorModelName = parameters.String(request.Parameters, "gameDirectorModelName", "qwen3.5:0.8b"),
                 CreatureDirectorCount = Math.Clamp(parameters.Integer(request.Parameters, "creatureDirectorCount", 2), 1, 8),
+                FrameWidth = Math.Clamp(parameters.Integer(request.Parameters, "frameWidth", 80), 20, 240),
+                FrameHeight = Math.Clamp(parameters.Integer(request.Parameters, "frameHeight", 25), 8, 100),
                 StartedBy = "LocalGPT AI Council"
             }, cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };

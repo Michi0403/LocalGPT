@@ -2173,5 +2173,11 @@
   "Text.Ollama␠update␠completed␠and␠the␠runtime␠is␠running␠again.␠You␠can␠retry␠the␠model␠installation␠now.": "Ollama update completed and the runtime is running again. You can retry the model installation now.",
   "Text.Ollama␠update␠completed.␠The␠runtime␠remains␠stopped␠because␠it␠was␠stopped␠before␠the␠update.": "Ollama update completed. The runtime remains stopped because it was stopped before the update.",
   "Text.Ollama␠update␠failed.␠Review␠the␠shared␠console␠and␠LocalGPT␠logs␠before␠retrying.": "Ollama update failed. Review the shared console and LocalGPT logs before retrying.",
-  "Text.This␠model␠requires␠a␠newer␠Ollama␠runtime.␠Use␠Update␠Ollama␠(confirmed),␠then␠retry␠the␠model␠installation;␠LocalGPT␠will␠not␠update␠the␠runtime␠without␠that␠separate␠confirmation.": "This model requires a newer Ollama runtime. Use Update Ollama (confirmed), then retry the model installation; LocalGPT will not update the runtime without that separate confirmation."
+  "Text.This␠model␠requires␠a␠newer␠Ollama␠runtime.␠Use␠Update␠Ollama␠(confirmed),␠then␠retry␠the␠model␠installation;␠LocalGPT␠will␠not␠update␠the␠runtime␠without␠that␠separate␠confirmation.": "This model requires a newer Ollama runtime. Use Update Ollama (confirmed), then retry the model installation; LocalGPT will not update the runtime without that separate confirmation.",
+  "Phrase.ASCII␠fun␠mode␠(contextual)": "Modo divertido ASCII (contextual)",
+  "Text.ASCII␠fun␠mode␠(contextual)": "Modo divertido ASCII (contextual)",
+  "Phrase.Show␠ASCII␠terminal": "Mostrar terminal ASCII",
+  "Text.Show␠ASCII␠terminal": "Mostrar terminal ASCII",
+  "Phrase.Hide␠ASCII␠terminal": "Ocultar terminal ASCII",
+  "Text.Hide␠ASCII␠terminal": "Ocultar terminal ASCII"
 }

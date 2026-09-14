@@ -190,6 +190,9 @@ namespace LocalGPT.Services
                     var messages = new List<ChatMessage>();
                     if (!string.IsNullOrWhiteSpace(participantBootstrap))
                         messages.Add(new ChatMessage(ChatRole.System, participantBootstrap));
+                    var asciiGuidance = asciiExperience.BuildModelGuidance();
+                    if (!string.IsNullOrWhiteSpace(asciiGuidance))
+                        messages.Add(new ChatMessage(ChatRole.System, asciiGuidance));
                     messages.Add(new ChatMessage(ChatRole.System, councilText.MultiModelCouncilServiceCreateCouncilSystemPrompt(modelName, councilMembers, logger)));
                     messages.Add(new ChatMessage(ChatRole.User, prompt));
 

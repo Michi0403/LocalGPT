@@ -266,4 +266,48 @@ public sealed class CouncilGameController(
             return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Council game input-gate change failed");
         }
     }
+
+    /// <summary>Reads a full or cropped authoritative Council ASCII display.</summary>
+    [HttpGet("display/{sessionId:guid}")]
+    public async Task<ActionResult<CouncilGameDisplaySnapshot>> Display(Guid sessionId, [FromQuery] int x, [FromQuery] int y, [FromQuery] int width, [FromQuery] int height, CancellationToken cancellationToken)
+    {
+        try { return Ok(await games.GetDisplayAsync(new() { SessionId = sessionId, X = x, Y = y, Width = width, Height = height }, cancellationToken).ConfigureAwait(false)); }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException) { logger.LogWarning(ex, "Council display read was rejected for session {GameSessionId}.", sessionId); return BadRequest(new { error = ex.Message }); }
+    }
+
+    /// <summary>Writes clipped text to the Council ASCII display.</summary>
+    [HttpPost("display/text")]
+    public async Task<ActionResult<CouncilGameSessionSnapshot>> DisplayText([FromBody] WriteCouncilGameTextRequest request, CancellationToken cancellationToken)
+        => await RunDisplayMutationAsync(request.SessionId, () => games.WriteTextAsync(request, cancellationToken)).ConfigureAwait(false);
+
+    /// <summary>Writes one Council ASCII display cell.</summary>
+    [HttpPost("display/cell")]
+    public async Task<ActionResult<CouncilGameSessionSnapshot>> DisplayCell([FromBody] SetCouncilGameCellRequest request, CancellationToken cancellationToken)
+        => await RunDisplayMutationAsync(request.SessionId, () => games.SetCellAsync(request, cancellationToken)).ConfigureAwait(false);
+
+    /// <summary>Fills one clipped Council ASCII display rectangle.</summary>
+    [HttpPost("display/fill")]
+    public async Task<ActionResult<CouncilGameSessionSnapshot>> DisplayFill([FromBody] FillCouncilGameRegionRequest request, CancellationToken cancellationToken)
+        => await RunDisplayMutationAsync(request.SessionId, () => games.FillRegionAsync(request, cancellationToken)).ConfigureAwait(false);
+
+    /// <summary>Blits a multiline ASCII block into the Council display.</summary>
+    [HttpPost("display/blit")]
+    public async Task<ActionResult<CouncilGameSessionSnapshot>> DisplayBlit([FromBody] BlitCouncilGameRegionRequest request, CancellationToken cancellationToken)
+        => await RunDisplayMutationAsync(request.SessionId, () => games.BlitRegionAsync(request, cancellationToken)).ConfigureAwait(false);
+
+    /// <summary>Submits pregenerated ASCII animation frames for local client-side playback.</summary>
+    [HttpPost("animation")]
+    public async Task<ActionResult<CouncilGameSessionSnapshot>> Animation([FromBody] SubmitCouncilGameAnimationRequest request, CancellationToken cancellationToken)
+        => await RunDisplayMutationAsync(request.SessionId, () => games.SubmitAnimationAsync(request, cancellationToken)).ConfigureAwait(false);
+
+    private async Task<ActionResult<CouncilGameSessionSnapshot>> RunDisplayMutationAsync(Guid sessionId, Func<Task<CouncilGameSessionSnapshot>> operation)
+    {
+        try { return Ok(await operation().ConfigureAwait(false)); }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException)
+        {
+            logger.LogWarning(ex, "Council display mutation was rejected for session {GameSessionId}.", sessionId);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
 }

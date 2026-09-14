@@ -40,7 +40,7 @@ public interface IProviderRuntimeManagementService
     /// <returns>The model-management result.</returns>
     Task<ProviderModelManagementResult> UnloadModelAsync(AiProviderBootstrapProfile profile, string modelId, bool userConfirmed, CancellationToken cancellationToken = default);
 
-    /// <summary>Permanently deletes one Ollama model through Ollama's documented model-delete API.</summary>
+    /// <summary>Permanently deletes one local Ollama model through Ollama's documented model-delete API, with a guarded exact-manifest fallback when the loopback runtime is offline.</summary>
     /// <param name="profile">Selected Ollama provider profile.</param>
     /// <param name="modelId">Provider-native model identifier.</param>
     /// <param name="userConfirmed">Whether the human explicitly confirmed permanent deletion.</param>

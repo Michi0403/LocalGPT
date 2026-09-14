@@ -158,7 +158,7 @@
                               CssClass="provider-action-button"
                               RenderStyle="ButtonRenderStyle.Success"
                               RenderStyleMode="ButtonRenderStyleMode.Contained"
-                              Enabled="@(!IsOllamaProcessBusy && OllamaProcessStatus.IsInstalled && !OllamaProcessStatus.IsRunning)"
+                              Enabled="@(!IsOllamaProcessBusy && OllamaProcessStatus.IsInstalled && (!OllamaProcessStatus.IsRunning || !OllamaProcessStatus.IsResponsive))"
                               Click="StartOllamaAsync" />
                     <DxButton Text="Stop Ollama"
                               CssClass="provider-action-button"
@@ -193,6 +193,22 @@
                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                       Click="UseOllamaGptOss20b" />
         </div>
+
+        @if (!HasLocalLoopbackOllamaBinding)
+        {
+            <section class="local-ollama-candidate" aria-label="This computer's Ollama host">
+                <div>
+                    <strong>This computer's Ollama</strong>
+                    <code>http://127.0.0.1:11434</code>
+                    <small>Save the loopback endpoint independently from remote Council hosts. A remote PC being offline does not block configuring or using Ollama on this computer.</small>
+                </div>
+                <DxButton Text="Add this computer's Ollama"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Enabled="@(!IsSaving)"
+                          Click="RegisterLocalOllamaHostAsync" />
+            </section>
+        }
 
         <section class="configured-provider-catalog" aria-label="Configured AI providers" data-testid="configured-provider-catalog">
             <header>

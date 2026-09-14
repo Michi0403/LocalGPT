@@ -72,6 +72,10 @@ public sealed class StartCouncilGameRequest
     /// </summary>
     /// <value>The creature director count value exposed by <see cref="StartCouncilGameRequest"/>.</value>
     public int CreatureDirectorCount { get; set; } = 2;
+    /// <summary>Gets or sets the requested terminal-cell display width.</summary>
+    public int FrameWidth { get; set; } = 80;
+    /// <summary>Gets or sets the requested terminal-cell display height.</summary>
+    public int FrameHeight { get; set; } = 25;
     /// <summary>
     /// Gets or sets the started by value that forms part of the start council game state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -352,6 +356,10 @@ public sealed class CouncilGameSessionSnapshot
     /// </summary>
     /// <value>The frame renderer value exposed by <see cref="CouncilGameSessionSnapshot"/>.</value>
     public string FrameRenderer { get; set; } = string.Empty;
+    /// <summary>Gets or sets pregenerated frames played locally without replacing transcript history.</summary>
+    public IReadOnlyList<string> AnimationFrames { get; set; } = [];
+    /// <summary>Gets or sets local animation frame delay in milliseconds.</summary>
+    public int AnimationDelayMilliseconds { get; set; } = 650;
     /// <summary>
     /// Gets or sets the legal actions collection maintained or exposed by this council game session snapshot instance for downstream processing.
     /// </summary>
@@ -555,6 +563,10 @@ public sealed class CouncilGameSessionState
     /// </summary>
     /// <value>The frame owner turn value exposed by <see cref="CouncilGameSessionState"/>.</value>
     public long FrameOwnerTurn { get; set; } = -1;
+    /// <summary>Gets or sets pregenerated frames for local presentation playback.</summary>
+    public List<string> AnimationFrames { get; set; } = [];
+    /// <summary>Gets or sets local animation frame delay in milliseconds.</summary>
+    public int AnimationDelayMilliseconds { get; set; } = 650;
     /// <summary>
     /// Gets or sets the legal actions collection maintained or exposed by this council game session instance for downstream processing.
     /// </summary>

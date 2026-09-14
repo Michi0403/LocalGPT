@@ -220,7 +220,6 @@
 }
 
 .chat-game-touch-grid button[aria-disabled="true"] {
-    cursor: wait;
     opacity: .58;
     transform: none;
     box-shadow: none;
@@ -378,5 +377,98 @@
     .ascii-operator-command-row button {
         grid-column: 3;
         grid-row: 2;
+    }
+}
+
+/* v4.2.4: replayable ASCII chat shares the canonical /chat transcript without creating a second message store. */
+.chat-game-console-conversation {
+    border-color: rgba(88, 255, 118, .46);
+}
+
+.ascii-conversation-stage {
+    height: 28rem;
+    max-height: min(32rem, 66vh);
+    min-height: 18rem;
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    background:
+        linear-gradient(rgba(0, 255, 70, .018) 50%, transparent 50%),
+        #020704;
+    background-size: 100% 4px;
+}
+
+.ascii-conversation-output {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    scrollbar-gutter: stable both-edges;
+    overscroll-behavior: contain;
+    contain: layout paint;
+}
+
+.ascii-conversation-output .chat-game-screen {
+    width: 100%;
+    min-width: 100%;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: clamp(.68rem, .82vw, .9rem);
+    line-height: 1.35;
+}
+
+.ascii-sequence-player {
+    min-width: 0;
+    max-height: 12rem;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    border-bottom: 1px solid rgba(86,255,116,.22);
+    background: #010502;
+}
+
+.ascii-sequence-player > header {
+    display: flex;
+    justify-content: space-between;
+    gap: .7rem;
+    padding: .3rem .65rem;
+    color: rgba(184,255,195,.84);
+    font-family: "Cascadia Mono","Consolas","DejaVu Sans Mono",monospace;
+    font-size: .72rem;
+}
+
+.ascii-sequence-screen {
+    width: 100%;
+    min-width: 100%;
+    max-height: 9rem;
+    box-sizing: border-box;
+    overflow: auto;
+    text-align: center;
+    white-space: pre;
+    font-size: clamp(.52rem, .72vw, .82rem);
+    line-height: 1.05;
+}
+
+.ascii-conversation-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+    padding: .35rem .65rem .45rem;
+    border-top: 1px solid rgba(86,255,116,.15);
+    color: rgba(178,255,190,.72);
+    background: #020704;
+    font-family: "Cascadia Mono","Consolas","DejaVu Sans Mono",monospace;
+    font-size: .72rem;
+}
+
+@media (max-width: 700px) {
+    .ascii-conversation-stage {
+        height: 24rem;
+        max-height: 62vh;
+    }
+    .ascii-conversation-output .chat-game-screen {
+        font-size: clamp(.6rem, 2.4vw, .78rem);
     }
 }

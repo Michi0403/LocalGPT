@@ -429,6 +429,26 @@ public sealed class AiProviderBootstrapProfile
     public Dictionary<string, string> ModelAliases { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
+/// <summary>Describes one configured local-AI provider host independently from current reachability.</summary>
+public sealed class InitialSetupConfiguredProviderHost
+{
+    /// <summary>Gets or sets the canonical LocalGPT provider kind.</summary>
+    /// <value>The provider kind, such as Ollama or OpenAICompatible.</value>
+    public string ProviderKind { get; set; } = string.Empty;
+    /// <summary>Gets or sets the normalized endpoint stored in LocalGPT configuration.</summary>
+    /// <value>The configured provider endpoint.</value>
+    public string Endpoint { get; set; } = string.Empty;
+    /// <summary>Gets or sets the preferred model associated with this host binding.</summary>
+    /// <value>The preferred model name, or an empty string when none is configured.</value>
+    public string ModelName { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether this binding is the primary binding for its provider family.</summary>
+    /// <value><see langword="true"/> for the primary binding.</value>
+    public bool IsPrimary { get; set; }
+    /// <summary>Gets or sets whether the endpoint resolves to this computer through a loopback address.</summary>
+    /// <value><see langword="true"/> when the endpoint is loopback-local.</value>
+    public bool IsLoopback { get; set; }
+}
+
 /// <summary>Represents one provider/model installation choice in the first-run setup assistant.</summary>
 public sealed class InitialSetupModelChoice
 {
@@ -536,6 +556,9 @@ public sealed class InitialSetupAssistantSnapshot
     /// <summary>Gets or sets knowledge-backed provider installation profiles available on this platform.</summary>
     /// <value>The provider profiles value exposed by <see cref="InitialSetupAssistantSnapshot"/>.</value>
     public List<AiProviderBootstrapProfile> ProviderProfiles { get; set; } = [];
+    /// <summary>Gets or sets configured Ollama and OpenAI-compatible host bindings even when an endpoint is currently unreachable.</summary>
+    /// <value>The configured provider host bindings.</value>
+    public List<InitialSetupConfiguredProviderHost> ConfiguredProviderHosts { get; set; } = [];
     /// <summary>
     /// Gets or sets the installed models collection maintained or exposed by this initial setup assistant snapshot instance for downstream processing.
     /// </summary>

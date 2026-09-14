@@ -68,6 +68,8 @@ namespace LocalGPT.Services
         FrameText = session.FrameText,
         FrameCaption = session.FrameCaption,
         FrameRenderer = session.FrameRenderer,
+        AnimationFrames = session.AnimationFrames.ToArray(),
+        AnimationDelayMilliseconds = session.AnimationDelayMilliseconds,
         LegalActions = session.LegalActions.ToArray(),
         InputBindings = session.InputBindings.Select(CloneBinding).ToArray(),
         LastAction = session.LastAction,

@@ -1,37 +1,54 @@
 @using LocalGPT.BusinessObjects
+@using DevExpress.AIIntegration.Blazor.Chat
 @using Microsoft.JSInterop
 @inject ICouncilGameSessionService Games
 @inject IConsoleCommandService Console
 @inject IConsoleOperatorService Operator
+@inject AsciiChatTextService AsciiText
 @inject IJSRuntime JS
 @inject ILogger<ChatGameConsole> Logger
 @implements IAsyncDisposable
 
 <section id="@elementId"
-         class="chat-game-console @(operatorMode ? "chat-game-console-operator" : snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
+         class="chat-game-console @(operatorMode ? "chat-game-console-operator" : conversationMode ? "chat-game-console-conversation" : snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
          tabindex="0"
          data-localgpt-game-console
          data-localgpt-copyable="true"
          data-scale-mode="@fullscreenScaleMode.ToLowerInvariant()"
-         aria-label="Persistent LocalGPT ASCII game and operator console">
+         aria-label="Persistent LocalGPT ASCII chat, game and operator console">
     <header class="chat-game-console-header">
         <div>
-            <strong>@(operatorMode ? "LOCALGPT // MATRIX OPERATOR" : snapshot?.DisplayName ?? (consoleOutput.Count > 0 ? "ASCII command console" : "ASCII game console"))</strong>
-            <small>@OperatorHeaderText</small>
+            <strong>@AsciiSurfaceTitle</strong>
+            <small>@AsciiSurfaceSubtitle</small>
         </div>
         <div class="chat-game-console-actions">
+            <button type="button"
+                    class="ascii-operator-toggle @(!operatorMode && conversationMode ? "is-active" : string.Empty)"
+                    aria-pressed="@(!operatorMode && conversationMode)"
+                    @onclick="ShowConversationModeAsync">
+                Chat
+            </button>
+            @if (snapshot is not null)
+            {
+                <button type="button"
+                        class="ascii-operator-toggle @(!operatorMode && !conversationMode ? "is-active" : string.Empty)"
+                        aria-pressed="@(!operatorMode && !conversationMode)"
+                        @onclick="ShowGameModeAsync">
+                    Game
+                </button>
+            }
             <button type="button"
                     class="ascii-operator-toggle @(operatorMode ? "is-active" : string.Empty)"
                     aria-pressed="@operatorMode"
                     @onclick="ToggleOperatorModeAsync">
-                @(operatorMode ? "Operator OFF" : "Operator ON")
+                @(operatorMode ? "Operator OFF" : "Operator")
             </button>
             @if (!operatorMode && snapshot is null)
             {
                 <button type="button" @onclick="StartDoomAsync">Play ASCII corridor</button>
                 <button type="button" @onclick="StartDragonAsync">Play Green Dragon story</button>
             }
-            else if (!operatorMode && snapshot is not null)
+            else if (!operatorMode && !conversationMode && snapshot is not null)
             {
                 <label>
                     <span>Control</span>
@@ -108,28 +125,43 @@
             </div>
         </div>
     }
+    else if (conversationMode)
+    {
+        <div class="ascii-conversation-stage">
+            @if (asciiSequenceFrames.Count > 1)
+            {
+                <section class="ascii-sequence-player" aria-label="ASCII animation from the latest chat message">
+                    <header>
+                        <strong>ASCII SEQUENCE</strong>
+                        <small>@asciiSequenceFrames.Count frames · pauses with the page/window</small>
+                    </header>
+                    <pre class="chat-game-screen ascii-sequence-screen" data-ascii-sequence-screen>@asciiSequenceFrames[0]</pre>
+                </section>
+            }
+            <div class="ascii-conversation-output" role="log" aria-live="polite" aria-label="ASCII rendering of the current chat conversation">
+                <pre class="chat-game-screen">@asciiConversationText</pre>
+            </div>
+            <footer class="ascii-conversation-footer">
+                <span>Shared /chat history · replayable when switching views</span>
+                <span>@(FunModeEnabled ? "Contextual ASCII fun: ON" : "Contextual ASCII fun: OFF")</span>
+            </footer>
+        </div>
+    }
     else if (snapshot is null)
     {
         <div class="chat-game-console-placeholder">
-            @if (consoleOutput.Count > 0)
-            {
-                <pre class="chat-game-screen" aria-live="polite">@ConsoleText</pre>
-            }
-            else
-            {
-                <pre>┌──────────────────────────────────────────────────────────────────────────────┐
-│  /Chat ASCII surface ready                                                  │
-│  Provider/toolchain commands appear here when no game is running.           │
-│  OPERATOR ON opens LocalGPT's shell/job/signal layer without another window.│
-└──────────────────────────────────────────────────────────────────────────────┘</pre>
-            }
+            <pre>┌──────────────────────────────────────────────────────────────────────────────┐
+│  No ASCII game is running.                                                   │
+│  CHAT returns to the mirrored conversation.                                  │
+│  Start a built-in game above or let Council game functions create a session. │
+└───────────────────────────────────────────────────────────────────────────────┘</pre>
         </div>
     }
     else
     {
         <div class="chat-game-stage @(ShowControlGuide ? "has-guide" : "screen-only")">
             <div class="chat-game-screen-viewport">
-                <pre class="chat-game-screen" aria-live="polite">@snapshot.FrameText</pre>
+                <pre class="chat-game-screen" data-game-animation-screen aria-live="polite">@snapshot.FrameText</pre>
             </div>
             @if (ShowControlGuide)
             {
@@ -164,7 +196,7 @@
                             }
                             <button type="button" class="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="use" @onclick='@(() => SendControlAsync("use"))'>Use</button>
                         </div>
-                        <small>Keyboard and connected gamepads use these exact actions. Fit mode scales the frame in fullscreen; Native mode keeps the original monospace size and enables scrolling.</small>
+                        <small>Keyboard and connected gamepads use these exact actions. Controller polling only runs while this game surface can accept input.</small>
                     </div>
                 </aside>
             }
@@ -187,6 +219,26 @@
     /// </summary>
     /// <value>The suggested team key value exposed by <see cref="ChatGameConsole"/>.</value>
     [Parameter] public string SuggestedTeamKey { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the canonical conversation messages mirrored from the normal DXAiChat surface.
+    /// </summary>
+    /// <value>The same message history the regular chat renderer displays.</value>
+    [Parameter] public IReadOnlyList<BlazorChatMessage> ConversationMessages { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the server-owned Council participant activity lanes that should be projected into the replayable ASCII conversation.
+    /// </summary>
+    /// <value>Current participant snapshots for the Council run associated with the canonical chat, when one exists.</value>
+    [Parameter] public IReadOnlyList<CouncilLiveParticipantActivitySnapshot> CouncilParticipantActivities { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the selected provider/model display name used to derive a compact terminal nickname.
+    /// </summary>
+    /// <value>The current assistant session display name.</value>
+    [Parameter] public string AssistantDisplayName { get; set; } = "AI";
+    /// <summary>
+    /// Gets or sets a value indicating whether contextual ASCII fun is enabled for the current chat.
+    /// </summary>
+    /// <value><c>true</c> when models may optionally add bounded ASCII art, sequences, or game ideas.</value>
+    [Parameter] public bool FunModeEnabled { get; set; }
     /// <summary>
     /// Gets or sets the close requested value that forms part of the chat game console state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -217,6 +269,16 @@
     /// Stores whether asynchronous teardown has already started so duplicate renderer disposal calls remain harmless.
     /// </summary>
     private bool disposed;
+    /// <summary>Marks that one or more shared-console events arrived since the previous bounded renderer refresh.</summary>
+    private int consoleRenderPending;
+    /// <summary>Ensures only one delayed shared-console renderer worker runs for this component.</summary>
+    private int consoleRenderWorkerRunning;
+    /// <summary>Cancels delayed console renderer work when this component is disposed.</summary>
+    private readonly CancellationTokenSource consoleRenderCancellation = new();
+    /// <summary>Remembers the last game-input state sent to JavaScript so unrelated renders do not repeat interop calls.</summary>
+    private bool? lastJsInputEnabled;
+    /// <summary>Remembers the last scale mode sent to JavaScript so unrelated renders do not repeat interop calls.</summary>
+    private string? lastJsScaleMode;
     /// <summary>
     /// Stores the internal show controls state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
     /// </summary>
@@ -231,6 +293,14 @@
     private string fullscreenScaleMode = "Fit";
     /// <summary>Stores whether the LocalGPT meta/operator layer currently owns the shared ASCII surface.</summary>
     private bool operatorMode;
+    /// <summary>Stores whether the shared ASCII surface is rendering the canonical chat transcript instead of a game frame.</summary>
+    private bool conversationMode = true;
+    /// <summary>Stores the current plain-text rendering of the canonical /chat history.</summary>
+    private string asciiConversationText = string.Empty;
+    /// <summary>Stores the newest bounded ASCII animation frames extracted from the canonical chat history.</summary>
+    private IReadOnlyList<string> asciiSequenceFrames = [];
+    /// <summary>Remembers the newest animation payload sent to JavaScript so unrelated renders do not restart playback.</summary>
+    private string lastJsSequenceSignature = string.Empty;
     /// <summary>Stores whether an operator line is currently being parsed and queued.</summary>
     private bool operatorSubmitting;
     /// <summary>Retains the unsent command text typed into the Matrix operator prompt until the user submits it.</summary>
@@ -280,6 +350,22 @@
     /// <summary>Gets the visible count of service-owned shell jobs without disclosing any submitted command text.</summary>
     /// <value>A bounded human-readable active-job count for the operator status strip.</value>
     private string ActiveJobText => $"{Console.GetActiveOperations().Count} active job(s)";
+    /// <summary>Chooses the Matrix-style heading that tells the user which shared ASCII plane currently owns the surface: replayable chat, an interactive game, or operator control.</summary>
+    /// <value>A compact Matrix-style title for chat, game, or operator mode.</value>
+    private string AsciiSurfaceTitle => operatorMode
+        ? "LOCALGPT // MATRIX OPERATOR"
+        : conversationMode
+            ? "LOCALGPT // ASCII CHAT"
+            : snapshot?.DisplayName ?? "LOCALGPT // ASCII GAME";
+    /// <summary>Gets the status line shown below the current ASCII presentation title.</summary>
+    /// <value>A concise explanation of the shared chat/game/operator state.</value>
+    private string AsciiSurfaceSubtitle => operatorMode
+        ? OperatorHeaderText
+        : conversationMode
+            ? $"{ConversationMessages.Count} shared chat message(s) · function/thinking traces included · {(FunModeEnabled ? "fun mode on" : "fun mode off")}"
+            : snapshot is null
+                ? "No game is running; CHAT returns to the replayable conversation."
+                : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}";
 
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="ChatGameConsole"/>, updating the state required by the surrounding workflow.
@@ -304,6 +390,8 @@
     {
         if (snapshot is null || (ConversationId is not null && snapshot.ConversationId != ConversationId))
             snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
+        asciiConversationText = AsciiText.BuildConversationTranscript(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName);
+        asciiSequenceFrames = AsciiText.ExtractSequenceFrames(ConversationMessages);
     }
 
     /// <summary>
@@ -319,9 +407,55 @@
             await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             attached = true;
         }
-        var inputEnabled = CanSubmitHumanControl && !operatorMode;
-        await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
-        await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+        var inputEnabled = CanSubmitHumanControl && !operatorMode && !conversationMode;
+        if (lastJsInputEnabled != inputEnabled)
+        {
+            await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            lastJsInputEnabled = inputEnabled;
+        }
+        if (!string.Equals(lastJsScaleMode, fullscreenScaleMode, StringComparison.Ordinal))
+        {
+            await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            lastJsScaleMode = fullscreenScaleMode;
+        }
+        IReadOnlyList<string> activeSequenceFrames = !operatorMode && conversationMode
+            ? asciiSequenceFrames
+            : !operatorMode && !conversationMode && snapshot is not null
+                ? snapshot.AnimationFrames
+                : Array.Empty<string>();
+        var sequenceTarget = conversationMode ? "conversation" : "game";
+        var sequenceDelay = !conversationMode && snapshot is not null ? snapshot.AnimationDelayMilliseconds : 650;
+        var sequenceSignature = activeSequenceFrames.Count > 1
+            ? $"{sequenceTarget}:{sequenceDelay}:{AsciiText.BuildSequenceSignature(activeSequenceFrames)}"
+            : string.Empty;
+        if (!string.Equals(lastJsSequenceSignature, sequenceSignature, StringComparison.Ordinal))
+        {
+            await JS.InvokeVoidAsync(
+                "localGptGameConsole.setSequence",
+                elementId,
+                activeSequenceFrames,
+                sequenceDelay,
+                sequenceTarget).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            lastJsSequenceSignature = sequenceSignature;
+        }
+    }
+
+    /// <summary>Shows the canonical replayable chat transcript on the shared ASCII surface.</summary>
+    /// <returns>A task that completes after the renderer switches back to chat presentation.</returns>
+    private Task ShowConversationModeAsync()
+    {
+        operatorMode = false;
+        conversationMode = true;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Shows the active ASCII game without discarding the underlying chat transcript.</summary>
+    /// <returns>A task that completes after the renderer switches to the game presentation.</returns>
+    private Task ShowGameModeAsync()
+    {
+        operatorMode = false;
+        conversationMode = false;
+        return InvokeAsync(StateHasChanged);
     }
 
     /// <summary>Toggles the embedded operator layer while keeping game and running-process state alive behind the shared ASCII wall.</summary>
@@ -441,6 +575,8 @@
                 StartedBy = "Human User"
             }).ConfigureAwait(false);
             showControls = true;
+            operatorMode = false;
+            conversationMode = false;
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -497,6 +633,7 @@
             ? "Native"
             : string.Equals(requestedMode, "Width", StringComparison.OrdinalIgnoreCase) ? "Width" : "Fit";
         await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(false);
+        lastJsScaleMode = fullscreenScaleMode;
     }
 
     /// <summary>
@@ -570,7 +707,10 @@
         if (snapshot is not null && snapshot.Id != sessionId) return;
         _ = InvokeAsync(async () =>
         {
+            var hadSnapshot = snapshot is not null;
             snapshot = await Games.GetAsync(sessionId).ConfigureAwait(false);
+            if (!hadSnapshot && snapshot is not null && !operatorMode)
+                conversationMode = false;
             StateHasChanged();
         });
     }
@@ -580,11 +720,53 @@
     /// </summary>
     private void OnConsoleChanged()
     {
-        _ = InvokeAsync(() =>
+        if (disposed)
+            return;
+        Interlocked.Exchange(ref consoleRenderPending, 1);
+        if (Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
+            _ = RefreshConsoleRenderAsync();
+    }
+
+    /// <summary>Coalesces high-frequency process progress into a bounded chat-console renderer cadence.</summary>
+    /// <returns>A task that completes after the newest bounded console snapshot is rendered.</returns>
+    private async Task RefreshConsoleRenderAsync()
+    {
+        try
         {
-            consoleOutput = Console.GetRecentOutput(160);
-            StateHasChanged();
-        });
+            while (!consoleRenderCancellation.IsCancellationRequested)
+            {
+                await Task.Delay(250, consoleRenderCancellation.Token).ConfigureAwait(false);
+                Interlocked.Exchange(ref consoleRenderPending, 0);
+                await InvokeAsync(() =>
+                {
+                    consoleOutput = Console.GetRecentOutput(160);
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+                if (Volatile.Read(ref consoleRenderPending) == 0)
+                    break;
+            }
+        }
+        catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
+        {
+            // Component disposal cancels delayed progress rendering.
+        }
+        catch (ObjectDisposedException)
+        {
+            // Browser/circuit teardown can dispose the renderer while a delayed refresh is pending.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "A coalesced LocalGPT console renderer refresh failed.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref consoleRenderWorkerRunning, 0);
+            if (!disposed
+                && Volatile.Read(ref consoleRenderPending) != 0
+                && !consoleRenderCancellation.IsCancellationRequested
+                && Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
+                _ = RefreshConsoleRenderAsync();
+        }
     }
 
     /// <summary>
@@ -599,6 +781,7 @@
         disposed = true;
         Games.Changed -= OnGameChanged;
         Console.Changed -= OnConsoleChanged;
+        consoleRenderCancellation.Cancel();
         try
         {
             if (attached)
@@ -625,6 +808,8 @@
             attached = false;
             reference?.Dispose();
             reference = null;
+            consoleRenderCancellation.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

@@ -139,6 +139,38 @@ namespace LocalGPT.Components.Pages
     /// Stores the internal show game console state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>
     bool showGameConsole;
+    /// <summary>Stores whether contextual/random ASCII fun is enabled for the current chat.</summary>
+    bool asciiFunModeEnabled;
+    /// <summary>Stores the bounded replay snapshot mirrored into the ASCII terminal while it is open.</summary>
+    /// <value>The canonical chat-message snapshot currently rendered by the ASCII presentation.</value>
+    List<BlazorChatMessage> AsciiConversationMessages { get; set; } = [];
+    /// <summary>Stores the current Council participant lanes projected into the ASCII transcript without creating a second Council history.</summary>
+    /// <value>Server-owned participant activity snapshots for the Council run currently associated with this chat.</value>
+    List<CouncilLiveParticipantActivitySnapshot> AsciiCouncilParticipantActivities { get; set; } = [];
+    /// <summary>Stores the last canonical transcript signature mirrored into the ASCII terminal.</summary>
+    string asciiConversationSignature = string.Empty;
+    /// <summary>Ensures only one bounded ASCII transcript mirror loop runs at a time.</summary>
+    int asciiMirrorLoopRunning;
+    /// <summary>
+    /// Gets or sets a value indicating whether contextual/random ASCII fun is enabled for the active chat.
+    /// </summary>
+    /// <value><c>true</c> when models may optionally add bounded ASCII art or animation content while the terminal is open.</value>
+    bool AsciiFunModeEnabled
+    {
+        get => asciiFunModeEnabled;
+        set
+        {
+            if (asciiFunModeEnabled == value)
+                return;
+            asciiFunModeEnabled = value;
+            UpdateAsciiExperienceState();
+        }
+    }
+    /// <summary>Gets the current provider/model display name used to derive the compact ASCII assistant nickname.</summary>
+    /// <value>The selected model name when available; otherwise the selected session name or a generic AI label.</value>
+    string AsciiAssistantDisplayName => ChatClientProvider?.SelectedSession?.ModelName
+        ?? ChatClientProvider?.SelectedSession?.Name
+        ?? "AI";
     /// <summary>
     /// Gets or sets a value indicating whether council memory applies to the chat state.
     /// </summary>
@@ -952,14 +984,142 @@ namespace LocalGPT.Components.Pages
 
 
     /// <summary>
-    /// Performs toggle game console for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// Toggles the shared ASCII terminal while preserving the canonical DXAiChat conversation as the single source of truth.
     /// </summary>
-    private void ToggleGameConsole() => showGameConsole = !showGameConsole;
+    /// <returns>A task that completes after the newest chat snapshot has been mirrored when opening the terminal.</returns>
+    private async Task ToggleGameConsoleAsync()
+    {
+        showGameConsole = !showGameConsole;
+        UpdateAsciiExperienceState();
+        if (!showGameConsole)
+            return;
+
+        await RefreshAsciiConversationMirrorAsync().ConfigureAwait(false);
+        StartAsciiConversationMirrorLoop();
+    }
 
     /// <summary>
-    /// Closes game console for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// Closes the shared ASCII terminal without stopping the underlying chat, Council run, game session, or operator jobs.
     /// </summary>
-    private void CloseGameConsole() => showGameConsole = false;
+    private void CloseGameConsole()
+    {
+        showGameConsole = false;
+        UpdateAsciiExperienceState();
+    }
+
+    /// <summary>Publishes the current ASCII terminal/fun-mode state to circuit-scoped provider and Council prompt builders.</summary>
+    private void UpdateAsciiExperienceState()
+    {
+        try
+        {
+            AsciiExperience.Update(ActiveConversationId, showGameConsole, asciiFunModeEnabled);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Could not update the current ASCII chat presentation state.");
+        }
+    }
+
+    /// <summary>Starts one bounded, supervised mirror loop that refreshes the ASCII transcript only while the terminal is open.</summary>
+    private void StartAsciiConversationMirrorLoop()
+    {
+        if (Interlocked.CompareExchange(ref asciiMirrorLoopRunning, 1, 0) != 0)
+            return;
+
+        TaskRunner.Run(
+            nameof(Chat),
+            "ASCII chat transcript mirror",
+            RunAsciiConversationMirrorLoopAsync,
+            componentLifetimeCts.Token);
+    }
+
+    /// <summary>Refreshes the replayable ASCII transcript at a low bounded cadence without creating a second conversation store.</summary>
+    /// <param name="cancellationToken">Cancellation token tied to the Chat component lifetime.</param>
+    /// <returns>A task that completes when the terminal closes or the Chat component is disposed.</returns>
+    private async Task RunAsciiConversationMirrorLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested && Volatile.Read(ref showGameConsole))
+            {
+                await Task.Delay(700, cancellationToken).ConfigureAwait(false);
+                if (!Volatile.Read(ref showGameConsole))
+                    break;
+                await RefreshAsciiConversationMirrorAsync().ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Chat teardown owns this expected cancellation.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "The bounded ASCII chat transcript mirror stopped unexpectedly.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref asciiMirrorLoopRunning, 0);
+            if (!cancellationToken.IsCancellationRequested && Volatile.Read(ref showGameConsole))
+                StartAsciiConversationMirrorLoop();
+        }
+    }
+
+    /// <summary>Captures the current DXAiChat messages on the renderer and updates the ASCII replay snapshot only when content changed.</summary>
+    /// <returns>A task that completes after the current canonical chat history has been compared with the mirrored transcript.</returns>
+    private async Task RefreshAsciiConversationMirrorAsync()
+    {
+        try
+        {
+            List<BlazorChatMessage> captured = [];
+            Guid? councilRunId = null;
+            await InvokeAsync(() =>
+            {
+                if (DxAiChat is not null)
+                {
+                    captured = DxAiChat.SaveMessages().ToList();
+                    MergeAuthoritativeLiveCouncilMessage(captured);
+                }
+                else if (ChatClientProvider?.SelectedSession?.Messages is { Count: > 0 } sessionMessages)
+                {
+                    captured = sessionMessages.ToList();
+                }
+
+                councilRunId = AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? ActiveCouncilInteractionRunId;
+            }).ConfigureAwait(false);
+
+            if (captured.Count == 0 && ChatClientProvider?.SelectedSession?.Messages is { Count: > 0 } fallbackMessages)
+                captured = fallbackMessages.ToList();
+
+            var participantActivities = councilRunId is Guid activeRunId
+                ? CouncilLiveSessions.GetParticipantActivitiesForDisplay(activeRunId).ToList()
+                : [];
+            var participantSignature = AsciiText.BuildParticipantSignature(participantActivities);
+            var signature = $"{CouncilText.CreateMessageSignature(captured, Logger)}\u001d{councilRunId?.ToString("N") ?? string.Empty}\u001d{participantSignature}";
+            if (string.Equals(signature, asciiConversationSignature, StringComparison.Ordinal))
+                return;
+
+            await InvokeAsync(() =>
+            {
+                AsciiConversationMessages = captured;
+                AsciiCouncilParticipantActivities = participantActivities;
+                asciiConversationSignature = signature;
+                UpdateAsciiExperienceState();
+                StateHasChanged();
+            }).ConfigureAwait(false);
+        }
+        catch (JSDisconnectedException)
+        {
+            Logger.LogDebug("ASCII conversation mirroring ended after the browser disconnected.");
+        }
+        catch (ObjectDisposedException)
+        {
+            Logger.LogDebug("ASCII conversation mirroring ended while the Chat renderer was disposing.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Could not refresh the replayable ASCII chat transcript; the normal chat remains authoritative.");
+        }
+    }
 
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.

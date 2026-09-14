@@ -20,10 +20,12 @@ public sealed record OllamaProcessInfo(
 /// <param name="Processes">Ollama process info dependency used by the Ollama process status workflow to provide the corresponding application capability.</param>
 /// <param name="ProcessSummary">Process summary value supplied to the Ollama process status operation and used when producing its result.</param>
 /// <param name="Message">Message value supplied to the Ollama process status operation and used when producing its result.</param>
+/// <param name="IsResponsive">Value indicating whether the configured local Ollama HTTP runtime answered its bounded health probe.</param>
 public sealed record OllamaProcessStatus(
     bool IsInstalled,
     bool IsRunning,
     string? ExecutablePath,
     IReadOnlyList<OllamaProcessInfo> Processes,
     string ProcessSummary,
-    string Message);
+    string Message,
+    bool IsResponsive = false);

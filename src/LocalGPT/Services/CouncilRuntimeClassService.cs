@@ -329,14 +329,14 @@ public sealed class CouncilRuntimeClassService(
                         Field("intent", "Turn intent", "string", "observe", RuntimeFieldInputMode.Ai, true, false)
                     ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], [doomSource, cLanguageSource]),
                 BuildDefinition("games.ascii.doom.frame", "LocalGPT.Games.AsciiDoom", "ASCII DOOM frame", RuntimeClassKind.Frame,
-                    "Exactly one Council member authors the complete fixed-width frame after state resolution. It is a Matrix-ship-style terminal view, not a conventional 3D game frame.",
+                    "One Council presentation owner renders the live terminal-cell surface after state resolution. The owner may read back the display, use bounded incremental drawing, submit a complete frame, or submit one pregenerated ASCII animation without changing game state.",
                     [
                         Field("width", "Columns", "int", "80", RuntimeFieldInputMode.Shared, true, true),
                         Field("height", "Rows", "int", "25", RuntimeFieldInputMode.Shared, true, true),
                         Field("frameText", "ASCII frame", "string", "", RuntimeFieldInputMode.Ai, true, false),
                         Field("turn", "Turn", "int", "0", RuntimeFieldInputMode.System, false, false),
                         Field("legend", "Legend", "string", "@ player, e enemy, + door, # wall", RuntimeFieldInputMode.Ai, true, false)
-                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.frame.submit", "localgpt.game.session.get"], [doomSource, cLanguageSource]),
+                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"], [doomSource, cLanguageSource]),
                 BuildDefinition("games.green-dragon.world", "LocalGPT.Games.GreenDragon", "Green Dragon world", RuntimeClassKind.World,
                     "Persistent role-play world state orchestrated by a Story Director. Locations, houses, NPCs and events remain separate runtime class instances.",
                     [
@@ -392,13 +392,13 @@ public sealed class CouncilRuntimeClassService(
                         Binding("look", "Look", "L", "RightStick")
                     ], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], [dragonSource, phpLanguageSource]),
                 BuildDefinition("games.green-dragon.frame", "LocalGPT.Games.GreenDragon", "Green Dragon ASCII scene", RuntimeClassKind.Frame,
-                    "One AI-authored terminal scene per completed story turn, followed by concise narration and numbered choices.",
+                    "One AI presentation owner maintains the live terminal scene per completed story turn, with readback, bounded incremental drawing, complete frames, pregenerated animation, concise narration and numbered choices.",
                     [
                         Field("width", "Columns", "int", "80", RuntimeFieldInputMode.Shared, true, true),
                         Field("height", "Rows", "int", "25", RuntimeFieldInputMode.Shared, true, true),
                         Field("frameText", "ASCII frame", "string", "", RuntimeFieldInputMode.Ai, true, false),
                         Field("caption", "Caption", "string", "", RuntimeFieldInputMode.Ai, true, false)
-                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], [dragonSource, phpLanguageSource])
+                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"], [dragonSource, phpLanguageSource])
             ];
     
     }

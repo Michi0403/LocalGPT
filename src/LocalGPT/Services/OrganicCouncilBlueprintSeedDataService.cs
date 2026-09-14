@@ -412,7 +412,7 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
         {
             Key = "ascii-doom-council-adventure",
             DisplayName = "ASCII DOOM Council Adventure",
-            Purpose = "A reactive, turn-based terminal adventure optionally informed by user-imported id Software DOOM source knowledge. It does not build a conventional 3D renderer: one meaningful world step is resolved per Council turn and exactly one AI member authors the complete Matrix-ship-style ASCII frame.",
+            Purpose = "A reactive, turn-based terminal adventure optionally informed by user-imported id Software DOOM source knowledge. One meaningful world step is resolved per Council turn and one presentation owner keeps the shared terminal surface coherent using live session dimensions, complete frames, bounded incremental display operations, or pregenerated ASCII animations without changing canonical game state.",
             Roles =
             [
                 new()
@@ -494,7 +494,7 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                 {
                     Role = "ASCII Frame Renderer",
                     Expertise = "fixed-width terminal composition and stable spatial continuity",
-                    Responsibility = "author the one complete ASCII frame after state resolution; never alter game state",
+                    Responsibility = "own terminal presentation after state resolution; read the live surface when needed, preserve continuity, and never alter canonical game state",
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                     MinimumAiParticipants = 1,
                     MaximumAiParticipants = 1,
@@ -620,9 +620,9 @@ Runtime classes: {{RuntimeClasses}}
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Render the latest canonical state as one complete 80x25 Matrix-ship-style terminal frame. You alone own this frame. Preserve room geometry and glyph positions from the prior frame unless the resolved state changed them. Do not alter state, invent actions or split the frame across models. Output exactly:
-[[ASCII_FRAME width=80 height=25]]
-<the complete fixed-width frame>
+Render the latest canonical state on the shared ASCII terminal. You alone own presentation for this workflow step. First use localgpt.game.session.get or localgpt.game.display.get when the live dimensions or previous frame are uncertain; never assume 80x25 when the active session reports different terminal cells. Preserve room geometry and glyph positions unless resolved state changed them. Use database-backed localgpt.regex.list/get/test and localgpt.knowledge.list when reusable parsing, frame, coordinate, or layout evidence already exists instead of recreating it from tokens. For a small direct decoration outside this final workflow frame, prefer the smallest sufficient display operation (cell/text/fill/blit). For a cinematic or reaction moment, you may pregenerate 2-12 complete frames with normal text generation and submit them once through localgpt.game.animation.submit; do not model-call once per animation frame, and keep the first/stable frame consistent with the final scene below. Do not alter state or invent actions. The workflow compatibility output must still contain exactly one complete frame using the active session width and height:
+[[ASCII_FRAME width=<live width> height=<live height>]]
+<the complete fixed-width frame covering all configured terminal cells>
 [[/ASCII_FRAME]]
 Then add at most three short lines: HUD, what changed, and available legal actions.
 Runtime classes: {{RuntimeClasses}}
@@ -640,12 +640,12 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = ["localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control.preview", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.knowledge.list"],
+            PreferredCapabilities = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control.preview", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
                 "This is a turn-based ASCII Council interpretation, not a traditional real-time 3D engine and not a claim that the original C executable is running.",
-                "Exactly one AI member owns and emits each complete ASCII frame after state resolution; frame-producing steps must use a single-member execution mode.",
+                "Exactly one AI member owns terminal presentation after state resolution. The final workflow frame remains single-member and complete, while that owner may use bounded incremental display operations or one pregenerated 2-12-frame animation without mutating canonical state.",
                 "The id Software DOOM repository is an optional user-approved learning source. Do not redistribute commercial WAD data and do not require it for original generated maps.",
                 "One Council turn advances a meaningful world step and then renders once. Never simulate 35 frames per second through model calls.",
                 "Every active enemy, pickup, door or hazard is represented by a factory-created runtime-class instance; one World Actor member owns one active instance while creature and reactive-object subdirectors predict bounded consequences for the authoritative GameDirector.",
@@ -656,7 +656,7 @@ Runtime classes: {{RuntimeClasses}}
         {
             Key = "green-dragon-runtime-story",
             DisplayName = "Green Dragon Runtime Story",
-            Purpose = "A configuration-first role-play example inspired by the open-source Legend of the Green Dragon project. Directors orchestrate a persistent world while locations, houses, NPCs and events are runtime-class instances acted by bounded Council members; one AI renders the terminal scene per story turn.",
+            Purpose = "A configuration-first role-play example inspired by the open-source Legend of the Green Dragon project. Directors orchestrate a persistent world while locations, houses, NPCs and events are runtime-class instances acted by bounded Council members; one AI owns the shared terminal presentation per story turn using live dimensions, complete scenes, bounded incremental drawing, or pregenerated ASCII animation.",
             Roles =
             [
                 new()
@@ -747,8 +747,8 @@ Runtime classes: {{RuntimeClasses}}
                 new()
                 {
                     Role = "ASCII Scene Renderer",
-                    Expertise = "one fixed-width terminal scene per completed story turn",
-                    Responsibility = "render the canonical state without changing it",
+                    Expertise = "coherent terminal presentation, live display readback, fixed-width scenes and bounded ASCII animation",
+                    Responsibility = "render the canonical state on the shared terminal without changing it",
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                     MinimumAiParticipants = 1,
                     MaximumAiParticipants = 1,
@@ -887,8 +887,8 @@ Runtime classes: {{RuntimeClasses}}
                     Role = "ASCII Scene Renderer",
                     ExecutionMode = "LeaderSingle",
                     PromptTemplate = """
-Render the latest canonical state as one complete 80x25 terminal scene. You alone own the frame. Preserve spatial continuity from the previous frame and do not alter story state. Output exactly:
-[[ASCII_FRAME width=80 height=25]]
+Render the latest canonical state on the shared ASCII terminal. You alone own presentation for this workflow step. Read localgpt.game.session.get or localgpt.game.display.get when live dimensions or prior display continuity are uncertain; use the active session width and height rather than assuming 80x25. Consult database-backed localgpt.regex.list/get/test and localgpt.knowledge.list before inventing reusable parsing, coordinate, frame, or layout rules. Small direct decorations may use cell/text/fill/blit; a cinematic or emotional beat may use one localgpt.game.animation.submit call with 2-12 pregenerated complete frames. Animation is presentation only: never model-call frame-by-frame, never rewrite transcript history, and keep its first/stable frame consistent with the final workflow scene. Preserve spatial continuity and do not alter story state. The compatibility output must still contain exactly one complete scene covering all configured terminal cells:
+[[ASCII_FRAME width=<live width> height=<live height>]]
 <the complete fixed-width scene>
 [[/ASCII_FRAME]]
 Then add concise narration and numbered legal choices.
@@ -907,13 +907,13 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = ["localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.knowledge.list"],
+            PreferredCapabilities = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
                 "Locations, houses, NPCs and events are separate runtime-class instances. Active Council members act only as the instance assigned to them.",
                 "The Story Director orchestrates continuity but does not overwrite bounded choices owned by player, NPC, location or event roles.",
-                "Exactly one AI member renders the complete ASCII scene after canonical state resolution.",
+                "Exactly one AI member owns terminal presentation after canonical state resolution. The final workflow scene is still a complete single-member frame, while incremental display operations and one pregenerated bounded animation are available for presentation-only effects.",
                 "The lotgd repository is an optional user-approved learning source and configuration example; copied source/story content is not required for runtime play.",
                 "Human input is optional unless a runtime field is explicitly HumanRequired; such a gate blocks only the dependent round."
             ]

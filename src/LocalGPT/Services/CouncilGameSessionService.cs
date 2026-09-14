@@ -97,8 +97,8 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 GameDirectorModelName = request.GameDirectorModelName?.Trim() ?? string.Empty,
                 CreatureDirectorCount = Math.Clamp(request.CreatureDirectorCount, 1, 8),
                 LastDirectorDecision = "The GameDirector owns all state transitions; controllers may only submit proposals.",
-                FrameWidth = DefaultFrameWidth,
-                FrameHeight = DefaultFrameHeight,
+                FrameWidth = Math.Clamp(request.FrameWidth, 20, 240),
+                FrameHeight = Math.Clamp(request.FrameHeight, 8, 100),
                 LastActionBy = string.IsNullOrWhiteSpace(request.StartedBy) ? "Human User" : request.StartedBy.Trim(),
                 PlayerX = gameKey == "green-dragon" ? 4 : 3,
                 PlayerY = gameKey == "green-dragon" ? 4 : 3,
@@ -308,6 +308,8 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.FrameText = Render(session);
                 session.FrameCaption = BuildCaption(session);
                 session.FrameRenderer = "LocalGPT deterministic preview renderer";
+                session.AnimationFrames.Clear();
+                session.AnimationDelayMilliseconds = 650;
                 session.FrameOwnerTurn = session.Turn;
                 session.FrameOwner = session.FrameRenderer;
                 session.UpdatedAtUtc = DateTime.UtcNow;
@@ -381,6 +383,8 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.FrameText = NormalizeFrame(request.FrameText, session.FrameWidth, session.FrameHeight);
                 session.FrameCaption = string.IsNullOrWhiteSpace(request.Caption) ? BuildCaption(session) : request.Caption.Trim();
                 session.FrameRenderer = request.RendererName.Trim();
+                session.AnimationFrames.Clear();
+                session.AnimationDelayMilliseconds = 650;
                 session.FrameOwner = session.FrameRenderer;
                 session.FrameOwnerTurn = request.Turn;
                 session.UpdatedAtUtc = DateTime.UtcNow;

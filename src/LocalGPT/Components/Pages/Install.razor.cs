@@ -273,6 +273,12 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <value>The configured provider hosts value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<ConfiguredProviderHostView> ConfiguredProviderHosts => BuildConfiguredProviderHosts();
+    /// <summary>Gets whether the canonical loopback Ollama endpoint is already stored as a primary or additional host binding.</summary>
+    /// <value><see langword="true"/> when this computer's Ollama endpoint is already configured.</value>
+    private bool HasLocalLoopbackOllamaBinding => ConfiguredProviderHosts.Any(item =>
+        item.OllamaHost is not null
+        && IsLoopbackProviderEndpoint(item.Endpoint)
+        && string.Equals(new ProviderModelIdentity().NormalizeEndpoint(item.Endpoint), "http://127.0.0.1:11434", StringComparison.OrdinalIgnoreCase));
     /// <summary>
     /// Gets a value indicating whether reachable AI host applies to the install state.
     /// </summary>

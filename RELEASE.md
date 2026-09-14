@@ -1,9 +1,7 @@
-# LocalGPT 4.2.1
+# LocalGPT 4.2.7
 
-LocalGPT 4.2.1 adds metadata-backed product identity to the normal application console and the installer console. Their first lines now expose the running product/version, canonical repository URL, owner, and project license without duplicating those values in startup code.
+LocalGPT 4.2.7 is a compile-repair follow-up to 4.2.6. It retains the multi-host provider setup, per-drive Ollama storage/deletion evidence, bidirectional Council/ASCII terminal surface, Crazy ASCII continuity and macOS chunked-documentation repair from 4.2.6, while correcting a C# `CS1628` error in the local Ollama manifest digest reader.
 
-Repository-level `Authors`, `RepositoryUrl`, and `PackageLicenseExpression` remain canonical in `Directory.Build.props`; generated assembly metadata carries them into the executable, and a shared console identity helper renders them. The LocalGPT installer now derives its GitHub owner/name slug from that same repository metadata instead of maintaining a separate repository constant.
+`ProviderRuntimeManagementService.TryReadManifestDigests` now collects SHA-256 references in an ordinary local set captured by its recursive JSON reader, then assigns the completed set to the method's `out` parameter after parsing. This preserves the conservative deletion behavior while avoiding illegal capture of an `out` parameter by a local function.
 
-Runtime/model behavior is otherwise unchanged from 4.2.0, including the live Ollama catalog/workbench repair and existing CanIRun evidence handling. The 4.1.9 macOS packaging spawn-flood repair also remains intact.
-
-See `CHANGELOG-v4.2.1-METADATA-CONSOLE-IDENTITY.md` and `VALIDATION-v4.2.1-source.md`.
+No `dotnet` build, release publish, signing/notarization run, or GitHub operation was performed for this source handoff. See `CHANGELOG-v4.2.7-PROVIDER-MANIFEST-COMPILE-REPAIR.md` and `VALIDATION-v4.2.7-source.md`.

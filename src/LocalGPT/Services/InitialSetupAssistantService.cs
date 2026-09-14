@@ -3,7 +3,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 using LocalGPT.WireProtocol;
+using Microsoft.Extensions.Options;
 
 namespace LocalGPT.Services;
 
@@ -17,6 +19,7 @@ namespace LocalGPT.Services;
 /// <param name="teams">Owns user-confirmed Council team configuration persistence.</param>
 /// <param name="reviewerPolicy">Provides the shared benchmark reviewer ranking used to avoid weak default curator assignments.</param>
 /// <param name="jsonText">Serializes maintained team templates for a detached deep clone.</param>
+/// <param name="optionsRoot">Current LocalGPT provider configuration used to expose saved hosts independently from reachability.</param>
 /// <param name="httpClientFactory">Creates the bounded client used only for explicit official provider-catalog searches.</param>
 /// <param name="logger">Writes bounded setup diagnostics.</param>
 public sealed class InitialSetupAssistantService(
@@ -29,6 +32,7 @@ public sealed class InitialSetupAssistantService(
     ICouncilTeamConfigurationService teams,
     IProviderModelReviewerPolicyService reviewerPolicy,
     IJsonTextService jsonText,
+    IOptionsMonitor<LocalGptConfigurationRoot> optionsRoot,
     IHttpClientFactory httpClientFactory,
     ILogger<InitialSetupAssistantService> logger) : IInitialSetupAssistantService
 {
@@ -104,6 +108,7 @@ public sealed class InitialSetupAssistantService(
             {
                 Hardware = hardware.ToList(),
                 ProviderProfiles = profiles.ToList(),
+                ConfiguredProviderHosts = BuildConfiguredProviderHosts(optionsRoot.CurrentValue.AICore),
                 InstalledModels = installedModels,
                 RecommendedCuratorModelKeys = recommendedCurators,
                 Platform = RuntimeInformation.OSDescription,
@@ -120,6 +125,65 @@ public sealed class InitialSetupAssistantService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Building initial setup snapshot failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Builds configured host bindings without probing them so an offline remote endpoint cannot hide setup for this computer.</summary>
+    /// <param name="options">Current AI provider configuration.</param>
+    /// <returns>Distinct configured Ollama and OpenAI-compatible bindings in deterministic order.</returns>
+    private List<InitialSetupConfiguredProviderHost> BuildConfiguredProviderHosts(AICoreOptions? options)
+    {
+        try
+        {
+            if (options is null)
+                return [];
+
+            var identity = new ProviderModelIdentity();
+            var hosts = new List<InitialSetupConfiguredProviderHost>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void Add(string providerKind, string endpoint, string modelName, bool isPrimary, bool openAiCompatible)
+            {
+                if (string.IsNullOrWhiteSpace(endpoint))
+                    return;
+                var normalized = openAiCompatible
+                    ? identity.NormalizeOpenAiCompatibleEndpoint(endpoint)
+                    : identity.NormalizeEndpoint(endpoint);
+                if (string.IsNullOrWhiteSpace(normalized))
+                    return;
+                var key = providerKind + "|" + normalized;
+                if (!seen.Add(key))
+                    return;
+                var isLoopback = Uri.TryCreate(normalized, UriKind.Absolute, out var uri) && uri.IsLoopback;
+                hosts.Add(new InitialSetupConfiguredProviderHost
+                {
+                    ProviderKind = providerKind,
+                    Endpoint = normalized,
+                    ModelName = modelName?.Trim() ?? string.Empty,
+                    IsPrimary = isPrimary,
+                    IsLoopback = isLoopback
+                });
+            }
+
+            Add(ProviderModelKinds.Ollama, options.OllamaCore?.Uri ?? string.Empty, options.OllamaCore?.ModelName ?? string.Empty, true, false);
+            foreach (var item in options.OllamaCores ?? [])
+                Add(ProviderModelKinds.Ollama, item.Uri, item.ModelName, false, false);
+
+            Add(ProviderModelKinds.OpenAICompatible, options.ChatGPTLocalCore?.Endpoint ?? string.Empty, options.ChatGPTLocalCore?.ModelName ?? string.Empty, true, true);
+            foreach (var item in options.ChatGPTLocalCores ?? [])
+                Add(ProviderModelKinds.OpenAICompatible, item.Endpoint, item.ModelName, false, true);
+
+            return hosts
+                .OrderByDescending(item => item.IsLoopback)
+                .ThenByDescending(item => item.IsPrimary)
+                .ThenBy(item => item.ProviderKind, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(item => item.Endpoint, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Building configured AI provider-host bindings failed; endpoint values were omitted from diagnostics.");
             throw;
         }
     }
@@ -541,8 +605,23 @@ public sealed class InitialSetupAssistantService(
             lookupTimeout.CancelAfter(TimeSpan.FromSeconds(60));
             var lookupToken = lookupTimeout.Token;
             var catalogUri = BuildProviderCatalogSearchUri(profile, boundedQuery);
-            var html = await DownloadProviderCatalogPageAsync(catalogUri, lookupToken).ConfigureAwait(false);
-            var providerIds = await LoadProviderCatalogModelIdsAsync(profile, html, boundedQuery, lookupToken).ConfigureAwait(false);
+            IReadOnlyList<string> providerIds;
+            var liveCatalogLoaded = true;
+            try
+            {
+                var html = await DownloadProviderCatalogPageAsync(catalogUri, lookupToken).ConfigureAwait(false);
+                providerIds = await LoadProviderCatalogModelIdsAsync(profile, html, boundedQuery, lookupToken).ConfigureAwait(false);
+            }
+            catch (HttpRequestException exception)
+            {
+                liveCatalogLoaded = false;
+                providerIds = BuildMaintainedProviderCatalogFallbackIds(profile, boundedQuery);
+                logger.LogWarning(
+                    "Official provider catalog HTTPS lookup for profile {ProfileKey} was unavailable; using {FallbackCount} maintained offline model identifier(s). TLS/network detail: {FailureDetail}",
+                    profile.Key,
+                    providerIds.Count,
+                    exception.GetBaseException().Message);
+            }
 
             IReadOnlyList<MultiModelCouncilModelCandidate> candidates;
             try
@@ -574,7 +653,7 @@ public sealed class InitialSetupAssistantService(
                     DisplayName = providerId,
                     SelectionKey = installedCandidate?.SelectionKey ?? string.Empty,
                     CanInstall = canInstall,
-                    MappingStatus = "Official provider catalog search result.",
+                    MappingStatus = liveCatalogLoaded ? "Official provider catalog search result." : "Maintained offline provider catalog fallback; live HTTPS lookup was unavailable.",
                     IsInstalled = installedCandidate is not null,
                     IsProviderInventory = installedCandidate is not null,
                     IsProviderCatalogEntry = true,
@@ -595,7 +674,9 @@ public sealed class InitialSetupAssistantService(
             }
 
             logger.LogInformation(
-                "Loaded {ModelCount} bounded model identifier(s) from the explicitly requested official provider catalog for profile {ProfileKey}.",
+                liveCatalogLoaded
+                    ? "Loaded {ModelCount} bounded model identifier(s) from the explicitly requested official provider catalog for profile {ProfileKey}."
+                    : "Loaded {ModelCount} maintained offline model identifier(s) after the explicitly requested provider catalog HTTPS lookup was unavailable for profile {ProfileKey}.",
                 choices.Count,
                 profile.Key);
             return choices;
@@ -757,6 +838,35 @@ public sealed class InitialSetupAssistantService(
         }
     }
 
+    /// <summary>Builds a bounded offline provider-catalog fallback from maintained profile aliases when an explicit live HTTPS lookup cannot complete.</summary>
+    /// <param name="profile">Selected provider bootstrap profile whose maintained aliases remain available offline.</param>
+    /// <param name="query">Bounded user search text used to filter both generic aliases and concrete provider identifiers.</param>
+    /// <returns>Distinct concrete provider identifiers that remain installable without trusting or bypassing a failed TLS session.</returns>
+    private IReadOnlyList<string> BuildMaintainedProviderCatalogFallbackIds(AiProviderBootstrapProfile profile, string query)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(profile);
+            var boundedQuery = (query ?? string.Empty).Trim();
+            return profile.ModelAliases
+                .Where(item => !string.IsNullOrWhiteSpace(item.Value)
+                    && (boundedQuery.Length == 0
+                        || CatalogQueryMatches(item.Key, boundedQuery)
+                        || CatalogQueryMatches(item.Value, boundedQuery)))
+                .Select(item => item.Value.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(GetApproximateParameterBillions)
+                .ThenBy(item => item, StringComparer.OrdinalIgnoreCase)
+                .Take(ProviderCatalogMaximumModelIds)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Building maintained provider-catalog fallback identifiers failed for profile {ProfileKey}.", profile?.Key);
+            throw;
+        }
+    }
+
     /// <summary>Builds the fixed HTTPS provider-catalog request URI without trusting persisted URLs as network destinations.</summary>
     /// <param name="profile">Selected provider profile.</param>
     /// <param name="query">Bounded user search text.</param>
@@ -793,7 +903,7 @@ public sealed class InitialSetupAssistantService(
                     && !uri.Host.Equals("www.lmstudio.ai", StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Provider catalog requests are restricted to maintained HTTPS provider hosts.");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("LocalGPT/4.2.1");
+            request.Headers.UserAgent.ParseAdd("LocalGPT/4.2.7");
             var client = httpClientFactory.CreateClient("LocalGPTProviderCatalog");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -804,9 +914,14 @@ public sealed class InitialSetupAssistantService(
             logger.LogDebug(exception, "Downloading official provider catalog page was cancelled or reached the bounded lookup timeout.");
             throw;
         }
+        catch (HttpRequestException)
+        {
+            // The explicit lookup caller decides whether to use maintained offline aliases or a partial family result.
+            throw;
+        }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Downloading official provider catalog page failed; request path and response content were omitted.");
+            logger.LogWarning(exception, "Downloading official provider catalog page failed before a normal HTTP/TLS response could be processed; request path and response content were omitted.");
             throw;
         }
     }
@@ -933,6 +1048,13 @@ public sealed class InitialSetupAssistantService(
         {
             logger.LogDebug(exception, "Provider catalog family expansion was cancelled.");
             throw;
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogDebug(
+                "One provider catalog family variants HTTPS request was unavailable; the remaining provider-owned search results remain usable. Detail: {FailureDetail}",
+                exception.GetBaseException().Message);
+            return [];
         }
         catch (Exception exception)
         {

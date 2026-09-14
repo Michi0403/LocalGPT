@@ -31,7 +31,7 @@ def main() -> int:
 
     checks.extend([
         ("Chat supplies the close callback", 'CloseRequested="CloseGameConsole"' in chat),
-        ("Chat removes only the game surface", "private void CloseGameConsole() => showGameConsole = false;" in chat),
+        ("Chat closes only the ASCII surface and republishes presentation state", "private void CloseGameConsole()" in chat and "showGameConsole = false;" in chat and "UpdateAsciiExperienceState();" in chat),
         ("console exposes close event callback", "[Parameter] public EventCallback CloseRequested" in console),
         ("close button is outside snapshot-only action branch", '                <button type="button" @onclick="FullscreenAsync">Fullscreen</button>\n            }\n            <button type="button"\n                    class="chat-game-console-close"' in console),
         ("close exits fullscreen before callback", console.index("localGptGameConsole.exitFullscreen") < console.index("CloseRequested.InvokeAsync")),

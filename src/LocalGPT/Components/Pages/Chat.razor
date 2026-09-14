@@ -6,6 +6,7 @@
 @inject CouncilRuntimeService CouncilRuntime
 @inject ILocalGptRuntimePolicyDataService RuntimePolicy
 @inject CouncilTextService CouncilText
+@inject AsciiChatTextService AsciiText
 @inject LocalGptCatalogService Catalog
 @inject IChatMemoryService ChatMemory
 @inject IChatUploadWorkspaceService ChatUploadWorkspaces
@@ -26,6 +27,7 @@
 @inject IHardwarePerformancePresetService HardwarePerformancePresets
 @inject ICouncilTeamConfigurationService CouncilTeamConfigurations
 @inject IChatSessionContext SessionContext
+@inject IChatAsciiExperienceState AsciiExperience
 @inject IHumanCollaborationService HumanCollaboration
 @inject ICouncilLiveSessionService CouncilLiveSessions
 @inject ICouncilRunConfigurationService CouncilRunConfigurations
@@ -52,12 +54,12 @@
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       IconCssClass="oi oi-plus"
                       Click="ClearHistoryAsync" />
-            <DxButton Text="@(showGameConsole ? "Hide ASCII games" : "Show ASCII games")"
+            <DxButton Text="@(showGameConsole ? "Hide ASCII terminal" : "Show ASCII terminal")"
                       CssClass="localgpt-rounded-action localgpt-action-neutral"
                       RenderStyle="ButtonRenderStyle.Secondary"
                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                       IconCssClass="oi oi-monitor"
-                      Click="ToggleGameConsole" />
+                      Click="ToggleGameConsoleAsync" />
         </div>
         <details class="chat-configuration-ribbon" data-testid="chat-configuration-ribbon">
             <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation." @onclick="OnChatConfigurationSummaryClickedAsync">
@@ -119,6 +121,10 @@
             <label class="inline-dx-check" title="Loads the most recent saved memory thread automatically when the Chat page opens. Leave off for a clean local-model context.">
                 <DxCheckBox @bind-Checked="AutoLoadLatestConversation" />
                 <span>Auto-load latest memory</span>
+            </label>
+            <label class="inline-dx-check" title="When the ASCII terminal is open, models may occasionally add small contextual ASCII pictures or bounded frame sequences. Real interactive games continue through LocalGPT's Council game runtime.">
+                <DxCheckBox @bind-Checked="AsciiFunModeEnabled" />
+                <span>ASCII fun mode (contextual)</span>
             </label>
         </div>
         @if (ModelsList.Any(session => !session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase)))
@@ -557,6 +563,10 @@
             <section class="chat-game-ribbon" aria-label="Optional ASCII game console">
                 <ChatGameConsole ConversationId="@ActiveConversationId"
                                  SuggestedTeamKey="@SelectedCouncilTeamKey"
+                                 ConversationMessages="@AsciiConversationMessages"
+                                 CouncilParticipantActivities="@AsciiCouncilParticipantActivities"
+                                 AssistantDisplayName="@AsciiAssistantDisplayName"
+                                 FunModeEnabled="@AsciiFunModeEnabled"
                                  CloseRequested="CloseGameConsole" />
             </section>
         }

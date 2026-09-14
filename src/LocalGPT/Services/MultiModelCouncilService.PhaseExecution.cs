@@ -432,13 +432,10 @@ namespace LocalGPT.Services
             try
             {
                 var identity = new ProviderModelIdentity();
-                if (identity.TryParseSelectionKey(modelName, out var reference) &&
-                    Uri.TryCreate(reference.Endpoint, UriKind.Absolute, out var endpoint))
+                if (identity.TryParseSelectionKey(modelName, out var reference))
                 {
-                    var host = string.Equals(endpoint.Host, "localhost", StringComparison.OrdinalIgnoreCase)
-                        ? "127.0.0.1"
-                        : endpoint.Host;
-                    return string.IsNullOrWhiteSpace(host) ? "provider:unknown-host" : host.Trim().ToLowerInvariant();
+                    var runtimeKey = identity.GetRuntimeAuthorityKey(reference.Endpoint);
+                    return string.IsNullOrWhiteSpace(runtimeKey) ? "provider:unknown-runtime" : runtimeKey;
                 }
 
                 return "legacy-or-unqualified-host";

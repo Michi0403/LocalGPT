@@ -11,10 +11,12 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="platform">Resolves the operating-system-specific Ollama executable without leaking platform path policy into the shared process coordinator.</param>
 /// <param name="optionsRoot">Current LocalGPT configuration containing reviewed local Ollama launch defaults.</param>
+/// <param name="httpClientFactory">Factory used for bounded local Ollama health probes without weakening transport validation.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OllamaProcessService(
     IOllamaPlatformService platform,
     IOptionsMonitor<LocalGptConfigurationRoot> optionsRoot,
+    IHttpClientFactory httpClientFactory,
     ILogger<OllamaProcessService> logger) : IOllamaProcessService
 {
     /// <summary>
@@ -36,7 +38,17 @@ public sealed class OllamaProcessService(
     try
     {
             cancellationToken.ThrowIfCancellationRequested();
-            return await Task.FromResult(BuildStatus()).ConfigureAwait(false);
+            var status = BuildStatus();
+            if (!status.IsRunning)
+                return status;
+            var responsive = await IsLocalRuntimeResponsiveAsync(cancellationToken).ConfigureAwait(false);
+            return status with
+            {
+                IsResponsive = responsive,
+                Message = responsive
+                    ? $"Ollama is running and its local API is responsive in {status.Processes.Count} process(es)."
+                    : $"Ollama has {status.Processes.Count} process(es), but the configured local API is not responding."
+            };
     
     }
     catch (Exception __serviceMethodException)
@@ -61,7 +73,18 @@ public sealed class OllamaProcessService(
         {
             var current = BuildStatus();
             if (current.IsRunning)
-                return current with { Message = $"Ollama is already running in {current.Processes.Count} process(es); no duplicate instance was started." };
+            {
+                if (await IsLocalRuntimeResponsiveAsync(cancellationToken).ConfigureAwait(false))
+                    return current with
+                    {
+                        IsResponsive = true,
+                        Message = $"Ollama is already running and responsive in {current.Processes.Count} process(es); no duplicate instance was started."
+                    };
+
+                logger.LogWarning("Ollama process state exists but the configured local API is unresponsive; explicit Start will recycle the stale local runtime before relaunching it.");
+                await TerminateAllOllamaProcessesAsync(cancellationToken).ConfigureAwait(false);
+                await WaitForProcessStateAsync(expectedRunning: false, cancellationToken).ConfigureAwait(false);
+            }
 
             var executable = platform.ResolveExecutable();
             if (string.IsNullOrWhiteSpace(executable))
@@ -84,12 +107,16 @@ public sealed class OllamaProcessService(
             Process.Start(startInfo)?.Dispose();
             logger.LogInformation("Started Ollama through the resolved local executable; executable path was omitted from logs.");
             await WaitForProcessStateAsync(expectedRunning: true, cancellationToken).ConfigureAwait(false);
+            var responsive = await WaitForRuntimeAvailabilityAsync(cancellationToken).ConfigureAwait(false);
             var started = BuildStatus();
             return started with
             {
-                Message = started.IsRunning
-                    ? $"Ollama started successfully with {started.Processes.Count} process(es)."
-                    : "Ollama was launched, but no Ollama process became visible before the startup timeout."
+                IsResponsive = responsive,
+                Message = !started.IsRunning
+                    ? "Ollama was launched, but no Ollama process became visible before the startup timeout."
+                    : responsive
+                        ? $"Ollama started successfully and its local API is responsive with {started.Processes.Count} process(es)."
+                        : $"Ollama started {started.Processes.Count} process(es), but the configured local API did not become responsive before the health timeout."
             };
         }
         catch (OperationCanceledException)
@@ -181,12 +208,16 @@ public sealed class OllamaProcessService(
 
                 Process.Start(startInfo)?.Dispose();
                 await WaitForProcessStateAsync(expectedRunning: true, cancellationToken).ConfigureAwait(false);
+                var responsive = await WaitForRuntimeAvailabilityAsync(cancellationToken).ConfigureAwait(false);
                 var restarted = BuildStatus();
                 return restarted with
                 {
-                    Message = restarted.IsRunning
-                        ? $"Ollama restarted successfully with {restarted.Processes.Count} process(es)."
-                        : "Ollama was relaunched, but no Ollama process became visible before the startup timeout."
+                    IsResponsive = responsive,
+                    Message = !restarted.IsRunning
+                        ? "Ollama was relaunched, but no Ollama process became visible before the startup timeout."
+                        : responsive
+                            ? $"Ollama restarted successfully and its local API is responsive with {restarted.Processes.Count} process(es)."
+                            : $"Ollama restarted {restarted.Processes.Count} process(es), but the configured local API did not become responsive before the health timeout."
                 };
             }
             finally
@@ -204,6 +235,89 @@ public sealed class OllamaProcessService(
         throw;
     }
 }
+
+    /// <summary>Checks whether the configured local Ollama API responds to its machine-readable model inventory endpoint.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the bounded health probe.</param>
+    /// <returns><see langword="true"/> only when the local Ollama endpoint returns a successful HTTP response.</returns>
+    private async Task<bool> IsLocalRuntimeResponsiveAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var runtimeUri = BuildLocalRuntimeClientUri();
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromMilliseconds(1500));
+            using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(runtimeUri, "/api/tags"));
+            var client = httpClientFactory.CreateClient("LocalGPTProviderRuntime");
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
+            return response.IsSuccessStatusCode;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogDebug("Local Ollama health probe could not connect: {FailureDetail}", exception.GetBaseException().Message);
+            return false;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Local Ollama health probe failed before a normal HTTP response could be processed.");
+            return false;
+        }
+    }
+
+    /// <summary>Waits for both the Ollama process and its configured local HTTP endpoint to become usable.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the bounded availability wait.</param>
+    /// <returns><see langword="true"/> when the runtime becomes responsive before the timeout.</returns>
+    private async Task<bool> WaitForRuntimeAvailabilityAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (DateTime.UtcNow < deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (await IsLocalRuntimeResponsiveAsync(cancellationToken).ConfigureAwait(false))
+                    return true;
+                await Task.Delay(250, cancellationToken).ConfigureAwait(false);
+            }
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Waiting for the local Ollama HTTP endpoint failed.");
+            return false;
+        }
+    }
+
+    /// <summary>Builds the client-side loopback URI corresponding to LocalGPT's reviewed Ollama bind settings.</summary>
+    /// <returns>The local Ollama base URI used only for bounded health checks.</returns>
+    private Uri BuildLocalRuntimeClientUri()
+    {
+        try
+        {
+            var runtime = optionsRoot.CurrentValue.AICore?.OllamaRuntime ?? new OllamaRuntimeManagementOptions();
+            var port = runtime.Port is > 0 and <= 65535 ? runtime.Port : 11434;
+            var address = runtime.BindAddress?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(address)
+                || address is "0.0.0.0" or "::" or "[::]"
+                || address.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+                address = "127.0.0.1";
+            if (address.Contains(":", StringComparison.Ordinal) && !address.StartsWith("[", StringComparison.Ordinal))
+                address = $"[{address}]";
+            return new Uri($"http://{address}:{port}/", UriKind.Absolute);
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Building the local Ollama health URI failed; using the provider default loopback endpoint.");
+            return new Uri("http://127.0.0.1:11434/", UriKind.Absolute);
+        }
+    }
 
     /// <summary>Applies reviewed LocalGPT Ollama runtime settings only to a LocalGPT-owned CLI launch.</summary>
     /// <param name="startInfo">Process start information for the resolved Ollama CLI.</param>

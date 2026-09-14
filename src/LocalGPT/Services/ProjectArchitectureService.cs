@@ -524,7 +524,7 @@ public sealed class ProjectArchitectureService(
             if (pattern.Length > 16_000)
                 throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
             var options = System.Text.RegularExpressions.RegexOptions.CultureInvariant;
-            if (!string.IsNullOrWhiteSpace(flags) && flags.Contains('i', StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(flags) && flags.Contains("i", StringComparison.OrdinalIgnoreCase))
                 options |= System.Text.RegularExpressions.RegexOptions.IgnoreCase;
             _ = new System.Text.RegularExpressions.Regex(pattern, options, TimeSpan.FromSeconds(2));
     

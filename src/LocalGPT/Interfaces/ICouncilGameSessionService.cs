@@ -82,6 +82,24 @@ public interface ICouncilGameSessionService
         SubmitCouncilGameFrameRequest request,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Reads the full or cropped authoritative ASCII display.</summary>
+    Task<CouncilGameDisplaySnapshot> GetDisplayAsync(ReadCouncilGameDisplayRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Writes text into the authoritative ASCII display for the renderer that owns the turn.</summary>
+    Task<CouncilGameSessionSnapshot> WriteTextAsync(WriteCouncilGameTextRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Writes one cell into the authoritative ASCII display for the renderer that owns the turn.</summary>
+    Task<CouncilGameSessionSnapshot> SetCellAsync(SetCouncilGameCellRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Fills a clipped rectangular region of the authoritative ASCII display.</summary>
+    Task<CouncilGameSessionSnapshot> FillRegionAsync(FillCouncilGameRegionRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Blits multiline ASCII content into the authoritative display.</summary>
+    Task<CouncilGameSessionSnapshot> BlitRegionAsync(BlitCouncilGameRegionRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Submits pregenerated full-screen frames for local client-side animation.</summary>
+    Task<CouncilGameSessionSnapshot> SubmitAnimationAsync(SubmitCouncilGameAnimationRequest request, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Sets input gate as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

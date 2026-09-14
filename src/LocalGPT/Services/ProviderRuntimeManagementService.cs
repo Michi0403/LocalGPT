@@ -13,6 +13,7 @@ namespace LocalGPT.Services;
 /// <param name="ollamaPlatform">Platform boundary used to resolve Ollama's default model store.</param>
 /// <param name="lmStudioPlatform">Platform boundary used to resolve the LM Studio CLI executable.</param>
 /// <param name="optionsRoot">Current LocalGPT configuration.</param>
+/// <param name="platform">Host filesystem semantics supplied through the cross-platform runtime boundary.</param>
 /// <param name="configurationWriter">Durable LocalGPT user-configuration writer.</param>
 /// <param name="providerRegistry">Provider configuration registry used to create detached safe drafts.</param>
 /// <param name="variables">Database-backed LocalGPT system-variable store.</param>
@@ -24,6 +25,7 @@ public sealed class ProviderRuntimeManagementService(
     IOllamaPlatformService ollamaPlatform,
     ILmStudioPlatformService lmStudioPlatform,
     IOptionsMonitor<LocalGptConfigurationRoot> optionsRoot,
+    IPlatformRuntimeService platform,
     IConfigurationWriter configurationWriter,
     IAiProviderConfigurationRegistryService providerRegistry,
     IVariableStoreService variables,
@@ -34,6 +36,12 @@ public sealed class ProviderRuntimeManagementService(
     private const string OllamaGenerateRoute = "/api/generate";
     /// <summary>Ollama model deletion route used only after explicit destructive-action confirmation.</summary>
     private const string OllamaDeleteRoute = "/api/delete";
+    /// <summary>Filesystem path comparer supplied by the host platform boundary.</summary>
+    private StringComparer PathComparer => platform.PathComparer;
+    /// <summary>Filesystem path comparison supplied by the host platform boundary.</summary>
+    private StringComparison PathComparison => platform.PathComparison;
+    /// <summary>Maximum retained manifests inspected before direct blob cleanup is deliberately disabled.</summary>
+    private const int MaximumManifestReferenceScan = 4096;
 
     /// <summary>
     /// Retrieves snapshot as part of the provider runtime management service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -51,6 +59,8 @@ public sealed class ProviderRuntimeManagementService(
             {
                 ProfileKey = profile.Key,
                 ProviderName = profile.DisplayName,
+                Endpoint = NormalizeProviderEndpoint(profile.Endpoint),
+                IsLocalHost = Uri.TryCreate(profile.Endpoint, UriKind.Absolute, out var providerUri) && providerUri.IsLoopback,
                 IsOllama = isOllama,
                 IsLmStudio = isLmStudio,
                 Ollama = Clone(current.OllamaRuntime),
@@ -234,12 +244,28 @@ public sealed class ProviderRuntimeManagementService(
             ValidateModelId(modelId);
             if (!IsOllama(profile))
                 throw new NotSupportedException("Permanent model deletion is exposed here only for Ollama because LM Studio does not document a downloaded-model delete CLI/API. Use LM Studio My Models for permanent LM Studio removal.");
-            using var request = new HttpRequestMessage(HttpMethod.Delete, BuildProviderUri(profile, OllamaDeleteRoute))
+
+            try
             {
-                Content = JsonContent.Create(new { model = modelId.Trim() })
-            };
-            using var response = await SendProviderRequestAsync(request, cancellationToken).ConfigureAwait(false);
-            return FromResponse(response, "Ollama model permanently removed from the local model store.");
+                using var request = new HttpRequestMessage(HttpMethod.Delete, BuildProviderUri(profile, OllamaDeleteRoute))
+                {
+                    Content = JsonContent.Create(new { model = modelId.Trim() })
+                };
+                using var response = await SendProviderRequestAsync(request, cancellationToken).ConfigureAwait(false);
+                if (response.IsSuccessStatusCode)
+                    return FromResponse(response, "Ollama model permanently removed from the local model store.");
+
+                var fallback = DeleteOllamaModelFromLocalStore(profile, modelId);
+                return fallback.Succeeded ? fallback : FromResponse(response, "Ollama model permanently removed from the local model store.");
+            }
+            catch (HttpRequestException)
+            {
+                return DeleteOllamaModelFromLocalStore(profile, modelId);
+            }
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                return DeleteOllamaModelFromLocalStore(profile, modelId);
+            }
         }
         catch (OperationCanceledException exception)
         {
@@ -344,101 +370,578 @@ public sealed class ProviderRuntimeManagementService(
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PopulateOllamaAsync(AiProviderBootstrapProfile profile, ProviderRuntimeManagementSnapshot snapshot, CancellationToken cancellationToken)
     {
-    try
-    {
-                snapshot.ModelDirectoryEditable = true;
-                snapshot.ProviderDefaultModelDirectory = NormalizeModelDirectoryEvidence(ollamaPlatform.ResolveDefaultModelDirectory());
-                snapshot.InheritedModelDirectory = NormalizeModelDirectoryEvidence(Environment.GetEnvironmentVariable("OLLAMA_MODELS"));
-                snapshot.MountedStorageRoots = ollamaPlatform.ResolveMountedStorageRoots()
-                    .Where(path => !string.IsNullOrWhiteSpace(path))
-                    .Distinct(StringComparer.Ordinal)
-                    .ToList();
-                snapshot.DetectedModelDirectories = ollamaPlatform.DiscoverModelDirectories()
-                    .Where(path => !string.IsNullOrWhiteSpace(path))
-                    .Distinct(StringComparer.Ordinal)
-                    .ToList();
+        try
+        {
+            snapshot.ModelDirectoryEditable = snapshot.IsLocalHost;
+            snapshot.ProviderDefaultModelDirectory = NormalizeModelDirectoryEvidence(ollamaPlatform.ResolveDefaultModelDirectory());
+            snapshot.InheritedModelDirectory = NormalizeModelDirectoryEvidence(Environment.GetEnvironmentVariable("OLLAMA_MODELS"));
+            snapshot.MountedStorageRoots = ollamaPlatform.ResolveMountedStorageRoots()
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(PathComparer)
+                .ToList();
+            snapshot.DetectedModelDirectories = ollamaPlatform.DiscoverModelDirectories()
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(PathComparer)
+                .ToList();
 
-                var localOverride = NormalizeModelDirectoryEvidence(snapshot.Ollama.ModelDirectory);
-                var defaultLinkTarget = ResolveDirectoryLinkTarget(snapshot.ProviderDefaultModelDirectory);
-                if (!string.IsNullOrWhiteSpace(localOverride))
-                {
-                    snapshot.EffectiveModelDirectory = localOverride;
-                    snapshot.EffectiveModelDirectorySource = "LocalGPT override";
-                }
-                else if (!string.IsNullOrWhiteSpace(snapshot.InheritedModelDirectory))
-                {
-                    snapshot.EffectiveModelDirectory = snapshot.InheritedModelDirectory;
-                    snapshot.EffectiveModelDirectorySource = "Inherited OLLAMA_MODELS environment";
-                }
-                else if (!string.IsNullOrWhiteSpace(defaultLinkTarget))
-                {
-                    snapshot.EffectiveModelDirectory = defaultLinkTarget;
-                    snapshot.EffectiveModelDirectorySource = "Filesystem link target";
-                }
-                else if (snapshot.DetectedModelDirectories.Count == 1
-                    && !snapshot.DetectedModelDirectories[0].Equals(snapshot.ProviderDefaultModelDirectory, StringComparison.Ordinal))
-                {
-                    snapshot.EffectiveModelDirectory = snapshot.DetectedModelDirectories[0];
-                    snapshot.EffectiveModelDirectorySource = "Detected provider-shaped store";
-                }
-                else
-                {
-                    snapshot.EffectiveModelDirectory = snapshot.ProviderDefaultModelDirectory;
-                    snapshot.EffectiveModelDirectorySource = string.IsNullOrWhiteSpace(snapshot.ProviderDefaultModelDirectory)
-                        ? "Unresolved"
-                        : "Provider documented default";
-                }
+            if (snapshot.IsLocalHost)
+            {
+                ResolveEffectiveOllamaStore(snapshot);
                 snapshot.ModelDirectory = snapshot.EffectiveModelDirectory;
-                snapshot.ModelDirectoryGuidance = "Changing the LocalGPT override affects LocalGPT-started Ollama after restart. Existing model files are not moved implicitly; relocate them deliberately while Ollama is stopped.";
+                snapshot.ModelDirectoryGuidance = "Changing the LocalGPT override affects LocalGPT-started Ollama after restart. Existing model files are not moved implicitly. Each detected store is shown with its own drive/mount and physical blob usage; logical model sizes can overlap when models share blobs.";
+                PopulateOllamaStorageEvidence(snapshot);
+                foreach (var localModel in ReadOllamaFilesystemModels(snapshot.EffectiveModelDirectory))
+                    snapshot.Models.Add(localModel);
+            }
+            else
+            {
+                snapshot.ModelDirectory = "Remote provider host";
+                snapshot.ModelDirectoryGuidance = "Filesystem storage is intentionally not inspected for remote provider endpoints. Configure storage on that host itself.";
+            }
+
+            if (!snapshot.IsLocalHost)
+            {
+                snapshot.Status = "Remote Ollama runtime storage is not inspected from this LocalGPT host; the configured provider endpoint remains available to Councils independently of local runtime management.";
+                return;
+            }
+
+            try
+            {
+                using var tagsRequest = new HttpRequestMessage(HttpMethod.Get, BuildProviderUri(profile, "/api/tags"));
+                using var tagsResponse = await SendProviderRequestAsync(tagsRequest, cancellationToken).ConfigureAwait(false);
+                if (!tagsResponse.IsSuccessStatusCode)
+                {
+                    snapshot.Status = snapshot.Models.Count > 0
+                        ? $"Ollama inventory returned HTTP {(int)tagsResponse.StatusCode}; showing {snapshot.Models.Count} model(s) recovered from the effective local manifest store."
+                        : $"Ollama inventory returned HTTP {(int)tagsResponse.StatusCode}.";
+                    return;
+                }
+
+                using var tagsDoc = JsonDocument.Parse(await tagsResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+                var loaded = await ReadOllamaLoadedModelsAsync(profile, cancellationToken).ConfigureAwait(false);
+                var localById = snapshot.Models.ToDictionary(item => item.ModelId, StringComparer.OrdinalIgnoreCase);
+                var merged = new List<ProviderManagedModelInfo>();
+                if (tagsDoc.RootElement.TryGetProperty("models", out var models) && models.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in models.EnumerateArray())
+                    {
+                        var id = GetString(item, "name", "model");
+                        if (string.IsNullOrWhiteSpace(id))
+                            continue;
+                        var details = item.TryGetProperty("details", out var detailsElement) ? detailsElement : default;
+                        localById.TryGetValue(id, out var local);
+                        var isLoaded = loaded.Contains(id);
+                        merged.Add(new ProviderManagedModelInfo
+                        {
+                            ModelId = id,
+                            DisplayName = id,
+                            SizeBytes = GetInt64(item, "size") ?? local?.SizeBytes,
+                            ParameterSize = details.ValueKind == JsonValueKind.Object ? GetString(details, "parameter_size") : local?.ParameterSize ?? string.Empty,
+                            Architecture = details.ValueKind == JsonValueKind.Object ? GetString(details, "family", "families") : local?.Architecture ?? string.Empty,
+                            IsLoaded = isLoaded,
+                            CanUnload = isLoaded,
+                            CanDelete = snapshot.IsLocalHost,
+                            ProviderPath = local?.ProviderPath ?? string.Empty,
+                            StorageRoot = local?.StorageRoot ?? string.Empty,
+                            StorageDrive = local?.StorageDrive ?? string.Empty,
+                            InventorySource = local is null ? "Ollama API" : "Ollama API + local manifest"
+                        });
+                        localById.Remove(id);
+                    }
+                }
+                foreach (var local in localById.Values.OrderBy(item => item.ModelId, StringComparer.OrdinalIgnoreCase))
+                    merged.Add(local);
+                snapshot.Models = merged;
+                snapshot.Status = $"Loaded {snapshot.Models.Count} Ollama model(s); {snapshot.Models.Count(item => item.IsLoaded)} currently in memory.";
+            }
+            catch (HttpRequestException)
+            {
+                snapshot.Status = snapshot.Models.Count > 0
+                    ? $"Ollama is not reachable; showing {snapshot.Models.Count} model(s) from the effective local manifest store. Confirmed deletion remains available for exact local manifests."
+                    : "Ollama is not reachable; saved runtime/storage settings remain editable and will apply to a LocalGPT-started Ollama process.";
+            }
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                snapshot.Status = snapshot.Models.Count > 0
+                    ? $"Ollama timed out; showing {snapshot.Models.Count} model(s) from the effective local manifest store."
+                    : "Ollama did not answer before the local provider timeout; saved runtime/storage settings remain editable and will apply to a LocalGPT-started Ollama process.";
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Provider/runtime helper ProviderRuntimeManagementService.PopulateOllamaAsync failed; caller-controlled path/model values were omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Resolves the effective local Ollama store without treating other detected drives as interchangeable.</summary>
+    private void ResolveEffectiveOllamaStore(ProviderRuntimeManagementSnapshot snapshot)
+    {
+        try
+        {
+            var localOverride = NormalizeModelDirectoryEvidence(snapshot.Ollama.ModelDirectory);
+            var defaultLinkTarget = ResolveDirectoryLinkTarget(snapshot.ProviderDefaultModelDirectory);
+            if (!string.IsNullOrWhiteSpace(localOverride))
+            {
+                snapshot.EffectiveModelDirectory = localOverride;
+                snapshot.EffectiveModelDirectorySource = "LocalGPT override";
+            }
+            else if (!string.IsNullOrWhiteSpace(snapshot.InheritedModelDirectory))
+            {
+                snapshot.EffectiveModelDirectory = snapshot.InheritedModelDirectory;
+                snapshot.EffectiveModelDirectorySource = "Inherited OLLAMA_MODELS environment";
+            }
+            else if (!string.IsNullOrWhiteSpace(defaultLinkTarget))
+            {
+                snapshot.EffectiveModelDirectory = NormalizeModelDirectoryEvidence(defaultLinkTarget);
+                snapshot.EffectiveModelDirectorySource = "Filesystem link target";
+            }
+            else if (snapshot.DetectedModelDirectories.Count == 1
+                && !snapshot.DetectedModelDirectories[0].Equals(snapshot.ProviderDefaultModelDirectory, PathComparison))
+            {
+                snapshot.EffectiveModelDirectory = snapshot.DetectedModelDirectories[0];
+                snapshot.EffectiveModelDirectorySource = "Detected provider-shaped store";
+            }
+            else
+            {
+                snapshot.EffectiveModelDirectory = snapshot.ProviderDefaultModelDirectory;
+                snapshot.EffectiveModelDirectorySource = string.IsNullOrWhiteSpace(snapshot.ProviderDefaultModelDirectory)
+                    ? "Unresolved"
+                    : "Provider documented default";
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Resolving the authoritative local Ollama model store failed; model-store paths were omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Reads local Ollama manifests from one explicit store without probing unrelated stores for model identity.</summary>
+    private List<ProviderManagedModelInfo> ReadOllamaFilesystemModels(string storeRoot)
+    {
+        var result = new List<ProviderManagedModelInfo>();
+        try
+        {
+            if (string.IsNullOrWhiteSpace(storeRoot))
+                return result;
+            var physicalStoreRoot = ResolvePhysicalDirectoryPath(storeRoot);
+            if (string.IsNullOrWhiteSpace(physicalStoreRoot))
+                return result;
+            var manifestsRoot = Path.Combine(physicalStoreRoot, "manifests");
+            if (!Directory.Exists(manifestsRoot))
+                return result;
+            var driveRoot = ResolveStorageRoot(physicalStoreRoot);
+            foreach (var manifestPath in Directory.EnumerateFiles(manifestsRoot, "*", SearchOption.AllDirectories).Take(MaximumManifestReferenceScan))
+            {
+                var id = BuildOllamaModelId(manifestsRoot, manifestPath);
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+                if (!TryReadManifestDigests(manifestPath, out var digests))
+                    continue;
+                long logicalBytes = 0;
+                foreach (var digest in digests)
+                {
+                    var blobPath = GetOllamaBlobPath(physicalStoreRoot, digest);
+                    try { if (File.Exists(blobPath)) logicalBytes += new FileInfo(blobPath).Length; } catch { }
+                }
+                result.Add(new ProviderManagedModelInfo
+                {
+                    ModelId = id,
+                    DisplayName = id,
+                    SizeBytes = logicalBytes > 0 ? logicalBytes : null,
+                    CanDelete = true,
+                    ProviderPath = manifestPath,
+                    StorageRoot = physicalStoreRoot,
+                    StorageDrive = driveRoot,
+                    InventorySource = "Local manifest"
+                });
+            }
+            return result
+                .GroupBy(item => item.ModelId, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .OrderBy(item => item.ModelId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Reading local Ollama filesystem inventory failed; model paths were omitted.");
+            return result;
+        }
+    }
+
+    /// <summary>Builds a provider model identifier from one Ollama manifest path.</summary>
+    private string BuildOllamaModelId(string manifestsRoot, string manifestPath)
+    {
+        try
+        {
+            var relative = Path.GetRelativePath(manifestsRoot, manifestPath);
+            var parts = relative.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 4)
+                return string.Empty;
+            var owner = parts[1];
+            var tag = parts[^1];
+            var model = string.Join("/", parts.Skip(2).Take(parts.Length - 3));
+            if (string.IsNullOrWhiteSpace(model) || string.IsNullOrWhiteSpace(tag))
+                return string.Empty;
+            return owner.Equals("library", StringComparison.OrdinalIgnoreCase)
+                ? $"{model}:{tag}"
+                : $"{owner}/{model}:{tag}";
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Building an Ollama model identifier from a local manifest failed; manifest paths were omitted.");
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Reads all sha256 digests referenced by an Ollama manifest.</summary>
+    private bool TryReadManifestDigests(string manifestPath, out HashSet<string> digests)
+    {
+        var collectedDigests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+            Read(document.RootElement);
+            digests = collectedDigests;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Reading digest references from an Ollama manifest failed; manifest paths were omitted.");
+            digests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return false;
+        }
+
+        void Read(JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (property.NameEquals("digest") && property.Value.ValueKind == JsonValueKind.String)
+                    {
+                        var value = property.Value.GetString();
+                        if (!string.IsNullOrWhiteSpace(value) && value.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                            collectedDigests.Add(value);
+                    }
+                    Read(property.Value);
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in element.EnumerateArray())
+                    Read(item);
+            }
+        }
+    }
+
+    /// <summary>Maps an Ollama digest to its provider blob filename.</summary>
+    private string GetOllamaBlobPath(string storeRoot, string digest)
+    {
+        try
+        {
+            return Path.Combine(storeRoot, "blobs", digest.Replace(":", "-", StringComparison.Ordinal));
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Mapping an Ollama digest to its local blob path failed; path values were omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Collects per-store physical usage and per-volume capacity without conflating multiple drives.</summary>
+    private void PopulateOllamaStorageEvidence(ProviderRuntimeManagementSnapshot snapshot)
+    {
+        try
+        {
+            var stores = new HashSet<string>(PathComparer);
+            void AddStore(string? path)
+            {
+                var normalized = ResolvePhysicalDirectoryPath(path ?? string.Empty);
+                if (!string.IsNullOrWhiteSpace(normalized))
+                    stores.Add(normalized);
+            }
+            AddStore(snapshot.EffectiveModelDirectory);
+            foreach (var path in snapshot.DetectedModelDirectories) AddStore(path);
+            if (!string.IsNullOrWhiteSpace(snapshot.ProviderDefaultModelDirectory)
+                && Directory.Exists(Path.Combine(snapshot.ProviderDefaultModelDirectory, "manifests")))
+                AddStore(snapshot.ProviderDefaultModelDirectory);
+
+            var effectivePhysicalStore = ResolvePhysicalDirectoryPath(snapshot.EffectiveModelDirectory);
+            snapshot.ModelStores.Clear();
+            foreach (var store in stores.OrderBy(path => path, PathComparer))
+            {
+                var manifestRoot = Path.Combine(store, "manifests");
+                var blobRoot = Path.Combine(store, "blobs");
+                var manifestCount = 0;
+                long physicalBytes = 0;
                 try
                 {
-                    using var tagsRequest = new HttpRequestMessage(HttpMethod.Get, BuildProviderUri(profile, "/api/tags"));
-                    using var tagsResponse = await SendProviderRequestAsync(tagsRequest, cancellationToken).ConfigureAwait(false);
-                    if (!tagsResponse.IsSuccessStatusCode)
+                    if (Directory.Exists(manifestRoot))
+                        manifestCount = Directory.EnumerateFiles(manifestRoot, "*", SearchOption.AllDirectories).Take(MaximumManifestReferenceScan + 1).Count();
+                }
+                catch (Exception exception)
+                {
+                    logger.LogDebug(exception, "Counting manifests in a detected Ollama store failed; store paths were omitted.");
+                }
+                try
+                {
+                    if (Directory.Exists(blobRoot))
                     {
-                        snapshot.Status = $"Ollama inventory returned HTTP {(int)tagsResponse.StatusCode}.";
-                        return;
-                    }
-                    using var tagsDoc = JsonDocument.Parse(await tagsResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
-                    var loaded = await ReadOllamaLoadedModelsAsync(profile, cancellationToken).ConfigureAwait(false);
-                    if (tagsDoc.RootElement.TryGetProperty("models", out var models) && models.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var item in models.EnumerateArray())
+                        foreach (var file in Directory.EnumerateFiles(blobRoot, "*", SearchOption.TopDirectoryOnly))
                         {
-                            var id = GetString(item, "name", "model");
-                            if (string.IsNullOrWhiteSpace(id))
-                                continue;
-                            var details = item.TryGetProperty("details", out var detailsElement) ? detailsElement : default;
-                            snapshot.Models.Add(new ProviderManagedModelInfo
-                            {
-                                ModelId = id,
-                                DisplayName = id,
-                                SizeBytes = GetInt64(item, "size"),
-                                ParameterSize = details.ValueKind == JsonValueKind.Object ? GetString(details, "parameter_size") : string.Empty,
-                                Architecture = details.ValueKind == JsonValueKind.Object ? GetString(details, "family", "families") : string.Empty,
-                                IsLoaded = loaded.Contains(id),
-                                CanUnload = loaded.Contains(id),
-                                CanDelete = true
-                            });
+                            try { physicalBytes += new FileInfo(file).Length; }
+                            catch (Exception exception) { logger.LogDebug(exception, "Reading one Ollama blob size failed; blob paths were omitted."); }
                         }
                     }
-                    snapshot.Status = $"Loaded {snapshot.Models.Count} Ollama model(s); {snapshot.Models.Count(item => item.IsLoaded)} currently in memory.";
                 }
-                catch (HttpRequestException)
+                catch (Exception exception)
                 {
-                    snapshot.Status = "Ollama is not reachable; saved runtime/storage settings remain editable and will apply to a LocalGPT-started Ollama process.";
+                    logger.LogDebug(exception, "Reading physical Ollama store usage failed; store paths were omitted.");
                 }
-                catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+                snapshot.ModelStores.Add(new ProviderModelStoreInfo
                 {
-                    snapshot.Status = "Ollama did not answer before the local provider timeout; saved runtime/storage settings remain editable and will apply to a LocalGPT-started Ollama process.";
+                    Path = store,
+                    DriveRoot = ResolveStorageRoot(store),
+                    IsEffective = PathsEqual(store, effectivePhysicalStore),
+                    ModelCount = Math.Min(manifestCount, MaximumManifestReferenceScan),
+                    PhysicalBytes = physicalBytes
+                });
+            }
+
+            var volumeRoots = new HashSet<string>(PathComparer);
+            foreach (var root in snapshot.MountedStorageRoots)
+            {
+                var normalized = NormalizeModelDirectoryEvidence(root);
+                if (!string.IsNullOrWhiteSpace(normalized)) volumeRoots.Add(normalized);
+            }
+            foreach (var store in snapshot.ModelStores)
+                if (!string.IsNullOrWhiteSpace(store.DriveRoot)) volumeRoots.Add(store.DriveRoot);
+
+            snapshot.StorageVolumes.Clear();
+            foreach (var root in volumeRoots.OrderBy(path => path, PathComparer))
+            {
+                var volume = new ProviderStorageVolumeInfo { RootPath = root };
+                try
+                {
+                    var drive = DriveInfo.GetDrives().FirstOrDefault(item => item.IsReady && PathsEqual(item.RootDirectory.FullName, root));
+                    if (drive is not null)
+                    {
+                        volume.VolumeLabel = drive.VolumeLabel;
+                        volume.DriveType = drive.DriveType.ToString();
+                        volume.TotalBytes = drive.TotalSize;
+                        volume.FreeBytes = drive.AvailableFreeSpace;
+                    }
                 }
+                catch (Exception exception)
+                {
+                    logger.LogDebug(exception, "Reading storage-volume capacity failed; mount paths were omitted.");
+                }
+                var matchingStores = snapshot.ModelStores.Where(store => PathsEqual(store.DriveRoot, root)).ToList();
+                volume.ModelStoreCount = matchingStores.Count;
+                volume.ModelStoreBytes = matchingStores.Sum(store => store.PhysicalBytes);
+                volume.IsEffectiveModelVolume = matchingStores.Any(store => store.IsEffective);
+                snapshot.StorageVolumes.Add(volume);
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Collecting Ollama store and storage-volume evidence failed; filesystem paths were omitted.");
+            throw;
+        }
     }
-    catch (Exception exception)
+
+    /// <summary>Resolves a store directory to its physical final link target when the store itself is a symbolic link.</summary>
+    private string ResolvePhysicalDirectoryPath(string path)
     {
-        logger.LogDebug(exception, "Provider/runtime helper ProviderRuntimeManagementService.PopulateOllamaAsync failed; caller-controlled path/model values were omitted.");
-        throw;
+        try
+        {
+            var normalized = NormalizeModelDirectoryEvidence(path);
+            if (string.IsNullOrWhiteSpace(normalized))
+                return string.Empty;
+            var linked = ResolveDirectoryLinkTarget(normalized);
+            return string.IsNullOrWhiteSpace(linked) ? normalized : NormalizeModelDirectoryEvidence(linked);
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Resolving the physical target of an Ollama store failed; path values were omitted.");
+            throw;
+        }
     }
-}
+
+    /// <summary>Resolves the ready drive or mount with the longest root prefix for one path.</summary>
+    private string ResolveStorageRoot(string path)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+            var full = Path.GetFullPath(path);
+            return DriveInfo.GetDrives()
+                .Where(item => item.IsReady)
+                .Select(item => Path.GetFullPath(item.RootDirectory.FullName))
+                .Where(root => full.StartsWith(root, PathComparison))
+                .OrderByDescending(root => root.Length)
+                .FirstOrDefault() ?? Path.GetPathRoot(full) ?? string.Empty;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Resolving the drive or mount for an Ollama store failed; path values were omitted.");
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Compares normalized filesystem roots using the current host path semantics.</summary>
+    private bool PathsEqual(string? left, string? right)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return false;
+            return Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Equals(Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), PathComparison);
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Comparing filesystem roots failed; path values were omitted.");
+            return false;
+        }
+    }
+
+    /// <summary>Deletes an exact local Ollama manifest and only blobs proven unreferenced by every retained readable manifest.</summary>
+    private ProviderModelManagementResult DeleteOllamaModelFromLocalStore(AiProviderBootstrapProfile profile, string modelId)
+    {
+        if (!Uri.TryCreate(profile.Endpoint, UriKind.Absolute, out var endpoint) || !endpoint.IsLoopback)
+            return new ProviderModelManagementResult { Succeeded = false, Message = "Direct model-store deletion is limited to Ollama on this computer." };
+
+        var current = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
+        var temporary = new ProviderRuntimeManagementSnapshot
+        {
+            Ollama = Clone(current.OllamaRuntime),
+            ProviderDefaultModelDirectory = NormalizeModelDirectoryEvidence(ollamaPlatform.ResolveDefaultModelDirectory()),
+            InheritedModelDirectory = NormalizeModelDirectoryEvidence(Environment.GetEnvironmentVariable("OLLAMA_MODELS")),
+            DetectedModelDirectories = ollamaPlatform.DiscoverModelDirectories().Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(PathComparer).ToList()
+        };
+        ResolveEffectiveOllamaStore(temporary);
+        var storeRoot = ResolvePhysicalDirectoryPath(temporary.EffectiveModelDirectory);
+        if (string.IsNullOrWhiteSpace(storeRoot))
+            return new ProviderModelManagementResult { Succeeded = false, Message = "Ollama is offline and LocalGPT could not resolve one authoritative local model store, so no files were changed." };
+        var manifestsRoot = Path.Combine(storeRoot, "manifests");
+        if (!Directory.Exists(manifestsRoot))
+            return new ProviderModelManagementResult { Succeeded = false, Message = "Ollama is offline and the effective local model store contains no readable manifest catalog, so no files were changed." };
+
+        var manifests = Directory.EnumerateFiles(manifestsRoot, "*", SearchOption.AllDirectories).Take(MaximumManifestReferenceScan + 2).ToList();
+        if (manifests.Count > MaximumManifestReferenceScan)
+            return new ProviderModelManagementResult { Succeeded = false, Message = "The local Ollama manifest catalog is larger than the bounded safety scan. Start Ollama and use its delete API instead; no files were changed." };
+        var target = manifests.Where(path => OllamaIdsEqual(BuildOllamaModelId(manifestsRoot, path), modelId)).ToList();
+        if (target.Count == 0)
+            return new ProviderModelManagementResult { Succeeded = false, Message = "The requested model was not found as an exact manifest in the effective local Ollama store; no files were changed." };
+        if (target.Count > 1)
+            return new ProviderModelManagementResult { Succeeded = false, Message = "More than one local manifest matches this model identifier. Start Ollama and use its delete API to avoid deleting an ambiguous registry entry; no files were changed." };
+        if (!TryReadManifestDigests(target[0], out var targetDigests))
+            return new ProviderModelManagementResult { Succeeded = false, Message = "The target Ollama manifest could not be read safely; no files were changed." };
+
+        var retainedDigests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var retainedReadable = true;
+        foreach (var manifest in manifests.Where(path => !PathsEqual(path, target[0])))
+        {
+            if (!TryReadManifestDigests(manifest, out var digests))
+            {
+                retainedReadable = false;
+                break;
+            }
+            retainedDigests.UnionWith(digests);
+        }
+
+        File.Delete(target[0]);
+        var deletedBlobs = 0;
+        if (retainedReadable)
+        {
+            foreach (var digest in targetDigests.Where(digest => !retainedDigests.Contains(digest)))
+            {
+                var blob = GetOllamaBlobPath(storeRoot, digest);
+                if (!File.Exists(blob)) continue;
+                try { File.Delete(blob); deletedBlobs++; } catch (Exception exception) { logger.LogWarning(exception, "An unreferenced Ollama blob could not be removed after its manifest was deleted; path omitted."); }
+            }
+        }
+        PruneEmptyManifestDirectories(Path.GetDirectoryName(target[0]), manifestsRoot);
+        return new ProviderModelManagementResult
+        {
+            Succeeded = true,
+            Message = retainedReadable
+                ? $"Removed the local Ollama manifest and {deletedBlobs} unreferenced blob file(s) from the effective model store."
+                : "Removed the local Ollama manifest. Blob cleanup was skipped because at least one retained manifest could not be read safely."
+        };
+    }
+
+    /// <summary>Compares Ollama identifiers while treating an omitted tag as the provider's conventional latest tag.</summary>
+    private bool OllamaIdsEqual(string left, string right)
+    {
+        try
+        {
+            string Normalize(string value)
+            {
+                var trimmed = value.Trim();
+                var lastSlash = trimmed.LastIndexOf('/');
+                var lastColon = trimmed.LastIndexOf(':');
+                return lastColon <= lastSlash ? trimmed + ":latest" : trimmed;
+            }
+            return Normalize(left).Equals(Normalize(right), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Comparing Ollama model identifiers failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Prunes empty manifest directories without walking above the model store's manifest root.</summary>
+    private void PruneEmptyManifestDirectories(string? directory, string manifestsRoot)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(directory)) return;
+            var root = Path.GetFullPath(manifestsRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var current = new DirectoryInfo(directory);
+            while (current.Exists && !PathsEqual(current.FullName, root) && current.FullName.StartsWith(root, PathComparison))
+            {
+                try
+                {
+                    if (current.EnumerateFileSystemInfos().Any()) break;
+                    var parent = current.Parent;
+                    current.Delete();
+                    if (parent is null) break;
+                    current = parent;
+                }
+                catch (Exception exception)
+                {
+                    logger.LogDebug(exception, "Pruning an empty Ollama manifest directory stopped safely; directory paths were omitted.");
+                    break;
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Pruning empty Ollama manifest directories failed; directory paths were omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Normalizes provider endpoint text for display without changing provider routing behavior.</summary>
+    private string NormalizeProviderEndpoint(string? endpoint)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(endpoint)) return string.Empty;
+            return Uri.TryCreate(endpoint.Trim(), UriKind.Absolute, out var uri)
+                ? uri.ToString().TrimEnd('/')
+                : endpoint.Trim();
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Normalizing a provider endpoint for display failed; endpoint values were omitted.");
+            throw;
+        }
+    }
 
     /// <summary>Populates LM Studio inventory through the documented machine-readable CLI without assuming its on-disk directory layout.</summary>
     /// <param name="snapshot">Snapshot value supplied to the provider runtime management operation and used when producing its result.</param>
@@ -855,33 +1358,29 @@ public sealed class ProviderRuntimeManagementService(
     /// <param name="snapshot">Snapshot value supplied to the provider runtime management operation and used when producing its result.</param>
     private void PopulateDiskCapacity(ProviderRuntimeManagementSnapshot snapshot)
     {
-    try
-    {
-                if (!snapshot.ModelDirectoryEditable || string.IsNullOrWhiteSpace(snapshot.ModelDirectory))
-                    return;
-                try
-                {
-                    var full = Path.GetFullPath(snapshot.ModelDirectory);
-                    var drive = DriveInfo.GetDrives()
-                        .Where(item => item.IsReady && full.StartsWith(Path.GetFullPath(item.RootDirectory.FullName), StringComparison.Ordinal))
-                        .OrderByDescending(item => item.RootDirectory.FullName.Length)
-                        .FirstOrDefault();
-                    if (drive is null)
-                        return;
-                    snapshot.DiskFreeBytes = drive.AvailableFreeSpace;
-                    snapshot.DiskTotalBytes = drive.TotalSize;
-                }
-                catch
-                {
-                    // Disk capacity is informational only and must never block provider management.
-                }
+        try
+        {
+            var effectiveVolume = snapshot.StorageVolumes.FirstOrDefault(item => item.IsEffectiveModelVolume);
+            if (effectiveVolume is not null)
+            {
+                snapshot.DiskFreeBytes = effectiveVolume.FreeBytes;
+                snapshot.DiskTotalBytes = effectiveVolume.TotalBytes;
+                return;
+            }
+            if (!snapshot.ModelDirectoryEditable || string.IsNullOrWhiteSpace(snapshot.ModelDirectory))
+                return;
+            var root = ResolveStorageRoot(snapshot.ModelDirectory);
+            if (string.IsNullOrWhiteSpace(root)) return;
+            var drive = DriveInfo.GetDrives().FirstOrDefault(item => item.IsReady && PathsEqual(item.RootDirectory.FullName, root));
+            if (drive is null) return;
+            snapshot.DiskFreeBytes = drive.AvailableFreeSpace;
+            snapshot.DiskTotalBytes = drive.TotalSize;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Provider/runtime helper ProviderRuntimeManagementService.PopulateDiskCapacity failed; caller-controlled path/model values were omitted.");
+        }
     }
-    catch (Exception exception)
-    {
-        logger.LogDebug(exception, "Provider/runtime helper ProviderRuntimeManagementService.PopulateDiskCapacity failed; caller-controlled path/model values were omitted.");
-        throw;
-    }
-}
 
     /// <summary>Normalizes one Ollama model directory without moving or deleting provider-owned files.</summary>
     /// <param name="value">Value value supplied to the provider runtime management operation and used when producing its result.</param>

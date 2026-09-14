@@ -100,6 +100,51 @@ public sealed class ProviderManagedModelInfo
     /// <summary>Gets or sets an optional provider-relative path reported for the downloaded model.</summary>
     /// <value>The provider-relative path; LocalGPT does not use this value as implicit deletion authority.</value>
     public string ProviderPath { get; set; } = string.Empty;
+    /// <summary>Gets or sets the concrete local model-store root that supplied filesystem inventory for this row.</summary>
+    /// <value>The local Ollama model-store path, or an empty string when the provider did not expose one.</value>
+    public string StorageRoot { get; set; } = string.Empty;
+    /// <summary>Gets or sets the drive or mount root that owns <see cref="StorageRoot"/>.</summary>
+    /// <value>The owning drive/mount root, or an empty string when it cannot be resolved.</value>
+    public string StorageDrive { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether the row came from the provider API, filesystem manifests, or both.</summary>
+    /// <value>A bounded inventory-source label.</value>
+    public string InventorySource { get; set; } = string.Empty;
+}
+
+/// <summary>Describes one detected Ollama model-store path and its physical blob usage.</summary>
+public sealed class ProviderModelStoreInfo
+{
+    /// <summary>Gets or sets the model-store path.</summary>
+    public string Path { get; set; } = string.Empty;
+    /// <summary>Gets or sets the drive or mount root containing the store.</summary>
+    public string DriveRoot { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether LocalGPT resolved this store as the active/effective Ollama store.</summary>
+    public bool IsEffective { get; set; }
+    /// <summary>Gets or sets the number of readable model manifests in this store.</summary>
+    public int ModelCount { get; set; }
+    /// <summary>Gets or sets the bytes occupied by physical blob files in this store.</summary>
+    public long PhysicalBytes { get; set; }
+}
+
+/// <summary>Describes storage capacity and Ollama-store usage for one filesystem volume.</summary>
+public sealed class ProviderStorageVolumeInfo
+{
+    /// <summary>Gets or sets the drive or mount root.</summary>
+    public string RootPath { get; set; } = string.Empty;
+    /// <summary>Gets or sets the volume label when the platform reports one.</summary>
+    public string VolumeLabel { get; set; } = string.Empty;
+    /// <summary>Gets or sets the platform drive type.</summary>
+    public string DriveType { get; set; } = string.Empty;
+    /// <summary>Gets or sets total bytes on this volume.</summary>
+    public long? TotalBytes { get; set; }
+    /// <summary>Gets or sets currently available free bytes on this volume.</summary>
+    public long? FreeBytes { get; set; }
+    /// <summary>Gets or sets the physical blob bytes summed across detected Ollama stores on this volume.</summary>
+    public long ModelStoreBytes { get; set; }
+    /// <summary>Gets or sets the number of detected Ollama stores on this volume.</summary>
+    public int ModelStoreCount { get; set; }
+    /// <summary>Gets or sets whether the effective model store resides on this volume.</summary>
+    public bool IsEffectiveModelVolume { get; set; }
 }
 
 /// <summary>Captures one provider-management refresh used by the DevExpress runtime and disk-management workbench.</summary>
@@ -115,6 +160,12 @@ public sealed class ProviderRuntimeManagementSnapshot
     /// </summary>
     /// <value>The provider display name.</value>
     public string ProviderName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the normalized provider endpoint represented by this snapshot.</summary>
+    /// <value>The provider endpoint.</value>
+    public string Endpoint { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether the provider endpoint is loopback-local to the LocalGPT process.</summary>
+    /// <value><see langword="true"/> when local filesystem management is safe to expose.</value>
+    public bool IsLocalHost { get; set; }
     /// <summary>
     /// Gets or sets a value indicating whether Ollama applies to the provider runtime management snapshot state.
     /// </summary>
@@ -146,6 +197,12 @@ public sealed class ProviderRuntimeManagementSnapshot
     /// <summary>Lists bounded filesystem candidates that were positively identified as Ollama stores by their <c>blobs</c> and <c>manifests</c> layout.</summary>
     /// <value>Detected provider-shaped Ollama model directories.</value>
     public List<string> DetectedModelDirectories { get; set; } = [];
+    /// <summary>Gets or sets detected Ollama model stores with physical blob usage and owning volume attribution.</summary>
+    /// <value>The model-store evidence rows.</value>
+    public List<ProviderModelStoreInfo> ModelStores { get; set; } = [];
+    /// <summary>Gets or sets storage volumes relevant to detected or selectable model-store paths.</summary>
+    /// <value>The storage-volume capacity rows.</value>
+    public List<ProviderStorageVolumeInfo> StorageVolumes { get; set; } = [];
     /// <summary>Gets or sets whether LocalGPT may persist the model-directory setting for this provider.</summary>
     /// <value><see langword="true"/> when the directory is directly configurable through LocalGPT.</value>
     public bool ModelDirectoryEditable { get; set; }

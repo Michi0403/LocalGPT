@@ -60,6 +60,9 @@
     function markPressed(state, actions) {
         try {
             const active = actions instanceof Set ? actions : new Set(actions || []);
+            const signature = [...active].sort().join('|');
+            if (state.pressedSignature === signature) return;
+            state.pressedSignature = signature;
             state.element.querySelectorAll('[data-game-action]').forEach(button => {
                 const action = button.getAttribute('data-game-action');
                 const mapped = action === 'left' ? ['strafe-left', 'turn-left'] : action === 'right' ? ['strafe-right', 'turn-right'] : [action];
@@ -82,33 +85,102 @@
         }
     }
 
+    function connectedGamepad() {
+        try {
+            if (!navigator.getGamepads) return null;
+            return Array.from(navigator.getGamepads()).find(Boolean) || null;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.connectedGamepad', error);
+            return null;
+        }
+    }
+
+    function cancelGamepadFrame(state) {
+        try {
+            if (!state?.frame) return;
+            cancelAnimationFrame(state.frame);
+            state.frame = 0;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.cancelGamepadFrame', error);
+        }
+    }
+
+    function scheduleGamepadFrame(state) {
+        try {
+            if (!state || state.frame || !states.has(state.id) || !state.enabled || document.hidden || !state.windowFocused || !connectedGamepad()) return;
+            state.frame = requestAnimationFrame(() => pollGamepad(state));
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.scheduleGamepadFrame', error);
+        }
+    }
+
     function pollGamepad(state) {
         try {
             if (!state || !states.has(state.id)) return;
-            if (state.enabled && navigator.getGamepads) {
-                const pad = Array.from(navigator.getGamepads()).find(Boolean);
-                if (pad) {
-                    const pressed = new Set();
-                    const buttonAction = [[0,'use'],[1,'duck'],[2,'choice-1'],[3,'choice-2'],[7,'shoot'],[12,'move-forward'],[13,'move-backward'],[14,'turn-left'],[15,'turn-right']];
-                    for (const [index, action] of buttonAction) if (pad.buttons[index]?.pressed) pressed.add(action);
-                    const x = pad.axes[0] || 0;
-                    const y = pad.axes[1] || 0;
-                    const lookX = pad.axes[2] || 0;
-                    if (y < -.62) pressed.add('move-forward');
-                    if (y > .62) pressed.add('move-backward');
-                    if (x < -.62) pressed.add('strafe-left');
-                    if (x > .62) pressed.add('strafe-right');
-                    if (lookX < -.62) pressed.add('turn-left');
-                    if (lookX > .62) pressed.add('turn-right');
-                    markPressed(state, pressed);
-                    for (const action of pressed) if (!state.previousButtons.has(action)) { submit(state, action); break; }
-                    state.previousButtons = pressed;
-                }
+            state.frame = 0;
+            if (!state.enabled || document.hidden || !state.windowFocused) return;
+            const pad = connectedGamepad();
+            if (!pad) {
+                state.previousButtons.clear();
+                markPressed(state, new Set());
+                return;
             }
+            const pressed = new Set();
+            const buttonAction = [[0,'use'],[1,'duck'],[2,'choice-1'],[3,'choice-2'],[7,'shoot'],[12,'move-forward'],[13,'move-backward'],[14,'turn-left'],[15,'turn-right']];
+            for (const [index, action] of buttonAction) if (pad.buttons[index]?.pressed) pressed.add(action);
+            const x = pad.axes[0] || 0;
+            const y = pad.axes[1] || 0;
+            const lookX = pad.axes[2] || 0;
+            if (y < -.62) pressed.add('move-forward');
+            if (y > .62) pressed.add('move-backward');
+            if (x < -.62) pressed.add('strafe-left');
+            if (x > .62) pressed.add('strafe-right');
+            if (lookX < -.62) pressed.add('turn-left');
+            if (lookX > .62) pressed.add('turn-right');
+            markPressed(state, pressed);
+            for (const action of pressed) if (!state.previousButtons.has(action)) { submit(state, action); break; }
+            state.previousButtons = pressed;
+            scheduleGamepadFrame(state);
         } catch (error) {
             diagnostics.report('localgpt-game-console.pollGamepad', error);
         }
-        state.frame = requestAnimationFrame(() => pollGamepad(state));
+    }
+
+    function cancelSequenceTimer(state) {
+        try {
+            if (!state?.sequenceTimer) return;
+            clearTimeout(state.sequenceTimer);
+            state.sequenceTimer = 0;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.cancelSequenceTimer', error);
+        }
+    }
+
+    function renderSequenceFrame(state) {
+        try {
+            if (!state || !states.has(state.id) || state.sequenceFrames.length < 2 || document.hidden || !state.windowFocused) return;
+            const screen = state.element.querySelector(state.sequenceSelector || '[data-ascii-sequence-screen]');
+            if (!(screen instanceof HTMLElement)) return;
+            const frame = state.sequenceFrames[state.sequenceIndex % state.sequenceFrames.length] || '';
+            if (screen.textContent !== frame) screen.textContent = frame;
+            state.sequenceIndex = (state.sequenceIndex + 1) % state.sequenceFrames.length;
+            cancelSequenceTimer(state);
+            state.sequenceTimer = window.setTimeout(() => renderSequenceFrame(state), state.sequenceDelay);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.renderSequenceFrame', error);
+        }
+    }
+
+    function scheduleSequence(state) {
+        try {
+            if (!state || state.sequenceTimer || state.sequenceFrames.length < 2 || document.hidden || !state.windowFocused) return;
+            state.sequenceTimer = window.setTimeout(() => {
+                state.sequenceTimer = 0;
+                renderSequenceFrame(state);
+            }, state.sequenceDelay);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.scheduleSequence', error);
+        }
     }
 
     globalThis.localGptGameConsole = {
@@ -117,7 +189,7 @@
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), frame:0, scaleFrame:0, abort:new AbortController() };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, windowFocused:document.hasFocus(), abort:new AbortController() };
                 states.set(id, state);
                 element.addEventListener('pointerdown', () => element.focus({ preventScroll:true }), { signal:state.abort.signal });
                 document.addEventListener('fullscreenchange', () => requestScale(state), { signal:state.abort.signal });
@@ -141,7 +213,28 @@
                     state.keyboardActions.delete(action);
                     markPressed(state, state.keyboardActions);
                 }, { signal:state.abort.signal });
-                state.frame = requestAnimationFrame(() => pollGamepad(state));
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) { cancelGamepadFrame(state); cancelSequenceTimer(state); }
+                    else { scheduleGamepadFrame(state); scheduleSequence(state); }
+                }, { signal:state.abort.signal });
+                window.addEventListener('blur', () => {
+                    state.windowFocused = false;
+                    cancelGamepadFrame(state);
+                    cancelSequenceTimer(state);
+                }, { signal:state.abort.signal });
+                window.addEventListener('focus', () => {
+                    state.windowFocused = true;
+                    scheduleGamepadFrame(state);
+                    scheduleSequence(state);
+                }, { signal:state.abort.signal });
+                window.addEventListener('gamepadconnected', () => scheduleGamepadFrame(state), { signal:state.abort.signal });
+                window.addEventListener('gamepaddisconnected', () => {
+                    if (!connectedGamepad()) {
+                        cancelGamepadFrame(state);
+                        state.previousButtons.clear();
+                        markPressed(state, new Set());
+                    }
+                }, { signal:state.abort.signal });
             } catch (error) { diagnostics.report('localgpt-game-console.attach', error); }
         },
         detach(id) {
@@ -151,6 +244,7 @@
                 state.abort.abort();
                 if (state.frame) cancelAnimationFrame(state.frame);
                 if (state.scaleFrame) cancelAnimationFrame(state.scaleFrame);
+                cancelSequenceTimer(state);
                 state.element.style.removeProperty('--localgpt-game-fit-font-size');
                 states.delete(id);
             } catch (error) { diagnostics.report('localgpt-game-console.detach', error); }
@@ -161,12 +255,30 @@
                 if (state) {
                     state.enabled = Boolean(enabled);
                     if (!state.enabled) {
+                        cancelGamepadFrame(state);
                         state.keyboardActions.clear();
                         state.previousButtons.clear();
                         markPressed(state, new Set());
+                    } else {
+                        scheduleGamepadFrame(state);
                     }
                 }
             } catch (error) { diagnostics.report('localgpt-game-console.setEnabled', error); }
+        },
+        setSequence(id, frames, delayMilliseconds, target) {
+            try {
+                const state = states.get(id);
+                if (!state) return;
+                cancelSequenceTimer(state);
+                state.sequenceFrames = Array.isArray(frames) ? frames.filter(frame => typeof frame === 'string' && frame.length > 0).slice(0, 12) : [];
+                state.sequenceIndex = 0;
+                const requestedDelay = Number(delayMilliseconds);
+                state.sequenceDelay = Number.isFinite(requestedDelay) ? Math.max(250, Math.min(5000, requestedDelay)) : 650;
+                state.sequenceSelector = target === 'game' ? '[data-game-animation-screen]' : '[data-ascii-sequence-screen]';
+                const screen = state.element.querySelector(state.sequenceSelector);
+                if (screen instanceof HTMLElement && state.sequenceFrames.length > 0) screen.textContent = state.sequenceFrames[0];
+                if (state.sequenceFrames.length > 1) scheduleSequence(state);
+            } catch (error) { diagnostics.report('localgpt-game-console.setSequence', error); }
         },
         setScaleMode(id, mode) {
             try {

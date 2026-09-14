@@ -87,3 +87,7 @@
     .provider-runtime-actions ::deep .dxbl-btn, .provider-runtime-model-actions ::deep .dxbl-btn { width: 100%; max-width: 100%; white-space: normal; }
     .provider-runtime-storage-list > span { grid-template-columns: 1fr; }
 }
+.provider-runtime-summary-path { overflow-wrap: anywhere; }
+.provider-runtime-storage-overview { display: grid; gap: .45rem; margin-top: .75rem; min-width: 0; }
+.provider-runtime-storage-grid { min-width: 0; }
+.provider-runtime-model-path { white-space: normal; overflow-wrap: anywhere; }

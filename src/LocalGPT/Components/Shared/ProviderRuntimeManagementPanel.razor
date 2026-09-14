@@ -26,12 +26,9 @@
     {
         <div class="provider-runtime-summary">
             <div><span>@T("Provider")</span><strong>@management.ProviderName</strong></div>
+            <div><span>@T("Endpoint")</span><strong class="provider-runtime-summary-path">@management.Endpoint</strong></div>
             <div><span>@T("Downloaded models")</span><strong>@management.Models.Count</strong></div>
-            <div><span>@T("Model storage")</span><strong>@FormatBytes(management.InstalledModelBytes)</strong></div>
-            @if (management.DiskFreeBytes.HasValue)
-            {
-                <div><span>@T("Filesystem free")</span><strong>@FormatBytes(management.DiskFreeBytes.Value)</strong></div>
-            }
+            <div><span>@T("Logical model bytes")</span><strong>@FormatBytes(management.InstalledModelBytes)</strong></div>
         </div>
 
         @if (management.DiskFreeBytes is > 0 && management.DiskTotalBytes is > 0 && management.DiskFreeBytes.Value < Math.Max(20L * 1024 * 1024 * 1024, management.DiskTotalBytes.Value / 10))
@@ -60,10 +57,17 @@
             {
                 <DxFormLayoutGroup Caption="@T("Ollama storage & server")" ColSpanMd="12">
                     <DxFormLayoutItem Caption="@T("Model storage directory")" ColSpanMd="12">
-                        <div class="provider-runtime-path-row">
-                            <DxTextBox @bind-Text="management.Ollama.ModelDirectory" NullText="@management.ModelDirectory" />
-                            <DxButton Text="@T("Browse")" RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!busy)" Click="ShowModelDirectoryPickerAsync" />
-                        </div>
+                        @if (management.ModelDirectoryEditable)
+                        {
+                            <div class="provider-runtime-path-row">
+                                <DxTextBox @bind-Text="management.Ollama.ModelDirectory" NullText="@management.ModelDirectory" />
+                                <DxButton Text="@T("Browse")" RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!busy)" Click="ShowModelDirectoryPickerAsync" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="provider-runtime-readonly-path"><strong>@management.ModelDirectory</strong></div>
+                        }
                         <small>@management.ModelDirectoryGuidance</small>
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="@T("Storage evidence")" ColSpanMd="12">
@@ -86,14 +90,61 @@
                                 <small>@T("Effective source"): @T(management.EffectiveModelDirectorySource)</small>
                             </div>
                         </div>
-                        @if (management.DetectedModelDirectories.Count > 0)
+                        @if (management.StorageVolumes.Count > 0)
                         {
-                            <div class="provider-runtime-storage-list">
-                                <strong>@T("Detected Ollama stores (blobs + manifests)")</strong>
-                                @foreach (var path in management.DetectedModelDirectories)
-                                {
-                                    <span><small>@T("Detected store")</small><code>@path</code></span>
-                                }
+                            <div class="provider-runtime-storage-overview">
+                                <strong>@T("Storage by drive / mount")</strong>
+                                <DxGrid Data="@management.StorageVolumes" PageSize="12" CssClass="provider-runtime-storage-grid">
+                                    <Columns>
+                                        <DxGridDataColumn FieldName="@nameof(ProviderStorageVolumeInfo.RootPath)" Caption="@T("Drive / mount")" MinWidth="160" />
+                                        <DxGridDataColumn FieldName="@nameof(ProviderStorageVolumeInfo.VolumeLabel)" Caption="@T("Label")" Width="120px" />
+                                        <DxGridDataColumn FieldName="@nameof(ProviderStorageVolumeInfo.DriveType)" Caption="@T("Type")" Width="110px" />
+                                        <DxGridDataColumn Caption="@T("Free / total")" MinWidth="180">
+                                            <CellDisplayTemplate Context="volumeCell">
+                                                @{ var volume = (ProviderStorageVolumeInfo)volumeCell.DataItem; }
+                                                <span>@FormatBytes(volume.FreeBytes) / @FormatBytes(volume.TotalBytes)</span>
+                                            </CellDisplayTemplate>
+                                        </DxGridDataColumn>
+                                        <DxGridDataColumn Caption="@T("Physical Ollama bytes")" MinWidth="150">
+                                            <CellDisplayTemplate Context="physicalCell">
+                                                @{ var volume = (ProviderStorageVolumeInfo)physicalCell.DataItem; }
+                                                <span>@FormatBytes(volume.ModelStoreBytes)</span>
+                                            </CellDisplayTemplate>
+                                        </DxGridDataColumn>
+                                        <DxGridDataColumn FieldName="@nameof(ProviderStorageVolumeInfo.ModelStoreCount)" Caption="@T("Stores")" Width="85px" />
+                                        <DxGridDataColumn Caption="@T("Role")" Width="100px">
+                                            <CellDisplayTemplate Context="roleCell">
+                                                @{ var volume = (ProviderStorageVolumeInfo)roleCell.DataItem; }
+                                                <span>@T(volume.IsEffectiveModelVolume ? "active" : "available")</span>
+                                            </CellDisplayTemplate>
+                                        </DxGridDataColumn>
+                                    </Columns>
+                                </DxGrid>
+                            </div>
+                        }
+                        @if (management.ModelStores.Count > 0)
+                        {
+                            <div class="provider-runtime-storage-overview">
+                                <strong>@T("Detected Ollama stores")</strong>
+                                <DxGrid Data="@management.ModelStores" PageSize="12" CssClass="provider-runtime-storage-grid">
+                                    <Columns>
+                                        <DxGridDataColumn FieldName="@nameof(ProviderModelStoreInfo.Path)" Caption="@T("Store path")" MinWidth="280" />
+                                        <DxGridDataColumn FieldName="@nameof(ProviderModelStoreInfo.DriveRoot)" Caption="@T("Drive / mount")" MinWidth="130" />
+                                        <DxGridDataColumn FieldName="@nameof(ProviderModelStoreInfo.ModelCount)" Caption="@T("Manifests")" Width="100px" />
+                                        <DxGridDataColumn Caption="@T("Physical blob bytes")" MinWidth="150">
+                                            <CellDisplayTemplate Context="storeSizeCell">
+                                                @{ var store = (ProviderModelStoreInfo)storeSizeCell.DataItem; }
+                                                <span>@FormatBytes(store.PhysicalBytes)</span>
+                                            </CellDisplayTemplate>
+                                        </DxGridDataColumn>
+                                        <DxGridDataColumn Caption="@T("Role")" Width="100px">
+                                            <CellDisplayTemplate Context="storeRoleCell">
+                                                @{ var store = (ProviderModelStoreInfo)storeRoleCell.DataItem; }
+                                                <span>@T(store.IsEffective ? "active" : "detected")</span>
+                                            </CellDisplayTemplate>
+                                        </DxGridDataColumn>
+                                    </Columns>
+                                </DxGrid>
                             </div>
                         }
                         @if (management.MountedStorageRoots.Count > 0)
@@ -238,10 +289,18 @@
                             <span>@(model.MaxContextLengthTokens.HasValue ? $"{model.MaxContextLengthTokens.Value:N0}" : "—")</span>
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
-                    <DxGridDataColumn Caption="@T("Disk")" Width="125px">
+                    <DxGridDataColumn Caption="@T("Logical disk")" Width="125px">
                         <CellDisplayTemplate Context="sizeCell">
                             @{ var model = (ProviderManagedModelInfo)sizeCell.DataItem; }
                             <span>@FormatBytes(model.SizeBytes)</span>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn FieldName="@nameof(ProviderManagedModelInfo.StorageDrive)" Caption="@T("Drive / mount")" MinWidth="130" />
+                    <DxGridDataColumn FieldName="@nameof(ProviderManagedModelInfo.InventorySource)" Caption="@T("Inventory source")" MinWidth="150" />
+                    <DxGridDataColumn Caption="@T("Model store path")" MinWidth="260">
+                        <CellDisplayTemplate Context="modelStoreCell">
+                            @{ var model = (ProviderManagedModelInfo)modelStoreCell.DataItem; }
+                            <code class="provider-runtime-model-path">@(string.IsNullOrWhiteSpace(model.StorageRoot) ? "—" : model.StorageRoot)</code>
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="@T("Memory")" Width="105px">

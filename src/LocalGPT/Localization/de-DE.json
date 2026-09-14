@@ -2254,5 +2254,12 @@
   "Text.Provider␠availability␠is␠known␠independently␠from␠CanIRun.ai␠hardware-fit␠evidence.": "Die Anbieterverfügbarkeit ist unabhängig vom CanIRun.ai-Hardware-Eignungsnachweis bekannt.",
   "Text.Storage␠evidence": "Speichernachweise",
   "Text.Detected␠store": "Erkannter Speicher",
-  "Text.Mounted␠destination": "Eingehängtes Ziel"
+  "Text.Mounted␠destination": "Eingehängtes Ziel",
+  "Text.running␠but␠unresponsive": "läuft, antwortet aber nicht",
+  "Phrase.ASCII␠fun␠mode␠(contextual)": "ASCII-Spaßmodus (kontextbezogen)",
+  "Text.ASCII␠fun␠mode␠(contextual)": "ASCII-Spaßmodus (kontextbezogen)",
+  "Phrase.Show␠ASCII␠terminal": "ASCII-Terminal anzeigen",
+  "Text.Show␠ASCII␠terminal": "ASCII-Terminal anzeigen",
+  "Phrase.Hide␠ASCII␠terminal": "ASCII-Terminal ausblenden",
+  "Text.Hide␠ASCII␠terminal": "ASCII-Terminal ausblenden"
 }

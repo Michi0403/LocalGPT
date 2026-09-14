@@ -1,0 +1,141 @@
+@inject IConsoleCommandService Console
+@inject ILogger<LocalConsoleFeed> Logger
+@implements IDisposable
+
+<pre class="@CssClass" aria-live="@AriaLive">@displayText</pre>
+
+@code {
+    /// <summary>Gets or sets the maximum number of bounded LocalGPT console lines rendered by this isolated feed.</summary>
+    /// <value>The maximum recent line count requested from <see cref="IConsoleCommandService"/>.</value>
+    [Parameter]
+    public int MaxLines { get; set; } = 120;
+
+    /// <summary>Gets or sets the CSS class applied to the isolated console feed.</summary>
+    /// <value>The CSS class used by the caller to integrate the feed with its surrounding panel.</value>
+    [Parameter]
+    public string CssClass { get; set; } = "local-console-feed";
+
+    /// <summary>Gets or sets the ARIA live mode used for bounded terminal progress updates.</summary>
+    /// <value>The ARIA live mode; <c>polite</c> is used by default so progress does not interrupt other announcements.</value>
+    [Parameter]
+    public string AriaLive { get; set; } = "polite";
+
+    /// <summary>Stores the bounded text snapshot rendered by this child component.</summary>
+    private string displayText = string.Empty;
+    /// <summary>Marks that one or more console events arrived since the previous renderer refresh.</summary>
+    private int renderPending;
+    /// <summary>Ensures only one delayed console-render worker can run for this feed.</summary>
+    private int renderWorkerRunning;
+    /// <summary>Cancels a delayed renderer refresh when the feed is disposed.</summary>
+    private readonly CancellationTokenSource renderCancellation = new();
+    /// <summary>Tracks disposal so events arriving during teardown cannot schedule more renderer work.</summary>
+    private bool disposed;
+
+    /// <summary>Subscribes this isolated feed to the shared LocalGPT console without forcing the parent panel to rerender.</summary>
+    protected override void OnInitialized()
+    {
+        try
+        {
+            displayText = Console.GetRecentDisplayText(Math.Max(1, MaxLines));
+            Console.Changed += OnConsoleChanged;
+        }
+        catch (Exception exception)
+        {
+            Console.Changed -= OnConsoleChanged;
+            throw new InvalidOperationException("Initializing the isolated LocalGPT console feed failed.", exception);
+        }
+    }
+
+    /// <summary>Refreshes the bounded snapshot when the caller changes the requested line count.</summary>
+    protected override void OnParametersSet()
+    {
+        try
+        {
+            displayText = Console.GetRecentDisplayText(Math.Max(1, MaxLines));
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException("Refreshing the isolated LocalGPT console feed parameters failed.", exception);
+        }
+    }
+
+    /// <summary>Coalesces high-frequency terminal progress events into one bounded renderer worker.</summary>
+    private void OnConsoleChanged()
+    {
+        try
+        {
+            if (disposed)
+                return;
+            Interlocked.Exchange(ref renderPending, 1);
+            if (Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
+                _ = RefreshRenderAsync();
+        }
+        catch (Exception exception)
+        {
+            Interlocked.Exchange(ref renderWorkerRunning, 0);
+            Logger.LogWarning(exception, "Scheduling an isolated LocalGPT console-feed refresh failed.");
+        }
+    }
+
+    /// <summary>Renders at most four console snapshots per second while progress is changing, regardless of source event frequency.</summary>
+    /// <returns>A task that completes when the latest bounded console snapshot is visible.</returns>
+    private async Task RefreshRenderAsync()
+    {
+        try
+        {
+            while (!renderCancellation.IsCancellationRequested)
+            {
+                await Task.Delay(250, renderCancellation.Token).ConfigureAwait(false);
+                Interlocked.Exchange(ref renderPending, 0);
+                await InvokeAsync(() =>
+                {
+                    displayText = Console.GetRecentDisplayText(Math.Max(1, MaxLines));
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+
+                if (Volatile.Read(ref renderPending) == 0)
+                    break;
+            }
+        }
+        catch (OperationCanceledException) when (renderCancellation.IsCancellationRequested)
+        {
+            // Component disposal cancels the delayed refresh.
+        }
+        catch (ObjectDisposedException)
+        {
+            // A disconnected browser circuit may dispose the renderer while a refresh is pending.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "A coalesced LocalGPT console renderer refresh failed.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref renderWorkerRunning, 0);
+            if (!disposed
+                && Volatile.Read(ref renderPending) != 0
+                && !renderCancellation.IsCancellationRequested
+                && Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
+                _ = RefreshRenderAsync();
+        }
+    }
+
+    /// <summary>Unsubscribes the isolated feed and cancels any delayed renderer refresh.</summary>
+    public void Dispose()
+    {
+        try
+        {
+            if (disposed)
+                return;
+            disposed = true;
+            Console.Changed -= OnConsoleChanged;
+            renderCancellation.Cancel();
+            renderCancellation.Dispose();
+            GC.SuppressFinalize(this);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposal is idempotent even if the browser circuit tears down concurrently.
+        }
+    }
+}

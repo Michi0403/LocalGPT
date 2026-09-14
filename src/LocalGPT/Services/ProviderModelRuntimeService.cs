@@ -54,6 +54,8 @@ public sealed class ProviderModelRuntimeService(
     {
             var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
             var candidates = new Dictionary<string, MultiModelCouncilModelCandidate>(StringComparer.OrdinalIgnoreCase);
+            var ollamaDiscoveries = new Dictionary<string, IReadOnlyList<MultiModelCouncilModelCandidate>>(StringComparer.OrdinalIgnoreCase);
+            var identity = new ProviderModelIdentity();
             var ollamaOptions = EnumerateOllama(options).ToList();
 
             foreach (var ollama in ollamaOptions)
@@ -100,31 +102,81 @@ public sealed class ProviderModelRuntimeService(
             // and probe every configured endpoint once regardless of how many preferred models it owns.
             foreach (var probe in ollamaProbeTasks)
             {
-                foreach (var discovered in await probe.Task.ConfigureAwait(false))
-                    AddCandidate(candidates, discovered);
+                var discovered = await probe.Task.ConfigureAwait(false);
+                ollamaDiscoveries[probe.Endpoint] = discovered;
+                foreach (var candidate in discovered)
+                    AddCandidate(candidates, candidate);
             }
 
             foreach (var probe in openAiProbeTasks)
             {
-                // Native Ollama and its OpenAI-compatible /v1 surface are deliberately separate
-                // provider identities. Do not suppress one merely because both share host/port.
-                // Council selection keys already include provider + endpoint + model, so both can
-                // coexist without same-name ambiguity.
                 var discovered = await probe.Task.ConfigureAwait(false);
+                var nativeOllamaModels = ollamaDiscoveries
+                    .Where(entry => identity.IsOllamaOpenAiCompatibilityFacade(entry.Key, probe.Endpoint))
+                    .SelectMany(entry => entry.Value)
+                    .ToList();
+                var collapsedFacadeModels = 0;
+
                 foreach (var candidate in discovered)
-                    AddCandidate(candidates, candidate);
+                {
+                    var canonicalOllama = nativeOllamaModels.FirstOrDefault(native =>
+                        identity.ModelNamesEquivalent(native.ModelName, candidate.ModelName));
+                    if (canonicalOllama is null)
+                    {
+                        AddCandidate(candidates, candidate);
+                        continue;
+                    }
+
+                    var configuredThroughFacade = !string.IsNullOrWhiteSpace(probe.Local.ModelName)
+                        && identity.ModelNamesEquivalent(probe.Local.ModelName, candidate.ModelName);
+                    AddCandidate(candidates, canonicalOllama with
+                    {
+                        IsConfigured = canonicalOllama.IsConfigured || configuredThroughFacade,
+                        Details = string.Join(" ", new[]
+                        {
+                            canonicalOllama.Details,
+                            "The same Ollama runtime also exposes this model through its OpenAI-compatible /v1 transport; LocalGPT keeps one canonical provider identity."
+                        }.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct())
+                    });
+                    collapsedFacadeModels++;
+                }
 
                 if (!string.IsNullOrWhiteSpace(probe.Local.ModelName))
                 {
-                    AddCandidate(candidates, new MultiModelCouncilModelCandidate(
-                        probe.Local.ModelName.Trim(), probe.ProviderName, probe.Endpoint,
-                        IsInstalled: discovered.Any(item => item.ModelName.Equals(probe.Local.ModelName, StringComparison.OrdinalIgnoreCase)),
-                        IsConfigured: true,
-                        IsLoaded: false,
-                        Details: "Configured OpenAI-compatible model.",
-                        ProviderKind: ProviderModelKinds.OpenAICompatible,
-                        IsLocal: IsLocalEndpoint(probe.Endpoint),
-                        SupportsBenchmark: true));
+                    var configuredOllama = nativeOllamaModels.FirstOrDefault(native =>
+                        identity.ModelNamesEquivalent(native.ModelName, probe.Local.ModelName));
+                    if (configuredOllama is not null)
+                    {
+                        AddCandidate(candidates, configuredOllama with
+                        {
+                            IsConfigured = true,
+                            Details = string.Join(" ", new[]
+                            {
+                                configuredOllama.Details,
+                                "The configured OpenAI-compatible route is the /v1 facade of this same Ollama runtime and is canonicalized to Ollama for scheduling."
+                            }.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct())
+                        });
+                    }
+                    else
+                    {
+                        AddCandidate(candidates, new MultiModelCouncilModelCandidate(
+                            probe.Local.ModelName.Trim(), probe.ProviderName, probe.Endpoint,
+                            IsInstalled: discovered.Any(item => identity.ModelNamesEquivalent(item.ModelName, probe.Local.ModelName)),
+                            IsConfigured: true,
+                            IsLoaded: false,
+                            Details: "Configured OpenAI-compatible model.",
+                            ProviderKind: ProviderModelKinds.OpenAICompatible,
+                            IsLocal: IsLocalEndpoint(probe.Endpoint),
+                            SupportsBenchmark: true));
+                    }
+                }
+
+                if (collapsedFacadeModels > 0)
+                {
+                    logger.LogDebug(
+                        "Canonicalized {ModelCount} OpenAI-compatible model alias(es) at {CompatibilityEndpoint} to the matching native Ollama runtime.",
+                        collapsedFacadeModels,
+                        probe.Endpoint);
                 }
             }
 

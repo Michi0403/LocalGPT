@@ -82,6 +82,10 @@ public class CompositeChatClient : IChatClient
     /// Stores the council text service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly CouncilTextService _councilText;
+    /// <summary>
+    /// Stores circuit-scoped ASCII presentation state so provider prompts can discover whether the shared terminal is open without coupling this client to the browser component.
+    /// </summary>
+    private readonly IChatAsciiExperienceState _asciiExperience;
 
     /// <summary>
     /// Initializes a new <see cref="CompositeChatClient"/> instance and captures the dependencies or initial state required by its composite chat workflow.
@@ -96,6 +100,7 @@ public class CompositeChatClient : IChatClient
     /// <param name="systemVariables">System variable definition service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
     /// <param name="councilRuntime">Council runtime service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
     /// <param name="councilText">Council text service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="asciiExperience">Circuit-scoped ASCII presentation state used to tell providers whether the shared terminal is open and whether optional ASCII fun is enabled.</param>
     /// <param name="chatClients">Chat clients value supplied to the composite chat operation and used when producing its result.</param>
     public CompositeChatClient(
         ILogger logger,
@@ -108,6 +113,7 @@ public class CompositeChatClient : IChatClient
         ISystemVariableDefinitionService systemVariables,
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
+        IChatAsciiExperienceState asciiExperience,
         params ChatClientSession[] chatClients)
     {
 
@@ -123,6 +129,7 @@ public class CompositeChatClient : IChatClient
         _systemVariables = systemVariables ?? throw new ArgumentNullException(nameof(systemVariables));
         _councilRuntime = councilRuntime ?? throw new ArgumentNullException(nameof(councilRuntime));
         _councilText = councilText ?? throw new ArgumentNullException(nameof(councilText));
+        _asciiExperience = asciiExperience ?? throw new ArgumentNullException(nameof(asciiExperience));
     }
 
     /// <summary>
@@ -679,6 +686,7 @@ public class CompositeChatClient : IChatClient
                 : await _promptConfigService.GetPromptAsync("CodeGenerationFunctionRoutingPolicy", cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var systemMessages = new List<ChatMessage>();
+            _councilText.AddOptionalSystemMessage(systemMessages, _asciiExperience.BuildModelGuidance(), _logger);
             _councilText.AddOptionalSystemMessage(systemMessages, runtimeDecisionPolicy, _logger);
             _councilText.AddOptionalSystemMessage(systemMessages, codeGenerationPolicy, _logger);
             _councilText.AddOptionalSystemMessage(systemMessages, learningRoundPolicy, _logger);

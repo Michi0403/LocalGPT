@@ -75,6 +75,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
                 builder.Services.AddScoped<ICouncilDxFunctionPolicyDataService, CouncilDxFunctionPolicyDataService>();
                 builder.Services.AddSingleton<CouncilTextService>();
+                builder.Services.AddSingleton<AsciiChatTextService>();
                 builder.Services.AddSingleton<CouncilRuntimeService>();
                 builder.Services.AddSingleton<SqliteUtilityService>();
                 builder.Services.AddSingleton<CouncilKnowledgeContentService>();
@@ -151,6 +152,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IRegexPatternService, RegexPatternService>();
                 builder.Services.AddSingleton<IKnowledgeRegexLinkService, KnowledgeRegexLinkService>();
                 builder.Services.AddScoped<IPromptConfigService, PromptConfigService>();
+                builder.Services.AddScoped<IChatAsciiExperienceState, ChatAsciiExperienceState>();
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
                 builder.Services.AddScoped<IFirstRunOnboardingService, FirstRunOnboardingService>();
                 builder.Services.AddSingleton<IConsoleCommandService, ConsoleCommandService>();

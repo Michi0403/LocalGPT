@@ -280,7 +280,26 @@ internal readonly struct ProviderModelIdentity
             if (qualifiedMatches.Count == 1)
                 return qualifiedMatches[0];
             if (qualifiedMatches.Count > 1)
+            {
                 isAmbiguous = true;
+                return null;
+            }
+
+            // LocalGPT 4.2.1 and earlier could persist Ollama's OpenAI-compatible /v1 facade
+            // as a second logical provider. When the current catalog has canonicalized that facade
+            // back to native Ollama, reconcile only the same model on the same confirmed runtime.
+            if (string.Equals(savedReference.ProviderKind, ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase))
+            {
+                var ollamaFacadeMatches = candidates
+                    .Where(candidate => string.Equals(candidate.ProviderKind, ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                    .Where(candidate => identity.IsOllamaOpenAiCompatibilityFacade(candidate.Endpoint, savedReference.Endpoint))
+                    .Where(candidate => identity.ModelNamesEquivalent(savedReference.ModelName, candidate.ModelName))
+                    .ToList();
+                if (ollamaFacadeMatches.Count == 1)
+                    return ollamaFacadeMatches[0];
+                if (ollamaFacadeMatches.Count > 1)
+                    isAmbiguous = true;
+            }
             return null;
         }
 
@@ -305,6 +324,52 @@ internal readonly struct ProviderModelIdentity
     {
         var resolved = ResolveEquivalentCandidate(savedBinding, [candidate], out _);
         return resolved is not null;
+    }
+
+    /// <summary>
+    /// Builds the protocol-independent runtime authority used for Council hardware and concurrency accounting.
+    /// </summary>
+    /// <param name="endpoint">Provider transport endpoint whose host and effective port identify the physical serving runtime.</param>
+    /// <returns>A normalized <c>host:port</c> runtime key; transport path and protocol kind are intentionally excluded.</returns>
+    public string GetRuntimeAuthorityKey(string? endpoint)
+    {
+        var normalized = NormalizeEndpoint(endpoint);
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
+            return string.IsNullOrWhiteSpace(normalized) ? string.Empty : normalized.ToLowerInvariant();
+
+        var host = string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+            ? "127.0.0.1"
+            : uri.Host.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(host))
+            return string.Empty;
+        if (host.Contains(":", StringComparison.Ordinal) && !host.StartsWith("[", StringComparison.Ordinal))
+            host = $"[{host}]";
+        return $"{host}:{uri.Port}";
+    }
+
+    /// <summary>
+    /// Determines whether one OpenAI-compatible endpoint is the <c>/v1</c> transport facade of the same native Ollama runtime.
+    /// </summary>
+    /// <param name="ollamaEndpoint">Native Ollama endpoint whose runtime authority is canonical.</param>
+    /// <param name="openAiEndpoint">OpenAI-compatible endpoint that may expose the same Ollama runtime.</param>
+    /// <returns><see langword="true"/> only when both endpoints share scheme, normalized host and port and the compatibility route is exactly <c>/v1</c>.</returns>
+    public bool IsOllamaOpenAiCompatibilityFacade(string? ollamaEndpoint, string? openAiEndpoint)
+    {
+        var nativeEndpoint = NormalizeEndpoint(ollamaEndpoint);
+        var compatibilityEndpoint = NormalizeOpenAiCompatibleEndpoint(openAiEndpoint);
+        if (!Uri.TryCreate(nativeEndpoint, UriKind.Absolute, out var nativeUri)
+            || !Uri.TryCreate(compatibilityEndpoint, UriKind.Absolute, out var compatibilityUri))
+        {
+            return false;
+        }
+
+        var nativePath = nativeUri.AbsolutePath.TrimEnd('/');
+        var compatibilityPath = compatibilityUri.AbsolutePath.TrimEnd('/');
+        return (string.IsNullOrWhiteSpace(nativePath) || nativePath == "/")
+            && string.Equals(compatibilityPath, "/v1", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(nativeUri.Scheme, compatibilityUri.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(nativeUri.Host, compatibilityUri.Host, StringComparison.OrdinalIgnoreCase)
+            && nativeUri.Port == compatibilityUri.Port;
     }
 
     /// <summary>

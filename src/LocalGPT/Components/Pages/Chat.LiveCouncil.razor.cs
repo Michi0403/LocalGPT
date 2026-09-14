@@ -836,6 +836,8 @@ namespace LocalGPT.Components.Pages
                 return;
 
             SavePreparationConfiguration();
+            showGameConsole = false;
+            UpdateAsciiExperienceState();
             isDisposed = true;
             HumanCollaboration.Changed -= OnHumanCollaborationChanged;
             CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;

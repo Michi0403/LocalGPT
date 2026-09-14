@@ -87,7 +87,7 @@ namespace LocalGPT.Services
             try
             {
                 var packFormat = MinecraftDatapackVersionInfoResolve(minecraftVersion, logger).PackFormat;
-                return packFormat.Contains('.', StringComparison.Ordinal)
+                return packFormat.Contains(".", StringComparison.Ordinal)
                     ? $"\"{packFormat}\""
                     : packFormat;
             }

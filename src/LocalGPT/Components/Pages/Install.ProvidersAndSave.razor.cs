@@ -340,6 +340,24 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>Adds this computer's canonical loopback Ollama endpoint without replacing independently configured remote hosts.</summary>
+    /// <returns>A task that completes after the additive host binding is persisted.</returns>
+    private async Task RegisterLocalOllamaHostAsync()
+    {
+        try
+        {
+            var binding = UpsertOllamaHostBinding("http://127.0.0.1:11434", string.Empty);
+            await Save().ConfigureAwait(false);
+            await Append($"Saved this computer's Ollama endpoint as {(binding.IsPrimary ? "the primary" : "an additional")} host binding without replacing other configured hosts.").ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, "http://127.0.0.1:11434", "Local Ollama host saved");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not save the local loopback Ollama host binding.");
+            Notifier.ShowError(toastName, "The local Ollama host could not be saved. See local application logs for details.", "Save provider failed");
+        }
+    }
+
     /// <summary>
     /// Adds open AI compatible host for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
     /// </summary>

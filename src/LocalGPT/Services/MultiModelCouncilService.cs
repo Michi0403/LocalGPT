@@ -128,6 +128,10 @@ namespace LocalGPT.Services
         /// </summary>
         private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
         /// <summary>
+        /// Stores the current circuit-scoped ASCII chat presentation state so Council participants can discover the shared terminal capability without browser coupling.
+        /// </summary>
+        private readonly IChatAsciiExperienceState asciiExperience;
+        /// <summary>
         /// Stores the logger used by <see cref="MultiModelCouncilService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
         private readonly ILogger<MultiModelCouncilService> logger;
@@ -175,6 +179,7 @@ namespace LocalGPT.Services
         /// <param name="benchmarkCalibration">Injected dependency used by the service.</param>
         /// <param name="providerModels">Injected dependency used by the service.</param>
         /// <param name="runtimePolicy">Persisted operator runtime policy.</param>
+        /// <param name="asciiExperience">Circuit-scoped ASCII chat presentation state supplied to Council participants as optional capability guidance.</param>
         /// <param name="logger">Injected dependency used by the service.</param>
         /// <param name="councilRuntime">Injected dependency used by the service.</param>
         /// <param name="councilText">Injected dependency used by the service.</param>
@@ -208,6 +213,7 @@ namespace LocalGPT.Services
             ICouncilBenchmarkCalibrationService benchmarkCalibration,
             IProviderModelRuntimeService providerModels,
             ILocalGptRuntimePolicyDataService runtimePolicy,
+            IChatAsciiExperienceState asciiExperience,
             ILogger<MultiModelCouncilService> logger,
             CouncilRuntimeService councilRuntime,
             CouncilTextService councilText,
@@ -241,6 +247,7 @@ namespace LocalGPT.Services
             this.benchmarkCalibration = benchmarkCalibration;
             this.providerModels = providerModels;
             this.runtimePolicy = runtimePolicy;
+            this.asciiExperience = asciiExperience;
             this.logger = logger;
             this.councilRuntime = councilRuntime;
             this.councilText = councilText;
