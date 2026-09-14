@@ -1,7 +1,7 @@
-# LocalGPT 4.2.7
+# LocalGPT 4.2.8
 
-LocalGPT 4.2.7 is a compile-repair follow-up to 4.2.6. It retains the multi-host provider setup, per-drive Ollama storage/deletion evidence, bidirectional Council/ASCII terminal surface, Crazy ASCII continuity and macOS chunked-documentation repair from 4.2.6, while correcting a C# `CS1628` error in the local Ollama manifest digest reader.
+LocalGPT 4.2.8 adds the preseeded **ASCII Hot Seat — Neon Relay Arena** Council team. It is a real two-seat local workflow: Player 1 and Player 2 are separate `HumanOnly` roles, the keyboard is passed between them, one AI referee owns deterministic multiplayer state, and one AI display director owns the ASCII presentation surface.
 
-`ProviderRuntimeManagementService.TryReadManifestDigests` now collects SHA-256 references in an ordinary local set captured by its recursive JSON reader, then assigns the completed set to the method's `out` parameter after parsing. This preserves the conservative deletion behavior while avoiding illegal capture of an `out` parameter by a local function.
+The team is designed as an ASCII feature showcase rather than a second hidden game engine. It boots a bounded 100×32 Council game session as the supported display host, hides that host's single-player input overlay, and then demonstrates full-frame rendering, display readback, cell/text/fill/blit updates, score/HUD composition and pregenerated browser-local animations. The canonical hot-seat state remains the referee's `HOTSEAT_STATE`; presentation functions never become game authority.
 
-No `dotnet` build, release publish, signing/notarization run, or GitHub operation was performed for this source handoff. See `CHANGELOG-v4.2.7-PROVIDER-MANIFEST-COMPILE-REPAIR.md` and `VALIDATION-v4.2.7-source.md`.
+No `dotnet` build, restore, publish, release packaging, signing/notarization or GitHub operation was performed. See `CHANGELOG-v4.2.8-ASCII-HOT-SEAT-SHOWCASE.md` and `VALIDATION-v4.2.8-source.md`.

@@ -96,6 +96,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
         CreateInitialSetupAssistantTeam(),
         CreateAdaptiveBenchmarkTeam(),
         CreateGameDirectorRuntimeTeam(),
+        CreateAsciiHotSeatShowcaseTeam(),
         CreateCSharpModernHostDevelopmentTeam(),
         CreatePowerShellBuildDevelopmentTeam(),
         CreateJavaHostedDevelopmentTeam(),

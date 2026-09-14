@@ -31,7 +31,13 @@ Runtime classes describe sessions, maps, players, directors, creatures, objects,
 
 ## ASCII play surface
 
-The Chat ASCII console presents a stable 80×25 authoritative frame with responsive Fit, Width, and Native modes. It can be mounted or closed without deleting the underlying session. Fullscreen exit occurs before the component is removed so the normal conversation layout is restored correctly.
+The Chat ASCII console is both a normal conversation companion and a fixed-cell game/presentation surface. Council game sessions expose their own bounded live dimensions, while legacy deterministic game frames remain compatible with the established 80×25 path. Renderers can inspect the current display, update a single cell, write text, fill or blit a region, submit a complete frame, or submit a pregenerated 2–12 frame animation for browser-local playback. Presentation state never replaces the canonical conversation transcript or authoritative game state.
+
+### ASCII Hot Seat — Neon Relay Arena
+
+The preseeded `ascii-hot-seat-showcase` Council team is a two-player local hot-seat demonstration. `Player 1 Hot Seat` and `Player 2 Hot Seat` are `HumanOnly` Council roles, so LocalGPT pauses for each person in turn instead of simulating a missing player. One AI `Arena Referee` resolves both commands deterministically and emits the canonical `HOTSEAT_STATE`; a separate `ASCII Display Director` owns all terminal mutations.
+
+The showcase intentionally exercises the ASCII stack: full-frame intro rendering, incremental text/cell/fill/blit updates, display readback for continuity, a score/HUD, sprites, and short pregenerated animations. The underlying Council game session is used only as the supported display host; the hot-seat multiplayer state remains referee-owned Council state and is not advanced through the single-player `localgpt.game.control` path.
 
 ## Minecraft Mod AI Builder
 
