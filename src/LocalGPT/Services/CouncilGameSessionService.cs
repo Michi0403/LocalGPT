@@ -90,9 +90,9 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 AutoplayDelayMilliseconds = NormalizeAutoplayDelay(request.AutoplayDelayMilliseconds),
                 HumanInputRequired = request.ControlMode != CouncilGameControlMode.Ai,
                 InputReason = request.ControlMode == CouncilGameControlMode.Ai
-                    ? "AI player owns the next control step."
-                    : "Your turn: use the same controls that an AI player receives.",
-                CurrentTurnOwner = request.ControlMode == CouncilGameControlMode.Ai ? "AI Player Controller" : "Human Player",
+                    ? "AI hunter owns the next map-aware control step."
+                    : "Your turn: use the same controls that the optional AI hunter receives.",
+                CurrentTurnOwner = request.ControlMode == CouncilGameControlMode.Ai ? "AI Hunter" : "Human Player",
                 DirectorMode = request.DirectorMode,
                 GameDirectorModelName = request.GameDirectorModelName?.Trim() ?? string.Empty,
                 CreatureDirectorCount = Math.Clamp(request.CreatureDirectorCount, 1, 8),
@@ -106,6 +106,8 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 LegalActions = BuildLegalActions(gameKey),
                 InputBindings = BuildInputBindings(gameKey)
             };
+            if (gameKey == "ascii-doom")
+                InitializeDoomWorld(session);
             session.FrameText = Render(session);
             session.FrameCaption = BuildCaption(session);
             session.FrameRenderer = "LocalGPT deterministic preview renderer";
@@ -244,6 +246,9 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                     throw new InvalidOperationException($"The game advanced from turn {expected} to {session.Turn}; refresh before sending another control.");
                 if (session.Status != "Running")
                     throw new InvalidOperationException("The game session is not running.");
+                if (session.ControlMode == CouncilGameControlMode.Human
+                    && string.Equals(request.Source, "AI", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("AI controls are disabled while this game is owned by the human player. Switch control mode explicitly in the Game UI before enabling AI hunter autoplay.");
                 normalizedAction = NormalizeAction(request.Action, request.AxisX, request.AxisY);
                 snapshot = ToSnapshotUnsafe(session);
             }
@@ -300,6 +305,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.InputReason = "The GameDirector approved the proposal and is resolving one authoritative world step.";
                 session.CurrentTurnOwner = session.GameDirectorName;
                 ApplyAction(session, decision.NormalizedAction, request.AimX, request.AimY);
+                AdvanceDoomWorld(session);
                 session.Turn++;
                 session.LastAction = decision.NormalizedAction;
                 session.LastActionBy = string.IsNullOrWhiteSpace(request.ActorName) ? request.Source : request.ActorName.Trim();
@@ -314,12 +320,12 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.FrameOwner = session.FrameRenderer;
                 session.UpdatedAtUtc = DateTime.UtcNow;
 
-                if (session.ControlMode == CouncilGameControlMode.Ai)
+                if (session.Status == "Running" && session.ControlMode == CouncilGameControlMode.Ai)
                 {
-                    session.CurrentTurnOwner = "AI Player Controller";
-                    session.InputReason = "AI player may submit the next proposal; the GameDirector validates it before state mutation.";
+                    session.CurrentTurnOwner = "AI Hunter";
+                    session.InputReason = "AI hunter reads the authoritative map and chooses one deterministic legal control step.";
                 }
-                else
+                else if (session.Status == "Running")
                 {
                     session.CurrentTurnOwner = "Human Player";
                     session.HumanInputRequired = true;
@@ -482,10 +488,12 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.AutoplayEnabled = autoplayEnabled || mode == CouncilGameControlMode.Ai;
                 session.AutoplayDelayMilliseconds = NormalizeAutoplayDelay(autoplayDelayMilliseconds);
                 session.HumanInputRequired = mode != CouncilGameControlMode.Ai;
-                session.CurrentTurnOwner = mode == CouncilGameControlMode.Ai ? "AI Player Controller" : "Human Player";
+                session.CurrentTurnOwner = mode == CouncilGameControlMode.Ai ? "AI Hunter" : "Human Player";
                 session.InputReason = mode == CouncilGameControlMode.Ai
-                    ? "AI player uses localgpt.game.control through the same action contract as the user."
-                    : "Your turn: keyboard, touch and gamepad actions use the shared control contract.";
+                    ? "AI hunter uses deterministic map-aware pathfinding through the same bounded control contract as the user."
+                    : mode == CouncilGameControlMode.Shared
+                        ? "Human controls remain active while optional AI hunter autoplay shares the same authoritative map."
+                        : "Your turn: keyboard, touch and gamepad actions use the shared control contract; AI-origin movement is rejected.";
                 session.UpdatedAtUtc = DateTime.UtcNow;
             }
             EnsureAutoplayLoop(session);

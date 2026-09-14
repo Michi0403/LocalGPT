@@ -413,74 +413,14 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
         {
             Key = "ascii-doom-council-adventure",
             DisplayName = "ASCII DOOM Council Adventure",
-            Purpose = "A reactive, turn-based terminal adventure optionally informed by user-imported id Software DOOM source knowledge. One meaningful world step is resolved per Council turn and one presentation owner keeps the shared terminal surface coherent using live session dimensions, complete frames, bounded incremental display operations, or pregenerated ASCII animations without changing canonical game state.",
+            Purpose = "A directly playable original ASCII corridor combat showcase. The deterministic Council game service owns the map, enemies, combat, extraction and AI-hunter pathfinding; the Council observes, explains and presents that authoritative session without silently playing for the human.",
             Roles =
             [
                 new()
                 {
-                    Role = "Game Director",
-                    Expertise = "turn orchestration, pacing, player-facing narration and completion rules",
-                    Responsibility = "open the session, preserve authoritative state and coordinate every role without taking over their owned decisions",
-                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
-                    MinimumAiParticipants = 1,
-                    MaximumAiParticipants = 1,
-                    HumanParticipationMode = HumanParticipationMode.None,
-                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
-                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
-                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
-                    DistinctAiAssignmentGroup = "ascii-doom",
-                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.director"]
-                },
-                new()
-                {
                     Role = "Map Architect",
-                    Expertise = "room graphs, corridors, keys, doors, exits and source-informed level logic",
-                    Responsibility = "generate and maintain the authoritative room graph before play; never redraw the screen",
-                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
-                    MinimumAiParticipants = 1,
-                    MaximumAiParticipants = 1,
-                    HumanParticipationMode = HumanParticipationMode.None,
-                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
-                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
-                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
-                    DistinctAiAssignmentGroup = "ascii-doom",
-                    RuntimeClassKeys = ["games.ascii.doom.map"]
-                },
-                new()
-                {
-                    Role = "Player Controller",
-                    Expertise = "human/AI command interpretation, keyboard and gamepad action mapping",
-                    Responsibility = "accept one optional human action or choose one conservative autonomous action; never resolve its outcome",
-                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
-                    MinimumAiParticipants = 1,
-                    MaximumAiParticipants = 1,
-                    HumanParticipationMode = HumanParticipationMode.Optional,
-                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
-                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
-                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
-                    DistinctAiAssignmentGroup = "ascii-doom",
-                    RuntimeClassKeys = ["games.ascii.doom.player"]
-                },
-                new()
-                {
-                    Role = "World Actor",
-                    Expertise = "one active enemy, pickup, door, hazard or environmental object per model",
-                    Responsibility = "own exactly one active runtime-class instance for the current turn and submit one bounded intent",
-                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
-                    MinimumAiParticipants = 1,
-                    MaximumAiParticipants = 3,
-                    HumanParticipationMode = HumanParticipationMode.None,
-                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
-                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
-                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
-                    DistinctAiAssignmentGroup = "ascii-doom-actors",
-                    RuntimeClassKeys = ["games.ascii.doom.actor", "games.ascii.doom.creature", "games.ascii.doom.reactive-object"]
-                },
-                new()
-                {
-                    Role = "State Judge",
-                    Expertise = "deterministic turn resolution, health, inventory, positions and legal actions",
-                    Responsibility = "resolve the player and actor intents once, update the authoritative state and reject invented outcomes",
+                    Expertise = "authoritative corridor bootstrap, map connectivity and session recovery",
+                    Responsibility = "start or recover the deterministic human-owned corridor session and report its canonical identity; never invent a second map",
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                     MinimumAiParticipants = 1,
                     MaximumAiParticipants = 1,
@@ -489,18 +429,33 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
                     DistinctAiAssignmentGroup = "ascii-doom",
-                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.map", "games.ascii.doom.player", "games.ascii.doom.director", "games.ascii.doom.actor", "games.ascii.doom.creature", "games.ascii.doom.reactive-object"]
+                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.map"]
                 },
                 new()
                 {
-                    Role = "ASCII Frame Renderer",
-                    Expertise = "fixed-width terminal composition and stable spatial continuity",
-                    Responsibility = "own terminal presentation after state resolution; read the live surface when needed, preserve continuity, and never alter canonical game state",
+                    Role = "Game Director",
+                    Expertise = "human-facing controls, deterministic combat objectives and current-state explanation",
+                    Responsibility = "read the authoritative game state and explain what the player can do without issuing movement, combat or ownership changes",
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                     MinimumAiParticipants = 1,
                     MaximumAiParticipants = 1,
                     HumanParticipationMode = HumanParticipationMode.None,
                     PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
+                    DistinctAiAssignmentGroup = "ascii-doom",
+                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.director", "games.ascii.doom.player"]
+                },
+                new()
+                {
+                    Role = "ASCII Frame Renderer",
+                    Expertise = "authoritative terminal display inspection, concise HUD narration and bounded ASCII presentation",
+                    Responsibility = "show the real deterministic display and enemy/radar state; never hallucinate replacement geometry or advance the player",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    HumanParticipationMode = HumanParticipationMode.None,
+                    PerformanceMode = CouncilRolePerformanceMode.TaskSpecialist,
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
                     DistinctAiAssignmentGroup = "ascii-doom",
@@ -512,7 +467,7 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                 new()
                 {
                     Key = "doom-world-bootstrap",
-                    DisplayName = "Generate source-informed level",
+                    DisplayName = "Open human-owned corridor",
                     SortOrder = 10,
                     Phase = "World bootstrap",
                     Role = "Map Architect",
@@ -520,18 +475,18 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Start the directly playable in-chat ASCII corridor session by calling localgpt.game.session.start with gameKey ascii-doom and teamKey ascii-doom-council-adventure. Use the preseeded deterministic room graph immediately; do not spend a model turn inventing a large map and do not call runtime-class.list. Canonical class keys are games.ascii.doom.session, .map, .player, .controller, .director, .actor, .creature, .reactive-object and .frame; localgpt.runtime-class.resolve accepts case-insensitive aliases when inspection is needed. Optionally add only a compact title/objective informed by user-imported source knowledge. Never reproduce commercial WAD content or claim affiliation with the original game.
+Start or recover the directly playable ASCII corridor session. Call localgpt.game.session.start once with gameKey ascii-doom, teamKey ascii-doom-council-adventure, controlMode Human and autoplayEnabled false. The deterministic game service creates the connected map, hostile actors, opening sightline and extraction objective. Never guess, synthesize or ask the user for a session GUID: localgpt.game.session.get and localgpt.game.display.get resolve the active game for this conversation when sessionId is omitted. Do not use public-service aliases, runtime-class discovery loops or human-collaboration requests for game identity. Do not issue localgpt.game.control and do not change control mode. Report only that the human-owned game is ready and summarize the returned enemy count/objective.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = false,
                     CanUseOrganicFunctions = true,
-                    AssignedModelName = "qwen3.5:4b",
+                    AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
                 new()
                 {
-                    Key = "doom-director-opening",
-                    DisplayName = "Director opening",
+                    Key = "doom-opening",
+                    DisplayName = "Explain current combat state",
                     SortOrder = 20,
                     Phase = "Opening",
                     Role = "Game Director",
@@ -539,118 +494,46 @@ Runtime classes: {{RuntimeClasses}}
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Open the terminal adventure using the generated map. Explain that this is a reactive Council simulation: one command, one resolved world step, one ASCII frame. State the controls described by the player runtime class and give the immediate objective. Do not generate the frame yourself.
+Read localgpt.game.session.get without inventing a sessionId. Explain the current deterministic objective: the human controls the player, visible/radar hostiles are real service-owned actors, shooting uses the current facing ray, all hostiles must be cleared, and then the player reaches X extraction. Explain the current legal controls compactly. Never submit localgpt.game.control, never switch ownership to AI/Shared, and never ask the user for a session GUID. AI hunter autoplay is an explicit user UI choice, not a Council default.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
                     AssignedModelName = "qwen3.5:2b",
-                    UseBuiltInBehavior = false
-                },
-                new()
-                {
-                    Key = "doom-player-command",
-                    DisplayName = "Player command",
-                    SortOrder = 30,
-                    Phase = "Player intent",
-                    Role = "Player Controller",
-                    ExecutionMode = "LeaderSingle",
-                    PromptTemplate = """
-{{RolePerformanceInstruction}}
-{{RoleBoundaryInstruction}}
-This is loop {{LoopIteration}}/{{LoopMaximumIterations}}. Read the latest authoritative state and the newest human message. Translate a matching keyboard/gamepad/text cue into exactly one legal player intent. Human input is optional; when no current cue exists choose one conservative autonomous action so play continues. Do not resolve damage, movement success, enemy reactions or the frame.
-Runtime classes: {{RuntimeClasses}}
-""",
-                    LoopGroup = "ascii-doom-turn",
-                    MaximumLoopIterations = 24,
-                    IncludePriorTranscript = false,
-                    CanUseOrganicFunctions = true,
-                    AssignedModelName = "qwen3.5:2b",
-                    UseBuiltInBehavior = false
-                },
-                new()
-                {
-                    Key = "doom-world-actors",
-                    DisplayName = "World actor intents",
-                    SortOrder = 40,
-                    Phase = "Actor intents",
-                    Role = "World Actor",
-                    ExecutionMode = "AllMembersParallel",
-                    PromptTemplate = """
-{{RolePerformanceInstruction}}
-{{RoleBoundaryInstruction}}
-Own one active world-actor runtime instance only. Based on the current room and player intent, emit one bounded intent for that instance. Do not impersonate another actor, resolve results, move the player or render the frame. Inactive actors state that they remain dormant.
-Runtime classes: {{RuntimeClasses}}
-""",
-                    LoopGroup = "ascii-doom-turn",
-                    MaximumLoopIterations = 24,
-                    IncludePriorTranscript = false,
-                    CanUseOrganicFunctions = true,
-                    AssignedModelName = "qwen3.5:0.8b",
-                    UseBuiltInBehavior = false
-                },
-                new()
-                {
-                    Key = "doom-state-resolution",
-                    DisplayName = "Resolve one large world step",
-                    SortOrder = 50,
-                    Phase = "State resolution",
-                    Role = "State Judge",
-                    ExecutionMode = "LeaderSingle",
-                    PromptTemplate = """
-{{RoleBoundaryInstruction}}
-Resolve exactly one meaningful world step from the current authoritative state, the player intent and all active actor intents. Update positions, health, inventory, doors and completion flags once. Reject duplicated or invented actions. Publish a compact canonical state block for the renderer and director. Do not draw ASCII. If the exit objective is completed, include exactly [[GAME_COMPLETE]].
-Runtime classes: {{RuntimeClasses}}
-""",
-                    LoopGroup = "ascii-doom-turn",
-                    MaximumLoopIterations = 24,
-                    LoopCompletionMarker = "[[GAME_COMPLETE]]",
-                    IncludePriorTranscript = false,
-                    CanUseOrganicFunctions = true,
-                    AssignedModelName = "qwen3.5:4b",
                     UseBuiltInBehavior = false
                 },
                 new()
                 {
                     Key = "doom-ascii-frame",
-                    DisplayName = "One AI builds the ASCII frame",
-                    SortOrder = 60,
-                    Phase = "ASCII frame",
+                    DisplayName = "Present authoritative ASCII game",
+                    SortOrder = 30,
+                    Phase = "ASCII display",
                     Role = "ASCII Frame Renderer",
                     ExecutionMode = "LeaderSingle",
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Render the latest canonical state on the shared ASCII terminal. You alone own presentation for this workflow step. First use localgpt.game.session.get or localgpt.game.display.get when the live dimensions or previous frame are uncertain; never assume 80x25 when the active session reports different terminal cells. Preserve room geometry and glyph positions unless resolved state changed them. Use database-backed localgpt.regex.list/get/test and localgpt.knowledge.list when reusable parsing, frame, coordinate, or layout evidence already exists instead of recreating it from tokens. For a small direct decoration outside this final workflow frame, prefer the smallest sufficient display operation (cell/text/fill/blit). For a cinematic or reaction moment, you may pregenerate 2-12 complete frames with normal text generation and submit them once through localgpt.game.animation.submit; do not model-call once per animation frame, and keep the first/stable frame consistent with the final scene below. Do not alter state or invent actions. The workflow compatibility output must still contain exactly one complete frame using the active session width and height:
-[[ASCII_FRAME width=<live width> height=<live height>]]
-<the complete fixed-width frame covering all configured terminal cells>
-[[/ASCII_FRAME]]
-Then add at most three short lines: HUD, what changed, and available legal actions.
+Read localgpt.game.display.get with no sessionId and treat the returned deterministic frame as canonical. Do not redraw a different room, invent enemy positions, move the player or submit game controls. The built-in frame already contains first-person walls, visible enemy sprites, tactical radar, enemy count, combat/navigation messages and extraction coordinates. If a small decorative reaction is genuinely useful, use only display-owned operations with the returned session id and turn and preserve all gameplay cells; an optional 2-12 frame animation must be generated as one complete batch and submitted once. Your final answer should tell the user the Game tab is ready, state the current enemy count if available, and remind them that AI hunter must be explicitly selected if they want autoplay.
 Runtime classes: {{RuntimeClasses}}
 """,
-                    LoopGroup = "ascii-doom-turn",
-                    MaximumLoopIterations = 24,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
                     AssignedModelName = "qwen3.5:4b",
                     ProducesFinalAnswer = true,
-                    ProducesAsciiFrame = true,
-                    AsciiFrameWidth = 80,
-                    AsciiFrameHeight = 25,
-                    WorldStepScale = 4,
+                    ProducesAsciiFrame = false,
+                    WorldStepScale = 1,
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control.preview", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            PreferredCapabilities = ["localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
-                "This is a turn-based ASCII Council interpretation, not a traditional real-time 3D engine and not a claim that the original C executable is running.",
-                "Exactly one AI member owns terminal presentation after state resolution. The final workflow frame remains single-member and complete, while that owner may use bounded incremental display operations or one pregenerated 2-12-frame animation without mutating canonical state.",
-                "The id Software DOOM repository is an optional user-approved learning source. Do not redistribute commercial WAD data and do not require it for original generated maps.",
-                "One Council turn advances a meaningful world step and then renders once. Never simulate 35 frames per second through model calls.",
-                "Every active enemy, pickup, door or hazard is represented by a factory-created runtime-class instance; one World Actor member owns one active instance while creature and reactive-object subdirectors predict bounded consequences for the authoritative GameDirector.",
-                "Human keyboard/gamepad/text commands are optional. HumanRequired runtime fields block only the dependent next round, not the entire application."
+                "The deterministic CouncilGameSessionService is authoritative for map geometry, hostile positions, health, combat, extraction, collision handling and AI-hunter pathfinding; Council models do not independently simulate those systems.",
+                "A new ASCII DOOM session starts in Human mode with autoplay disabled. AI-origin controls are rejected while the human owns the session, and a model cannot automatically switch the control mode.",
+                "One Council request performs one bootstrap/read/presentation pass. It does not run a 24-round autonomous gameplay loop or consume model turns for individual key presses.",
+                "The renderer presents the real service-owned frame and may add bounded display-only decoration, but it never replaces canonical geometry or gameplay state.",
+                "The game is an original LocalGPT ASCII corridor study; it does not execute or redistribute the original DOOM engine, WAD data or commercial assets."
             ]
         },
         new()

@@ -54,8 +54,8 @@
                     <span>Control</span>
                     <select value="@snapshot.ControlMode" @onchange="ChangeControlModeAsync">
                         <option value="Human">Human</option>
-                        <option value="Shared">Human + AI</option>
-                        <option value="Ai">AI autoplay</option>
+                        <option value="Shared">Human + AI hunter</option>
+                        <option value="Ai">AI hunter</option>
                     </select>
                 </label>
                 @if (snapshot.ControlMode != CouncilGameControlMode.Human)
@@ -438,6 +438,7 @@
                 sequenceTarget).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             lastJsSequenceSignature = sequenceSignature;
         }
+        await JS.InvokeVoidAsync("localGptGameConsole.refreshLayout", elementId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
 
     /// <summary>Shows the canonical replayable chat transcript on the shared ASCII surface.</summary>

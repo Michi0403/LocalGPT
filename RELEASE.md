@@ -1,7 +1,9 @@
-# LocalGPT 4.2.8
+# LocalGPT 4.3.0
 
-LocalGPT 4.2.8 adds the preseeded **ASCII Hot Seat — Neon Relay Arena** Council team. It is a real two-seat local workflow: Player 1 and Player 2 are separate `HumanOnly` roles, the keyboard is passed between them, one AI referee owns deterministic multiplayer state, and one AI display director owns the ASCII presentation surface.
+LocalGPT 4.3.0 is a focused compile-repair release for the 4.2.9 ASCII combat/Council changes. The ASCII DOOM system seed now assigns its configured workflow through the actual `OrganicCouncilTeamDefinition.WorkflowSteps` member. The invalid `Workflow` initializer that produced compiler error `CS0117` is removed.
 
-The team is designed as an ASCII feature showcase rather than a second hidden game engine. It boots a bounded 100×32 Council game session as the supported display host, hides that host's single-player input overlay, and then demonstrates full-frame rendering, display readback, cell/text/fill/blit updates, score/HUD composition and pregenerated browser-local animations. The canonical hot-seat state remains the referee's `HOTSEAT_STATE`; presentation functions never become game authority.
+All 4.2.9 game behavior remains in place: deterministic enemies and combat, map-aware AI Hunter navigation, Human-mode ownership enforcement, optional active-session game reads, repaired Council game/display functions, the one-pass Doom Council workflow, and the browser-measured ASCII game viewport.
 
-No `dotnet` build, restore, publish, release packaging, signing/notarization or GitHub operation was performed. See `CHANGELOG-v4.2.8-ASCII-HOT-SEAT-SHOWCASE.md` and `VALIDATION-v4.2.8-source.md`.
+The Council seed version remains 28 because this release does not change the seeded workflow semantics; it corrects the C# member name required to compile that existing definition.
+
+No `dotnet` build, restore, publish, release build, signing/notarization, GitHub access or GitHub API operation was performed. See `CHANGELOG-v4.3.0-COUNCIL-WORKFLOW-COMPILE-REPAIR.md` and `VALIDATION-v4.3.0-source.md`.

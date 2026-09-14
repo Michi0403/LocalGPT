@@ -80,6 +80,14 @@ namespace LocalGPT.Services
         IsDucking = session.IsDucking,
         Health = session.Health,
         Ammo = session.Ammo,
+        WorldMap = session.WorldMap.ToArray(),
+        MapSeed = session.MapSeed,
+        ExtractionX = session.ExtractionX,
+        ExtractionY = session.ExtractionY,
+        Enemies = session.Enemies.Select(CloneEnemy).ToArray(),
+        CombatMessage = session.CombatMessage,
+        BlockedMoveStreak = session.BlockedMoveStreak,
+        LastMoveBlocked = session.LastMoveBlocked,
         CreatedAtUtc = session.CreatedAtUtc,
         UpdatedAtUtc = session.UpdatedAtUtc
     };

@@ -58,6 +58,7 @@
 .chat-game-stage {
     min-width: 0;
     min-height: 17rem;
+    height: clamp(24rem, 52dvh, 56rem);
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     overflow: hidden;
@@ -266,8 +267,8 @@
 }
 
 .ascii-operator-stage {
-    height: 24rem;
-    max-height: min(24rem, 58vh);
+    height: clamp(24rem, 52dvh, 54rem);
+    max-height: none;
     min-height: 17rem;
     min-width: 0;
     display: grid;
@@ -386,8 +387,8 @@
 }
 
 .ascii-conversation-stage {
-    height: 28rem;
-    max-height: min(32rem, 66vh);
+    height: clamp(26rem, 52dvh, 56rem);
+    max-height: none;
     min-height: 18rem;
     min-width: 0;
     display: grid;
@@ -465,10 +466,29 @@
 
 @media (max-width: 700px) {
     .ascii-conversation-stage {
-        height: 24rem;
-        max-height: 62vh;
+        height: clamp(22rem, 58dvh, 40rem);
+        max-height: none;
     }
     .ascii-conversation-output .chat-game-screen {
         font-size: clamp(.6rem, 2.4vw, .78rem);
     }
+}
+
+
+/* v4.2.9: browser-measured game fitting and taller terminal surfaces. */
+.chat-game-console[data-scale-mode="fit"] .chat-game-stage .chat-game-screen,
+.chat-game-console[data-scale-mode="width"] .chat-game-stage .chat-game-screen {
+    min-width: 0;
+    font-size: var(--localgpt-game-fit-font-size, .88rem);
+}
+
+.chat-game-console[data-scale-mode="fit"] .chat-game-screen-viewport {
+    overflow: hidden;
+    scrollbar-gutter: auto;
+}
+
+.chat-game-console[data-scale-mode="width"] .chat-game-screen-viewport,
+.chat-game-console[data-scale-mode="native"] .chat-game-screen-viewport {
+    place-content: safe start center;
+    overflow: auto;
 }

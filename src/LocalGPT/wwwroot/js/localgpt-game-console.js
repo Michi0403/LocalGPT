@@ -7,26 +7,46 @@
     const states = new Map();
 
 
+    function measureFrame(screen) {
+        try {
+            const text = String(screen.textContent || '').replace(/\r\n?/g, '\n');
+            const lines = text.split('\n');
+            const columns = Math.max(1, ...lines.map(line => Array.from(line).length));
+            const rows = Math.max(1, lines.length);
+            const computed = getComputedStyle(screen);
+            const fontSize = Number.parseFloat(computed.fontSize) || 16;
+            const lineHeight = Number.parseFloat(computed.lineHeight) || fontSize * 1.08;
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            if (context) context.font = computed.font;
+            const glyphWidth = Math.max(1, context?.measureText('M').width || fontSize * .62);
+            const paddingX = (Number.parseFloat(computed.paddingLeft) || 0) + (Number.parseFloat(computed.paddingRight) || 0);
+            const paddingY = (Number.parseFloat(computed.paddingTop) || 0) + (Number.parseFloat(computed.paddingBottom) || 0);
+            return { width: columns * glyphWidth + paddingX, height: rows * lineHeight + paddingY };
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.measureFrame', error);
+            return { width: Math.max(1, screen.scrollWidth), height: Math.max(1, screen.scrollHeight) };
+        }
+    }
+
     function applyScale(state) {
         try {
             if (!state?.element) return;
-            const screen = state.element.querySelector('.chat-game-screen');
+            const screen = state.element.querySelector('.chat-game-screen-viewport .chat-game-screen');
             const viewport = state.element.querySelector('.chat-game-screen-viewport');
             const scaleMode = state.element.dataset.scaleMode || 'fit';
             const scaledMode = scaleMode === 'fit' || scaleMode === 'width';
-            const isFullscreen = document.fullscreenElement === state.element;
-            if (!(screen instanceof HTMLElement) || !(viewport instanceof HTMLElement) || !scaledMode || !isFullscreen) {
+            if (!(screen instanceof HTMLElement) || !(viewport instanceof HTMLElement) || !scaledMode) {
                 state.element.style.removeProperty('--localgpt-game-fit-font-size');
                 return;
             }
 
             state.element.style.setProperty('--localgpt-game-fit-font-size', '16px');
-            const naturalWidth = Math.max(1, screen.scrollWidth);
-            const naturalHeight = Math.max(1, screen.scrollHeight);
+            const natural = measureFrame(screen);
             const availableWidth = Math.max(1, viewport.clientWidth - 12);
             const availableHeight = Math.max(1, viewport.clientHeight - 12);
-            const widthScale = availableWidth / naturalWidth;
-            const heightScale = availableHeight / naturalHeight;
+            const widthScale = availableWidth / Math.max(1, natural.width);
+            const heightScale = availableHeight / Math.max(1, natural.height);
             const scale = scaleMode === 'width' ? widthScale : Math.min(widthScale, heightScale);
             const fontSize = Math.max(4, Math.min(36, 16 * scale));
             state.element.style.setProperty('--localgpt-game-fit-font-size', `${fontSize.toFixed(2)}px`);
@@ -42,6 +62,44 @@
             state.scaleFrame = requestAnimationFrame(() => applyScale(state));
         } catch (error) {
             diagnostics.report('localgpt-game-console.requestScale', error);
+        }
+    }
+
+    function isNearBottom(region) {
+        try {
+            return region.scrollHeight - region.scrollTop - region.clientHeight <= 32;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.isNearBottom', error);
+            return true;
+        }
+    }
+
+    function scrollToTail(region) {
+        try {
+            region.scrollTop = Math.max(0, region.scrollHeight - region.clientHeight);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.scrollToTail', error);
+        }
+    }
+
+    function attachFollowTail(state) {
+        try {
+            state.followTailRegions ||= new Map();
+            state.element.querySelectorAll('.ascii-conversation-output, .ascii-operator-output').forEach(region => {
+                if (!(region instanceof HTMLElement) || state.followTailRegions.has(region)) return;
+                const entry = { enabled: true, observer: null };
+                region.addEventListener('scroll', () => { entry.enabled = isNearBottom(region); }, { signal: state.abort.signal, passive: true });
+                entry.observer = new MutationObserver(() => { if (entry.enabled) scrollToTail(region); });
+                entry.observer.observe(region, { childList: true, subtree: true, characterData: true });
+                state.followTailRegions.set(region, entry);
+                requestAnimationFrame(() => scrollToTail(region));
+            });
+            if (!state.followTailRootObserver) {
+                state.followTailRootObserver = new MutationObserver(() => attachFollowTail(state));
+                state.followTailRootObserver.observe(state.element, { childList: true, subtree: true });
+            }
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.attachFollowTail', error);
         }
     }
 
@@ -163,6 +221,7 @@
             if (!(screen instanceof HTMLElement)) return;
             const frame = state.sequenceFrames[state.sequenceIndex % state.sequenceFrames.length] || '';
             if (screen.textContent !== frame) screen.textContent = frame;
+            if (state.sequenceSelector === '[data-game-animation-screen]') requestScale(state);
             state.sequenceIndex = (state.sequenceIndex + 1) % state.sequenceFrames.length;
             cancelSequenceTimer(state);
             state.sequenceTimer = window.setTimeout(() => renderSequenceFrame(state), state.sequenceDelay);
@@ -189,8 +248,10 @@
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, windowFocused:document.hasFocus(), abort:new AbortController() };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null };
                 states.set(id, state);
+                attachFollowTail(state);
+                requestScale(state);
                 element.addEventListener('pointerdown', () => element.focus({ preventScroll:true }), { signal:state.abort.signal });
                 document.addEventListener('fullscreenchange', () => requestScale(state), { signal:state.abort.signal });
                 window.addEventListener('resize', () => requestScale(state), { signal:state.abort.signal });
@@ -242,12 +303,24 @@
                 const state = states.get(id);
                 if (!state) return;
                 state.abort.abort();
+                for (const entry of state.followTailRegions?.values() || []) entry.observer?.disconnect();
+                state.followTailRegions?.clear();
+                state.followTailRootObserver?.disconnect();
+                state.followTailRootObserver = null;
                 if (state.frame) cancelAnimationFrame(state.frame);
                 if (state.scaleFrame) cancelAnimationFrame(state.scaleFrame);
                 cancelSequenceTimer(state);
                 state.element.style.removeProperty('--localgpt-game-fit-font-size');
                 states.delete(id);
             } catch (error) { diagnostics.report('localgpt-game-console.detach', error); }
+        },
+        refreshLayout(id) {
+            try {
+                const state = states.get(id);
+                if (!state) return;
+                attachFollowTail(state);
+                requestScale(state);
+            } catch (error) { diagnostics.report('localgpt-game-console.refreshLayout', error); }
         },
         setEnabled(id, enabled) {
             try {

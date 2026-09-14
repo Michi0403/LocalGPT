@@ -49,16 +49,18 @@ namespace LocalGPT.Services
             for (var x = 0; x < width; x++)
             {
                 var rayAngle = session.FacingRadians - FieldOfView / 2d + FieldOfView * x / Math.Max(1, width - 1);
-                var distance = CastRay(session.PlayerX + .5d, session.PlayerY + .5d, rayAngle);
+                var distance = CastRay(session, session.PlayerX + .5d, session.PlayerY + .5d, rayAngle);
                 var correctedDistance = Math.Max(.15d, distance * Math.Cos(rayAngle - session.FacingRadians));
                 var wallHeight = Math.Clamp((int)Math.Round(viewHeight / correctedDistance * .82d), 1, viewHeight);
                 var top = Math.Max(0, (viewHeight - wallHeight) / 2 - (session.IsDucking ? -2 : 0));
                 var bottom = Math.Min(viewHeight - 1, top + wallHeight);
                 for (var y = 0; y < viewHeight; y++)
-                {
                     lines[y][x] = y < top ? '.' : y <= bottom ? WallGlyph(correctedDistance, x, y) : FloorGlyph(x, y);
-                }
             }
+
+            RenderEnemySprites(lines, session, viewHeight, width);
+            RenderRadarOverlay(lines, session, viewHeight, width);
+
             var centerY = viewHeight / 2;
             var centerX = width / 2;
             lines[centerY][centerX] = session.MuzzleFlash > 0 ? '*' : '+';
@@ -67,14 +69,15 @@ namespace LocalGPT.Services
             if (centerY > 0) lines[centerY - 1][centerX] = '|';
             if (centerY + 1 < viewHeight) lines[centerY + 1][centerX] = '|';
 
+            var enemyCount = session.Enemies.Count(enemy => enemy.IsAlive);
             Put(lines, viewHeight, 0, new string('═', width));
             Put(lines, viewHeight + 1, 0, Fit($" ASCII CORRIDOR // TURN {session.Turn:000} // {Compass(session.FacingRadians),3} // {(session.IsDucking ? "DUCK" : "STAND")}", width));
-            Put(lines, viewHeight + 2, 0, Fit($" HP {session.Health:000}   AMMO {session.Ammo:000}   POS {session.PlayerX:00},{session.PlayerY:00}   ACTION {session.LastAction}", width));
-            Put(lines, viewHeight + 3, 0, Fit(" W/S move  A/D strafe  Q/R turn  SPACE shoot  CTRL duck  E use  F fullscreen", width));
-            Put(lines, viewHeight + 4, 0, Fit(" Fan-made open-source configuration study; no commercial assets, WADs, or original engine runtime included.", width));
+            Put(lines, viewHeight + 2, 0, Fit($" HP {session.Health:000}  AMMO {session.Ammo:000}  ENEMIES {enemyCount:00}  POS {session.PlayerX:00},{session.PlayerY:00}  X {session.ExtractionX:00},{session.ExtractionY:00}", width));
+            Put(lines, viewHeight + 3, 0, Fit($" {session.CombatMessage}", width));
+            Put(lines, viewHeight + 4, 0, Fit(" W/S move  A/D strafe  Q/R turn  SPACE shoot  CTRL duck  E use  F fullscreen", width));
             Put(lines, viewHeight + 5, 0, new string('═', width));
             return string.Join(Environment.NewLine, lines.Select(line => new string(line)));
-    
+
     }
     catch (Exception __serviceMethodException)
     {
@@ -85,6 +88,7 @@ namespace LocalGPT.Services
         throw;
     }
 }
+
 
     /// <summary>
     /// Performs render green dragon as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -144,20 +148,21 @@ namespace LocalGPT.Services
     /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
     /// <param name="angle">Angle value supplied to the council game session operation and used when producing its result.</param>
     /// <returns>The double produced by the operation.</returns>
-    private double CastRay(double x, double y, double angle)
+    private double CastRay(CouncilGameSessionState session, double x, double y, double angle)
     {
     try
     {
             const double maxDistance = 20d;
+            var map = GetWorldMap(session);
             for (var distance = .05d; distance < maxDistance; distance += .05d)
             {
                 var sampleX = (int)(x + Math.Cos(angle) * distance);
                 var sampleY = (int)(y + Math.Sin(angle) * distance);
-                if (sampleY < 0 || sampleY >= doomMap.Length || sampleX < 0 || sampleX >= doomMap[sampleY].Length) return distance;
-                if (doomMap[sampleY][sampleX] == '#') return distance;
+                if (sampleY < 0 || sampleY >= map.Count || sampleX < 0 || sampleX >= map[sampleY].Length) return distance;
+                if (map[sampleY][sampleX] == '#') return distance;
             }
             return maxDistance;
-    
+
     }
     catch (Exception __serviceMethodException)
     {
@@ -168,6 +173,104 @@ namespace LocalGPT.Services
         throw;
     }
 }
+
+    /// <summary>Projects visible hostile actors into the deterministic first-person frame.</summary>
+    private void RenderEnemySprites(char[][] lines, CouncilGameSessionState session, int viewHeight, int width)
+    {
+    try
+    {
+            var map = GetWorldMap(session);
+            var visible = session.Enemies
+                .Where(enemy => enemy.IsAlive && HasLineOfSight(map, session.PlayerX, session.PlayerY, enemy.X, enemy.Y))
+                .Select(enemy => new
+                {
+                    Enemy = enemy,
+                    Dx = enemy.X + .5d - (session.PlayerX + .5d),
+                    Dy = enemy.Y + .5d - (session.PlayerY + .5d)
+                })
+                .Select(item => new
+                {
+                    item.Enemy,
+                    Distance = Math.Sqrt(item.Dx * item.Dx + item.Dy * item.Dy),
+                    Delta = SignedAngleDelta(session.FacingRadians, Math.Atan2(item.Dy, item.Dx))
+                })
+                .Where(item => item.Distance > .1d && Math.Abs(item.Delta) <= FieldOfView / 2d)
+                .OrderByDescending(item => item.Distance)
+                .ToList();
+
+            foreach (var item in visible)
+            {
+                var normalized = item.Delta / (FieldOfView / 2d);
+                var centerX = (int)Math.Round((width - 1) * (.5d + normalized * .5d));
+                var spriteHeight = Math.Clamp((int)Math.Round(viewHeight / item.Distance * .8d), 3, Math.Max(3, viewHeight - 2));
+                var spriteWidth = Math.Clamp(spriteHeight, 3, 9);
+                var top = Math.Clamp(viewHeight / 2 - spriteHeight / 2, 0, Math.Max(0, viewHeight - spriteHeight));
+                var left = Math.Clamp(centerX - spriteWidth / 2, 0, Math.Max(0, width - spriteWidth));
+                var glyph = string.IsNullOrWhiteSpace(item.Enemy.Glyph) ? 'M' : item.Enemy.Glyph[0];
+                for (var row = 0; row < spriteHeight; row++)
+                {
+                    for (var column = 0; column < spriteWidth; column++)
+                    {
+                        var edge = row == 0 || row == spriteHeight - 1 || column == 0 || column == spriteWidth - 1;
+                        var fill = edge ? (row == 0 ? '^' : '#') : glyph;
+                        lines[top + row][left + column] = fill;
+                    }
+                }
+            }
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(RenderEnemySprites)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(RenderEnemySprites)} failed.");
+        throw;
+    }
+}
+
+    /// <summary>Draws a compact authoritative tactical radar over the first-person scene.</summary>
+    private void RenderRadarOverlay(char[][] lines, CouncilGameSessionState session, int viewHeight, int width)
+    {
+    try
+    {
+            const int radarWidth = 15;
+            const int radarHeight = 9;
+            if (width < radarWidth + 2 || viewHeight < radarHeight + 1) return;
+            var left = width - radarWidth - 1;
+            var top = 1;
+            var map = GetWorldMap(session);
+            Put(lines, top, left, "+-------------+");
+            for (var row = 0; row < radarHeight - 2; row++)
+            {
+                var mapY = session.PlayerY + row - (radarHeight - 3) / 2;
+                var buffer = new char[radarWidth];
+                Array.Fill(buffer, ' ');
+                buffer[0] = '|';
+                buffer[^1] = '|';
+                for (var column = 1; column < radarWidth - 1; column++)
+                {
+                    var mapX = session.PlayerX + column - (radarWidth - 2) / 2;
+                    var glyph = !IsWalkable(map, mapX, mapY) ? '#' : '.';
+                    if (mapX == session.ExtractionX && mapY == session.ExtractionY) glyph = 'X';
+                    var enemy = session.Enemies.FirstOrDefault(candidate => candidate.IsAlive && candidate.X == mapX && candidate.Y == mapY);
+                    if (enemy is not null) glyph = string.IsNullOrWhiteSpace(enemy.Glyph) ? 'M' : enemy.Glyph[0];
+                    if (mapX == session.PlayerX && mapY == session.PlayerY) glyph = '@';
+                    buffer[column] = glyph;
+                }
+                Put(lines, top + row + 1, left, new string(buffer));
+            }
+            Put(lines, top + radarHeight - 1, left, "+-------------+");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(RenderRadarOverlay)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(RenderRadarOverlay)} failed.");
+        throw;
+    }
+}
+
 
     /// <summary>
     /// Performs wall glyph as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.

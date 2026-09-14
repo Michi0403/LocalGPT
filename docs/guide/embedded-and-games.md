@@ -33,6 +33,14 @@ Runtime classes describe sessions, maps, players, directors, creatures, objects,
 
 The Chat ASCII console is both a normal conversation companion and a fixed-cell game/presentation surface. Council game sessions expose their own bounded live dimensions, while legacy deterministic game frames remain compatible with the established 80×25 path. Renderers can inspect the current display, update a single cell, write text, fill or blit a region, submit a complete frame, or submit a pregenerated 2–12 frame animation for browser-local playback. Presentation state never replaces the canonical conversation transcript or authoritative game state.
 
+### ASCII DOOM Council Adventure
+
+The preseeded `ascii-doom-council-adventure` team now treats `CouncilGameSessionService` as the only game engine. Starting the team creates or recovers one human-owned deterministic corridor session with a connected map, persistent hostile actors, opening line-of-sight contact, ammunition/health, extraction coordinates, collision feedback, and a tactical radar. The Council observes and explains that state; it does not run a second 24-turn model-driven simulation.
+
+Human control is the default and AI-origin movement is rejected while the session remains in Human mode. Selecting **AI hunter** or **Human + AI hunter** in the Game tab is an explicit ownership choice. The hunter reads the authoritative map, turns toward visible hostiles, shoots through validated line of sight, pathfinds around walls and occupied hostile cells, and routes to extraction after combat. Shooting, enemy HP, enemy pursuit/contact attacks, death, and extraction are deterministic service-owned transitions rather than model narration.
+
+`localgpt.game.session.get` and `localgpt.game.display.get` can resolve the active conversation game when `sessionId` is omitted, so Council members must not guess GUIDs or ask the human for internal session identity. The renderer mirrors the canonical service-owned frame; optional decoration and 2–12-frame browser-local animations remain presentation-only.
+
 ### ASCII Hot Seat — Neon Relay Arena
 
 The preseeded `ascii-hot-seat-showcase` Council team is a two-player local hot-seat demonstration. `Player 1 Hot Seat` and `Player 2 Hot Seat` are `HumanOnly` Council roles, so LocalGPT pauses for each person in turn instead of simulating a missing player. One AI `Arena Referee` resolves both commands deterministically and emits the canonical `HOTSEAT_STATE`; a separate `ASCII Display Director` owns all terminal mutations.

@@ -228,16 +228,20 @@ namespace LocalGPT.Services
                 return;
             }
 
+            session.LastMoveBlocked = false;
             switch (action)
             {
                 case "turn-left":
                     session.FacingRadians -= Math.PI / 12d;
+                    session.CombatMessage = "TURN: scanning left.";
                     break;
                 case "turn-right":
                     session.FacingRadians += Math.PI / 12d;
+                    session.CombatMessage = "TURN: scanning right.";
                     break;
                 case "duck":
                     session.IsDucking = !session.IsDucking;
+                    session.CombatMessage = session.IsDucking ? "STANCE: ducking." : "STANCE: standing.";
                     break;
                 case "shoot":
                     if (session.Ammo > 0)
@@ -246,10 +250,20 @@ namespace LocalGPT.Services
                         session.MuzzleFlash = 2;
                         if (aimX.HasValue && aimY.HasValue)
                             session.FacingRadians = Math.Atan2(aimY.Value - session.PlayerY, aimX.Value - session.PlayerX);
+                        ResolveShot(session);
+                    }
+                    else
+                    {
+                        session.CombatMessage = "CLICK: no ammunition remains.";
                     }
                     break;
                 case "use":
                     session.UsePulse = 2;
+                    ResolveExtraction(session);
+                    if (session.Status == "Running")
+                        session.CombatMessage = session.Enemies.Any(enemy => enemy.IsAlive)
+                            ? "USE: extraction remains locked while hostiles are active."
+                            : $"USE: reach X at {session.ExtractionX:00},{session.ExtractionY:00}.";
                     break;
                 case "move-forward":
                     TryMove(session, Math.Cos(session.FacingRadians), Math.Sin(session.FacingRadians));
@@ -267,7 +281,7 @@ namespace LocalGPT.Services
             session.FacingRadians = NormalizeRadians(session.FacingRadians);
             session.MuzzleFlash = Math.Max(0, session.MuzzleFlash - 1);
             session.UsePulse = Math.Max(0, session.UsePulse - 1);
-    
+
     }
     catch (Exception __serviceMethodException)
     {
@@ -289,14 +303,24 @@ namespace LocalGPT.Services
     {
     try
     {
-            var map = doomMap;
+            var map = GetWorldMap(session);
             var nextX = session.PlayerX + (int)Math.Round(dx);
             var nextY = session.PlayerY + (int)Math.Round(dy);
-            if (nextY < 0 || nextY >= map.Length || nextX < 0 || nextX >= map[nextY].Length) return;
-            if (map[nextY][nextX] == '#') return;
+            if (!IsWalkable(map, nextX, nextY) || IsLivingEnemyAt(session, nextX, nextY))
+            {
+                session.LastMoveBlocked = true;
+                session.BlockedMoveStreak++;
+                session.CombatMessage = $"BLOCKED: {nextX:00},{nextY:00} is not traversable. Replan before moving again.";
+                return;
+            }
+
             session.PlayerX = nextX;
             session.PlayerY = nextY;
-    
+            session.BlockedMoveStreak = 0;
+            session.LastMoveBlocked = false;
+            session.CombatMessage = $"MOVE: position {session.PlayerX:00},{session.PlayerY:00}.";
+            ResolveExtraction(session);
+
     }
     catch (Exception __serviceMethodException)
     {
@@ -307,6 +331,7 @@ namespace LocalGPT.Services
         throw;
     }
 }
+
 
     }
 }

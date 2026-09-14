@@ -231,6 +231,52 @@ public sealed class SetCouncilGameInputGateRequest
     public string Reason { get; set; } = string.Empty;
 }
 
+/// <summary>Represents one hostile actor in the deterministic ASCII corridor world.</summary>
+public sealed class CouncilGameEnemySnapshot
+{
+    /// <summary>Gets or sets the stable enemy key.</summary>
+    public string Key { get; set; } = string.Empty;
+    /// <summary>Gets or sets the player-facing enemy name.</summary>
+    public string Name { get; set; } = string.Empty;
+    /// <summary>Gets or sets the single-cell radar glyph.</summary>
+    public string Glyph { get; set; } = "M";
+    /// <summary>Gets or sets the map x coordinate.</summary>
+    public int X { get; set; }
+    /// <summary>Gets or sets the map y coordinate.</summary>
+    public int Y { get; set; }
+    /// <summary>Gets or sets current health.</summary>
+    public int Health { get; set; }
+    /// <summary>Gets or sets maximum health.</summary>
+    public int MaximumHealth { get; set; }
+    /// <summary>Gets or sets contact damage.</summary>
+    public int ContactDamage { get; set; }
+    /// <summary>Gets whether this enemy is still active.</summary>
+    public bool IsAlive => Health > 0;
+}
+
+/// <summary>Internal authoritative hostile state owned by the deterministic Council game service.</summary>
+public sealed class CouncilGameEnemyState
+{
+    /// <summary>Gets or sets the stable enemy key.</summary>
+    public string Key { get; set; } = string.Empty;
+    /// <summary>Gets or sets the player-facing enemy name.</summary>
+    public string Name { get; set; } = string.Empty;
+    /// <summary>Gets or sets the single-cell radar glyph.</summary>
+    public string Glyph { get; set; } = "M";
+    /// <summary>Gets or sets the map x coordinate.</summary>
+    public int X { get; set; }
+    /// <summary>Gets or sets the map y coordinate.</summary>
+    public int Y { get; set; }
+    /// <summary>Gets or sets current health.</summary>
+    public int Health { get; set; }
+    /// <summary>Gets or sets maximum health.</summary>
+    public int MaximumHealth { get; set; }
+    /// <summary>Gets or sets contact damage.</summary>
+    public int ContactDamage { get; set; }
+    /// <summary>Gets whether this enemy is still active.</summary>
+    public bool IsAlive => Health > 0;
+}
+
 /// <summary>
 /// Represents a council game session snapshot application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
@@ -410,6 +456,22 @@ public sealed class CouncilGameSessionSnapshot
     /// </summary>
     /// <value>The ammo value exposed by <see cref="CouncilGameSessionSnapshot"/>.</value>
     public int Ammo { get; set; } = 24;
+    /// <summary>Gets or sets the authoritative connected ASCII corridor map.</summary>
+    public IReadOnlyList<string> WorldMap { get; set; } = [];
+    /// <summary>Gets or sets the deterministic map seed.</summary>
+    public int MapSeed { get; set; }
+    /// <summary>Gets or sets the extraction x coordinate.</summary>
+    public int ExtractionX { get; set; }
+    /// <summary>Gets or sets the extraction y coordinate.</summary>
+    public int ExtractionY { get; set; }
+    /// <summary>Gets or sets the current hostile actors.</summary>
+    public IReadOnlyList<CouncilGameEnemySnapshot> Enemies { get; set; } = [];
+    /// <summary>Gets or sets the latest deterministic combat/navigation message.</summary>
+    public string CombatMessage { get; set; } = string.Empty;
+    /// <summary>Gets or sets the count of consecutive blocked movement attempts.</summary>
+    public int BlockedMoveStreak { get; set; }
+    /// <summary>Gets whether the latest movement proposal was blocked.</summary>
+    public bool LastMoveBlocked { get; set; }
     /// <summary>
     /// Gets or sets the created at UTC associated with this council game session snapshot state, using the time semantics implied by the member name.
     /// </summary>
@@ -627,6 +689,22 @@ public sealed class CouncilGameSessionState
     /// </summary>
     /// <value>The use pulse value exposed by <see cref="CouncilGameSessionState"/>.</value>
     public int UsePulse { get; set; }
+    /// <summary>Gets or sets the authoritative connected ASCII corridor map.</summary>
+    public List<string> WorldMap { get; set; } = [];
+    /// <summary>Gets or sets the deterministic map seed.</summary>
+    public int MapSeed { get; set; }
+    /// <summary>Gets or sets the extraction x coordinate.</summary>
+    public int ExtractionX { get; set; }
+    /// <summary>Gets or sets the extraction y coordinate.</summary>
+    public int ExtractionY { get; set; }
+    /// <summary>Gets or sets the active hostile actors.</summary>
+    public List<CouncilGameEnemyState> Enemies { get; set; } = [];
+    /// <summary>Gets or sets the latest deterministic combat/navigation message.</summary>
+    public string CombatMessage { get; set; } = string.Empty;
+    /// <summary>Gets or sets the count of consecutive blocked movement attempts.</summary>
+    public int BlockedMoveStreak { get; set; }
+    /// <summary>Gets whether the latest movement proposal was blocked.</summary>
+    public bool LastMoveBlocked { get; set; }
     /// <summary>
     /// Gets or sets the story line value that forms part of the council game session state consumed or produced by the surrounding workflow.
     /// </summary>
