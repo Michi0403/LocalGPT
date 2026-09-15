@@ -55,3 +55,11 @@ The Pages extractor verifies:
 - the versioned PDF when available.
 
 The Node deprecation messages emitted by GitHub's own actions are warnings; deployment success is determined by artifact upload and the Pages deployment result.
+
+## Deep-space Kawaii visual contract
+
+The website background is intentionally alive without behaving like a repeating wallpaper. Each page load creates a bounded set of independently timed stars with different sizes, brightness ranges, drift vectors, and subtle white, lavender, pink, blue, and warm-yellow tones. A very small number of CSS-built satellites move slowly through the field. The old repeating dot layer remains only as faint depth.
+
+Navigation rails, the article surface, cards, API groups, details panels, and tab panels use translucent glass backgrounds with blur rather than applying opacity to their text. Desktop layouts also reserve a symmetric outer gutter so neither navigation rail hugs the browser edge. `prefers-reduced-motion` keeps the same visual language while stopping star and satellite motion.
+
+PublisherStudio documentation follows the same visual contract so the two products feel like one documentation family.

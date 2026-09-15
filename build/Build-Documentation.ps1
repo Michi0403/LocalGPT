@@ -3629,7 +3629,7 @@ if (-not $pdfGenerated) {
         $updatedHtmlText = [regex]::Replace(
             $htmlText,
             '(?i)href=(?<quote>["''])(?:\.\./|\./)?' + $escapedPdfName + '\k<quote>',
-            'href="#" aria-disabled="true" data-localgpt-pdf-unavailable="true" title="PDF handbook is available in Release documentation"')
+            'href="#" aria-disabled="true" data-localgpt-pdf-unavailable="true" title="PDF handbook is unavailable only in this explicitly HTML-only diagnostic documentation build"')
         if (-not [string]::Equals($htmlText, $updatedHtmlText, [StringComparison]::Ordinal)) {
             [IO.File]::WriteAllText($htmlFile.FullName, $updatedHtmlText, [Text.UTF8Encoding]::new($false))
         }
@@ -3738,10 +3738,9 @@ foreach ($publishRoot in $publishRoots) {
     }
 }
 
-# The source-tree/runtime documentation snapshot is also the embedded help payload. Release
-# documentation requires the complete PDF, while normal Debug builds intentionally publish HTML-only
-# help. Keep this validation aligned with Directory.Build.targets on Windows, macOS, and Linux so an
-# HTML-only developer build never fails merely because -RequirePdf was not requested.
+# The source-tree/runtime documentation snapshot is also the embedded help payload. Normal builds
+# require the complete versioned PDF. HTML-only output exists only as an explicit infrastructure
+# diagnostic override, so keep this validation aligned with Directory.Build.targets on every platform.
 if ($RequirePdf -or $pdfGenerated) {
     if (-not (Test-Path -LiteralPath $sourceWebRoot -PathType Container)) {
         throw "Runtime help-docs tree was not published: $sourceWebRoot"

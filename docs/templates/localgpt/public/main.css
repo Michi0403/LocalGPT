@@ -2370,3 +2370,336 @@ html.localgpt-kawaii-docs .localgpt-doc-card > :last-child { margin-bottom: 0; }
   }
 }
 
+
+
+/* 2026 deep-space Kawaii refinement -------------------------------------------------
+   Independent stars replace the visually repeating decoration cadence. Panels use
+   translucent glass rather than element opacity so text stays crisp while the sky
+   remains visible, and desktop rails retain comfortable breathing room at both edges. */
+@media screen {
+  html.localgpt-kawaii-docs,
+  html.localgpt-kawaii-docs[data-bs-theme="light"] {
+    --localgpt-site-shell: rgba(255, 241, 250, .72);
+    --localgpt-site-shell-strong: rgba(255, 249, 253, .88);
+    --localgpt-site-surface: linear-gradient(160deg, rgba(255,255,255,.84), rgba(255,239,249,.87));
+    --localgpt-site-surface-soft: rgba(255, 248, 253, .68);
+    --localgpt-panel-glass: rgba(255, 250, 253, .72);
+  }
+
+  html.localgpt-kawaii-docs[data-bs-theme="dark"] {
+    --localgpt-site-shell: rgba(43, 27, 48, .76);
+    --localgpt-site-shell-strong: rgba(52, 32, 57, .88);
+    --localgpt-site-surface: linear-gradient(160deg, rgba(62,39,66,.84), rgba(45,31,57,.88));
+    --localgpt-site-surface-soft: rgba(58, 38, 65, .76);
+    --localgpt-panel-glass: rgba(55, 36, 62, .72);
+    --localgpt-dark-card-top: rgba(72, 45, 78, .84);
+    --localgpt-dark-card-bottom: rgba(45, 32, 59, .88);
+  }
+
+  .localgpt-kawaii-sky {
+    isolation: isolate;
+  }
+
+  .localgpt-kawaii-star {
+    animation:
+      localgpt-kawaii-star-glide var(--localgpt-star-drift-duration, 38s) ease-in-out var(--localgpt-star-delay, 0s) infinite alternate,
+      localgpt-kawaii-star-pulse var(--localgpt-star-twinkle-duration, 6s) ease-in-out var(--localgpt-star-delay, 0s) infinite;
+    background: currentColor;
+    border-radius: 999px;
+    box-shadow: 0 0 .42rem currentColor;
+    color: rgba(255,255,255,.96);
+    height: var(--localgpt-star-size, .14rem);
+    left: var(--localgpt-star-left, 50%);
+    opacity: var(--localgpt-star-min-opacity, .16);
+    pointer-events: none;
+    position: absolute;
+    top: var(--localgpt-star-top, 50%);
+    transform: translate3d(0,0,0);
+    width: var(--localgpt-star-size, .14rem);
+    will-change: transform, opacity, filter;
+  }
+
+  .localgpt-kawaii-star-white { color: rgba(255,255,255,.98); }
+  .localgpt-kawaii-star-lavender { color: rgba(223,201,255,.96); }
+  .localgpt-kawaii-star-pink { color: rgba(255,175,220,.96); }
+  .localgpt-kawaii-star-blue { color: rgba(164,216,255,.96); }
+  .localgpt-kawaii-star-warm { color: rgba(255,224,146,.98); }
+
+  .localgpt-kawaii-star-sparkle {
+    border-radius: 35%;
+  }
+
+  .localgpt-kawaii-star-sparkle::before,
+  .localgpt-kawaii-star-sparkle::after {
+    background: currentColor;
+    border-radius: 999px;
+    box-shadow: 0 0 .34rem currentColor;
+    content: "";
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .localgpt-kawaii-star-sparkle::before {
+    height: 320%;
+    width: 32%;
+  }
+
+  .localgpt-kawaii-star-sparkle::after {
+    height: 32%;
+    width: 320%;
+  }
+
+  .localgpt-kawaii-planet {
+    animation: localgpt-kawaii-planet-float var(--localgpt-planet-duration, 58s) ease-in-out var(--localgpt-planet-delay, 0s) infinite alternate;
+    background: radial-gradient(circle at 35% 28%, #ffd3ec 0 18%, #b86de0 45%, #6d3ba8 100%);
+    border: 1px solid rgba(255,255,255,.34);
+    border-radius: 50%;
+    box-shadow: inset -.18rem -.16rem .25rem rgba(68,29,105,.24), 0 0 .65rem rgba(225,161,255,.34);
+    height: 1.08rem;
+    left: var(--localgpt-planet-left, 12%);
+    opacity: .48;
+    pointer-events: none;
+    position: absolute;
+    top: var(--localgpt-planet-top, 22%);
+    transform: rotate(-13deg);
+    width: 1.08rem;
+  }
+
+  .localgpt-kawaii-planet::after {
+    border: .14rem solid rgba(245,177,239,.72);
+    border-left-color: rgba(255,214,245,.9);
+    border-radius: 50%;
+    content: "";
+    height: .38rem;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-12deg);
+    width: 1.55rem;
+  }
+
+  .localgpt-kawaii-satellite {
+    align-items: center;
+    animation: localgpt-kawaii-satellite-orbit var(--localgpt-satellite-duration, 52s) ease-in-out var(--localgpt-satellite-delay, 0s) infinite alternate;
+    display: inline-flex;
+    filter: drop-shadow(0 0 .45rem rgba(255,190,235,.34));
+    gap: .08rem;
+    left: var(--localgpt-satellite-left, 72%);
+    opacity: .56;
+    pointer-events: none;
+    position: absolute;
+    top: var(--localgpt-satellite-top, 25%);
+    transform: rotate(var(--localgpt-satellite-rotate, 0deg)) scale(var(--localgpt-satellite-scale, .9));
+    transform-origin: center;
+    will-change: transform, opacity;
+  }
+
+  .localgpt-kawaii-satellite-body {
+    background: linear-gradient(145deg, #fff8fd 0 38%, #f5b8dc 39% 100%);
+    border: 1px solid rgba(116,66,139,.38);
+    border-radius: .28rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.78);
+    display: block;
+    height: .86rem;
+    position: relative;
+    width: .68rem;
+  }
+
+  .localgpt-kawaii-satellite-body::before {
+    border-left: 1px solid rgba(225,180,231,.72);
+    content: "";
+    height: .48rem;
+    left: 50%;
+    position: absolute;
+    top: -.48rem;
+    transform: rotate(18deg);
+    transform-origin: bottom;
+  }
+
+  .localgpt-kawaii-satellite-body::after {
+    color: #ec4899;
+    content: "♥";
+    font-family: "Segoe UI Symbol", sans-serif;
+    font-size: .38rem;
+    left: 50%;
+    line-height: 1;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .localgpt-kawaii-satellite-panel {
+    background:
+      linear-gradient(90deg, transparent 47%, rgba(255,255,255,.20) 48% 52%, transparent 53%),
+      linear-gradient(0deg, transparent 47%, rgba(255,255,255,.18) 48% 52%, transparent 53%),
+      linear-gradient(145deg, #8b5cf6, #4f46e5);
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: .12rem;
+    display: block;
+    height: .56rem;
+    width: .82rem;
+  }
+
+  html.localgpt-kawaii-docs :is(
+    article .localgpt-api-neko-note,
+    article .localgpt-api-member-panel,
+    article .localgpt-api-member-panel-body,
+    article .localgpt-api-member-item,
+    .localgpt-api-kind-navigation-group > .nav,
+    .localgpt-api-member-nav-item > a,
+    article .card,
+    article details,
+    article .tabGroup > section,
+    article .tab-pane,
+    article [role="tabpanel"],
+    article blockquote
+  ) {
+    background: var(--localgpt-panel-glass) !important;
+    border-color: var(--localgpt-site-border) !important;
+  }
+
+  html.localgpt-kawaii-docs :is(
+    .toc-offcanvas,
+    .offcanvas,
+    .offcanvas-body,
+    .sidefilter,
+    .sidetoc,
+    .affix,
+    .sideaffix,
+    article,
+    .localgpt-doc-card,
+    article .card,
+    article details,
+    article .tabGroup > section,
+    article .tab-pane,
+    article [role="tabpanel"]
+  ) {
+    backdrop-filter: blur(18px) saturate(1.12);
+  }
+
+  /* Keep the old generated dot field as barely-visible depth, not the main pattern. */
+  html.localgpt-kawaii-docs body::after {
+    opacity: .12;
+  }
+
+  html.localgpt-kawaii-docs[data-bs-theme="dark"] body::after {
+    opacity: .17;
+  }
+}
+
+@keyframes localgpt-kawaii-star-glide {
+  0% { transform: translate3d(0, 0, 0) scale(.92); }
+  100% { transform: translate3d(var(--localgpt-star-dx, 0), var(--localgpt-star-dy, -10px), 0) scale(1.05); }
+}
+
+@keyframes localgpt-kawaii-star-pulse {
+  0%, 100% { filter: brightness(.72); opacity: var(--localgpt-star-min-opacity, .16); }
+  42% { filter: brightness(1.08); opacity: var(--localgpt-star-max-opacity, .72); }
+  68% { filter: brightness(1.42); opacity: var(--localgpt-star-max-opacity, .72); }
+}
+
+@keyframes localgpt-kawaii-planet-float {
+  0% { opacity: .34; transform: translate3d(-8px, 6px, 0) rotate(-15deg) scale(.94); }
+  52% { opacity: .58; }
+  100% { opacity: .42; transform: translate3d(22px, -18px, 0) rotate(-8deg) scale(1.04); }
+}
+
+@keyframes localgpt-kawaii-satellite-orbit {
+  0% { opacity: .34; transform: translate3d(0,0,0) rotate(var(--localgpt-satellite-rotate, 0deg)) scale(var(--localgpt-satellite-scale, .9)); }
+  46% { opacity: .64; }
+  100% { opacity: .46; transform: translate3d(var(--localgpt-satellite-dx, 36px), var(--localgpt-satellite-dy, -16px), 0) rotate(calc(var(--localgpt-satellite-rotate, 0deg) + 8deg)) scale(var(--localgpt-satellite-scale, .9)); }
+}
+
+@media (min-width: 1141px) {
+  html.localgpt-kawaii-docs {
+    --kawaii-docs-edge-total: clamp(3rem, 5.2vw, 8rem);
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main.container-xxl,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main.container-xxl,
+  html.localgpt-kawaii-docs .navbar > .container-xxl,
+  html.localgpt-kawaii-docs header .navbar > .container-xxl,
+  html.localgpt-kawaii-docs footer > .container-xxl,
+  html.localgpt-kawaii-docs body > footer .container-xxl,
+  html.localgpt-kawaii-docs #search-results.container-xxl {
+    width: calc(100% - var(--kawaii-docs-edge-total)) !important;
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .affix,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .affix {
+    margin-right: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .localgpt-kawaii-star,
+  .localgpt-kawaii-satellite,
+  .localgpt-kawaii-planet {
+    animation: none !important;
+  }
+
+  .localgpt-kawaii-star {
+    opacity: var(--localgpt-star-min-opacity, .18);
+  }
+
+  .localgpt-kawaii-satellite {
+    opacity: .34;
+  }
+
+  .localgpt-kawaii-planet {
+    opacity: .34;
+  }
+}
+
+/* 4.3.2: generated deep-space/glass recovery. The JavaScript sky is primary; tiled star textures are disabled. */
+html.localgpt-kawaii-docs body::before,
+html.localgpt-kawaii-docs body::after { animation: none !important; background-image: none !important; opacity: 0 !important; }
+html.localgpt-kawaii-docs {
+  --localgpt-site-shell: rgba(255, 241, 250, .58);
+  --localgpt-site-shell-strong: rgba(255, 249, 253, .74);
+  --localgpt-site-surface: linear-gradient(160deg, rgba(255,255,255,.62), rgba(255,239,249,.67));
+  --localgpt-site-surface-soft: rgba(255, 248, 253, .50);
+  --localgpt-panel-glass: rgba(255, 250, 253, .54);
+}
+html.localgpt-kawaii-docs[data-bs-theme="dark"] {
+  --localgpt-site-shell: rgba(43, 27, 48, .54);
+  --localgpt-site-shell-strong: rgba(52, 32, 57, .70);
+  --localgpt-site-surface: linear-gradient(160deg, rgba(62,39,66,.58), rgba(45,31,57,.64));
+  --localgpt-site-surface-soft: rgba(58, 38, 65, .52);
+  --localgpt-panel-glass: rgba(55, 36, 62, .48);
+  --localgpt-dark-card-top: rgba(72, 45, 78, .56);
+  --localgpt-dark-card-bottom: rgba(45, 32, 59, .62);
+}
+html.localgpt-kawaii-docs body {
+  background: radial-gradient(circle at 18% 10%, rgba(217,130,255,.22), transparent 27rem), radial-gradient(circle at 83% 18%, rgba(255,114,189,.18), transparent 25rem), radial-gradient(circle at 48% 82%, rgba(112,170,255,.14), transparent 30rem), linear-gradient(155deg,#f9d9ec 0%,#ead4fb 46%,#d7e4ff 100%) fixed !important;
+}
+html.localgpt-kawaii-docs[data-bs-theme="dark"] body {
+  background: radial-gradient(circle at 14% 7%, rgba(176,74,205,.23), transparent 31rem), radial-gradient(circle at 88% 16%, rgba(218,69,157,.18), transparent 29rem), radial-gradient(circle at 52% 86%, rgba(76,108,197,.15), transparent 34rem), linear-gradient(155deg,#211326 0%,#2f1935 50%,#251a37 100%) fixed !important;
+}
+.localgpt-kawaii-sky { opacity: 1 !important; }
+.localgpt-kawaii-nebula {
+  animation: localgpt-kawaii-nebula-drift var(--localgpt-nebula-duration,58s) ease-in-out var(--localgpt-nebula-delay,0s) infinite alternate;
+  border-radius: 50%; filter: blur(52px); height: var(--localgpt-nebula-size,30rem); left: var(--localgpt-nebula-left,20%); opacity: var(--localgpt-nebula-opacity,.16); pointer-events:none; position:absolute; top:var(--localgpt-nebula-top,20%); transform:translate3d(0,0,0) scale(.94); width:var(--localgpt-nebula-size,30rem); will-change:transform;
+}
+.localgpt-kawaii-nebula-pink { background:radial-gradient(circle,rgba(255,103,190,.95) 0%,rgba(255,103,190,.28) 42%,transparent 72%); }
+.localgpt-kawaii-nebula-violet { background:radial-gradient(circle,rgba(174,93,255,.94) 0%,rgba(174,93,255,.26) 43%,transparent 73%); }
+.localgpt-kawaii-nebula-blue { background:radial-gradient(circle,rgba(102,169,255,.84) 0%,rgba(102,169,255,.22) 43%,transparent 74%); }
+.localgpt-kawaii-nebula-warm { background:radial-gradient(circle,rgba(255,200,123,.74) 0%,rgba(255,154,205,.20) 43%,transparent 74%); }
+html.localgpt-kawaii-docs :is(.toc-offcanvas,.offcanvas,.offcanvas-body,.sidefilter,.sidetoc,.affix,.sideaffix,article,.localgpt-doc-card,article .card,article details,article .tabGroup > section,article .tab-pane,article [role="tabpanel"]) { backdrop-filter:blur(22px) saturate(1.18) !important; -webkit-backdrop-filter:blur(22px) saturate(1.18) !important; }
+@keyframes localgpt-kawaii-nebula-drift { 0% { transform:translate3d(0,0,0) scale(.94); } 100% { transform:translate3d(var(--localgpt-nebula-dx,30px),var(--localgpt-nebula-dy,-20px),0) scale(1.06); } }
+@media (min-width:1141px) {
+  html.localgpt-kawaii-docs { --kawaii-docs-viewport-gutter:clamp(1.75rem,2.8vw,3.75rem); }
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main.container-xxl,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main.container-xxl,
+  html.localgpt-kawaii-docs .navbar > .container-xxl,
+  html.localgpt-kawaii-docs header .navbar > .container-xxl,
+  html.localgpt-kawaii-docs footer > .container-xxl,
+  html.localgpt-kawaii-docs body > footer .container-xxl,
+  html.localgpt-kawaii-docs #search-results.container-xxl { width:calc(100% - (2 * var(--kawaii-docs-viewport-gutter))) !important; }
+  html.localgpt-kawaii-docs body:not([data-search]) > main > .affix,
+  html.localgpt-kawaii-docs body:not([data-search]) > main > .sideaffix { box-sizing:border-box; margin-right:.35rem !important; padding-left:.72rem !important; padding-right:.92rem !important; }
+}
+@media (prefers-reduced-motion:reduce) { .localgpt-kawaii-nebula { animation:none !important; } }
+
