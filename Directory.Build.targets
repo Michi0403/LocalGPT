@@ -153,6 +153,7 @@
   <PropertyGroup>
     <LocalGptStaticWebAssetsScript>$(MSBuildThisFileDirectory)build/Assert-StaticWebAssets.ps1</LocalGptStaticWebAssetsScript>
     <LocalGptJavaScriptDiagnosticsScript>$(MSBuildThisFileDirectory)build/Assert-JavaScriptDiagnostics.ps1</LocalGptJavaScriptDiagnosticsScript>
+    <LocalGptDocumentationPointerOverlayScript>$(MSBuildThisFileDirectory)build/Assert-DocumentationPointerOverlay.ps1</LocalGptDocumentationPointerOverlayScript>
   </PropertyGroup>
 
 
@@ -161,6 +162,12 @@
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipJavaScriptDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(LocalGptJavaScriptDiagnosticsScript)')" Text="JavaScript diagnostics guard script is missing: $(LocalGptJavaScriptDiagnosticsScript)" />
     <Exec Condition="Exists('$(LocalGptJavaScriptDiagnosticsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptJavaScriptDiagnosticsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+  <Target Name="AssertLocalGptDocumentationPointerOverlay"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptJavaScriptDiagnostics"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipDocumentationPointerOverlayGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(LocalGptDocumentationPointerOverlayScript)')" Text="Documentation pointer-overlay guard script is missing: $(LocalGptDocumentationPointerOverlayScript)" />
+    <Exec Condition="Exists('$(LocalGptDocumentationPointerOverlayScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptDocumentationPointerOverlayScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
   <Target Name="AssertLocalGptStaticWebAssets"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptEfModelSnapshotConsistency"

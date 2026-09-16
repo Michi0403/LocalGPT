@@ -27,6 +27,7 @@ namespace LocalGPT.Services;
 /// <param name="promptConfigService">Prompt config service dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 /// <param name="functionRegistry">Devexpress ai function registry dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 /// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
+/// <param name="sessionContext">Scoped chat/project identity propagated into provider-native automatic functions.</param>
 public sealed class ProviderModelRuntimeService(
     IOptionsMonitor<LocalGptConfigurationRoot> optionsRoot,
     ILoggerFactory loggerFactory,
@@ -36,7 +37,8 @@ public sealed class ProviderModelRuntimeService(
     IChatProtocolResolver protocolResolver,
     IPromptConfigService promptConfigService,
     IDxAiFunctionRegistry functionRegistry,
-    IDxAiFunctionCallRecoveryService functionCallRecovery) : IProviderModelRuntimeService
+    IDxAiFunctionCallRecoveryService functionCallRecovery,
+    IChatSessionContext sessionContext) : IProviderModelRuntimeService
 {
     /// <summary>
     /// Stores the in-memory reference cache collection maintained internally by <see cref="ProviderModelRuntimeService"/> for its current workflow state.
@@ -481,7 +483,8 @@ public sealed class ProviderModelRuntimeService(
                         functionCallRecovery,
                         enableAutomaticTools,
                         throwOnFailure,
-                        automaticFunctionAllowList),
+                        automaticFunctionAllowList,
+                        sessionContext),
                     loggerFactory.CreateLogger($"AI.Ollama.{model.StableId}"));
             }
 

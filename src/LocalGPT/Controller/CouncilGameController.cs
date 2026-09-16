@@ -102,6 +102,30 @@ public sealed class CouncilGameController(
         }
     }
 
+    /// <summary>Ends only one Council game runtime and leaves the surrounding chat/provider session available.</summary>
+    /// <param name="sessionId">Identifier of the game session to end.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The final game snapshot, or 404 when the game is no longer known.</returns>
+    [HttpPost("{sessionId:guid}/end")]
+    public async Task<ActionResult<CouncilGameSessionSnapshot>> End(Guid sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var snapshot = await games.EndAsync(sessionId, "HTTP caller", cancellationToken).ConfigureAwait(false);
+            return snapshot is null ? NotFound() : Ok(snapshot);
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(exception, "Council game end was cancelled for session {GameSessionId}.", sessionId);
+            return Conflict(new { error = "The Council game end was cancelled." });
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Council game end failed for session {GameSessionId}.", sessionId);
+            return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Council game end failed");
+        }
+    }
+
     /// <summary>
     /// Previews control for the council game API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>

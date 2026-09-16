@@ -281,22 +281,8 @@ function createKawaiiSky() {
       const palette = ["white", "white", "white", "lavender", "pink", "blue", "warm"];
       const randomBetween = (minimum, maximum) => minimum + (Math.random() * (maximum - minimum));
 
-      const nebulaPalette = ["pink", "violet", "blue", "warm"];
-      const nebulaCount = compact ? 3 : 5;
-      for (let index = 0; index < nebulaCount; index += 1) {
-        const nebula = document.createElement("span");
-        const tone = nebulaPalette[Math.floor(Math.random() * nebulaPalette.length)];
-        nebula.className = `localgpt-kawaii-nebula localgpt-kawaii-nebula-${tone}`;
-        nebula.style.setProperty("--localgpt-nebula-left", `${randomBetween(-10, 88).toFixed(2)}%`);
-        nebula.style.setProperty("--localgpt-nebula-top", `${randomBetween(-8, 88).toFixed(2)}%`);
-        nebula.style.setProperty("--localgpt-nebula-size", `${randomBetween(compact ? 16 : 22, compact ? 34 : 48).toFixed(2)}rem`);
-        nebula.style.setProperty("--localgpt-nebula-opacity", randomBetween(0.10, compact ? 0.19 : 0.24).toFixed(3));
-        nebula.style.setProperty("--localgpt-nebula-duration", `${randomBetween(38, 82).toFixed(2)}s`);
-        nebula.style.setProperty("--localgpt-nebula-delay", `${-randomBetween(0, 42).toFixed(2)}s`);
-        nebula.style.setProperty("--localgpt-nebula-dx", `${randomBetween(-42, 46).toFixed(1)}px`);
-        nebula.style.setProperty("--localgpt-nebula-dy", `${randomBetween(-30, 34).toFixed(1)}px`);
-        sky.appendChild(nebula);
-      }
+      // Nebula depth is painted by compositor-safe CSS radial gradients. Avoid huge
+      // blur-filter DOM layers here: Chromium can rasterize those as visible square tiles.
 
       for (let index = 0; index < starCount; index += 1) {
         const star = document.createElement("span");
@@ -312,10 +298,10 @@ function createKawaiiSky() {
         star.style.setProperty("--localgpt-star-min-opacity", minimumOpacity.toFixed(3));
         star.style.setProperty("--localgpt-star-max-opacity", maximumOpacity.toFixed(3));
         star.style.setProperty("--localgpt-star-twinkle-duration", `${randomBetween(3.2, 11.5).toFixed(2)}s`);
-        star.style.setProperty("--localgpt-star-drift-duration", `${randomBetween(22, 61).toFixed(2)}s`);
-        star.style.setProperty("--localgpt-star-delay", `${-randomBetween(0, 28).toFixed(2)}s`);
-        star.style.setProperty("--localgpt-star-dx", `${randomBetween(-16, 16).toFixed(1)}px`);
-        star.style.setProperty("--localgpt-star-dy", `${randomBetween(-24, 12).toFixed(1)}px`);
+        star.style.setProperty("--localgpt-star-drift-duration", `${randomBetween(12, 34).toFixed(2)}s`);
+        star.style.setProperty("--localgpt-star-delay", `${-randomBetween(0, 24).toFixed(2)}s`);
+        star.style.setProperty("--localgpt-star-dx", `${randomBetween(-38, 38).toFixed(1)}px`);
+        star.style.setProperty("--localgpt-star-dy", `${randomBetween(-48, 28).toFixed(1)}px`);
         sky.appendChild(star);
       }
 
@@ -329,23 +315,30 @@ function createKawaiiSky() {
         sky.appendChild(planet);
       }
 
-      const satelliteCount = compact ? 1 : 2 + (Math.random() < 0.52 ? 1 : 0);
+      // Satellites are guaranteed rather than probabilistic. On wide screens they live
+      // primarily in the side gutters so the central documentation cards do not hide them.
+      const satelliteCount = compact ? 1 : 2;
       for (let index = 0; index < satelliteCount; index += 1) {
         const satellite = document.createElement("span");
         satellite.className = "localgpt-kawaii-satellite";
-        satellite.style.setProperty("--localgpt-satellite-left", `${randomBetween(8, 90).toFixed(2)}%`);
-        satellite.style.setProperty("--localgpt-satellite-top", `${randomBetween(12, 84).toFixed(2)}%`);
-        satellite.style.setProperty("--localgpt-satellite-scale", randomBetween(0.72, 1.08).toFixed(3));
-        satellite.style.setProperty("--localgpt-satellite-duration", `${randomBetween(38, 68).toFixed(2)}s`);
-        satellite.style.setProperty("--localgpt-satellite-delay", `${-randomBetween(0, 34).toFixed(2)}s`);
-        satellite.style.setProperty("--localgpt-satellite-dx", `${randomBetween(-44, 52).toFixed(1)}px`);
-        satellite.style.setProperty("--localgpt-satellite-dy", `${randomBetween(-26, 30).toFixed(1)}px`);
+        const satelliteLeft = compact
+          ? randomBetween(5, 88)
+          : index % 2 === 0 ? randomBetween(3, 15) : randomBetween(85, 97);
+        satellite.style.setProperty("--localgpt-satellite-left", `${satelliteLeft.toFixed(2)}%`);
+        satellite.style.setProperty("--localgpt-satellite-top", `${randomBetween(14, 78).toFixed(2)}%`);
+        satellite.style.setProperty("--localgpt-satellite-scale", randomBetween(0.92, 1.32).toFixed(3));
+        satellite.style.setProperty("--localgpt-satellite-duration", `${randomBetween(24, 42).toFixed(2)}s`);
+        satellite.style.setProperty("--localgpt-satellite-delay", `${-randomBetween(0, 24).toFixed(2)}s`);
+        const satelliteDx = index % 2 === 0 ? randomBetween(120, 250) : randomBetween(-250, -120);
+        satellite.style.setProperty("--localgpt-satellite-dx", `${satelliteDx.toFixed(1)}px`);
+        satellite.style.setProperty("--localgpt-satellite-dy", `${randomBetween(-84, 84).toFixed(1)}px`);
         satellite.style.setProperty("--localgpt-satellite-rotate", `${randomBetween(-16, 16).toFixed(1)}deg`);
         satellite.innerHTML = '<span class="localgpt-kawaii-satellite-panel localgpt-kawaii-satellite-panel-left"></span><span class="localgpt-kawaii-satellite-body"></span><span class="localgpt-kawaii-satellite-panel localgpt-kawaii-satellite-panel-right"></span>';
         sky.appendChild(satellite);
       }
 
       document.body.prepend(sky);
+      document.documentElement.dataset.localgptDynamicSky = "ready";
   } catch (error) {
     reportDocumentationError('createKawaiiSky', error);
     throw error;
@@ -372,6 +365,22 @@ function decorateBrand() {
   }
 }
 
+function ensureKawaiiPointerOverlay() {
+  try {
+      let overlay = document.querySelector(".localgpt-pointer-overlay");
+      if (overlay instanceof HTMLElement) return overlay;
+      if (!document.body) return null;
+      overlay = document.createElement("div");
+      overlay.className = "localgpt-pointer-overlay";
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.prepend(overlay);
+      return overlay;
+  } catch (error) {
+    reportDocumentationError('ensureKawaiiPointerOverlay', error);
+    throw error;
+  }
+}
+
 let lastKawaiiHoverTarget = null;
 let lastKawaiiHoverAt = 0;
 
@@ -387,6 +396,8 @@ function addKawaiiHoverSprinkle(event) {
       lastKawaiiHoverTarget = target;
       lastKawaiiHoverAt = now;
 
+      const overlay = ensureKawaiiPointerOverlay();
+      if (!overlay) return;
       const rect = target.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
       const icons = ["✦", "⋆", "🐾"];
@@ -405,7 +416,7 @@ function addKawaiiHoverSprinkle(event) {
         sparkle.style.setProperty("--localgpt-hover-dx", `${placement[2]}px`);
         sparkle.style.setProperty("--localgpt-hover-dy", `${placement[3]}px`);
         sparkle.style.setProperty("--localgpt-hover-size", `${0.62 + index * 0.08}rem`);
-        document.body.appendChild(sparkle);
+        overlay.appendChild(sparkle);
         window.setTimeout(() => sparkle.remove(), 900);
       });
   } catch (error) {
@@ -416,6 +427,8 @@ function addKawaiiHoverSprinkle(event) {
 
 function addKawaiiClick(event) {
   try {
+      const overlay = ensureKawaiiPointerOverlay();
+      if (!overlay) return;
       const target = event.target instanceof Element ? event.target.closest("a, button, .nav-link") : null;
       if (target && !prefersReducedMotion()) {
         const pop = document.createElement("span");
@@ -424,7 +437,7 @@ function addKawaiiClick(event) {
         pop.textContent = floaters[Math.floor(Math.random() * floaters.length)];
         pop.style.setProperty("--localgpt-pop-x", `${event.clientX}px`);
         pop.style.setProperty("--localgpt-pop-y", `${event.clientY}px`);
-        document.body.appendChild(pop);
+        overlay.appendChild(pop);
         window.setTimeout(() => pop.remove(), 1000);
       }
 
@@ -434,7 +447,7 @@ function addKawaiiClick(event) {
       scratch.setAttribute("aria-hidden", "true");
       scratch.style.left = `${event.clientX}px`;
       scratch.style.top = `${event.clientY}px`;
-      document.body.appendChild(scratch);
+      overlay.appendChild(scratch);
       window.setTimeout(() => scratch.remove(), 850);
   } catch (error) {
     reportDocumentationError('addKawaiiClick', error);
@@ -444,16 +457,22 @@ function addKawaiiClick(event) {
 
 function ensureCursorCompanion() {
   try {
-      if (!supportsFinePointer() || prefersReducedMotion() || document.querySelector(".localgpt-cursor-paw")) return;
+      if (!supportsFinePointer() || prefersReducedMotion()) return;
+      const overlay = ensureKawaiiPointerOverlay();
+      if (!overlay || overlay.querySelector(".localgpt-cursor-paw")) return;
       const paw = document.createElement("span");
       paw.className = "localgpt-cursor-paw";
       paw.setAttribute("aria-hidden", "true");
       paw.textContent = "🐾";
-      document.body.appendChild(paw);
+      overlay.appendChild(paw);
 
       let lastTrailTime = 0;
       document.addEventListener("pointermove", event => {
-        paw.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`;
+        const x = Math.max(0, Math.min(window.innerWidth - 1, event.clientX));
+        const y = Math.max(0, Math.min(window.innerHeight - 1, event.clientY));
+        paw.style.left = `${x}px`;
+        paw.style.top = `${y}px`;
+        paw.style.opacity = "1";
         const now = Date.now();
         if (now - lastTrailTime < 95) return;
         lastTrailTime = now;
@@ -461,10 +480,10 @@ function ensureCursorCompanion() {
         trail.className = "localgpt-paw-trail";
         trail.setAttribute("aria-hidden", "true");
         trail.textContent = pawTrailIcons[Math.floor(Math.random() * pawTrailIcons.length)];
-        trail.style.left = `${event.clientX}px`;
-        trail.style.top = `${event.clientY}px`;
+        trail.style.left = `${x}px`;
+        trail.style.top = `${y}px`;
         trail.style.setProperty("--localgpt-trail-rotate", `${Math.round(Math.random() * 34 - 17)}deg`);
-        document.body.appendChild(trail);
+        overlay.appendChild(trail);
         window.setTimeout(() => trail.remove(), 1200);
       }, { passive: true });
   } catch (error) {
@@ -481,42 +500,43 @@ function getMermaidTheme() {
 
 async function recoverMermaidDiagrams() {
   try {
-      const rawBlocks = [...document.querySelectorAll("pre > code.lang-mermaid, pre > code.language-mermaid")]
-        .filter(code => code.parentElement && !code.parentElement.querySelector("svg"));
-      const pendingBlocks = [...document.querySelectorAll(".mermaid[data-mermaid]")]
-        .filter(block => !block.querySelector("svg"));
-      if (rawBlocks.length === 0 && pendingBlocks.length === 0) return true;
-      const visible = rawBlocks.some(code => code.parentElement?.offsetParent !== null) || pendingBlocks.some(block => block.offsetParent !== null);
-      if (!visible) return false;
+      // Convert any legacy DocFX code fences into attached Mermaid nodes before Mermaid
+      // measures labels. Rendering detached SVG/HTML labels caused getBoundingClientRect
+      // failures inside embedded documentation iframes.
+      const rawBlocks = [...document.querySelectorAll("pre > code.lang-mermaid, pre > code.language-mermaid")];
+      for (const code of rawBlocks) {
+        const pre = code.parentElement;
+        const source = code.textContent?.trim();
+        if (!pre || !source) continue;
+        const wrapper = document.createElement("div");
+        wrapper.className = `mermaid localgpt-mermaid-diagram`;
+        wrapper.setAttribute("data-localgpt-mermaid-source", source);
+        wrapper.textContent = source;
+        pre.replaceWith(wrapper);
+      }
+
+      const pendingBlocks = [...document.querySelectorAll(".mermaid")]
+        .filter(block => !block.querySelector("svg") && block.getAttribute("data-processed") !== "true");
+      if (pendingBlocks.length === 0) return true;
+
       const themeScript = document.querySelector('script[data-localgpt-kawaii-script]');
       const moduleUrl = new URL("../public/mermaid.core-PFJTYFYY.min.js", themeScript?.src || import.meta.url);
       localgptMermaidModulePromise ??= import(moduleUrl.href);
       const mermaid = (await localgptMermaidModulePromise).default;
       if (!mermaid?.initialize || !mermaid?.run) throw new Error("DocFX Mermaid renderer is unavailable.");
-      mermaid.initialize({ startOnLoad: false, theme: getMermaidTheme() });
-      const nodes = [];
-      for (const code of rawBlocks) {
-        const block = code.parentElement;
-        if (!block || block.offsetParent === null) continue;
-        const source = code.textContent?.trim();
-        if (!source) continue;
-        block.classList.add("mermaid");
-        block.setAttribute("data-mermaid", source);
-        block.removeAttribute("data-processed");
-        block.textContent = source;
-        nodes.push(block);
-      }
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: getMermaidTheme(),
+        securityLevel: "strict",
+        flowchart: { htmlLabels: false }
+      });
+
+      await mermaid.run({ nodes: pendingBlocks, suppressErrors: false });
       for (const block of pendingBlocks) {
-        if (block.offsetParent === null || nodes.includes(block)) continue;
-        const source = block.getAttribute("data-mermaid")?.trim();
-        if (!source) continue;
-        block.removeAttribute("data-processed");
-        block.textContent = source;
-        nodes.push(block);
+        block.classList.add("localgpt-mermaid-diagram");
+        if (block.querySelector("svg")) block.setAttribute("data-localgpt-mermaid-rendered", "true");
       }
-      if (nodes.length > 0) await mermaid.run({ nodes });
-      return ![...document.querySelectorAll("pre > code.lang-mermaid, pre > code.language-mermaid")]
-        .some(code => code.parentElement?.offsetParent !== null);
+      return pendingBlocks.every(block => block.querySelector("svg"));
   } catch (error) {
     console.warn("LocalGPT documentation Mermaid recovery could not render yet.", error);
     return false;
@@ -526,23 +546,24 @@ async function recoverMermaidDiagrams() {
 function scheduleMermaidRecovery() {
   if (document.documentElement.dataset.localgptMermaidRecoveryScheduled === "true") return;
   document.documentElement.dataset.localgptMermaidRecoveryScheduled = "true";
-  let attempts = 0;
+  const retryDelays = [0, 300, 900, 1800];
+  let attempt = 0;
   let running = false;
+
   const retry = async () => {
-    if (running) return;
+    if (running || attempt >= retryDelays.length) return;
     running = true;
     try {
-      attempts += 1;
       const complete = await recoverMermaidDiagrams();
-      if (complete || attempts >= 60) window.clearInterval(timer);
-    } finally { running = false; }
+      attempt += 1;
+      if (!complete && attempt < retryDelays.length)
+        window.setTimeout(() => void retry(), retryDelays[attempt]);
+    } finally {
+      running = false;
+    }
   };
-  const timer = window.setInterval(() => void retry(), 500);
-  void retry();
-  window.addEventListener("pageshow", () => void retry(), { passive: true });
-  window.addEventListener("focus", () => void retry(), { passive: true });
-  window.addEventListener("resize", () => void retry(), { passive: true });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) void retry(); }, { passive: true });
+
+  window.setTimeout(() => void retry(), retryDelays[0]);
 }
 
 function startKawaiiDocumentation() {

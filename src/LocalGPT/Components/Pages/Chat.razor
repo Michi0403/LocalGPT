@@ -60,6 +60,12 @@
                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                       IconCssClass="oi oi-monitor"
                       Click="ToggleGameConsoleAsync" />
+            <DxButton Text="@(AsciiFunModeEnabled ? "Contextual ASCII fun: ON" : "Contextual ASCII fun: OFF")"
+                      CssClass="@AsciiFunButtonCssClass"
+                      RenderStyle="@(AsciiFunModeEnabled ? ButtonRenderStyle.Primary : ButtonRenderStyle.Secondary)"
+                      RenderStyleMode="@(AsciiFunModeEnabled ? ButtonRenderStyleMode.Contained : ButtonRenderStyleMode.Outline)"
+                      IconCssClass="oi oi-sparkles"
+                      Click="ToggleAsciiFunModeAsync" />
         </div>
         <details class="chat-configuration-ribbon" data-testid="chat-configuration-ribbon">
             <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation." @onclick="OnChatConfigurationSummaryClickedAsync">
@@ -562,6 +568,7 @@
         {
             <section class="chat-game-ribbon" aria-label="Optional ASCII game console">
                 <ChatGameConsole ConversationId="@ActiveConversationId"
+                                 CouncilRunId="@(AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? SelectedCouncilRunId)"
                                  SuggestedTeamKey="@SelectedCouncilTeamKey"
                                  ConversationMessages="@AsciiConversationMessages"
                                  CouncilParticipantActivities="@AsciiCouncilParticipantActivities"
@@ -737,6 +744,13 @@
                                 NullText="Performance preset" />
                 </DxFormLayoutItem>
             </DxFormLayout>
+            @if (string.Equals(SelectedCouncilTeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase))
+            {
+                <div class="chat-game-latency-hint" role="status">
+                    <span><strong>ASCII hot-seat:</strong> two distinct AI runtime roles are used. Smaller responsive models make each turn noticeably faster; the selected hardware performance profile still controls matching provider/model roads.</span>
+                    <button type="button" class="btn btn-sm btn-outline-success" @onclick="ApplyReactiveAsciiGameplayPresetAsync">Use Reactive ASCII Gameplay preset</button>
+                </div>
+            }
         </div>
         <details class="chat-session-tools-ribbon" data-testid="chat-session-tools-ribbon">
             <summary>

@@ -160,6 +160,8 @@ namespace LocalGPT.Components.Pages
         {
             ApplyDiagnosticQueryOptions(selectSession: true);
             var initialMessages = ChatClientProvider?.SelectedSession?.Messages?.ToList() ?? [];
+            canonicalConversationMessages.Clear();
+            canonicalConversationMessages.AddRange(initialMessages);
             var explicitRejoinRequested = RejoinCouncilRunId is not null;
             var initialMessagesLoaded = false;
             if (!explicitRejoinRequested && initialMessages.Count > 0)
@@ -218,7 +220,9 @@ namespace LocalGPT.Components.Pages
                 return;
 
             await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
-            ChatClientProvider.SelectedSession.Messages.Clear();
+            foreach (var session in ChatClientProvider.AvailableChatClients)
+                session.Messages.Clear();
+            canonicalConversationMessages.Clear();
             ActiveConversationId = null;
             SessionContext.SetConversation(null);
             SelectedConversation = null;
@@ -417,8 +421,14 @@ namespace LocalGPT.Components.Pages
                 lastAttachedLiveCouncilUpdatedAtUtc = default;
             }
 
-            if (ReuseContextWhenSwitching && value.Messages.Count == 0 && currentMessages.Count > 0)
-                value.Messages.AddRange(currentMessages);
+            if (ReuseContextWhenSwitching)
+            {
+                var canonical = currentMessages.Count > 0 ? currentMessages : canonicalConversationMessages;
+                value.Messages.Clear();
+                value.Messages.AddRange(canonical);
+                canonicalConversationMessages.Clear();
+                canonicalConversationMessages.AddRange(canonical);
+            }
 
             DxAiChat.LoadMessages(value.Messages);
         }

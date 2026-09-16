@@ -492,3 +492,106 @@
     place-content: safe start center;
     overflow: auto;
 }
+
+/* v4.3.4: keep gameplay visually stable and make Council hot-seat input part of the ASCII surface. */
+.chat-game-runtime-badge {
+    align-self: center;
+    border: 1px solid rgba(102,255,130,.4);
+    border-radius: 999px;
+    padding: .38rem .65rem;
+    color: #a8ffb5;
+    background: #06150a;
+    font-size: .78rem;
+    white-space: nowrap;
+}
+
+.chat-game-stage,
+.chat-game-screen-viewport {
+    overscroll-behavior: contain;
+}
+
+.chat-game-screen-viewport {
+    block-size: 100%;
+    max-block-size: 100%;
+}
+
+.chat-game-hotseat-card,
+.chat-game-restart-card {
+    min-height: 100%;
+    justify-content: flex-start;
+}
+
+.chat-game-hotseat-heading {
+    display: flex;
+    flex-direction: column;
+    gap: .12rem;
+}
+
+.chat-game-hotseat-heading span,
+.chat-game-restart-card > span {
+    color: var(--bs-secondary-color);
+    font-size: .78rem;
+}
+
+.chat-game-hotseat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .35rem;
+}
+
+.chat-game-hotseat-grid button,
+.chat-game-hotseat-dash button,
+.chat-game-restart-actions button,
+.chat-game-hotseat-text button,
+.chat-game-scenario-row button,
+.chat-game-hotseat-text input,
+.chat-game-scenario-row textarea {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .45rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    padding: .42rem .55rem;
+}
+
+.chat-game-hotseat-grid button[aria-disabled="true"],
+.chat-game-hotseat-dash button[aria-disabled="true"] {
+    opacity: .55;
+    pointer-events: none;
+}
+
+.chat-game-hotseat-dash,
+.chat-game-restart-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .35rem;
+}
+
+.chat-game-hotseat-text,
+.chat-game-scenario-row {
+    display: grid;
+    gap: .3rem;
+}
+
+.chat-game-hotseat-text > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .35rem;
+}
+
+.chat-game-hotseat-text input,
+.chat-game-scenario-row textarea {
+    width: 100%;
+    min-width: 0;
+    font-family: "Cascadia Mono","Consolas","DejaVu Sans Mono",monospace;
+}
+
+.chat-game-scenario-row textarea {
+    resize: vertical;
+    max-height: 9rem;
+}
+
+@media (max-width: 760px) {
+    .chat-game-stage {
+        height: clamp(22rem, 62dvh, 42rem);
+    }
+}

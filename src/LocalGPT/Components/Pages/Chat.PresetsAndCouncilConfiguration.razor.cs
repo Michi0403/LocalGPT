@@ -368,6 +368,21 @@ namespace LocalGPT.Components.Pages
     private Task OnQuickModelPresetChangedAsync(CouncilModelPreset? preset) =>
         OnModelPresetChangedAsync(new ChangeEventArgs { Value = preset?.Id.ToString() ?? string.Empty });
 
+    /// <summary>Applies the built-in low-latency ASCII gameplay preset without changing the selected Council team or hardware-performance profile.</summary>
+    /// <returns>A task that completes after the normal shared preset application path has run.</returns>
+    private async Task ApplyReactiveAsciiGameplayPresetAsync()
+    {
+        var preset = ModelPresets.FirstOrDefault(item => string.Equals(item.Name, "Reactive ASCII Gameplay", StringComparison.OrdinalIgnoreCase));
+        if (preset is null)
+        {
+            modelStatus = "Reactive ASCII Gameplay preset is not available yet; refresh model presets or use the current manual selection.";
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            return;
+        }
+
+        await OnQuickModelPresetChangedAsync(preset).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Applies model preset for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>

@@ -141,6 +141,8 @@ namespace LocalGPT.Components.Pages
     bool showGameConsole;
     /// <summary>Stores whether contextual/random ASCII fun is enabled for the current chat.</summary>
     bool asciiFunModeEnabled;
+    /// <summary>Stores the canonical conversation transcript independently of the currently selected provider session.</summary>
+    readonly List<BlazorChatMessage> canonicalConversationMessages = [];
     /// <summary>Stores the bounded replay snapshot mirrored into the ASCII terminal while it is open.</summary>
     /// <value>The canonical chat-message snapshot currently rendered by the ASCII presentation.</value>
     List<BlazorChatMessage> AsciiConversationMessages { get; set; } = [];
@@ -155,6 +157,11 @@ namespace LocalGPT.Components.Pages
     /// Gets or sets a value indicating whether contextual/random ASCII fun is enabled for the active chat.
     /// </summary>
     /// <value><c>true</c> when models may optionally add bounded ASCII art or animation content while the terminal is open.</value>
+    /// <summary>Gets the complete CSS class value for the contextual ASCII fun action without mixing Razor markup inside a component attribute.</summary>
+    private string AsciiFunButtonCssClass => AsciiFunModeEnabled
+        ? "localgpt-rounded-action localgpt-action-primary"
+        : "localgpt-rounded-action localgpt-action-neutral";
+
     bool AsciiFunModeEnabled
     {
         get => asciiFunModeEnabled;
@@ -983,9 +990,15 @@ namespace LocalGPT.Components.Pages
 
 
 
-    /// <summary>
-    /// Toggles the shared ASCII terminal while preserving the canonical DXAiChat conversation as the single source of truth.
-    /// </summary>
+    /// <summary>Toggles contextual ASCII creativity for subsequent chat/model turns without opening or closing the terminal.</summary>
+    /// <returns>A task that completes after the updated fun-mode state is rendered.</returns>
+    private Task ToggleAsciiFunModeAsync()
+    {
+        AsciiFunModeEnabled = !AsciiFunModeEnabled;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Toggles the shared ASCII terminal while preserving the canonical DXAiChat conversation as the single source of truth.</summary>
     /// <returns>A task that completes after the newest chat snapshot has been mirrored when opening the terminal.</returns>
     private async Task ToggleGameConsoleAsync()
     {

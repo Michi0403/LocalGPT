@@ -78,6 +78,9 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             ArgumentNullException.ThrowIfNull(request);
             cancellationToken.ThrowIfCancellationRequested();
             var gameKey = NormalizeGameKey(request.GameKey);
+            var scenarioPrompt = string.Join(' ', (request.ScenarioPrompt ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+            if (scenarioPrompt.Length > 240)
+                scenarioPrompt = scenarioPrompt[..240];
             var session = new CouncilGameSessionState
             {
                 Id = Guid.NewGuid(),
@@ -86,19 +89,23 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 ConversationId = request.ConversationId,
                 DisplayName = gameKey == "green-dragon" ? "Green Dragon Runtime Story" : "ASCII corridor action game",
                 ControlMode = request.ControlMode,
-                AutoplayEnabled = request.AutoplayEnabled || request.ControlMode == CouncilGameControlMode.Ai,
+                AutoplayEnabled = request.ControlMode == CouncilGameControlMode.Ai,
                 AutoplayDelayMilliseconds = NormalizeAutoplayDelay(request.AutoplayDelayMilliseconds),
                 HumanInputRequired = request.ControlMode != CouncilGameControlMode.Ai,
                 InputReason = request.ControlMode == CouncilGameControlMode.Ai
                     ? "AI hunter owns the next map-aware control step."
-                    : "Your turn: use the same controls that the optional AI hunter receives.",
-                CurrentTurnOwner = request.ControlMode == CouncilGameControlMode.Ai ? "AI Hunter" : "Human Player",
+                    : request.ControlMode == CouncilGameControlMode.Shared
+                        ? "Human and AI players may submit direct bounded controls to the same authoritative turn; background autoplay is off."
+                        : "Your turn: use the shared controls; AI-origin movement is locked out.",
+                CurrentTurnOwner = request.ControlMode == CouncilGameControlMode.Ai ? "AI Hunter" : request.ControlMode == CouncilGameControlMode.Shared ? "Human / AI" : "Human Player",
                 DirectorMode = request.DirectorMode,
                 GameDirectorModelName = request.GameDirectorModelName?.Trim() ?? string.Empty,
                 CreatureDirectorCount = Math.Clamp(request.CreatureDirectorCount, 1, 8),
                 LastDirectorDecision = "The GameDirector owns all state transitions; controllers may only submit proposals.",
                 FrameWidth = Math.Clamp(request.FrameWidth, 20, 240),
                 FrameHeight = Math.Clamp(request.FrameHeight, 8, 100),
+                MapSeed = request.MapSeed is > 0 ? request.MapSeed.Value : 0,
+                ScenarioPrompt = scenarioPrompt,
                 LastActionBy = string.IsNullOrWhiteSpace(request.StartedBy) ? "Human User" : request.StartedBy.Trim(),
                 PlayerX = gameKey == "green-dragon" ? 4 : 3,
                 PlayerY = gameKey == "green-dragon" ? 4 : 3,
@@ -185,6 +192,47 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         catch (Exception exception)
         {
             logger.LogError(exception, "Reading the active Council game session failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Ends only the game runtime, preserving the surrounding chat, provider/Council sessions and ASCII terminal surface.</summary>
+    /// <param name="sessionId">Identifier of the game session to end.</param>
+    /// <param name="endedBy">Bounded actor label recorded for diagnostics and the final snapshot.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The final game snapshot, or <c>null</c> when the requested game no longer exists.</returns>
+    public Task<CouncilGameSessionSnapshot?> EndAsync(Guid sessionId, string endedBy = "Current User", CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ThrowIfDisposed();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!sessions.TryGetValue(sessionId, out var session))
+                return Task.FromResult<CouncilGameSessionSnapshot?>(null);
+            lock (session.SyncRoot)
+            {
+                session.Status = "Completed";
+                session.AutoplayEnabled = false;
+                session.HumanInputRequired = false;
+                session.CurrentTurnOwner = "Game ended";
+                session.InputReason = "The ASCII game ended; chat, Council/provider sessions and the terminal remain available.";
+                session.LastAction = "end-game";
+                session.LastActionBy = string.IsNullOrWhiteSpace(endedBy) ? "Current User" : endedBy.Trim();
+                session.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            StopAutoplayLoop(sessionId);
+            Notify(sessionId);
+            logger.LogInformation("Ended Council game session {GameSessionId} without closing its surrounding chat/provider session.", sessionId);
+            return Task.FromResult<CouncilGameSessionSnapshot?>(ToSnapshot(session));
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(exception, "Ending Council game session {GameSessionId} was cancelled.", sessionId);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Ending Council game session {GameSessionId} failed.", sessionId);
             throw;
         }
     }
@@ -327,9 +375,11 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 }
                 else if (session.Status == "Running")
                 {
-                    session.CurrentTurnOwner = "Human Player";
+                    session.CurrentTurnOwner = session.ControlMode == CouncilGameControlMode.Shared ? "Human / AI" : "Human Player";
                     session.HumanInputRequired = true;
-                    session.InputReason = "Your turn: controls submit proposals to the GameDirector.";
+                    session.InputReason = session.ControlMode == CouncilGameControlMode.Shared
+                        ? "Human and AI players may submit the next direct proposal; there is no background autoplay in Shared mode."
+                        : "Your turn: controls submit proposals to the GameDirector.";
                 }
             }
 
@@ -485,14 +535,14 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             lock (session.SyncRoot)
             {
                 session.ControlMode = mode;
-                session.AutoplayEnabled = autoplayEnabled || mode == CouncilGameControlMode.Ai;
+                session.AutoplayEnabled = mode == CouncilGameControlMode.Ai;
                 session.AutoplayDelayMilliseconds = NormalizeAutoplayDelay(autoplayDelayMilliseconds);
                 session.HumanInputRequired = mode != CouncilGameControlMode.Ai;
-                session.CurrentTurnOwner = mode == CouncilGameControlMode.Ai ? "AI Hunter" : "Human Player";
+                session.CurrentTurnOwner = mode == CouncilGameControlMode.Ai ? "AI Hunter" : mode == CouncilGameControlMode.Shared ? "Human / AI" : "Human Player";
                 session.InputReason = mode == CouncilGameControlMode.Ai
                     ? "AI hunter uses deterministic map-aware pathfinding through the same bounded control contract as the user."
                     : mode == CouncilGameControlMode.Shared
-                        ? "Human controls remain active while optional AI hunter autoplay shares the same authoritative map."
+                        ? "Human and AI direct controls share the authoritative game turn; background autoplay remains off."
                         : "Your turn: keyboard, touch and gamepad actions use the shared control contract; AI-origin movement is rejected.";
                 session.UpdatedAtUtc = DateTime.UtcNow;
             }

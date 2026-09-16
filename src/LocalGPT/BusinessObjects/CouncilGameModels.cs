@@ -46,7 +46,7 @@ public sealed class StartCouncilGameRequest
     /// Gets or sets the control mode value that forms part of the start council game state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The control mode value exposed by <see cref="StartCouncilGameRequest"/>.</value>
-    public CouncilGameControlMode ControlMode { get; set; } = CouncilGameControlMode.Human;
+    public CouncilGameControlMode ControlMode { get; set; } = CouncilGameControlMode.Shared;
     /// <summary>
     /// Gets or sets a value indicating whether autoplay enabled applies to the start council game state.
     /// </summary>
@@ -76,6 +76,10 @@ public sealed class StartCouncilGameRequest
     public int FrameWidth { get; set; } = 80;
     /// <summary>Gets or sets the requested terminal-cell display height.</summary>
     public int FrameHeight { get; set; } = 25;
+    /// <summary>Gets or sets an optional deterministic map seed. Zero or null lets LocalGPT derive a fresh seed.</summary>
+    public int? MapSeed { get; set; }
+    /// <summary>Gets or sets an optional bounded scenario description used to name and deterministically vary a fresh ASCII corridor map.</summary>
+    public string ScenarioPrompt { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the started by value that forms part of the start council game state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -191,7 +195,7 @@ public sealed class SetCouncilGameControlModeRequest
     /// Gets or sets the control mode value that forms part of the set council game control mode state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The control mode value exposed by <see cref="SetCouncilGameControlModeRequest"/>.</value>
-    public CouncilGameControlMode ControlMode { get; set; } = CouncilGameControlMode.Human;
+    public CouncilGameControlMode ControlMode { get; set; } = CouncilGameControlMode.Shared;
     /// <summary>
     /// Gets or sets a value indicating whether autoplay enabled applies to the set council game control mode state.
     /// </summary>
@@ -460,6 +464,8 @@ public sealed class CouncilGameSessionSnapshot
     public IReadOnlyList<string> WorldMap { get; set; } = [];
     /// <summary>Gets or sets the deterministic map seed.</summary>
     public int MapSeed { get; set; }
+    /// <summary>Gets or sets the bounded scenario description associated with this game.</summary>
+    public string ScenarioPrompt { get; set; } = string.Empty;
     /// <summary>Gets or sets the extraction x coordinate.</summary>
     public int ExtractionX { get; set; }
     /// <summary>Gets or sets the extraction y coordinate.</summary>
@@ -693,6 +699,8 @@ public sealed class CouncilGameSessionState
     public List<string> WorldMap { get; set; } = [];
     /// <summary>Gets or sets the deterministic map seed.</summary>
     public int MapSeed { get; set; }
+    /// <summary>Gets or sets the bounded scenario description associated with this game.</summary>
+    public string ScenarioPrompt { get; set; } = string.Empty;
     /// <summary>Gets or sets the extraction x coordinate.</summary>
     public int ExtractionX { get; set; }
     /// <summary>Gets or sets the extraction y coordinate.</summary>

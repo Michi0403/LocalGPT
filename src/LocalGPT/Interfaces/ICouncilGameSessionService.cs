@@ -42,6 +42,16 @@ public interface ICouncilGameSessionService
         Guid? conversationId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Ends the game runtime only, leaving the owning chat, Council/provider sessions and terminal surface available.</summary>
+    /// <param name="sessionId">Identifier of the game session to end.</param>
+    /// <param name="endedBy">Bounded actor label recorded as the last game-session action owner.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The ended game snapshot, or <c>null</c> when the session no longer exists.</returns>
+    Task<CouncilGameSessionSnapshot?> EndAsync(
+        Guid sessionId,
+        string endedBy = "Current User",
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Performs list as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

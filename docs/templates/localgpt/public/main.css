@@ -1245,7 +1245,7 @@ html.localgpt-kawaii-docs .localgpt-kawaii-pop {
   font-size: 1.15rem;
   left: var(--localgpt-pop-x);
   pointer-events: none;
-  position: fixed;
+  position: absolute;
   top: var(--localgpt-pop-y);
   z-index: 9999;
 }
@@ -1791,23 +1791,38 @@ html.localgpt-kawaii-docs .navbar .localgpt-heart-glimmer {
   75% { transform: translateY(-1px) scale(1.05); opacity: 1; }
 }
 
+html.localgpt-kawaii-docs .localgpt-pointer-overlay {
+  contain: strict;
+  height: 100vh;
+  inset: 0;
+  max-height: 100vh;
+  max-width: 100vw;
+  overflow: hidden;
+  overflow: clip;
+  pointer-events: none;
+  position: fixed !important;
+  width: 100vw;
+  z-index: 2147483644 !important;
+}
+
 html.localgpt-kawaii-docs .localgpt-cursor-paw,
 html.localgpt-kawaii-docs .localgpt-paw-trail,
 html.localgpt-kawaii-docs .localgpt-cat-scratch {
   font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
   pointer-events: none;
-  position: fixed;
+  position: absolute;
   user-select: none;
-  z-index: 2147483646;
+  z-index: 2;
 }
 
 html.localgpt-kawaii-docs .localgpt-cursor-paw {
   filter: drop-shadow(0 .15rem .35rem rgba(102, 19, 76, .25));
   font-size: 1.25rem;
   left: 0;
+  opacity: 0;
   top: 0;
-  transform: translate(-100px, -100px);
-  transition: transform .06s linear;
+  transform: translate(-.12rem, -.12rem);
+  transition: none;
 }
 
 html.localgpt-kawaii-docs .localgpt-paw-trail {
@@ -2326,7 +2341,7 @@ html.localgpt-kawaii-docs .localgpt-doc-card > :last-child { margin-bottom: 0; }
     left: 0;
     opacity: 0;
     pointer-events: none;
-    position: fixed;
+    position: absolute;
     top: 0;
     transform: translate(-50%, -50%);
     user-select: none;
@@ -2703,3 +2718,156 @@ html.localgpt-kawaii-docs :is(.toc-offcanvas,.offcanvas,.offcanvas-body,.sidefil
 }
 @media (prefers-reduced-motion:reduce) { .localgpt-kawaii-nebula { animation:none !important; } }
 
+
+
+/* 4.3.3: starfield stacking, non-tiled fallback sky, glass and Mermaid recovery. */
+html.localgpt-kawaii-docs body { isolation: isolate; }
+html.localgpt-kawaii-docs body::before {
+  animation: none !important;
+  background-image:
+    radial-gradient(circle at 6% 14%, rgba(255,255,255,.96) 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 13% 37%, rgba(222,188,255,.88) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 21% 72%, rgba(255,215,237,.84) 0 1.1px, transparent 1.8px),
+    radial-gradient(circle at 29% 23%, rgba(183,217,255,.92) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 36% 55%, rgba(255,240,184,.82) 0 1.15px, transparent 1.8px),
+    radial-gradient(circle at 43% 9%, rgba(255,255,255,.90) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 51% 41%, rgba(241,196,255,.86) 0 1.25px, transparent 1.9px),
+    radial-gradient(circle at 58% 81%, rgba(255,255,255,.94) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 64% 29%, rgba(255,186,226,.88) 0 1.1px, transparent 1.8px),
+    radial-gradient(circle at 72% 63%, rgba(184,216,255,.90) 0 1.15px, transparent 1.8px),
+    radial-gradient(circle at 79% 12%, rgba(255,232,171,.84) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 87% 46%, rgba(255,255,255,.96) 0 1.25px, transparent 1.9px),
+    radial-gradient(circle at 94% 76%, rgba(222,188,255,.92) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 10% 88%, rgba(255,255,255,.78) 0 .8px, transparent 1.4px),
+    radial-gradient(circle at 33% 91%, rgba(255,207,235,.76) 0 .85px, transparent 1.45px),
+    radial-gradient(circle at 69% 91%, rgba(210,226,255,.80) 0 .9px, transparent 1.5px),
+    radial-gradient(circle at 91% 22%, rgba(255,255,255,.84) 0 .8px, transparent 1.45px) !important;
+  content: "";
+  display: block !important;
+  inset: 0;
+  opacity: .58 !important;
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
+}
+html.localgpt-kawaii-docs[data-bs-theme="dark"] body::before { opacity: .72 !important; }
+html.localgpt-kawaii-docs body::after {
+  animation: none !important;
+  background-image:
+    radial-gradient(ellipse at 18% 18%, rgba(210,98,255,.12), transparent 32%),
+    radial-gradient(ellipse at 82% 24%, rgba(255,102,190,.10), transparent 30%),
+    radial-gradient(ellipse at 56% 82%, rgba(91,144,255,.09), transparent 34%) !important;
+  content: "";
+  display: block !important;
+  inset: 0;
+  opacity: 1 !important;
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
+}
+.localgpt-kawaii-sky { opacity: 1 !important; z-index: 1 !important; }
+html.localgpt-kawaii-docs body > :not(.localgpt-kawaii-sky):not(.localgpt-pointer-overlay) { position: relative; z-index: 2; }
+html.localgpt-kawaii-docs {
+  --localgpt-site-shell: rgba(255, 241, 250, .44);
+  --localgpt-site-shell-strong: rgba(255, 249, 253, .62);
+  --localgpt-site-surface: linear-gradient(160deg, rgba(255,255,255,.48), rgba(255,239,249,.53));
+  --localgpt-site-surface-soft: rgba(255, 248, 253, .38);
+  --localgpt-panel-glass: rgba(255, 250, 253, .42);
+}
+html.localgpt-kawaii-docs[data-bs-theme="dark"] {
+  --localgpt-site-shell: rgba(43, 27, 48, .40);
+  --localgpt-site-shell-strong: rgba(52, 32, 57, .56);
+  --localgpt-site-surface: linear-gradient(160deg, rgba(62,39,66,.43), rgba(45,31,57,.49));
+  --localgpt-site-surface-soft: rgba(58, 38, 65, .38);
+  --localgpt-panel-glass: rgba(55, 36, 62, .36);
+  --localgpt-dark-card-top: rgba(72, 45, 78, .43);
+  --localgpt-dark-card-bottom: rgba(45, 32, 59, .48);
+}
+html.localgpt-kawaii-docs .localgpt-mermaid-diagram {
+  background: var(--localgpt-panel-glass) !important;
+  border: 1px solid var(--localgpt-site-border);
+  border-radius: .9rem;
+  box-shadow: 0 .55rem 1.45rem rgba(46,22,61,.12);
+  margin: 1.1rem 0 1.35rem;
+  overflow: auto;
+  padding: .9rem;
+}
+html.localgpt-kawaii-docs .localgpt-mermaid-diagram svg { display: block; height: auto !important; margin: 0 auto; max-width: 100% !important; }
+@media (prefers-reduced-motion: reduce) {
+  html.localgpt-kawaii-docs body::before,
+  html.localgpt-kawaii-docs body::after { animation: none !important; }
+}
+@media print {
+  html.localgpt-kawaii-docs body::before,
+  html.localgpt-kawaii-docs body::after,
+  .localgpt-kawaii-sky { display: none !important; }
+}
+
+/* 4.3.4: compositor-safe dynamic sky handoff and bounded viewport effects. */
+.localgpt-kawaii-sky {
+  contain: strict !important;
+  height: 100dvh !important;
+  inset: 0 !important;
+  max-height: 100dvh !important;
+  max-width: 100vw !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100vw !important;
+}
+.localgpt-kawaii-nebula { display: none !important; filter: none !important; }
+html.localgpt-kawaii-docs[data-localgpt-dynamic-sky="ready"] body::before {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+html.localgpt-kawaii-docs body::after {
+  background-image:
+    radial-gradient(ellipse at 16% 16%, rgba(210,98,255,.13), transparent 31%),
+    radial-gradient(ellipse at 84% 22%, rgba(255,102,190,.11), transparent 29%),
+    radial-gradient(ellipse at 54% 84%, rgba(91,144,255,.10), transparent 34%) !important;
+  filter: none !important;
+  transform: none !important;
+}
+html.localgpt-kawaii-docs :is(.toc-offcanvas,.offcanvas,.offcanvas-body,.sidefilter,.sidetoc,.affix,.sideaffix,article,.localgpt-doc-card,article .card,article details,article .tabGroup > section,article .tab-pane,article [role="tabpanel"]) {
+  backdrop-filter: blur(12px) saturate(1.12) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.12) !important;
+}
+
+
+/* 4.3.5: artifact-free star sky. Keep glass through alpha surfaces, not GPU backdrop tiles. */
+html.localgpt-kawaii-docs body {
+  background: linear-gradient(155deg, #f8e7f2 0%, #eadff6 48%, #dce8f7 100%) !important;
+}
+html.localgpt-kawaii-docs[data-bs-theme="dark"] body {
+  background: linear-gradient(155deg, #120b18 0%, #21142a 48%, #111a2b 100%) !important;
+}
+html.localgpt-kawaii-docs body::after {
+  background: none !important;
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+}
+html.localgpt-kawaii-docs :is(.toc-offcanvas,.offcanvas,.offcanvas-body,.sidefilter,.sidetoc,.affix,.sideaffix,article,.localgpt-doc-card,article .card,article details,article .tabGroup > section,article .tab-pane,article [role="tabpanel"]) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* Disable backdrop compositing across the documentation shell. Alpha surfaces still provide the glass appearance. */
+html.localgpt-kawaii-docs :where(*) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.localgpt-kawaii-star { filter: none !important; }
+.localgpt-kawaii-satellite {
+  filter: none !important;
+  opacity: .78;
+  will-change: transform, opacity;
+}
+@keyframes localgpt-kawaii-star-pulse {
+  0%, 100% { opacity: var(--localgpt-star-min-opacity, .18); }
+  42% { opacity: var(--localgpt-star-max-opacity, .78); }
+  68% { opacity: calc(var(--localgpt-star-max-opacity, .78) * .92); }
+}
+@keyframes localgpt-kawaii-satellite-orbit {
+  0% { opacity: .62; transform: translate3d(0,0,0) rotate(var(--localgpt-satellite-rotate, 0deg)) scale(var(--localgpt-satellite-scale, 1)); }
+  46% { opacity: .94; }
+  100% { opacity: .72; transform: translate3d(var(--localgpt-satellite-dx, 150px), var(--localgpt-satellite-dy, -50px), 0) rotate(calc(var(--localgpt-satellite-rotate, 0deg) + 10deg)) scale(var(--localgpt-satellite-scale, 1)); }
+}

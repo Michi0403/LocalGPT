@@ -257,10 +257,10 @@ public sealed class AiProviderConfigurationRegistryService(
             string primaryEndpoint;
             if (!string.IsNullOrWhiteSpace(explicitPrimary) && registry.ContainsKey(explicitPrimary))
                 primaryEndpoint = explicitPrimary;
-            else if (!string.IsNullOrWhiteSpace(persistedPrimaryEndpoint) && registry.ContainsKey(persistedPrimaryEndpoint))
-                primaryEndpoint = persistedPrimaryEndpoint;
             else if (!string.IsNullOrWhiteSpace(draftPrimaryEndpoint) && registry.ContainsKey(draftPrimaryEndpoint))
                 primaryEndpoint = draftPrimaryEndpoint;
+            else if (!string.IsNullOrWhiteSpace(persistedPrimaryEndpoint) && registry.ContainsKey(persistedPrimaryEndpoint))
+                primaryEndpoint = persistedPrimaryEndpoint;
             else
                 primaryEndpoint = order.FirstOrDefault() ?? string.Empty;
 

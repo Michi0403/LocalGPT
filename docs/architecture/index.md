@@ -13,7 +13,7 @@ LocalGPT is a modular monolith: one deployable local application with explicit s
 
 ## Dependency direction
 
-```
+<div class="mermaid localgpt-mermaid-diagram">
 flowchart TD
     UI[Components and controllers] --> SVC[Application services]
     SVC --> CONTRACTS[Interfaces and business contracts]
@@ -21,7 +21,7 @@ flowchart TD
     ADAPTERS --> EXT[External runtimes and devices]
     SVC --> DATA[EF Core persistence]
     DATA --> DB[(SQLite)]
-```
+</div>
 
 Components coordinate user interaction. Services own operations. Adapters own protocol details. Persistence owns durable state. Static helpers may format or parse immutable data, but application-owned mutable state belongs to scoped, singleton, or hosted services with explicit lifetimes.
 

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Services;
@@ -12,7 +14,12 @@ public sealed partial class CouncilGameSessionService
             ArgumentNullException.ThrowIfNull(session);
             const int width = 32;
             const int height = 20;
-            var seed = BitConverter.ToInt32(session.Id.ToByteArray(), 0) & int.MaxValue;
+            var seed = session.MapSeed > 0
+                ? session.MapSeed
+                : !string.IsNullOrWhiteSpace(session.ScenarioPrompt)
+                    ? BitConverter.ToInt32(SHA256.HashData(Encoding.UTF8.GetBytes(session.ScenarioPrompt)), 0) & int.MaxValue
+                    : BitConverter.ToInt32(session.Id.ToByteArray(), 0) & int.MaxValue;
+            seed = Math.Max(1, seed);
             var random = new Random(seed);
             var cells = Enumerable.Range(0, height)
                 .Select(_ => Enumerable.Repeat('#', width).ToArray())
@@ -49,7 +56,9 @@ public sealed partial class CouncilGameSessionService
                 BuildEnemyState("grunt-gamma", "Grunt Gamma", "G", centers[2].X, centers[2].Y, 90, 6),
                 BuildEnemyState("brute-delta", "Brute Delta", "B", centers[3].X, centers[3].Y, 140, 9)
             ];
-            session.CombatMessage = "CONTACT: Grunt Alpha is directly ahead. Clear hostiles, then reach X extraction.";
+            session.CombatMessage = string.IsNullOrWhiteSpace(session.ScenarioPrompt)
+                ? "CONTACT: Grunt Alpha is directly ahead. Clear hostiles, then reach X extraction."
+                : $"SCENARIO: {session.ScenarioPrompt} · Clear hostiles, then reach X extraction.";
             session.BlockedMoveStreak = 0;
             session.LastMoveBlocked = false;
         }

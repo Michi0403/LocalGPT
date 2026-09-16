@@ -3136,3 +3136,24 @@
     background: color-mix(in srgb, var(--localgpt-surface-raised-bg) 84%, var(--localgpt-primary) 16%) !important;
     border-color: color-mix(in srgb, var(--localgpt-border-color) 55%, var(--localgpt-primary) 45%) !important;
 }
+
+/* v4.3.4: make the low-latency Council-game preset discoverable beside the existing quick selectors. */
+.chat-game-latency-hint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin: .35rem .15rem .15rem;
+    padding: .55rem .7rem;
+    border: 1px solid color-mix(in srgb, var(--bs-success) 38%, var(--bs-border-color));
+    border-radius: .6rem;
+    background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-success) 8%);
+    font-size: .8rem;
+}
+
+.chat-game-latency-hint > span { min-width: 0; }
+.chat-game-latency-hint > button { flex: 0 0 auto; }
+
+@media (max-width: 760px) {
+    .chat-game-latency-hint { align-items: stretch; flex-direction: column; }
+}

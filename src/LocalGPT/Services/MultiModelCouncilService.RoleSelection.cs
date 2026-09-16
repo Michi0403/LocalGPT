@@ -41,9 +41,17 @@ namespace LocalGPT.Services
                             StringComparison.OrdinalIgnoreCase))
                     .SelectMany(assignment => assignment.AiParticipants)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                return participants
+                var unused = participants
                     .Where(participant => !alreadyAssigned.Contains(participant))
                     .ToList();
+                if (unused.Count > 0 || !definition.AllowDistinctAiAssignmentFallback)
+                    return unused;
+
+                logger.LogInformation(
+                    "Role {RoleName} exhausted preferred distinct group {DistinctGroup}; reusing the available Council model instead of blocking this fallback-enabled workflow.",
+                    definition.Role,
+                    definition.DistinctAiAssignmentGroup);
+                return participants.ToList();
             }
             catch (Exception ex)
             {

@@ -71,6 +71,8 @@ namespace LocalGPT.Components.Pages
                     }
                 }
 
+                canonicalConversationMessages.Clear();
+                canonicalConversationMessages.AddRange(mergedMessages);
                 ChatClientProvider.SelectedSession.Messages.Clear();
                 ChatClientProvider.SelectedSession.Messages.AddRange(mergedMessages);
             }
@@ -91,7 +93,12 @@ namespace LocalGPT.Components.Pages
         try
         {
             if (ChatClientProvider?.SelectedSession is not null && DxAiChat is not null)
-                DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
+            {
+                var messages = ReuseContextWhenSwitching && canonicalConversationMessages.Count > 0
+                    ? canonicalConversationMessages
+                    : ChatClientProvider.SelectedSession.Messages;
+                DxAiChat.LoadMessages(messages);
+            }
         }
         catch (Exception ex)
         {
@@ -262,6 +269,8 @@ namespace LocalGPT.Components.Pages
                     SessionContext.ApplicationVersion));
                 await LoadSelectedChatProjectDetailsAsync(snapshot.ProjectId).ConfigureAwait(false);
                 SelectedConversation = conversation;
+                canonicalConversationMessages.Clear();
+                canonicalConversationMessages.AddRange(snapshot.Messages);
                 restoredSession.Messages.Clear();
                 restoredSession.Messages.AddRange(snapshot.Messages);
                 lastSavedSignature = CouncilText.CreateMessageSignature(snapshot.Messages, Logger);

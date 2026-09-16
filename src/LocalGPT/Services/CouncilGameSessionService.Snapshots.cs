@@ -82,6 +82,7 @@ namespace LocalGPT.Services
         Ammo = session.Ammo,
         WorldMap = session.WorldMap.ToArray(),
         MapSeed = session.MapSeed,
+        ScenarioPrompt = session.ScenarioPrompt,
         ExtractionX = session.ExtractionX,
         ExtractionY = session.ExtractionY,
         Enemies = session.Enemies.Select(CloneEnemy).ToArray(),

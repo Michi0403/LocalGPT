@@ -52,6 +52,8 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                         AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                         MinimumAiParticipants = 1,
                         MaximumAiParticipants = 1,
+                        DistinctAiAssignmentGroup = "ascii-hot-seat-runtime",
+                        AllowDistinctAiAssignmentFallback = true,
                         PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
                         BoundaryMode = CouncilRoleBoundaryMode.Strict
                     },
@@ -63,6 +65,8 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                         AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                         MinimumAiParticipants = 1,
                         MaximumAiParticipants = 1,
+                        DistinctAiAssignmentGroup = "ascii-hot-seat-runtime",
+                        AllowDistinctAiAssignmentFallback = true,
                         PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
                         BoundaryMode = CouncilRoleBoundaryMode.Strict
                     }
@@ -118,7 +122,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                         AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
                         AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.input-gate.set", "localgpt.knowledge.list"],
                         PromptTemplate = """
-Create a fresh Neon Relay Arena match. First inspect localgpt.ascii.surface.get. Then call localgpt.game.session.start exactly once with gameKey="ascii-doom", teamKey="ascii-hot-seat-showcase", controlMode="Human", directorMode="Deterministic", autoplayEnabled=false, frameWidth=100 and frameHeight=32. This underlying game session is a presentation host only: DO NOT call localgpt.game.control in this team. Immediately call localgpt.game.input-gate.set with humanInputRequired=false and reason="Hot-seat input is collected by HumanOnly Council roles" so the single-player game overlay does not compete with the two hot-seat prompts. Copy the returned exact sessionId, turn, width and height into one line:
+Create a fresh Neon Relay Arena match. First inspect localgpt.ascii.surface.get. Then call localgpt.game.session.start exactly once with gameKey="ascii-doom", teamKey="ascii-hot-seat-showcase", controlMode="Shared", directorMode="Deterministic", frameWidth=100 and frameHeight=32. This underlying game session is a presentation host only: DO NOT call localgpt.game.control in this team. Immediately call localgpt.game.input-gate.set with humanInputRequired=false and reason="Hot-seat input is collected by HumanOnly Council roles" so the single-player game overlay does not compete with the two hot-seat prompts. Copy the returned exact sessionId, turn, width and height into one line:
 DISPLAY_HOST sessionId=<guid> turn=<integer> width=<integer> height=<integer>
 
 Initialize the Council-owned multiplayer state exactly as:

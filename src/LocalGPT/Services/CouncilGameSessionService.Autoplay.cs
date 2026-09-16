@@ -19,7 +19,7 @@ namespace LocalGPT.Services
     {
     try
     {
-            if (!session.AutoplayEnabled || session.ControlMode == CouncilGameControlMode.Human || session.Status != "Running")
+            if (!session.AutoplayEnabled || session.ControlMode != CouncilGameControlMode.Ai || session.Status != "Running")
             {
                 StopAutoplayLoop(session.Id);
                 return;
@@ -63,7 +63,7 @@ namespace LocalGPT.Services
                 CouncilGameSessionSnapshot snapshot;
                 lock (session.SyncRoot)
                 {
-                    if (!session.AutoplayEnabled || session.ControlMode == CouncilGameControlMode.Human || session.Status != "Running")
+                    if (!session.AutoplayEnabled || session.ControlMode != CouncilGameControlMode.Ai || session.Status != "Running")
                         break;
                     snapshot = ToSnapshot(session);
                 }

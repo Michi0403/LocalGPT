@@ -2,9 +2,12 @@
 @using DevExpress.AIIntegration.Blazor.Chat
 @using Microsoft.JSInterop
 @inject ICouncilGameSessionService Games
+@inject IHumanCollaborationService HumanCollaboration
+@inject ILocalHumanInteractionContext HumanAmbientContext
 @inject IConsoleCommandService Console
 @inject IConsoleOperatorService Operator
 @inject AsciiChatTextService AsciiText
+@inject CouncilTextService CouncilText
 @inject IJSRuntime JS
 @inject ILogger<ChatGameConsole> Logger
 @implements IAsyncDisposable
@@ -50,26 +53,35 @@
             }
             else if (!operatorMode && !conversationMode && snapshot is not null)
             {
-                <label>
-                    <span>Control</span>
-                    <select value="@snapshot.ControlMode" @onchange="ChangeControlModeAsync">
-                        <option value="Human">Human</option>
-                        <option value="Shared">Human + AI hunter</option>
-                        <option value="Ai">AI hunter</option>
-                    </select>
-                </label>
-                @if (snapshot.ControlMode != CouncilGameControlMode.Human)
+                @if (IsCouncilHotSeatGame)
+                {
+                    <span class="chat-game-runtime-badge" title="This presentation is controlled by the Council workflow; the human role is played directly in the game surface.">
+                        Council hot-seat
+                    </span>
+                }
+                else
                 {
                     <label>
-                        <span>AI step</span>
-                        <select value="@snapshot.AutoplayDelayMilliseconds" @onchange="ChangeAutoplayDelayAsync">
-                            <option value="500">0.5 s</option>
-                            <option value="1000">1 s</option>
-                            <option value="1500">1.5 s</option>
-                            <option value="2500">2.5 s</option>
-                            <option value="5000">5 s</option>
+                        <span>Control</span>
+                        <select value="@snapshot.ControlMode" @onchange="ChangeControlModeAsync">
+                            <option value="Human">Human</option>
+                            <option value="Shared">Human + AI</option>
+                            <option value="Ai">AI hunter</option>
                         </select>
                     </label>
+                    @if (snapshot.ControlMode == CouncilGameControlMode.Ai)
+                    {
+                        <label>
+                            <span>AI step</span>
+                            <select value="@snapshot.AutoplayDelayMilliseconds" @onchange="ChangeAutoplayDelayAsync">
+                                <option value="500">0.5 s</option>
+                                <option value="1000">1 s</option>
+                                <option value="1500">1.5 s</option>
+                                <option value="2500">2.5 s</option>
+                                <option value="5000">5 s</option>
+                            </select>
+                        </label>
+                    }
                 }
                 <label>
                     <span>Fullscreen scale</span>
@@ -80,6 +92,15 @@
                     </select>
                 </label>
                 <button type="button" @onclick="ToggleControls">@(showControls ? "Hide guide" : "Show guide")</button>
+                @if (string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase))
+                {
+                    <button type="button" @onclick="EndGameAsync">End game</button>
+                }
+                else if (CanRestartCorridor)
+                {
+                    <button type="button" @onclick="RestartSameMapAsync">Restart same map</button>
+                    <button type="button" @onclick="StartFreshMapAsync">New map</button>
+                }
                 <button type="button" @onclick="FullscreenAsync">Fullscreen</button>
             }
             <button type="button"
@@ -166,38 +187,90 @@
             @if (ShowControlGuide)
             {
                 <aside class="chat-game-control-guide" role="group" aria-label="Your game controls" aria-busy="@InputBusyState">
-                    <div class="chat-game-control-card">
-                        <strong>Your turn</strong>
-                        <div class="chat-game-control-status">
-                            @if (inputInFlight)
-                            {
-                                <span role="status">Applying move…</span>
-                            }
-                            else if (snapshot.HumanInputRequired)
-                            {
-                                <span>@snapshot.InputReason</span>
-                            }
-                            else
-                            {
-                                <span role="status">Waiting for your next turn…</span>
-                            }
+                    @if (HasHotSeatRequest)
+                    {
+                        <div class="chat-game-control-card chat-game-hotseat-card">
+                            <div class="chat-game-hotseat-heading">
+                                <strong>@hotSeatRequest!.RequestedRole</strong>
+                                <span>Round @hotSeatRequest.RequestedCouncilRound · @hotSeatRequest.RequestedCouncilPhase</span>
+                            </div>
+                            <div class="chat-game-control-status" role="status">
+                                <span>@(string.IsNullOrWhiteSpace(hotSeatRequest.ResponsePrompt) ? hotSeatRequest.Description : hotSeatRequest.ResponsePrompt)</span>
+                            </div>
+                            <div class="chat-game-hotseat-grid" aria-label="Council hot-seat movement">
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("MOVE N"))'>MOVE N</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("MOVE W"))'>MOVE W</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("PASS"))'>PASS</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("MOVE E"))'>MOVE E</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("MOVE S"))'>MOVE S</button>
+                            </div>
+                            <div class="chat-game-hotseat-dash" aria-label="Council hot-seat dash moves">
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("DASH N"))'>DASH N</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("DASH W"))'>DASH W</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("DASH S"))'>DASH S</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("DASH E"))'>DASH E</button>
+                            </div>
+                            <form class="chat-game-hotseat-text" @onsubmit="SubmitHotSeatTextAsync" @onsubmit:preventDefault="true">
+                                <label for="@($"{elementId}-hotseat-text")">Short emote / role text</label>
+                                <div>
+                                    <input id="@($"{elementId}-hotseat-text")" maxlength="80" autocomplete="off" @bind="hotSeatText" @bind:event="oninput" placeholder="Optional short emote" disabled="@hotSeatSubmitting" />
+                                    <button type="submit" disabled="@(hotSeatSubmitting || string.IsNullOrWhiteSpace(hotSeatText))">EMOTE</button>
+                                </div>
+                            </form>
+                            <small>Play here: W/A/S/D map to MOVE N/W/S/E. The right-side Approvals &amp; Team inbox mirrors the same request but is no longer required for gameplay.</small>
                         </div>
-                        <div class="chat-game-touch-grid">
-                            <button type="button" class="up" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-forward" @onclick='@(() => SendControlAsync("move-forward"))'>▲</button>
-                            <button type="button" class="left" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="left" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</button>
-                            <button type="button" class="down" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-backward" @onclick='@(() => SendControlAsync("move-backward"))'>▼</button>
-                            <button type="button" class="right" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="right" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</button>
-                            <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-left" @onclick='@(() => SendControlAsync("turn-left"))'>Aim ◁</button>
-                            <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-right" @onclick='@(() => SendControlAsync("turn-right"))'>Aim ▷</button>
-                            @if (snapshot.GameKey == "ascii-doom")
-                            {
-                                <button type="button" class="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="shoot" @onclick='@(() => SendControlAsync("shoot"))'>Shoot</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="duck" @onclick='@(() => SendControlAsync("duck"))'>Duck</button>
-                            }
-                            <button type="button" class="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="use" @onclick='@(() => SendControlAsync("use"))'>Use</button>
+                    }
+                    else if (CanRestartCorridor)
+                    {
+                        <div class="chat-game-control-card chat-game-restart-card">
+                            <strong>Mission complete</strong>
+                            <span>Keep this chat and start another deterministic ASCII run.</span>
+                            <div class="chat-game-restart-actions">
+                                <button type="button" @onclick="RestartSameMapAsync">Restart same map</button>
+                                <button type="button" @onclick="StartFreshMapAsync">New map</button>
+                            </div>
+                            <form class="chat-game-scenario-row" @onsubmit="StartScenarioAsync" @onsubmit:preventDefault="true">
+                                <label for="@($"{elementId}-scenario")">New ASCII scenario</label>
+                                <textarea id="@($"{elementId}-scenario")" maxlength="240" rows="3" @bind="scenarioPrompt" @bind:event="oninput" placeholder="Example: abandoned moon relay, icy refinery, neon sewer…"></textarea>
+                                <button type="submit" disabled="@string.IsNullOrWhiteSpace(scenarioPrompt)">Start scenario</button>
+                            </form>
                         </div>
-                        <small>Keyboard and connected gamepads use these exact actions. Controller polling only runs while this game surface can accept input.</small>
-                    </div>
+                    }
+                    else
+                    {
+                        <div class="chat-game-control-card">
+                            <strong>Your turn</strong>
+                            <div class="chat-game-control-status">
+                                @if (inputInFlight)
+                                {
+                                    <span role="status">Applying move…</span>
+                                }
+                                else if (snapshot.HumanInputRequired)
+                                {
+                                    <span>@snapshot.InputReason</span>
+                                }
+                                else
+                                {
+                                    <span role="status">Waiting for your next turn…</span>
+                                }
+                            </div>
+                            <div class="chat-game-touch-grid">
+                                <button type="button" class="up" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-forward" @onclick='@(() => SendControlAsync("move-forward"))'>▲</button>
+                                <button type="button" class="left" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="left" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</button>
+                                <button type="button" class="down" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-backward" @onclick='@(() => SendControlAsync("move-backward"))'>▼</button>
+                                <button type="button" class="right" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="right" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-left" @onclick='@(() => SendControlAsync("turn-left"))'>Aim ◁</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-right" @onclick='@(() => SendControlAsync("turn-right"))'>Aim ▷</button>
+                                @if (snapshot.GameKey == "ascii-doom")
+                                {
+                                    <button type="button" class="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="shoot" @onclick='@(() => SendControlAsync("shoot"))'>Shoot</button>
+                                    <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="duck" @onclick='@(() => SendControlAsync("duck"))'>Duck</button>
+                                }
+                                <button type="button" class="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="use" @onclick='@(() => SendControlAsync("use"))'>Use</button>
+                            </div>
+                            <small>Keyboard and connected gamepads use these exact actions. Controller polling only runs while this game surface can accept input.</small>
+                        </div>
+                    }
                 </aside>
             }
         </div>
@@ -214,6 +287,8 @@
     /// </summary>
     /// <value>The conversation identifier value exposed by <see cref="ChatGameConsole"/>.</value>
     [Parameter] public Guid? ConversationId { get; set; }
+    /// <summary>Gets or sets the Council run that may currently be waiting for one hot-seat human move.</summary>
+    [Parameter] public Guid? CouncilRunId { get; set; }
     /// <summary>
     /// Gets or sets the stable suggested team key used to identify or correlate this chat game console instance with related application state.
     /// </summary>
@@ -287,6 +362,16 @@
     /// Stores the internal input in flight state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
     /// </summary>
     private bool inputInFlight;
+    /// <summary>Stores the current unresolved HumanOnly hot-seat request for the active Council run.</summary>
+    private HumanCollaborationRequest? hotSeatRequest;
+    /// <summary>Stores the local-human profile needed to resolve the hot-seat request through the normal collaboration service.</summary>
+    private HumanCouncilParticipantProfile? hotSeatProfile;
+    /// <summary>Stores optional free-text EMOTE input without changing the authoritative game state.</summary>
+    private string hotSeatText = string.Empty;
+    /// <summary>Prevents duplicate hot-seat submissions while one decision is being persisted.</summary>
+    private bool hotSeatSubmitting;
+    /// <summary>Stores the text used when starting a fresh themed ASCII corridor scenario.</summary>
+    private string scenarioPrompt = string.Empty;
     /// <summary>
     /// Stores the internal fullscreen scale mode state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
     /// </summary>
@@ -317,12 +402,24 @@
     /// Gets a value indicating whether show control guide applies to the chat game console state.
     /// </summary>
     /// <value>The show control guide value exposed by <see cref="ChatGameConsole"/>.</value>
-    private bool ShowControlGuide => snapshot is { ControlMode: not CouncilGameControlMode.Ai } && showControls;
+    private bool HasHotSeatRequest => hotSeatRequest is not null;
+    /// <summary>Gets whether this game surface belongs to the Council hot-seat workflow rather than the standalone deterministic corridor.</summary>
+    private bool IsCouncilHotSeatGame => CouncilRunId.HasValue
+        && (HasHotSeatRequest
+            || string.Equals(snapshot?.TeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(SuggestedTeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase));
+    /// <summary>Gets whether a completed standalone ASCII corridor can be restarted without replacing the owning chat.</summary>
+    private bool CanRestartCorridor => snapshot is { GameKey: "ascii-doom" }
+        && !string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase)
+        && !IsCouncilHotSeatGame;
+    private bool ShowControlGuide => snapshot is not null && showControls && (HasHotSeatRequest || CanRestartCorridor || snapshot.ControlMode != CouncilGameControlMode.Ai);
     /// <summary>
     /// Gets a value indicating whether submit human control applies to the chat game console state.
     /// </summary>
     /// <value>The can submit human control value exposed by <see cref="ChatGameConsole"/>.</value>
-    private bool CanSubmitHumanControl => snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai } && !inputInFlight;
+    private bool CanSubmitHumanControl => HasHotSeatRequest
+        ? !hotSeatSubmitting
+        : snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai } && !inputInFlight;
     /// <summary>
     /// Gets the input busy state value that forms part of the chat game console state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -374,12 +471,14 @@
     protected override async Task OnInitializedAsync()
     {
         Games.Changed += OnGameChanged;
+        HumanCollaboration.Changed += OnHumanCollaborationChanged;
         Console.Changed += OnConsoleChanged;
         consoleOutput = Console.GetRecentOutput(160);
         availableShells = Operator.GetAvailableShells();
         if (availableShells.Count > 0 && !availableShells.Any(item => item.Shell == operatorShell))
             operatorShell = availableShells[0].Shell;
         snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
+        await RefreshHotSeatRequestAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -392,6 +491,7 @@
             snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
         asciiConversationText = AsciiText.BuildConversationTranscript(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName);
         asciiSequenceFrames = AsciiText.ExtractSequenceFrames(ConversationMessages);
+        await RefreshHotSeatRequestAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -563,7 +663,7 @@
     /// <param name="gameKey">Game key value supplied to the chat game console operation and used when producing its result.</param>
     /// <param name="teamKey">Team key value supplied to the chat game console operation and used when producing its result.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartAsync(string gameKey, string teamKey)
+    private async Task StartAsync(string gameKey, string teamKey, int? mapSeed = null, string scenario = "")
     {
         try
         {
@@ -572,7 +672,9 @@
                 GameKey = gameKey,
                 TeamKey = string.IsNullOrWhiteSpace(SuggestedTeamKey) ? teamKey : SuggestedTeamKey,
                 ConversationId = ConversationId,
-                ControlMode = CouncilGameControlMode.Human,
+                ControlMode = CouncilGameControlMode.Shared,
+                MapSeed = mapSeed,
+                ScenarioPrompt = scenario,
                 StartedBy = "Human User"
             }).ConfigureAwait(false);
             showControls = true;
@@ -584,6 +686,22 @@
         {
             Logger.LogError(ex, "Could not start the in-chat game console.");
         }
+    }
+
+    /// <summary>Restarts the completed ASCII corridor with the exact same deterministic map seed.</summary>
+    private Task RestartSameMapAsync() => snapshot is null
+        ? Task.CompletedTask
+        : StartAsync("ascii-doom", snapshot.TeamKey, snapshot.MapSeed, snapshot.ScenarioPrompt);
+
+    /// <summary>Starts a newly seeded corridor while preserving the current chat and selected team.</summary>
+    private Task StartFreshMapAsync() => StartAsync("ascii-doom", snapshot?.TeamKey ?? "ascii-doom-council-adventure");
+
+    /// <summary>Starts a new corridor whose stable layout is derived from the supplied scenario text.</summary>
+    private async Task StartScenarioAsync()
+    {
+        var scenario = CouncilText.TrimForPrompt(scenarioPrompt, 240, Logger, collapseWhitespace: true);
+        await StartAsync("ascii-doom", snapshot?.TeamKey ?? "ascii-doom-council-adventure", scenario: scenario).ConfigureAwait(false);
+        scenarioPrompt = string.Empty;
     }
 
     /// <summary>
@@ -598,7 +716,7 @@
         snapshot = await Games.SetControlModeAsync(
             snapshot.Id,
             mode,
-            mode is CouncilGameControlMode.Ai or CouncilGameControlMode.Shared,
+            mode == CouncilGameControlMode.Ai,
             snapshot.AutoplayDelayMilliseconds).ConfigureAwait(false);
     }
 
@@ -613,7 +731,7 @@
         snapshot = await Games.SetControlModeAsync(
             snapshot.Id,
             snapshot.ControlMode,
-            snapshot.ControlMode is CouncilGameControlMode.Ai or CouncilGameControlMode.Shared,
+            snapshot.ControlMode == CouncilGameControlMode.Ai,
             delay).ConfigureAwait(false);
     }
 
@@ -652,7 +770,19 @@
     {
         await JS.InvokeVoidAsync("localGptGameConsole.exitFullscreen", elementId).ConfigureAwait(false);
         if (CloseRequested.HasDelegate)
-            await CloseRequested.InvokeAsync().ConfigureAwait(false);
+            await InvokeAsync(() => CloseRequested.InvokeAsync()).ConfigureAwait(false);
+    }
+
+    /// <summary>Ends only the active ASCII game while preserving the chat, Council/provider sessions and reusable terminal surface.</summary>
+    /// <returns>A task that completes after the authoritative game session has ended.</returns>
+    private async Task EndGameAsync()
+    {
+        if (snapshot is null)
+            return;
+        snapshot = await Games.EndAsync(snapshot.Id, "Human User").ConfigureAwait(false);
+        conversationMode = true;
+        operatorMode = false;
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -661,7 +791,24 @@
     /// <param name="action">Action value supplied to the chat game console operation and used when producing its result.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
     [JSInvokable]
-    public Task SubmitControlFromJs(string action) => SendControlAsync(action);
+    public Task SubmitControlFromJs(string action)
+    {
+        if (HasHotSeatRequest)
+        {
+            var command = action switch
+            {
+                "move-forward" => "MOVE N",
+                "move-backward" => "MOVE S",
+                "strafe-left" or "turn-left" => "MOVE W",
+                "strafe-right" or "turn-right" => "MOVE E",
+                "shoot" => "DASH N",
+                "use" => "PASS",
+                _ => string.Empty
+            };
+            return string.IsNullOrWhiteSpace(command) ? Task.CompletedTask : SubmitHotSeatResponseAsync(command);
+        }
+        return SendControlAsync(action);
+    }
 
     /// <summary>
     /// Performs send control for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
@@ -697,6 +844,99 @@
             inputInFlight = false;
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>Refreshes the pending hot-seat request projected from the normal Human Collaboration service.</summary>
+    private async Task RefreshHotSeatRequestAsync()
+    {
+        if (CouncilRunId is not Guid runId)
+        {
+            hotSeatRequest = null;
+            return;
+        }
+
+        try
+        {
+            var collaboration = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 80).ConfigureAwait(false);
+            hotSeatProfile = collaboration.Profile;
+            hotSeatRequest = collaboration.Requests
+                .Where(request => request.CouncilRunId == runId
+                    && request.DecidedAtUtc is null
+                    && (string.Equals(request.RequestedRole, "Player 1 Hot Seat", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(request.RequestedRole, "Player 2 Hot Seat", StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(request => request.RequestedAtUtc)
+                .FirstOrDefault();
+
+            if (hotSeatRequest is not null && !operatorMode)
+                conversationMode = false;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Refreshing the in-game hot-seat request failed.");
+        }
+    }
+
+    /// <summary>Resolves the current Council HumanOnly player role directly from the game surface.</summary>
+    private async Task SubmitHotSeatResponseAsync(string command)
+    {
+        var request = hotSeatRequest;
+        if (request is null || hotSeatSubmitting || string.IsNullOrWhiteSpace(command))
+            return;
+
+        hotSeatSubmitting = true;
+        try
+        {
+            var profile = hotSeatProfile ?? await HumanCollaboration.GetProfileAsync().ConfigureAwait(false);
+            using var scope = HumanAmbientContext.PushHumanInteraction(
+                profile.Id,
+                profile.DisplayName,
+                nameof(ChatGameConsole),
+                request.CorrelationId,
+                request.CouncilRunId,
+                request.RequestedCouncilRound,
+                request.RequestedCouncilPhase);
+            await HumanCollaboration.ResolveRequestAsync(
+                request.Id,
+                new HumanDecisionSubmission(null, command.Trim(), string.Empty),
+                consoleRenderCancellation.Token).ConfigureAwait(false);
+            hotSeatText = string.Empty;
+            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
+        {
+            // Component teardown cancels a still-pending player submission.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Submitting a Council hot-seat move from the ASCII game surface failed.");
+        }
+        finally
+        {
+            hotSeatSubmitting = false;
+            if (!disposed)
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Submits the free-text field as an EMOTE command while keeping movement deterministic.</summary>
+    private Task SubmitHotSeatTextAsync()
+    {
+        var text = CouncilText.TrimForPrompt(hotSeatText, 80, Logger, collapseWhitespace: true);
+        if (string.IsNullOrWhiteSpace(text))
+            return Task.CompletedTask;
+        return SubmitHotSeatResponseAsync($"EMOTE {text}");
+    }
+
+    /// <summary>Reacts to Human Collaboration updates without polling the database from the renderer.</summary>
+    private void OnHumanCollaborationChanged()
+    {
+        if (disposed)
+            return;
+        _ = InvokeAsync(async () =>
+        {
+            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+            StateHasChanged();
+        });
     }
 
     /// <summary>
@@ -781,6 +1021,7 @@
 
         disposed = true;
         Games.Changed -= OnGameChanged;
+        HumanCollaboration.Changed -= OnHumanCollaborationChanged;
         Console.Changed -= OnConsoleChanged;
         consoleRenderCancellation.Cancel();
         try

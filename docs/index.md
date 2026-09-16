@@ -1,6 +1,6 @@
 # LocalGPT documentation
 
-**Version 4.3.2**
+**Version 4.3.6**
 
 LocalGPT is a local-first AI workbench for direct chat, configurable AI Councils, project maintenance, persistent knowledge, provider-qualified model routing, embedded planning, game runtimes, and guarded local execution.
 
@@ -36,7 +36,7 @@ Use the capability map, design evolution notes, documentation migration map, or 
 
 ## Architecture at a glance
 
-```
+<div class="mermaid localgpt-mermaid-diagram">
 flowchart LR
     U[Human user] --> UI[Blazor + DevExpress UI]
     UI --> APP[Application services]
@@ -48,7 +48,7 @@ flowchart LR
     PROJECTS --> DB[(SQLite + EF Core)]
     HOST --> PROVIDERS
     WIRE --> PEERS[Approved peers, publishers and devices]
-```
+</div>
 
 The human request remains the authority. Model output, uploaded content, repository text, remote peers, and generated artifacts are data—not permission.
 
@@ -58,4 +58,4 @@ The conceptual pages are built together with compiler-generated XML documentatio
 
 The packaged PDF is rendered from the same reviewed Kawaii HTML tree as the website. It contains every maintained guide, architecture, engineering, and reference chapter together with every generated API page; a tiny source-only or fallback PDF is rejected by the release and Pages gates.
 
-[🐾 Download the Kawaii handbook](LocalGPT-4.3.2.pdf)
+[🐾 Download the Kawaii handbook](LocalGPT-4.3.6.pdf)

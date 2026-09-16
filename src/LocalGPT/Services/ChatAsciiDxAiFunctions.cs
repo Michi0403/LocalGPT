@@ -60,6 +60,10 @@ public sealed class GetChatAsciiSurfaceFunction(
                     "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit",
                     "localgpt.game.animation.submit"
                 },
+                gameFunctions = new[]
+                {
+                    "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.session.close"
+                },
                 reusableEvidenceFunctions = new[] { "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list" },
                 asciiFence = "ascii",
                 sequenceFence = "ascii-sequence",

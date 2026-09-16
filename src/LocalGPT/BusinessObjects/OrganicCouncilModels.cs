@@ -265,6 +265,9 @@ public sealed class OrganicCouncilRoleDefinition
     /// <summary>Gets or sets the assignment group that requires distinct model identities.</summary>
     /// <value>The distinct AI assignment group value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public string DistinctAiAssignmentGroup { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether a distinct-assignment role may reuse the available model when no unused member remains. Strict roles keep the default false.</summary>
+    /// <value><c>true</c> when the role prefers distinct assignment but may degrade to model reuse instead of blocking the run.</value>
+    public bool AllowDistinctAiAssignmentFallback { get; set; }
     /// <summary>Gets or sets another role whose participant count this role mirrors.</summary>
     /// <value>The match AI participant count to role value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public string MatchAiParticipantCountToRole { get; set; } = string.Empty;

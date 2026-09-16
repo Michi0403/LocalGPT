@@ -33,6 +33,7 @@ namespace LocalGPT.Services
     /// <param name="protocolResolver">Chat protocol resolver dependency used by the chat client workflow to provide the corresponding application capability.</param>
     /// <param name="councilRuntime">Council runtime service dependency used by the chat client workflow to provide the corresponding application capability.</param>
     /// <param name="councilText">Council text service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="sessionContext">Scoped chat/project identity propagated into provider-native automatic functions.</param>
     public class ChatClientFactory(
           ILogger<ChatClientFactory> logger,
           ILoggerFactory loggerFactory,
@@ -51,7 +52,8 @@ namespace LocalGPT.Services
           IChatProtocolResolver protocolResolver
       ,
         CouncilRuntimeService councilRuntime,
-        CouncilTextService councilText) : IChatClientFactory
+        CouncilTextService councilText,
+        IChatSessionContext sessionContext) : IChatClientFactory
     {
         /// <summary>
         /// Performs build using the configuration and dependencies owned by <see cref="ChatClientFactory"/>.
@@ -85,7 +87,8 @@ namespace LocalGPT.Services
                         protocolResolver: protocolResolver,
                         promptConfigService: promptConfigService,
                         functionRegistry: functionRegistry,
-                        functionCallRecovery: functionCallRecovery);
+                        functionCallRecovery: functionCallRecovery,
+                        sessionContext: sessionContext);
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),

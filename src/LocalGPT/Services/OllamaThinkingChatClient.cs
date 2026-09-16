@@ -2,6 +2,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.Services.Formatting;
 using Microsoft.Extensions.AI;
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -15,6 +16,11 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed partial class OllamaThinkingChatClient : IChatClient
 {
+    // DXAIChat reparses the accumulated Markdown snapshot for every streamed update.
+    // Coalescing very small provider deltas into a ~20 FPS presentation cadence prevents
+    // long answers from building a render backlog while preserving genuinely live output.
+    private const int StreamingPresentationBatchCharacters = 96;
+    private const int StreamingPresentationMaxLatencyMilliseconds = 45;
     /// <summary>Gets the operator-configured automatic tool-loop ceiling from database-backed runtime policy.</summary>
     /// <value>The max automatic tool rounds value exposed by <see cref="OllamaThinkingChatClient"/>.</value>
     private int MaxAutomaticToolRounds => councilRuntime.OllamaMaximumAutomaticToolRounds;
@@ -85,6 +91,8 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     private readonly bool automaticToolsEnabled;
     /// <summary>Stores an optional exact registered-function allow-list for provider-native automatic tools.</summary>
     private readonly HashSet<string>? automaticFunctionAllowList;
+    /// <summary>Stores the current scoped chat/project identity so provider-native tool calls resolve conversation-owned resources such as ASCII games.</summary>
+    private readonly IChatSessionContext? sessionContext;
     /// <summary>
     /// Stores the internal throw on failure state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
     /// </summary>
@@ -112,6 +120,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     /// <param name="enableAutomaticTools">Value indicating whether enable automatic tools should apply to this operation.</param>
     /// <param name="throwOnFailure">Value indicating whether throw on failure should apply to this operation.</param>
     /// <param name="automaticFunctionAllowList">Optional exact registered-function allow-list. Null or empty preserves the historical policy-approved catalog.</param>
+    /// <param name="sessionContext">Optional scoped chat/project identity propagated into provider-native automatic DXFunction calls.</param>
     public OllamaThinkingChatClient(
         OllamaCoreOptions options,
         ILogger logger,
@@ -127,7 +136,8 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
         IDxAiFunctionCallRecoveryService? functionCallRecovery = null,
         bool enableAutomaticTools = true,
         bool throwOnFailure = false,
-        IReadOnlyCollection<string>? automaticFunctionAllowList = null)
+        IReadOnlyCollection<string>? automaticFunctionAllowList = null,
+        IChatSessionContext? sessionContext = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -142,6 +152,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
         this.functionRegistry = functionRegistry;
         this.functionCallRecovery = functionCallRecovery;
         automaticToolsEnabled = enableAutomaticTools;
+        this.sessionContext = sessionContext;
         this.automaticFunctionAllowList = automaticFunctionAllowList is { Count: > 0 }
             ? automaticFunctionAllowList.Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase)
             : null;
@@ -304,6 +315,9 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                 var assistantContent = new StringBuilder();
                 var assistantThinking = new StringBuilder();
                 var pendingContent = new StringBuilder();
+                var pendingVisiblePresentation = new StringBuilder();
+                var pendingThinkingPresentation = new StringBuilder();
+                var presentationFlushClock = Stopwatch.StartNew();
                 var contentModeDecided = false;
                 var bufferPotentialFunctionText = false;
 
@@ -346,13 +360,36 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                     // joins words across token boundaries (for example "from0" instead of "from 0") in visible thinking.
                     if (!string.IsNullOrEmpty(chunk?.Message?.Thinking))
                     {
+                        if (pendingVisiblePresentation.Length > 0)
+                        {
+                            foreach (var text in formatter.AppendContent(pendingVisiblePresentation.ToString()))
+                                yield return CreateStreamingUpdate(text);
+                            pendingVisiblePresentation.Clear();
+                            presentationFlushClock.Restart();
+                        }
+
                         assistantThinking.Append(chunk.Message.Thinking);
-                        foreach (var text in formatter.AppendThinking(chunk.Message.Thinking))
-                            yield return CreateStreamingUpdate(text);
+                        pendingThinkingPresentation.Append(chunk.Message.Thinking);
+                        if (pendingThinkingPresentation.Length >= StreamingPresentationBatchCharacters
+                            || presentationFlushClock.ElapsedMilliseconds >= StreamingPresentationMaxLatencyMilliseconds)
+                        {
+                            foreach (var text in formatter.AppendThinking(pendingThinkingPresentation.ToString()))
+                                yield return CreateStreamingUpdate(text);
+                            pendingThinkingPresentation.Clear();
+                            presentationFlushClock.Restart();
+                        }
                     }
 
                     if (!string.IsNullOrEmpty(chunk?.Message?.Content))
                     {
+                        if (pendingThinkingPresentation.Length > 0)
+                        {
+                            foreach (var text in formatter.AppendThinking(pendingThinkingPresentation.ToString()))
+                                yield return CreateStreamingUpdate(text);
+                            pendingThinkingPresentation.Clear();
+                            presentationFlushClock.Restart();
+                        }
+
                         assistantContent.Append(chunk.Message.Content);
                         if (!contentModeDecided)
                         {
@@ -363,8 +400,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                                 contentModeDecided = true;
                                 if (!bufferPotentialFunctionText)
                                 {
-                                    foreach (var text in formatter.AppendContent(pendingContent.ToString()))
-                                        yield return CreateStreamingUpdate(text);
+                                    pendingVisiblePresentation.Append(pendingContent.ToString());
                                     pendingContent.Clear();
                                 }
                             }
@@ -375,10 +411,33 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                         }
                         else
                         {
-                            foreach (var text in formatter.AppendContent(chunk.Message.Content))
+                            pendingVisiblePresentation.Append(chunk.Message.Content);
+                        }
+
+                        if (!bufferPotentialFunctionText
+                            && pendingVisiblePresentation.Length > 0
+                            && (pendingVisiblePresentation.Length >= StreamingPresentationBatchCharacters
+                                || presentationFlushClock.ElapsedMilliseconds >= StreamingPresentationMaxLatencyMilliseconds))
+                        {
+                            foreach (var text in formatter.AppendContent(pendingVisiblePresentation.ToString()))
                                 yield return CreateStreamingUpdate(text);
+                            pendingVisiblePresentation.Clear();
+                            presentationFlushClock.Restart();
                         }
                     }
+                }
+
+                if (pendingThinkingPresentation.Length > 0)
+                {
+                    foreach (var text in formatter.AppendThinking(pendingThinkingPresentation.ToString()))
+                        yield return CreateStreamingUpdate(text);
+                    pendingThinkingPresentation.Clear();
+                }
+                if (pendingVisiblePresentation.Length > 0)
+                {
+                    foreach (var text in formatter.AppendContent(pendingVisiblePresentation.ToString()))
+                        yield return CreateStreamingUpdate(text);
+                    pendingVisiblePresentation.Clear();
                 }
 
                 toolCalls = DeduplicateToolCalls(toolCalls);

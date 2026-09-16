@@ -55,7 +55,11 @@ public sealed partial class OllamaThinkingChatClient
                             Parameters = NormalizeArguments(call.Function.Arguments),
                             AutomaticInvocation = true,
                             UserConfirmed = false,
-                            RequestedBy = $"Ollama:{model}"
+                            RequestedBy = $"Ollama:{model}",
+                            ConversationId = sessionContext?.ConversationId,
+                            ProjectId = sessionContext?.ProjectId,
+                            ProjectVersionId = sessionContext?.ProjectVersionId,
+                            ApplicationVersion = sessionContext?.ApplicationVersion ?? string.Empty
                         },
                         cancellationToken).ConfigureAwait(false);
                 }

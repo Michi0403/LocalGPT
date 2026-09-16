@@ -211,7 +211,8 @@ namespace LocalGPT.Components.Pages
                         formatterFactory: ChatResponseFormatterFactory,
                         protocolResolver: ChatProtocolResolver,
                         promptConfigService: PromptConfigService,
-                        functionRegistry: DxAiFunctionRegistry),
+                        functionRegistry: DxAiFunctionRegistry,
+                        sessionContext: SessionContext),
                 $"{Catalog.DetectedOllamaSessionPrefix}{DiagnosticRequestedSessionName} @ {CouncilText.TrimEndpoint(endpoint, Logger)}", "Ollama", DiagnosticRequestedSessionName, endpoint);
 
             if (previousMessages.TryGetValue(session.Name, out var messages))
