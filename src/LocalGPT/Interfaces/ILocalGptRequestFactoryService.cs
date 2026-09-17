@@ -53,4 +53,10 @@ public interface ILocalGptRequestFactoryService
     /// </summary>
     /// <returns>The save project compiler installation request produced by the operation.</returns>
     SaveProjectCompilerInstallationRequest CreateCompilerInstallationRequest();
+    /// <summary>Creates the default editable authoring request used by the LocalGPT Game-project workbench.</summary>
+    /// <returns>The default Game-project authoring-profile request.</returns>
+    SaveGameProjectProfileRequest CreateGameProjectProfileRequest();
+    /// <summary>Creates the approval-only request used to compile the persisted Game-project design.</summary>
+    /// <returns>The default project game build request.</returns>
+    BuildProjectGameRequest CreateGameBuildRequest();
 }

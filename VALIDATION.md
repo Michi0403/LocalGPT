@@ -1,3 +1,3 @@
-# LocalGPT 4.3.6 source validation
+# LocalGPT 4.4.2 source validation
 
-Source-only validation; no .NET command was run. The 4.3.6 check is deliberately narrow: documentation pointer decorations are viewport-contained, scroll-neutral, synchronized across authored/embedded/Pages assets, and protected by the new build guard. Chromium geometry regression checks confirmed that adding many paw-trail elements no longer changes document scroll dimensions. See `VALIDATION-v4.3.6-source.md`.
+Source-only validation; no .NET command and no GitHub/online repository access was used. The 4.4.2 repair is intentionally narrow: `MainLayout.razor` and `Drawer.razor` are restored exactly to the working 4.3.6 menu/drawer implementation, the 4.4.1 shadow sidebar state is removed, maintained workflow/diagnostics rules are left unchanged, and the 4.4.0 Game-project work is preserved. See `VALIDATION-v4.4.2-source.md` for executed checks and limitations.

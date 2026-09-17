@@ -10,8 +10,10 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the council live session workflow to provide the corresponding application capability.</param>
+/// <param name="gameSessions">Council game session service used to stop game runs owned by a completed or canceled Council run.</param>
 public sealed class CouncilLiveSessionService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    ICouncilGameSessionService gameSessions,
     ILogger<CouncilLiveSessionService> logger) : ICouncilLiveSessionService
 {
     /// <summary>
@@ -375,8 +377,16 @@ public sealed class CouncilLiveSessionService(
             {
                 state.IsRunning = false;
                 state.StatusMessage = "Council completed.";
-                state.UpdatedAtUtc = DateTime.UtcNow;
+                var completedAtUtc = DateTime.UtcNow;
+                foreach (var activity in state.ParticipantActivities.Values.Where(activity => activity.IsRunning))
+                {
+                    activity.IsRunning = false;
+                    activity.StatusMessage = "Council completed; this participant lane is closed.";
+                    activity.UpdatedAtUtc = completedAtUtc;
+                }
+                state.UpdatedAtUtc = completedAtUtc;
             }
+            gameSessions.EndByCouncilRun(runId, "Council completed");
             ScheduleChanged(state);
             logger.LogInformation("Completed live Council session {RunId}.", runId);
     
@@ -408,8 +418,16 @@ public sealed class CouncilLiveSessionService(
             {
                 state.IsRunning = false;
                 state.StatusMessage = "Council cancellation requested.";
-                state.UpdatedAtUtc = DateTime.UtcNow;
+                var cancelledAtUtc = DateTime.UtcNow;
+                foreach (var activity in state.ParticipantActivities.Values.Where(activity => activity.IsRunning))
+                {
+                    activity.IsRunning = false;
+                    activity.StatusMessage = "Council cancellation requested; this participant lane is closed.";
+                    activity.UpdatedAtUtc = cancelledAtUtc;
+                }
+                state.UpdatedAtUtc = cancelledAtUtc;
             }
+            gameSessions.EndByCouncilRun(runId, "Council cancellation");
             ScheduleChanged(state);
             logger.LogInformation("Cancellation was requested for live Council session {RunId}.", runId);
             return true;

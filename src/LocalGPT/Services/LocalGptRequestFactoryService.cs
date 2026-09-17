@@ -230,6 +230,53 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>Creates the default editable authoring request used by the Game project workbench.</summary>
+    /// <returns>The default Game-project authoring-profile request.</returns>
+    public SaveGameProjectProfileRequest CreateGameProjectProfileRequest()
+    {
+        try
+        {
+            return Created(new SaveGameProjectProfileRequest
+            {
+                RuntimeProfile = CouncilGameRuntimeProfile.Corridor,
+                DefaultTeamKey = "game-project-playtest",
+                DefaultControlMode = CouncilGameControlMode.Shared,
+                DirectorMode = CouncilGameDirectorMode.Deterministic,
+                GameDirectorModelName = "qwen3.5:0.8b",
+                CreatureDirectorCount = 2,
+                AutoplayDelayMilliseconds = 1200,
+                FrameWidth = 80,
+                FrameHeight = 25
+            }, nameof(CreateGameProjectProfileRequest));
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptRequestFactoryService)}.{nameof(CreateGameProjectProfileRequest)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptRequestFactoryService)}.{nameof(CreateGameProjectProfileRequest)} failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Creates the approval-only request used to compile the persisted Game-project design.</summary>
+    /// <returns>The default project game build request.</returns>
+    public BuildProjectGameRequest CreateGameBuildRequest()
+    {
+        try
+        {
+            return Created(new BuildProjectGameRequest(), nameof(CreateGameBuildRequest));
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptRequestFactoryService)}.{nameof(CreateGameBuildRequest)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptRequestFactoryService)}.{nameof(CreateGameBuildRequest)} failed.");
+            throw;
+        }
+    }
+
     /// <summary>
     /// Creates d as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

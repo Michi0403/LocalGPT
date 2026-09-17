@@ -52,6 +52,11 @@ public sealed class LocalGptProject
     /// <value>The project type value exposed by <see cref="LocalGptProject"/>.</value>
     public string ProjectType { get; set; } = "DotNetSolution";
 
+    /// <summary>Gets whether this project is a first-class LocalGPT game-authoring project.</summary>
+    /// <value><see langword="true"/> when the persisted project type is <c>Game</c>.</value>
+    [NotMapped]
+    public bool IsGameProject => string.Equals(ProjectType, "Game", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Gets or sets the solution path used by this LocalGPT project instance to locate the associated file-system resource.
     /// </summary>
@@ -129,6 +134,12 @@ public sealed class LocalGptProject
     /// </summary>
     /// <value>The artifacts value exposed by <see cref="LocalGptProject"/>.</value>
     public ICollection<LocalGptProjectArtifact> Artifacts { get; set; } = [];
+
+    /// <summary>
+    /// Navigates to the persisted game-authoring profile when this project is a first-class Game project.
+    /// </summary>
+    /// <value>The project-owned game authoring profile, or <c>null</c> for non-game projects and not-yet-authored games.</value>
+    public LocalGptGameProjectProfile? GameProfile { get; set; }
 
     /// <summary>
     /// Gets or sets the imported project documents associated with this project.
@@ -378,6 +389,7 @@ public sealed record KnowledgeProjectTopicLinkSummary(
 /// <param name="Name">Name value supplied to the LocalGPT project summary operation and used when producing its result.</param>
 /// <param name="Purpose">Purpose value supplied to the LocalGPT project summary operation and used when producing its result.</param>
 /// <param name="RootPath">Root path value supplied to the LocalGPT project summary operation and used when producing its result.</param>
+/// <param name="ProjectType">Project type value supplied to the LocalGPT project summary operation and used when producing its result.</param>
 /// <param name="CurrentVersion">Current version value supplied to the LocalGPT project summary operation and used when producing its result.</param>
 /// <param name="Status">Status value supplied to the LocalGPT project summary operation and used when producing its result.</param>
 /// <param name="RecommendGit">Value indicating whether recommend git should apply to this operation.</param>
@@ -390,6 +402,7 @@ public sealed record LocalGptProjectSummary(
     string Name,
     string Purpose,
     string RootPath,
+    string ProjectType,
     string CurrentVersion,
     string Status,
     bool RecommendGit,
@@ -403,6 +416,10 @@ public sealed record LocalGptProjectSummary(
     /// </summary>
     /// <value>The display name value exposed by <see cref="LocalGptProjectSummary"/>.</value>
     public string DisplayName => $"{Name} ({CurrentVersion})";
+
+    /// <summary>Gets whether the summarized project is a first-class LocalGPT game-authoring project.</summary>
+    /// <value><see langword="true"/> when the persisted project type is <c>Game</c>.</value>
+    public bool IsGameProject => string.Equals(ProjectType, "Game", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -415,6 +432,12 @@ public sealed class LocalGptProjectDetails
     /// </summary>
     /// <value>The project value exposed by <see cref="LocalGptProjectDetails"/>.</value>
     public required LocalGptProject Project { get; init; }
+
+    /// <summary>
+    /// Gets the first-class game-authoring profile owned by this project when the project type is Game and a profile has been saved.
+    /// </summary>
+    /// <value>The persisted game-project profile, or <c>null</c> when this project has no authored game profile.</value>
+    public LocalGptGameProjectProfile? GameProfile { get; init; }
 
     /// <summary>
     /// Gets or sets the topics collection maintained or exposed by this LocalGPT project details instance for downstream processing.

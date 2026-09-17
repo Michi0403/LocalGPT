@@ -210,6 +210,47 @@ public sealed class LocalConsoleOperationSnapshot
     public DateTimeOffset StartedUtc { get; set; }
 }
 
+/// <summary>Identifies application-level actions parsed by the reusable LocalGPT ASCII operator service.</summary>
+public enum LocalConsoleOperatorApplicationAction
+{
+    /// <summary>No application-level action was requested.</summary>
+    None,
+    /// <summary>Submit one normal chat prompt.</summary>
+    ChatPrompt,
+    /// <summary>Submit one AI Council prompt.</summary>
+    CouncilPrompt,
+    /// <summary>Render the current Council status in the ASCII transcript.</summary>
+    CouncilStatus,
+    /// <summary>Stop the active Council run.</summary>
+    CouncilStop,
+    /// <summary>Skip the current Council round.</summary>
+    CouncilSkip,
+    /// <summary>List saved chat sessions.</summary>
+    SessionList,
+    /// <summary>Create a fresh chat session.</summary>
+    SessionNew,
+    /// <summary>Open one saved chat session selected by identifier or title.</summary>
+    SessionOpen,
+    /// <summary>Start the deterministic ASCII corridor.</summary>
+    GameStartCorridor,
+    /// <summary>Start the Green Dragon ASCII story.</summary>
+    GameStartDragon,
+    /// <summary>Start the latest approved build of a LocalGPT Game project.</summary>
+    GameStartProject,
+    /// <summary>Render current game status in the ASCII transcript.</summary>
+    GameStatus,
+    /// <summary>End the active ASCII game runtime.</summary>
+    GameEnd,
+    /// <summary>Switch the shared ASCII surface to mirrored chat mode.</summary>
+    ModeChat,
+    /// <summary>Switch the shared ASCII surface to game mode.</summary>
+    ModeGame,
+    /// <summary>Keep the shared ASCII surface in operator mode.</summary>
+    ModeOperator,
+    /// <summary>Toggle fullscreen using the optional requested scaling mode.</summary>
+    Fullscreen
+}
+
 /// <summary>Represents one line submitted to the reusable LocalGPT ASCII operator command layer.</summary>
 public sealed class LocalConsoleOperatorRequest
 {
@@ -249,6 +290,12 @@ public sealed class LocalConsoleOperatorResult
     /// <summary>Gets or sets the started operation identifier when an ordinary shell command was queued.</summary>
     /// <value>The operation identifier exposed by <see cref="LocalConsoleOperatorResult"/>.</value>
     public Guid? OperationId { get; set; }
+    /// <summary>Gets or sets the application-level action parsed from a LocalGPT operator meta command.</summary>
+    /// <value>The application action that the renderer should dispatch without reparsing command text.</value>
+    public LocalConsoleOperatorApplicationAction ApplicationAction { get; set; }
+    /// <summary>Gets or sets the bounded argument associated with the parsed application-level action.</summary>
+    /// <value>The application action argument; empty when the action requires no argument.</value>
+    public string ApplicationArgument { get; set; } = string.Empty;
 }
 
 /// <summary>Represents one GPU/device candidate used by the first-run hardware assistant.</summary>

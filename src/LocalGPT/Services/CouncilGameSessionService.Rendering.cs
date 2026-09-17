@@ -19,7 +19,7 @@ namespace LocalGPT.Services
     private string Render(CouncilGameSessionState session) {
     try
     {
-        return session.GameKey == "green-dragon"
+        return session.RuntimeProfile == CouncilGameRuntimeProfile.Story
         ? RenderGreenDragon(session)
         : RenderDoomLike(session);
     }
@@ -144,6 +144,7 @@ namespace LocalGPT.Services
     /// <summary>
     /// Performs cast ray as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Game session whose current world map supplies collision geometry for the ray.</param>
     /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
     /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
     /// <param name="angle">Angle value supplied to the council game session operation and used when producing its result.</param>

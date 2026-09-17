@@ -282,7 +282,7 @@ public sealed partial class CouncilGameSessionService
     {
         try
         {
-            if (session.GameKey != "ascii-doom" || session.Status != "Running") return;
+            if (session.RuntimeProfile != CouncilGameRuntimeProfile.Corridor || session.Status != "Running") return;
             var alive = session.Enemies.Where(enemy => enemy.IsAlive).OrderBy(enemy => enemy.Key, StringComparer.Ordinal).ToList();
             if (alive.Count == 0)
             {

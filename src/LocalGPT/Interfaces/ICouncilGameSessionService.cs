@@ -52,6 +52,12 @@ public interface ICouncilGameSessionService
         string endedBy = "Current User",
         CancellationToken cancellationToken = default);
 
+    /// <summary>Ends every running ASCII game owned by one Council run while leaving unrelated games untouched.</summary>
+    /// <param name="councilRunId">Identifier of the Council run whose owned game sessions should end.</param>
+    /// <param name="endedBy">Bounded actor label recorded as the last game-session action owner.</param>
+    /// <returns>The number of running game sessions that were ended.</returns>
+    int EndByCouncilRun(Guid councilRunId, string endedBy = "Council lifecycle");
+
     /// <summary>
     /// Performs list as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

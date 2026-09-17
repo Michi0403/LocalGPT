@@ -8,11 +8,13 @@ namespace LocalGPT.Controller;
 /// Exposes the LocalGPT projects application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
 /// <param name="projects">Local gpt project service dependency used by the LocalGPT projects workflow to provide the corresponding application capability.</param>
+/// <param name="gameProjects">Game project service used to build, inspect, and launch project-owned game definitions.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/projects")]
 public sealed class LocalGptProjectsController(
     ILocalGptProjectService projects,
+    IGameProjectService gameProjects,
     ILogger<LocalGptProjectsController> logger) : ControllerBase
 {
     /// <summary>
@@ -111,6 +113,106 @@ public sealed class LocalGptProjectsController(
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException)
         {
             logger.LogWarning(ex, "Project version request was rejected.");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Reads the editable project-owned authoring profile for one Game project.</summary>
+    /// <param name="projectId">Identifier of the owning project.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The persisted game authoring profile, or HTTP 404 when no profile exists yet.</returns>
+    [HttpGet("{projectId:guid}/game/profile")]
+    public async Task<ActionResult<LocalGptGameProjectProfile>> GetGameProfile(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var profile = await gameProjects.GetProfileAsync(projectId, cancellationToken).ConfigureAwait(false);
+            return profile is null ? NotFound() : Ok(profile);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException)
+        {
+            logger.LogWarning(ex, "Project game profile request was rejected for project {ProjectId}.", projectId);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Creates or updates the editable project-owned authoring profile for one Game project.</summary>
+    /// <param name="projectId">Identifier of the owning project.</param>
+    /// <param name="request">Approved game authoring settings.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The persisted game authoring profile.</returns>
+    [HttpPost("{projectId:guid}/game/profile")]
+    public async Task<ActionResult<LocalGptGameProjectProfile>> SaveGameProfile(
+        Guid projectId,
+        [FromBody] SaveGameProjectProfileRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return Ok(await gameProjects.SaveProfileAsync(projectId, request, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException)
+        {
+            logger.LogWarning(ex, "Project game profile save request was rejected for project {ProjectId}.", projectId);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Builds one Game project into its approved runtime-definition artifact.</summary>
+    /// <param name="projectId">Identifier of the owning project.</param>
+    /// <param name="request">Approval to compile the already-saved game design and requirement baseline.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The persisted game build.</returns>
+    [HttpPost("{projectId:guid}/game/build")]
+    public async Task<ActionResult<ProjectGameBuildResult>> BuildGame(
+        Guid projectId,
+        [FromBody] BuildProjectGameRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return Ok(await gameProjects.BuildAsync(projectId, request, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException)
+        {
+            logger.LogWarning(ex, "Project game build request was rejected for project {ProjectId}.", projectId);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>Reads the latest approved runtime definition produced by one Game project.</summary>
+    /// <param name="projectId">Identifier of the owning project.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The latest build, or HTTP 404 when no build exists yet.</returns>
+    [HttpGet("{projectId:guid}/game/build")]
+    public async Task<ActionResult<ProjectGameBuildResult>> GetGameBuild(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        var build = await gameProjects.GetBuildAsync(projectId, cancellationToken).ConfigureAwait(false);
+        return build is null ? NotFound() : Ok(build);
+    }
+
+    /// <summary>Launches the latest approved Game-project build through the shared GameDirector runtime.</summary>
+    /// <param name="projectId">Identifier of the owning project.</param>
+    /// <param name="request">Launch ownership context.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The authoritative game-session snapshot.</returns>
+    [HttpPost("{projectId:guid}/game/start")]
+    public async Task<ActionResult<CouncilGameSessionSnapshot>> StartGame(
+        Guid projectId,
+        [FromBody] LaunchProjectGameRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return Ok(await gameProjects.LaunchAsync(projectId, request, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException)
+        {
+            logger.LogWarning(ex, "Project game launch request was rejected for project {ProjectId}.", projectId);
             return BadRequest(new { error = ex.Message });
         }
     }

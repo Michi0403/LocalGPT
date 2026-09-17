@@ -2,6 +2,7 @@
 @page "/projects"
 @inject ILocalGptProjectService ProjectService
 @inject IProjectArchitectureService ProjectArchitecture
+@inject IGameProjectService GameProjects
 @inject ILocalGptRequestFactoryService RequestFactory
 @inject ILogger<Projects> Logger
 @inject INotificationService Notifier
@@ -48,7 +49,7 @@
                             class="project-select @(SelectedProject?.Project.Id == project.Id ? "selected" : string.Empty)"
                             @onclick="@(() => SelectProjectAsync(project.Id))">
                         <strong>@project.DisplayName</strong>
-                        <span>@project.Status · @project.TopicCount topic(s) · @project.VersionCount version(s)</span>
+                        <span>@project.ProjectType · @project.Status · @project.TopicCount topic(s) · @project.VersionCount version(s)</span>
                     </button>
                 }
             }
@@ -75,7 +76,14 @@
             <div class="form-grid">
                 <label>
                     Project type
-                    <input @bind="ProjectEdit.ProjectType" maxlength="120" placeholder="DotNetSolution, Java, Python, Cpp..." />
+                    <input @bind="ProjectEdit.ProjectType" maxlength="120" list="localgpt-project-types" placeholder="DotNetSolution, Game, Java, Python, Cpp..." />
+                    <datalist id="localgpt-project-types">
+                        <option value="DotNetSolution"></option>
+                        <option value="Game"></option>
+                        <option value="Java"></option>
+                        <option value="Python"></option>
+                        <option value="Cpp"></option>
+                    </datalist>
                 </label>
                 <label>
                     Solution file path
@@ -121,6 +129,98 @@
 
             @if (SelectedProject is not null)
             {
+                @if (SelectedProject.Project.IsGameProject)
+                {
+                    <hr />
+                    <h2>Game project build</h2>
+                    <p class="hint">The Project system owns the editable game profile, user requirements, revisions and build artifacts. GameDirector only consumes an approved build at runtime. Save the design while requirements are being collected, build a requirement-traceable definition when ready, then launch it from /Chat with <code>:game project &lt;project name or id&gt;</code> or through the project.game.start AI function.</p>
+                    <p class="hint">Project requirements currently linked to this game: @SelectedProject.Requirements.Count. Requirement discovery teams persist agreed requirements through the normal Project requirement system instead of hiding them inside the runtime profile.</p>
+                    <div class="form-grid">
+                        <label>
+                            Game key
+                            <input @bind="GameProfileEdit.GameKey" maxlength="160" placeholder="neon-relay-arena" />
+                        </label>
+                        <label>
+                            Display name
+                            <input @bind="GameProfileEdit.DisplayName" maxlength="240" />
+                        </label>
+                        <label>
+                            Runtime profile
+                            <select @bind="GameProfileEdit.RuntimeProfile">
+                                <option value="@CouncilGameRuntimeProfile.Corridor">Corridor simulation</option>
+                                <option value="@CouncilGameRuntimeProfile.Story">Story / choice simulation</option>
+                            </select>
+                        </label>
+                        <label>
+                            Default Council team
+                            <input @bind="GameProfileEdit.DefaultTeamKey" maxlength="160" />
+                        </label>
+                        <label>
+                            Default control mode
+                            <select @bind="GameProfileEdit.DefaultControlMode">
+                                <option value="@CouncilGameControlMode.Human">Human</option>
+                                <option value="@CouncilGameControlMode.Shared">Shared</option>
+                                <option value="@CouncilGameControlMode.Ai">AI</option>
+                            </select>
+                        </label>
+                        <label>
+                            Director mode
+                            <select @bind="GameProfileEdit.DirectorMode">
+                                <option value="@CouncilGameDirectorMode.Deterministic">Deterministic</option>
+                                <option value="@CouncilGameDirectorMode.CouncilModelPreferred">Council model preferred</option>
+                            </select>
+                        </label>
+                        <label>
+                            GameDirector model
+                            <input @bind="GameProfileEdit.GameDirectorModelName" maxlength="240" />
+                        </label>
+                        <label>
+                            Creature directors
+                            <input type="number" min="1" max="8" @bind="GameProfileEdit.CreatureDirectorCount" />
+                        </label>
+                        <label>
+                            Frame width
+                            <input type="number" min="20" max="240" @bind="GameProfileEdit.FrameWidth" />
+                        </label>
+                        <label>
+                            Frame height
+                            <input type="number" min="8" max="100" @bind="GameProfileEdit.FrameHeight" />
+                        </label>
+                        <label>
+                            Autoplay delay (ms)
+                            <input type="number" min="250" max="10000" @bind="GameProfileEdit.AutoplayDelayMilliseconds" />
+                        </label>
+                        <label>
+                            Map seed
+                            <input type="number" min="1" @bind="GameProfileEdit.MapSeed" />
+                        </label>
+                    </div>
+                    <label>
+                        Scenario / world description
+                        <textarea @bind="GameProfileEdit.ScenarioPrompt" rows="4" maxlength="240"></textarea>
+                    </label>
+                    <div class="button-row">
+                        <DxButton Text="Save Game Design"
+                                  RenderStyle="ButtonRenderStyle.Secondary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Enabled="@(!isBusy)"
+                                  Click="SaveGameProjectProfileAsync" />
+                        <DxButton Text="Build Game Definition"
+                                  RenderStyle="ButtonRenderStyle.Primary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Enabled="@(!isBusy && CurrentGameProfile is not null)"
+                                  Click="BuildGameProjectAsync" />
+                    </div>
+                    @if (CurrentGameProfile is not null)
+                    {
+                        <p class="hint">Saved authoring profile @CurrentGameProfile.Id · updated @CurrentGameProfile.UpdatedAtUtc.ToLocalTime()</p>
+                    }
+                    @if (CurrentGameBuild is not null)
+                    {
+                        <p class="hint">Built @CurrentGameBuild.Definition.DisplayName · profile @CurrentGameBuild.Definition.RuntimeProfile · project version @CurrentGameBuild.Definition.ProjectVersion · artifact @CurrentGameBuild.ArtifactId</p>
+                    }
+                }
+
                 <hr />
                 <h2>Topics</h2>
                 <p class="hint">A topic is a user-approved unit of work. Selecting it in AI Council links the resulting knowledge entry after the run.</p>
@@ -479,6 +579,18 @@
     /// <value>The artifact edit value exposed by <see cref="Projects"/>.</value>
     SaveProjectArtifactRequest ArtifactEdit { get; set; } = null!;
 
+    /// <summary>Gets or sets the current Game-project authoring editor state.</summary>
+    /// <value>The user-editable, project-owned Game design request.</value>
+    SaveGameProjectProfileRequest GameProfileEdit { get; set; } = null!;
+
+    /// <summary>Gets or sets the latest persisted build shown for the selected Game project.</summary>
+    /// <value>The selected project's latest approved game build when one exists.</value>
+    ProjectGameBuildResult? CurrentGameBuild { get; set; }
+
+    /// <summary>Gets or sets the persisted authoring profile shown for the selected Game project.</summary>
+    /// <value>The selected project's editable project-owned game profile when one exists.</value>
+    LocalGptGameProjectProfile? CurrentGameProfile { get; set; }
+
     /// <summary>
     /// Gets or sets the revision parent value value that forms part of the projects state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -579,6 +691,9 @@
         RequirementEdit = RequestFactory.CreateRequirementRequest();
         RequirementLinkEdit = RequestFactory.CreateRequirementLinkRequest();
         ArtifactEdit = RequestFactory.CreateArtifactRequest();
+        GameProfileEdit = RequestFactory.CreateGameProjectProfileRequest();
+        CurrentGameBuild = null;
+        CurrentGameProfile = null;
     }
 
     /// <summary>
@@ -618,6 +733,46 @@
             RequirementEdit = RequestFactory.CreateRequirementRequest();
             RequirementLinkEdit = RequestFactory.CreateRequirementLinkRequest();
             ArtifactEdit = RequestFactory.CreateArtifactRequest();
+            GameProfileEdit = RequestFactory.CreateGameProjectProfileRequest();
+            CurrentGameProfile = project.IsGameProject
+                ? await GameProjects.GetProfileAsync(project.Id).ConfigureAwait(false)
+                : null;
+            CurrentGameBuild = project.IsGameProject
+                ? await GameProjects.GetBuildAsync(project.Id).ConfigureAwait(false)
+                : null;
+            if (CurrentGameProfile is not null)
+            {
+                GameProfileEdit.GameKey = CurrentGameProfile.GameKey;
+                GameProfileEdit.DisplayName = CurrentGameProfile.DisplayName;
+                GameProfileEdit.RuntimeProfile = CurrentGameProfile.RuntimeProfile;
+                GameProfileEdit.DefaultTeamKey = CurrentGameProfile.DefaultTeamKey;
+                GameProfileEdit.DefaultControlMode = CurrentGameProfile.DefaultControlMode;
+                GameProfileEdit.DirectorMode = CurrentGameProfile.DirectorMode;
+                GameProfileEdit.GameDirectorModelName = CurrentGameProfile.GameDirectorModelName;
+                GameProfileEdit.CreatureDirectorCount = CurrentGameProfile.CreatureDirectorCount;
+                GameProfileEdit.AutoplayDelayMilliseconds = CurrentGameProfile.AutoplayDelayMilliseconds;
+                GameProfileEdit.FrameWidth = CurrentGameProfile.FrameWidth;
+                GameProfileEdit.FrameHeight = CurrentGameProfile.FrameHeight;
+                GameProfileEdit.MapSeed = CurrentGameProfile.MapSeed > 0 ? CurrentGameProfile.MapSeed : null;
+                GameProfileEdit.ScenarioPrompt = CurrentGameProfile.ScenarioPrompt;
+            }
+            else if (CurrentGameBuild is not null)
+            {
+                var definition = CurrentGameBuild.Definition;
+                GameProfileEdit.GameKey = definition.GameKey;
+                GameProfileEdit.DisplayName = definition.DisplayName;
+                GameProfileEdit.RuntimeProfile = definition.RuntimeProfile;
+                GameProfileEdit.DefaultTeamKey = definition.DefaultTeamKey;
+                GameProfileEdit.DefaultControlMode = definition.DefaultControlMode;
+                GameProfileEdit.DirectorMode = definition.DirectorMode;
+                GameProfileEdit.GameDirectorModelName = definition.GameDirectorModelName;
+                GameProfileEdit.CreatureDirectorCount = definition.CreatureDirectorCount;
+                GameProfileEdit.AutoplayDelayMilliseconds = definition.AutoplayDelayMilliseconds;
+                GameProfileEdit.FrameWidth = definition.FrameWidth;
+                GameProfileEdit.FrameHeight = definition.FrameHeight;
+                GameProfileEdit.MapSeed = definition.MapSeed > 0 ? definition.MapSeed : null;
+                GameProfileEdit.ScenarioPrompt = definition.ScenarioPrompt;
+            }
         }, "Select project").ConfigureAwait(false);
     }
 
@@ -641,6 +796,45 @@
                 ProjectEdit.UserConfirmed = false;
             }
         }, "Save project").ConfigureAwait(false);
+    }
+
+    /// <summary>Saves the selected Game project's editable project-owned authoring profile without producing a runtime build.</summary>
+    /// <returns>A task that completes when the authoring profile has been persisted.</returns>
+    async Task SaveGameProjectProfileAsync()
+    {
+        if (SelectedProject is null || !SelectedProject.Project.IsGameProject)
+            return;
+
+        await RunUiActionAsync(async () =>
+        {
+            GameProfileEdit.UserConfirmed = true;
+            try
+            {
+                CurrentGameProfile = await GameProjects.SaveProfileAsync(SelectedProject.Project.Id, GameProfileEdit).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "Game project authoring profile saved.", "Game design saved");
+            }
+            finally
+            {
+                GameProfileEdit.UserConfirmed = false;
+            }
+        }, "Save game project design").ConfigureAwait(false);
+    }
+
+    /// <summary>Builds the selected Game project into its approved project-owned runtime definition.</summary>
+    /// <returns>A task that completes when the game build has been persisted.</returns>
+    async Task BuildGameProjectAsync()
+    {
+        if (SelectedProject is null || !SelectedProject.Project.IsGameProject)
+            return;
+
+        await RunUiActionAsync(async () =>
+        {
+            var buildRequest = RequestFactory.CreateGameBuildRequest();
+            buildRequest.UserConfirmed = true;
+            CurrentGameBuild = await GameProjects.BuildAsync(SelectedProject.Project.Id, buildRequest).ConfigureAwait(false);
+            await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, "Saved Game design compiled into the project runtime-definition artifact.", "Game project built");
+        }, "Build game project").ConfigureAwait(false);
     }
 
     /// <summary>

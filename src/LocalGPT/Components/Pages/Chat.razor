@@ -7,6 +7,7 @@
 @inject ILocalGptRuntimePolicyDataService RuntimePolicy
 @inject CouncilTextService CouncilText
 @inject AsciiChatTextService AsciiText
+@inject IConsoleOperatorService ConsoleOperator
 @inject LocalGptCatalogService Catalog
 @inject IChatMemoryService ChatMemory
 @inject IChatUploadWorkspaceService ChatUploadWorkspaces
@@ -204,7 +205,7 @@
                                  ValueChanged="OnCouncilCritiqueRoundsChanged" />
             <label class="council-load-setting" title="Sets the session position between every selected model's own minimum and maximum CPU/GPU road values. 30% means min + 30% of that model's configured range.">
                 <span>Hardware load</span>
-                <input class="form-range" type="range" min="0" max="100" step="5" value="@CouncilEditorResourceLoadPercent" @oninput="OnCouncilResourceLoadChanged" />
+                <input class="form-range" type="range" min="0" max="100" step="5" value="@CouncilEditorResourceLoadPercent" @onchange="OnCouncilResourceLoadChanged" />
                 <output>@CouncilEditorResourceLoadPercent%</output>
             </label>
             <label class="council-scheduling-setting" title="Choose the simple scheduling policy. Host-balanced keeps each AI host single-flight while allowing different machines to work in parallel. Hardware-road parallel additionally uses the configured CPU/GPU lanes within a host.">
@@ -574,6 +575,13 @@
                                  CouncilParticipantActivities="@AsciiCouncilParticipantActivities"
                                  AssistantDisplayName="@AsciiAssistantDisplayName"
                                  FunModeEnabled="@AsciiFunModeEnabled"
+                                 SavedConversations="@SavedConversations"
+                                 ChatPromptRequested="SubmitOperatorChatPromptAsync"
+                                 CouncilPromptRequested="SubmitOperatorCouncilPromptAsync"
+                                 NewSessionRequested="ClearHistoryAsync"
+                                 SessionOpenRequested="OpenOperatorSavedConversationAsync"
+                                 CouncilStopRequested="StopSelectedCouncilSessionAsync"
+                                 CouncilSkipRequested="SkipCurrentCouncilRoundAsync"
                                  CloseRequested="CloseGameConsole" />
             </section>
         }

@@ -62,12 +62,12 @@ namespace LocalGPT.Services
     /// <summary>
     /// Builds legal actions as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
-    /// <param name="gameKey">Game key value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="runtimeProfile">Runtime profile that selects the legal action contract.</param>
     /// <returns>The collection produced by the operation.</returns>
-    private List<string> BuildLegalActions(string gameKey) {
+    private List<string> BuildLegalActions(CouncilGameRuntimeProfile runtimeProfile) {
     try
     {
-        return gameKey == "green-dragon"
+        return runtimeProfile == CouncilGameRuntimeProfile.Story
         ? ["move-forward", "move-backward", "turn-left", "turn-right", "use", "choice-1", "choice-2", "choice-3"]
         : ["move-forward", "move-backward", "strafe-left", "strafe-right", "turn-left", "turn-right", "shoot", "duck", "use"];
     }
@@ -84,12 +84,12 @@ namespace LocalGPT.Services
     /// <summary>
     /// Builds input bindings as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
-    /// <param name="gameKey">Game key value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="runtimeProfile">Runtime profile that selects the input binding contract.</param>
     /// <returns>The collection produced by the operation.</returns>
-    private List<RuntimeInputBindingDefinition> BuildInputBindings(string gameKey) {
+    private List<RuntimeInputBindingDefinition> BuildInputBindings(CouncilGameRuntimeProfile runtimeProfile) {
     try
     {
-        return gameKey == "green-dragon"
+        return runtimeProfile == CouncilGameRuntimeProfile.Story
         ?
         [
             Binding("move-forward", "Move / choice up", "W / ArrowUp", "D-pad Up"),
@@ -212,7 +212,7 @@ namespace LocalGPT.Services
     {
     try
     {
-            if (session.GameKey == "green-dragon")
+            if (session.RuntimeProfile == CouncilGameRuntimeProfile.Story)
             {
                 switch (action)
                 {

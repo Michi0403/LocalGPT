@@ -2,12 +2,14 @@
 @using DevExpress.AIIntegration.Blazor.Chat
 @using Microsoft.JSInterop
 @inject ICouncilGameSessionService Games
+@inject IGameProjectService GameProjects
 @inject IHumanCollaborationService HumanCollaboration
 @inject ILocalHumanInteractionContext HumanAmbientContext
 @inject IConsoleCommandService Console
 @inject IConsoleOperatorService Operator
 @inject AsciiChatTextService AsciiText
 @inject CouncilTextService CouncilText
+@inject ILocalGptVocabularyService Vocabulary
 @inject IJSRuntime JS
 @inject ILogger<ChatGameConsole> Logger
 @implements IAsyncDisposable
@@ -46,6 +48,15 @@
                     @onclick="ToggleOperatorModeAsync">
                 @(operatorMode ? "Operator OFF" : "Operator")
             </button>
+            <label>
+                <span>Fullscreen scale</span>
+                <select value="@fullscreenScaleMode" @onchange="ChangeFullscreenScaleModeAsync">
+                    <option value="Fit">Fit whole frame</option>
+                    <option value="Width">Fit width + vertical scroll</option>
+                    <option value="Native">Native size + scroll</option>
+                </select>
+            </label>
+            <button type="button" @onclick="FullscreenAsync">Fullscreen</button>
             @if (!operatorMode && snapshot is null)
             {
                 <button type="button" @onclick="StartDoomAsync">Play ASCII corridor</button>
@@ -83,14 +94,6 @@
                         </label>
                     }
                 }
-                <label>
-                    <span>Fullscreen scale</span>
-                    <select value="@fullscreenScaleMode" @onchange="ChangeFullscreenScaleModeAsync">
-                        <option value="Fit">Fit whole frame</option>
-                        <option value="Width">Fit width + vertical scroll</option>
-                        <option value="Native">Native size + scroll</option>
-                    </select>
-                </label>
                 <button type="button" @onclick="ToggleControls">@(showControls ? "Hide guide" : "Show guide")</button>
                 @if (string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase))
                 {
@@ -101,7 +104,6 @@
                     <button type="button" @onclick="RestartSameMapAsync">Restart same map</button>
                     <button type="button" @onclick="StartFreshMapAsync">New map</button>
                 }
-                <button type="button" @onclick="FullscreenAsync">Fullscreen</button>
             }
             <button type="button"
                     class="chat-game-console-close"
@@ -134,7 +136,7 @@
                        type="text"
                        spellcheck="false"
                        autocomplete="off"
-                       placeholder=":help or enter a @OperatorShellLabel command"
+                       placeholder=":help, :chat, :council, :session, :game, :mode or a @OperatorShellLabel command"
                        @bind="operatorInput"
                        @bind:event="oninput"
                        disabled="@operatorSubmitting" />
@@ -217,10 +219,52 @@
                                     <button type="submit" disabled="@(hotSeatSubmitting || string.IsNullOrWhiteSpace(hotSeatText))">EMOTE</button>
                                 </div>
                             </form>
-                            <small>Play here: W/A/S/D map to MOVE N/W/S/E. The right-side Approvals &amp; Team inbox mirrors the same request but is no longer required for gameplay.</small>
+                            <small>Play entirely here: W/A/S/D map to MOVE N/W/S/E. The Council hot-seat request stays on the ASCII game surface instead of requiring the separate collaboration inbox.</small>
                         </div>
                     }
-                    else if (CanRestartCorridor)
+                    @if (HasGameInteractionRequest)
+                    {
+                        <div class="chat-game-control-card chat-game-hotseat-card chat-game-ai-request-card">
+                            <div class="chat-game-hotseat-heading">
+                                <strong>@gameInteractionRequest!.Title</strong>
+                                <span>@gameInteractionRequest.RequestedRole · @gameInteractionRequest.RequestedBy</span>
+                            </div>
+                            <div class="chat-game-control-status" role="status">
+                                <span>@(string.IsNullOrWhiteSpace(gameInteractionRequest.ResponsePrompt) ? gameInteractionRequest.Description : gameInteractionRequest.ResponsePrompt)</span>
+                            </div>
+                            @if (IsApprovalGameInteraction)
+                            {
+                                <div class="chat-game-hotseat-dash" aria-label="AI request decision">
+                                    <button type="button" disabled="@gameInteractionSubmitting" @onclick='@(() => SubmitGameInteractionAsync(true, gameInteractionText, string.Empty))'>APPROVE</button>
+                                    <button type="button" disabled="@gameInteractionSubmitting" @onclick='@(() => SubmitGameInteractionAsync(false, gameInteractionText, gameInteractionText))'>DECLINE</button>
+                                </div>
+                            }
+                            else if (gameInteractionRequest.SuggestedResponses.Count > 0)
+                            {
+                                <div class="chat-game-ai-request-options" aria-label="Suggested responses">
+                                    @foreach (var suggestion in gameInteractionRequest.SuggestedResponses)
+                                    {
+                                        <button type="button" disabled="@gameInteractionSubmitting" @onclick='@(() => SubmitGameInteractionAsync(null, suggestion, string.Empty))'>@suggestion</button>
+                                    }
+                                </div>
+                            }
+                            @if (gameInteractionRequest.AllowFreeText || !IsApprovalGameInteraction)
+                            {
+                                <form class="chat-game-hotseat-text" @onsubmit="SubmitGameInteractionTextAsync" @onsubmit:preventDefault="true">
+                                    <label for="@($"{elementId}-ai-request-text")">@(IsApprovalGameInteraction ? "Decision note / decline reason" : "Your answer")</label>
+                                    <div>
+                                        <input id="@($"{elementId}-ai-request-text")" maxlength="2000" autocomplete="off" @bind="gameInteractionText" @bind:event="oninput" placeholder="Respond without leaving ASCII mode" disabled="@gameInteractionSubmitting" />
+                                        @if (!IsApprovalGameInteraction)
+                                        {
+                                            <button type="submit" disabled="@(gameInteractionSubmitting || string.IsNullOrWhiteSpace(gameInteractionText))">SEND</button>
+                                        }
+                                    </div>
+                                </form>
+                            }
+                            <small>This Council/AI request is projected into the active game so play does not need to leave ASCII mode.</small>
+                        </div>
+                    }
+                    @if (!HasHotSeatRequest && !HasGameInteractionRequest && CanRestartCorridor)
                     {
                         <div class="chat-game-control-card chat-game-restart-card">
                             <strong>Mission complete</strong>
@@ -236,7 +280,7 @@
                             </form>
                         </div>
                     }
-                    else
+                    else if (!HasHotSeatRequest && !HasGameInteractionRequest && !CanRestartCorridor)
                     {
                         <div class="chat-game-control-card">
                             <strong>Your turn</strong>
@@ -288,6 +332,7 @@
     /// <value>The conversation identifier value exposed by <see cref="ChatGameConsole"/>.</value>
     [Parameter] public Guid? ConversationId { get; set; }
     /// <summary>Gets or sets the Council run that may currently be waiting for one hot-seat human move.</summary>
+    /// <value>The active Council run identifier associated with this ASCII surface.</value>
     [Parameter] public Guid? CouncilRunId { get; set; }
     /// <summary>
     /// Gets or sets the stable suggested team key used to identify or correlate this chat game console instance with related application state.
@@ -319,6 +364,27 @@
     /// </summary>
     /// <value>The close requested value exposed by <see cref="ChatGameConsole"/>.</value>
     [Parameter] public EventCallback CloseRequested { get; set; }
+    /// <summary>Gets or sets the saved chats exposed to the in-terminal Operator session selector.</summary>
+    /// <value>Saved conversation summaries available to the current Chat page.</value>
+    [Parameter] public IReadOnlyList<ChatMemoryConversationSummary> SavedConversations { get; set; } = [];
+    /// <summary>Requests a normal chat prompt from Operator mode.</summary>
+    /// <value>Callback used to submit a normal Chat prompt through the owning page.</value>
+    [Parameter] public EventCallback<string> ChatPromptRequested { get; set; }
+    /// <summary>Requests a Council prompt from Operator mode.</summary>
+    /// <value>Callback used to start a Council prompt through the owning page.</value>
+    [Parameter] public EventCallback<string> CouncilPromptRequested { get; set; }
+    /// <summary>Requests creation of a fresh chat from Operator mode.</summary>
+    /// <value>Callback used to create a new chat through the owning page.</value>
+    [Parameter] public EventCallback NewSessionRequested { get; set; }
+    /// <summary>Requests opening a saved chat selected by id or title from Operator mode.</summary>
+    /// <value>Callback used to open the selected saved chat through the owning page.</value>
+    [Parameter] public EventCallback<string> SessionOpenRequested { get; set; }
+    /// <summary>Requests stopping the active Council run from Operator mode.</summary>
+    /// <value>Callback used to stop the active Council run through the owning page.</value>
+    [Parameter] public EventCallback CouncilStopRequested { get; set; }
+    /// <summary>Requests skipping the current Council round from Operator mode.</summary>
+    /// <value>Callback used to skip the current Council round through the owning page.</value>
+    [Parameter] public EventCallback CouncilSkipRequested { get; set; }
 
     /// <summary>
     /// Stores the internal element identifier state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
@@ -370,6 +436,12 @@
     private string hotSeatText = string.Empty;
     /// <summary>Prevents duplicate hot-seat submissions while one decision is being persisted.</summary>
     private bool hotSeatSubmitting;
+    /// <summary>Stores the next non-hot-seat human collaboration request associated with the active game Council run.</summary>
+    private HumanCollaborationRequest? gameInteractionRequest;
+    /// <summary>Stores the response text entered directly inside the ASCII game for the current AI/Council request.</summary>
+    private string gameInteractionText = string.Empty;
+    /// <summary>Prevents duplicate in-game AI/Council request submissions.</summary>
+    private bool gameInteractionSubmitting;
     /// <summary>Stores the text used when starting a fresh themed ASCII corridor scenario.</summary>
     private string scenarioPrompt = string.Empty;
     /// <summary>
@@ -403,16 +475,27 @@
     /// </summary>
     /// <value>The show control guide value exposed by <see cref="ChatGameConsole"/>.</value>
     private bool HasHotSeatRequest => hotSeatRequest is not null;
+    /// <summary>Gets whether an AI/Council human request can be answered directly on the active ASCII game surface.</summary>
+    /// <value><c>true</c> when a non-role Human Collaboration request is projected into the game.</value>
+    private bool HasGameInteractionRequest => gameInteractionRequest is not null;
+    /// <summary>Gets whether the projected game request requires an explicit approve/decline choice.</summary>
+    /// <value><c>true</c> when the current projected request uses the approval contract.</value>
+    private bool IsApprovalGameInteraction => gameInteractionRequest is not null
+        && string.Equals(gameInteractionRequest.RequestKind, Vocabulary.Get().HumanRequestApproval, StringComparison.Ordinal);
     /// <summary>Gets whether this game surface belongs to the Council hot-seat workflow rather than the standalone deterministic corridor.</summary>
+    /// <value><c>true</c> when the current game is attached to the configured Council hot-seat workflow.</value>
     private bool IsCouncilHotSeatGame => CouncilRunId.HasValue
         && (HasHotSeatRequest
             || string.Equals(snapshot?.TeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase)
             || string.Equals(SuggestedTeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase));
     /// <summary>Gets whether a completed standalone ASCII corridor can be restarted without replacing the owning chat.</summary>
+    /// <value><c>true</c> when the completed corridor is standalone and restartable.</value>
     private bool CanRestartCorridor => snapshot is { GameKey: "ascii-doom" }
         && !string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase)
         && !IsCouncilHotSeatGame;
-    private bool ShowControlGuide => snapshot is not null && showControls && (HasHotSeatRequest || CanRestartCorridor || snapshot.ControlMode != CouncilGameControlMode.Ai);
+    /// <summary>Gets whether the active game should expose its human control guide.</summary>
+    /// <value><c>true</c> when controls or in-game collaboration input are currently relevant.</value>
+    private bool ShowControlGuide => snapshot is not null && showControls && (HasHotSeatRequest || HasGameInteractionRequest || CanRestartCorridor || snapshot.ControlMode != CouncilGameControlMode.Ai);
     /// <summary>
     /// Gets a value indicating whether submit human control applies to the chat game console state.
     /// </summary>
@@ -424,7 +507,7 @@
     /// Gets the input busy state value that forms part of the chat game console state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The input busy state value exposed by <see cref="ChatGameConsole"/>.</value>
-    private string InputBusyState => inputInFlight ? "true" : "false";
+    private string InputBusyState => inputInFlight || hotSeatSubmitting || gameInteractionSubmitting ? "true" : "false";
     /// <summary>
     /// Gets the console text value that forms part of the chat game console state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -432,7 +515,7 @@
     private string ConsoleText => Console.GetRecentDisplayText(160);
     /// <summary>Gets the bounded command transcript or the Matrix-style idle frame shown when no operator output exists yet.</summary>
     /// <value>Visible operator transcript text that never opens or embeds an external terminal window.</value>
-    private string OperatorConsoleText => consoleOutput.Count > 0 ? Console.GetRecentDisplayText(240) : "┌─ LOCALGPT MATRIX OPERATOR ───────────────────────────────────────────────────┐" + Environment.NewLine + "│ Embedded shell/process control ready. No external terminal window is opened. │" + Environment.NewLine + "│ :help lists LocalGPT meta commands; ordinary lines run in the selected shell. │" + Environment.NewLine + "└──────────────────────────────────────────────────────────────────────────────┘";
+    private string OperatorConsoleText => consoleOutput.Count > 0 ? Console.GetRecentDisplayText(240) : "┌─ LOCALGPT MATRIX OPERATOR ───────────────────────────────────────────────────┐" + Environment.NewLine + "│ Embedded shell/process control ready. No external terminal window is opened. │" + Environment.NewLine + "│ :help lists app + shell commands; chat, Council and games stay in this wall.  │" + Environment.NewLine + "└──────────────────────────────────────────────────────────────────────────────┘";
     /// <summary>Gets the header status that identifies whether the ASCII wall currently belongs to the game or operator control plane.</summary>
     /// <value>A compact status line describing the selected shell, active jobs, or current game turn.</value>
     private string OperatorHeaderText => operatorMode
@@ -618,6 +701,10 @@
                 WorkingDirectory = operatorWorkingDirectory,
                 UserConfirmed = true
             }).ConfigureAwait(false);
+
+            if (result.ApplicationAction != LocalConsoleOperatorApplicationAction.None)
+                await DispatchApplicationOperatorActionAsync(result).ConfigureAwait(false);
+
             await InvokeAsync(() =>
             {
                 operatorShell = result.SelectedShell;
@@ -646,6 +733,100 @@
         }
     }
 
+    /// <summary>Dispatches one typed LocalGPT application action already parsed by the service-owned ASCII operator vocabulary.</summary>
+    /// <param name="result">Typed operator result containing the application action and bounded argument.</param>
+    /// <returns>A task that completes when the requested application action has been handed to its owning UI/service boundary.</returns>
+    private async Task DispatchApplicationOperatorActionAsync(LocalConsoleOperatorResult result)
+    {
+        try
+        {
+            switch (result.ApplicationAction)
+            {
+                case LocalConsoleOperatorApplicationAction.ChatPrompt:
+                    await InvokeAsync(() => ChatPromptRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(false);
+                    break;
+                case LocalConsoleOperatorApplicationAction.CouncilPrompt:
+                    await InvokeAsync(() => CouncilPromptRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(false);
+                    break;
+                case LocalConsoleOperatorApplicationAction.CouncilStatus:
+                    var running = CouncilParticipantActivities.Count(item => item.IsRunning);
+                    Console.PublishOperatorMessage(CouncilRunId is Guid runId
+                        ? $"Council {runId:N}: {running}/{CouncilParticipantActivities.Count} participant lane(s) currently running."
+                        : "No Council run is attached to the current ASCII surface.");
+                    break;
+                case LocalConsoleOperatorApplicationAction.CouncilStop:
+                    await InvokeAsync(() => CouncilStopRequested.InvokeAsync()).ConfigureAwait(false);
+                    break;
+                case LocalConsoleOperatorApplicationAction.CouncilSkip:
+                    await InvokeAsync(() => CouncilSkipRequested.InvokeAsync()).ConfigureAwait(false);
+                    break;
+                case LocalConsoleOperatorApplicationAction.SessionList:
+                    Console.PublishOperatorMessage(Operator.FormatSavedConversations(SavedConversations));
+                    break;
+                case LocalConsoleOperatorApplicationAction.SessionNew:
+                    await InvokeAsync(() => NewSessionRequested.InvokeAsync()).ConfigureAwait(false);
+                    break;
+                case LocalConsoleOperatorApplicationAction.SessionOpen:
+                    await InvokeAsync(() => SessionOpenRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(false);
+                    break;
+                case LocalConsoleOperatorApplicationAction.GameStartCorridor:
+                    await StartDoomAsync().ConfigureAwait(false);
+                    operatorMode = false;
+                    conversationMode = false;
+                    break;
+                case LocalConsoleOperatorApplicationAction.GameStartDragon:
+                    await StartDragonAsync().ConfigureAwait(false);
+                    operatorMode = false;
+                    conversationMode = false;
+                    break;
+                case LocalConsoleOperatorApplicationAction.GameStartProject:
+                    snapshot = await GameProjects.LaunchBySelectorAsync(result.ApplicationArgument, new LaunchProjectGameRequest
+                    {
+                        ConversationId = ConversationId,
+                        CouncilRunId = CouncilRunId,
+                        StartedBy = "ASCII Operator"
+                    }).ConfigureAwait(false);
+                    showControls = true;
+                    operatorMode = false;
+                    conversationMode = false;
+                    await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+                    break;
+                case LocalConsoleOperatorApplicationAction.GameStatus:
+                    Console.PublishOperatorMessage(snapshot is null
+                        ? "No ASCII game is active."
+                        : $"Game {snapshot.DisplayName}: status={snapshot.Status}; turn={snapshot.Turn}; owner={snapshot.CurrentTurnOwner}; control={snapshot.ControlMode}.");
+                    break;
+                case LocalConsoleOperatorApplicationAction.GameEnd:
+                    if (snapshot is not null)
+                        snapshot = await Games.EndAsync(snapshot.Id, "ASCII Operator").ConfigureAwait(false);
+                    break;
+                case LocalConsoleOperatorApplicationAction.ModeChat:
+                    operatorMode = false;
+                    conversationMode = true;
+                    break;
+                case LocalConsoleOperatorApplicationAction.ModeGame:
+                    operatorMode = false;
+                    conversationMode = snapshot is null;
+                    break;
+                case LocalConsoleOperatorApplicationAction.ModeOperator:
+                    operatorMode = true;
+                    break;
+                case LocalConsoleOperatorApplicationAction.Fullscreen:
+                    fullscreenScaleMode = result.ApplicationArgument;
+                    await FullscreenAsync().ConfigureAwait(false);
+                    break;
+                case LocalConsoleOperatorApplicationAction.None:
+                default:
+                    break;
+            }
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Dispatching a parsed LocalGPT ASCII operator application action failed.");
+            throw;
+        }
+    }
+
     /// <summary>
     /// Starts doom for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
@@ -662,6 +843,8 @@
     /// </summary>
     /// <param name="gameKey">Game key value supplied to the chat game console operation and used when producing its result.</param>
     /// <param name="teamKey">Team key value supplied to the chat game console operation and used when producing its result.</param>
+    /// <param name="mapSeed">Optional deterministic map seed used when replaying a corridor.</param>
+    /// <param name="scenario">Optional bounded scenario prompt supplied to the game runtime.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task StartAsync(string gameKey, string teamKey, int? mapSeed = null, string scenario = "")
     {
@@ -672,6 +855,7 @@
                 GameKey = gameKey,
                 TeamKey = string.IsNullOrWhiteSpace(SuggestedTeamKey) ? teamKey : SuggestedTeamKey,
                 ConversationId = ConversationId,
+                CouncilRunId = CouncilRunId,
                 ControlMode = CouncilGameControlMode.Shared,
                 MapSeed = mapSeed,
                 ScenarioPrompt = scenario,
@@ -680,6 +864,7 @@
             showControls = true;
             operatorMode = false;
             conversationMode = false;
+            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -689,14 +874,17 @@
     }
 
     /// <summary>Restarts the completed ASCII corridor with the exact same deterministic map seed.</summary>
+    /// <returns>A task that completes when the replay session has started.</returns>
     private Task RestartSameMapAsync() => snapshot is null
         ? Task.CompletedTask
         : StartAsync("ascii-doom", snapshot.TeamKey, snapshot.MapSeed, snapshot.ScenarioPrompt);
 
     /// <summary>Starts a newly seeded corridor while preserving the current chat and selected team.</summary>
+    /// <returns>A task that completes when the newly seeded corridor has started.</returns>
     private Task StartFreshMapAsync() => StartAsync("ascii-doom", snapshot?.TeamKey ?? "ascii-doom-council-adventure");
 
     /// <summary>Starts a new corridor whose stable layout is derived from the supplied scenario text.</summary>
+    /// <returns>A task that completes when the scenario-derived corridor has started.</returns>
     private async Task StartScenarioAsync()
     {
         var scenario = CouncilText.TrimForPrompt(scenarioPrompt, 240, Logger, collapseWhitespace: true);
@@ -846,12 +1034,14 @@
         }
     }
 
-    /// <summary>Refreshes the pending hot-seat request projected from the normal Human Collaboration service.</summary>
+    /// <summary>Refreshes pending human requests projected directly into the active ASCII game surface.</summary>
+    /// <returns>A task that completes after the current Council requests have been projected.</returns>
     private async Task RefreshHotSeatRequestAsync()
     {
         if (CouncilRunId is not Guid runId)
         {
             hotSeatRequest = null;
+            gameInteractionRequest = null;
             return;
         }
 
@@ -859,24 +1049,25 @@
         {
             var collaboration = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 80).ConfigureAwait(false);
             hotSeatProfile = collaboration.Profile;
-            hotSeatRequest = collaboration.Requests
-                .Where(request => request.CouncilRunId == runId
-                    && request.DecidedAtUtc is null
-                    && (string.Equals(request.RequestedRole, "Player 1 Hot Seat", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(request.RequestedRole, "Player 2 Hot Seat", StringComparison.OrdinalIgnoreCase)))
+            var pending = collaboration.Requests
+                .Where(request => request.CouncilRunId == runId && request.DecidedAtUtc is null)
                 .OrderBy(request => request.RequestedAtUtc)
-                .FirstOrDefault();
+                .ToList();
+            hotSeatRequest = pending.FirstOrDefault(AsciiText.IsCouncilRoleResponseRequest);
+            gameInteractionRequest = snapshot is null ? null : pending.FirstOrDefault(request => !AsciiText.IsCouncilRoleResponseRequest(request));
 
-            if (hotSeatRequest is not null && !operatorMode)
+            if ((hotSeatRequest is not null || gameInteractionRequest is not null) && !operatorMode)
                 conversationMode = false;
         }
         catch (Exception exception)
         {
-            Logger.LogWarning(exception, "Refreshing the in-game hot-seat request failed.");
+            Logger.LogWarning(exception, "Refreshing in-game Human Collaboration requests failed.");
         }
     }
 
     /// <summary>Resolves the current Council HumanOnly player role directly from the game surface.</summary>
+    /// <param name="command">Validated MOVE, DASH, PASS or EMOTE command submitted by the human player.</param>
+    /// <returns>A task that completes when the Human Collaboration request has been resolved.</returns>
     private async Task SubmitHotSeatResponseAsync(string command)
     {
         var request = hotSeatRequest;
@@ -919,6 +1110,7 @@
     }
 
     /// <summary>Submits the free-text field as an EMOTE command while keeping movement deterministic.</summary>
+    /// <returns>A task that completes when the EMOTE response has been submitted.</returns>
     private Task SubmitHotSeatTextAsync()
     {
         var text = CouncilText.TrimForPrompt(hotSeatText, 80, Logger, collapseWhitespace: true);
@@ -926,6 +1118,66 @@
             return Task.CompletedTask;
         return SubmitHotSeatResponseAsync($"EMOTE {text}");
     }
+
+    /// <summary>Submits one projected AI/Council request response without leaving the active ASCII game.</summary>
+    /// <param name="approved">Optional approval decision for approval-style requests.</param>
+    /// <param name="response">Human response text for free-text or suggested-response requests.</param>
+    /// <param name="reason">Optional human decision reason recorded with approval responses.</param>
+    /// <returns>A task that completes when the Human Collaboration request has been resolved.</returns>
+    private async Task SubmitGameInteractionAsync(bool? approved, string response, string reason)
+    {
+        var request = gameInteractionRequest;
+        if (request is null || gameInteractionSubmitting)
+            return;
+
+        var isApproval = string.Equals(request.RequestKind, Vocabulary.Get().HumanRequestApproval, StringComparison.Ordinal);
+        var normalizedResponse = CouncilText.TrimForPrompt(response, 2000, Logger, collapseWhitespace: true);
+        var normalizedReason = CouncilText.TrimForPrompt(reason, 2000, Logger, collapseWhitespace: true);
+        if (!isApproval && string.IsNullOrWhiteSpace(normalizedResponse))
+            return;
+        if (isApproval && approved == false && string.IsNullOrWhiteSpace(normalizedReason))
+            normalizedReason = "Declined from the active ASCII game surface.";
+
+        gameInteractionSubmitting = true;
+        try
+        {
+            var profile = hotSeatProfile ?? await HumanCollaboration.GetProfileAsync().ConfigureAwait(false);
+            using var scope = HumanAmbientContext.PushHumanInteraction(
+                profile.Id,
+                profile.DisplayName,
+                nameof(ChatGameConsole),
+                request.CorrelationId,
+                request.CouncilRunId,
+                request.RequestedCouncilRound,
+                request.RequestedCouncilPhase);
+            await HumanCollaboration.ResolveRequestAsync(
+                request.Id,
+                new HumanDecisionSubmission(approved, normalizedResponse, normalizedReason),
+                consoleRenderCancellation.Token).ConfigureAwait(false);
+            gameInteractionText = string.Empty;
+            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
+        {
+            // Component teardown cancels a still-pending in-game response.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Submitting an AI/Council request from the ASCII game surface failed.");
+            operatorStatus = "The in-game Council request could not be saved. Review LocalGPT diagnostics.";
+        }
+        finally
+        {
+            gameInteractionSubmitting = false;
+            if (!disposed)
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Submits the free-text response currently entered for the projected in-game AI/Council request.</summary>
+    /// <returns>A task that completes when the current in-game response has been submitted.</returns>
+    private Task SubmitGameInteractionTextAsync() =>
+        SubmitGameInteractionAsync(null, gameInteractionText, string.Empty);
 
     /// <summary>Reacts to Human Collaboration updates without polling the database from the renderer.</summary>
     private void OnHumanCollaborationChanged()
@@ -950,6 +1202,7 @@
         {
             var hadSnapshot = snapshot is not null;
             snapshot = await Games.GetAsync(sessionId).ConfigureAwait(false);
+            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
             if (!hadSnapshot && snapshot is not null && !operatorMode)
                 conversationMode = false;
             StateHasChanged();

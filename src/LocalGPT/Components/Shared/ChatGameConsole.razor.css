@@ -595,3 +595,26 @@
         height: clamp(22rem, 62dvh, 42rem);
     }
 }
+
+/* v4.3.8: fullscreen now applies consistently to chat, game and Operator planes. */
+.chat-game-console:fullscreen .ascii-operator-stage,
+.chat-game-console:fullscreen .ascii-conversation-stage,
+.chat-game-console:fullscreen .chat-game-console-placeholder {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+}
+
+.chat-game-ai-request-options {
+    display: grid;
+    gap: .35rem;
+}
+
+.chat-game-ai-request-options button {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .45rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    padding: .42rem .55rem;
+    text-align: left;
+}

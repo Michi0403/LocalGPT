@@ -42,6 +42,15 @@ public sealed class StartCouncilGameRequest
     /// </summary>
     /// <value>The conversation identifier value exposed by <see cref="StartCouncilGameRequest"/>.</value>
     public Guid? ConversationId { get; set; }
+    /// <summary>Gets or sets the Council run that owns this game when it was started from an AI Council workflow.</summary>
+    /// <value>The owning Council run identifier, or <c>null</c> for a standalone game.</value>
+    public Guid? CouncilRunId { get; set; }
+    /// <summary>Gets or sets the LocalGPT project that produced the supplied built game definition, when this session is project-owned.</summary>
+    /// <value>The owning project identifier, or <c>null</c> for legacy/built-in sessions.</value>
+    public Guid? ProjectId { get; set; }
+    /// <summary>Gets or sets the project-built runtime definition consumed by GameDirector.</summary>
+    /// <value>The compiled game definition, or <c>null</c> when a legacy built-in game key is used.</value>
+    public ProjectGameDefinition? Definition { get; set; }
     /// <summary>
     /// Gets or sets the control mode value that forms part of the start council game state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -306,6 +315,18 @@ public sealed class CouncilGameSessionSnapshot
     /// </summary>
     /// <value>The conversation identifier value exposed by <see cref="CouncilGameSessionSnapshot"/>.</value>
     public Guid? ConversationId { get; set; }
+    /// <summary>Gets or sets the Council run that owns this game, when applicable.</summary>
+    /// <value>The owning Council run identifier, or <c>null</c> for a standalone game.</value>
+    public Guid? CouncilRunId { get; set; }
+    /// <summary>Gets or sets the project that produced this game runtime, when applicable.</summary>
+    /// <value>The project identifier, or <c>null</c> for a legacy built-in runtime.</value>
+    public Guid? ProjectId { get; set; }
+    /// <summary>Gets or sets the project version captured by the built game definition.</summary>
+    /// <value>The source project version; empty for a legacy built-in runtime.</value>
+    public string ProjectVersion { get; set; } = string.Empty;
+    /// <summary>Gets or sets the runtime profile used to interpret this session independently of its game key.</summary>
+    /// <value>The data-driven runtime profile.</value>
+    public CouncilGameRuntimeProfile RuntimeProfile { get; set; } = CouncilGameRuntimeProfile.Corridor;
     /// <summary>
     /// Gets or sets the display name value that forms part of the council game session snapshot state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -521,6 +542,18 @@ public sealed class CouncilGameSessionState
     /// </summary>
     /// <value>The conversation identifier value exposed by <see cref="CouncilGameSessionState"/>.</value>
     public Guid? ConversationId { get; set; }
+    /// <summary>Gets or sets the Council run that owns this authoritative game state, when applicable.</summary>
+    /// <value>The owning Council run identifier, or <c>null</c> for a standalone game.</value>
+    public Guid? CouncilRunId { get; set; }
+    /// <summary>Gets or sets the LocalGPT project that produced this runtime, when the session came from a game project.</summary>
+    /// <value>The owning project identifier, or <c>null</c> for legacy built-in sessions.</value>
+    public Guid? ProjectId { get; set; }
+    /// <summary>Identifies the authored project version whose compiled definition produced this runtime session.</summary>
+    /// <value>The built project version or an empty value for legacy sessions.</value>
+    public string ProjectVersion { get; set; } = string.Empty;
+    /// <summary>Gets or sets the runtime profile that owns game rules/rendering for this session.</summary>
+    /// <value>The selected game runtime profile.</value>
+    public CouncilGameRuntimeProfile RuntimeProfile { get; set; } = CouncilGameRuntimeProfile.Corridor;
     /// <summary>
     /// Gets or sets the display name value that forms part of the council game session state consumed or produced by the surrounding workflow.
     /// </summary>

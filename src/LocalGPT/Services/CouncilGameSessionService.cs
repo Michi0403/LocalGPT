@@ -77,17 +77,67 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             ThrowIfDisposed();
             ArgumentNullException.ThrowIfNull(request);
             cancellationToken.ThrowIfCancellationRequested();
-            var gameKey = NormalizeGameKey(request.GameKey);
-            var scenarioPrompt = string.Join(' ', (request.ScenarioPrompt ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+            var definition = request.Definition;
+            string gameKey;
+            CouncilGameRuntimeProfile runtimeProfile;
+            Guid? projectId;
+            string projectVersion;
+            string displayName;
+            string defaultTeamKey;
+            if (definition is null)
+            {
+                gameKey = NormalizeGameKey(request.GameKey);
+                runtimeProfile = gameKey == "green-dragon" ? CouncilGameRuntimeProfile.Story : CouncilGameRuntimeProfile.Corridor;
+                projectId = request.ProjectId;
+                projectVersion = string.Empty;
+                displayName = runtimeProfile == CouncilGameRuntimeProfile.Story ? "Green Dragon Runtime Story" : "ASCII corridor action game";
+                defaultTeamKey = DefaultTeamFor(gameKey);
+            }
+            else
+            {
+                if (definition.ProjectId == Guid.Empty)
+                    throw new ArgumentException("A project-built game definition must carry its owning project identifier.", nameof(request));
+                if (request.ProjectId is Guid requestedProjectId && requestedProjectId != definition.ProjectId)
+                    throw new ArgumentException("The requested project identifier does not match the project-built game definition.", nameof(request));
+                if (!Enum.IsDefined(typeof(CouncilGameRuntimeProfile), definition.RuntimeProfile))
+                    throw new ArgumentException("The project-built game definition targets an unsupported runtime profile.", nameof(request));
+
+                var normalizedDefinitionKey = (definition.GameKey ?? string.Empty).Trim().ToLowerInvariant().Replace('_', '-').Replace(' ', '-');
+                normalizedDefinitionKey = new string(normalizedDefinitionKey.Where(character => char.IsLetterOrDigit(character) || character == '-').ToArray()).Trim('-');
+                if (string.IsNullOrWhiteSpace(normalizedDefinitionKey))
+                    throw new ArgumentException("The project-built game definition contains an invalid game key.", nameof(request));
+                if (normalizedDefinitionKey.Length > 160)
+                    normalizedDefinitionKey = normalizedDefinitionKey[..160];
+
+                gameKey = normalizedDefinitionKey;
+                runtimeProfile = definition.RuntimeProfile;
+                projectId = definition.ProjectId;
+                projectVersion = (definition.ProjectVersion ?? string.Empty).Trim();
+                displayName = string.IsNullOrWhiteSpace(definition.DisplayName) ? gameKey : definition.DisplayName.Trim();
+                defaultTeamKey = string.IsNullOrWhiteSpace(definition.DefaultTeamKey) ? $"{gameKey}-council" : definition.DefaultTeamKey.Trim();
+            }
+
+            var requestedScenario = string.IsNullOrWhiteSpace(request.ScenarioPrompt) && definition is not null
+                ? definition.ScenarioPrompt
+                : request.ScenarioPrompt;
+            var scenarioPrompt = string.Join(' ', (requestedScenario ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
             if (scenarioPrompt.Length > 240)
                 scenarioPrompt = scenarioPrompt[..240];
+            var requestedMapSeed = request.MapSeed is > 0
+                ? request.MapSeed.Value
+                : definition?.MapSeed is > 0 ? definition.MapSeed : 0;
             var session = new CouncilGameSessionState
             {
                 Id = Guid.NewGuid(),
                 GameKey = gameKey,
-                TeamKey = string.IsNullOrWhiteSpace(request.TeamKey) ? DefaultTeamFor(gameKey) : request.TeamKey.Trim(),
+                RuntimeProfile = runtimeProfile,
+                ProjectId = projectId,
+                ProjectVersion = projectVersion,
+                TeamKey = string.IsNullOrWhiteSpace(request.TeamKey) ? defaultTeamKey : request.TeamKey.Trim(),
                 ConversationId = request.ConversationId,
-                DisplayName = gameKey == "green-dragon" ? "Green Dragon Runtime Story" : "ASCII corridor action game",
+                CouncilRunId = request.CouncilRunId,
+                DisplayName = displayName,
                 ControlMode = request.ControlMode,
                 AutoplayEnabled = request.ControlMode == CouncilGameControlMode.Ai,
                 AutoplayDelayMilliseconds = NormalizeAutoplayDelay(request.AutoplayDelayMilliseconds),
@@ -104,16 +154,16 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 LastDirectorDecision = "The GameDirector owns all state transitions; controllers may only submit proposals.",
                 FrameWidth = Math.Clamp(request.FrameWidth, 20, 240),
                 FrameHeight = Math.Clamp(request.FrameHeight, 8, 100),
-                MapSeed = request.MapSeed is > 0 ? request.MapSeed.Value : 0,
+                MapSeed = requestedMapSeed,
                 ScenarioPrompt = scenarioPrompt,
                 LastActionBy = string.IsNullOrWhiteSpace(request.StartedBy) ? "Human User" : request.StartedBy.Trim(),
-                PlayerX = gameKey == "green-dragon" ? 4 : 3,
-                PlayerY = gameKey == "green-dragon" ? 4 : 3,
+                PlayerX = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
+                PlayerY = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
                 FacingRadians = 0d,
-                LegalActions = BuildLegalActions(gameKey),
-                InputBindings = BuildInputBindings(gameKey)
+                LegalActions = BuildLegalActions(runtimeProfile),
+                InputBindings = BuildInputBindings(runtimeProfile)
             };
-            if (gameKey == "ascii-doom")
+            if (runtimeProfile == CouncilGameRuntimeProfile.Corridor)
                 InitializeDoomWorld(session);
             session.FrameText = Render(session);
             session.FrameCaption = BuildCaption(session);
@@ -122,10 +172,11 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             EnsureAutoplayLoop(session);
             Notify(session.Id);
             logger.LogInformation(
-                "Started Council game session {GameSessionId} for {GameKey} in {ControlMode} mode; prompt and frame content were omitted.",
+                "Started Council game session {GameSessionId} for {GameKey} in {ControlMode} mode from project {ProjectId}; prompt and frame content were omitted.",
                 session.Id,
                 session.GameKey,
-                session.ControlMode);
+                session.ControlMode,
+                session.ProjectId);
             return Task.FromResult(ToSnapshot(session));
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
@@ -233,6 +284,50 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         catch (Exception exception)
         {
             logger.LogError(exception, "Ending Council game session {GameSessionId} failed.", sessionId);
+            throw;
+        }
+    }
+
+    /// <summary>Ends every running ASCII game owned by one Council run without affecting standalone games.</summary>
+    /// <param name="councilRunId">Identifier of the owning Council run.</param>
+    /// <param name="endedBy">Bounded actor label recorded on the ended game sessions.</param>
+    /// <returns>The number of game sessions transitioned out of Running.</returns>
+    public int EndByCouncilRun(Guid councilRunId, string endedBy = "Council lifecycle")
+    {
+        try
+        {
+            ThrowIfDisposed();
+            var ended = 0;
+            foreach (var session in sessions.Values.Where(item =>
+                         item.CouncilRunId == councilRunId
+                         && string.Equals(item.Status, "Running", StringComparison.OrdinalIgnoreCase)))
+            {
+                lock (session.SyncRoot)
+                {
+                    if (!string.Equals(session.Status, "Running", StringComparison.OrdinalIgnoreCase)
+                        || session.CouncilRunId != councilRunId)
+                        continue;
+                    session.Status = "Completed";
+                    session.AutoplayEnabled = false;
+                    session.HumanInputRequired = false;
+                    session.CurrentTurnOwner = "Council run ended";
+                    session.InputReason = "The owning Council run ended, so its ASCII game runtime was stopped.";
+                    session.LastAction = "end-council-game";
+                    session.LastActionBy = string.IsNullOrWhiteSpace(endedBy) ? "Council lifecycle" : endedBy.Trim();
+                    session.UpdatedAtUtc = DateTime.UtcNow;
+                    ended++;
+                }
+                StopAutoplayLoop(session.Id);
+                Notify(session.Id);
+            }
+
+            if (ended > 0)
+                logger.LogInformation("Ended {GameSessionCount} Council-owned game session(s) for run {CouncilRunId}.", ended, councilRunId);
+            return ended;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Ending Council-owned game sessions failed for run {CouncilRunId}.", councilRunId);
             throw;
         }
     }

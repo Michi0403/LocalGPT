@@ -2,6 +2,8 @@
 @using System.Text.Json
 @implements IDisposable
 @inject IHumanCollaborationService Collaboration
+@inject ICouncilGameSessionService Games
+@inject AsciiChatTextService AsciiText
 @inject IDeferredDxAiInvocationService DeferredDxInvocations
 @inject ILocalGptVocabularyService Vocabulary
 @inject ILocalGptRuntimePolicyDataService RuntimePolicy
@@ -384,6 +386,10 @@
     /// </summary>
     private string statusText = string.Empty;
     /// <summary>
+    /// Stores the Council run identifiers whose active ASCII game surface owns direct configured-role input.
+    /// </summary>
+    private HashSet<Guid> asciiGameCouncilRunIds = [];
+    /// <summary>
     /// Stores the in-memory recent deferred results collection maintained internally by <see cref="HumanCollaborationInbox"/> for its current workflow state.
     /// </summary>
     private readonly List<DeferredResultView> recentDeferredResults = [];
@@ -393,14 +399,14 @@
     /// </summary>
     /// <value>The pending requests value exposed by <see cref="HumanCollaborationInbox"/>.</value>
     private IReadOnlyList<HumanCollaborationRequest> PendingRequests => snapshot.Requests
-        .Where(item => item.Status == Vocabulary.Get().HumanStatusPending)
+        .Where(item => item.Status == Vocabulary.Get().HumanStatusPending && !IsAsciiGameRoleRequest(item))
         .ToList();
     /// <summary>
     /// Gets the resolved requests collection maintained or exposed by this human collaboration inbox instance for downstream processing.
     /// </summary>
     /// <value>The resolved requests value exposed by <see cref="HumanCollaborationInbox"/>.</value>
     private IReadOnlyList<HumanCollaborationRequest> ResolvedRequests => snapshot.Requests
-        .Where(item => item.Status != Vocabulary.Get().HumanStatusPending)
+        .Where(item => item.Status != Vocabulary.Get().HumanStatusPending && !IsAsciiGameRoleRequest(item))
         .OrderByDescending(item => item.UpdatedAtUtc)
         .ToList();
     /// <summary>
@@ -409,6 +415,14 @@
     /// <value>The pending count value exposed by <see cref="HumanCollaborationInbox"/>.</value>
     private int PendingCount => PendingRequests.Count;
 
+    /// <summary>Returns whether an active Council-owned ASCII game surface owns this configured human-role request.</summary>
+    /// <param name="request">Human Collaboration request being considered for inbox projection.</param>
+    /// <returns><c>true</c> when an active game surface owns the Council role response.</returns>
+    private bool IsAsciiGameRoleRequest(HumanCollaborationRequest request) =>
+        request.CouncilRunId is Guid runId
+        && asciiGameCouncilRunIds.Contains(runId)
+        && AsciiText.IsCouncilRoleResponseRequest(request);
+
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="HumanCollaborationInbox"/>, updating the state required by the surrounding workflow.
     /// </summary>
@@ -416,6 +430,7 @@
     protected override async Task OnInitializedAsync()
     {
         Collaboration.Changed += OnCollaborationChanged;
+        Games.Changed += OnGameChanged;
         await RefreshAsync().ConfigureAwait(false);
     }
 
@@ -458,6 +473,11 @@
         try
         {
             snapshot = await Collaboration.GetSnapshotAsync(includeResolved: true, take: 80).ConfigureAwait(false);
+            var activeGames = await Games.ListAsync(includeCompleted: false, lifetimeCts.Token).ConfigureAwait(false);
+            asciiGameCouncilRunIds = activeGames
+                .Where(game => game.CouncilRunId.HasValue)
+                .Select(game => game.CouncilRunId!.Value)
+                .ToHashSet();
             if (!profileDirty)
             {
                 profile = new HumanCouncilParticipantProfile
@@ -750,6 +770,27 @@
     /// <returns>The string produced by the operation.</returns>
     private string GetContributionEditorId(Guid runId) => $"localgpt-heartbeat-draft-{runId:N}";
 
+    /// <summary>Refreshes request ownership when an ASCII game starts, ends, or changes Council association.</summary>
+    /// <param name="sessionId">Identifier of the game session whose state changed.</param>
+    private void OnGameChanged(Guid sessionId)
+    {
+        if (isDisposed)
+            return;
+
+        try
+        {
+            TaskRunner.Run(
+                nameof(HumanCollaborationInbox),
+                $"RefreshAfterGameChange:{sessionId:N}",
+                _ => InvokeAsync(RefreshAsync),
+                lifetimeCts.Token);
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            // A final game event raced with circuit disposal.
+        }
+    }
+
     /// <summary>
     /// Handles the collaboration changed lifecycle or event notification for <see cref="HumanCollaborationInbox"/>, updating the state required by the surrounding workflow.
     /// </summary>
@@ -782,6 +823,7 @@
 
         isDisposed = true;
         Collaboration.Changed -= OnCollaborationChanged;
+        Games.Changed -= OnGameChanged;
         lifetimeCts.Cancel();
         lifetimeCts.Dispose();
         GC.SuppressFinalize(this);

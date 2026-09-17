@@ -3157,3 +3157,20 @@
 @media (max-width: 760px) {
     .chat-game-latency-hint { align-items: stretch; flex-direction: column; }
 }
+
+
+/* v4.3.8: keep /chat vertically reachable even when a theme/runtime child reports a
+   larger minimum size than the internal transcript viewport. The transcript remains
+   the primary scroll owner, while the route can still reach session controls at the bottom. */
+.main-container,
+.main-container.chat-session-active {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable both-edges;
+}
+
+#localgpt-chat-host,
+.chat-session-active #localgpt-chat-host {
+    flex-shrink: 0 !important;
+}

@@ -45,6 +45,7 @@ public sealed class LocalGptProjectService(
                     project.Name,
                     project.Purpose,
                     project.RootPath,
+                    project.ProjectType,
                     project.CurrentVersion,
                     project.Status,
                     project.RecommendGit,
@@ -89,6 +90,11 @@ public sealed class LocalGptProjectService(
                 .ConfigureAwait(false);
             if (project is null)
                 return null;
+
+            var gameProfile = await db.LocalGptGameProjectProfiles
+                .AsNoTracking()
+                .SingleOrDefaultAsync(item => item.ProjectId == projectId, cancellationToken)
+                .ConfigureAwait(false);
 
             var topics = await db.LocalGptProjectTopics
                 .AsNoTracking()
@@ -156,6 +162,7 @@ public sealed class LocalGptProjectService(
             return new LocalGptProjectDetails
             {
                 Project = project,
+                GameProfile = gameProfile,
                 Topics = topics,
                 Versions = versions,
                 Revisions = revisions,

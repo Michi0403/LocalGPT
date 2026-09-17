@@ -228,6 +228,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<ILearningProjectWorkspaceSyncService, LearningProjectWorkspaceSyncService>();
                 builder.Services.AddScoped<ILearningRoundService, LearningRoundService>();
                 builder.Services.AddScoped<ILocalGptProjectService, LocalGptProjectService>();
+                builder.Services.AddScoped<IGameProjectService, GameProjectService>();
                 builder.Services.AddScoped<IProjectArchitectureService, ProjectArchitectureService>();
                 builder.Services.AddScoped<IToolchainKnowledgeService, ToolchainKnowledgeService>();
                 builder.Services.AddScoped<IToolchainDiscoveryService, ToolchainDiscoveryService>();

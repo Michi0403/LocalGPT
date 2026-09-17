@@ -79,12 +79,22 @@ if ([string]::IsNullOrWhiteSpace($projectNavigationBlock)) {
             $errors.Add("LocalGptProject CLR model must retain collection navigation '$navigation'.")
         }
     }
+
+    $gameProfileToken = 'b.Navigation("GameProfile");'
+    $gameProfileCount = ([regex]::Matches($projectNavigationBlock, [regex]::Escape($gameProfileToken))).Count
+    if ($gameProfileCount -ne 1) {
+        $errors.Add("LocalGptProject navigation 'GameProfile' must occur exactly once in its final snapshot block; found $gameProfileCount.")
+    }
+    if ($projectModel.IndexOf('LocalGptGameProjectProfile? GameProfile { get; set; }', [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("LocalGptProject CLR model must retain singular navigation 'GameProfile'.")
+    }
 }
 
 # Relationship checks are entity-specific because revision, requirement and project entities now deliberately
 # share navigation names such as Artifacts and BuildVerifications. Global token counts would reject valid
 # reverse navigations and hide the actual architectural contract that each FK must target the right owner.
 foreach ($relationshipToken in @(
+    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithOne("GameProfile")',
     'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Artifacts")',
     'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Requirements")',
     'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Revisions")',
@@ -104,6 +114,7 @@ foreach ($relationshipToken in @(
 }
 
 foreach ($contextToken in @(
+    '.WithOne(project => project.GameProfile)',
     '.WithMany(project => project.Artifacts)',
     '.WithMany(project => project.Requirements)',
     '.WithMany(project => project.Revisions)',
@@ -147,6 +158,26 @@ foreach ($token in @(
     'entity.Property(item => item.ModelRoutesJson).IsRequired()')) {
     if (-not ($context.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("DbContext must retain organic/council architecture token '$token'.")
+    }
+}
+
+foreach ($token in @(
+    'modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", b =>',
+    'b.ToTable("LocalGptGameProjectProfiles", (string)null)',
+    'b.HasIndex("ProjectId")'
+)) {
+    if ($snapshot.IndexOf($token, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("EF snapshot must retain Game-project authoring profile token '$token'.")
+    }
+}
+
+foreach ($token in @(
+    'DbSet<LocalGptGameProjectProfile> LocalGptGameProjectProfiles',
+    'modelBuilder.Entity<LocalGptGameProjectProfile>(entity =>',
+    '.HasForeignKey<LocalGptGameProjectProfile>(item => item.ProjectId)'
+)) {
+    if ($context.IndexOf($token, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("DbContext must retain Game-project authoring profile token '$token'.")
     }
 }
 

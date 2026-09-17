@@ -207,10 +207,12 @@ public sealed class CouncilGameDxParameterReader(
 /// </summary>
 /// <param name="games">Council game session service dependency used by the start council game function workflow to provide the corresponding application capability.</param>
 /// <param name="parameters">Parameters value supplied to the start council game function operation and used when producing its result.</param>
+/// <param name="ambientContext">Ambient LocalGPT context used to associate an AI-started game with the active Council run.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class StartCouncilGameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
+    IAmbientLocalGptContext ambientContext,
     ILogger<StartCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -250,6 +252,7 @@ public sealed class StartCouncilGameFunction(
                 GameKey = parameters.String(request.Parameters, "gameKey", "ascii-doom"),
                 TeamKey = parameters.String(request.Parameters, "teamKey"),
                 ConversationId = parameters.Guid(request.Parameters, "conversationId") is var id && id != Guid.Empty ? id : request.ConversationId,
+                CouncilRunId = ambientContext.Current.CouncilRunId,
                 ControlMode = mode,
                 AutoplayEnabled = mode == CouncilGameControlMode.Ai,
                 AutoplayDelayMilliseconds = parameters.Integer(request.Parameters, "autoplayDelayMilliseconds", 1200),

@@ -78,7 +78,7 @@
                             <input type="checkbox" checked="@route.LoadPercentOverride.HasValue" @onchange="args => ToggleOverride(route, args)" />
                             <span>Model override</span>
                         </label>
-                        <input type="range" min="0" max="100" step="5" value="@load" disabled="@(!route.LoadPercentOverride.HasValue)" @oninput="args => SetLoadOverride(route, args)" />
+                        <input type="range" min="0" max="100" step="5" value="@load" disabled="@(!route.LoadPercentOverride.HasValue)" @onchange="args => SetLoadOverride(route, args)" />
                         <output>@load%</output>
                     </div>
                     <p class="council-road-effective">

@@ -1347,6 +1347,80 @@ namespace LocalGPT.Migrations
                     b.ToTable("LocalGptProjects", (string)null);
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AutoplayDelayMilliseconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreatureDirectorCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DefaultControlMode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DefaultTeamKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DirectorMode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FrameHeight")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FrameWidth")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("GameDirectorModelName")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GameKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MapSeed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RuntimeProfile")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ScenarioPrompt")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId")
+                        .IsUnique();
+
+                    b.HasIndex("UpdatedAtUtc");
+
+                    b.ToTable("LocalGptGameProjectProfiles", (string)null);
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectArtifact", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2853,6 +2927,17 @@ namespace LocalGPT.Migrations
                     b.Navigation("Skill");
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")
+                        .WithOne("GameProfile")
+                        .HasForeignKey("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", "ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectArtifact", b =>
                 {
                     b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")
@@ -3087,6 +3172,8 @@ namespace LocalGPT.Migrations
                     b.Navigation("DocumentImports");
 
                     b.Navigation("EmbeddedFirmwarePlans");
+
+                    b.Navigation("GameProfile");
 
                     b.Navigation("OrganicSkillLinks");
 

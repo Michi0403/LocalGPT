@@ -55,3 +55,19 @@ Projects can link reviewed Council knowledge to topics and versions. Knowledge e
 Generated source, documents, firmware, reports, and other outputs belong to reviewable artifact workspaces. Saving an artifact is separate from compiling, flashing, publishing, or replacing a project file.
 
 Continue with [Project and data architecture](../architecture/project-data.md) for the service and persistence boundaries.
+
+## Building a game with the Project system
+
+Set **Project type** to `Game` to make a project a LocalGPT game-authoring project. The existing project capabilities still apply: revisions describe the project structure, requirements capture intended behavior, workspace roots/files provide source context, and project artifacts hold reviewed build/configuration data.
+
+The Projects page adds a **Game project build** section for this project type. Choose a runtime profile and the bounded runtime defaults, then build the project. LocalGPT persists the resulting `ProjectGameDefinition` as a project-owned `GameBuild` artifact. The build requires explicit confirmation because it writes durable project metadata.
+
+A built game can be launched without leaving `/Chat`:
+
+```text
+:game project <project name or id>
+```
+
+AI/Council workflows can use `project.game.get`, `project.game.build`, and `project.game.start`. `project.game.build` uses the normal one-use approval gate; `project.game.start` only coordinates an already-approved build into the shared game runtime.
+
+The ownership direction is deliberate: **Project -> built game definition -> GameDirector runtime -> controllers/renderers**. The runtime is a consumer of the build, not the owner of the game project.

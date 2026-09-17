@@ -199,6 +199,23 @@ public sealed class AsciiChatTextService
         }
     }
 
+    /// <summary>Returns whether one Human Collaboration request is a configured Council role response that can be projected into an active ASCII game surface.</summary>
+    /// <param name="request">Human Collaboration request to classify without mutating it.</param>
+    /// <returns><c>true</c> when the request uses the configured Council role-response operation contract.</returns>
+    public bool IsCouncilRoleResponseRequest(HumanCollaborationRequest request)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            return request.OperationKey.StartsWith("council.role.response.", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Classifying a Human Collaboration request for the ASCII game surface failed.");
+            return false;
+        }
+    }
+
     /// <summary>Normalizes Markdown and provider trace markup into readable terminal text while preserving ASCII geometry.</summary>
     /// <param name="content">Canonical user-visible chat content to project into the ASCII surface.</param>
     /// <returns>Plain terminal text with thinking and function-trace labels retained.</returns>

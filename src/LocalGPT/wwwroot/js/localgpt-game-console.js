@@ -248,14 +248,23 @@
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null, resizeObserver:null };
                 states.set(id, state);
                 attachFollowTail(state);
                 requestScale(state);
                 element.addEventListener('pointerdown', () => element.focus({ preventScroll:true }), { signal:state.abort.signal });
                 document.addEventListener('fullscreenchange', () => requestScale(state), { signal:state.abort.signal });
                 window.addEventListener('resize', () => requestScale(state), { signal:state.abort.signal });
+                if (typeof ResizeObserver === 'function') {
+                    state.resizeObserver = new ResizeObserver(() => requestScale(state));
+                    state.resizeObserver.observe(element);
+                    if (element.parentElement instanceof HTMLElement) state.resizeObserver.observe(element.parentElement);
+                }
                 element.addEventListener('keydown', event => {
+                    const target = event.target;
+                    const textEntry = target instanceof HTMLElement
+                        && (target.matches('input, textarea, select') || target.isContentEditable);
+                    if (textEntry) return;
                     if (event.code === 'KeyF' && !event.repeat) {
                         event.preventDefault();
                         globalThis.localGptGameConsole.fullscreen(id);
@@ -307,6 +316,8 @@
                 state.followTailRegions?.clear();
                 state.followTailRootObserver?.disconnect();
                 state.followTailRootObserver = null;
+                state.resizeObserver?.disconnect();
+                state.resizeObserver = null;
                 if (state.frame) cancelAnimationFrame(state.frame);
                 if (state.scaleFrame) cancelAnimationFrame(state.scaleFrame);
                 cancelSequenceTimer(state);

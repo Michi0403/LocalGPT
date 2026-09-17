@@ -121,6 +121,11 @@ namespace LocalGPT.BusinessObjects.EFCore
         /// <value>The LocalGPT project artifacts value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectArtifact> LocalGptProjectArtifacts => Set<LocalGptProjectArtifact>();
         /// <summary>
+        /// Gets the persisted Game-project authoring profiles owned by the LocalGPT Project system.
+        /// </summary>
+        /// <value>The project-owned game authoring profiles exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<LocalGptGameProjectProfile> LocalGptGameProjectProfiles => Set<LocalGptGameProjectProfile>();
+        /// <summary>
         /// Gets the project document imports value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The project document imports value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
@@ -487,6 +492,21 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(item => new { item.RequirementId, item.TargetKind, item.TargetName }).IsUnique();
                 entity.HasOne(item => item.Requirement).WithMany(requirement => requirement.Links)
                     .HasForeignKey(item => item.RequirementId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<LocalGptGameProjectProfile>(entity =>
+            {
+                entity.ToTable("LocalGptGameProjectProfiles");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.GameKey).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.DefaultTeamKey).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.GameDirectorModelName).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.ScenarioPrompt).HasMaxLength(240).IsRequired();
+                entity.HasIndex(item => item.ProjectId).IsUnique();
+                entity.HasIndex(item => item.UpdatedAtUtc);
+                entity.HasOne(item => item.Project).WithOne(project => project.GameProfile)
+                    .HasForeignKey<LocalGptGameProjectProfile>(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<LocalGptProjectArtifact>(entity =>

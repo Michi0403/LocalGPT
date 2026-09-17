@@ -84,3 +84,30 @@ Run `build/Assert-EfSnapshotArchitecture.ps1` after editing the context, an EF e
 ## Data safety
 
 Database rows, imported JSON, and localization catalogs are untrusted inputs. Services validate shape and bounds before using them to construct paths, commands, routes, or UI markup.
+
+## Game projects: authoring above, runtime below
+
+A project whose persisted `ProjectType` is `Game` is a first-class LocalGPT game-authoring workspace. The Project system owns the editable metadata, revisions, requirements, workspace files, project artifacts, and the explicit build step. The game runtime does **not** own those authoring concerns.
+
+```mermaid
+flowchart TD
+    P[LocalGPT Project system] --> GP[Game project authoring]
+    GP --> R[Revisions / requirements / files / artifacts]
+    R --> B[GameProjectService build]
+    B --> D[ProjectGameDefinition artifact]
+    D --> G[GameDirector / CouncilGameSessionService]
+    G --> I[Shared input contract]
+    G --> O[Runtime state and events]
+    G --> A[ASCII renderer]
+    I --> H[Human / keyboard]
+    I --> OP[ASCII Operator]
+    I --> AI[AI player / Council role / director]
+```
+
+The editable runtime-facing settings are persisted in a one-to-one `LocalGptGameProjectProfile` owned by `LocalGptProject`. Migration `20260916204500_AddGameProjectAuthoringProfiles` creates that table and the model snapshot keeps the relationship explicit. Requirements remain normal `LocalGptProjectRequirement` rows instead of being flattened into the profile. Saving the game design updates the profile; building is a separate approval-gated operation.
+
+The build output is stored as an approved `GameBuild` project artifact named `Runtime Definition` with media type `application/vnd.localgpt.game+json`. That artifact captures the owning project/version, source authoring-profile id, current revision id, the ids of user-approved requirements visible to the build, selected runtime profile, display identity, Council team, control/director defaults, terminal dimensions, map seed, and scenario. GameDirector receives that compiled definition when a game is launched; it does not query or mutate project-authoring state. This makes the build traceable back to the exact Project-system design baseline without adding Project ownership to the runtime.
+
+Game-project work is also represented by maintained Council presets rather than one generic development team. `game-project-discovery` collects and confirms user requirements before persisting them; `game-project-development` turns approved requirements and the saved profile into a build; `game-engine-extension-development` handles genuinely reusable lower-layer engine capabilities and explicitly reviews migrations/architecture guards; `game-project-playtest` evaluates a built artifact against its durable requirement baseline. Seed evolution preserves user-modified team configurations.
+
+The existing corridor and Green Dragon sessions remain compatible built-in entry points. Project games use the same lower runtime through the `Corridor` or `Story` runtime profile, so game identity is no longer required to be one of the two historical runtime keys when the session comes from an approved project build. This is intentionally additive: future runtime profiles can expand what Game projects build without moving project ownership into the runtime.

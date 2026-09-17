@@ -86,7 +86,19 @@ public sealed class ConsoleOperatorService(IConsoleCommandService console, ILogg
             switch (command)
             {
                 case "help":
-                    return Result(request, true, ":shells · :shell <auto|zsh|bash|sh|pwsh|cmd> · :jobs · :cancel [job|all] · :signal <job> <INT|TERM|KILL|HUP> · :cd <path> · :clear");
+                    return Result(request, true, ":chat <prompt> · :council <prompt|status|stop|skip> · :session <list|new|open selector> · :game <corridor|dragon|project selector|status|end> · :mode <chat|game|operator> · :fullscreen [fit|width|native] · :shells · :shell <auto|zsh|bash|sh|pwsh|cmd> · :jobs · :cancel [job|all] · :signal <job> <INT|TERM|KILL|HUP> · :cd <path> · :clear");
+                case "chat":
+                    return ParseChatAction(request, commandLine);
+                case "council":
+                    return ParseCouncilAction(request, commandLine);
+                case "session":
+                    return ParseSessionAction(request, commandLine);
+                case "game":
+                    return ParseGameAction(request, commandLine);
+                case "mode":
+                    return ParseModeAction(request, commandLine);
+                case "fullscreen":
+                    return ParseFullscreenAction(request, commandLine);
                 case "shells":
                     return Result(request, true, FormatShells());
                 case "shell":
@@ -335,6 +347,264 @@ public sealed class ConsoleOperatorService(IConsoleCommandService console, ILogg
         catch (Exception exception)
         {
             logger.LogError(exception, "Parsing ASCII operator signal token failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Formats a bounded list of saved chat sessions for the ASCII Operator transcript.</summary>
+    /// <param name="conversations">Saved conversations available to the current Chat page.</param>
+    /// <param name="take">Maximum number of conversation rows to render.</param>
+    /// <returns>A compact terminal-safe saved-session listing.</returns>
+    public string FormatSavedConversations(IReadOnlyList<ChatMemoryConversationSummary> conversations, int take = 12)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(conversations);
+            var lines = conversations
+                .Take(Math.Clamp(take, 1, 50))
+                .Select(item => $"{item.Id.ToString("N")[..8]}  {item.Title}  [{item.ProviderName}]  {item.MessageCount} message(s)")
+                .ToArray();
+            return lines.Length == 0
+                ? "No saved conversations are available."
+                : "Saved conversations:" + Environment.NewLine + string.Join(Environment.NewLine, lines);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Formatting saved conversations for the ASCII operator failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Resolves a saved conversation by full identifier, unique identifier prefix, or unique title fragment.</summary>
+    /// <param name="conversations">Saved conversations available to the current Chat page.</param>
+    /// <param name="selector">Human-entered saved-session selector.</param>
+    /// <returns>The unique matching conversation, or <c>null</c> when no unique match exists.</returns>
+    public ChatMemoryConversationSummary? ResolveSavedConversation(IReadOnlyList<ChatMemoryConversationSummary> conversations, string selector)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(conversations);
+            var normalized = (selector ?? string.Empty).Trim();
+            if (normalized.Length == 0)
+                return null;
+
+            if (Guid.TryParse(normalized, out var conversationId))
+                return conversations.FirstOrDefault(item => item.Id == conversationId);
+
+            var idMatches = conversations
+                .Where(item => item.Id.ToString("N").StartsWith(normalized, StringComparison.OrdinalIgnoreCase))
+                .Take(2)
+                .ToList();
+            if (idMatches.Count == 1)
+                return idMatches[0];
+
+            var titleMatches = conversations
+                .Where(item => item.Title.Contains(normalized, StringComparison.OrdinalIgnoreCase))
+                .Take(2)
+                .ToList();
+            return titleMatches.Count == 1 ? titleMatches[0] : null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Resolving a saved conversation selector for the ASCII operator failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Parses a chat application action while preserving the prompt as an opaque bounded argument.</summary>
+    /// <param name="request">Operator request whose shell/session state is preserved in the result.</param>
+    /// <param name="commandLine">Meta-command line to parse without logging its human-entered argument.</param>
+    /// <returns>A typed Chat application action or a bounded usage result.</returns>
+    private LocalConsoleOperatorResult ParseChatAction(LocalConsoleOperatorRequest request, string commandLine)
+    {
+        try
+        {
+            var argument = CommandArgument(commandLine);
+            return string.IsNullOrWhiteSpace(argument)
+                ? Result(request, false, "Usage: :chat <prompt>.")
+                : ApplicationResult(request, LocalConsoleOperatorApplicationAction.ChatPrompt, argument, "Chat prompt ready for LocalGPT.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Parsing an ASCII operator chat action failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Parses an AI Council application action without executing it inside the shell service.</summary>
+    /// <param name="request">Operator request whose shell/session state is preserved in the result.</param>
+    /// <param name="commandLine">Council meta-command line to parse.</param>
+    /// <returns>A typed Council action or a bounded usage result.</returns>
+    private LocalConsoleOperatorResult ParseCouncilAction(LocalConsoleOperatorRequest request, string commandLine)
+    {
+        try
+        {
+            var argument = CommandArgument(commandLine);
+            if (string.Equals(argument, "status", StringComparison.OrdinalIgnoreCase))
+                return ApplicationResult(request, LocalConsoleOperatorApplicationAction.CouncilStatus, string.Empty, "Council status requested.");
+            if (string.Equals(argument, "stop", StringComparison.OrdinalIgnoreCase))
+                return ApplicationResult(request, LocalConsoleOperatorApplicationAction.CouncilStop, string.Empty, "Council stop requested.");
+            if (string.Equals(argument, "skip", StringComparison.OrdinalIgnoreCase))
+                return ApplicationResult(request, LocalConsoleOperatorApplicationAction.CouncilSkip, string.Empty, "Council round skip requested.");
+            return string.IsNullOrWhiteSpace(argument)
+                ? Result(request, false, "Usage: :council <prompt|status|stop|skip>.")
+                : ApplicationResult(request, LocalConsoleOperatorApplicationAction.CouncilPrompt, argument, "Council prompt ready for LocalGPT.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Parsing an ASCII operator Council action failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Parses a saved-session list, create, or open action for the application dispatcher.</summary>
+    /// <param name="request">Operator request whose shell/session state is preserved in the result.</param>
+    /// <param name="commandLine">Session meta-command line to parse.</param>
+    /// <returns>A typed saved-session action or a bounded usage result.</returns>
+    private LocalConsoleOperatorResult ParseSessionAction(LocalConsoleOperatorRequest request, string commandLine)
+    {
+        try
+        {
+            var argument = CommandArgument(commandLine);
+            if (string.Equals(argument, "list", StringComparison.OrdinalIgnoreCase))
+                return ApplicationResult(request, LocalConsoleOperatorApplicationAction.SessionList, string.Empty, "Saved chat list requested.");
+            if (string.Equals(argument, "new", StringComparison.OrdinalIgnoreCase))
+                return ApplicationResult(request, LocalConsoleOperatorApplicationAction.SessionNew, string.Empty, "Fresh chat requested.");
+            if (argument.StartsWith("open ", StringComparison.OrdinalIgnoreCase))
+            {
+                var selector = argument[5..].Trim();
+                return string.IsNullOrWhiteSpace(selector)
+                    ? Result(request, false, "Usage: :session open <id or title>.")
+                    : ApplicationResult(request, LocalConsoleOperatorApplicationAction.SessionOpen, selector, "Saved chat open requested.");
+            }
+            return Result(request, false, "Usage: :session <list|new|open selector>.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Parsing an ASCII operator saved-session action failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Parses a game start, status, or end action for the application dispatcher.</summary>
+    /// <param name="request">Operator request whose shell/session state is preserved in the result.</param>
+    /// <param name="commandLine">Game meta-command line to parse.</param>
+    /// <returns>A typed game action or a bounded usage result.</returns>
+    private LocalConsoleOperatorResult ParseGameAction(LocalConsoleOperatorRequest request, string commandLine)
+    {
+        try
+        {
+            var argument = CommandArgument(commandLine);
+            if (argument.StartsWith("project ", StringComparison.OrdinalIgnoreCase))
+            {
+                var selector = argument[8..].Trim();
+                return string.IsNullOrWhiteSpace(selector)
+                    ? Result(request, false, "Usage: :game project <project id or name>.")
+                    : ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameStartProject, selector, "Project game start requested.");
+            }
+
+            return argument.ToLowerInvariant() switch
+            {
+                "corridor" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameStartCorridor, string.Empty, "ASCII corridor start requested."),
+                "dragon" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameStartDragon, string.Empty, "Green Dragon start requested."),
+                "status" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameStatus, string.Empty, "Game status requested."),
+                "end" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameEnd, string.Empty, "Game end requested."),
+                _ => Result(request, false, "Usage: :game <corridor|dragon|project selector|status|end>.")
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Parsing an ASCII operator game action failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Parses an ASCII Chat, Game, or Operator presentation-mode action.</summary>
+    /// <param name="request">Operator request whose shell/session state is preserved in the result.</param>
+    /// <param name="commandLine">Presentation-mode meta-command line to parse.</param>
+    /// <returns>A typed presentation-mode action or a bounded usage result.</returns>
+    private LocalConsoleOperatorResult ParseModeAction(LocalConsoleOperatorRequest request, string commandLine)
+    {
+        try
+        {
+            return CommandArgument(commandLine).ToLowerInvariant() switch
+            {
+                "chat" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.ModeChat, string.Empty, "ASCII chat mode requested."),
+                "game" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.ModeGame, string.Empty, "ASCII game mode requested."),
+                "operator" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.ModeOperator, string.Empty, "ASCII operator mode requested."),
+                _ => Result(request, false, "Usage: :mode <chat|game|operator>.")
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Parsing an ASCII operator mode action failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Parses a fullscreen action and normalizes its optional scale-mode argument.</summary>
+    /// <param name="request">Operator request whose shell/session state is preserved in the result.</param>
+    /// <param name="commandLine">Fullscreen meta-command line to parse.</param>
+    /// <returns>A typed fullscreen action containing a normalized scale mode.</returns>
+    private LocalConsoleOperatorResult ParseFullscreenAction(LocalConsoleOperatorRequest request, string commandLine)
+    {
+        try
+        {
+            var argument = CommandArgument(commandLine).ToLowerInvariant();
+            var scale = argument switch
+            {
+                "width" => "Width",
+                "native" => "Native",
+                _ => "Fit"
+            };
+            return ApplicationResult(request, LocalConsoleOperatorApplicationAction.Fullscreen, scale, $"Fullscreen requested with {scale.ToLowerInvariant()} scaling.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Parsing an ASCII operator fullscreen action failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Returns the text following the first command token without exposing it to diagnostics.</summary>
+    /// <param name="commandLine">Meta-command line whose first token is the command name.</param>
+    /// <returns>The trimmed command argument, or an empty string when no argument is present.</returns>
+    private string CommandArgument(string commandLine)
+    {
+        try
+        {
+            var separator = commandLine.IndexOf(' ');
+            return separator < 0 ? string.Empty : commandLine[(separator + 1)..].Trim();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Parsing an ASCII operator command argument failed; argument text was omitted from diagnostics.");
+            throw;
+        }
+    }
+
+    /// <summary>Creates a typed application action result so renderer components never reparse operator command text.</summary>
+    /// <param name="request">Operator request whose shell/session state is preserved.</param>
+    /// <param name="action">Typed application action for the renderer dispatcher.</param>
+    /// <param name="argument">Bounded opaque argument associated with the action.</param>
+    /// <param name="message">Human-readable parser status shown in the Operator surface.</param>
+    /// <returns>A bounded accepted Operator result carrying the typed application action.</returns>
+    private LocalConsoleOperatorResult ApplicationResult(
+        LocalConsoleOperatorRequest request,
+        LocalConsoleOperatorApplicationAction action,
+        string argument,
+        string message)
+    {
+        try
+        {
+            var result = Result(request, true, message);
+            result.ApplicationAction = action;
+            result.ApplicationArgument = argument.Length <= 100000 ? argument : argument[..100000];
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating an ASCII operator application action result failed.");
             throw;
         }
     }

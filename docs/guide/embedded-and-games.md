@@ -52,3 +52,15 @@ The showcase intentionally exercises the ASCII stack: full-frame intro rendering
 The Minecraft builder applies the same project principles: source knowledge is versioned, generated artifacts are reviewable, dependencies are explicit, and a generated mod/datapack is not presented as tested until the correct toolchain has actually built or validated it.
 
 Historical source comparisons and early game presets are retained as internal notes, while this page describes the maintained runtime contract.
+
+## Game projects and the ASCII engine runtime
+
+The ASCII game functionality is the first rendering/control surface of a reusable LocalGPT game runtime, but game authoring belongs to the Project system one layer above it. A `Game` project can be built into a serializable `ProjectGameDefinition`; GameDirector then executes that definition using the same authoritative session, input, AI/Council, cancellation, and ASCII display contracts used by the built-in games.
+
+The current project-build profiles are `Corridor` and `Story`. `ascii-doom` and `green-dragon` remain legacy-compatible built-in launch keys, while project-built games receive their own stable game key and project/version identity. This keeps existing games working while allowing LocalGPT to author and build new games through normal project revisions, requirements, workspace content, and approved artifacts.
+
+A Game project now has a persisted **Game Design** profile separate from its build artifact. Save the design when runtime-facing project settings change; build only when that persisted design and the Project requirements are ready to become a runtime definition. Each build records the source profile, current revision, and user-approved requirement ids so a later playtest can tell which design baseline it is evaluating.
+
+Four maintained Council presets support the development lifecycle. **Game Project Discovery & Requirements** interviews the user and persists confirmed requirements rather than guessing them. **Game Project Development Team** implements against those requirements and builds/launches bounded test sessions. **Game Engine Extension Development Team** is for reusable engine capabilities that cannot remain project data and explicitly includes migration, architecture-policy, async, diagnostics, and compatibility review. **Game Project Playtest & QA** verifies a built game requirement-by-requirement using canonical runtime state.
+
+From ASCII Operator mode, `:game project <project name or id>` loads the latest approved build and enters game mode directly. A player therefore does not need to leave the ASCII surface to launch or control a project-built game.

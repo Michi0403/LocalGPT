@@ -112,7 +112,7 @@ namespace LocalGPT.Services
     {
     try
     {
-            if (snapshot.GameKey == "green-dragon")
+            if (snapshot.RuntimeProfile == CouncilGameRuntimeProfile.Story)
             {
                 string[] storyActions = ["choice-1", "move-forward", "use", "choice-2", "turn-right", "choice-3"];
                 return storyActions[(int)(snapshot.Turn % storyActions.Length)];

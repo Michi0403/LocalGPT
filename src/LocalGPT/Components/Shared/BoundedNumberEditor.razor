@@ -38,7 +38,7 @@
                        step="@Step"
                        value="@Value.ToString(CultureInfo.InvariantCulture)"
                        aria-label="@Label"
-                       @oninput="OnSliderChangedAsync" />
+                       @onchange="OnSliderChangedAsync" />
                 <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseSlider">Done</button>
             </div>
         }
