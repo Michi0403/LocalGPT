@@ -73,6 +73,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 ],
                 PreferredCapabilities =
                 [
+                    AsciiChatTextService.RequiredSurfaceCapability,
                     "localgpt.ascii.surface.get",
                     "localgpt.game.session.start",
                     "localgpt.game.session.get",
@@ -152,8 +153,10 @@ Do not render yet. End by saying the display director may build the intro and Pl
                         IncludePriorTranscript = true,
                         CanUseOrganicFunctions = true,
                         AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
-                        AllowedAutomaticFunctions = ["localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+                        AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
                         PromptTemplate = $$"""
+First inspect localgpt.ascii.surface.get. If the shared ASCII surface reports CLOSED, do not mutate the display and stop this presentation phase with one short visible instruction to reopen the ASCII terminal; the next Council retry may render only after the surface reports OPEN.
+
 Build the opening presentation for the exact DISPLAY_HOST and HOTSEAT_STATE from the prior step. Use rendererName "{{rendererName}}" for every display mutation in this entire match. Read the session first. Consult localgpt.regex.list/get/test or localgpt.knowledge.list only when useful for reusable frame/state parsing; never invent a function name.
 
 Showcase the full-frame path first: submit one complete 100x32 frame with localgpt.game.frame.submit. It should contain a bordered 31x13 logical arena enlarged/positioned cleanly inside the terminal, title art, Player 1 '@', Player 2 '&', orb '*', score/dash HUD, a compact command legend, and a large "PASS TO PLAYER 1" cue. Keep all lines fixed-width and readable.
@@ -235,6 +238,7 @@ If a player reached 6 points OR this is round 10, append exactly [[HOTSEAT_GAME_
                         AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
                         AllowedAutomaticFunctions =
                         [
+                            "localgpt.ascii.surface.get",
                             "localgpt.game.session.get",
                             "localgpt.game.display.get",
                             "localgpt.game.display.text.write",
@@ -253,6 +257,8 @@ If a player reached 6 points OR this is round 10, append exactly [[HOTSEAT_GAME_
                         AsciiFrameWidth = 100,
                         AsciiFrameHeight = 32,
                         PromptTemplate = $$"""
+First inspect localgpt.ascii.surface.get. If the shared ASCII surface reports CLOSED, do not call any display mutation function and stop this presentation phase with one short visible instruction to reopen the ASCII terminal.
+
 Render the newest canonical HOTSEAT_STATE to the exact DISPLAY_HOST. You are the only display owner and MUST use rendererName "{{rendererName}}" for every mutation. Never call localgpt.game.control; that single-player engine is not the multiplayer authority here.
 
 Read localgpt.game.session.get and localgpt.game.display.get before editing so you know the exact session turn and current pixels. Demonstrate efficient differential drawing rather than blindly regenerating a full frame every round:

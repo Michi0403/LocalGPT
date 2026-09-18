@@ -1002,13 +1002,22 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes after the newest chat snapshot has been mirrored when opening the terminal.</returns>
     private async Task ToggleGameConsoleAsync()
     {
-        showGameConsole = !showGameConsole;
+        await OnGameConsoleVisibilityChangedAsync(!showGameConsole).ConfigureAwait(false);
+    }
+
+    /// <summary>Synchronizes the DevExpress popup visibility with the circuit-scoped ASCII experience state.</summary>
+    /// <param name="visible">Whether the shared ASCII popup should be visible.</param>
+    /// <returns>A task that completes after an opening surface has refreshed its replayable transcript.</returns>
+    private async Task OnGameConsoleVisibilityChangedAsync(bool visible)
+    {
+        showGameConsole = visible;
         UpdateAsciiExperienceState();
         if (!showGameConsole)
             return;
 
         await RefreshAsciiConversationMirrorAsync().ConfigureAwait(false);
         StartAsciiConversationMirrorLoop();
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1018,6 +1027,33 @@ namespace LocalGPT.Components.Pages
     {
         showGameConsole = false;
         UpdateAsciiExperienceState();
+    }
+
+    /// <summary>Publishes an OPEN ASCII surface before a Council team marked as presentation-required can start provider work.</summary>
+    /// <returns><c>true</c> when this call changed the popup from closed to open.</returns>
+    private bool EnsureRequiredAsciiSurfaceState()
+    {
+        var selectedTeam = CouncilTeams.FirstOrDefault(team =>
+            string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase));
+        if (!AsciiText.RequiresAsciiSurface(selectedTeam))
+            return false;
+
+        var opened = !showGameConsole;
+        showGameConsole = true;
+        UpdateAsciiExperienceState();
+        StartAsciiConversationMirrorLoop();
+        return opened;
+    }
+
+    /// <summary>Opens and refreshes the required ASCII surface after a renderer-affine Council team selection.</summary>
+    /// <returns>A task that completes after the surface state and mirrored transcript are ready for rendering.</returns>
+    private async Task EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync()
+    {
+        if (!EnsureRequiredAsciiSurfaceState())
+            return;
+
+        await RefreshAsciiConversationMirrorAsync().ConfigureAwait(false);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
 
     /// <summary>Publishes the current ASCII terminal/fun-mode state to circuit-scoped provider and Council prompt builders.</summary>
@@ -1307,6 +1343,7 @@ namespace LocalGPT.Components.Pages
                 SelectedCouncilTeamKey = CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
             RefreshPromptSuggestions();
         }).ConfigureAwait(false);
+        await InvokeAsync(EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1333,17 +1370,19 @@ namespace LocalGPT.Components.Pages
                 : CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
             RefreshPromptSuggestions();
         }).ConfigureAwait(false);
+        await InvokeAsync(EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync).ConfigureAwait(false);
     }
 
     /// <summary>Applies a user-selected Council team and refreshes its connected pre-prompts.</summary>
     /// <param name="args">Select change event containing the requested team key.</param>
-    private void OnCouncilTeamChanged(ChangeEventArgs args)
+    private async Task OnCouncilTeamChanged(ChangeEventArgs args)
     {
         var requested = Convert.ToString(args.Value)?.Trim();
         if (!string.IsNullOrWhiteSpace(requested) && CouncilTeams.Any(team => string.Equals(team.Key, requested, StringComparison.OrdinalIgnoreCase)))
             SelectedCouncilTeamKey = requested;
         RefreshPromptSuggestions();
         SavePreparationConfiguration();
+        await EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1351,10 +1390,10 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="team">Service-backed Council team selected by the user.</param>
     /// <returns>A task that completes after prompt suggestions and preparation state have been synchronized.</returns>
-    private Task OnQuickCouncilTeamChangedAsync(OrganicCouncilTeamDefinition? team)
+    private async Task OnQuickCouncilTeamChangedAsync(OrganicCouncilTeamDefinition? team)
     {
-        OnCouncilTeamChanged(new ChangeEventArgs { Value = team?.Key ?? string.Empty });
-        return InvokeAsync(StateHasChanged);
+        await OnCouncilTeamChanged(new ChangeEventArgs { Value = team?.Key ?? string.Empty }).ConfigureAwait(false);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
 
     /// <summary>Filters the DevExpress prompt suggestions to generic prompts plus prompts connected to the selected team.</summary>

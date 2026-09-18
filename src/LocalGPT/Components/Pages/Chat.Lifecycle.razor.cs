@@ -792,6 +792,8 @@ namespace LocalGPT.Components.Pages
             RefreshPromptSuggestions();
         }
 
+        await EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync().ConfigureAwait(true) /* renderer-affine required ASCII surface */;
+
         ChatClientProvider.LockedSessionName = null;
         ChatClientProvider.SelectedSession = councilSession;
         hasUserSelectedSession = true;

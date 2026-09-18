@@ -24,6 +24,7 @@ def main() -> int:
     chat = read("src/LocalGPT/Components/Pages/Chat.razor")
     console = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor")
     css = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor.css")
+    chat_css = read("src/LocalGPT/Components/Pages/Chat.razor.css")
     js = read("src/LocalGPT/wwwroot/js/localgpt-game-console.js")
     project = read("src/LocalGPT/LocalGPT.csproj")
     english = read("src/LocalGPT/Localization/en-US.json")
@@ -33,10 +34,23 @@ def main() -> int:
         ("Chat supplies the close callback", 'CloseRequested="CloseGameConsole"' in chat),
         ("Chat closes only the ASCII surface and republishes presentation state", "private void CloseGameConsole()" in chat and "showGameConsole = false;" in chat and "UpdateAsciiExperienceState();" in chat),
         ("console exposes close event callback", "[Parameter] public EventCallback CloseRequested" in console),
-        ("close button is outside snapshot-only action branch", '                <button type="button" @onclick="FullscreenAsync">Fullscreen</button>\n            }\n            <button type="button"\n                    class="chat-game-console-close"' in console),
+        ("close button is outside snapshot-only action branch", '            }\n            <DxButton Text="× Close"\n                      CssClass="ascii-console-button chat-game-console-close"' in console),
         ("close exits fullscreen before callback", console.index("localGptGameConsole.exitFullscreen") < console.index("CloseRequested.InvokeAsync")),
         ("fullscreen exit is one-way", "async exitFullscreen(id)" in js and "document.fullscreenElement === element" in js),
         ("close action has responsive/fullscreen styling", ".chat-game-console-close" in css and ":fullscreen .chat-game-console-close" in css),
+        ("DevExpress mode-button CssClass values are pure Razor expressions",
+         'CssClass="ascii-console-button ascii-operator-toggle @(' not in console
+         and console.count('CssClass="@("ascii-console-button ascii-operator-toggle" +') == 3),
+        ("renderer-affine control-mode update keeps an explicit true continuation",
+         "ChangeControlModeAsync" in console and "snapshot.AutoplayDelayMilliseconds).ConfigureAwait(true);" in console),
+        ("renderer-affine fullscreen JS keeps an explicit true continuation",
+         'localGptGameConsole.fullscreen", elementId).ConfigureAwait(true)' in console),
+        ("renderer-affine close callback keeps an explicit true continuation",
+         'CloseRequested.InvokeAsync()).ConfigureAwait(true)' in console),
+        ("popup game stage stretches inside the popup grid instead of forcing 100 percent overflow",
+         ".chat-game-popup-body ::deep .chat-game-stage" in chat_css and "height: auto;" in chat_css),
+        ("popup viewport does not reserve an empty scrollbar gutter",
+         ".chat-game-popup-body ::deep .chat-game-screen-viewport" in chat_css and "scrollbar-gutter: auto;" in chat_css),
         ("accessible close label is localized in English", '"Text.Close␠ASCII␠game␠console": "Close ASCII game console"' in english),
         ("accessible close label is localized in German", '"Text.Close␠ASCII␠game␠console": "ASCII-Spielkonsole schließen"' in german),
         ("application version advanced", (lambda match: bool(match) and tuple(map(int, match.groups())) >= (2, 3, 8))(

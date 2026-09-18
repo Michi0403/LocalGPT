@@ -12,6 +12,81 @@ public sealed partial class CouncilGameSessionService
         try
         {
             ArgumentNullException.ThrowIfNull(session);
+            if (session.LevelProfiles.Count == 0)
+            {
+                InitializeLegacyCorridorWorld(session);
+                return;
+            }
+            var level = GetCurrentLevelProfile(session);
+            var width = level.MapWidth;
+            var height = level.MapHeight;
+            if (session.CampaignSeed <= 0)
+            {
+                session.CampaignSeed = session.MapSeed > 0
+                    ? session.MapSeed
+                    : !string.IsNullOrWhiteSpace(session.ScenarioPrompt)
+                        ? BitConverter.ToInt32(SHA256.HashData(Encoding.UTF8.GetBytes(session.ScenarioPrompt)), 0) & int.MaxValue
+                        : BitConverter.ToInt32(session.Id.ToByteArray(), 0) & int.MaxValue;
+                session.CampaignSeed = Math.Max(1, session.CampaignSeed);
+            }
+
+            var seed = DeriveLevelSeed(session, level);
+            var random = new Random(seed);
+            var cells = Enumerable.Range(0, height)
+                .Select(_ => Enumerable.Repeat('#', width).ToArray())
+                .ToArray();
+            var centers = new List<(int X, int Y)>();
+
+            CarveRoom(cells, 1, 1, Math.Min(8, width - 2), Math.Min(6, height - 2));
+            centers.Add((Math.Min(6, width - 3), Math.Min(3, height - 3)));
+            var previous = centers[0];
+            for (var index = 1; index < level.RoomCount; index++)
+            {
+                var roomWidth = random.Next(5, Math.Min(10, Math.Max(6, width / 3)));
+                var roomHeight = random.Next(4, Math.Min(8, Math.Max(5, height / 3)));
+                var maximumRoomX = Math.Max(3, width - roomWidth - 1);
+                var maximumRoomY = Math.Max(2, height - roomHeight - 1);
+                var roomX = random.Next(2, maximumRoomX + 1);
+                var roomY = random.Next(1, maximumRoomY + 1);
+                CarveRoom(cells, roomX, roomY, roomWidth, roomHeight);
+                var center = (
+                    X: Math.Clamp(roomX + roomWidth / 2, 1, width - 2),
+                    Y: Math.Clamp(roomY + roomHeight / 2, 1, height - 2));
+                CarveCorridor(cells, previous.X, previous.Y, center.X, center.Y, random.Next(0, 2) == 0);
+                centers.Add(center);
+                previous = center;
+            }
+
+            session.MapSeed = seed;
+            session.WorldMap = cells.Select(row => new string(row)).ToList();
+            session.PlayerX = 3;
+            session.PlayerY = 3;
+            session.FacingRadians = 0d;
+            session.Health = level.StartingHealth;
+            session.Ammo = level.StartingAmmo;
+            session.IsDucking = false;
+            session.ExtractionX = centers[^1].X;
+            session.ExtractionY = centers[^1].Y;
+            session.Enemies = BuildLevelEnemies(session, level, centers, random);
+            session.CombatMessage = string.IsNullOrWhiteSpace(session.ScenarioPrompt)
+                ? $"LEVEL {level.Level:00}/{session.LevelProfiles.Count:00} · DIFFICULTY {level.Difficulty}/10 · Clear hostiles, then reach X extraction."
+                : $"LEVEL {level.Level:00}/{session.LevelProfiles.Count:00} · {session.ScenarioPrompt} · Clear hostiles, then reach X extraction.";
+            session.BlockedMoveStreak = 0;
+            session.LastMoveBlocked = false;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Initializing the deterministic ASCII corridor world failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Preserves the pre-campaign deterministic corridor geometry for non-DOOM project corridor definitions.</summary>
+    private void InitializeLegacyCorridorWorld(CouncilGameSessionState session)
+    {
+        try
+        {
             const int width = 32;
             const int height = 20;
             var seed = session.MapSeed > 0
@@ -64,7 +139,65 @@ public sealed partial class CouncilGameSessionService
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Initializing the deterministic ASCII corridor world failed.");
+            logger.LogError(exception, "Initializing the legacy deterministic ASCII corridor world failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Builds the deterministic hostile set from the active level's map-size and density settings.</summary>
+    private List<CouncilGameEnemyState> BuildLevelEnemies(
+        CouncilGameSessionState session,
+        CouncilGameLevelProfile level,
+        IReadOnlyList<(int X, int Y)> centers,
+        Random random)
+    {
+        try
+        {
+            var requestedCount = Math.Clamp(
+                (int)Math.Round(level.RoomCount * level.EnemyDensity, MidpointRounding.AwayFromZero),
+                1,
+                32);
+            var occupied = new HashSet<(int X, int Y)> { (session.PlayerX, session.PlayerY), (session.ExtractionX, session.ExtractionY) };
+            var candidates = new List<(int X, int Y)>();
+            if (centers.Count > 0)
+                candidates.Add(centers[0]);
+            candidates.AddRange(centers.Skip(1));
+
+            var map = session.WorldMap;
+            var floorCells = new List<(int X, int Y)>();
+            for (var y = 1; y < map.Count - 1; y++)
+                for (var x = 1; x < map[y].Length - 1; x++)
+                    if (map[y][x] != '#' && Math.Abs(x - session.PlayerX) + Math.Abs(y - session.PlayerY) >= 3)
+                        floorCells.Add((x, y));
+            foreach (var cell in floorCells.OrderBy(_ => random.Next()))
+                candidates.Add(cell);
+
+            var enemies = new List<CouncilGameEnemyState>();
+            foreach (var candidate in candidates)
+            {
+                if (enemies.Count >= requestedCount)
+                    break;
+                if (!occupied.Add(candidate))
+                    continue;
+                var index = enemies.Count;
+                var brute = index > 0 && (index + 1) % 5 == 0;
+                var alpha = index == 0;
+                var baseHealth = brute ? 140 : alpha ? 75 : 90;
+                var baseDamage = brute ? 9 : alpha ? 7 : 6;
+                var health = Math.Max(10, (int)Math.Round(baseHealth * level.EnemyHealthMultiplier, MidpointRounding.AwayFromZero));
+                var damage = Math.Max(1, (int)Math.Round(baseDamage * level.EnemyDamageMultiplier, MidpointRounding.AwayFromZero));
+                var glyph = brute ? "B" : alpha ? "M" : "G";
+                var name = brute
+                    ? $"Brute {index + 1:00}"
+                    : alpha ? "Grunt Alpha" : $"Grunt {index + 1:00}";
+                enemies.Add(BuildEnemyState($"level-{level.Level:00}-enemy-{index + 1:00}", name, glyph, candidate.X, candidate.Y, health, damage));
+            }
+
+            return enemies;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Building deterministic ASCII corridor hostile density failed.");
             throw;
         }
     }
@@ -286,7 +419,10 @@ public sealed partial class CouncilGameSessionService
             var alive = session.Enemies.Where(enemy => enemy.IsAlive).OrderBy(enemy => enemy.Key, StringComparer.Ordinal).ToList();
             if (alive.Count == 0)
             {
+                var levelIndexBeforeExtraction = session.CurrentLevelIndex;
                 ResolveExtraction(session);
+                if (session.CurrentLevelIndex != levelIndexBeforeExtraction)
+                    return;
                 if (session.Status == "Running" && !session.CombatMessage.Contains("EXTRACTION", StringComparison.OrdinalIgnoreCase))
                     session.CombatMessage = $"AREA CLEAR: reach extraction X at {session.ExtractionX:00},{session.ExtractionY:00}.";
                 return;
@@ -349,12 +485,49 @@ public sealed partial class CouncilGameSessionService
         {
             if (session.Enemies.Any(enemy => enemy.IsAlive)) return;
             if (session.PlayerX != session.ExtractionX || session.PlayerY != session.ExtractionY) return;
+
+            if (session.LevelProfiles.Count == 0)
+            {
+                session.Status = "Completed";
+                session.AutoplayEnabled = false;
+                session.HumanInputRequired = false;
+                session.CurrentTurnOwner = "Mission Complete";
+                session.InputReason = "Extraction reached after all hostiles were cleared.";
+                session.CombatMessage = "EXTRACTION COMPLETE: arena clear.";
+                return;
+            }
+
+            var completedLevel = GetCurrentLevelProfile(session);
+            var hasNextLevel = session.AutoAdvanceLevels && session.CurrentLevelIndex + 1 < session.LevelProfiles.Count;
+            if (hasNextLevel)
+            {
+                session.CurrentLevelIndex++;
+                InitializeDoomWorld(session);
+                var nextLevel = GetCurrentLevelProfile(session);
+                session.Status = "Running";
+                session.HumanInputRequired = session.ControlMode != CouncilGameControlMode.Ai;
+                session.CurrentTurnOwner = session.ControlMode == CouncilGameControlMode.Ai
+                    ? "AI Hunter"
+                    : session.ControlMode == CouncilGameControlMode.Shared ? "Human / AI" : "Human Player";
+                session.InputReason = session.ControlMode == CouncilGameControlMode.Ai
+                    ? $"Level {nextLevel.Level} started automatically; AI hunter owns the next map-aware control step."
+                    : session.ControlMode == CouncilGameControlMode.Shared
+                        ? $"Level {nextLevel.Level} started automatically; human and AI may submit the next direct bounded control."
+                        : $"Level {nextLevel.Level} started automatically; your controls own the next proposal.";
+                session.CombatMessage = $"LEVEL {completedLevel.Level:00} CLEAR · ENTER LEVEL {nextLevel.Level:00}/{session.LevelProfiles.Count:00} · DIFFICULTY {nextLevel.Difficulty}/10.";
+                return;
+            }
+
             session.Status = "Completed";
             session.AutoplayEnabled = false;
             session.HumanInputRequired = false;
             session.CurrentTurnOwner = "Mission Complete";
-            session.InputReason = "Extraction reached after all hostiles were cleared.";
-            session.CombatMessage = "EXTRACTION COMPLETE: arena clear.";
+            session.InputReason = session.LevelProfiles.Count > 1
+                ? $"Campaign complete after clearing {session.LevelProfiles.Count} configured level(s)."
+                : "Extraction reached after all hostiles were cleared.";
+            session.CombatMessage = session.LevelProfiles.Count > 1
+                ? $"CAMPAIGN COMPLETE: {session.LevelProfiles.Count} configured level(s) cleared."
+                : "EXTRACTION COMPLETE: arena clear.";
         }
         catch (Exception exception)
         {

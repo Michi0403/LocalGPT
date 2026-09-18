@@ -27,40 +27,37 @@
             <small>@AsciiSurfaceSubtitle</small>
         </div>
         <div class="chat-game-console-actions">
-            <button type="button"
-                    class="ascii-operator-toggle @(!operatorMode && conversationMode ? "is-active" : string.Empty)"
-                    aria-pressed="@(!operatorMode && conversationMode)"
-                    @onclick="ShowConversationModeAsync">
-                Chat
-            </button>
+            <DxButton Text="Chat"
+                      CssClass="@("ascii-console-button ascii-operator-toggle" + (!operatorMode && conversationMode ? " is-active" : string.Empty))"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Click="ShowConversationModeAsync" />
             @if (snapshot is not null)
             {
-                <button type="button"
-                        class="ascii-operator-toggle @(!operatorMode && !conversationMode ? "is-active" : string.Empty)"
-                        aria-pressed="@(!operatorMode && !conversationMode)"
-                        @onclick="ShowGameModeAsync">
-                    Game
-                </button>
+                <DxButton Text="Game"
+                          CssClass="@("ascii-console-button ascii-operator-toggle" + (!operatorMode && !conversationMode ? " is-active" : string.Empty))"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Click="ShowGameModeAsync" />
             }
-            <button type="button"
-                    class="ascii-operator-toggle @(operatorMode ? "is-active" : string.Empty)"
-                    aria-pressed="@operatorMode"
-                    @onclick="ToggleOperatorModeAsync">
-                @(operatorMode ? "Operator OFF" : "Operator")
-            </button>
+            <DxButton Text="@(operatorMode ? "Operator OFF" : "Operator")"
+                      CssClass="@("ascii-console-button ascii-operator-toggle" + (operatorMode ? " is-active" : string.Empty))"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Click="ToggleOperatorModeAsync" />
             <label>
                 <span>Fullscreen scale</span>
-                <select value="@fullscreenScaleMode" @onchange="ChangeFullscreenScaleModeAsync">
-                    <option value="Fit">Fit whole frame</option>
-                    <option value="Width">Fit width + vertical scroll</option>
-                    <option value="Native">Native size + scroll</option>
-                </select>
+                <DxComboBox Data="@FullscreenScaleOptions"
+                            Value="@SelectedFullscreenScaleOption"
+                            TextFieldName="Label"
+                            ValueChanged="@((AsciiSelectOption<string> option) => ChangeFullscreenScaleModeAsync(option))"
+                            CssClass="ascii-console-combo" />
             </label>
-            <button type="button" @onclick="FullscreenAsync">Fullscreen</button>
+            <DxButton Text="Fullscreen" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="FullscreenAsync" />
             @if (!operatorMode && snapshot is null)
             {
-                <button type="button" @onclick="StartDoomAsync">Play ASCII corridor</button>
-                <button type="button" @onclick="StartDragonAsync">Play Green Dragon story</button>
+                <DxButton Text="Play ASCII corridor" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="StartDoomAsync" />
+                <DxButton Text="Play Green Dragon story" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="StartDragonAsync" />
             }
             else if (!operatorMode && !conversationMode && snapshot is not null)
             {
@@ -74,45 +71,40 @@
                 {
                     <label>
                         <span>Control</span>
-                        <select value="@snapshot.ControlMode" @onchange="ChangeControlModeAsync">
-                            <option value="Human">Human</option>
-                            <option value="Shared">Human + AI</option>
-                            <option value="Ai">AI hunter</option>
-                        </select>
+                        <DxComboBox Data="@ControlModeOptions"
+                                    Value="@SelectedControlModeOption"
+                                    TextFieldName="Label"
+                                    ValueChanged="@((AsciiSelectOption<CouncilGameControlMode> option) => ChangeControlModeAsync(option))"
+                                    CssClass="ascii-console-combo" />
                     </label>
                     @if (snapshot.ControlMode == CouncilGameControlMode.Ai)
                     {
                         <label>
                             <span>AI step</span>
-                            <select value="@snapshot.AutoplayDelayMilliseconds" @onchange="ChangeAutoplayDelayAsync">
-                                <option value="500">0.5 s</option>
-                                <option value="1000">1 s</option>
-                                <option value="1500">1.5 s</option>
-                                <option value="2500">2.5 s</option>
-                                <option value="5000">5 s</option>
-                            </select>
+                            <DxComboBox Data="@AutoplayDelayOptions"
+                                        Value="@SelectedAutoplayDelayOption"
+                                        TextFieldName="Label"
+                                        ValueChanged="@((AsciiSelectOption<int> option) => ChangeAutoplayDelayAsync(option))"
+                                        CssClass="ascii-console-combo" />
                         </label>
                     }
                 }
-                <button type="button" @onclick="ToggleControls">@(showControls ? "Hide guide" : "Show guide")</button>
+                <DxButton Text="@(showControls ? "Hide guide" : "Show guide")" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="ToggleControls" />
                 @if (string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase))
                 {
-                    <button type="button" @onclick="EndGameAsync">End game</button>
+                    <DxButton Text="End game" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Danger" Click="EndGameAsync" />
                 }
                 else if (CanRestartCorridor)
                 {
-                    <button type="button" @onclick="RestartSameMapAsync">Restart same map</button>
-                    <button type="button" @onclick="StartFreshMapAsync">New map</button>
+                    <DxButton Text="Restart same map" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="RestartSameMapAsync" />
+                    <DxButton Text="New map" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="StartFreshMapAsync" />
                 }
             }
-            <button type="button"
-                    class="chat-game-console-close"
-                    @onclick="CloseAsync"
-                    aria-label="Close ASCII console"
-                    title="Close ASCII console">
-                <span aria-hidden="true">×</span>
-                <span>Close</span>
-            </button>
+            <DxButton Text="× Close"
+                      CssClass="ascii-console-button chat-game-console-close"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Click="CloseAsync" />
         </div>
     </header>
 
@@ -124,23 +116,24 @@
             </div>
             <form class="ascii-operator-command-row" @onsubmit="SubmitOperatorLineAsync" @onsubmit:preventDefault="true">
                 <span class="ascii-operator-prompt" aria-hidden="true">λ</span>
-                <label class="visually-hidden" for="@($"{elementId}-shell")">Operator shell</label>
-                <select id="@($"{elementId}-shell")" value="@operatorShell" @onchange="ChangeOperatorShell" disabled="@operatorSubmitting">
-                    @foreach (var shell in availableShells)
-                    {
-                        <option value="@shell.Shell">@shell.DisplayName</option>
-                    }
-                </select>
-                <label class="visually-hidden" for="@($"{elementId}-command")">ASCII operator command</label>
-                <input id="@($"{elementId}-command")"
-                       type="text"
-                       spellcheck="false"
-                       autocomplete="off"
-                       placeholder=":help, :chat, :council, :session, :game, :mode or a @OperatorShellLabel command"
-                       @bind="operatorInput"
-                       @bind:event="oninput"
-                       disabled="@operatorSubmitting" />
-                <button type="submit" disabled="@operatorSubmitting">@(operatorSubmitting ? "QUEUING…" : "RUN")</button>
+                <label class="visually-hidden">Operator shell</label>
+                <DxComboBox Data="@availableShells"
+                            Value="@SelectedOperatorShell"
+                            TextFieldName="DisplayName"
+                            ValueChanged="@((LocalConsoleShellDescriptor shell) => ChangeOperatorShell(shell))"
+                            ReadOnly="@operatorSubmitting"
+                            CssClass="ascii-operator-shell" />
+                <label class="visually-hidden">ASCII operator command</label>
+                <DxTextBox @bind-Text="operatorInput"
+                           BindValueMode="BindValueMode.OnInput"
+                           Enabled="@(!operatorSubmitting)"
+                           NullText=":help, :chat, :council, :session, :game, :mode or a shell command"
+                           CssClass="ascii-operator-input" />
+                <DxButton Text="@(operatorSubmitting ? "QUEUING…" : "RUN")"
+                          CssClass="ascii-console-button ascii-operator-submit"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          Enabled="@(!operatorSubmitting)"
+                          SubmitFormOnClick="true" />
             </form>
             <div class="ascii-operator-status" role="status">
                 <span>@operatorStatus</span>
@@ -200,26 +193,26 @@
                                 <span>@(string.IsNullOrWhiteSpace(hotSeatRequest.ResponsePrompt) ? hotSeatRequest.Description : hotSeatRequest.ResponsePrompt)</span>
                             </div>
                             <div class="chat-game-hotseat-grid" aria-label="Council hot-seat movement">
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("MOVE N"))'>MOVE N</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("MOVE W"))'>MOVE W</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("PASS"))'>PASS</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("MOVE E"))'>MOVE E</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("MOVE S"))'>MOVE S</button>
+                                <DxButton Text="MOVE N" CssClass="ascii-console-button" Enabled="@CanSubmitHumanControl" Click='@(() => SubmitHotSeatResponseAsync("MOVE N"))' />
+                                <DxButton Text="MOVE W" CssClass="ascii-console-button" Enabled="@CanSubmitHumanControl" Click='@(() => SubmitHotSeatResponseAsync("MOVE W"))' />
+                                <DxButton Text="PASS" CssClass="ascii-console-button" Enabled="@CanSubmitHumanControl" Click='@(() => SubmitHotSeatResponseAsync("PASS"))' />
+                                <DxButton Text="MOVE E" CssClass="ascii-console-button" Enabled="@CanSubmitHumanControl" Click='@(() => SubmitHotSeatResponseAsync("MOVE E"))' />
+                                <DxButton Text="MOVE S" CssClass="ascii-console-button" Enabled="@CanSubmitHumanControl" Click='@(() => SubmitHotSeatResponseAsync("MOVE S"))' />
                             </div>
                             <div class="chat-game-hotseat-dash" aria-label="Council hot-seat dash moves">
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("DASH N"))'>DASH N</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("DASH W"))'>DASH W</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("DASH S"))'>DASH S</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" @onclick='@(() => SubmitHotSeatResponseAsync("DASH E"))'>DASH E</button>
+                                <DxButton Text="DASH N" CssClass="ascii-console-button" Enabled="@CanSubmitHumanControl" Click='@(() => SubmitHotSeatResponseAsync("DASH N"))' />
+                                <DxButton Text="DASH W" CssClass="ascii-console-button" Enabled="@CanSubmitHumanControl" Click='@(() => SubmitHotSeatResponseAsync("DASH W"))' />
+                                <DxButton Text="DASH S" CssClass="ascii-console-button" Enabled="@CanSubmitHumanControl" Click='@(() => SubmitHotSeatResponseAsync("DASH S"))' />
+                                <DxButton Text="DASH E" CssClass="ascii-console-button" Enabled="@CanSubmitHumanControl" Click='@(() => SubmitHotSeatResponseAsync("DASH E"))' />
                             </div>
                             <form class="chat-game-hotseat-text" @onsubmit="SubmitHotSeatTextAsync" @onsubmit:preventDefault="true">
-                                <label for="@($"{elementId}-hotseat-text")">Short emote / role text</label>
+                                <label>Short emote / role text</label>
                                 <div>
-                                    <input id="@($"{elementId}-hotseat-text")" maxlength="80" autocomplete="off" @bind="hotSeatText" @bind:event="oninput" placeholder="Optional short emote" disabled="@hotSeatSubmitting" />
-                                    <button type="submit" disabled="@(hotSeatSubmitting || string.IsNullOrWhiteSpace(hotSeatText))">EMOTE</button>
+                                    <DxTextBox @bind-Text="hotSeatText" BindValueMode="BindValueMode.OnInput" MaxLength="80" NullText="Optional short emote" Enabled="@(!hotSeatSubmitting)" CssClass="ascii-hotseat-input" />
+                                    <DxButton Text="EMOTE" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!hotSeatSubmitting && !string.IsNullOrWhiteSpace(hotSeatText))" SubmitFormOnClick="true" />
                                 </div>
                             </form>
-                            <small>Play entirely here: W/A/S/D map to MOVE N/W/S/E. The Council hot-seat request stays on the ASCII game surface instead of requiring the separate collaboration inbox.</small>
+                            <small>Play here: W/A/S/D map to MOVE N/W/S/E; the active Council seat stays on this ASCII surface.</small>
                         </div>
                     }
                     @if (HasGameInteractionRequest)
@@ -235,8 +228,8 @@
                             @if (IsApprovalGameInteraction)
                             {
                                 <div class="chat-game-hotseat-dash" aria-label="AI request decision">
-                                    <button type="button" disabled="@gameInteractionSubmitting" @onclick='@(() => SubmitGameInteractionAsync(true, gameInteractionText, string.Empty))'>APPROVE</button>
-                                    <button type="button" disabled="@gameInteractionSubmitting" @onclick='@(() => SubmitGameInteractionAsync(false, gameInteractionText, gameInteractionText))'>DECLINE</button>
+                                    <DxButton Text="APPROVE" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Success" Enabled="@(!gameInteractionSubmitting)" Click='@(() => SubmitGameInteractionAsync(true, gameInteractionText, string.Empty))' />
+                                    <DxButton Text="DECLINE" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Danger" Enabled="@(!gameInteractionSubmitting)" Click='@(() => SubmitGameInteractionAsync(false, gameInteractionText, gameInteractionText))' />
                                 </div>
                             }
                             else if (gameInteractionRequest.SuggestedResponses.Count > 0)
@@ -244,19 +237,19 @@
                                 <div class="chat-game-ai-request-options" aria-label="Suggested responses">
                                     @foreach (var suggestion in gameInteractionRequest.SuggestedResponses)
                                     {
-                                        <button type="button" disabled="@gameInteractionSubmitting" @onclick='@(() => SubmitGameInteractionAsync(null, suggestion, string.Empty))'>@suggestion</button>
+                                        <DxButton Text="@suggestion" CssClass="ascii-console-button" Enabled="@(!gameInteractionSubmitting)" Click='@(() => SubmitGameInteractionAsync(null, suggestion, string.Empty))' />
                                     }
                                 </div>
                             }
                             @if (gameInteractionRequest.AllowFreeText || !IsApprovalGameInteraction)
                             {
                                 <form class="chat-game-hotseat-text" @onsubmit="SubmitGameInteractionTextAsync" @onsubmit:preventDefault="true">
-                                    <label for="@($"{elementId}-ai-request-text")">@(IsApprovalGameInteraction ? "Decision note / decline reason" : "Your answer")</label>
+                                    <label>@(IsApprovalGameInteraction ? "Decision note / decline reason" : "Your answer")</label>
                                     <div>
-                                        <input id="@($"{elementId}-ai-request-text")" maxlength="2000" autocomplete="off" @bind="gameInteractionText" @bind:event="oninput" placeholder="Respond without leaving ASCII mode" disabled="@gameInteractionSubmitting" />
+                                        <DxTextBox @bind-Text="gameInteractionText" BindValueMode="BindValueMode.OnInput" MaxLength="2000" NullText="Respond without leaving ASCII mode" Enabled="@(!gameInteractionSubmitting)" CssClass="ascii-game-interaction-input" />
                                         @if (!IsApprovalGameInteraction)
                                         {
-                                            <button type="submit" disabled="@(gameInteractionSubmitting || string.IsNullOrWhiteSpace(gameInteractionText))">SEND</button>
+                                            <DxButton Text="SEND" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!gameInteractionSubmitting && !string.IsNullOrWhiteSpace(gameInteractionText))" SubmitFormOnClick="true" />
                                         }
                                     </div>
                                 </form>
@@ -270,13 +263,13 @@
                             <strong>Mission complete</strong>
                             <span>Keep this chat and start another deterministic ASCII run.</span>
                             <div class="chat-game-restart-actions">
-                                <button type="button" @onclick="RestartSameMapAsync">Restart same map</button>
-                                <button type="button" @onclick="StartFreshMapAsync">New map</button>
+                                <DxButton Text="Restart same map" CssClass="ascii-console-button" Click="RestartSameMapAsync" />
+                                <DxButton Text="New map" CssClass="ascii-console-button" Click="StartFreshMapAsync" />
                             </div>
                             <form class="chat-game-scenario-row" @onsubmit="StartScenarioAsync" @onsubmit:preventDefault="true">
-                                <label for="@($"{elementId}-scenario")">New ASCII scenario</label>
-                                <textarea id="@($"{elementId}-scenario")" maxlength="240" rows="3" @bind="scenarioPrompt" @bind:event="oninput" placeholder="Example: abandoned moon relay, icy refinery, neon sewer…"></textarea>
-                                <button type="submit" disabled="@string.IsNullOrWhiteSpace(scenarioPrompt)">Start scenario</button>
+                                <label>New ASCII scenario</label>
+                                <DxMemo @bind-Text="scenarioPrompt" BindValueMode="BindValueMode.OnInput" MaxLength="240" Rows="3" NullText="Example: abandoned moon relay, icy refinery, neon sewer…" CssClass="ascii-scenario-input" />
+                                <DxButton Text="Start scenario" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!string.IsNullOrWhiteSpace(scenarioPrompt))" SubmitFormOnClick="true" />
                             </form>
                         </div>
                     }
@@ -326,6 +319,35 @@
 </section>
 
 @code {
+    /// <summary>One display/value pair used by the DevExpress selectors inside the shared ASCII wall.</summary>
+    private sealed record AsciiSelectOption<T>(T Value, string Label);
+
+    /// <summary>Maintained fullscreen scaling choices preserving the labels of the previous native selector.</summary>
+    private readonly IReadOnlyList<AsciiSelectOption<string>> FullscreenScaleOptions =
+    [
+        new("Fit", "Fit whole frame"),
+        new("Width", "Fit width + vertical scroll"),
+        new("Native", "Native size + scroll")
+    ];
+
+    /// <summary>Maintained game-control choices preserving the existing Human/Shared/AI semantics.</summary>
+    private readonly IReadOnlyList<AsciiSelectOption<CouncilGameControlMode>> ControlModeOptions =
+    [
+        new(CouncilGameControlMode.Human, "Human"),
+        new(CouncilGameControlMode.Shared, "Human + AI"),
+        new(CouncilGameControlMode.Ai, "AI hunter")
+    ];
+
+    /// <summary>Maintained AI autoplay delays exposed through the DevExpress selector.</summary>
+    private readonly IReadOnlyList<AsciiSelectOption<int>> AutoplayDelayOptions =
+    [
+        new(500, "0.5 s"),
+        new(1000, "1 s"),
+        new(1500, "1.5 s"),
+        new(2500, "2.5 s"),
+        new(5000, "5 s")
+    ];
+
     /// <summary>
     /// Gets or sets the stable conversation identifier used to identify or correlate this chat game console instance with related application state.
     /// </summary>
@@ -493,6 +515,25 @@
     private bool CanRestartCorridor => snapshot is { GameKey: "ascii-doom" }
         && !string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase)
         && !IsCouncilHotSeatGame;
+    /// <summary>Gets the current fullscreen scaling item for the DevExpress selector.</summary>
+    private AsciiSelectOption<string> SelectedFullscreenScaleOption =>
+        FullscreenScaleOptions.FirstOrDefault(option => string.Equals(option.Value, fullscreenScaleMode, StringComparison.OrdinalIgnoreCase))
+        ?? FullscreenScaleOptions[0];
+
+    /// <summary>Gets the current game-control item for the DevExpress selector.</summary>
+    private AsciiSelectOption<CouncilGameControlMode> SelectedControlModeOption =>
+        ControlModeOptions.FirstOrDefault(option => option.Value == snapshot?.ControlMode)
+        ?? ControlModeOptions[1];
+
+    /// <summary>Gets the current autoplay delay item for the DevExpress selector.</summary>
+    private AsciiSelectOption<int> SelectedAutoplayDelayOption =>
+        AutoplayDelayOptions.FirstOrDefault(option => option.Value == snapshot?.AutoplayDelayMilliseconds)
+        ?? AutoplayDelayOptions[2];
+
+    /// <summary>Gets the selected host-resolved shell descriptor for the DevExpress operator selector.</summary>
+    private LocalConsoleShellDescriptor? SelectedOperatorShell =>
+        availableShells.FirstOrDefault(option => option.Shell == operatorShell);
+
     /// <summary>Gets whether the active game should expose its human control guide.</summary>
     /// <value><c>true</c> when controls or in-game collaboration input are currently relevant.</value>
     private bool ShowControlGuide => snapshot is not null && showControls && (HasHotSeatRequest || HasGameInteractionRequest || CanRestartCorridor || snapshot.ControlMode != CouncilGameControlMode.Ai);
@@ -560,8 +601,8 @@
         availableShells = Operator.GetAvailableShells();
         if (availableShells.Count > 0 && !availableShells.Any(item => item.Shell == operatorShell))
             operatorShell = availableShells[0].Shell;
-        snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
-        await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+        snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true);
+        await RefreshHotSeatRequestAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -571,10 +612,10 @@
     protected override async Task OnParametersSetAsync()
     {
         if (snapshot is null || (ConversationId is not null && snapshot.ConversationId != ConversationId))
-            snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
+            snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true);
         asciiConversationText = AsciiText.BuildConversationTranscript(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName);
         asciiSequenceFrames = AsciiText.ExtractSequenceFrames(ConversationMessages);
-        await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+        await RefreshHotSeatRequestAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -657,7 +698,7 @@
             operatorStatus = operatorMode
                 ? "Operator layer enabled. Game input is paused while this command row owns the ASCII wall."
                 : "Operator layer hidden. Running jobs continue in the background.";
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
         catch (Exception exception)
         {
@@ -666,14 +707,14 @@
     }
 
     /// <summary>Updates the renderer-owned shell selection from one installed backend descriptor.</summary>
-    /// <param name="args">Shell selection change event.</param>
-    private void ChangeOperatorShell(ChangeEventArgs args)
+    /// <param name="shell">Host-resolved shell descriptor selected by the operator.</param>
+    private void ChangeOperatorShell(LocalConsoleShellDescriptor? shell)
     {
         try
         {
-            if (Enum.TryParse<LocalConsoleShellKind>(args.Value?.ToString(), true, out var shell) && availableShells.Any(item => item.Shell == shell))
+            if (shell is not null && availableShells.Any(item => item.Shell == shell.Shell))
             {
-                operatorShell = shell;
+                operatorShell = shell.Shell;
                 operatorStatus = $"Selected {OperatorShellLabel}. Ordinary lines run behind the ASCII wall.";
             }
         }
@@ -700,10 +741,10 @@
                 Shell = operatorShell,
                 WorkingDirectory = operatorWorkingDirectory,
                 UserConfirmed = true
-            }).ConfigureAwait(false);
+            }).ConfigureAwait(true);
 
             if (result.ApplicationAction != LocalConsoleOperatorApplicationAction.None)
-                await DispatchApplicationOperatorActionAsync(result).ConfigureAwait(false);
+                await DispatchApplicationOperatorActionAsync(result).ConfigureAwait(true);
 
             await InvokeAsync(() =>
             {
@@ -714,7 +755,7 @@
                     operatorInput = string.Empty;
                 consoleOutput = Console.GetRecentOutput(240);
                 StateHasChanged();
-            }).ConfigureAwait(false);
+            }).ConfigureAwait(true);
         }
         catch (OperationCanceledException exception)
         {
@@ -729,7 +770,7 @@
         finally
         {
             operatorSubmitting = false;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
     }
 
@@ -743,10 +784,10 @@
             switch (result.ApplicationAction)
             {
                 case LocalConsoleOperatorApplicationAction.ChatPrompt:
-                    await InvokeAsync(() => ChatPromptRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(false);
+                    await InvokeAsync(() => ChatPromptRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(true);
                     break;
                 case LocalConsoleOperatorApplicationAction.CouncilPrompt:
-                    await InvokeAsync(() => CouncilPromptRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(false);
+                    await InvokeAsync(() => CouncilPromptRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(true);
                     break;
                 case LocalConsoleOperatorApplicationAction.CouncilStatus:
                     var running = CouncilParticipantActivities.Count(item => item.IsRunning);
@@ -755,27 +796,27 @@
                         : "No Council run is attached to the current ASCII surface.");
                     break;
                 case LocalConsoleOperatorApplicationAction.CouncilStop:
-                    await InvokeAsync(() => CouncilStopRequested.InvokeAsync()).ConfigureAwait(false);
+                    await InvokeAsync(() => CouncilStopRequested.InvokeAsync()).ConfigureAwait(true);
                     break;
                 case LocalConsoleOperatorApplicationAction.CouncilSkip:
-                    await InvokeAsync(() => CouncilSkipRequested.InvokeAsync()).ConfigureAwait(false);
+                    await InvokeAsync(() => CouncilSkipRequested.InvokeAsync()).ConfigureAwait(true);
                     break;
                 case LocalConsoleOperatorApplicationAction.SessionList:
                     Console.PublishOperatorMessage(Operator.FormatSavedConversations(SavedConversations));
                     break;
                 case LocalConsoleOperatorApplicationAction.SessionNew:
-                    await InvokeAsync(() => NewSessionRequested.InvokeAsync()).ConfigureAwait(false);
+                    await InvokeAsync(() => NewSessionRequested.InvokeAsync()).ConfigureAwait(true);
                     break;
                 case LocalConsoleOperatorApplicationAction.SessionOpen:
-                    await InvokeAsync(() => SessionOpenRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(false);
+                    await InvokeAsync(() => SessionOpenRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(true);
                     break;
                 case LocalConsoleOperatorApplicationAction.GameStartCorridor:
-                    await StartDoomAsync().ConfigureAwait(false);
+                    await StartDoomAsync().ConfigureAwait(true);
                     operatorMode = false;
                     conversationMode = false;
                     break;
                 case LocalConsoleOperatorApplicationAction.GameStartDragon:
-                    await StartDragonAsync().ConfigureAwait(false);
+                    await StartDragonAsync().ConfigureAwait(true);
                     operatorMode = false;
                     conversationMode = false;
                     break;
@@ -785,11 +826,11 @@
                         ConversationId = ConversationId,
                         CouncilRunId = CouncilRunId,
                         StartedBy = "ASCII Operator"
-                    }).ConfigureAwait(false);
+                    }).ConfigureAwait(true);
                     showControls = true;
                     operatorMode = false;
                     conversationMode = false;
-                    await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+                    await RefreshHotSeatRequestAsync().ConfigureAwait(true);
                     break;
                 case LocalConsoleOperatorApplicationAction.GameStatus:
                     Console.PublishOperatorMessage(snapshot is null
@@ -798,7 +839,7 @@
                     break;
                 case LocalConsoleOperatorApplicationAction.GameEnd:
                     if (snapshot is not null)
-                        snapshot = await Games.EndAsync(snapshot.Id, "ASCII Operator").ConfigureAwait(false);
+                        snapshot = await Games.EndAsync(snapshot.Id, "ASCII Operator").ConfigureAwait(true);
                     break;
                 case LocalConsoleOperatorApplicationAction.ModeChat:
                     operatorMode = false;
@@ -813,7 +854,7 @@
                     break;
                 case LocalConsoleOperatorApplicationAction.Fullscreen:
                     fullscreenScaleMode = result.ApplicationArgument;
-                    await FullscreenAsync().ConfigureAwait(false);
+                    await FullscreenAsync().ConfigureAwait(true);
                     break;
                 case LocalConsoleOperatorApplicationAction.None:
                 default:
@@ -831,12 +872,12 @@
     /// Starts doom for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartDoomAsync() => await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(false);
+    private async Task StartDoomAsync() => await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(true);
     /// <summary>
     /// Starts dragon for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartDragonAsync() => await StartAsync("green-dragon", "green-dragon-runtime-story").ConfigureAwait(false);
+    private async Task StartDragonAsync() => await StartAsync("green-dragon", "green-dragon-runtime-story").ConfigureAwait(true);
 
     /// <summary>
     /// Performs start for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
@@ -845,8 +886,18 @@
     /// <param name="teamKey">Team key value supplied to the chat game console operation and used when producing its result.</param>
     /// <param name="mapSeed">Optional deterministic map seed used when replaying a corridor.</param>
     /// <param name="scenario">Optional bounded scenario prompt supplied to the game runtime.</param>
+    /// <param name="campaignRuntimeClassKey">Optional copied campaign runtime-class key.</param>
+    /// <param name="startingLevel">Optional 1-based level override.</param>
+    /// <param name="autoAdvanceLevels">Optional level auto-advance override.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartAsync(string gameKey, string teamKey, int? mapSeed = null, string scenario = "")
+    private async Task StartAsync(
+        string gameKey,
+        string teamKey,
+        int? mapSeed = null,
+        string scenario = "",
+        string campaignRuntimeClassKey = "",
+        int? startingLevel = null,
+        bool? autoAdvanceLevels = null)
     {
         try
         {
@@ -859,13 +910,16 @@
                 ControlMode = CouncilGameControlMode.Shared,
                 MapSeed = mapSeed,
                 ScenarioPrompt = scenario,
+                CampaignRuntimeClassKey = campaignRuntimeClassKey,
+                StartingLevel = startingLevel,
+                AutoAdvanceLevels = autoAdvanceLevels,
                 StartedBy = "Human User"
-            }).ConfigureAwait(false);
+            }).ConfigureAwait(true);
             showControls = true;
             operatorMode = false;
             conversationMode = false;
-            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await RefreshHotSeatRequestAsync().ConfigureAwait(true);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -877,50 +931,68 @@
     /// <returns>A task that completes when the replay session has started.</returns>
     private Task RestartSameMapAsync() => snapshot is null
         ? Task.CompletedTask
-        : StartAsync("ascii-doom", snapshot.TeamKey, snapshot.MapSeed, snapshot.ScenarioPrompt);
+        : StartAsync(
+            "ascii-doom",
+            snapshot.TeamKey,
+            snapshot.CampaignSeed > 0 ? snapshot.CampaignSeed : snapshot.MapSeed,
+            snapshot.ScenarioPrompt,
+            snapshot.CampaignRuntimeClassKey,
+            snapshot.CurrentLevel,
+            snapshot.AutoAdvanceLevels);
 
     /// <summary>Starts a newly seeded corridor while preserving the current chat and selected team.</summary>
     /// <returns>A task that completes when the newly seeded corridor has started.</returns>
-    private Task StartFreshMapAsync() => StartAsync("ascii-doom", snapshot?.TeamKey ?? "ascii-doom-council-adventure");
+    private Task StartFreshMapAsync() => StartAsync(
+        "ascii-doom",
+        snapshot?.TeamKey ?? "ascii-doom-council-adventure",
+        campaignRuntimeClassKey: snapshot?.CampaignRuntimeClassKey ?? string.Empty,
+        startingLevel: snapshot?.CurrentLevel,
+        autoAdvanceLevels: snapshot?.AutoAdvanceLevels);
 
     /// <summary>Starts a new corridor whose stable layout is derived from the supplied scenario text.</summary>
     /// <returns>A task that completes when the scenario-derived corridor has started.</returns>
     private async Task StartScenarioAsync()
     {
         var scenario = CouncilText.TrimForPrompt(scenarioPrompt, 240, Logger, collapseWhitespace: true);
-        await StartAsync("ascii-doom", snapshot?.TeamKey ?? "ascii-doom-council-adventure", scenario: scenario).ConfigureAwait(false);
+        await StartAsync(
+            "ascii-doom",
+            snapshot?.TeamKey ?? "ascii-doom-council-adventure",
+            scenario: scenario,
+            campaignRuntimeClassKey: snapshot?.CampaignRuntimeClassKey ?? string.Empty,
+            startingLevel: snapshot?.CurrentLevel,
+            autoAdvanceLevels: snapshot?.AutoAdvanceLevels).ConfigureAwait(true);
         scenarioPrompt = string.Empty;
     }
 
     /// <summary>
     /// Performs change control mode for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the chat game console operation and used when producing its result.</param>
+    /// <param name="option">Selected DevExpress control-mode option.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task ChangeControlModeAsync(ChangeEventArgs args)
+    private async Task ChangeControlModeAsync(AsciiSelectOption<CouncilGameControlMode>? option)
     {
-        if (snapshot is null) return;
-        if (!Enum.TryParse<CouncilGameControlMode>(args.Value?.ToString(), true, out var mode)) return;
+        if (snapshot is null || option is null) return;
+        var mode = option.Value;
         snapshot = await Games.SetControlModeAsync(
             snapshot.Id,
             mode,
             mode == CouncilGameControlMode.Ai,
-            snapshot.AutoplayDelayMilliseconds).ConfigureAwait(false);
+            snapshot.AutoplayDelayMilliseconds).ConfigureAwait(true);
     }
 
     /// <summary>
     /// Performs change autoplay delay for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the chat game console operation and used when producing its result.</param>
+    /// <param name="option">Selected DevExpress autoplay-delay option.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task ChangeAutoplayDelayAsync(ChangeEventArgs args)
+    private async Task ChangeAutoplayDelayAsync(AsciiSelectOption<int>? option)
     {
-        if (snapshot is null || !int.TryParse(args.Value?.ToString(), out var delay)) return;
+        if (snapshot is null || option is null) return;
         snapshot = await Games.SetControlModeAsync(
             snapshot.Id,
             snapshot.ControlMode,
             snapshot.ControlMode == CouncilGameControlMode.Ai,
-            delay).ConfigureAwait(false);
+            option.Value).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -931,15 +1003,15 @@
     /// <summary>
     /// Performs change fullscreen scale mode for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the chat game console operation and used when producing its result.</param>
+    /// <param name="option">Selected DevExpress fullscreen-scale option.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task ChangeFullscreenScaleModeAsync(ChangeEventArgs args)
+    private async Task ChangeFullscreenScaleModeAsync(AsciiSelectOption<string>? option)
     {
-        var requestedMode = args.Value?.ToString();
+        var requestedMode = option?.Value;
         fullscreenScaleMode = string.Equals(requestedMode, "Native", StringComparison.OrdinalIgnoreCase)
             ? "Native"
             : string.Equals(requestedMode, "Width", StringComparison.OrdinalIgnoreCase) ? "Width" : "Fit";
-        await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(false);
+        await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true);
         lastJsScaleMode = fullscreenScaleMode;
     }
 
@@ -948,7 +1020,7 @@
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task FullscreenAsync() =>
-        await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId).ConfigureAwait(false);
+        await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId).ConfigureAwait(true);
 
     /// <summary>
     /// Performs close for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
@@ -956,9 +1028,9 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CloseAsync()
     {
-        await JS.InvokeVoidAsync("localGptGameConsole.exitFullscreen", elementId).ConfigureAwait(false);
+        await JS.InvokeVoidAsync("localGptGameConsole.exitFullscreen", elementId).ConfigureAwait(true);
         if (CloseRequested.HasDelegate)
-            await InvokeAsync(() => CloseRequested.InvokeAsync()).ConfigureAwait(false);
+            await InvokeAsync(() => CloseRequested.InvokeAsync()).ConfigureAwait(true);
     }
 
     /// <summary>Ends only the active ASCII game while preserving the chat, Council/provider sessions and reusable terminal surface.</summary>
@@ -967,10 +1039,10 @@
     {
         if (snapshot is null)
             return;
-        snapshot = await Games.EndAsync(snapshot.Id, "Human User").ConfigureAwait(false);
+        snapshot = await Games.EndAsync(snapshot.Id, "Human User").ConfigureAwait(true);
         conversationMode = true;
         operatorMode = false;
-        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -1009,7 +1081,7 @@
         var sessionId = snapshot.Id;
         var expectedTurn = snapshot.Turn;
         inputInFlight = true;
-        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         try
         {
             snapshot = await Games.ApplyControlAsync(new CouncilGameControlRequest
@@ -1019,18 +1091,18 @@
                 ExpectedTurn = expectedTurn,
                 Source = "HumanUI",
                 ActorName = "Human Player"
-            }).ConfigureAwait(false);
-            await Task.Delay(260).ConfigureAwait(false);
+            }).ConfigureAwait(true);
+            await Task.Delay(260).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The in-chat game control {Action} was rejected.", action);
-            snapshot = await Games.GetAsync(sessionId).ConfigureAwait(false);
+            snapshot = await Games.GetAsync(sessionId).ConfigureAwait(true);
         }
         finally
         {
             inputInFlight = false;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
     }
 
@@ -1047,7 +1119,7 @@
 
         try
         {
-            var collaboration = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 80).ConfigureAwait(false);
+            var collaboration = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 80).ConfigureAwait(true);
             hotSeatProfile = collaboration.Profile;
             var pending = collaboration.Requests
                 .Where(request => request.CouncilRunId == runId && request.DecidedAtUtc is null)
@@ -1077,7 +1149,7 @@
         hotSeatSubmitting = true;
         try
         {
-            var profile = hotSeatProfile ?? await HumanCollaboration.GetProfileAsync().ConfigureAwait(false);
+            var profile = hotSeatProfile ?? await HumanCollaboration.GetProfileAsync().ConfigureAwait(true);
             using var scope = HumanAmbientContext.PushHumanInteraction(
                 profile.Id,
                 profile.DisplayName,
@@ -1089,9 +1161,9 @@
             await HumanCollaboration.ResolveRequestAsync(
                 request.Id,
                 new HumanDecisionSubmission(null, command.Trim(), string.Empty),
-                consoleRenderCancellation.Token).ConfigureAwait(false);
+                consoleRenderCancellation.Token).ConfigureAwait(true);
             hotSeatText = string.Empty;
-            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+            await RefreshHotSeatRequestAsync().ConfigureAwait(true);
         }
         catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
         {
@@ -1105,7 +1177,7 @@
         {
             hotSeatSubmitting = false;
             if (!disposed)
-                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+                await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
     }
 
@@ -1141,7 +1213,7 @@
         gameInteractionSubmitting = true;
         try
         {
-            var profile = hotSeatProfile ?? await HumanCollaboration.GetProfileAsync().ConfigureAwait(false);
+            var profile = hotSeatProfile ?? await HumanCollaboration.GetProfileAsync().ConfigureAwait(true);
             using var scope = HumanAmbientContext.PushHumanInteraction(
                 profile.Id,
                 profile.DisplayName,
@@ -1153,9 +1225,9 @@
             await HumanCollaboration.ResolveRequestAsync(
                 request.Id,
                 new HumanDecisionSubmission(approved, normalizedResponse, normalizedReason),
-                consoleRenderCancellation.Token).ConfigureAwait(false);
+                consoleRenderCancellation.Token).ConfigureAwait(true);
             gameInteractionText = string.Empty;
-            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+            await RefreshHotSeatRequestAsync().ConfigureAwait(true);
         }
         catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
         {
@@ -1170,7 +1242,7 @@
         {
             gameInteractionSubmitting = false;
             if (!disposed)
-                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+                await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
     }
 
@@ -1186,7 +1258,7 @@
             return;
         _ = InvokeAsync(async () =>
         {
-            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+            await RefreshHotSeatRequestAsync().ConfigureAwait(true);
             StateHasChanged();
         });
     }
@@ -1201,8 +1273,8 @@
         _ = InvokeAsync(async () =>
         {
             var hadSnapshot = snapshot is not null;
-            snapshot = await Games.GetAsync(sessionId).ConfigureAwait(false);
-            await RefreshHotSeatRequestAsync().ConfigureAwait(false);
+            snapshot = await Games.GetAsync(sessionId).ConfigureAwait(true);
+            await RefreshHotSeatRequestAsync().ConfigureAwait(true);
             if (!hadSnapshot && snapshot is not null && !operatorMode)
                 conversationMode = false;
             StateHasChanged();

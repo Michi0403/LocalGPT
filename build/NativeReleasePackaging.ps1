@@ -1468,6 +1468,7 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
     $pkgRoot = Join-Path ([IO.Path]::GetTempPath()) ("pkg-root-" + [Guid]::NewGuid().ToString('N'))
     $pkgScripts = Join-Path ([IO.Path]::GetTempPath()) ("pkg-scripts-" + [Guid]::NewGuid().ToString('N'))
     $componentPackage = Join-Path ([IO.Path]::GetTempPath()) ("pkg-component-" + [Guid]::NewGuid().ToString('N') + '.pkg')
+    $distributionPath = Join-Path ([IO.Path]::GetTempPath()) ("pkg-distribution-" + [Guid]::NewGuid().ToString('N') + '.xml')
     $expandedPackage = Join-Path ([IO.Path]::GetTempPath()) ("pkg-expanded-" + [Guid]::NewGuid().ToString('N'))
     $applicationsRoot = Join-Path $pkgRoot 'Applications'
     New-Item -ItemType Directory -Path $applicationsRoot -Force | Out-Null
@@ -1624,8 +1625,32 @@ exit 0
 
         Write-Host "Validated component PKG payload root /Applications/$appName with Info.plist and executable content." -ForegroundColor Green
 
+        $componentPackageName = [IO.Path]::GetFileName($componentPackage)
+        $distributionTitle = "$ProductName $Version"
+        $escapedDistributionTitle = [Security.SecurityElement]::Escape($distributionTitle)
+        $escapedIdentifier = [Security.SecurityElement]::Escape($identifier)
+        $escapedComponentPackageName = [Security.SecurityElement]::Escape($componentPackageName)
+        $distributionXml = @"
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+  <title>$escapedDistributionTitle</title>
+  <options customize="never" require-scripts="false"/>
+  <choices-outline>
+    <line choice="default"/>
+  </choices-outline>
+  <choice id="default" visible="false">
+    <pkg-ref id="$escapedIdentifier"/>
+  </choice>
+  <pkg-ref id="$escapedIdentifier" version="$Version" onConclusion="none">$escapedComponentPackageName</pkg-ref>
+</installer-gui-script>
+"@
+        Write-Utf8NoBom $distributionPath $distributionXml
+
         Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
-        $productBuildArguments = @('--package', $componentPackage)
+        $productBuildArguments = @(
+            '--distribution', $distributionPath,
+            '--package-path', ([IO.Path]::GetDirectoryName($componentPackage))
+        )
         if ($script:MacInstallerSigningIdentity) { $productBuildArguments += @('--sign', $script:MacInstallerSigningIdentity) }
         $productBuildArguments += $Destination
         & $productbuild @productBuildArguments 2>&1 | ForEach-Object { Write-Host $_ }
@@ -1648,6 +1673,28 @@ exit 0
             Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
             return $false
         }
+        $expandedDistributionPath = Join-Path $expandedPackage 'Distribution'
+        if (-not (Test-Path -LiteralPath $expandedDistributionPath -PathType Leaf)) {
+            Write-Warning "The final distribution PKG $Destination did not contain Installer distribution metadata. The package was removed."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+        try {
+            [xml]$expandedDistributionXml = Get-Content -LiteralPath $expandedDistributionPath -Raw -ErrorAction Stop
+            $expandedTitleNode = $expandedDistributionXml.SelectSingleNode('/installer-gui-script/title')
+            $expandedTitle = if ($null -eq $expandedTitleNode) { '' } else { [string]$expandedTitleNode.InnerText }
+        }
+        catch {
+            Write-Warning "The final distribution PKG $Destination contains unreadable Installer distribution metadata. The package was removed."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+        if (-not [string]::Equals($expandedTitle, $distributionTitle, [StringComparison]::Ordinal)) {
+            Write-Warning "The final distribution PKG $Destination reports Installer title '$expandedTitle' instead of '$distributionTitle'. The package was removed."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+        Write-Host "Validated macOS Installer package title '$distributionTitle'." -ForegroundColor Green
         if ($script:MacInstallerSigningIdentity) {
             & $pkgutil --check-signature $Destination 2>&1 | ForEach-Object { Write-Host $_ }
             if ($LASTEXITCODE -ne 0) {
@@ -1678,6 +1725,7 @@ exit 0
         Remove-Item -LiteralPath $pkgRoot -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $pkgScripts -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $componentPackage -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $distributionPath -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $expandedPackage -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

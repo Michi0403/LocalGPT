@@ -44,7 +44,7 @@
 
 <PageTitle>@L("Home.LocalChat.Title", "Local Chat")</PageTitle>
 
-<div class="main-container @(IsLiveCouncilInteractionAvailable ? "chat-session-active" : string.Empty) @(showGameConsole ? "chat-game-visible" : string.Empty)" data-testid="chat-page">
+<div class="main-container @(IsLiveCouncilInteractionAvailable ? "chat-session-active" : string.Empty)" data-testid="chat-page">
     @if (ChatClientProvider is not null)
     {
         <ToastWrapper Name="@toastName" />
@@ -565,26 +565,32 @@
                 </div>
             </div>
         </details>
-        @if (showGameConsole)
-        {
-            <section class="chat-game-ribbon" aria-label="Optional ASCII game console">
-                <ChatGameConsole ConversationId="@ActiveConversationId"
-                                 CouncilRunId="@(AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? SelectedCouncilRunId)"
-                                 SuggestedTeamKey="@SelectedCouncilTeamKey"
-                                 ConversationMessages="@AsciiConversationMessages"
-                                 CouncilParticipantActivities="@AsciiCouncilParticipantActivities"
-                                 AssistantDisplayName="@AsciiAssistantDisplayName"
-                                 FunModeEnabled="@AsciiFunModeEnabled"
-                                 SavedConversations="@SavedConversations"
-                                 ChatPromptRequested="SubmitOperatorChatPromptAsync"
-                                 CouncilPromptRequested="SubmitOperatorCouncilPromptAsync"
-                                 NewSessionRequested="ClearHistoryAsync"
-                                 SessionOpenRequested="OpenOperatorSavedConversationAsync"
-                                 CouncilStopRequested="StopSelectedCouncilSessionAsync"
-                                 CouncilSkipRequested="SkipCurrentCouncilRoundAsync"
-                                 CloseRequested="CloseGameConsole" />
-            </section>
-        }
+        <DxPopup Visible="@showGameConsole"
+                 VisibleChanged="OnGameConsoleVisibilityChangedAsync"
+                 HeaderText="LocalGPT ASCII console"
+                 Width="min(1680px, 97vw)"
+                 MaxHeight="95vh"
+                 CloseOnOutsideClick="false">
+            <BodyContentTemplate>
+                <div class="chat-game-popup-body" aria-label="Optional ASCII game console">
+                    <ChatGameConsole ConversationId="@ActiveConversationId"
+                                     CouncilRunId="@(AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? SelectedCouncilRunId)"
+                                     SuggestedTeamKey="@SelectedCouncilTeamKey"
+                                     ConversationMessages="@AsciiConversationMessages"
+                                     CouncilParticipantActivities="@AsciiCouncilParticipantActivities"
+                                     AssistantDisplayName="@AsciiAssistantDisplayName"
+                                     FunModeEnabled="@AsciiFunModeEnabled"
+                                     SavedConversations="@SavedConversations"
+                                     ChatPromptRequested="SubmitOperatorChatPromptAsync"
+                                     CouncilPromptRequested="SubmitOperatorCouncilPromptAsync"
+                                     NewSessionRequested="ClearHistoryAsync"
+                                     SessionOpenRequested="OpenOperatorSavedConversationAsync"
+                                     CouncilStopRequested="StopSelectedCouncilSessionAsync"
+                                     CouncilSkipRequested="SkipCurrentCouncilRoundAsync"
+                                     CloseRequested="CloseGameConsole" />
+                </div>
+            </BodyContentTemplate>
+        </DxPopup>
         @if (RunningLiveCouncilSessions.Count > 0 && ActiveLiveCouncilSession is null)
         {
             var newestLiveSession = RunningLiveCouncilSessions[0];

@@ -236,6 +236,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
+            EnsureRequiredAsciiSurfaceState();
             SavePreparationConfiguration();
             var selectedModels = DiagnosticCouncilModelNames.Count > 0
             ? DiagnosticCouncilModelNames

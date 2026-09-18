@@ -11,6 +11,9 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed class AsciiChatTextService
 {
+    /// <summary>Capability marker used by persisted Council teams whose workflow requires the shared ASCII surface to be visible before provider work begins.</summary>
+    public const string RequiredSurfaceCapability = "localgpt.ascii.surface.required";
+
     /// <summary>Stores the logger used to record bounded ASCII text-processing diagnostics without recording chat content.</summary>
     private readonly ILogger<AsciiChatTextService> logger;
 
@@ -196,6 +199,23 @@ public sealed class AsciiChatTextService
         {
             logger.LogWarning(exception, "ASCII Council participant signature generation failed; the mirror will refresh defensively.");
             return Guid.NewGuid().ToString("N");
+        }
+    }
+
+    /// <summary>Returns whether one configured Council team requires the shared ASCII presentation surface to be open while its workflow runs.</summary>
+    /// <param name="team">Persisted service-backed team definition to classify.</param>
+    /// <returns><c>true</c> when the team carries the maintained ASCII-surface requirement marker.</returns>
+    public bool RequiresAsciiSurface(OrganicCouncilTeamDefinition? team)
+    {
+        try
+        {
+            return team?.PreferredCapabilities?.Any(capability =>
+                string.Equals(capability, RequiredSurfaceCapability, StringComparison.OrdinalIgnoreCase)) == true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Classifying a Council team for the required ASCII presentation surface failed.");
+            return false;
         }
     }
 

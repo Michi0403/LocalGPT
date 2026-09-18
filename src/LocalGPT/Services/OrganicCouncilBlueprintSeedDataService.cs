@@ -428,12 +428,12 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                     MinimumAiParticipants = 1,
                     MaximumAiParticipants = 1,
-                    HumanParticipationMode = HumanParticipationMode.None,
+                    HumanParticipationMode = HumanParticipationMode.Optional,
                     PerformanceMode = CouncilRolePerformanceMode.TaskSpecialist,
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
                     DistinctAiAssignmentGroup = "ascii-doom",
-                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.map"]
+                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.campaign", "games.ascii.doom.map"]
                 },
                 new()
                 {
@@ -443,12 +443,12 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                     MinimumAiParticipants = 1,
                     MaximumAiParticipants = 1,
-                    HumanParticipationMode = HumanParticipationMode.None,
+                    HumanParticipationMode = HumanParticipationMode.Optional,
                     PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
                     DistinctAiAssignmentGroup = "ascii-doom",
-                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.director", "games.ascii.doom.player"]
+                    RuntimeClassKeys = ["games.ascii.doom.session", "games.ascii.doom.campaign", "games.ascii.doom.director", "games.ascii.doom.player"]
                 },
                 new()
                 {
@@ -458,12 +458,12 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
                     MinimumAiParticipants = 1,
                     MaximumAiParticipants = 1,
-                    HumanParticipationMode = HumanParticipationMode.None,
+                    HumanParticipationMode = HumanParticipationMode.Optional,
                     PerformanceMode = CouncilRolePerformanceMode.TaskSpecialist,
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
                     DistinctAiAssignmentGroup = "ascii-doom",
-                    RuntimeClassKeys = ["games.ascii.doom.frame"]
+                    RuntimeClassKeys = ["games.ascii.doom.campaign", "games.ascii.doom.frame"]
                 }
             ],
             WorkflowSteps =
@@ -479,7 +479,7 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Start or recover the directly playable ASCII corridor session. Call localgpt.game.session.start once with gameKey ascii-doom, teamKey ascii-doom-council-adventure and controlMode Shared. Shared mode accepts explicit human and AI controls on the same authoritative game but never runs a background autoplay loop. The deterministic game service creates the connected map, hostile actors, opening sightline and extraction objective. Never guess, synthesize or ask the user for a session GUID: localgpt.game.session.get and localgpt.game.display.get resolve the active game for this conversation when sessionId is omitted. Do not use public-service aliases, runtime-class discovery loops or human-collaboration requests for game identity. Do not invent session IDs. Report that the shared game is ready and summarize the returned enemy count/objective; later player/controller roles may use localgpt.game.control directly when their workflow calls for an action.
+Start or recover the directly playable ASCII corridor session. Call localgpt.game.session.start once with gameKey ascii-doom, teamKey ascii-doom-council-adventure and controlMode Shared. The deterministic game service resolves the campaign runtime class assigned to the selected team; the maintained starter is games.ascii.doom.campaign, while copied teams may assign a copied campaign class without changing engine code. Do not invent or reinterpret difficulty: map size, room count, hostile density, hostile health/damage, starting resources, level order and automatic progression come from that runtime class and are clamped by the deterministic service. Shared mode accepts explicit human and AI controls on the same authoritative game but never runs a background autoplay loop. Never guess, synthesize or ask the user for a session GUID: localgpt.game.session.get and localgpt.game.display.get resolve the active game for this conversation when sessionId is omitted. Do not use public-service aliases, runtime-class discovery loops or human-collaboration requests for game identity. Do not invent session IDs. Report that the shared game is ready and summarize the returned level, difficulty, enemy count and objective; later player/controller roles may use localgpt.game.control directly when their workflow calls for an action.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = false,
@@ -498,7 +498,7 @@ Runtime classes: {{RuntimeClasses}}
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Read localgpt.game.session.get without inventing a sessionId. Explain the current deterministic objective: human and AI participants may submit explicit direct controls in Shared mode, visible/radar hostiles are real service-owned actors, shooting uses the current facing ray, all hostiles must be cleared, and then the player reaches X extraction. Explain the current legal controls compactly. Do not enable autonomous AI mode unless the workflow explicitly asks for autoplay, and never ask the user for a session GUID. Shared mode already permits explicit AI controls without starting an autonomous loop.
+Read localgpt.game.session.get without inventing a sessionId. Explain the current deterministic objective: human and AI participants may submit explicit direct controls in Shared mode, visible/radar hostiles are real service-owned actors, shooting uses the current facing ray, all hostiles must be cleared, and then the player reaches X extraction. Human participation in this Council role is optional and is separate from the game's runtime control mode: never interpret an absent Council-role response as "no human game input". Report the configured campaign level/difficulty when available and explain the current legal controls compactly. Do not enable autonomous AI mode unless the workflow explicitly asks for autoplay, and never ask the user for a session GUID. Shared mode already permits explicit AI controls without starting an autonomous loop.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = true,
@@ -517,7 +517,7 @@ Runtime classes: {{RuntimeClasses}}
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Read localgpt.game.display.get with no sessionId and treat the returned deterministic frame as canonical. Do not redraw a different room, invent enemy positions, move the player or submit game controls. The built-in frame already contains first-person walls, visible enemy sprites, tactical radar, enemy count, combat/navigation messages and extraction coordinates. If a small decorative reaction is genuinely useful, use only display-owned operations with the returned session id and turn and preserve all gameplay cells; an optional 2-12 frame animation must be generated as one complete batch and submitted once. Your final answer should tell the user the Game tab is ready, state the current enemy count if available, and remind them that Shared accepts explicit human/AI controls while Ai mode must be explicitly selected for autonomous stepping.
+Read localgpt.game.display.get with no sessionId and treat the returned deterministic frame as canonical. Council-role human participation is optional and does not disable runtime Human/Shared controls. Do not redraw a different room, invent enemy positions, move the player or submit game controls. The built-in frame already contains first-person walls, visible enemy sprites, tactical radar, enemy count, combat/navigation messages and extraction coordinates. If a small decorative reaction is genuinely useful, use only display-owned operations with the returned session id and turn and preserve all gameplay cells; an optional 2-12 frame animation must be generated as one complete batch and submitted once. Your final answer should tell the user the Game tab is ready, state the current enemy count if available, and remind them that Shared accepts explicit human/AI controls while Ai mode must be explicitly selected for autonomous stepping.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = true,
@@ -529,12 +529,13 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = ["localgpt.ascii.surface.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.session.close", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            PreferredCapabilities = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.session.close", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
                 "The deterministic CouncilGameSessionService is authoritative for map geometry, hostile positions, health, combat, extraction, collision handling and AI-hunter pathfinding; Council models do not independently simulate those systems.",
                 "A new ASCII DOOM session starts in Shared mode with background autoplay disabled. Human and AI participants may submit explicit bounded controls to the same authoritative turn; Human locks out AI controls and Ai alone enables autonomous stepping.",
+                "The supplied ten-level easy-to-hard progression is starter configuration in the database-backed games.ascii.doom.campaign runtime class. Copied teams may assign a copied campaign class to change level count, map dimensions, hostile density and difficulty parameters without changing the engine.",
                 "One Council request performs one bootstrap/read/presentation pass. It does not run a 24-round autonomous gameplay loop or consume model turns for individual key presses.",
                 "The renderer presents the real service-owned frame and may add bounded display-only decoration, but it never replaces canonical geometry or gameplay state.",
                 "The game is an original LocalGPT ASCII corridor study; it does not execute or redistribute the original DOOM engine, WAD data or commercial assets."

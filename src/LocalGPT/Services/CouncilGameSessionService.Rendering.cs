@@ -71,7 +71,15 @@ namespace LocalGPT.Services
 
             var enemyCount = session.Enemies.Count(enemy => enemy.IsAlive);
             Put(lines, viewHeight, 0, new string('═', width));
-            Put(lines, viewHeight + 1, 0, Fit($" ASCII CORRIDOR // TURN {session.Turn:000} // {Compass(session.FacingRadians),3} // {(session.IsDucking ? "DUCK" : "STAND")}", width));
+            if (session.LevelProfiles.Count > 0)
+            {
+                var levelProfile = GetCurrentLevelProfile(session);
+                Put(lines, viewHeight + 1, 0, Fit($" ASCII CORRIDOR // LEVEL {levelProfile.Level:00}/{session.LevelProfiles.Count:00} // DIFF {levelProfile.Difficulty}/10 // TURN {session.Turn:000} // {Compass(session.FacingRadians),3} // {(session.IsDucking ? "DUCK" : "STAND")}", width));
+            }
+            else
+            {
+                Put(lines, viewHeight + 1, 0, Fit($" ASCII CORRIDOR // TURN {session.Turn:000} // {Compass(session.FacingRadians),3} // {(session.IsDucking ? "DUCK" : "STAND")}", width));
+            }
             Put(lines, viewHeight + 2, 0, Fit($" HP {session.Health:000}  AMMO {session.Ammo:000}  ENEMIES {enemyCount:00}  POS {session.PlayerX:00},{session.PlayerY:00}  X {session.ExtractionX:00},{session.ExtractionY:00}", width));
             Put(lines, viewHeight + 3, 0, Fit($" {session.CombatMessage}", width));
             Put(lines, viewHeight + 4, 0, Fit(" W/S move  A/D strafe  Q/R turn  SPACE shoot  CTRL duck  E use  F fullscreen", width));
@@ -415,7 +423,11 @@ namespace LocalGPT.Services
     private string BuildCaption(CouncilGameSessionState session) {
     try
     {
-        return $"{session.DisplayName} · turn {session.Turn} · {session.CurrentTurnOwner} · renderer {session.FrameRenderer}";
+        var level = session.RuntimeProfile == CouncilGameRuntimeProfile.Corridor && session.LevelProfiles.Count > 0
+            ? GetCurrentLevelProfile(session)
+            : null;
+        var levelText = level is null ? string.Empty : $" · level {level.Level}/{session.LevelProfiles.Count} · difficulty {level.Difficulty}/10";
+        return $"{session.DisplayName}{levelText} · turn {session.Turn} · {session.CurrentTurnOwner} · renderer {session.FrameRenderer}";
     }
     catch (Exception __serviceMethodException)
     {

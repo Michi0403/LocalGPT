@@ -22,6 +22,38 @@ public enum CouncilGameControlMode
     Shared
 }
 
+
+
+/// <summary>
+/// Represents one deterministic ASCII DOOM campaign level profile. The runtime class system owns the
+/// configurable defaults; the game service only clamps and applies the supplied values.
+/// </summary>
+public sealed class CouncilGameLevelProfile
+{
+    /// <summary>Gets or sets the 1-based level number.</summary>
+    public int Level { get; set; } = 1;
+    /// <summary>Gets or sets the human-readable level name.</summary>
+    public string Name { get; set; } = "Corridor 01";
+    /// <summary>Gets or sets the bounded difficulty rating from 1 (easy) through 10 (hard).</summary>
+    public int Difficulty { get; set; } = 1;
+    /// <summary>Gets or sets the deterministic map width in world cells.</summary>
+    public int MapWidth { get; set; } = 28;
+    /// <summary>Gets or sets the deterministic map height in world cells.</summary>
+    public int MapHeight { get; set; } = 18;
+    /// <summary>Gets or sets the requested total carved-room count including the starting room.</summary>
+    public int RoomCount { get; set; } = 5;
+    /// <summary>Gets or sets the target hostile density expressed as enemies per carved room.</summary>
+    public double EnemyDensity { get; set; } = .6d;
+    /// <summary>Gets or sets the hostile-health multiplier applied to deterministic archetype health.</summary>
+    public double EnemyHealthMultiplier { get; set; } = .8d;
+    /// <summary>Gets or sets the hostile contact-damage multiplier applied to deterministic archetype damage.</summary>
+    public double EnemyDamageMultiplier { get; set; } = .75d;
+    /// <summary>Gets or sets the player health restored when this level starts.</summary>
+    public int StartingHealth { get; set; } = 100;
+    /// <summary>Gets or sets the ammunition restored when this level starts.</summary>
+    public int StartingAmmo { get; set; } = 30;
+}
+
 /// <summary>
 /// Represents the input contract for start council game, carrying the values a caller supplies to the corresponding application operation.
 /// </summary>
@@ -89,6 +121,12 @@ public sealed class StartCouncilGameRequest
     public int? MapSeed { get; set; }
     /// <summary>Gets or sets an optional bounded scenario description used to name and deterministically vary a fresh ASCII corridor map.</summary>
     public string ScenarioPrompt { get; set; } = string.Empty;
+    /// <summary>Gets or sets an optional database-backed campaign runtime-class override. Blank resolves the campaign class assigned to the selected Council team before falling back to the maintained starter.</summary>
+    public string CampaignRuntimeClassKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets an optional 1-based campaign level override. Null uses the runtime-class default.</summary>
+    public int? StartingLevel { get; set; }
+    /// <summary>Gets or sets an optional automatic level-advance override. Null uses the runtime-class default.</summary>
+    public bool? AutoAdvanceLevels { get; set; }
     /// <summary>
     /// Gets or sets the started by value that forms part of the start council game state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -481,6 +519,18 @@ public sealed class CouncilGameSessionSnapshot
     /// </summary>
     /// <value>The ammo value exposed by <see cref="CouncilGameSessionSnapshot"/>.</value>
     public int Ammo { get; set; } = 24;
+    /// <summary>Gets or sets the runtime-class key that supplied the current campaign configuration.</summary>
+    public string CampaignRuntimeClassKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets the current 1-based campaign level.</summary>
+    public int CurrentLevel { get; set; } = 1;
+    /// <summary>Gets or sets the total configured campaign level count.</summary>
+    public int TotalLevels { get; set; } = 1;
+    /// <summary>Gets or sets whether successful extraction automatically starts the next configured level.</summary>
+    public bool AutoAdvanceLevels { get; set; } = true;
+    /// <summary>Gets or sets the current deterministic level profile.</summary>
+    public CouncilGameLevelProfile? CurrentLevelProfile { get; set; }
+    /// <summary>Gets or sets the deterministic seed shared by the configured campaign.</summary>
+    public int CampaignSeed { get; set; }
     /// <summary>Gets or sets the authoritative connected ASCII corridor map.</summary>
     public IReadOnlyList<string> WorldMap { get; set; } = [];
     /// <summary>Gets or sets the deterministic map seed.</summary>
@@ -728,6 +778,16 @@ public sealed class CouncilGameSessionState
     /// </summary>
     /// <value>The use pulse value exposed by <see cref="CouncilGameSessionState"/>.</value>
     public int UsePulse { get; set; }
+    /// <summary>Gets or sets the runtime-class key that supplied the current campaign configuration.</summary>
+    public string CampaignRuntimeClassKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets the configured campaign levels retained for automatic progression.</summary>
+    public List<CouncilGameLevelProfile> LevelProfiles { get; set; } = [];
+    /// <summary>Gets or sets the zero-based index of the active campaign level.</summary>
+    public int CurrentLevelIndex { get; set; }
+    /// <summary>Gets or sets whether successful extraction automatically starts the next configured level.</summary>
+    public bool AutoAdvanceLevels { get; set; } = true;
+    /// <summary>Gets or sets the deterministic seed shared by the campaign before per-level derivation.</summary>
+    public int CampaignSeed { get; set; }
     /// <summary>Gets or sets the authoritative connected ASCII corridor map.</summary>
     public List<string> WorldMap { get; set; } = [];
     /// <summary>Gets or sets the deterministic map seed.</summary>

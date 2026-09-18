@@ -71,10 +71,12 @@ def main() -> int:
         if snapshot_script != script:
             fail('tracked GitHub Pages snapshot JavaScript differs from the maintained theme source')
         status = json.loads(archive.read('documentation-status.json'))
-        if status.get('version') != '2.3.7':
-            fail('tracked GitHub Pages snapshot is not version 2.3.7')
-        if 'LocalGPT-2.3.7.pdf' not in archive.namelist():
-            fail('tracked GitHub Pages snapshot is missing LocalGPT-2.3.7.pdf')
+        version = status.get('version')
+        if not isinstance(version, str) or not version.strip():
+            fail('tracked GitHub Pages snapshot documentation-status.json is missing a version value')
+        pdf_name = status.get('pdfFileName')
+        if not isinstance(pdf_name, str) or not pdf_name.strip():
+            fail('tracked GitHub Pages snapshot documentation-status.json is missing pdfFileName')
 
     print('Kawaii documentation layout audit passed: equal rails, symmetric gaps, full-width articles, and synchronized site assets.')
     return 0

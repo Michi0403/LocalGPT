@@ -73,6 +73,27 @@
       "RemoveKnowledgeRegexRelationshipAsync",
       "LinkKnowledgeToProjectTopicAsync",
       "RemoveKnowledgeProjectRelationshipAsync"
+    ],
+    "Components/Shared/ChatGameConsole.razor": [
+      "ToggleOperatorModeAsync",
+      "SubmitOperatorLineAsync",
+      "DispatchApplicationOperatorActionAsync",
+      "StartDoomAsync",
+      "StartDragonAsync",
+      "StartAsync",
+      "StartScenarioAsync",
+      "ChangeControlModeAsync",
+      "ChangeAutoplayDelayAsync",
+      "ChangeFullscreenScaleModeAsync",
+      "FullscreenAsync",
+      "CloseAsync",
+      "EndGameAsync",
+      "SendControlAsync",
+      "RefreshHotSeatRequestAsync",
+      "SubmitHotSeatResponseAsync",
+      "SubmitGameInteractionAsync",
+      "OnHumanCollaborationChanged",
+      "OnGameChanged"
     ]
   },
   "preconfiguredAwaitablePolicy": "Awaiting ConfiguredTaskAwaitable variables directly is forbidden; await the originating Task with explicit ConfigureAwait(false/true)."

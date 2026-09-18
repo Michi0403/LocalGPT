@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LocalGPT.Services;
 
@@ -16,6 +17,8 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         /// Stores the council game director service dependency used by <see cref="CouncilGameSessionService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly ICouncilGameDirectorService gameDirector;
+        /// <summary>Creates bounded scopes for database-backed team/runtime-class configuration lookups from this singleton game service.</summary>
+        private readonly IServiceScopeFactory scopeFactory;
         /// <summary>
         /// Stores the logger used by <see cref="CouncilGameSessionService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -23,12 +26,15 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
 
         /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
         /// <param name="gameDirector">Injected dependency used by the CouncilGameSessionService.</param>
+        /// <param name="scopeFactory">Scope factory used to resolve database-backed team/runtime-class configuration safely from this singleton service.</param>
         /// <param name="logger">Injected dependency used by the CouncilGameSessionService.</param>
         public CouncilGameSessionService(
             ICouncilGameDirectorService gameDirector,
+            IServiceScopeFactory scopeFactory,
             ILogger<CouncilGameSessionService> logger)
         {
             this.gameDirector = gameDirector;
+            this.scopeFactory = scopeFactory;
             this.logger = logger;
         }
 
@@ -68,7 +74,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The council game session snapshot produced by the operation.</returns>
-    public Task<CouncilGameSessionSnapshot> StartAsync(
+    public async Task<CouncilGameSessionSnapshot> StartAsync(
         StartCouncilGameRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -127,6 +133,10 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             var requestedMapSeed = request.MapSeed is > 0
                 ? request.MapSeed.Value
                 : definition?.MapSeed is > 0 ? definition.MapSeed : 0;
+            var campaign = runtimeProfile == CouncilGameRuntimeProfile.Corridor
+                && string.Equals(gameKey, "ascii-doom", StringComparison.OrdinalIgnoreCase)
+                ? await ResolveDoomCampaignAsync(request, cancellationToken).ConfigureAwait(false)
+                : null;
             var session = new CouncilGameSessionState
             {
                 Id = Guid.NewGuid(),
@@ -155,7 +165,12 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 FrameWidth = Math.Clamp(request.FrameWidth, 20, 240),
                 FrameHeight = Math.Clamp(request.FrameHeight, 8, 100),
                 MapSeed = requestedMapSeed,
+                CampaignSeed = requestedMapSeed,
                 ScenarioPrompt = scenarioPrompt,
+                CampaignRuntimeClassKey = campaign?.RuntimeClassKey ?? string.Empty,
+                LevelProfiles = campaign?.Levels.Select(CloneLevelProfile).ToList() ?? [],
+                CurrentLevelIndex = campaign?.StartingLevelIndex ?? 0,
+                AutoAdvanceLevels = campaign?.AutoAdvanceLevels ?? false,
                 LastActionBy = string.IsNullOrWhiteSpace(request.StartedBy) ? "Human User" : request.StartedBy.Trim(),
                 PlayerX = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
                 PlayerY = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
@@ -177,7 +192,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.GameKey,
                 session.ControlMode,
                 session.ProjectId);
-            return Task.FromResult(ToSnapshot(session));
+            return ToSnapshot(session);
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {

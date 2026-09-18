@@ -222,13 +222,13 @@ public sealed class StartCouncilGameFunction(
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.session.start", "POST", "/api/dxai/functions/localgpt.game.session.start/invoke",
         "Starts a directly playable /Chat ASCII game session. Human and AI players receive the same control contract.",
-        "JSON parameters: gameKey ascii-doom or green-dragon; teamKey and conversationId optional; controlMode Human, Ai or Shared defaults Shared; Ai is the only autonomous autoplay mode; mapSeed can replay one corridor map and scenarioPrompt can describe a fresh bounded ASCII scenario; directorMode, model/director count, delay and terminal-cell dimensions optional.",
+        "JSON parameters: gameKey ascii-doom or green-dragon; teamKey and conversationId optional; controlMode Human, Ai or Shared defaults Shared; Ai is the only autonomous autoplay mode; ASCII DOOM automatically uses the copyable campaign runtime class assigned to the selected team, with campaignRuntimeClassKey available as an explicit override plus optional startingLevel/autoAdvanceLevels overrides; mapSeed can replay a deterministic campaign and scenarioPrompt can describe a bounded scenario; directorMode, model/director count, delay and terminal-cell dimensions optional.",
         "Starts only an original LocalGPT runtime-class game session. It does not execute the original DOOM engine or include commercial assets.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         IsCoordinationOnly: true,
         ParameterSchemaJson: """
-        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000},"frameWidth":{"type":"integer","minimum":20,"maximum":240},"frameHeight":{"type":"integer","minimum":8,"maximum":100},"mapSeed":{"type":"integer","minimum":1},"scenarioPrompt":{"type":"string","maxLength":240}},"additionalProperties":false}
+        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000},"frameWidth":{"type":"integer","minimum":20,"maximum":240},"frameHeight":{"type":"integer","minimum":8,"maximum":100},"mapSeed":{"type":"integer","minimum":1},"scenarioPrompt":{"type":"string","maxLength":240},"campaignRuntimeClassKey":{"type":"string","maxLength":240},"startingLevel":{"type":"integer","minimum":1,"maximum":32},"autoAdvanceLevels":{"type":"boolean"}},"additionalProperties":false}
         """);
 
     /// <summary>
@@ -263,6 +263,13 @@ public sealed class StartCouncilGameFunction(
                 FrameHeight = Math.Clamp(parameters.Integer(request.Parameters, "frameHeight", 25), 8, 100),
                 MapSeed = parameters.NullableInt(request.Parameters, "mapSeed"),
                 ScenarioPrompt = parameters.String(request.Parameters, "scenarioPrompt"),
+                CampaignRuntimeClassKey = parameters.String(request.Parameters, "campaignRuntimeClassKey"),
+                StartingLevel = parameters.NullableInt(request.Parameters, "startingLevel"),
+                AutoAdvanceLevels = request.Parameters.ValueKind == JsonValueKind.Object
+                    && request.Parameters.TryGetProperty("autoAdvanceLevels", out var autoAdvanceElement)
+                    && autoAdvanceElement.ValueKind is JsonValueKind.True or JsonValueKind.False
+                        ? autoAdvanceElement.GetBoolean()
+                        : null,
                 StartedBy = "LocalGPT AI Council"
             }, cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };

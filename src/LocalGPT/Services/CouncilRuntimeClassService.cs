@@ -20,7 +20,7 @@ public sealed class CouncilRuntimeClassService(
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilRuntimeClassService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 4;
+    private const int CurrentSeedVersion = 5;
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="CouncilRuntimeClassService"/> while executing its surrounding workflow.
     /// </summary>
@@ -234,6 +234,7 @@ public sealed class CouncilRuntimeClassService(
             var dragonSource = "https://github.com/lotgd/lotgd";
             var cLanguageSource = "https://github.com/llvm/llvm-project";
             var phpLanguageSource = "https://github.com/php/doc-en";
+            var doomCampaignLevelsJson = JsonSerializer.Serialize(CreateAsciiDoomStarterLevels(), jsonOptions);
             return
             [
                 BuildDefinition("games.ascii.doom.session", "LocalGPT.Games.AsciiDoom", "ASCII DOOM session", RuntimeClassKind.Session,
@@ -244,6 +245,13 @@ public sealed class CouncilRuntimeClassService(
                         Field("stepScale", "World step scale", "int", "4", RuntimeFieldInputMode.Shared, true, true),
                         Field("status", "Session status", "string", "Running", RuntimeFieldInputMode.System, false, false)
                     ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.knowledge.list"], [doomSource, cLanguageSource]),
+                BuildDefinition("games.ascii.doom.campaign", "LocalGPT.Games.AsciiDoom", "ASCII DOOM campaign", RuntimeClassKind.State,
+                    "Copyable campaign starter settings. The game service reads this runtime class deterministically; teams may assign a copied key to change level count, map sizes, enemy density and difficulty progression without changing engine code.",
+                    [
+                        Field("startingLevel", "Starting level", "int", "1", RuntimeFieldInputMode.Shared, true, true),
+                        Field("autoAdvanceLevels", "Auto advance levels", "bool", "true", RuntimeFieldInputMode.Shared, true, true),
+                        Field("levelProfilesJson", "Level profiles", "json", doomCampaignLevelsJson, RuntimeFieldInputMode.Shared, true, true)
+                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get"], [doomSource, cLanguageSource]),
                 BuildDefinition("games.ascii.doom.map", "LocalGPT.Games.AsciiDoom", "ASCII DOOM map", RuntimeClassKind.Map,
                     "A generated room-and-corridor graph kept as authoritative turn state. The Council may study the open source code, but does not require or redistribute commercial WAD data.",
                     [
@@ -411,6 +419,33 @@ public sealed class CouncilRuntimeClassService(
         throw;
     }
 }
+
+    /// <summary>Creates the visible, resettable ten-level ASCII DOOM starter campaign stored in the runtime-class seed.</summary>
+    /// <returns>The maintained starter level profiles serialized into the resettable campaign runtime class.</returns>
+    private IReadOnlyList<CouncilGameLevelProfile> CreateAsciiDoomStarterLevels()
+    {
+        try
+        {
+            return
+            [
+                new() { Level = 1, Name = "Corridor 01", Difficulty = 1, MapWidth = 28, MapHeight = 18, RoomCount = 5, EnemyDensity = .55d, EnemyHealthMultiplier = .75d, EnemyDamageMultiplier = .70d, StartingAmmo = 32 },
+                new() { Level = 2, Name = "Corridor 02", Difficulty = 2, MapWidth = 30, MapHeight = 18, RoomCount = 5, EnemyDensity = .70d, EnemyHealthMultiplier = .80d, EnemyDamageMultiplier = .75d, StartingAmmo = 32 },
+                new() { Level = 3, Name = "Corridor 03", Difficulty = 3, MapWidth = 32, MapHeight = 20, RoomCount = 6, EnemyDensity = .80d, EnemyHealthMultiplier = .85d, EnemyDamageMultiplier = .80d, StartingAmmo = 31 },
+                new() { Level = 4, Name = "Corridor 04", Difficulty = 4, MapWidth = 34, MapHeight = 20, RoomCount = 6, EnemyDensity = .95d, EnemyHealthMultiplier = .90d, EnemyDamageMultiplier = .90d, StartingAmmo = 31 },
+                new() { Level = 5, Name = "Corridor 05", Difficulty = 5, MapWidth = 38, MapHeight = 22, RoomCount = 7, EnemyDensity = 1.00d, EnemyHealthMultiplier = 1.00d, EnemyDamageMultiplier = 1.00d, StartingAmmo = 30 },
+                new() { Level = 6, Name = "Corridor 06", Difficulty = 6, MapWidth = 42, MapHeight = 24, RoomCount = 7, EnemyDensity = 1.10d, EnemyHealthMultiplier = 1.08d, EnemyDamageMultiplier = 1.08d, StartingAmmo = 30 },
+                new() { Level = 7, Name = "Corridor 07", Difficulty = 7, MapWidth = 46, MapHeight = 26, RoomCount = 8, EnemyDensity = 1.10d, EnemyHealthMultiplier = 1.16d, EnemyDamageMultiplier = 1.16d, StartingAmmo = 29 },
+                new() { Level = 8, Name = "Corridor 08", Difficulty = 8, MapWidth = 52, MapHeight = 28, RoomCount = 9, EnemyDensity = 1.10d, EnemyHealthMultiplier = 1.25d, EnemyDamageMultiplier = 1.25d, StartingAmmo = 28 },
+                new() { Level = 9, Name = "Corridor 09", Difficulty = 9, MapWidth = 58, MapHeight = 30, RoomCount = 10, EnemyDensity = 1.20d, EnemyHealthMultiplier = 1.35d, EnemyDamageMultiplier = 1.35d, StartingAmmo = 27 },
+                new() { Level = 10, Name = "Corridor 10", Difficulty = 10, MapWidth = 64, MapHeight = 32, RoomCount = 10, EnemyDensity = 1.30d, EnemyHealthMultiplier = 1.45d, EnemyDamageMultiplier = 1.50d, StartingAmmo = 26 }
+            ];
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating the resettable ASCII DOOM starter campaign seed failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Builds definition as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.

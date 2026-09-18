@@ -618,3 +618,42 @@
     padding: .42rem .55rem;
     text-align: left;
 }
+
+/* v4.4.3: DevExpress owns ordinary ASCII-wall inputs/actions; raw buttons remain only where
+   data-game-action is part of the keyboard/gamepad DOM contract. */
+::deep .ascii-console-button,
+::deep .ascii-console-combo,
+::deep .ascii-operator-shell,
+::deep .ascii-operator-input,
+::deep .ascii-hotseat-input,
+::deep .ascii-game-interaction-input,
+::deep .ascii-scenario-input {
+    min-height: 2.3rem;
+}
+
+.chat-game-console-actions ::deep .ascii-console-button,
+.chat-game-console-actions ::deep .ascii-console-combo {
+    min-width: max-content;
+}
+
+.chat-game-hotseat-grid ::deep .ascii-console-button,
+.chat-game-hotseat-dash ::deep .ascii-console-button,
+.chat-game-restart-actions ::deep .ascii-console-button,
+.chat-game-ai-request-options ::deep .ascii-console-button {
+    width: 100%;
+}
+
+.ascii-operator-command-row ::deep .ascii-operator-shell,
+.ascii-operator-command-row ::deep .ascii-operator-input,
+.chat-game-hotseat-text ::deep .ascii-hotseat-input,
+.chat-game-hotseat-text ::deep .ascii-game-interaction-input,
+.chat-game-scenario-row ::deep .ascii-scenario-input {
+    min-width: 0;
+    width: 100%;
+}
+
+.ascii-operator-command-row ::deep .ascii-operator-input input,
+.chat-game-hotseat-text ::deep input,
+.chat-game-scenario-row ::deep textarea {
+    font-family: "Cascadia Mono","Consolas","DejaVu Sans Mono",monospace;
+}

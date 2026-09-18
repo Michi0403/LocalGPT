@@ -265,6 +265,76 @@ function watchThemeControl() {
   }
 }
 
+let localgptKawaiiMeteorTimer = 0;
+
+function createKawaiiShootingStar(sky) {
+  try {
+      if (!(sky instanceof HTMLElement) || prefersReducedMotion()) return;
+      const compact = window.matchMedia("(max-width: 767.98px)").matches;
+      const randomBetween = (minimum, maximum) => minimum + (Math.random() * (maximum - minimum));
+      const meteor = document.createElement("span");
+      meteor.className = "localgpt-kawaii-shooting-star";
+      meteor.setAttribute("aria-hidden", "true");
+      meteor.style.setProperty("--localgpt-meteor-left", `${randomBetween(compact ? -6 : -10, compact ? 70 : 82).toFixed(2)}%`);
+      meteor.style.setProperty("--localgpt-meteor-top", `${randomBetween(4, compact ? 52 : 58).toFixed(2)}%`);
+      meteor.style.setProperty("--localgpt-meteor-length", `${randomBetween(compact ? 3.8 : 4.8, compact ? 6.2 : 8.8).toFixed(2)}rem`);
+      meteor.style.setProperty("--localgpt-meteor-thickness", `${randomBetween(0.10, 0.18).toFixed(3)}rem`);
+      meteor.style.setProperty("--localgpt-meteor-duration", `${randomBetween(0.95, 1.75).toFixed(2)}s`);
+      meteor.style.setProperty("--localgpt-meteor-delay", `${randomBetween(0, 0.24).toFixed(2)}s`);
+      meteor.style.setProperty("--localgpt-meteor-dx", `${randomBetween(compact ? 180 : 240, compact ? 320 : 460).toFixed(1)}px`);
+      meteor.style.setProperty("--localgpt-meteor-dy", `${randomBetween(compact ? 120 : 170, compact ? 240 : 310).toFixed(1)}px`);
+      meteor.style.setProperty("--localgpt-meteor-rotate", `${randomBetween(24, 34).toFixed(1)}deg`);
+      meteor.style.setProperty("--localgpt-meteor-scale", randomBetween(0.88, 1.16).toFixed(3));
+      meteor.style.setProperty("--localgpt-meteor-peak-opacity", `${randomBetween(0.78, 0.98).toFixed(3)}`);
+      sky.appendChild(meteor);
+      meteor.addEventListener("animationend", () => meteor.remove(), { once: true });
+  } catch (error) {
+    reportDocumentationError('createKawaiiShootingStar', error);
+    throw error;
+  }
+}
+
+function scheduleKawaiiShootingStars(sky) {
+  try {
+      if (!(sky instanceof HTMLElement) || prefersReducedMotion()) return;
+      if (sky.dataset.localgptMeteorSchedule === "true") return;
+      sky.dataset.localgptMeteorSchedule = "true";
+      const randomBetween = (minimum, maximum) => minimum + (Math.random() * (maximum - minimum));
+      const compact = () => window.matchMedia("(max-width: 767.98px)").matches;
+
+      const planNext = (minimumDelay, maximumDelay) => {
+        window.clearTimeout(localgptKawaiiMeteorTimer);
+        localgptKawaiiMeteorTimer = window.setTimeout(() => {
+          localgptKawaiiMeteorTimer = 0;
+          if (!document.body?.contains(sky)) {
+            sky.dataset.localgptMeteorSchedule = "";
+            return;
+          }
+          if (!document.hidden && !prefersReducedMotion()) {
+            createKawaiiShootingStar(sky);
+            if (!compact() && Math.random() < 0.08) {
+              window.setTimeout(() => {
+                if (document.body?.contains(sky) && !document.hidden && !prefersReducedMotion()) createKawaiiShootingStar(sky);
+              }, randomBetween(420, 960));
+            }
+          }
+          planNext(compact() ? 36000 : 30000, compact() ? 84000 : 72000);
+        }, randomBetween(minimumDelay, maximumDelay));
+      };
+
+      planNext(compact() ? 18000 : 12000, compact() ? 42000 : 30000);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) return;
+        if (document.body?.contains(sky) && !prefersReducedMotion() && localgptKawaiiMeteorTimer === 0) {
+          planNext(12000, 28000);
+        }
+      }, { passive: true });
+  } catch (error) {
+    reportDocumentationError('scheduleKawaiiShootingStars', error);
+    throw error;
+  }
+}
+
 function createKawaiiSky() {
   try {
       if (document.querySelector(".localgpt-kawaii-sky")) return;
@@ -338,6 +408,7 @@ function createKawaiiSky() {
       }
 
       document.body.prepend(sky);
+      scheduleKawaiiShootingStars(sky);
       document.documentElement.dataset.localgptDynamicSky = "ready";
   } catch (error) {
     reportDocumentationError('createKawaiiSky', error);
@@ -524,11 +595,14 @@ async function recoverMermaidDiagrams() {
       localgptMermaidModulePromise ??= import(moduleUrl.href);
       const mermaid = (await localgptMermaidModulePromise).default;
       if (!mermaid?.initialize || !mermaid?.run) throw new Error("DocFX Mermaid renderer is unavailable.");
+      if (document.fonts?.ready) {
+        try { await document.fonts.ready; } catch { /* use the browser fallback font metrics */ }
+      }
       mermaid.initialize({
         startOnLoad: false,
         theme: getMermaidTheme(),
         securityLevel: "strict",
-        flowchart: { htmlLabels: false }
+        flowchart: { htmlLabels: false, useMaxWidth: true, wrappingWidth: 180 }
       });
 
       await mermaid.run({ nodes: pendingBlocks, suppressErrors: false });
