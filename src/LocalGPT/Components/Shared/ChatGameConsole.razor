@@ -588,6 +588,41 @@
                 ? "No game is running; CHAT returns to the replayable conversation."
                 : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}";
 
+    /// <summary>Resolves the running game owned by this chat conversation or active Council run without cross-attaching an unrelated session.</summary>
+    /// <returns>The correlated running game, or <c>null</c> when this surface has no owned game.</returns>
+    private async Task<CouncilGameSessionSnapshot?> ResolveActiveGameAsync()
+    {
+        if (ConversationId is Guid conversationId)
+        {
+            var conversationGame = await Games.GetActiveAsync(conversationId).ConfigureAwait(true);
+            if (conversationGame is not null)
+                return conversationGame;
+        }
+
+        if (CouncilRunId is Guid councilRunId)
+        {
+            var councilGame = await Games.GetActiveForCouncilRunAsync(councilRunId).ConfigureAwait(true);
+            if (councilGame is not null)
+                return councilGame;
+        }
+
+        return ConversationId is null && CouncilRunId is null
+            ? await Games.GetActiveAsync(null).ConfigureAwait(true)
+            : null;
+    }
+
+    /// <summary>Determines whether a game snapshot belongs to the conversation or Council run projected by this terminal.</summary>
+    /// <param name="candidate">Candidate game snapshot.</param>
+    /// <returns><c>true</c> when the candidate belongs to the current terminal context.</returns>
+    private bool MatchesCurrentGameContext(CouncilGameSessionSnapshot candidate)
+    {
+        if (ConversationId is Guid conversationId && candidate.ConversationId == conversationId)
+            return true;
+        if (CouncilRunId is Guid councilRunId && candidate.CouncilRunId == councilRunId)
+            return true;
+        return ConversationId is null && CouncilRunId is null;
+    }
+
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="ChatGameConsole"/>, updating the state required by the surrounding workflow.
     /// </summary>
@@ -601,7 +636,7 @@
         availableShells = Operator.GetAvailableShells();
         if (availableShells.Count > 0 && !availableShells.Any(item => item.Shell == operatorShell))
             operatorShell = availableShells[0].Shell;
-        snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true);
+        snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);
         await RefreshHotSeatRequestAsync().ConfigureAwait(true);
     }
 
@@ -611,8 +646,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnParametersSetAsync()
     {
-        if (snapshot is null || (ConversationId is not null && snapshot.ConversationId != ConversationId))
-            snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true);
+        if (snapshot is null || !MatchesCurrentGameContext(snapshot))
+            snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);
         asciiConversationText = AsciiText.BuildConversationTranscript(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName);
         asciiSequenceFrames = AsciiText.ExtractSequenceFrames(ConversationMessages);
         await RefreshHotSeatRequestAsync().ConfigureAwait(true);
@@ -1273,9 +1308,12 @@
         _ = InvokeAsync(async () =>
         {
             var hadSnapshot = snapshot is not null;
-            snapshot = await Games.GetAsync(sessionId).ConfigureAwait(true);
+            var candidate = await Games.GetAsync(sessionId).ConfigureAwait(true);
+            if (candidate is null || !MatchesCurrentGameContext(candidate))
+                return;
+            snapshot = candidate;
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
-            if (!hadSnapshot && snapshot is not null && !operatorMode)
+            if (!hadSnapshot && !operatorMode)
                 conversationMode = false;
             StateHasChanged();
         });

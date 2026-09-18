@@ -479,11 +479,13 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Start or recover the directly playable ASCII corridor session. Call localgpt.game.session.start once with gameKey ascii-doom, teamKey ascii-doom-council-adventure and controlMode Shared. The deterministic game service resolves the campaign runtime class assigned to the selected team; the maintained starter is games.ascii.doom.campaign, while copied teams may assign a copied campaign class without changing engine code. Do not invent or reinterpret difficulty: map size, room count, hostile density, hostile health/damage, starting resources, level order and automatic progression come from that runtime class and are clamped by the deterministic service. Shared mode accepts explicit human and AI controls on the same authoritative game but never runs a background autoplay loop. Never guess, synthesize or ask the user for a session GUID: localgpt.game.session.get and localgpt.game.display.get resolve the active game for this conversation when sessionId is omitted. Do not use public-service aliases, runtime-class discovery loops or human-collaboration requests for game identity. Do not invent session IDs. Report that the shared game is ready and summarize the returned level, difficulty, enemy count and objective; later player/controller roles may use localgpt.game.control directly when their workflow calls for an action.
+Recover the directly playable ASCII corridor session that LocalGPT prebootstraps for this Council run. Call localgpt.game.session.get first with no sessionId. Only if it reports that no active game exists, call localgpt.game.session.start once with gameKey ascii-doom, teamKey ascii-doom-council-adventure and controlMode Shared. The deterministic game service resolves the campaign runtime class assigned to the selected team; the maintained starter is games.ascii.doom.campaign, while copied teams may assign a copied campaign class without changing engine code. Do not invent or reinterpret difficulty: map size, room count, hostile density, hostile health/damage, starting resources, level order and automatic progression come from that runtime class and are clamped by the deterministic service. Shared mode accepts explicit human and AI controls on the same authoritative game but never runs a background autoplay loop. Never guess, synthesize or ask the user for a session GUID: localgpt.game.session.get and localgpt.game.display.get resolve the active game for this conversation when sessionId is omitted. Do not use public-service aliases, runtime-class discovery loops or human-collaboration requests for game identity. Do not invent session IDs. Report that the shared game is ready and summarize the returned level, difficulty, enemy count and objective; later player/controller roles may use localgpt.game.control directly when their workflow calls for an action.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = false,
                     CanUseOrganicFunctions = true,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
+                    AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get"],
                     AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
@@ -503,6 +505,8 @@ Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
+                    AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get"],
                     AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
@@ -522,6 +526,8 @@ Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
+                    AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
                     AssignedModelName = "qwen3.5:4b",
                     ProducesFinalAnswer = true,
                     ProducesAsciiFrame = false,
@@ -529,7 +535,8 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.session.close", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            PreferredCapabilities = [AsciiChatTextService.RequiredSurfaceCapability, "localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.session.close", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.session.close", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
@@ -661,11 +668,13 @@ Runtime classes: {{RuntimeClasses}}
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Call localgpt.game.session.start with gameKey green-dragon and teamKey green-dragon-runtime-story so the story is immediately playable in /Chat. Use the preseeded original village scene and runtime-class keys directly; do not run discovery loops. The optional lotgd source may be studied only through user-approved knowledge, without copying story text or claiming affiliation.
+Call localgpt.game.session.get first with no sessionId to recover the Green Dragon story session that LocalGPT prebootstraps for this Council run. Only if no active game exists, call localgpt.game.session.start with gameKey green-dragon and teamKey green-dragon-runtime-story so the story is immediately playable in /Chat. Use the preseeded original village scene and runtime-class keys directly; do not run discovery loops. The optional lotgd source may be studied only through user-approved knowledge, without copying story text or claiming affiliation.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
+                    AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.start", "localgpt.game.session.get"],
                     AssignedModelName = "qwen3.5:4b",
                     UseBuiltInBehavior = false
                 },
@@ -686,7 +695,8 @@ Runtime classes: {{RuntimeClasses}}
                     LoopGroup = "green-dragon-turn",
                     MaximumLoopIterations = 16,
                     IncludePriorTranscript = false,
-                    CanUseOrganicFunctions = true,
+                    CanUseOrganicFunctions = false,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
                     AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
@@ -705,7 +715,8 @@ Runtime classes: {{RuntimeClasses}}
                     LoopGroup = "green-dragon-turn",
                     MaximumLoopIterations = 16,
                     IncludePriorTranscript = true,
-                    CanUseOrganicFunctions = true,
+                    CanUseOrganicFunctions = false,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
                     AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
@@ -724,7 +735,8 @@ Runtime classes: {{RuntimeClasses}}
                     LoopGroup = "green-dragon-turn",
                     MaximumLoopIterations = 16,
                     IncludePriorTranscript = true,
-                    CanUseOrganicFunctions = true,
+                    CanUseOrganicFunctions = false,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
                     AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
@@ -743,7 +755,8 @@ Runtime classes: {{RuntimeClasses}}
                     LoopGroup = "green-dragon-turn",
                     MaximumLoopIterations = 16,
                     IncludePriorTranscript = true,
-                    CanUseOrganicFunctions = true,
+                    CanUseOrganicFunctions = false,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
                     AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
@@ -763,7 +776,8 @@ Runtime classes: {{RuntimeClasses}}
                     MaximumLoopIterations = 16,
                     LoopCompletionMarker = "[[STORY_COMPLETE]]",
                     IncludePriorTranscript = true,
-                    CanUseOrganicFunctions = true,
+                    CanUseOrganicFunctions = false,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
                     AssignedModelName = "qwen3.5:4b",
                     UseBuiltInBehavior = false
                 },
@@ -787,6 +801,8 @@ Runtime classes: {{RuntimeClasses}}
                     MaximumLoopIterations = 16,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
+                    AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
                     AssignedModelName = "qwen3.5:4b",
                     ProducesFinalAnswer = true,
                     ProducesAsciiFrame = true,
@@ -796,7 +812,8 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            PreferredCapabilities = [AsciiChatTextService.RequiredSurfaceCapability, "localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),

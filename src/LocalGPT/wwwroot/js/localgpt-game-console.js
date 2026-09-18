@@ -103,6 +103,22 @@
         }
     }
 
+    function isInteractiveTarget(target) {
+        try {
+            const element = target instanceof Element ? target : null;
+            if (!element) return false;
+            return Boolean(element.closest([
+                'input', 'textarea', 'select', 'button', 'a[href]',
+                '[contenteditable="true"]', '[role="combobox"]', '[role="listbox"]',
+                '[role="option"]', '[role="button"]', '[role="textbox"]',
+                '.dxbl-combobox', '.dxbl-dropdown', '.dxbl-popup'
+            ].join(',')));
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.isInteractiveTarget', error);
+            return false;
+        }
+    }
+
     const keyActions = new Map([
         ['KeyW', 'move-forward'], ['ArrowUp', 'move-forward'],
         ['KeyS', 'move-backward'], ['ArrowDown', 'move-backward'],
@@ -252,7 +268,10 @@
                 states.set(id, state);
                 attachFollowTail(state);
                 requestScale(state);
-                element.addEventListener('pointerdown', () => element.focus({ preventScroll:true }), { signal:state.abort.signal });
+                element.addEventListener('pointerdown', event => {
+                    if (isInteractiveTarget(event.target)) return;
+                    element.focus({ preventScroll:true });
+                }, { signal:state.abort.signal });
                 document.addEventListener('fullscreenchange', () => requestScale(state), { signal:state.abort.signal });
                 window.addEventListener('resize', () => requestScale(state), { signal:state.abort.signal });
                 if (typeof ResizeObserver === 'function') {
@@ -261,10 +280,7 @@
                     if (element.parentElement instanceof HTMLElement) state.resizeObserver.observe(element.parentElement);
                 }
                 element.addEventListener('keydown', event => {
-                    const target = event.target;
-                    const textEntry = target instanceof HTMLElement
-                        && (target.matches('input, textarea, select') || target.isContentEditable);
-                    if (textEntry) return;
+                    if (isInteractiveTarget(event.target)) return;
                     if (event.code === 'KeyF' && !event.repeat) {
                         event.preventDefault();
                         globalThis.localGptGameConsole.fullscreen(id);
@@ -278,6 +294,7 @@
                     submit(state, action);
                 }, { signal:state.abort.signal });
                 element.addEventListener('keyup', event => {
+                    if (isInteractiveTarget(event.target)) return;
                     const action = keyActions.get(event.code);
                     if (!action) return;
                     state.keyboardActions.delete(action);

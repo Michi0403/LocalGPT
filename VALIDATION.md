@@ -1,3 +1,3 @@
-# LocalGPT 4.4.5 source validation
+# LocalGPT 4.4.7 source validation
 
-Source-only validation; no .NET command and no GitHub/online repository access was used. 4.4.5 adds the resettable ten-level ASCII DOOM campaign runtime class, team-assigned copied campaign resolution, optional-human preset semantics, explicit renderer-affine continuation repair, popup fit/scrollbar cleanup, and rare Kawaii documentation meteors while preserving the established 4.4.4/4.4.3 contracts. See `VALIDATION-v4.4.5-source.md` for executed checks and limitations.
+Source-only validation; no .NET command and no GitHub/online repository access was used. 4.4.7 repairs the maintained JavaScript diagnostics SHA-256 inventory for the reviewed 4.4.6 `localgpt-game-console.js` change while preserving the entire 4.4.6 ASCII integration behavior. See `VALIDATION-v4.4.7-source.md` for the build-log finding, executed checks and limitations.

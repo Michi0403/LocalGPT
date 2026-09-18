@@ -10,7 +10,7 @@ public sealed class GetCouncilGameDisplayFunction(ICouncilGameSessionService gam
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.display.get", "POST", "/api/dxai/functions/localgpt.game.display.get/invoke",
         "Reads the current fixed-cell Council ASCII display, including its live dimensions, so a renderer can continue an existing scene without redrawing blindly.",
-        "sessionId optional; when omitted LocalGPT resolves the current conversation game when available, otherwise the current active game. x, y, width and height optional. Zero width/height means through the display edge.",
+        "sessionId optional; when omitted LocalGPT resolves the invoking conversation/Council-run game when available, otherwise the current active game. x, y, width and height optional. Zero width/height means through the display edge.",
         "Read-only display inspection; it does not read the shell command buffer or private conversation content.",
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "CouncilGameDisplayDxAiFunctions",
         ParameterSchemaJson: """{"type":"object","properties":{"sessionId":{"type":"string"},"x":{"type":"integer","minimum":0},"y":{"type":"integer","minimum":0},"width":{"type":"integer","minimum":0,"maximum":240},"height":{"type":"integer","minimum":0,"maximum":100}},"additionalProperties":false}""");
@@ -23,7 +23,7 @@ public sealed class GetCouncilGameDisplayFunction(ICouncilGameSessionService gam
             var sessionId = parameters.Guid(request.Parameters, "sessionId");
             if (sessionId == Guid.Empty)
             {
-                var active = await games.GetActiveAsync(request.ConversationId, cancellationToken).ConfigureAwait(false);
+                var active = await parameters.ResolveSessionSnapshotAsync(games, request, cancellationToken).ConfigureAwait(false);
                 if (active is null)
                     return new() { Succeeded = false, Status = "NotFound", Error = "No active game is available." };
                 sessionId = active.Id;

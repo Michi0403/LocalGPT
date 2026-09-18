@@ -1,6 +1,9 @@
 .chat-game-console {
     position: relative;
+    box-sizing: border-box;
     width: 100%;
+    max-width: 100%;
+    max-height: 100%;
     min-width: 0;
     min-height: 0;
     margin: .55rem 0;
@@ -24,11 +27,13 @@
     padding: .55rem .75rem;
     background: color-mix(in srgb, var(--bs-body-bg) 84%, var(--bs-primary) 16%);
 }
+.chat-game-console-header,
+.chat-game-console-footer { min-width: 0; }
 .chat-game-console-header > div:first-child { display:flex; flex-direction:column; min-width:0; }
 .chat-game-console-header small,
 .chat-game-console-footer { color: var(--bs-secondary-color); font-size: .82rem; }
-.chat-game-console-actions { display:flex; align-items:end; flex-wrap:wrap; gap:.4rem; }
-.chat-game-console-actions label { display:flex; flex-direction:column; gap:.1rem; font-size:.72rem; }
+.chat-game-console-actions { display:flex; align-items:end; flex-wrap:wrap; gap:.4rem; min-width:0; max-width:100%; overflow:visible; }
+.chat-game-console-actions label { display:flex; flex:0 1 auto; flex-direction:column; gap:.1rem; min-width:0; max-width:100%; font-size:.72rem; }
 .chat-game-console-close {
     position: relative;
     z-index: 4;
@@ -633,7 +638,8 @@
 
 .chat-game-console-actions ::deep .ascii-console-button,
 .chat-game-console-actions ::deep .ascii-console-combo {
-    min-width: max-content;
+    min-width: 9rem;
+    max-width: 100%;
 }
 
 .chat-game-hotseat-grid ::deep .ascii-console-button,

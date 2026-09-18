@@ -42,6 +42,14 @@ public interface ICouncilGameSessionService
         Guid? conversationId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Retrieves the newest running game owned by one Council run.</summary>
+    /// <param name="councilRunId">Identifier of the Council run that owns the game.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the lookup.</param>
+    /// <returns>The newest running game owned by the Council run, or <c>null</c> when none exists.</returns>
+    Task<CouncilGameSessionSnapshot?> GetActiveForCouncilRunAsync(
+        Guid councilRunId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Ends the game runtime only, leaving the owning chat, Council/provider sessions and terminal surface available.</summary>
     /// <param name="sessionId">Identifier of the game session to end.</param>
     /// <param name="endedBy">Bounded actor label recorded as the last game-session action owner.</param>

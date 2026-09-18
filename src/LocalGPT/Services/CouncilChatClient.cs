@@ -186,6 +186,9 @@ public sealed partial class CouncilChatClient(
             var scope = serviceScopeFactory.CreateAsyncScope();
             await using (scope.ConfigureAwait(false))
             {
+                var gameBootstrap = scope.ServiceProvider.GetRequiredService<CouncilGameWorkflowBootstrapService>();
+                await gameBootstrap.EnsureSessionAsync(request, cancellationToken).ConfigureAwait(false);
+
                 var councilService = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
                 var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
                 if (result is null)
