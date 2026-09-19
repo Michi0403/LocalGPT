@@ -19,6 +19,8 @@ namespace LocalGPT.Services
     private string Render(CouncilGameSessionState session) {
     try
     {
+        if (string.Equals(session.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase))
+            return RenderKernelTournamentWaiting(session);
         return session.RuntimeProfile == CouncilGameRuntimeProfile.Story
         ? RenderGreenDragon(session)
         : RenderDoomLike(session);
@@ -32,6 +34,29 @@ namespace LocalGPT.Services
         throw;
     }
 }
+
+    /// <summary>Renders the stable tournament wall before the first engine-owned lineup or exchange movie is available.</summary>
+    private string RenderKernelTournamentWaiting(CouncilGameSessionState session)
+    {
+        try
+        {
+            var width = session.FrameWidth;
+            var height = session.FrameHeight;
+            var lines = Enumerable.Range(0, height).Select(_ => new string(' ', width)).ToArray();
+            var title = " KERNEL CREATURE TOURNAMENT ";
+            var subtitle = session.TournamentInitialized ? "Bracket ready — awaiting the next authoritative exchange" : "Preparing engine-owned bracket and AI creature lineup";
+            var center = Math.Max(0, (width - title.Length) / 2);
+            var row = Math.Max(1, height / 2 - 2);
+            lines[row] = Fit(new string('=', center) + title + new string('=', Math.Max(0, width - center - title.Length)), width);
+            lines[Math.Min(height - 1, row + 2)] = Fit(subtitle.PadLeft(Math.Max(subtitle.Length, (width + subtitle.Length) / 2)), width);
+            return string.Join(Environment.NewLine, lines);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Rendering the Kernel Creature Tournament waiting frame failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs render doom like as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.

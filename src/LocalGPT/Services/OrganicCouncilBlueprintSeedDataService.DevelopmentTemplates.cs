@@ -28,7 +28,7 @@ namespace LocalGPT.Services
             new() { Role = "Reactive Object Subdirector", Expertise = "doors, switches, hazards, pickups, triggers and map-object factories", Responsibility = "propose object reactions caused by the canonical state or accepted player action" },
             new() { Role = "Runtime Verifier", Expertise = "state hashes, turn IDs, deterministic replay and frame consistency", Responsibility = "reject stale proposals and verify that rendered frames match the committed state" }
         ],
-        PreferredCapabilities = ["localgpt.ascii.surface.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control.preview", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.runtime-class.resolve"],
+        PreferredCapabilities = [CouncilContextCapabilities.RoleIsolated, "localgpt.ascii.surface.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control.preview", "localgpt.game.control", "localgpt.game.frame.submit", "localgpt.runtime-class.resolve"],
         WorkflowSteps =
         [
             Step("game-intent", "Collect controller intent", 10, "Intent", "Player Controller", "Propose exactly one bounded player action for the current turn. Do not move actors or mutate map state directly.", "LeaderSingle"),

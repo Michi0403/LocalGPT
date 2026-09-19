@@ -156,10 +156,15 @@ namespace LocalGPT.Services
 
                 request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models per AI host: {maxParallelModels}; participating AI hosts: {participatingAiHostCount}. Preflight checked {preflight.RegexPatternCount} regexes, {preflight.KnowledgeEntryCount} knowledge entries, {preflight.ProjectCount} projects and {preflight.DxFunctionCount} DXFunctions.");
 
-                var bootstrap = request.IncludeMemory
-                    ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken).ConfigureAwait(false)
-                    : string.Empty;
-                bootstrap = MultiModelCouncilServiceAppendPromptSection(
+                var roleIsolatedContext = UsesRoleIsolatedContext(organicTeam);
+                var bootstrap = roleIsolatedContext
+                    ? BuildRoleIsolatedBootstrap(organicTeam)
+                    : request.IncludeMemory
+                        ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken).ConfigureAwait(false)
+                        : string.Empty;
+                if (!roleIsolatedContext)
+                {
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(
                     bootstrap,
                     "Universal LocalGPT user-work scope",
                     "LocalGPT and its AI Councils are general-purpose local assistants and coordination systems. " +
@@ -168,21 +173,22 @@ namespace LocalGPT.Services
                     "Never refuse merely because a request is unrelated to LocalGPT itself or because no dedicated DXFunction exists. When execution tools or authoritative current evidence are missing, still provide useful reasoning, clearly mark uncertainty, and report the exact capability gap only where it matters. " +
                     "Safety and one-use approval rules govern actions, not ordinary subject-matter assistance.",
                     logger);
-                bootstrap = MultiModelCouncilServiceAppendPromptSection(
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(
                     bootstrap,
                     "Readable streamed prose",
                     "Keep normal word boundaries and punctuation in all user-visible prose, including thinking/status text when your provider exposes it. " +
                     "Do not concatenate labels with following numeric values or protocol names: write 'output 24,576', 'context 262,144', and 'connected 1-Wire', not 'output24,576', 'context262,144', or 'connected1-Wire'. " +
                     "Do not alter intentional identifiers, code, URLs, model names, file paths, or serialized data merely to add spaces.",
                     logger);
-                var continuationContext = MultiModelCouncilServiceBuildContinuationContext(continuedConversation, logger);
-                if (!string.IsNullOrWhiteSpace(continuationContext))
-                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext, logger);
-                bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Mandatory database, regex, function and hardware preflight", preflight.PromptContext, logger);
-                var dxFunctionPolicy = await councilDxPolicy.GetPolicyAsync(cancellationToken).ConfigureAwait(false);
-                bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, nameof(CouncilDxFunctionPolicy), dxFunctionPolicy.PromptInstruction, logger);
+                    var continuationContext = MultiModelCouncilServiceBuildContinuationContext(continuedConversation, logger);
+                    if (!string.IsNullOrWhiteSpace(continuationContext))
+                        bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext, logger);
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Mandatory database, regex, function and hardware preflight", preflight.PromptContext, logger);
+                    var dxFunctionPolicy = await councilDxPolicy.GetPolicyAsync(cancellationToken).ConfigureAwait(false);
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, nameof(CouncilDxFunctionPolicy), dxFunctionPolicy.PromptInstruction, logger);
+                }
 
-                if (result.ProjectId is Guid projectId)
+                if (!roleIsolatedContext && result.ProjectId is Guid projectId)
                 {
                     var projectBriefing = await projectService
                         .BuildProjectBriefingAsync(projectId, result.ProjectTopicId, cancellationToken)
@@ -196,8 +202,11 @@ namespace LocalGPT.Services
                         bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Database-first project architecture", architectureBriefing, logger);
                 }
 
-                var organicBriefing = await organicCouncilBlueprints.BuildBriefingAsync(request, cancellationToken).ConfigureAwait(false);
-                bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Organic council and 1-Wire workflow", organicBriefing, logger);
+                if (!roleIsolatedContext)
+                {
+                    var organicBriefing = await organicCouncilBlueprints.BuildBriefingAsync(request, cancellationToken).ConfigureAwait(false);
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Organic council and 1-Wire workflow", organicBriefing, logger);
+                }
 
                 string baseBootstrap;
                 if (UsesBuiltInCouncilWorkflow(organicTeam))

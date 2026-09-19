@@ -492,6 +492,7 @@ namespace LocalGPT.Services
                     ? roleAssignment.Definition?.PairedRole ?? string.Empty
                     : string.Join(", ", participantPairings.Select(pairing => pairing.PairedRoleName).Distinct(StringComparer.OrdinalIgnoreCase));
                 var rolePairingSummary = BuildConfiguredRolePairingSummary(rolePairings);
+                var externalProjectContext = UsesRoleIsolatedContext(team) ? string.Empty : request.ExternalProjectContextJson;
                 var rendered = template
                     .Replace("{{TeamName}}", team.DisplayName, StringComparison.Ordinal)
                     .Replace("{{TeamKey}}", team.Key, StringComparison.Ordinal)
@@ -529,7 +530,7 @@ namespace LocalGPT.Services
                     .Replace("{{Transcript}}", boundedTranscript, StringComparison.Ordinal)
                     .Replace("{{PreviousStep}}", boundedPreviousStep, StringComparison.Ordinal)
                     .Replace("{{Preparation}}", boundedPreviousStep, StringComparison.Ordinal)
-                    .Replace("{{ExternalProjectContextJson}}", request.ExternalProjectContextJson, StringComparison.Ordinal);
+                    .Replace("{{ExternalProjectContextJson}}", externalProjectContext, StringComparison.Ordinal);
 
                 var authoritativeRoleTask = rendered.Trim();
                 var contextBuilder = new StringBuilder();
@@ -578,7 +579,7 @@ namespace LocalGPT.Services
                 assignmentBriefing.Append("- Language instruction: ").AppendLine(languageInstruction);
                 assignmentBriefing.Append("- Human-turn instruction: ").AppendLine(humanParticipationInstruction);
                 assignmentBriefing.Append("- Knowledge grounding: ").AppendLine(
-                    !string.IsNullOrWhiteSpace(request.ExternalProjectContextJson) || team.PreferredCapabilities.Any(item => item.Contains("knowledge", StringComparison.OrdinalIgnoreCase))
+                    !string.IsNullOrWhiteSpace(externalProjectContext) || team.PreferredCapabilities.Any(item => item.Contains("knowledge", StringComparison.OrdinalIgnoreCase))
                         ? "LocalGPT knowledge/project context is relevant to this team. Consult authoritative supplied/retrieved local evidence when it materially improves correctness; do not make ceremonial retrieval calls when the assigned task is already self-contained."
                         : "Use supplied local/project evidence when present. Pretrained knowledge is allowed, but authoritative local evidence wins when the two conflict.");
                 assignmentBriefing.Append("- Organic/DX tool availability for this step: ")
@@ -586,7 +587,7 @@ namespace LocalGPT.Services
                     .AppendLine(". Call an available tool only when it materially improves grounding or is required to complete this role task.");
                 if (team.PreferredCapabilities.Count > 0)
                     assignmentBriefing.Append("- Team preferred capabilities: ").AppendLine(string.Join(", ", team.PreferredCapabilities));
-                if (!string.IsNullOrWhiteSpace(request.ExternalProjectContextJson))
+                if (!string.IsNullOrWhiteSpace(externalProjectContext))
                     assignmentBriefing.AppendLine("- External project knowledge/context: supplied for this request; prefer authoritative local project evidence over conflicting pretrained assumptions.");
                 if (definition.XFunctionsEnabled)
                 {

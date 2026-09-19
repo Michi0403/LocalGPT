@@ -246,7 +246,10 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
                 CreatureDirectorCount = 2,
                 AutoplayDelayMilliseconds = 1200,
                 FrameWidth = 80,
-                FrameHeight = 25
+                FrameHeight = 25,
+                AsciiColorMode = CouncilAsciiColorMode.TerminalDefault,
+                DefaultForegroundColor = 46,
+                DefaultBackgroundColor = 0
             }, nameof(CreateGameProjectProfileRequest));
         }
         catch (Exception __serviceMethodException)

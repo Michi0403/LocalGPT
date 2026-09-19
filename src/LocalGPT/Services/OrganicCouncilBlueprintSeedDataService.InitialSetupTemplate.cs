@@ -25,6 +25,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 ],
                 PreferredCapabilities =
                 [
+                    CouncilContextCapabilities.RoleIsolated,
                     "initial.setup.status",
                     "initial.setup.hardware.detect",
                     "initial.setup.hardware.hwinfo.import",

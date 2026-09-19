@@ -67,7 +67,7 @@ public sealed class SaveProjectGameProfileFunction(
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.game.profile.save", "POST", "/api/dxai/functions/project.game.profile.save/invoke",
         "Creates or updates the durable authoring profile for one LocalGPT Game project without building or starting a runtime session.",
-        "JSON parameters: projectId plus request containing game key, title, runtime profile, Council/control/director defaults, frame size, map seed and scenario.",
+        "JSON parameters: projectId plus request containing game key, title, runtime profile, Council/control/director defaults, frame size, ASCII color mode/default foreground/background indexes, map seed and scenario.",
         "Writes project-owned authoring metadata only after one-use human approval. Requirements must be persisted through project.requirement.save rather than hidden in this profile.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true,
         SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true,

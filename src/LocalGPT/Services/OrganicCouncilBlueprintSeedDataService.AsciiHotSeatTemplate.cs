@@ -73,12 +73,14 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 ],
                 PreferredCapabilities =
                 [
+                    CouncilContextCapabilities.RoleIsolated,
                     AsciiChatTextService.RequiredSurfaceCapability,
                     "localgpt.ascii.surface.get",
                     "localgpt.game.session.start",
                     "localgpt.game.session.get",
                     "localgpt.game.input-gate.set",
                     "localgpt.game.display.get",
+                    "localgpt.game.display.palette.get",
                     "localgpt.game.display.text.write",
                     "localgpt.game.display.cell.set",
                     "localgpt.game.display.region.fill",
@@ -97,6 +99,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     "localgpt.game.session.get",
                     "localgpt.game.input-gate.set",
                     "localgpt.game.display.get",
+                    "localgpt.game.display.palette.get",
                     "localgpt.game.display.text.write",
                     "localgpt.game.display.cell.set",
                     "localgpt.game.display.region.fill",
@@ -153,7 +156,7 @@ Do not render yet. End by saying the display director may build the intro and Pl
                         IncludePriorTranscript = true,
                         CanUseOrganicFunctions = true,
                         AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
-                        AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+                        AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
                         PromptTemplate = $$"""
 First inspect localgpt.ascii.surface.get. If the shared ASCII surface reports CLOSED, do not mutate the display and stop this presentation phase with one short visible instruction to reopen the ASCII terminal; the next Council retry may render only after the surface reports OPEN.
 
@@ -241,6 +244,8 @@ If a player reached 6 points OR this is round 10, append exactly [[HOTSEAT_GAME_
                             "localgpt.ascii.surface.get",
                             "localgpt.game.session.get",
                             "localgpt.game.display.get",
+                            "localgpt.game.display.palette.get",
+                    "localgpt.game.display.palette.get",
                             "localgpt.game.display.text.write",
                             "localgpt.game.display.cell.set",
                             "localgpt.game.display.region.fill",

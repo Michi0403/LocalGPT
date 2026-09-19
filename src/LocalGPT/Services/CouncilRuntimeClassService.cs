@@ -20,7 +20,7 @@ public sealed class CouncilRuntimeClassService(
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilRuntimeClassService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 5;
+    private const int CurrentSeedVersion = 7;
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="CouncilRuntimeClassService"/> while executing its surrounding workflow.
     /// </summary>
@@ -237,6 +237,18 @@ public sealed class CouncilRuntimeClassService(
             var doomCampaignLevelsJson = JsonSerializer.Serialize(CreateAsciiDoomStarterLevels(), jsonOptions);
             return
             [
+                BuildDefinition("games.ascii.kernel-tournament.rules", "LocalGPT.Games.KernelTournament", "Kernel Creature Tournament rules", RuntimeClassKind.State,
+                    "Copyable deterministic tournament rules. The game-session engine owns health, damage, guard/recovery, exchange limits and presentation timing; AI trainers and creatures contribute bounded move flavor only.",
+                    [
+                        Field("startingHealth", "Starting health", "int", "100", RuntimeFieldInputMode.Shared, true, true),
+                        Field("minimumDamage", "Minimum attack damage", "int", "7", RuntimeFieldInputMode.Shared, true, true),
+                        Field("maximumDamage", "Maximum attack damage", "int", "18", RuntimeFieldInputMode.Shared, true, true),
+                        Field("guardReduction", "Guard damage reduction", "int", "7", RuntimeFieldInputMode.Shared, true, true),
+                        Field("recoveryAmount", "Recovery amount", "int", "6", RuntimeFieldInputMode.Shared, true, true),
+                        Field("maximumExchangesPerMatch", "Maximum exchanges per match", "int", "12", RuntimeFieldInputMode.Shared, true, true),
+                        Field("animationFrameDelayMilliseconds", "Animation frame delay", "int", "320", RuntimeFieldInputMode.Shared, true, true),
+                        Field("subtitleHoldMilliseconds", "Subtitle hold", "int", "1500", RuntimeFieldInputMode.Shared, true, true)
+                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], []),
                 BuildDefinition("games.ascii.doom.session", "LocalGPT.Games.AsciiDoom", "ASCII DOOM session", RuntimeClassKind.Session,
                     "Turn-based Council session state. This does not start a traditional 3D renderer; it advances one meaningful action and one AI-authored ASCII frame per Council turn.",
                     [
@@ -344,7 +356,7 @@ public sealed class CouncilRuntimeClassService(
                         Field("frameText", "ASCII frame", "string", "", RuntimeFieldInputMode.Ai, true, false),
                         Field("turn", "Turn", "int", "0", RuntimeFieldInputMode.System, false, false),
                         Field("legend", "Legend", "string", "@ player, e enemy, + door, # wall", RuntimeFieldInputMode.Ai, true, false)
-                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"], [doomSource, cLanguageSource]),
+                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"], [doomSource, cLanguageSource]),
                 BuildDefinition("games.green-dragon.world", "LocalGPT.Games.GreenDragon", "Green Dragon world", RuntimeClassKind.World,
                     "Persistent role-play world state orchestrated by a Story Director. Locations, houses, NPCs and events remain separate runtime class instances.",
                     [
@@ -406,7 +418,7 @@ public sealed class CouncilRuntimeClassService(
                         Field("height", "Rows", "int", "25", RuntimeFieldInputMode.Shared, true, true),
                         Field("frameText", "ASCII frame", "string", "", RuntimeFieldInputMode.Ai, true, false),
                         Field("caption", "Caption", "string", "", RuntimeFieldInputMode.Ai, true, false)
-                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"], [dragonSource, phpLanguageSource])
+                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"], [dragonSource, phpLanguageSource])
             ];
     
     }
@@ -780,6 +792,11 @@ public sealed class CouncilRuntimeClassService(
                 runtimeNamespace.Replace("LocalGPT.Games.", "games.", StringComparison.OrdinalIgnoreCase),
                 runtimeNamespace.Replace("LocalGPT.", string.Empty, StringComparison.OrdinalIgnoreCase)
             };
+            if (key.StartsWith("games.ascii.kernel-tournament.", StringComparison.OrdinalIgnoreCase))
+            {
+                aliases.Add("kernel-tournament." + key["games.ascii.kernel-tournament.".Length..]);
+                aliases.Add("LocalGPT.Games.KernelTournament." + key["games.ascii.kernel-tournament.".Length..]);
+            }
             if (key.StartsWith("games.ascii.doom.", StringComparison.OrdinalIgnoreCase))
             {
                 aliases.Add("doom." + key["games.ascii.doom.".Length..]);

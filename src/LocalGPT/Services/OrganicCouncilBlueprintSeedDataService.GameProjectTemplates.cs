@@ -30,18 +30,24 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     "project.game.profile.save",
                     "project.requirement.save",
                     "project.artifact.save",
+                    "localgpt.ascii.surface.get",
+                    "localgpt.game.display.palette.get",
+                    "localgpt.knowledge.list",
+                    "localgpt.regex.list",
+                    "localgpt.regex.get",
+                    "localgpt.regex.test",
                     "human.collaboration.request"
                 ],
                 WorkflowSteps =
                 [
-                    Step("game-discovery-context", "Read project and current design", 10, "Discovery", "Runtime Feasibility Analyst", "Read the selected Project architecture, existing requirements and current game authoring profile. Separate confirmed project facts from missing design decisions. Do not build or start the game in this step.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.architecture.get", "project.game.profile.get"]),
+                    Step("game-discovery-context", "Read project and current design", 10, "Discovery", "Runtime Feasibility Analyst", "Read the selected Project architecture, existing requirements and current game authoring profile first. Then inspect localgpt.ascii.surface.get and localgpt.game.display.palette.get only for renderer facts. For 0.8B-2B models, keep context narrow: use localgpt.knowledge.list for the ascii-game-authoring reference and database-backed regex list/get/test only when a concrete parse/extraction need exists. Separate confirmed project facts from missing design decisions. Do not build or start the game in this step.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.architecture.get", "project.game.profile.get", "localgpt.ascii.surface.get", "localgpt.game.display.palette.get", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
                     Step("game-discovery-interview", "Collect user requirements", 20, "Requirements", "Requirements Facilitator", "Ask the user a compact, prioritized requirement question set covering player goal, core loop, controls, win/fail conditions, desired AI/Council participation, presentation, pacing and explicit exclusions. Use human.collaboration.request when answers are missing. Do not infer unconfirmed requirements from genre conventions.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["human.collaboration.request"]),
                     Step("game-discovery-design", "Translate intent into game design", 30, "Design", "Game Design Analyst", "Translate only confirmed user intent into a minimal playable design: core loop, mechanics, actor responsibilities, feedback, progression and bounded scenario. Mark unresolved choices explicitly instead of choosing for the user.", "AllMembersParallel"),
                     Step("game-discovery-acceptance", "Define acceptance criteria", 40, "Acceptance", "Acceptance Curator", "Define observable acceptance criteria and playtest checks for each confirmed requirement. Flag requests that require an engine extension rather than hiding them inside the game profile.", "AllMembersSequentialOnEachAIHostParallel"),
                     Step("game-discovery-persist", "Persist confirmed project design", 50, "Persistence", "Requirements Facilitator", "Persist each user-confirmed requirement through project.requirement.save and save the agreed runtime-facing authoring values through project.game.profile.save. Keep requirements first-class; do not collapse them into one scenario prompt. Every mutation remains approval-gated.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.requirement.save", "project.game.profile.save"]),
                     Step("game-discovery-handoff", "Discovery handoff", 60, "Synthesis", "Acceptance Curator", "Summarize confirmed requirements, unresolved questions, engine-extension needs, the saved game-profile boundary and the smallest next development milestone. Do not claim a build exists unless one was actually produced later by the Project system.", "LeaderSingle", producesFinalAnswer: true)
                 ],
-                MainRoundInstructionTemplate = "Requirements are Project-system data. Ask the user when intent is missing, persist only confirmed requirements, keep the editable Game-project profile separate from the compiled runtime definition, and explicitly route unsupported mechanics to engine-extension work.",
+                MainRoundInstructionTemplate = "Requirements are Project-system data. Evidence order is Project facts -> ASCII surface/palette -> narrow Knowledge -> tested database Regex only when parsing is needed. This order is mandatory for small 0.8B-2B models so they receive enough LocalGPT-specific guidance without broad irrelevant context. Ask the user when intent is missing, persist only confirmed requirements, keep the editable Game-project profile separate from the compiled runtime definition, and explicitly route unsupported mechanics to engine-extension work.",
                 ArchitectureContracts =
                 [
                     .. DefaultArchitectureContracts(),
@@ -88,11 +94,17 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     "project.requirement.save",
                     "localgpt.game.session.get",
                     "localgpt.game.control",
+                    "localgpt.ascii.surface.get",
+                    "localgpt.game.display.palette.get",
+                    "localgpt.knowledge.list",
+                    "localgpt.regex.list",
+                    "localgpt.regex.get",
+                    "localgpt.regex.test",
                     "human.collaboration.request"
                 ],
                 WorkflowSteps =
                 [
-                    Step("game-development-baseline", "Load requirements and authoring baseline", 10, "Planning", "Game Project Architect", "Read the selected project, requirements, current authoring profile and latest build. Identify which confirmed requirements are already represented and which require game-profile changes versus engine work.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.architecture.get", "project.game.profile.get", "project.game.get"]),
+                    Step("game-development-baseline", "Load requirements and authoring baseline", 10, "Planning", "Game Project Architect", "Read the selected project, requirements, current authoring profile and latest build first; then inspect the ASCII surface/palette contract. For 0.8B-2B models, retrieve only the narrow ascii-game-authoring knowledge needed for the current step and use stored/tested regex evidence only for actual parsing. Identify which confirmed requirements are already represented and which require game-profile changes versus engine work.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.architecture.get", "project.game.profile.get", "project.game.get", "localgpt.ascii.surface.get", "localgpt.game.display.palette.get", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
                     Step("game-development-mechanics", "Design bounded mechanics", 20, "Implementation", "Gameplay Systems Designer", "Design only the next approved playable milestone against the confirmed requirement baseline. Keep canonical state and runtime-profile constraints explicit. Do not use hard-coded built-in game keys as architecture.", "AllMembersParallel"),
                     Step("game-development-ai", "Integrate AI and controls", 30, "Implementation", "AI and Council Integration Developer", "Map human, Operator, AI player, Council role and GameDirector behavior onto the shared game-control/session contracts. Preserve in-ASCII interaction and never make the renderer a source of canonical game state.", "AllMembersSequentialOnEachAIHostParallel"),
                     Step("game-development-profile", "Update project-owned game design", 40, "Persistence", "Game Project Architect", "When the proposed authoring values are agreed, save them through project.game.profile.save. If implementation discovers a new requirement, ask the user where necessary and persist it through project.requirement.save rather than burying it in code or prompts.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["human.collaboration.request", "project.requirement.save", "project.game.profile.save"]),
@@ -100,7 +112,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     Step("game-development-playtest", "Run bounded playtest", 60, "Verification", "Build and Playtest Verifier", "Start the approved project build and inspect canonical runtime state. Exercise only enough controls to verify the current milestone. Record mismatches by requirement and do not rewrite requirements merely to match current behavior.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.game.start", "localgpt.game.session.get", "localgpt.game.control"]),
                     Step("game-development-handoff", "Development handoff", 70, "Synthesis", "Game Project Architect", "Report implemented requirement coverage, current profile/build identities, playtest evidence, engine-extension blockers and the next user-approved milestone.", "LeaderSingle", producesFinalAnswer: true)
                 ],
-                MainRoundInstructionTemplate = "Develop from durable Project requirements. Project-owned authoring precedes build; build precedes runtime. Keep AI, controls and ASCII presentation below the build boundary and route missing engine capabilities to the engine-extension team.",
+                MainRoundInstructionTemplate = "Develop from durable Project requirements. Use Project facts -> ASCII surface/palette -> narrow Knowledge -> tested Regex as the evidence order, especially for 0.8B-2B models. Project-owned authoring precedes build; build precedes runtime. Keep AI, controls and ASCII presentation below the build boundary and route missing engine capabilities to the engine-extension team.",
                 ArchitectureContracts =
                 [
                     .. DefaultArchitectureContracts(),
@@ -148,19 +160,23 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     "project.revision.council-review",
                     "project.revision.ready.approve",
                     "project.requirement.save",
+                    "localgpt.ascii.surface.get",
+                    "localgpt.game.display.palette.get",
+                    "localgpt.knowledge.list",
                     "localgpt.regex.list",
+                    "localgpt.regex.get",
                     "localgpt.regex.test"
                 ],
                 WorkflowSteps =
                 [
-                    Step("engine-extension-boundary", "Prove engine ownership", 10, "Architecture", "Engine Boundary Architect", "Read the originating project requirement and current runtime architecture. Prove why this capability is reusable engine behavior rather than game-specific data. Define the lowest contract that can satisfy more than one game without moving project ownership downward.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.architecture.get", "project.maintenance.get"]),
+                    Step("engine-extension-boundary", "Prove engine ownership", 10, "Architecture", "Engine Boundary Architect", "Read the originating project requirement and current runtime architecture first, then the ASCII palette/surface contract if rendering is involved. For 0.8B-2B models, use narrow LocalGPT knowledge before source-wide inference and use database regex list/get/test only for concrete parsing tasks. Prove why this capability is reusable engine behavior rather than game-specific data. Define the lowest contract that can satisfy more than one game without moving project ownership downward.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.architecture.get", "project.maintenance.get", "localgpt.ascii.surface.get", "localgpt.game.display.palette.get", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
                     Step("engine-extension-simulation", "Design simulation contract", 20, "Design", "Simulation Runtime Developer", "Design authoritative state and transition changes, persistence/replay implications, version compatibility and deterministic validation. Avoid game-name switches and renderer dependencies.", "AllMembersParallel"),
                     Step("engine-extension-adapters", "Design adapters", 30, "Design", "Renderer and Input Adapter Developer", "Define renderer/input adapter changes so ASCII remains supported while future backends can consume the same committed state. Keep controls transport-neutral and runtime-owned.", "AllMembersSequentialOnEachAIHostParallel"),
                     Step("engine-extension-ai", "Design AI integration", 40, "Design", "AI Runtime Integration Developer", "Map AI/Council proposals onto the same typed controller/session contracts used by humans. The model proposes; deterministic engine validation commits.", "AllMembersSequentialOnEachAIHostParallel"),
                     Step("engine-extension-policy", "Repository policy and migration review", 50, "Verification", "Engine Verification Curator", "Check required EF migrations/snapshots, DI lifetimes, async continuation policy, text-service ownership, application-static policy, diagnostics, XML docs and backward compatibility before any release handoff.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["localgpt.regex.list", "localgpt.regex.test", "project.revision.council-review"]),
                     Step("engine-extension-handoff", "Engine extension handoff", 60, "Synthesis", "Engine Boundary Architect", "Summarize the reusable engine change, affected contracts/migrations, compatibility impact, verification evidence and which originating Game-project requirements can now proceed.", "LeaderSingle", producesFinalAnswer: true)
                 ],
-                MainRoundInstructionTemplate = "Treat engine work as a reusable lower-layer capability only after proving it cannot remain project data. Preserve Project ownership above compiled game definitions, keep runtime canonical state independent from renderers, and obey the repository's normal architecture guards without exemptions.",
+                MainRoundInstructionTemplate = "Use Project facts -> relevant runtime/palette contract -> narrow Knowledge -> tested Regex as the bounded evidence order for 0.8B-2B models. Treat engine work as a reusable lower-layer capability only after proving it cannot remain project data. Preserve Project ownership above compiled game definitions, keep runtime canonical state independent from renderers, and obey the repository's normal architecture guards without exemptions.",
                 ArchitectureContracts =
                 [
                     .. DefaultArchitectureContracts(),
@@ -204,18 +220,24 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     "localgpt.game.session.get",
                     "localgpt.game.control",
                     "project.requirement.save",
+                    "localgpt.ascii.surface.get",
+                    "localgpt.game.display.palette.get",
+                    "localgpt.knowledge.list",
+                    "localgpt.regex.list",
+                    "localgpt.regex.get",
+                    "localgpt.regex.test",
                     "human.collaboration.request"
                 ],
                 WorkflowSteps =
                 [
-                    Step("game-playtest-baseline", "Load build and requirements", 10, "Preparation", "Requirement Verification Lead", "Read the project requirement baseline and latest compiled game definition. Select a small set of acceptance checks for this run and do not modify the build.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.architecture.get", "project.game.get"]),
+                    Step("game-playtest-baseline", "Load build and requirements", 10, "Preparation", "Requirement Verification Lead", "Read the project requirement baseline and latest compiled game definition first, then inspect the live ASCII surface/palette contract. For 0.8B-2B models, retrieve the narrow ascii-game-authoring knowledge needed for the selected checks and avoid broad project/source context; use tested regex evidence only when parsing output is necessary. Select a small set of acceptance checks for this run and do not modify the build.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.architecture.get", "project.game.get", "localgpt.ascii.surface.get", "localgpt.game.display.palette.get", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
                     Step("game-playtest-start", "Start test session", 20, "Execution", "Player Experience Tester", "Start the approved project build and inspect its initial canonical state. Keep the session inside the normal game runtime and ASCII controls.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.game.start", "localgpt.game.session.get"]),
                     Step("game-playtest-player", "Player experience pass", 30, "Execution", "Player Experience Tester", "Exercise a bounded sequence of normal player controls. Record confusing feedback, blocked progress, scroll/input problems or control mismatches with the relevant turn/state evidence.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["localgpt.game.session.get", "localgpt.game.control"]),
                     Step("game-playtest-rules", "Rules and balance pass", 40, "Execution", "Rules and Balance Tester", "Probe a small set of edge cases relevant to the selected requirements. Do not brute-force the game or keep an unattended loop running.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["localgpt.game.session.get", "localgpt.game.control"]),
                     Step("game-playtest-ai", "AI control parity pass", 50, "Execution", "AI Behavior Tester", "Verify AI/Council-controlled actions use the same accepted control semantics and cannot bypass deterministic rules. Compare canonical state before and after representative AI actions.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["localgpt.game.session.get", "localgpt.game.control"]),
                     Step("game-playtest-report", "Requirement-level QA report", 60, "Verification", "Requirement Verification Lead", "Produce a requirement-by-requirement evidence report with Passed, Gap, Regression or Not Tested. Propose new defect requirements when appropriate, but persist them only through project.requirement.save after user approval.", "LeaderSingle", canUseOrganicFunctions: true, producesFinalAnswer: true, allowedAutomaticFunctions: ["project.requirement.save", "human.collaboration.request"])
                 ],
-                MainRoundInstructionTemplate = "Playtest the built artifact, not the design transcript. Use canonical session state as runtime evidence, map findings to durable Project requirements, and never weaken a requirement simply because the current build fails it.",
+                MainRoundInstructionTemplate = "Playtest the built artifact, not the design transcript. For 0.8B-2B models keep evidence bounded in the order Project/build -> live surface/palette -> narrow Knowledge -> tested Regex only if parsing is required. Use canonical session state as runtime evidence, map findings to durable Project requirements, and never weaken a requirement simply because the current build fails it.",
                 ArchitectureContracts =
                 [
                     .. DefaultArchitectureContracts(),

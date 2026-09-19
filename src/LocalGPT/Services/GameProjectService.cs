@@ -69,6 +69,8 @@ public sealed class GameProjectService(
                 throw new InvalidOperationException("Only projects whose project type is Game can own a LocalGPT game authoring profile.");
             if (!Enum.IsDefined(typeof(CouncilGameRuntimeProfile), request.RuntimeProfile))
                 throw new ArgumentException("The selected game runtime profile is not supported by this LocalGPT version.", nameof(request));
+            if (!Enum.IsDefined(typeof(CouncilAsciiColorMode), request.AsciiColorMode))
+                throw new ArgumentException("The selected ASCII color mode is not supported by this LocalGPT version.", nameof(request));
             if (!Enum.IsDefined(typeof(CouncilGameControlMode), request.DefaultControlMode))
                 throw new ArgumentException("The selected default game control mode is invalid.", nameof(request));
             if (!Enum.IsDefined(typeof(CouncilGameDirectorMode), request.DirectorMode))
@@ -94,6 +96,12 @@ public sealed class GameProjectService(
             var directorModel = (request.GameDirectorModelName ?? string.Empty).Trim();
             if (directorModel.Length > 240)
                 directorModel = directorModel[..240];
+            var defaultForegroundColor = request.AsciiColorMode == CouncilAsciiColorMode.Ansi16
+                ? (request.DefaultForegroundColor is >= 0 and <= 15 ? request.DefaultForegroundColor : 10)
+                : (request.DefaultForegroundColor is >= 0 and <= 255 ? request.DefaultForegroundColor : 46);
+            var defaultBackgroundColor = request.AsciiColorMode == CouncilAsciiColorMode.Ansi16
+                ? (request.DefaultBackgroundColor is >= 0 and <= 15 ? request.DefaultBackgroundColor : 0)
+                : Math.Clamp(request.DefaultBackgroundColor, 0, 255);
 
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
@@ -121,6 +129,9 @@ public sealed class GameProjectService(
             profile.AutoplayDelayMilliseconds = Math.Clamp(request.AutoplayDelayMilliseconds, 250, 10000);
             profile.FrameWidth = Math.Clamp(request.FrameWidth, 20, 240);
             profile.FrameHeight = Math.Clamp(request.FrameHeight, 8, 100);
+            profile.AsciiColorMode = request.AsciiColorMode;
+            profile.DefaultForegroundColor = defaultForegroundColor;
+            profile.DefaultBackgroundColor = defaultBackgroundColor;
             profile.MapSeed = request.MapSeed is > 0 ? request.MapSeed.Value : 0;
             profile.ScenarioPrompt = scenario;
             profile.UpdatedAtUtc = DateTime.UtcNow;
@@ -186,6 +197,9 @@ public sealed class GameProjectService(
                 AutoplayDelayMilliseconds = profile.AutoplayDelayMilliseconds,
                 FrameWidth = profile.FrameWidth,
                 FrameHeight = profile.FrameHeight,
+                AsciiColorMode = profile.AsciiColorMode,
+                DefaultForegroundColor = profile.DefaultForegroundColor,
+                DefaultBackgroundColor = profile.DefaultBackgroundColor,
                 MapSeed = profile.MapSeed,
                 ScenarioPrompt = profile.ScenarioPrompt,
                 BuiltAtUtc = DateTime.UtcNow
@@ -261,6 +275,14 @@ public sealed class GameProjectService(
                 throw new InvalidOperationException("The project game build artifact points at a different project identity and cannot be launched.");
             if (!Enum.IsDefined(typeof(CouncilGameRuntimeProfile), definition.RuntimeProfile))
                 throw new InvalidOperationException("The project game build artifact targets an unsupported runtime profile.");
+            if (!Enum.IsDefined(typeof(CouncilAsciiColorMode), definition.AsciiColorMode))
+                throw new InvalidOperationException("The project game build artifact targets an unsupported ASCII color mode.");
+            definition.DefaultForegroundColor = definition.AsciiColorMode == CouncilAsciiColorMode.Ansi16
+                ? (definition.DefaultForegroundColor is >= 0 and <= 15 ? definition.DefaultForegroundColor : 10)
+                : (definition.DefaultForegroundColor is >= 0 and <= 255 ? definition.DefaultForegroundColor : 46);
+            definition.DefaultBackgroundColor = definition.AsciiColorMode == CouncilAsciiColorMode.Ansi16
+                ? (definition.DefaultBackgroundColor is >= 0 and <= 15 ? definition.DefaultBackgroundColor : 0)
+                : Math.Clamp(definition.DefaultBackgroundColor, 0, 255);
             if (!Enum.IsDefined(typeof(CouncilGameControlMode), definition.DefaultControlMode))
                 throw new InvalidOperationException("The project game build artifact contains an invalid default control mode.");
             if (!Enum.IsDefined(typeof(CouncilGameDirectorMode), definition.DirectorMode))

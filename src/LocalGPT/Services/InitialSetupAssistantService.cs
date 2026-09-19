@@ -903,7 +903,7 @@ public sealed class InitialSetupAssistantService(
                     && !uri.Host.Equals("www.lmstudio.ai", StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Provider catalog requests are restricted to maintained HTTPS provider hosts.");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("LocalGPT/4.4.7");
+            request.Headers.UserAgent.ParseAdd("LocalGPT/4.5.1");
             var client = httpClientFactory.CreateClient("LocalGPTProviderCatalog");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();

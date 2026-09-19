@@ -151,6 +151,81 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
+    /// <summary>Reads an optional ASCII color-mode parameter.</summary>
+    public CouncilAsciiColorMode? ColorMode(JsonElement parameters, string name)
+    {
+        try
+        {
+            if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value))
+                return null;
+            if (value.ValueKind == JsonValueKind.String && Enum.TryParse<CouncilAsciiColorMode>(value.GetString(), true, out var parsed))
+                return parsed;
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var numeric) && Enum.IsDefined(typeof(CouncilAsciiColorMode), numeric))
+                return (CouncilAsciiColorMode)numeric;
+            return null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council ASCII color mode parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
+
+    /// <summary>Reads optional ASCII text-style metadata.</summary>
+    public CouncilAsciiTextStyle? Style(JsonElement parameters, string name)
+    {
+        try
+        {
+            if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Object)
+                return null;
+            return JsonSerializer.Deserialize<CouncilAsciiTextStyle>(value.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council ASCII style parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
+
+    /// <summary>Reads bounded ASCII style runs for a complete frame.</summary>
+    public IReadOnlyList<CouncilAsciiStyleRun> StyleRuns(JsonElement parameters, string name)
+    {
+        try
+        {
+            if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array)
+                return [];
+            return JsonSerializer.Deserialize<List<CouncilAsciiStyleRun>>(value.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? [];
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council ASCII style-run parameter {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
+
+    /// <summary>Reads per-frame ASCII style runs for a pregenerated animation.</summary>
+    public IReadOnlyList<IReadOnlyList<CouncilAsciiStyleRun>> StyleRunFrames(JsonElement parameters, string name)
+    {
+        try
+        {
+            if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array)
+                return [];
+            var result = new List<IReadOnlyList<CouncilAsciiStyleRun>>();
+            foreach (var frame in value.EnumerateArray().Take(12))
+            {
+                result.Add(frame.ValueKind == JsonValueKind.Array
+                    ? JsonSerializer.Deserialize<List<CouncilAsciiStyleRun>>(frame.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? []
+                    : []);
+            }
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council ASCII animation style metadata {ParameterName} failed; parameter content was omitted.", name);
+            throw;
+        }
+    }
+
     /// <summary>Reads an integer parameter with a fallback.</summary>
     /// <param name="parameters">Parameters object supplied to the Council game DXFunction.</param>
     /// <param name="name">Integer property name.</param>
@@ -266,7 +341,7 @@ public sealed class StartCouncilGameFunction(
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         IsCoordinationOnly: true,
         ParameterSchemaJson: """
-        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000},"frameWidth":{"type":"integer","minimum":20,"maximum":240},"frameHeight":{"type":"integer","minimum":8,"maximum":100},"mapSeed":{"type":"integer","minimum":1},"scenarioPrompt":{"type":"string","maxLength":240},"campaignRuntimeClassKey":{"type":"string","maxLength":240},"startingLevel":{"type":"integer","minimum":1,"maximum":32},"autoAdvanceLevels":{"type":"boolean"}},"additionalProperties":false}
+        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000},"frameWidth":{"type":"integer","minimum":20,"maximum":240},"frameHeight":{"type":"integer","minimum":8,"maximum":100},"mapSeed":{"type":"integer","minimum":1},"scenarioPrompt":{"type":"string","maxLength":240},"campaignRuntimeClassKey":{"type":"string","maxLength":240},"startingLevel":{"type":"integer","minimum":1,"maximum":32},"autoAdvanceLevels":{"type":"boolean"},"asciiColorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"defaultForegroundColor":{"type":"integer","minimum":0,"maximum":255},"defaultBackgroundColor":{"type":"integer","minimum":0,"maximum":255}},"additionalProperties":false}
         """);
 
     /// <summary>
@@ -303,6 +378,9 @@ public sealed class StartCouncilGameFunction(
                 ScenarioPrompt = parameters.String(request.Parameters, "scenarioPrompt"),
                 CampaignRuntimeClassKey = parameters.String(request.Parameters, "campaignRuntimeClassKey"),
                 StartingLevel = parameters.NullableInt(request.Parameters, "startingLevel"),
+                AsciiColorMode = parameters.ColorMode(request.Parameters, "asciiColorMode") ?? CouncilAsciiColorMode.TerminalDefault,
+                DefaultForegroundColor = parameters.NullableInt(request.Parameters, "defaultForegroundColor") ?? 46,
+                DefaultBackgroundColor = parameters.NullableInt(request.Parameters, "defaultBackgroundColor") ?? 0,
                 AutoAdvanceLevels = request.Parameters.ValueKind == JsonValueKind.Object
                     && request.Parameters.TryGetProperty("autoAdvanceLevels", out var autoAdvanceElement)
                     && autoAdvanceElement.ValueKind is JsonValueKind.True or JsonValueKind.False
@@ -536,7 +614,7 @@ public sealed class SubmitCouncilGameFrameFunction(
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, IsCoordinationOnly: true, Source: "DIHandler",
         ParameterSchemaJson: """
-        {"type":"object","required":["rendererName","frameText"],"properties":{"sessionId":{"type":"string"},"turn":{"type":"integer"},"rendererName":{"type":"string"},"frameText":{"type":"string"},"caption":{"type":"string"}},"additionalProperties":false}
+        {"type":"object","required":["rendererName","frameText"],"properties":{"sessionId":{"type":"string"},"turn":{"type":"integer"},"rendererName":{"type":"string"},"frameText":{"type":"string"},"caption":{"type":"string"},"asciiColorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"defaultForegroundColor":{"type":"integer","minimum":0,"maximum":255},"defaultBackgroundColor":{"type":"integer","minimum":0,"maximum":255},"styleRuns":{"type":"array","maxItems":4096,"items":{"$ref":"#/$defs/run"}}},"$defs":{"style":{"type":"object","properties":{"colorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"foregroundColor":{"type":"integer","minimum":0,"maximum":255},"backgroundColor":{"type":"integer","minimum":0,"maximum":255},"bold":{"type":"boolean"},"dim":{"type":"boolean"},"invert":{"type":"boolean"}},"additionalProperties":false},"run":{"type":"object","required":["y","x","length","style"],"properties":{"y":{"type":"integer","minimum":0},"x":{"type":"integer"},"length":{"type":"integer","minimum":1},"style":{"$ref":"#/$defs/style"}},"additionalProperties":false}},"additionalProperties":false}
         """);
 
     /// <summary>
@@ -558,7 +636,11 @@ public sealed class SubmitCouncilGameFrameFunction(
                 Turn = resolved.Value.Turn,
                 RendererName = parameters.String(request.Parameters, "rendererName"),
                 FrameText = parameters.String(request.Parameters, "frameText"),
-                Caption = parameters.String(request.Parameters, "caption")
+                Caption = parameters.String(request.Parameters, "caption"),
+                AsciiColorMode = parameters.ColorMode(request.Parameters, "asciiColorMode"),
+                DefaultForegroundColor = parameters.NullableInt(request.Parameters, "defaultForegroundColor"),
+                DefaultBackgroundColor = parameters.NullableInt(request.Parameters, "defaultBackgroundColor"),
+                StyleRuns = parameters.StyleRuns(request.Parameters, "styleRuns")
             }, cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
         }

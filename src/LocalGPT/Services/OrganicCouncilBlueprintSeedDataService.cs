@@ -201,7 +201,8 @@ Original request:
                     PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
                     BoundaryMode = CouncilRoleBoundaryMode.Strict,
                     LanguageMode = CouncilRoleLanguageMode.SenderLanguage,
-                    DistinctAiAssignmentGroup = "kernel-creature-tournament"
+                    DistinctAiAssignmentGroup = "kernel-creature-tournament",
+                    RuntimeClassKeys = ["games.ascii.kernel-tournament.rules"]
                 },
                 new()
                 {
@@ -249,9 +250,7 @@ Original request:
 {{RoleBoundaryInstruction}}
 {{RoleLanguageInstruction}}
 
-Open {{TeamName}}, a harmless fictional round-based text RPG set in an invented virtual arena world. State neutral sportsmanship rules, list the runtime trainer-to-creature-kernel pairings, announce an imaginary ceremonial prize with no real-world value, and create a fair opening bracket. Creatures may spend stamina, lose HP, become temporarily affected, faint, concede or be withdrawn. Never describe gore, cruelty, permanent injury, death, real-world harm, tools, files, networks or external actions.
-
-You are an independent judge. Do not predict, script, imply or announce a winner. Do not invent completed attacks or damage. Explain that every ruling will use only actions already present in the transcript and that you will publish a complete scoreboard after every battle round. Human commands are optional; never stop the automatic tournament merely to ask the user for a move.
+Open {{TeamName}}, a harmless fictional virtual-creature tournament. State concise sportsmanship rules, announce an imaginary ceremonial prize with no real-world value, and list the runtime trainer-to-creature-kernel pairings. LocalGPT's deterministic tournament engine is the only authority for HP, damage, guard/recovery effects, eliminations, bracket advancement and the champion. You are the neutral arena announcer, not the result engine: do not invent completed attacks, damage, HP changes or winners. Do not discuss files, repositories, Markdown inventories, Minecraft/mod development, unrelated projects or external work.
 
 Runtime pairings:
 {{RolePairings}}
@@ -278,9 +277,11 @@ Runtime pairings:
 {{RoleLanguageInstruction}}
 {{HumanParticipationInstruction}}
 
-You are a competitive but sportsmanlike trainer in a harmless fictional arena RPG. The tournament engine paired you with this distinct AI kernel as your one virtual creature player: {{PairedParticipant}}. Invent an original creature species, nickname, visual motif and compact tactical style for that exact kernel. Keep it clearly fictional and do not imitate or name an existing game franchise. Give one friendly pre-match challenge and a sportsmanship pledge. Do not claim another trainer's paired kernel, assign yourself a second creature, predetermine a winner or request a tool/function call.
-
-If a current human message clearly supplies a name, style or command for your pair, incorporate it. Otherwise choose autonomously without asking the user to decide.
+You are the trainer paired with {{PairedParticipant}}. Invent one original harmless fictional creature for that exact kernel. Do not reference existing franchises, repositories, files or unrelated projects. Output exactly these four compact lines and nothing else:
+NAME: <original creature nickname>
+SPECIES: <original fictional species>
+STYLE: <short tactical style>
+CHALLENGE: <friendly sportsmanlike line>
 
 All runtime pairings:
 {{RolePairings}}
@@ -306,10 +307,11 @@ All runtime pairings:
 {{RoleBoundaryInstruction}}
 {{RoleLanguageInstruction}}
 
-You are the virtual creature player paired with trainer {{PairedParticipant}} in a harmless fictional arena RPG. Find that trainer's latest selection for your exact model in the transcript, adopt the invented species and nickname, begin at 100 HP, and introduce a small fair move set with explicit stamina or cooldown limits. You are an AI kernel playing the creature as an improvisation participant, not an NPC. Use only fictional text narration. Do not attack yet, assign damage, declare a winner, request tools/functions, or describe gore, cruelty, permanent injury or death. If the trainer's identity is unclear, choose the least-conflicting original identity from the transcript and let the judge correct it later; do not block the run.
-
-All runtime pairings:
-{{RolePairings}}
+You are the fictional creature paired with trainer {{PairedParticipant}}. Adopt that trainer's latest creature identity for your exact pair. LocalGPT owns all HP and tournament state; do not assign HP, damage, status, elimination or victory. Output exactly these four compact lines and nothing else:
+NAME: <adopted nickname>
+FORM: <one-line visual form>
+TRAIT: <one-line tactical personality>
+VOICE: <one short in-character arena line>
 """,
                     ExecutionMode = "AllMembersParallel",
                     RepeatCount = 1,
@@ -322,8 +324,25 @@ All runtime pairings:
                 },
                 new()
                 {
+                    Key = "arena-lineup-engine",
+                    DisplayName = "Authoritative arena lineup",
+                    SortOrder = 35,
+                    Phase = "Tournament engine lineup",
+                    Role = "Arena Judge",
+                    PromptTemplate = "Initialize the deterministic tournament bracket from the configured role pairings and creature introductions.",
+                    ExecutionMode = "SystemKernelTournamentResolution",
+                    RepeatCount = 1,
+                    IncludePriorTranscript = true,
+                    ProducesFinalAnswer = false,
+                    UseBuiltInBehavior = false,
+                    IsEnabled = true,
+                    RequiresHumanCheckpoint = false,
+                    CanUseOrganicFunctions = false
+                },
+                new()
+                {
                     Key = "trainer-round-command",
-                    DisplayName = "Trainer round commands",
+                    DisplayName = "Trainer exchange commands",
                     SortOrder = 40,
                     Phase = "Trainer commands",
                     Role = "Creature Trainer",
@@ -333,7 +352,10 @@ All runtime pairings:
 {{RoleLanguageInstruction}}
 {{HumanParticipationInstruction}}
 
-This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the judge's latest bracket, scoreboard and ruling. If your pair is in the current legal match and can continue, issue exactly one short tactical command for your paired creature. A current human cue aimed at your pair is optional guidance and takes priority over your own choice; when none exists, choose autonomously and keep the tournament moving. Never ask the user to choose a command, narrate the creature's completed action, assign damage or HP, decide the result, control another pair or request a tool/function call. If your pair is waiting, eliminated or already champion, give one brief sportsmanlike spectator response.
+Battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the latest LocalGPT Tournament Engine scoreboard. If your creature is in the current legal match, choose one bounded suggestion; otherwise choose WAIT. Never assign consequences or claim a result. Output exactly:
+COMMAND: ATTACK|GUARD|RECOVER|WAIT
+TACTIC: <one short tactical intention>
+VOICE: <one short trainer line>
 """,
                     ExecutionMode = "AllMembersSequentialOnEachAIHostParallel",
                     RepeatCount = 1,
@@ -349,7 +371,7 @@ This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read
                 new()
                 {
                     Key = "fight-round",
-                    DisplayName = "Creature actions",
+                    DisplayName = "Creature exchange moves",
                     SortOrder = 50,
                     Phase = "Creature actions",
                     Role = "Kernel Creature",
@@ -358,7 +380,10 @@ This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read
 {{RoleBoundaryInstruction}}
 {{RoleLanguageInstruction}}
 
-This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the judge's latest bracket and scoreboard plus your paired trainer's latest command, then perform exactly one fair bounded fictional action only when your pair is in the current legal match. State the attempted move, tactical intent and built-in limitation. React like an engaged improvisation player while remaining inside your own creature role. Do not assign damage, HP, status, elimination, victory or the opponent's response; those decisions belong only to the judge after all active creatures have acted. Never request tools/functions or describe gore, cruelty, permanent injury or death. If you are waiting, fainted, eliminated or outside the active match, provide one brief respectful spectator reaction instead of attacking.
+Battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the latest LocalGPT Tournament Engine scoreboard and your paired trainer's latest command. If you are in the current legal match, suggest one fictional move; otherwise choose WAIT. LocalGPT—not you—resolves HP, damage, guard/recovery effects, eliminations and winners. Output exactly:
+MOVE: ATTACK|GUARD|RECOVER|WAIT
+FLAVOR: <one short terminal-safe visual action description>
+VOICE: <one short in-character line>
 """,
                     ExecutionMode = "AllMembersSequentialOnEachAIHostParallel",
                     RepeatCount = 1,
@@ -373,23 +398,13 @@ This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read
                 },
                 new()
                 {
-                    Key = "judge-round-result",
-                    DisplayName = "Judge round result",
+                    Key = "arena-round-engine",
+                    DisplayName = "Authoritative exchange and movie",
                     SortOrder = 60,
-                    Phase = "Judge result",
+                    Phase = "Tournament engine result",
                     Role = "Arena Judge",
-                    PromptTemplate = """
-{{RolePerformanceInstruction}}
-{{RoleBoundaryInstruction}}
-{{RoleLanguageInstruction}}
-
-You are the sole independent judge after battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Evaluate only trainer commands and creature actions completed since your previous ruling. Apply neutral, consistent harmless text-RPG logic; reject impossible, unfair, duplicate, self-awarded or out-of-turn claims. Assign bounded damage, stamina costs or temporary status changes, use fainting/concession/withdrawal instead of injury or death, and publish: the active match, a short evidence-based ruling, every trainer/creature pair's HP and status, the bracket state, and the next legal match or round. Never reward a participant merely for asserting victory, never predetermine a later result, never ask the human to choose a move, and never request a tool/function call.
-
-If at least two legal contestants can still continue somewhere in the bracket, end with exactly [[TOURNAMENT_CONTINUE]].
-If all scheduled fights are resolved and one evidence-based champion remains, or every other trainer has conceded, end with exactly [[TOURNAMENT_COMPLETE]] and award the imaginary ceremonial prize.
-Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually resolved.
-""",
-                    ExecutionMode = "LeaderSingle",
+                    PromptTemplate = "Resolve exactly one deterministic exchange from the bounded trainer/creature evidence and publish the authoritative scoreboard.",
+                    ExecutionMode = "SystemKernelTournamentResolution",
                     RepeatCount = 1,
                     IncludePriorTranscript = true,
                     ProducesFinalAnswer = true,
@@ -402,15 +417,16 @@ Do not use [[TOURNAMENT_COMPLETE]] before every scheduled fight is actually reso
                     CanUseOrganicFunctions = false
                 }
             ],
-            PreferredCapabilities = [],
+            PreferredCapabilities = [CouncilContextCapabilities.RoleIsolated, AsciiChatTextService.RequiredSurfaceCapability, "localgpt.game.session.get", "localgpt.runtime-class.get"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
-                "Judge, trainers and creatures use distinct AI kernels within one assignment group; the supplied two-to-four trainer range reserves one different creature kernel per trainer and stays within selected-model capacity.",
-                "Every AI kernel is an improvisation player with one bounded role, not an NPC and not an authority over another participant's action.",
-                "Human trainer commands are optional. A targeted current human cue may direct a pair, but the AI trainer continues autonomously when no cue is supplied and the workflow never blocks merely to request a move.",
-                "The judge rules only on completed transcript evidence, reports every round with a complete scoreboard and bracket state, and never scripts a future winner.",
-                "The world, creatures, prize and consequences are entirely fictional, text-only, harmless and non-graphic. Every step disables organic/DX function execution."
+                "Judge, trainers and creatures use distinct AI kernels within one assignment group; the supplied two-to-four trainer range reserves one different creature kernel per trainer.",
+                "Self-contained tournament roles receive role-isolated context only; unrelated saved project/repository/file inventories, prior project conversations and general connected-capability briefings are excluded.",
+                "AI trainers and creatures provide bounded MOVE/VOICE flavor only. The LocalGPT game-session engine exclusively owns HP, damage, guard/recovery effects, eliminations, bracket advancement and champion selection.",
+                "The engine produces one-shot successive ASCII fight frames from the authoritative exchange and holds the subtitle after the last frame using the selected copyable tournament rules runtime class.",
+                "Human trainer cues remain optional; the tournament continues autonomously without asking for a move.",
+                "The world, creatures, prize and consequences are entirely fictional, harmless and non-graphic; every participant workflow step disables organic/DX function execution."
             ]
         },
         new()
@@ -521,13 +537,13 @@ Runtime classes: {{RuntimeClasses}}
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Read localgpt.game.display.get with no sessionId and treat the returned deterministic frame as canonical. Council-role human participation is optional and does not disable runtime Human/Shared controls. Do not redraw a different room, invent enemy positions, move the player or submit game controls. The built-in frame already contains first-person walls, visible enemy sprites, tactical radar, enemy count, combat/navigation messages and extraction coordinates. If a small decorative reaction is genuinely useful, use only display-owned operations with the returned session id and turn and preserve all gameplay cells; an optional 2-12 frame animation must be generated as one complete batch and submitted once. Your final answer should tell the user the Game tab is ready, state the current enemy count if available, and remind them that Shared accepts explicit human/AI controls while Ai mode must be explicitly selected for autonomous stepping.
+Read localgpt.game.display.get and localgpt.game.display.palette.get with no sessionId and treat the returned deterministic frame as canonical. Council-role human participation is optional and does not disable runtime Human/Shared controls. Do not redraw a different room, invent enemy positions, move the player or submit game controls. The built-in frame already contains first-person walls, visible enemy sprites, tactical radar, enemy count, combat/navigation messages and extraction coordinates. If a small decorative reaction is genuinely useful, use only display-owned operations with the returned session id and turn and preserve all gameplay cells; an optional 2-12 frame animation must be generated as one complete batch and submitted once. Your final answer should tell the user the Game tab is ready, state the current enemy count if available, and remind them that Shared accepts explicit human/AI controls while Ai mode must be explicitly selected for autonomous stepping.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
-                    AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+                    AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
                     AssignedModelName = "qwen3.5:4b",
                     ProducesFinalAnswer = true,
                     ProducesAsciiFrame = false,
@@ -535,8 +551,8 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = [AsciiChatTextService.RequiredSurfaceCapability, "localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.session.close", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
-            AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.session.close", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            PreferredCapabilities = [CouncilContextCapabilities.RoleIsolated, AsciiChatTextService.RequiredSurfaceCapability, "localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.session.close", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.session.close", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
@@ -790,7 +806,7 @@ Runtime classes: {{RuntimeClasses}}
                     Role = "ASCII Scene Renderer",
                     ExecutionMode = "LeaderSingle",
                     PromptTemplate = """
-Render the latest canonical state on the shared ASCII terminal. You alone own presentation for this workflow step. Read localgpt.game.session.get or localgpt.game.display.get when live dimensions or prior display continuity are uncertain; use the active session width and height rather than assuming 80x25. Consult database-backed localgpt.regex.list/get/test and localgpt.knowledge.list before inventing reusable parsing, coordinate, frame, or layout rules. Small direct decorations may use cell/text/fill/blit; a cinematic or emotional beat may use one localgpt.game.animation.submit call with 2-12 pregenerated complete frames. Animation is presentation only: never model-call frame-by-frame, never rewrite transcript history, and keep its first/stable frame consistent with the final workflow scene. Preserve spatial continuity and do not alter story state. The compatibility output must still contain exactly one complete scene covering all configured terminal cells:
+Render the latest canonical state on the shared ASCII terminal. You alone own presentation for this workflow step. Read localgpt.game.session.get or localgpt.game.display.get and localgpt.game.display.palette.get when live dimensions or prior display continuity are uncertain; use the active session width and height rather than assuming 80x25. Consult database-backed localgpt.regex.list/get/test and localgpt.knowledge.list before inventing reusable parsing, coordinate, frame, or layout rules. Small direct decorations may use cell/text/fill/blit; a cinematic or emotional beat may use one localgpt.game.animation.submit call with 2-12 pregenerated complete frames. Animation is presentation only: never model-call frame-by-frame, never rewrite transcript history, and keep its first/stable frame consistent with the final workflow scene. Preserve spatial continuity and do not alter story state. The compatibility output must still contain exactly one complete scene covering all configured terminal cells:
 [[ASCII_FRAME width=<live width> height=<live height>]]
 <the complete fixed-width scene>
 [[/ASCII_FRAME]]
@@ -802,7 +818,7 @@ Runtime classes: {{RuntimeClasses}}
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = true,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
-                    AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+                    AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
                     AssignedModelName = "qwen3.5:4b",
                     ProducesFinalAnswer = true,
                     ProducesAsciiFrame = true,
@@ -812,8 +828,8 @@ Runtime classes: {{RuntimeClasses}}
                     UseBuiltInBehavior = false
                 }
             ],
-            PreferredCapabilities = [AsciiChatTextService.RequiredSurfaceCapability, "localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
-            AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            PreferredCapabilities = [CouncilContextCapabilities.RoleIsolated, AsciiChatTextService.RequiredSurfaceCapability, "localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
+            AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.control", "localgpt.game.control-mode.set", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),

@@ -72,8 +72,24 @@ namespace LocalGPT.Services
         FrameText = session.FrameText,
         FrameCaption = session.FrameCaption,
         FrameRenderer = session.FrameRenderer,
+        AsciiColorMode = session.AsciiColorMode,
+        DefaultForegroundColor = session.DefaultForegroundColor,
+        DefaultBackgroundColor = session.DefaultBackgroundColor,
+        FrameStyleRuns = ResolveFrameStyleRuns(session, session.FrameText).ToArray(),
         AnimationFrames = session.AnimationFrames.ToArray(),
         AnimationDelayMilliseconds = session.AnimationDelayMilliseconds,
+        AnimationSubtitle = session.AnimationSubtitle,
+        AnimationSubtitleHoldMilliseconds = session.AnimationSubtitleHoldMilliseconds,
+        AnimationFrameStyleRuns = session.AnimationFrames.Select((frame, index) =>
+            (IReadOnlyList<CouncilAsciiStyleRun>)(index < session.AnimationFrameStyleRuns.Count
+                ? CloneAsciiStyleRuns(session.AnimationFrameStyleRuns[index])
+                : BuildSemanticAsciiStyleRuns(session.GameKey, session.RuntimeProfile, frame, session.FrameWidth, session.FrameHeight))).ToArray(),
+        AnimationSubtitleStyle = NormalizeAsciiStyle(session.AnimationSubtitleStyle, session.AsciiColorMode),
+        TournamentRuntimeClassKey = session.TournamentRuntimeClassKey,
+        TournamentFighters = session.TournamentFighters.Select(CloneTournamentFighter).ToArray(),
+        TournamentRound = session.TournamentRound,
+        TournamentExchange = session.TournamentExchange,
+        TournamentChampion = session.TournamentFighters.FirstOrDefault(fighter => string.Equals(fighter.FighterId, session.TournamentChampionFighterId, StringComparison.OrdinalIgnoreCase))?.CreatureName ?? string.Empty,
         LegalActions = session.LegalActions.ToArray(),
         InputBindings = session.InputBindings.Select(CloneBinding).ToArray(),
         LastAction = session.LastAction,
@@ -112,6 +128,30 @@ namespace LocalGPT.Services
         throw;
     }
 }
+
+    /// <summary>Creates an independent tournament fighter snapshot.</summary>
+    private CouncilKernelTournamentFighterState CloneTournamentFighter(CouncilKernelTournamentFighterState source)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            return new CouncilKernelTournamentFighterState
+            {
+                FighterId = source.FighterId,
+                TrainerModelName = source.TrainerModelName,
+                CreatureModelName = source.CreatureModelName,
+                CreatureName = source.CreatureName,
+                Health = source.Health,
+                Wins = source.Wins,
+                Eliminated = source.Eliminated
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Copying Kernel Creature Tournament fighter state failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs clone binding as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.

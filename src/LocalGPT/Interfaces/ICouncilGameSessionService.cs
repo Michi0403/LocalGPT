@@ -106,6 +106,9 @@ public interface ICouncilGameSessionService
         SubmitCouncilGameFrameRequest request,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Returns the shared ASCII palette contract and compact model-facing authoring guidance.</summary>
+    CouncilAsciiPaletteSnapshot GetAsciiPalette();
+
     /// <summary>Reads the full or cropped authoritative ASCII display.</summary>
     Task<CouncilGameDisplaySnapshot> GetDisplayAsync(ReadCouncilGameDisplayRequest request, CancellationToken cancellationToken = default);
 
@@ -123,6 +126,11 @@ public interface ICouncilGameSessionService
 
     /// <summary>Submits pregenerated full-screen frames for local client-side animation.</summary>
     Task<CouncilGameSessionSnapshot> SubmitAnimationAsync(SubmitCouncilGameAnimationRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Initializes or advances exactly one deterministic Kernel Creature Tournament exchange.</summary>
+    Task<CouncilKernelTournamentResolution> AdvanceKernelTournamentAsync(
+        CouncilKernelTournamentAdvanceRequest request,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Sets input gate as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.

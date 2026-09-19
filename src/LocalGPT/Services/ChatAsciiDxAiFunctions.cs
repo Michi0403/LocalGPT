@@ -54,9 +54,12 @@ public sealed class GetChatAsciiSurfaceFunction(
                 supportsCouncilGameRuntime = true,
                 supportsBidirectionalCouncilDisplay = true,
                 supportsPregeneratedCouncilAnimations = true,
+                supportsAsciiColor = true,
+                colorModes = new[] { "TerminalDefault", "Ansi16", "Indexed256" },
+                paletteFunction = "localgpt.game.display.palette.get",
                 displayFunctions = new[]
                 {
-                    "localgpt.game.display.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set",
+                    "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set",
                     "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit",
                     "localgpt.game.animation.submit"
                 },

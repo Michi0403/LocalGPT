@@ -69,6 +69,12 @@ public sealed class LocalGptGameProjectProfile
     /// <summary>Stores the authored terminal/display height for the game project.</summary>
     /// <value>The frame height in character cells.</value>
     public int FrameHeight { get; set; } = 25;
+    /// <summary>Selects the shared ASCII presentation palette used by built sessions.</summary>
+    public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
+    /// <summary>Stores the default foreground palette index for explicit palette modes.</summary>
+    public int DefaultForegroundColor { get; set; } = 46;
+    /// <summary>Stores the default background palette index for explicit palette modes.</summary>
+    public int DefaultBackgroundColor { get; set; }
     /// <summary>Stores a deterministic map seed when project authoring requests one.</summary>
     /// <value>The positive map seed or zero for runtime derivation.</value>
     public int MapSeed { get; set; }
@@ -131,6 +137,12 @@ public sealed class ProjectGameDefinition
     /// <summary>Defines the terminal-cell height requested by this project build.</summary>
     /// <value>A bounded display height from 8 through 100 cells.</value>
     public int FrameHeight { get; set; } = 25;
+    /// <summary>Selects the shared ASCII presentation palette compiled into this project build.</summary>
+    public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
+    /// <summary>Defines the default foreground palette index for explicit palette modes.</summary>
+    public int DefaultForegroundColor { get; set; } = 46;
+    /// <summary>Defines the default background palette index for explicit palette modes.</summary>
+    public int DefaultBackgroundColor { get; set; }
     /// <summary>Provides a deterministic map seed for compatible runtime profiles, with zero requesting runtime derivation.</summary>
     /// <value>The positive project-selected seed or zero.</value>
     public int MapSeed { get; set; }
@@ -180,6 +192,12 @@ public sealed class SaveGameProjectProfileRequest
     /// <summary>Defines the ASCII/display cell height copied into later compiled definitions.</summary>
     /// <value>A height clamped to 8 through 100 cells.</value>
     public int FrameHeight { get; set; } = 25;
+    /// <summary>Selects terminal-default, ANSI-16, or indexed-256 presentation for later builds.</summary>
+    public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
+    /// <summary>Requests the default foreground palette index.</summary>
+    public int DefaultForegroundColor { get; set; } = 46;
+    /// <summary>Requests the default background palette index.</summary>
+    public int DefaultBackgroundColor { get; set; }
     /// <summary>Optionally requests a deterministic map seed for runtime profiles that use one.</summary>
     /// <value>A positive deterministic seed, or <c>null</c> to let the runtime derive one.</value>
     public int? MapSeed { get; set; }

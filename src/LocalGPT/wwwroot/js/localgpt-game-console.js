@@ -6,6 +6,150 @@
     };
     const states = new Map();
 
+    const ansi16Palette = [
+        '#000000', '#800000', '#008000', '#808000', '#000080', '#800080', '#008080', '#c0c0c0',
+        '#808080', '#ff0000', '#00ff00', '#ffff00', '#0000ff', '#ff00ff', '#00ffff', '#ffffff'
+    ];
+
+    function indexedColor(index) {
+        try {
+            const value = Math.max(0, Math.min(255, Number(index) || 0));
+            if (value < 16) return ansi16Palette[value];
+            if (value >= 232) {
+                const channel = 8 + (value - 232) * 10;
+                return `rgb(${channel}, ${channel}, ${channel})`;
+            }
+            const cube = value - 16;
+            const levels = [0, 95, 135, 175, 215, 255];
+            const red = levels[Math.floor(cube / 36) % 6];
+            const green = levels[Math.floor(cube / 6) % 6];
+            const blue = levels[cube % 6];
+            return `rgb(${red}, ${green}, ${blue})`;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.indexedColor', error);
+            return null;
+        }
+    }
+
+    function paletteColor(mode, index) {
+        try {
+            if (index === null || index === undefined) return null;
+            const normalizedMode = String(mode || 'Indexed256').toLowerCase();
+            if (normalizedMode === 'ansi16') return ansi16Palette[Math.max(0, Math.min(15, Number(index) || 0))];
+            return indexedColor(index);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.paletteColor', error);
+            return null;
+        }
+    }
+
+    function normalizePresentation(mode, foreground, background, runs) {
+        try {
+            const name = String(mode || 'TerminalDefault');
+            return {
+                mode: name,
+                foreground: Number.isFinite(Number(foreground)) ? Number(foreground) : (name === 'Ansi16' ? 10 : 46),
+                background: Number.isFinite(Number(background)) ? Number(background) : 0,
+                runs: Array.isArray(runs) ? runs.slice(0, 4096) : []
+            };
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.normalizePresentation', error);
+            return { mode:'TerminalDefault', foreground:46, background:0, runs:[] };
+        }
+    }
+
+    function applyTextStyle(element, style, presentation) {
+        try {
+            if (!(element instanceof HTMLElement) || !style) return;
+            const mode = style.colorMode || (presentation.mode === 'TerminalDefault' ? 'Indexed256' : presentation.mode);
+            let foreground = style.foregroundColor;
+            let background = style.backgroundColor;
+            if (style.invert) {
+                const resolvedForeground = foreground ?? presentation.foreground;
+                const resolvedBackground = background ?? presentation.background;
+                foreground = resolvedBackground;
+                background = resolvedForeground;
+            }
+            const foregroundCss = paletteColor(mode, foreground);
+            const backgroundCss = paletteColor(mode, background);
+            if (foregroundCss) element.style.color = foregroundCss;
+            if (backgroundCss) element.style.backgroundColor = backgroundCss;
+            if (style.bold) element.style.fontWeight = '700';
+            if (style.dim) element.style.opacity = '0.68';
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.applyTextStyle', error);
+        }
+    }
+
+    function renderStyledAscii(screen, text, mode, foreground, background, runs) {
+        try {
+            if (!(screen instanceof HTMLElement)) return;
+            const value = String(text || '').replace(/\r\n?/g, '\n');
+            const presentation = normalizePresentation(mode, foreground, background, runs);
+            screen.replaceChildren();
+            screen.style.removeProperty('color');
+            screen.style.removeProperty('background-color');
+            if (presentation.mode !== 'TerminalDefault') {
+                const foregroundCss = paletteColor(presentation.mode, presentation.foreground);
+                const backgroundCss = paletteColor(presentation.mode, presentation.background);
+                if (foregroundCss) screen.style.color = foregroundCss;
+                if (backgroundCss) screen.style.backgroundColor = backgroundCss;
+            }
+            const lines = value.split('\n');
+            const byLine = new Map();
+            for (const run of presentation.runs) {
+                const y = Number(run?.y);
+                const x = Number(run?.x);
+                const length = Number(run?.length);
+                if (!Number.isInteger(y) || y < 0 || y >= lines.length || !Number.isFinite(x) || !Number.isFinite(length) || length <= 0 || !run?.style) continue;
+                if (!byLine.has(y)) byLine.set(y, []);
+                byLine.get(y).push({ x:Math.max(0, Math.trunc(x)), length:Math.max(1, Math.trunc(length)), style:run.style });
+            }
+            lines.forEach((line, y) => {
+                const chars = Array.from(line);
+                const styles = new Array(chars.length).fill(null);
+                for (const run of byLine.get(y) || []) {
+                    const end = Math.min(chars.length, run.x + run.length);
+                    for (let x = run.x; x < end; x += 1) styles[x] = run.style;
+                }
+                let start = 0;
+                while (start < chars.length) {
+                    const style = styles[start];
+                    let end = start + 1;
+                    while (end < chars.length && styles[end] === style) end += 1;
+                    const chunk = chars.slice(start, end).join('');
+                    if (style) {
+                        const span = document.createElement('span');
+                        span.textContent = chunk;
+                        applyTextStyle(span, style, presentation);
+                        screen.appendChild(span);
+                    } else {
+                        screen.appendChild(document.createTextNode(chunk));
+                    }
+                    start = end;
+                }
+                if (y < lines.length - 1) screen.appendChild(document.createTextNode('\n'));
+            });
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.renderStyledAscii', error);
+            if (screen instanceof HTMLElement) screen.textContent = String(text || '');
+        }
+    }
+
+    function applySubtitleStyle(state, subtitle) {
+        try {
+            if (!(subtitle instanceof HTMLElement)) return;
+            subtitle.style.removeProperty('color');
+            subtitle.style.removeProperty('background-color');
+            subtitle.style.removeProperty('font-weight');
+            subtitle.style.removeProperty('opacity');
+            const presentation = normalizePresentation(state.sequenceColorMode, state.sequenceDefaultForeground, state.sequenceDefaultBackground, []);
+            applyTextStyle(subtitle, state.sequenceSubtitleStyle, presentation);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.applySubtitleStyle', error);
+        }
+    }
+
 
     function measureFrame(screen) {
         try {
@@ -230,16 +374,53 @@
         }
     }
 
+    function cancelSequenceSubtitleTimer(state) {
+        try {
+            if (!state?.sequenceSubtitleTimer) return;
+            clearTimeout(state.sequenceSubtitleTimer);
+            state.sequenceSubtitleTimer = 0;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.cancelSequenceSubtitleTimer', error);
+        }
+    }
+
+    function updateGameSequenceSubtitle(state, visible) {
+        try {
+            const subtitle = state?.element?.querySelector('[data-game-animation-subtitle]');
+            if (!(subtitle instanceof HTMLElement)) return;
+            const value = typeof state.sequenceSubtitle === 'string' ? state.sequenceSubtitle.trim() : '';
+            subtitle.textContent = value;
+            applySubtitleStyle(state, subtitle);
+            subtitle.hidden = !visible || !value;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.updateGameSequenceSubtitle', error);
+        }
+    }
+
     function renderSequenceFrame(state) {
         try {
             if (!state || !states.has(state.id) || state.sequenceFrames.length < 2 || document.hidden || !state.windowFocused) return;
             const screen = state.element.querySelector(state.sequenceSelector || '[data-ascii-sequence-screen]');
             if (!(screen instanceof HTMLElement)) return;
-            const frame = state.sequenceFrames[state.sequenceIndex % state.sequenceFrames.length] || '';
-            if (screen.textContent !== frame) screen.textContent = frame;
+            const index = state.sequenceOneShot
+                ? Math.min(state.sequenceIndex, state.sequenceFrames.length - 1)
+                : state.sequenceIndex % state.sequenceFrames.length;
+            const frame = state.sequenceFrames[index] || '';
+            const frameRuns = Array.isArray(state.sequenceFrameStyleRuns?.[index]) ? state.sequenceFrameStyleRuns[index] : [];
+            if (state.sequenceOneShot) renderStyledAscii(screen, frame, state.sequenceColorMode, state.sequenceDefaultForeground, state.sequenceDefaultBackground, frameRuns);
+            else if (screen.textContent !== frame) screen.textContent = frame;
             if (state.sequenceSelector === '[data-game-animation-screen]') requestScale(state);
-            state.sequenceIndex = (state.sequenceIndex + 1) % state.sequenceFrames.length;
             cancelSequenceTimer(state);
+            if (state.sequenceOneShot && index >= state.sequenceFrames.length - 1) {
+                state.sequenceIndex = state.sequenceFrames.length;
+                cancelSequenceSubtitleTimer(state);
+                state.sequenceSubtitleTimer = window.setTimeout(() => {
+                    state.sequenceSubtitleTimer = 0;
+                    updateGameSequenceSubtitle(state, false);
+                }, state.sequenceSubtitleHold);
+                return;
+            }
+            state.sequenceIndex = state.sequenceOneShot ? index + 1 : (index + 1) % state.sequenceFrames.length;
             state.sequenceTimer = window.setTimeout(() => renderSequenceFrame(state), state.sequenceDelay);
         } catch (error) {
             diagnostics.report('localgpt-game-console.renderSequenceFrame', error);
@@ -248,7 +429,7 @@
 
     function scheduleSequence(state) {
         try {
-            if (!state || state.sequenceTimer || state.sequenceFrames.length < 2 || document.hidden || !state.windowFocused) return;
+            if (!state || state.sequenceTimer || state.sequenceFrames.length < 2 || document.hidden || !state.windowFocused || (state.sequenceOneShot && state.sequenceIndex >= state.sequenceFrames.length)) return;
             state.sequenceTimer = window.setTimeout(() => {
                 state.sequenceTimer = 0;
                 renderSequenceFrame(state);
@@ -264,7 +445,7 @@
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null, resizeObserver:null };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null, resizeObserver:null };
                 states.set(id, state);
                 attachFollowTail(state);
                 requestScale(state);
@@ -338,6 +519,7 @@
                 if (state.frame) cancelAnimationFrame(state.frame);
                 if (state.scaleFrame) cancelAnimationFrame(state.scaleFrame);
                 cancelSequenceTimer(state);
+                cancelSequenceSubtitleTimer(state);
                 state.element.style.removeProperty('--localgpt-game-fit-font-size');
                 states.delete(id);
             } catch (error) { diagnostics.report('localgpt-game-console.detach', error); }
@@ -366,18 +548,42 @@
                 }
             } catch (error) { diagnostics.report('localgpt-game-console.setEnabled', error); }
         },
-        setSequence(id, frames, delayMilliseconds, target) {
+        setFramePresentation(id, text, colorMode, defaultForegroundColor, defaultBackgroundColor, styleRuns) {
+            try {
+                const state = states.get(id);
+                if (!state) return;
+                const screen = state.element.querySelector('[data-game-animation-screen]');
+                if (!(screen instanceof HTMLElement)) return;
+                renderStyledAscii(screen, text, colorMode, defaultForegroundColor, defaultBackgroundColor, styleRuns);
+                requestScale(state);
+            } catch (error) { diagnostics.report('localgpt-game-console.setFramePresentation', error); }
+        },
+        setSequence(id, frames, delayMilliseconds, target, subtitle, subtitleHoldMilliseconds, colorMode, defaultForegroundColor, defaultBackgroundColor, frameStyleRuns, subtitleStyle) {
             try {
                 const state = states.get(id);
                 if (!state) return;
                 cancelSequenceTimer(state);
+                cancelSequenceSubtitleTimer(state);
                 state.sequenceFrames = Array.isArray(frames) ? frames.filter(frame => typeof frame === 'string' && frame.length > 0).slice(0, 12) : [];
-                state.sequenceIndex = 0;
+                state.sequenceIndex = state.sequenceFrames.length > 0 ? 1 : 0;
                 const requestedDelay = Number(delayMilliseconds);
                 state.sequenceDelay = Number.isFinite(requestedDelay) ? Math.max(250, Math.min(5000, requestedDelay)) : 650;
                 state.sequenceSelector = target === 'game' ? '[data-game-animation-screen]' : '[data-ascii-sequence-screen]';
+                state.sequenceOneShot = target === 'game';
+                state.sequenceSubtitle = state.sequenceOneShot && typeof subtitle === 'string' ? subtitle.trim() : '';
+                state.sequenceColorMode = String(colorMode || 'TerminalDefault');
+                state.sequenceDefaultForeground = Number.isFinite(Number(defaultForegroundColor)) ? Number(defaultForegroundColor) : (state.sequenceColorMode === 'Ansi16' ? 10 : 46);
+                state.sequenceDefaultBackground = Number.isFinite(Number(defaultBackgroundColor)) ? Number(defaultBackgroundColor) : 0;
+                state.sequenceFrameStyleRuns = Array.isArray(frameStyleRuns) ? frameStyleRuns.slice(0, 12) : [];
+                state.sequenceSubtitleStyle = subtitleStyle || null;
+                const requestedHold = Number(subtitleHoldMilliseconds);
+                state.sequenceSubtitleHold = Number.isFinite(requestedHold) ? Math.max(500, Math.min(10000, requestedHold)) : 1500;
+                updateGameSequenceSubtitle(state, state.sequenceOneShot && state.sequenceFrames.length > 1);
                 const screen = state.element.querySelector(state.sequenceSelector);
-                if (screen instanceof HTMLElement && state.sequenceFrames.length > 0) screen.textContent = state.sequenceFrames[0];
+                if (screen instanceof HTMLElement && state.sequenceFrames.length > 0) {
+                    if (state.sequenceOneShot) renderStyledAscii(screen, state.sequenceFrames[0], state.sequenceColorMode, state.sequenceDefaultForeground, state.sequenceDefaultBackground, state.sequenceFrameStyleRuns[0] || []);
+                    else screen.textContent = state.sequenceFrames[0];
+                }
                 if (state.sequenceFrames.length > 1) scheduleSequence(state);
             } catch (error) { diagnostics.report('localgpt-game-console.setSequence', error); }
         },

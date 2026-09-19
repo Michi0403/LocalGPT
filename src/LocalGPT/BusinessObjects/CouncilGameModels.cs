@@ -54,6 +54,65 @@ public sealed class CouncilGameLevelProfile
     public int StartingAmmo { get; set; } = 30;
 }
 
+/// <summary>Normalized copyable rules consumed by the deterministic Kernel Creature Tournament engine.</summary>
+public sealed class CouncilKernelTournamentRules
+{
+    public string RuntimeClassKey { get; set; } = "games.ascii.kernel-tournament.rules";
+    public int StartingHealth { get; set; } = 100;
+    public int MinimumDamage { get; set; } = 7;
+    public int MaximumDamage { get; set; } = 18;
+    public int GuardReduction { get; set; } = 7;
+    public int RecoveryAmount { get; set; } = 6;
+    public int MaximumExchangesPerMatch { get; set; } = 12;
+    public int AnimationFrameDelayMilliseconds { get; set; } = 320;
+    public int SubtitleHoldMilliseconds { get; set; } = 1500;
+}
+
+/// <summary>Pairs one trainer model with the distinct creature model it owns for the tournament bracket.</summary>
+public sealed class CouncilKernelTournamentContestantSeed
+{
+    public string TrainerModelName { get; set; } = string.Empty;
+    public string CreatureModelName { get; set; } = string.Empty;
+    public string CreatureName { get; set; } = string.Empty;
+}
+
+/// <summary>Captures the latest bounded AI-authored trainer or creature evidence for one tournament exchange.</summary>
+public sealed class CouncilKernelTournamentRoleEvidence
+{
+    public string Role { get; set; } = string.Empty;
+    public string ModelName { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+}
+
+/// <summary>Requests initialization or exactly one authoritative tournament exchange.</summary>
+public sealed class CouncilKernelTournamentAdvanceRequest
+{
+    public Guid SessionId { get; set; }
+    public bool InitializeOnly { get; set; }
+    public IReadOnlyList<CouncilKernelTournamentContestantSeed> Contestants { get; set; } = [];
+    public IReadOnlyList<CouncilKernelTournamentRoleEvidence> Evidence { get; set; } = [];
+}
+
+/// <summary>One authoritative fighter entry owned by the deterministic tournament engine.</summary>
+public sealed class CouncilKernelTournamentFighterState
+{
+    public string FighterId { get; set; } = string.Empty;
+    public string TrainerModelName { get; set; } = string.Empty;
+    public string CreatureModelName { get; set; } = string.Empty;
+    public string CreatureName { get; set; } = string.Empty;
+    public int Health { get; set; } = 100;
+    public int Wins { get; set; }
+    public bool Eliminated { get; set; }
+}
+
+/// <summary>Returns the engine-owned transcript consequence and the updated game-session snapshot.</summary>
+public sealed class CouncilKernelTournamentResolution
+{
+    public CouncilGameSessionSnapshot Session { get; set; } = new();
+    public string SummaryMarkdown { get; set; } = string.Empty;
+    public bool Completed { get; set; }
+}
+
 /// <summary>
 /// Represents the input contract for start council game, carrying the values a caller supplies to the corresponding application operation.
 /// </summary>
@@ -117,12 +176,20 @@ public sealed class StartCouncilGameRequest
     public int FrameWidth { get; set; } = 80;
     /// <summary>Gets or sets the requested terminal-cell display height.</summary>
     public int FrameHeight { get; set; } = 25;
+    /// <summary>Gets or sets the requested ASCII color contract. Project-built definitions override this value.</summary>
+    public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
+    /// <summary>Gets or sets the requested default foreground palette index.</summary>
+    public int DefaultForegroundColor { get; set; } = 46;
+    /// <summary>Gets or sets the requested default background palette index.</summary>
+    public int DefaultBackgroundColor { get; set; }
     /// <summary>Gets or sets an optional deterministic map seed. Zero or null lets LocalGPT derive a fresh seed.</summary>
     public int? MapSeed { get; set; }
     /// <summary>Gets or sets an optional bounded scenario description used to name and deterministically vary a fresh ASCII corridor map.</summary>
     public string ScenarioPrompt { get; set; } = string.Empty;
     /// <summary>Gets or sets an optional database-backed campaign runtime-class override. Blank resolves the campaign class assigned to the selected Council team before falling back to the maintained starter.</summary>
     public string CampaignRuntimeClassKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets an optional Kernel Creature Tournament rules runtime-class override.</summary>
+    public string TournamentRuntimeClassKey { get; set; } = string.Empty;
     /// <summary>Gets or sets an optional 1-based campaign level override. Null uses the runtime-class default.</summary>
     public int? StartingLevel { get; set; }
     /// <summary>Gets or sets an optional automatic level-advance override. Null uses the runtime-class default.</summary>
@@ -226,6 +293,14 @@ public sealed class SubmitCouncilGameFrameRequest
     /// </summary>
     /// <value>The caption value exposed by <see cref="SubmitCouncilGameFrameRequest"/>.</value>
     public string Caption { get; set; } = string.Empty;
+    /// <summary>Optionally changes the palette contract for this complete frame.</summary>
+    public CouncilAsciiColorMode? AsciiColorMode { get; set; }
+    /// <summary>Optionally changes the default foreground palette index.</summary>
+    public int? DefaultForegroundColor { get; set; }
+    /// <summary>Optionally changes the default background palette index.</summary>
+    public int? DefaultBackgroundColor { get; set; }
+    /// <summary>Gets or sets bounded style runs transported separately from canonical frame text.</summary>
+    public IReadOnlyList<CouncilAsciiStyleRun> StyleRuns { get; set; } = [];
 }
 
 /// <summary>
@@ -465,10 +540,36 @@ public sealed class CouncilGameSessionSnapshot
     /// </summary>
     /// <value>The frame renderer value exposed by <see cref="CouncilGameSessionSnapshot"/>.</value>
     public string FrameRenderer { get; set; } = string.Empty;
+    /// <summary>Gets or sets the active ASCII color contract.</summary>
+    public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
+    /// <summary>Gets or sets the active default foreground palette index.</summary>
+    public int DefaultForegroundColor { get; set; } = 46;
+    /// <summary>Gets or sets the active default background palette index.</summary>
+    public int DefaultBackgroundColor { get; set; }
+    /// <summary>Gets or sets presentation-only style runs for <see cref="FrameText"/>.</summary>
+    public IReadOnlyList<CouncilAsciiStyleRun> FrameStyleRuns { get; set; } = [];
     /// <summary>Gets or sets pregenerated frames played locally without replacing transcript history.</summary>
     public IReadOnlyList<string> AnimationFrames { get; set; } = [];
     /// <summary>Gets or sets local animation frame delay in milliseconds.</summary>
     public int AnimationDelayMilliseconds { get; set; } = 650;
+    /// <summary>Gets or sets the tournament animation subtitle shown over the one-shot movie.</summary>
+    public string AnimationSubtitle { get; set; } = string.Empty;
+    /// <summary>Gets or sets how long the final tournament subtitle remains visible after the movie completes.</summary>
+    public int AnimationSubtitleHoldMilliseconds { get; set; } = 1500;
+    /// <summary>Gets or sets per-frame style runs for local animation playback.</summary>
+    public IReadOnlyList<IReadOnlyList<CouncilAsciiStyleRun>> AnimationFrameStyleRuns { get; set; } = [];
+    /// <summary>Gets or sets optional presentation metadata for the held animation subtitle.</summary>
+    public CouncilAsciiTextStyle? AnimationSubtitleStyle { get; set; }
+    /// <summary>Gets or sets the runtime class that supplied deterministic tournament rules.</summary>
+    public string TournamentRuntimeClassKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets the engine-owned tournament bracket fighters.</summary>
+    public IReadOnlyList<CouncilKernelTournamentFighterState> TournamentFighters { get; set; } = [];
+    /// <summary>Gets or sets the current 1-based tournament bracket round.</summary>
+    public int TournamentRound { get; set; }
+    /// <summary>Gets or sets the current 1-based exchange within the active match.</summary>
+    public int TournamentExchange { get; set; }
+    /// <summary>Gets or sets the winning creature name when the bracket is complete.</summary>
+    public string TournamentChampion { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the legal actions collection maintained or exposed by this council game session snapshot instance for downstream processing.
     /// </summary>
@@ -704,6 +805,14 @@ public sealed class CouncilGameSessionState
     /// </summary>
     /// <value>The frame renderer value exposed by <see cref="CouncilGameSessionState"/>.</value>
     public string FrameRenderer { get; set; } = string.Empty;
+    /// <summary>Gets or sets the active ASCII color contract.</summary>
+    public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
+    /// <summary>Gets or sets the active default foreground palette index.</summary>
+    public int DefaultForegroundColor { get; set; } = 46;
+    /// <summary>Gets or sets the active default background palette index.</summary>
+    public int DefaultBackgroundColor { get; set; }
+    /// <summary>Gets or sets presentation-only style runs for the current frame.</summary>
+    public List<CouncilAsciiStyleRun> FrameStyleRuns { get; set; } = [];
     /// <summary>
     /// Gets or sets the frame owner value that forms part of the council game session state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -718,6 +827,34 @@ public sealed class CouncilGameSessionState
     public List<string> AnimationFrames { get; set; } = [];
     /// <summary>Gets or sets local animation frame delay in milliseconds.</summary>
     public int AnimationDelayMilliseconds { get; set; } = 650;
+    /// <summary>Gets or sets the current one-shot animation subtitle.</summary>
+    public string AnimationSubtitle { get; set; } = string.Empty;
+    /// <summary>Gets or sets how long the subtitle remains after the last animation frame.</summary>
+    public int AnimationSubtitleHoldMilliseconds { get; set; } = 1500;
+    /// <summary>Gets or sets per-frame style runs for local animation playback.</summary>
+    public List<List<CouncilAsciiStyleRun>> AnimationFrameStyleRuns { get; set; } = [];
+    /// <summary>Gets or sets optional presentation metadata for the held animation subtitle.</summary>
+    public CouncilAsciiTextStyle? AnimationSubtitleStyle { get; set; }
+    /// <summary>Gets or sets the rules runtime class selected for the Kernel Creature Tournament.</summary>
+    public string TournamentRuntimeClassKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets normalized deterministic tournament rules.</summary>
+    public CouncilKernelTournamentRules TournamentRules { get; set; } = new();
+    /// <summary>Gets or sets engine-owned fighter state.</summary>
+    public List<CouncilKernelTournamentFighterState> TournamentFighters { get; set; } = [];
+    /// <summary>Gets or sets the fighter ids still participating in the current bracket round.</summary>
+    public List<string> TournamentRoundFighterIds { get; set; } = [];
+    /// <summary>Gets or sets winners/byes accumulated for the next bracket round.</summary>
+    public List<string> TournamentNextRoundFighterIds { get; set; } = [];
+    /// <summary>Gets or sets the zero-based position of the active match in the current round list.</summary>
+    public int TournamentMatchIndex { get; set; }
+    /// <summary>Gets or sets the current 1-based bracket round.</summary>
+    public int TournamentRound { get; set; }
+    /// <summary>Gets or sets the current 1-based exchange inside the active match.</summary>
+    public int TournamentExchange { get; set; }
+    /// <summary>Gets or sets the winning fighter id after completion.</summary>
+    public string TournamentChampionFighterId { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether the bracket has been initialized.</summary>
+    public bool TournamentInitialized { get; set; }
     /// <summary>
     /// Gets or sets the legal actions collection maintained or exposed by this council game session instance for downstream processing.
     /// </summary>

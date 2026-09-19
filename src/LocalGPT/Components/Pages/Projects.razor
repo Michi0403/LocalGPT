@@ -187,6 +187,22 @@
                             <input type="number" min="8" max="100" @bind="GameProfileEdit.FrameHeight" />
                         </label>
                         <label>
+                            ASCII color mode
+                            <select @bind="GameProfileEdit.AsciiColorMode">
+                                <option value="@CouncilAsciiColorMode.TerminalDefault">Terminal default (LocalGPT black/green)</option>
+                                <option value="@CouncilAsciiColorMode.Ansi16">ANSI 16 colors</option>
+                                <option value="@CouncilAsciiColorMode.Indexed256">Indexed 256 colors</option>
+                            </select>
+                        </label>
+                        <label>
+                            Default foreground index
+                            <input type="number" min="0" max="@(GameProfileEdit.AsciiColorMode == CouncilAsciiColorMode.Ansi16 ? 15 : 255)" @bind="GameProfileEdit.DefaultForegroundColor" />
+                        </label>
+                        <label>
+                            Default background index
+                            <input type="number" min="0" max="@(GameProfileEdit.AsciiColorMode == CouncilAsciiColorMode.Ansi16 ? 15 : 255)" @bind="GameProfileEdit.DefaultBackgroundColor" />
+                        </label>
+                        <label>
                             Autoplay delay (ms)
                             <input type="number" min="250" max="10000" @bind="GameProfileEdit.AutoplayDelayMilliseconds" />
                         </label>
@@ -195,6 +211,7 @@
                             <input type="number" min="1" @bind="GameProfileEdit.MapSeed" />
                         </label>
                     </div>
+                    <p class="hint">Terminal default keeps the familiar black/green LocalGPT surface for unstyled cells. ANSI-16 uses indexes 0-15 (bright green is 10); indexed-256 uses 0-255 (green 46, black 0). Game renderers can still assign colors to individual ASCII runs without placing ANSI escapes in game text.</p>
                     <label>
                         Scenario / world description
                         <textarea @bind="GameProfileEdit.ScenarioPrompt" rows="4" maxlength="240"></textarea>
@@ -753,6 +770,9 @@
                 GameProfileEdit.AutoplayDelayMilliseconds = CurrentGameProfile.AutoplayDelayMilliseconds;
                 GameProfileEdit.FrameWidth = CurrentGameProfile.FrameWidth;
                 GameProfileEdit.FrameHeight = CurrentGameProfile.FrameHeight;
+                GameProfileEdit.AsciiColorMode = CurrentGameProfile.AsciiColorMode;
+                GameProfileEdit.DefaultForegroundColor = CurrentGameProfile.DefaultForegroundColor;
+                GameProfileEdit.DefaultBackgroundColor = CurrentGameProfile.DefaultBackgroundColor;
                 GameProfileEdit.MapSeed = CurrentGameProfile.MapSeed > 0 ? CurrentGameProfile.MapSeed : null;
                 GameProfileEdit.ScenarioPrompt = CurrentGameProfile.ScenarioPrompt;
             }
@@ -770,6 +790,9 @@
                 GameProfileEdit.AutoplayDelayMilliseconds = definition.AutoplayDelayMilliseconds;
                 GameProfileEdit.FrameWidth = definition.FrameWidth;
                 GameProfileEdit.FrameHeight = definition.FrameHeight;
+                GameProfileEdit.AsciiColorMode = definition.AsciiColorMode;
+                GameProfileEdit.DefaultForegroundColor = definition.DefaultForegroundColor;
+                GameProfileEdit.DefaultBackgroundColor = definition.DefaultBackgroundColor;
                 GameProfileEdit.MapSeed = definition.MapSeed > 0 ? definition.MapSeed : null;
                 GameProfileEdit.ScenarioPrompt = definition.ScenarioPrompt;
             }

@@ -178,6 +178,7 @@
         <div class="chat-game-stage @(ShowControlGuide ? "has-guide" : "screen-only")">
             <div class="chat-game-screen-viewport">
                 <pre class="chat-game-screen" data-game-animation-screen aria-live="polite">@snapshot.FrameText</pre>
+                <div class="chat-game-animation-subtitle" data-game-animation-subtitle aria-live="polite" hidden>@snapshot.AnimationSubtitle</div>
             </div>
             @if (ShowControlGuide)
             {
@@ -480,6 +481,8 @@
     private IReadOnlyList<string> asciiSequenceFrames = [];
     /// <summary>Remembers the newest animation payload sent to JavaScript so unrelated renders do not restart playback.</summary>
     private string lastJsSequenceSignature = string.Empty;
+    /// <summary>Remembers the newest styled game frame sent to JavaScript so unrelated renders do not rebuild safe color spans.</summary>
+    private string lastJsFramePresentationSignature = string.Empty;
     /// <summary>Stores whether an operator line is currently being parsed and queued.</summary>
     private bool operatorSubmitting;
     /// <summary>Retains the unsent command text typed into the Matrix operator prompt until the user submits it.</summary>
@@ -649,7 +652,7 @@
         if (snapshot is null || !MatchesCurrentGameContext(snapshot))
             snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);
         asciiConversationText = AsciiText.BuildConversationTranscript(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName);
-        asciiSequenceFrames = AsciiText.ExtractSequenceFrames(ConversationMessages);
+        asciiSequenceFrames = AsciiText.ExtractSequenceFrames(ConversationMessages, CouncilParticipantActivities);
         await RefreshHotSeatRequestAsync().ConfigureAwait(true);
     }
 
@@ -677,6 +680,26 @@
             await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             lastJsScaleMode = fullscreenScaleMode;
         }
+        if (!operatorMode && !conversationMode && snapshot is not null)
+        {
+            var framePresentationSignature = AsciiText.BuildFramePresentationSignature(snapshot);
+            if (!string.Equals(lastJsFramePresentationSignature, framePresentationSignature, StringComparison.Ordinal))
+            {
+                await JS.InvokeVoidAsync(
+                    "localGptGameConsole.setFramePresentation",
+                    elementId,
+                    snapshot.FrameText,
+                    snapshot.AsciiColorMode.ToString(),
+                    snapshot.DefaultForegroundColor,
+                    snapshot.DefaultBackgroundColor,
+                    snapshot.FrameStyleRuns).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                lastJsFramePresentationSignature = framePresentationSignature;
+            }
+        }
+        else
+        {
+            lastJsFramePresentationSignature = string.Empty;
+        }
         IReadOnlyList<string> activeSequenceFrames = !operatorMode && conversationMode
             ? asciiSequenceFrames
             : !operatorMode && !conversationMode && snapshot is not null
@@ -684,8 +707,10 @@
                 : Array.Empty<string>();
         var sequenceTarget = conversationMode ? "conversation" : "game";
         var sequenceDelay = !conversationMode && snapshot is not null ? snapshot.AnimationDelayMilliseconds : 650;
+        var sequenceSubtitle = !conversationMode && snapshot is not null ? snapshot.AnimationSubtitle : string.Empty;
+        var sequenceSubtitleHold = !conversationMode && snapshot is not null ? snapshot.AnimationSubtitleHoldMilliseconds : 1500;
         var sequenceSignature = activeSequenceFrames.Count > 1
-            ? $"{sequenceTarget}:{sequenceDelay}:{AsciiText.BuildSequenceSignature(activeSequenceFrames)}"
+            ? $"{sequenceTarget}:{sequenceDelay}:{sequenceSubtitleHold}:{sequenceSubtitle}:{AsciiText.BuildSequenceSignature(activeSequenceFrames)}:{(snapshot is null ? string.Empty : AsciiText.BuildAnimationPresentationSignature(snapshot))}"
             : string.Empty;
         if (!string.Equals(lastJsSequenceSignature, sequenceSignature, StringComparison.Ordinal))
         {
@@ -694,7 +719,14 @@
                 elementId,
                 activeSequenceFrames,
                 sequenceDelay,
-                sequenceTarget).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                sequenceTarget,
+                sequenceSubtitle,
+                sequenceSubtitleHold,
+                snapshot?.AsciiColorMode.ToString() ?? CouncilAsciiColorMode.TerminalDefault.ToString(),
+                snapshot?.DefaultForegroundColor ?? 46,
+                snapshot?.DefaultBackgroundColor ?? 0,
+                snapshot?.AnimationFrameStyleRuns ?? [],
+                snapshot?.AnimationSubtitleStyle).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             lastJsSequenceSignature = sequenceSignature;
         }
         await JS.InvokeVoidAsync("localGptGameConsole.refreshLayout", elementId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;

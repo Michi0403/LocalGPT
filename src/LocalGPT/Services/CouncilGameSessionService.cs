@@ -94,10 +94,15 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             if (definition is null)
             {
                 gameKey = NormalizeGameKey(request.GameKey);
-                runtimeProfile = gameKey == "green-dragon" ? CouncilGameRuntimeProfile.Story : CouncilGameRuntimeProfile.Corridor;
+                runtimeProfile = gameKey is "green-dragon" or "kernel-creature-tournament" ? CouncilGameRuntimeProfile.Story : CouncilGameRuntimeProfile.Corridor;
                 projectId = request.ProjectId;
                 projectVersion = string.Empty;
-                displayName = runtimeProfile == CouncilGameRuntimeProfile.Story ? "Green Dragon Runtime Story" : "ASCII corridor action game";
+                displayName = gameKey switch
+                {
+                    "green-dragon" => "Green Dragon Runtime Story",
+                    "kernel-creature-tournament" => "Kernel Creature Tournament",
+                    _ => "ASCII corridor action game"
+                };
                 defaultTeamKey = DefaultTeamFor(gameKey);
             }
             else
@@ -133,9 +138,17 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             var requestedMapSeed = request.MapSeed is > 0
                 ? request.MapSeed.Value
                 : definition?.MapSeed is > 0 ? definition.MapSeed : 0;
+            var asciiColorMode = NormalizeAsciiColorMode(definition?.AsciiColorMode ?? request.AsciiColorMode);
+            var requestedForegroundColor = definition?.DefaultForegroundColor ?? request.DefaultForegroundColor;
+            var requestedBackgroundColor = definition?.DefaultBackgroundColor ?? request.DefaultBackgroundColor;
+            var defaultForegroundColor = NormalizeAsciiColorIndex(asciiColorMode, requestedForegroundColor, true);
+            var defaultBackgroundColor = NormalizeAsciiColorIndex(asciiColorMode, requestedBackgroundColor, false);
             var campaign = runtimeProfile == CouncilGameRuntimeProfile.Corridor
                 && string.Equals(gameKey, "ascii-doom", StringComparison.OrdinalIgnoreCase)
                 ? await ResolveDoomCampaignAsync(request, cancellationToken).ConfigureAwait(false)
+                : null;
+            var tournamentRules = string.Equals(gameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
+                ? await ResolveKernelTournamentRulesAsync(request, cancellationToken).ConfigureAwait(false)
                 : null;
             var session = new CouncilGameSessionState
             {
@@ -164,6 +177,9 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 LastDirectorDecision = "The GameDirector owns all state transitions; controllers may only submit proposals.",
                 FrameWidth = Math.Clamp(request.FrameWidth, 20, 240),
                 FrameHeight = Math.Clamp(request.FrameHeight, 8, 100),
+                AsciiColorMode = asciiColorMode,
+                DefaultForegroundColor = defaultForegroundColor,
+                DefaultBackgroundColor = defaultBackgroundColor,
                 MapSeed = requestedMapSeed,
                 CampaignSeed = requestedMapSeed,
                 ScenarioPrompt = scenarioPrompt,
@@ -171,6 +187,10 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 LevelProfiles = campaign?.Levels.Select(CloneLevelProfile).ToList() ?? [],
                 CurrentLevelIndex = campaign?.StartingLevelIndex ?? 0,
                 AutoAdvanceLevels = campaign?.AutoAdvanceLevels ?? false,
+                TournamentRuntimeClassKey = tournamentRules?.RuntimeClassKey ?? string.Empty,
+                TournamentRules = tournamentRules ?? new CouncilKernelTournamentRules(),
+                AnimationDelayMilliseconds = tournamentRules?.AnimationFrameDelayMilliseconds ?? 650,
+                AnimationSubtitleHoldMilliseconds = tournamentRules?.SubtitleHoldMilliseconds ?? 1500,
                 LastActionBy = string.IsNullOrWhiteSpace(request.StartedBy) ? "Human User" : request.StartedBy.Trim(),
                 PlayerX = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
                 PlayerY = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
@@ -180,6 +200,15 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             };
             if (runtimeProfile == CouncilGameRuntimeProfile.Corridor)
                 InitializeDoomWorld(session);
+            if (string.Equals(gameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase))
+            {
+                session.AutoplayEnabled = false;
+                session.HumanInputRequired = false;
+                session.InputReason = "Council trainer/creature micro-turns feed the deterministic tournament engine; direct game controls are not required.";
+                session.CurrentTurnOwner = "LocalGPT Tournament Engine";
+                session.LegalActions = [];
+                session.InputBindings = [];
+            }
             session.FrameText = Render(session);
             session.FrameCaption = BuildCaption(session);
             session.FrameRenderer = "LocalGPT deterministic preview renderer";
@@ -504,6 +533,9 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.FrameCaption = BuildCaption(session);
                 session.FrameRenderer = "LocalGPT deterministic preview renderer";
                 session.AnimationFrames.Clear();
+                session.AnimationFrameStyleRuns.Clear();
+                session.AnimationSubtitleStyle = null;
+                session.FrameStyleRuns.Clear();
                 session.AnimationDelayMilliseconds = 650;
                 session.FrameOwnerTurn = session.Turn;
                 session.FrameOwner = session.FrameRenderer;
@@ -578,9 +610,18 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 }
 
                 session.FrameText = NormalizeFrame(request.FrameText, session.FrameWidth, session.FrameHeight);
+                if (request.AsciiColorMode is CouncilAsciiColorMode requestedMode)
+                    session.AsciiColorMode = NormalizeAsciiColorMode(requestedMode);
+                if (request.DefaultForegroundColor is int requestedForeground)
+                    session.DefaultForegroundColor = NormalizeAsciiColorIndex(session.AsciiColorMode, requestedForeground, true);
+                if (request.DefaultBackgroundColor is int requestedBackground)
+                    session.DefaultBackgroundColor = NormalizeAsciiColorIndex(session.AsciiColorMode, requestedBackground, false);
+                session.FrameStyleRuns = NormalizeAsciiStyleRuns(request.StyleRuns, session.FrameWidth, session.FrameHeight, session.AsciiColorMode);
                 session.FrameCaption = string.IsNullOrWhiteSpace(request.Caption) ? BuildCaption(session) : request.Caption.Trim();
                 session.FrameRenderer = request.RendererName.Trim();
                 session.AnimationFrames.Clear();
+                session.AnimationFrameStyleRuns.Clear();
+                session.AnimationSubtitleStyle = null;
                 session.AnimationDelayMilliseconds = 650;
                 session.FrameOwner = session.FrameRenderer;
                 session.FrameOwnerTurn = request.Turn;

@@ -1356,13 +1356,22 @@ namespace LocalGPT.Migrations
                     b.Property<int>("AutoplayDelayMilliseconds")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("AsciiColorMode")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("CreatureDirectorCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("DefaultBackgroundColor")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("DefaultControlMode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DefaultForegroundColor")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("DefaultTeamKey")

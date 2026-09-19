@@ -30,6 +30,8 @@ public sealed class WriteCouncilGameTextRequest
     public int Y { get; set; }
     /// <summary>Gets or sets text to write; line breaks advance display rows.</summary>
     public string Text { get; set; } = string.Empty;
+    /// <summary>Gets or sets optional presentation metadata applied to written cells.</summary>
+    public CouncilAsciiTextStyle? Style { get; set; }
 }
 
 /// <summary>Requests one display-cell mutation.</summary>
@@ -47,6 +49,8 @@ public sealed class SetCouncilGameCellRequest
     public int Y { get; set; }
     /// <summary>Gets or sets the glyph; the first Unicode character is used.</summary>
     public string Glyph { get; set; } = " ";
+    /// <summary>Gets or sets optional presentation metadata applied to the cell.</summary>
+    public CouncilAsciiTextStyle? Style { get; set; }
 }
 
 /// <summary>Requests a rectangular display region to be filled with one glyph.</summary>
@@ -68,6 +72,8 @@ public sealed class FillCouncilGameRegionRequest
     public int Height { get; set; }
     /// <summary>Gets or sets the fill glyph.</summary>
     public string Glyph { get; set; } = " ";
+    /// <summary>Gets or sets optional presentation metadata applied to every filled cell.</summary>
+    public CouncilAsciiTextStyle? Style { get; set; }
 }
 
 /// <summary>Requests a multiline ASCII block to be blitted into a display region.</summary>
@@ -85,6 +91,8 @@ public sealed class BlitCouncilGameRegionRequest
     public int Y { get; set; }
     /// <summary>Gets or sets multiline ASCII content. Content is clipped to the display.</summary>
     public string Text { get; set; } = string.Empty;
+    /// <summary>Gets or sets optional presentation metadata applied to each non-empty blitted row segment.</summary>
+    public CouncilAsciiTextStyle? Style { get; set; }
 }
 
 /// <summary>Requests a pregenerated local ASCII animation for one Council display turn.</summary>
@@ -102,6 +110,20 @@ public sealed class SubmitCouncilGameAnimationRequest
     public int DelayMilliseconds { get; set; } = 650;
     /// <summary>Gets or sets an optional stable transcript/display caption.</summary>
     public string Caption { get; set; } = string.Empty;
+    /// <summary>Gets or sets an optional movie subtitle rendered over the game wall.</summary>
+    public string Subtitle { get; set; } = string.Empty;
+    /// <summary>Gets or sets how long the subtitle remains visible after the final frame.</summary>
+    public int SubtitleHoldMilliseconds { get; set; } = 1500;
+    /// <summary>Optionally changes the palette contract for this animation and its first/stable frame.</summary>
+    public CouncilAsciiColorMode? AsciiColorMode { get; set; }
+    /// <summary>Optionally changes the default foreground palette index.</summary>
+    public int? DefaultForegroundColor { get; set; }
+    /// <summary>Optionally changes the default background palette index.</summary>
+    public int? DefaultBackgroundColor { get; set; }
+    /// <summary>Gets or sets bounded style runs for each submitted frame, by frame index.</summary>
+    public IReadOnlyList<IReadOnlyList<CouncilAsciiStyleRun>> FrameStyleRuns { get; set; } = [];
+    /// <summary>Gets or sets optional presentation metadata for the held subtitle.</summary>
+    public CouncilAsciiTextStyle? SubtitleStyle { get; set; }
 }
 
 /// <summary>Returns a full or cropped read-only snapshot of the Council ASCII display.</summary>
@@ -125,6 +147,14 @@ public sealed class CouncilGameDisplaySnapshot
     public int Height { get; set; }
     /// <summary>Gets or sets the fixed-cell display text.</summary>
     public string Text { get; set; } = string.Empty;
+    /// <summary>Gets or sets the active palette contract.</summary>
+    public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
+    /// <summary>Gets or sets the active default foreground palette index.</summary>
+    public int DefaultForegroundColor { get; set; } = 46;
+    /// <summary>Gets or sets the active default background palette index.</summary>
+    public int DefaultBackgroundColor { get; set; }
+    /// <summary>Gets or sets clipped style runs rebased to this returned display region.</summary>
+    public IReadOnlyList<CouncilAsciiStyleRun> StyleRuns { get; set; } = [];
     /// <summary>Gets or sets the current frame renderer.</summary>
     public string RendererName { get; set; } = string.Empty;
     /// <summary>Gets or sets supported read/write display functions for AI discovery.</summary>

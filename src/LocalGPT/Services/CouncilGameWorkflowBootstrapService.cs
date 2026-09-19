@@ -40,11 +40,20 @@ public sealed class CouncilGameWorkflowBootstrapService(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
+            if (runtimeClassKeys.Length == 0)
+            {
+                logger.LogDebug(
+                    "Council team {TeamKey} requires the shared ASCII presentation surface without declaring a game runtime-class family; run {RunId} will use transcript-owned ASCII presentation only.",
+                    team.Key,
+                    request.RunId);
+                return null;
+            }
+
             var gameKey = ResolveGameKey(runtimeClassKeys);
             if (string.IsNullOrWhiteSpace(gameKey))
             {
                 logger.LogWarning(
-                    "Council team {TeamKey} requires the ASCII surface but does not declare a supported game runtime-class family; no deterministic game bootstrap was performed for run {RunId}.",
+                    "Council team {TeamKey} requires the ASCII surface and declares runtime classes, but none belong to a supported deterministic game family; no game bootstrap was performed for run {RunId}.",
                     team.Key,
                     request.RunId);
                 return null;
@@ -87,6 +96,8 @@ public sealed class CouncilGameWorkflowBootstrapService(
         try
         {
             var keys = runtimeClassKeys.ToArray();
+            if (keys.Any(key => key.StartsWith("games.ascii.kernel-tournament.", StringComparison.OrdinalIgnoreCase)))
+                return "kernel-creature-tournament";
             if (keys.Any(key => key.StartsWith("games.ascii.doom.", StringComparison.OrdinalIgnoreCase)))
                 return "ascii-doom";
             if (keys.Any(key => key.StartsWith("games.green-dragon.", StringComparison.OrdinalIgnoreCase)))

@@ -1,3 +1,3 @@
-# LocalGPT 4.4.7 source validation
+# LocalGPT 4.5.1 source validation
 
-Source-only validation; no .NET command and no GitHub/online repository access was used. 4.4.7 repairs the maintained JavaScript diagnostics SHA-256 inventory for the reviewed 4.4.6 `localgpt-game-console.js` change while preserving the entire 4.4.6 ASCII integration behavior. See `VALIDATION-v4.4.7-source.md` for the build-log finding, executed checks and limitations.
+Source/static validation only; no .NET command and no GitHub/online repository access was used. LocalGPT 4.5.1 repairs the two build failures reported from the 4.5.0 package: styled presentation signature composition is returned to the injected text-service boundary, and Kernel Tournament semantic style generation now uses the maintained five-argument helper signature. See `VALIDATION-v4.5.1-source.md` for the detailed checks and limitations.

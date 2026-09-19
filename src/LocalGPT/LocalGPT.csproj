@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>4.4.7</Version>
+    <Version>4.5.1</Version>
     <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
@@ -54,11 +54,13 @@
 		<Content Include="..\..\docs\reference\toolchain-discovery.md" Link="docs\reference\toolchain-discovery.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\runtime-path-layout.md" Link="docs\reference\runtime-path-layout.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\ai-provider-installation.md" Link="docs\reference\ai-provider-installation.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\reference\ascii-game-authoring.md" Link="docs\reference\ascii-game-authoring.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\canonical-repositories.md" Link="docs\reference\canonical-repositories.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\design-evolution.md" Link="docs\reference\design-evolution.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\guide\embedded-and-games.md" Link="docs\guide\embedded-and-games.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\COUNCIL_KNOWLEDGE_SEED.sql" Link="docs\COUNCIL_KNOWLEDGE_SEED.sql" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<EmbeddedResource Include="..\..\docs\reference\ai-provider-installation.md" LogicalName="LocalGPT.Knowledge.ai-provider-installation.md" />
+		<EmbeddedResource Include="..\..\docs\reference\ascii-game-authoring.md" LogicalName="LocalGPT.Knowledge.ascii-game-authoring.md" />
 		<EmbeddedResource Include="..\..\docs\reference\toolchain-discovery.md" LogicalName="LocalGPT.Knowledge.toolchain-discovery.md" />
 		<EmbeddedResource Include="..\..\docs\reference\runtime-path-layout.md" LogicalName="LocalGPT.Knowledge.runtime-path-layout.md" />
 	</ItemGroup>

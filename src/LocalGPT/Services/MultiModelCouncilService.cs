@@ -131,6 +131,8 @@ namespace LocalGPT.Services
         /// Stores the current circuit-scoped ASCII chat presentation state so Council participants can discover the shared terminal capability without browser coupling.
         /// </summary>
         private readonly IChatAsciiExperienceState asciiExperience;
+        /// <summary>Owns the deterministic ASCII game sessions used by game-backed Council workflows.</summary>
+        private readonly ICouncilGameSessionService gameSessions;
         /// <summary>
         /// Stores the logger used by <see cref="MultiModelCouncilService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -214,6 +216,7 @@ namespace LocalGPT.Services
             IProviderModelRuntimeService providerModels,
             ILocalGptRuntimePolicyDataService runtimePolicy,
             IChatAsciiExperienceState asciiExperience,
+            ICouncilGameSessionService gameSessions,
             ILogger<MultiModelCouncilService> logger,
             CouncilRuntimeService councilRuntime,
             CouncilTextService councilText,
@@ -248,6 +251,7 @@ namespace LocalGPT.Services
             this.providerModels = providerModels;
             this.runtimePolicy = runtimePolicy;
             this.asciiExperience = asciiExperience;
+            this.gameSessions = gameSessions;
             this.logger = logger;
             this.councilRuntime = councilRuntime;
             this.councilText = councilText;

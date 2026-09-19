@@ -8,3 +8,6 @@
   href: documentation-migration.md
 - name: "Runtime storage and paths"
   href: runtime-path-layout.md
+
+- name: "ASCII game authoring"
+  href: ascii-game-authoring.md

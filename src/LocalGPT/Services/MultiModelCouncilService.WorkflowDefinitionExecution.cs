@@ -189,6 +189,22 @@ namespace LocalGPT.Services
                     {
                         switch (executionMode)
                         {
+                            case "SystemKernelTournamentResolution":
+                                {
+                                    var systemStep = await RunKernelTournamentSystemStepAsync(
+                                        result,
+                                        request,
+                                        definition,
+                                        rolePairings,
+                                        participants,
+                                        round,
+                                        phase,
+                                        string.Equals(definition.Key, "arena-lineup-engine", StringComparison.OrdinalIgnoreCase),
+                                        cancellationToken).ConfigureAwait(false);
+                                    MultiModelCouncilServiceAddOrderedStep(result, systemStep, logger);
+                                    request.StepCompleted?.Invoke(systemStep);
+                                    break;
+                                }
                             case "SystemBenchmarkCalibration":
                                 {
                                     var calibrationStartedAtUtc = DateTime.UtcNow;
@@ -473,7 +489,9 @@ namespace LocalGPT.Services
                              recoveredModels.Contains(step.ModelName) ||
                              step.ModelName.StartsWith("Human:", StringComparison.OrdinalIgnoreCase) ||
                              (executionMode == "SystemBenchmarkCalibration" &&
-                              string.Equals(step.ModelName, "LocalGPT Benchmark Engine", StringComparison.OrdinalIgnoreCase))))
+                              string.Equals(step.ModelName, "LocalGPT Benchmark Engine", StringComparison.OrdinalIgnoreCase)) ||
+                             (executionMode == "SystemKernelTournamentResolution" &&
+                              string.Equals(step.ModelName, "LocalGPT Tournament Engine", StringComparison.OrdinalIgnoreCase))))
                         .ToList();
                     foreach (var roundStep in roundSteps)
                     {

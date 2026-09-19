@@ -91,7 +91,8 @@ namespace LocalGPT.Services
                 if (definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.Disabled ||
                     definition.MemberFailureRecoveryAttempts <= 0 ||
                     roleParticipants.Count == 0 ||
-                    string.Equals(executionMode, "SystemBenchmarkCalibration", StringComparison.Ordinal))
+                    string.Equals(executionMode, "SystemBenchmarkCalibration", StringComparison.Ordinal) ||
+                    string.Equals(executionMode, "SystemKernelTournamentResolution", StringComparison.Ordinal))
                 {
                     return [];
                 }

@@ -14,6 +14,7 @@ namespace LocalGPT.Services
                 return
                 [
                     "localgpt.game.display.get",
+                    "localgpt.game.display.palette.get",
                     "localgpt.game.display.text.write",
                     "localgpt.game.display.cell.set",
                     "localgpt.game.display.region.fill",
@@ -52,6 +53,7 @@ namespace LocalGPT.Services
                     var lines = new string[height];
                     for (var row = 0; row < height; row++)
                         lines[row] = new string(cells[y + row], x, width);
+                    var activeStyleRuns = ResolveFrameStyleRuns(session, session.FrameText);
                     return Task.FromResult(new CouncilGameDisplaySnapshot
                     {
                         SessionId = session.Id,
@@ -63,6 +65,10 @@ namespace LocalGPT.Services
                         Width = width,
                         Height = height,
                         Text = string.Join(Environment.NewLine, lines),
+                        AsciiColorMode = session.AsciiColorMode,
+                        DefaultForegroundColor = session.DefaultForegroundColor,
+                        DefaultBackgroundColor = session.DefaultBackgroundColor,
+                        StyleRuns = CropAsciiStyleRuns(activeStyleRuns, x, y, width, height),
                         RendererName = session.FrameRenderer,
                         SupportedMethods = GetSupportedDisplayMethods()
                     });
@@ -81,11 +87,14 @@ namespace LocalGPT.Services
             try
             {
                 ArgumentNullException.ThrowIfNull(request);
-                return MutateDisplayAsync(request.SessionId, request.Turn, request.RendererName, cells =>
+                return MutateDisplayAsync(request.SessionId, request.Turn, request.RendererName, (session, cells) =>
                 {
                     var lines = NormalizeInputLines(request.Text);
                     for (var row = 0; row < lines.Length; row++)
+                    {
                         WriteLine(cells, request.X, request.Y + row, lines[row]);
+                        ApplyAsciiStyleRange(session, request.Y + row, request.X, lines[row].Length, request.Style);
+                    }
                 }, cancellationToken);
             }
             catch (Exception exception)
@@ -101,10 +110,13 @@ namespace LocalGPT.Services
             try
             {
                 ArgumentNullException.ThrowIfNull(request);
-                return MutateDisplayAsync(request.SessionId, request.Turn, request.RendererName, cells =>
+                return MutateDisplayAsync(request.SessionId, request.Turn, request.RendererName, (session, cells) =>
                 {
                     if (request.Y >= 0 && request.Y < cells.Length && request.X >= 0 && request.X < cells[request.Y].Length)
+                    {
                         cells[request.Y][request.X] = FirstGlyph(request.Glyph);
+                        ApplyAsciiStyleRange(session, request.Y, request.X, 1, request.Style);
+                    }
                 }, cancellationToken);
             }
             catch (Exception exception)
@@ -120,7 +132,7 @@ namespace LocalGPT.Services
             try
             {
                 ArgumentNullException.ThrowIfNull(request);
-                return MutateDisplayAsync(request.SessionId, request.Turn, request.RendererName, cells =>
+                return MutateDisplayAsync(request.SessionId, request.Turn, request.RendererName, (session, cells) =>
                 {
                     if (request.Width <= 0 || request.Height <= 0) return;
                     var glyph = FirstGlyph(request.Glyph);
@@ -131,6 +143,7 @@ namespace LocalGPT.Services
                         var x0 = Math.Max(0, request.X);
                         var x1 = Math.Min(cells[y].Length, SafeAdd(request.X, request.Width));
                         for (var x = x0; x < x1; x++) cells[y][x] = glyph;
+                        ApplyAsciiStyleRange(session, y, x0, x1 - x0, request.Style);
                     }
                 }, cancellationToken);
             }
@@ -147,11 +160,14 @@ namespace LocalGPT.Services
             try
             {
                 ArgumentNullException.ThrowIfNull(request);
-                return MutateDisplayAsync(request.SessionId, request.Turn, request.RendererName, cells =>
+                return MutateDisplayAsync(request.SessionId, request.Turn, request.RendererName, (session, cells) =>
                 {
                     var lines = NormalizeInputLines(request.Text);
                     for (var row = 0; row < lines.Length; row++)
+                    {
                         WriteLine(cells, request.X, request.Y + row, lines[row]);
+                        ApplyAsciiStyleRange(session, request.Y + row, request.X, lines[row].Length, request.Style);
+                    }
                 }, cancellationToken);
             }
             catch (Exception exception)
@@ -177,9 +193,27 @@ namespace LocalGPT.Services
                 lock (session.SyncRoot)
                 {
                     ClaimRenderer(session, request.Turn, request.RendererName);
+                    if (request.AsciiColorMode is CouncilAsciiColorMode requestedMode)
+                        session.AsciiColorMode = NormalizeAsciiColorMode(requestedMode);
+                    if (request.DefaultForegroundColor is int requestedForeground)
+                        session.DefaultForegroundColor = NormalizeAsciiColorIndex(session.AsciiColorMode, requestedForeground, true);
+                    if (request.DefaultBackgroundColor is int requestedBackground)
+                        session.DefaultBackgroundColor = NormalizeAsciiColorIndex(session.AsciiColorMode, requestedBackground, false);
                     session.AnimationFrames = request.Frames.Select(frame => NormalizeFrame(frame, session.FrameWidth, session.FrameHeight)).ToList();
+                    session.AnimationFrameStyleRuns = session.AnimationFrames.Select((_, index) =>
+                        index < request.FrameStyleRuns.Count
+                            ? NormalizeAsciiStyleRuns(request.FrameStyleRuns[index], session.FrameWidth, session.FrameHeight, session.AsciiColorMode)
+                            : new List<CouncilAsciiStyleRun>()).ToList();
                     session.AnimationDelayMilliseconds = Math.Clamp(request.DelayMilliseconds, 250, 5000);
+                    session.AnimationSubtitle = string.IsNullOrWhiteSpace(request.Subtitle) ? string.Empty : request.Subtitle.Trim();
+                    session.AnimationSubtitleStyle = NormalizeAsciiStyle(request.SubtitleStyle, session.AsciiColorMode);
+                    if (session.AnimationSubtitle.Length > 360)
+                        session.AnimationSubtitle = session.AnimationSubtitle[..360];
+                    session.AnimationSubtitleHoldMilliseconds = Math.Clamp(request.SubtitleHoldMilliseconds, 500, 10000);
                     session.FrameText = session.AnimationFrames[0];
+                    session.FrameStyleRuns = session.AnimationFrameStyleRuns.Count > 0
+                        ? CloneAsciiStyleRuns(session.AnimationFrameStyleRuns[0])
+                        : [];
                     session.FrameCaption = string.IsNullOrWhiteSpace(request.Caption) ? BuildCaption(session) : request.Caption.Trim();
                     session.FrameRenderer = request.RendererName.Trim();
                     session.UpdatedAtUtc = DateTime.UtcNow;
@@ -195,7 +229,7 @@ namespace LocalGPT.Services
             }
         }
 
-        private Task<CouncilGameSessionSnapshot> MutateDisplayAsync(Guid sessionId, long turn, string rendererName, Action<char[][]> mutation, CancellationToken cancellationToken)
+        private Task<CouncilGameSessionSnapshot> MutateDisplayAsync(Guid sessionId, long turn, string rendererName, Action<CouncilGameSessionState, char[][]> mutation, CancellationToken cancellationToken)
         {
             try
             {
@@ -208,10 +242,12 @@ namespace LocalGPT.Services
                 {
                     ClaimRenderer(session, turn, rendererName);
                     var cells = ToCells(session.FrameText, session.FrameWidth, session.FrameHeight);
-                    mutation(cells);
+                    mutation(session, cells);
                     session.FrameText = string.Join(Environment.NewLine, cells.Select(row => new string(row)));
                     session.FrameRenderer = rendererName.Trim();
                     session.AnimationFrames.Clear();
+                    session.AnimationFrameStyleRuns.Clear();
+                    session.AnimationSubtitleStyle = null;
                     session.AnimationDelayMilliseconds = 650;
                     session.UpdatedAtUtc = DateTime.UtcNow;
                 }

@@ -90,6 +90,7 @@ namespace LocalGPT.Services
         ],
         PreferredCapabilities =
         [
+            CouncilContextCapabilities.RoleIsolated,
             "localgpt.hardware.performance.presets.list",
             "localgpt.hardware.performance.presets.get",
             "localgpt.time_state.now",

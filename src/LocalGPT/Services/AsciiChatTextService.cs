@@ -120,14 +120,46 @@ public sealed class AsciiChatTextService
     }
 
     /// <summary>
-    /// Extracts the newest bounded ASCII animation sequence from canonical chat history.
+    /// Extracts the newest bounded ASCII animation sequence from the active Council lanes first and canonical chat history second.
     /// </summary>
     /// <param name="messages">Canonical conversation messages shared with the normal chat view.</param>
-    /// <returns>Two to twelve frames when the newest message contains a valid sequence; otherwise an empty collection.</returns>
-    public IReadOnlyList<string> ExtractSequenceFrames(IReadOnlyList<BlazorChatMessage> messages)
+    /// <param name="participantActivities">Optional live Council participant lanes associated with the current chat.</param>
+    /// <returns>Two to twelve frames when the newest available content contains a valid sequence; otherwise an empty collection.</returns>
+    public IReadOnlyList<string> ExtractSequenceFrames(
+        IReadOnlyList<BlazorChatMessage> messages,
+        IReadOnlyList<CouncilLiveParticipantActivitySnapshot>? participantActivities = null)
     {
         try
         {
+            if (participantActivities is { Count: > 0 })
+            {
+                foreach (var activity in participantActivities
+                    .OrderByDescending(item => item.UpdatedAtUtc)
+                    .ThenByDescending(item => item.ActivityKey, StringComparer.Ordinal))
+                {
+                    foreach (var content in new[] { activity.FinalContent, activity.Content })
+                    {
+                        if (string.IsNullOrWhiteSpace(content))
+                            continue;
+
+                        var matches = AsciiSequenceBlockPattern.Matches(content);
+                        if (matches.Count == 0)
+                            continue;
+
+                        var body = matches[matches.Count - 1].Groups["body"].Value;
+                        var frames = AsciiSequenceFrameSeparatorPattern
+                            .Split(body)
+                            .Select(frame => WebUtility.HtmlDecode(frame).Trim('\r', '\n'))
+                            .Where(frame => !string.IsNullOrWhiteSpace(frame))
+                            .Take(12)
+                            .Select(frame => frame.Length <= 4096 ? frame : frame[..4096])
+                            .ToList();
+                        if (frames.Count >= 2)
+                            return frames;
+                    }
+                }
+            }
+
             for (var index = messages.Count - 1; index >= 0; index--)
             {
                 var content = messages[index]?.Content;
@@ -160,6 +192,52 @@ public sealed class AsciiChatTextService
         {
             logger.LogWarning(exception, "ASCII sequence extraction failed; the normal transcript remains available.");
             return [];
+        }
+    }
+
+    /// <summary>
+    /// Builds a compact renderer signature for one styled game frame while keeping string projection inside the text-service boundary.
+    /// </summary>
+    /// <param name="value">Current game snapshot whose presentation metadata is being projected.</param>
+    /// <returns>A renderer-local signature used only for change detection.</returns>
+    public string BuildFramePresentationSignature(CouncilGameSessionSnapshot value)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            var runs = string.Join(';', value.FrameStyleRuns.Select(run =>
+                $"{run.Y},{run.X},{run.Length},{run.Style.ColorMode},{run.Style.ForegroundColor},{run.Style.BackgroundColor},{run.Style.Bold},{run.Style.Dim},{run.Style.Invert}"));
+            return $"{value.Id}:{value.Turn}:{value.FrameText.GetHashCode(StringComparison.Ordinal)}:{value.AsciiColorMode}:{value.DefaultForegroundColor}:{value.DefaultBackgroundColor}:{runs}";
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "ASCII frame presentation signature generation failed; the renderer will refresh defensively.");
+            return Guid.NewGuid().ToString("N");
+        }
+    }
+
+    /// <summary>
+    /// Builds a compact renderer signature for animation palette metadata, per-frame style runs, and subtitle styling.
+    /// </summary>
+    /// <param name="value">Current game snapshot whose animation presentation metadata is being projected.</param>
+    /// <returns>A renderer-local signature used only for change detection.</returns>
+    public string BuildAnimationPresentationSignature(CouncilGameSessionSnapshot value)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            var frames = string.Join('|', value.AnimationFrameStyleRuns.Select(frame =>
+                string.Join(';', frame.Select(run =>
+                    $"{run.Y},{run.X},{run.Length},{run.Style.ColorMode},{run.Style.ForegroundColor},{run.Style.BackgroundColor},{run.Style.Bold},{run.Style.Dim},{run.Style.Invert}"))));
+            var subtitle = value.AnimationSubtitleStyle is null
+                ? string.Empty
+                : $"{value.AnimationSubtitleStyle.ColorMode},{value.AnimationSubtitleStyle.ForegroundColor},{value.AnimationSubtitleStyle.BackgroundColor},{value.AnimationSubtitleStyle.Bold},{value.AnimationSubtitleStyle.Dim},{value.AnimationSubtitleStyle.Invert}";
+            return $"{value.AsciiColorMode}:{value.DefaultForegroundColor}:{value.DefaultBackgroundColor}:{frames}:{subtitle}";
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "ASCII animation presentation signature generation failed; the renderer will refresh defensively.");
+            return Guid.NewGuid().ToString("N");
         }
     }
 

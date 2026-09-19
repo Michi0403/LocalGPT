@@ -233,6 +233,8 @@ namespace LocalGPT.Services
                     return "AssignedModelSingle";
                 if (value.Equals("SystemBenchmarkCalibration", StringComparison.OrdinalIgnoreCase))
                     return "SystemBenchmarkCalibration";
+                if (value.Equals("SystemKernelTournamentResolution", StringComparison.OrdinalIgnoreCase))
+                    return "SystemKernelTournamentResolution";
                 throw new InvalidOperationException($"Configured council execution mode '{value}' is not supported.");
         
     }

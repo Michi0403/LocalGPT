@@ -25,7 +25,8 @@ namespace LocalGPT.Services
             {
                 "doom" or "ascii-doom" or "ascii-doom-council-adventure" => "ascii-doom",
                 "dragon" or "green-dragon" or "lotgd" or "green-dragon-runtime-story" => "green-dragon",
-                _ => throw new ArgumentException($"Unsupported game key '{gameKey}'. Use ascii-doom or green-dragon.", nameof(gameKey))
+                "kernel-tournament" or "kernel-creature-tournament" => "kernel-creature-tournament",
+                _ => throw new ArgumentException($"Unsupported game key '{gameKey}'. Use ascii-doom, green-dragon or kernel-creature-tournament.", nameof(gameKey))
             };
     
     }
@@ -47,7 +48,12 @@ namespace LocalGPT.Services
     private string DefaultTeamFor(string gameKey) {
     try
     {
-        return gameKey == "green-dragon" ? "green-dragon-runtime-story" : "ascii-doom-council-adventure";
+        return gameKey switch
+        {
+            "green-dragon" => "green-dragon-runtime-story",
+            "kernel-creature-tournament" => "kernel-creature-tournament",
+            _ => "ascii-doom-council-adventure"
+        };
     }
     catch (Exception __serviceMethodException)
     {
