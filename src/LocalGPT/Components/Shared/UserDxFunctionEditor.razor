@@ -24,12 +24,12 @@
     <div class="row g-3 user-dxfunction-form-grid">
         <div class="col-lg-4">
             <label class="form-label">@T("UserDx.Editor.RuntimeName", "Runtime name")</label>
-            <DxTextBox @bind-Text="_edit.FunctionName" CssClass="form-control" NullText="user.weather.to_knowledge" Enabled="@(!(_busy))" />
+            <DxTextBox @bind-Text="_edit.FunctionName" CssClass="localgpt-editor" NullText="user.weather.to_knowledge" Enabled="@(!(_busy))" />
             <small class="text-muted">@T("UserDx.Editor.RuntimeHelp", "User-created runtime functions must use the user.* namespace.")</small>
         </div>
         <div class="col-lg-4">
             <label class="form-label">@T("Common.Name", "Display name")</label>
-            <DxTextBox @bind-Text="_edit.DisplayName" CssClass="form-control" Enabled="@(!(_busy))" />
+            <DxTextBox @bind-Text="_edit.DisplayName" CssClass="localgpt-editor" Enabled="@(!(_busy))" />
         </div>
         <div class="col-lg-4">
             <label class="form-label">@T("UserDx.Editor.Mode", "Implementation")</label>
@@ -64,49 +64,49 @@
             </div>
             <div class="col-12">
                 <label class="form-label">@T("UserDx.Editor.SourceUrl", "Source URL")</label>
-                <DxTextBox @bind-Text="_sourceUrl" CssClass="form-control" NullText="https://example.local/api/items" Enabled="@(!(_busy))" />
+                <DxTextBox @bind-Text="_sourceUrl" CssClass="localgpt-editor" NullText="https://example.local/api/items" Enabled="@(!(_busy))" />
                 <small class="text-muted">@T("UserDx.Editor.SourceUrlHelp", "The host from this URL becomes the connector allow-list. Network access remains scoped to this saved source.")</small>
             </div>
             <div class="col-lg-6">
                 <label class="form-label">@T("UserDx.Editor.ResponseSelector", "Response selector")</label>
-                <DxTextBox @bind-Text="_responseSelector" CssClass="form-control" NullText="value" Enabled="@(!(_busy))" />
+                <DxTextBox @bind-Text="_responseSelector" CssClass="localgpt-editor" NullText="value" Enabled="@(!(_busy))" />
             </div>
             <div class="col-lg-3">
                 <label class="form-label">@T("UserDx.Editor.Timeout", "Timeout (seconds)")</label>
-                <DxSpinEdit @bind-Value="_timeoutSeconds" CssClass="form-control" MinValue="1" MaxValue="300" Enabled="@(!(_busy))" />
+                <DxSpinEdit @bind-Value="_timeoutSeconds" CssClass="localgpt-editor" MinValue="1" MaxValue="300" Enabled="@(!(_busy))" />
             </div>
             <div class="col-lg-3">
                 <label class="form-label">@T("UserDx.Editor.MaxPayload", "Maximum payload (bytes)")</label>
-                <DxSpinEdit @bind-Value="_maxPayloadBytes" CssClass="form-control" MinValue="1024" MaxValue="16777216" Enabled="@(!(_busy))" />
+                <DxSpinEdit @bind-Value="_maxPayloadBytes" CssClass="localgpt-editor" MinValue="1024" MaxValue="16777216" Enabled="@(!(_busy))" />
             </div>
             <div class="col-12">
                 <label class="form-label">@T("UserDx.Editor.Headers", "Request headers JSON")</label>
-                <DxMemo @bind-Text="_headersJson" CssClass="form-control font-monospace" Rows="3" Enabled="@(!(_busy))" />
+                <DxMemo @bind-Text="_headersJson" CssClass="localgpt-editor font-monospace" Rows="3" Enabled="@(!(_busy))" />
             </div>
             <div class="col-12">
-                <label class="form-check"><DxCheckBox @bind-Checked="_allowInsecureHttp" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.AllowHttp", "Allow plain HTTP for this source")</span></label>
+                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_allowInsecureHttp" CssClass="localgpt-check" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.AllowHttp", "Allow plain HTTP for this source")</span></label>
             </div>
         }
         <div class="col-lg-6">
             <label class="form-label">@T("UserDx.Editor.Purpose", "Purpose")</label>
-            <DxMemo @bind-Text="_edit.Purpose" CssClass="form-control" Rows="3" Enabled="@(!(_busy))" />
+            <DxMemo @bind-Text="_edit.Purpose" CssClass="localgpt-editor" Rows="3" Enabled="@(!(_busy))" />
         </div>
         <div class="col-lg-6">
             <label class="form-label">@T("UserDx.Editor.Safety", "Safety notes")</label>
-            <DxMemo @bind-Text="_edit.SafetyNotes" CssClass="form-control" Rows="3" Enabled="@(!(_busy))" />
+            <DxMemo @bind-Text="_edit.SafetyNotes" CssClass="localgpt-editor" Rows="3" Enabled="@(!(_busy))" />
         </div>
         <div class="col-12">
             <label class="form-label">@T("UserDx.Editor.Schema", "Parameter JSON Schema")</label>
-            <DxMemo @bind-Text="_edit.ParameterSchemaJson" CssClass="form-control font-monospace" Rows="8" Enabled="@(!(_busy))" />
+            <DxMemo @bind-Text="_edit.ParameterSchemaJson" CssClass="localgpt-editor font-monospace" Rows="8" Enabled="@(!(_busy))" />
         </div>
     </div>
 
     <div class="d-flex gap-4 flex-wrap mt-3">
-        <label class="form-check"><DxCheckBox @bind-Checked="_edit.IsEnabled" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("Common.Enabled", "Enabled")</span></label>
-        <label class="form-check"><DxCheckBox @bind-Checked="_edit.AvailableToAi" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.VisibleToAi", "Visible to AI")</span></label>
-        <label class="form-check"><DxCheckBox @bind-Checked="_edit.IsReadOnly" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.ReadOnly", "Read-only declaration")</span></label>
-        <label class="form-check"><DxCheckBox @bind-Checked="_edit.RequiresHumanConfirmation" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.RequireConfirmation", "Require human confirmation")</span></label>
-        <label class="form-check"><DxCheckBox @bind-Checked="_edit.SupportsAutomaticInvocation" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.Automatic", "Allow automatic invocation when registry policy permits")</span></label>
+        <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_edit.IsEnabled" CssClass="localgpt-check" Enabled="@(!(_busy))" /><span>@T("Common.Enabled", "Enabled")</span></label>
+        <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_edit.AvailableToAi" CssClass="localgpt-check" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.VisibleToAi", "Visible to AI")</span></label>
+        <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_edit.IsReadOnly" CssClass="localgpt-check" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.ReadOnly", "Read-only declaration")</span></label>
+        <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_edit.RequiresHumanConfirmation" CssClass="localgpt-check" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.RequireConfirmation", "Require human confirmation")</span></label>
+        <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_edit.SupportsAutomaticInvocation" CssClass="localgpt-check" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.Automatic", "Allow automatic invocation when registry policy permits")</span></label>
     </div>
 
     <footer class="d-flex gap-2 mt-3">

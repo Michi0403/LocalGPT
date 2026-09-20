@@ -16,6 +16,7 @@ namespace LocalGPT.Services;
 /// <param name="databaseInitializer">Database initialization service dependency used by the learning round workflow to provide the corresponding application capability.</param>
 /// <param name="knowledgeService">Council knowledge service dependency used by the learning round workflow to provide the corresponding application capability.</param>
 /// <param name="regexPatternService">Regex pattern service dependency used by the learning round workflow to provide the corresponding application capability.</param>
+/// <param name="regexCuratorService">Regex curator service used to place model-suggested regex changes behind the maintained review workflow.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="projectWorkspaceSync">Learning project workspace sync service dependency used by the learning round workflow to provide the corresponding application capability.</param>
 public sealed class LearningRoundService(

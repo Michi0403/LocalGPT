@@ -10,11 +10,11 @@
     {
         var rowIndex = index;
         <div class="row g-2 align-items-center mb-2">
-            <div class="col-md-3"><DxTextBox @bind-Text="_variables[rowIndex].Name" CssClass="form-control" NullText="JAVA_HOME" /></div>
-            <div class="col-md-6"><DxTextBox @bind-Text="_variables[rowIndex].Value" CssClass="form-control" NullText="Toolchain-specific value" /></div>
-            <div class="col-md-2"><DxTextBox @bind-Text="_variables[rowIndex].Source" CssClass="form-control" NullText="User" /></div>
+            <div class="col-md-3"><DxTextBox @bind-Text="_variables[rowIndex].Name" CssClass="localgpt-editor" NullText="JAVA_HOME" /></div>
+            <div class="col-md-6"><DxTextBox @bind-Text="_variables[rowIndex].Value" CssClass="localgpt-editor" NullText="Toolchain-specific value" /></div>
+            <div class="col-md-2"><DxTextBox @bind-Text="_variables[rowIndex].Source" CssClass="localgpt-editor" NullText="User" /></div>
             <div class="col-md-1 d-flex gap-1">
-                <DxCheckBox @bind-Checked="_variables[rowIndex].IsEnabled" CssClass="form-check-input" />
+                <DxCheckBox @bind-Checked="_variables[rowIndex].IsEnabled" CssClass="localgpt-check" />
                 <DxButton CssClass="btn btn-sm btn-outline-danger" Click="() => Remove(rowIndex)" title='@T("Common.Delete", "Remove")'>×</DxButton>
             </div>
         </div>

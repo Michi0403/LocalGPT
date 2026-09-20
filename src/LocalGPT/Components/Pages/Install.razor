@@ -244,14 +244,14 @@
                                 <summary>Host hardware · @hardwareDraft.HostKey</summary>
                                 <p class="field-help">This definition belongs to the physical configured host and is shared by provider/model bindings on that host. Confirmed/imported values are stored in the LocalGPT database and are not overwritten by weak discovery.</p>
                                 <div class="configured-host-hardware-grid">
-                                    <label>Host name<DxTextBox @bind-Text="hardwareDraft.HostName" CssClass="form-control" /></label>
-                                    <label>Operating system<DxTextBox @bind-Text="hardwareDraft.OperatingSystem" CssClass="form-control" /></label>
-                                    <label>CPU<DxTextBox @bind-Text="hardwareDraft.CpuName" CssClass="form-control" /></label>
-                                    <label>System RAM (GiB)<DxSpinEdit @bind-Value="hardwareDraft.SystemMemoryGiB" CssClass="form-control" Increment="0.5" MinValue="0" /></label>
-                                    <label>GPU<DxTextBox @bind-Text="hardwareDraft.GpuName" CssClass="form-control" /></label>
-                                    <label>GPU vendor<DxTextBox @bind-Text="hardwareDraft.GpuVendor" CssClass="form-control" /></label>
-                                    <label>Dedicated VRAM (GiB)<DxSpinEdit @bind-Value="hardwareDraft.DedicatedVramGiB" CssClass="form-control" Increment="0.25" MinValue="0" /></label>
-                                    <label>Source<DxTextBox Text="@hardwareDraft.SourceKind" ReadOnly="true" CssClass="form-control" /></label>
+                                    <label>Host name<DxTextBox @bind-Text="hardwareDraft.HostName" CssClass="localgpt-editor" /></label>
+                                    <label>Operating system<DxTextBox @bind-Text="hardwareDraft.OperatingSystem" CssClass="localgpt-editor" /></label>
+                                    <label>CPU<DxTextBox @bind-Text="hardwareDraft.CpuName" CssClass="localgpt-editor" /></label>
+                                    <label>System RAM (GiB)<InvariantDoubleEditor @bind-Value="hardwareDraft.SystemMemoryGiB" Min="0" Step="0.5" DecimalPlaces="2" /></label>
+                                    <label>GPU<DxTextBox @bind-Text="hardwareDraft.GpuName" CssClass="localgpt-editor" /></label>
+                                    <label>GPU vendor<DxTextBox @bind-Text="hardwareDraft.GpuVendor" CssClass="localgpt-editor" /></label>
+                                    <label>Dedicated VRAM (GiB)<InvariantDoubleEditor @bind-Value="hardwareDraft.DedicatedVramGiB" Min="0" Step="0.25" DecimalPlaces="2" /></label>
+                                    <label>Source<DxTextBox Text="@hardwareDraft.SourceKind" ReadOnly="true" CssClass="localgpt-editor" /></label>
                                 </div>
                                 <label class="configured-host-report">HWiNFO text report (optional deterministic import)
                                     <DxMemo @bind-Text="hardwareDraft.HwInfoReportText" Rows="5" NullText="Paste an HWiNFO text report here. LocalGPT parses GPU VRAM deterministically; the report is not sent to an AI." />

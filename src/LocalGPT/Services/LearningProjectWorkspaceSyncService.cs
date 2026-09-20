@@ -1305,6 +1305,8 @@ public sealed class LearningProjectWorkspaceSyncService(
     /// <param name="TargetFrameworks">String dependency used by the learning project workspace sync workflow to provide the corresponding application capability.</param>
     /// <param name="SolutionPath">Solution path value supplied to the learning project workspace sync operation and used when producing its result.</param>
     /// <param name="ProjectFiles">String dependency used by the learning project workspace sync workflow to provide the corresponding application capability.</param>
+    /// <param name="ProjectType">Detected repository/project type used to select the appropriate project and toolchain workflow.</param>
+    /// <param name="Toolchains">Detected toolchain identifiers associated with the inspected repository.</param>
     private sealed record RepositoryInspection(
         string ProjectName,
         string Version,

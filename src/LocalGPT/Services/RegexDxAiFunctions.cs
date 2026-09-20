@@ -181,6 +181,7 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, 
 /// Represents an upsert regex pattern function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 /// <param name="regexPatterns">Regex pattern service dependency used by the upsert regex pattern function workflow to provide the corresponding application capability.</param>
+/// <param name="regexCurator">Regex curator service used to route AI-authored pattern changes through the maintained review lifecycle.</param>
 /// <param name="parameters">Regex function parameter service dependency used by the upsert regex pattern function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPatterns, IRegexCuratorService regexCurator, IRegexFunctionParameterService parameters, ILogger<UpsertRegexPatternFunction> logger) : IDxAiFunctionHandler

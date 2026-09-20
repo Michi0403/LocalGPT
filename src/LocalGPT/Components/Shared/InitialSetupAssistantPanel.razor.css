@@ -4,48 +4,49 @@
 .initial-setup-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .initial-setup-card { border: 1px solid var(--localgpt-border-color); border-radius: .65rem; padding: 1rem; background: var(--localgpt-surface-raised); display: grid; gap: .75rem; min-width: 0; }
 .initial-setup-wide { grid-column: 1 / -1; }
-.initial-setup-hardware-list, .initial-setup-model-list, .initial-setup-installed-grid { display: grid; gap: .65rem; max-height: none; overflow: visible; min-width: 0; }
-.initial-setup-hardware-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: .65rem; align-items: end; border: 1px solid var(--localgpt-border-color); border-radius: .45rem; padding: .7rem; }
+.initial-setup-hardware-list { display: grid; gap: .65rem; min-width: 0; }
+.initial-setup-model-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 31rem), 1fr)); gap: .65rem; min-width: 0; }
+.initial-setup-installed-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 27rem), 1fr)); gap: .55rem; min-width: 0; }
+.initial-setup-hardware-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; align-items: end; border: 1px solid var(--localgpt-border-color); border-radius: .45rem; padding: .7rem; }
 .initial-setup-hardware-row > label { display: grid; gap: .25rem; min-width: 0; }
 .initial-setup-hardware-use { grid-column: 1 / -1; display: flex !important; align-items: center; gap: .45rem !important; }
 .initial-setup-hardware-canirun { grid-column: 1 / -1; }
 .initial-setup-hardware-remove { justify-self: start; }
-.initial-setup-model-row, .initial-setup-installed-row { display: grid; gap: .25rem; border: 1px solid var(--localgpt-border-color); border-radius: .45rem; padding: .55rem; }
-.initial-setup-installed-row { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+.initial-setup-model-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: .42rem; align-content: start; border: 1px solid var(--localgpt-border-color); border-radius: .45rem; padding: .65rem; min-width: 0; }
+.initial-setup-model-title { display: flex; align-items: center; gap: .45rem; min-width: 0; flex-wrap: wrap; }
+.initial-setup-model-title > strong { font-size: 1rem; }
+.initial-setup-model-title code { overflow-wrap: anywhere; }
+.initial-setup-model-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .55rem; min-width: 0; font-size: .9rem; }
+.initial-setup-model-meta > span:not(:last-child)::after { content: "·"; margin-inline-start: .55rem; opacity: .55; }
+.initial-setup-model-meta code { overflow-wrap: anywhere; }
+.initial-setup-model-actions { display: flex; flex-wrap: wrap; gap: .45rem .65rem; align-items: center; min-width: 0; }
+.initial-setup-model-actions a { overflow-wrap: anywhere; }
+.initial-setup-model-actions ::deep .dxbl-btn { min-height: 2.25rem; }
+.initial-setup-installed-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: .45rem .65rem; align-items: center; min-width: 0; border: 1px solid var(--localgpt-border-color); border-radius: .45rem; padding: .55rem .65rem; }
+.initial-setup-installed-toggle { white-space: nowrap; align-items: center; }
+.initial-setup-installed-identity { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem .65rem; align-items: baseline; min-width: 0; }
+.initial-setup-installed-identity strong { min-width: 0; overflow-wrap: anywhere; }
+.initial-setup-installed-identity code { min-width: 0; overflow-wrap: anywhere; }
 .initial-setup-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .initial-setup-provider-detail { display: grid; gap: .35rem; }
-@media (max-width: 900px) { .initial-setup-hardware-row { grid-template-columns: 1fr; } .initial-setup-hardware-use, .initial-setup-hardware-canirun { grid-column: 1; } .initial-setup-installed-row { grid-template-columns: 1fr; } }
-
 .initial-setup-heading-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: flex-end; }
-
 .initial-setup-provider-catalog-search,
-.initial-setup-provider-catalog-results {
-    display: grid;
-    gap: 0.55rem;
-    margin-top: 0.75rem;
+.initial-setup-provider-catalog-results { display: grid; gap: 0.55rem; margin-top: 0.75rem; }
+.initial-setup-evidence-note { display: block; opacity: .86; overflow-wrap: anywhere; line-height: 1.35; }
+.initial-setup-configured-hosts { display: grid; gap: .45rem; margin: .7rem 0 1rem; padding: .75rem; border: 1px solid var(--bs-border-color, rgba(127, 127, 127, .32)); border-radius: .55rem; }
+.initial-setup-configured-host { display: grid; gap: .18rem; min-width: 0; padding: .45rem .55rem; border-radius: .4rem; background: color-mix(in srgb, currentColor 4%, transparent); }
+.initial-setup-configured-host code { overflow-wrap: anywhere; white-space: normal; }
+
+@media (min-width: 1180px) {
+    .initial-setup-hardware-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .initial-setup-hardware-use, .initial-setup-hardware-canirun { grid-column: 1 / -1; }
 }
 
-.initial-setup-evidence-note { display: block; opacity: .86; overflow-wrap: anywhere; }
-
-.initial-setup-configured-hosts {
-    display: grid;
-    gap: .45rem;
-    margin: .7rem 0 1rem;
-    padding: .75rem;
-    border: 1px solid var(--bs-border-color, rgba(127, 127, 127, .32));
-    border-radius: .55rem;
-}
-
-.initial-setup-configured-host {
-    display: grid;
-    gap: .18rem;
-    min-width: 0;
-    padding: .45rem .55rem;
-    border-radius: .4rem;
-    background: color-mix(in srgb, currentColor 4%, transparent);
-}
-
-.initial-setup-configured-host code {
-    overflow-wrap: anywhere;
-    white-space: normal;
+@media (max-width: 760px) {
+    .initial-setup-heading { display: grid; }
+    .initial-setup-heading-actions { justify-content: start; }
+    .initial-setup-hardware-row { grid-template-columns: 1fr; }
+    .initial-setup-hardware-use, .initial-setup-hardware-canirun { grid-column: 1; }
+    .initial-setup-installed-row { grid-template-columns: auto auto; }
+    .initial-setup-installed-identity { grid-column: 1 / -1; }
 }

@@ -72,9 +72,9 @@
             }
 
             <div class="council-team-fields">
-                <label><span>Key</span><DxTextBox @bind-Text="_editor.Key" CssClass="form-control" /></label>
-                <label><span>Display name</span><DxTextBox @bind-Text="_editor.DisplayName" CssClass="form-control" /></label>
-                <label class="wide"><span>Purpose</span><DxMemo @bind-Text="_editor.Purpose" CssClass="form-control" Rows="3" /></label>
+                <label><span>Key</span><DxTextBox @bind-Text="_editor.Key" CssClass="localgpt-editor" /></label>
+                <label><span>Display name</span><DxTextBox @bind-Text="_editor.DisplayName" CssClass="localgpt-editor" /></label>
+                <label class="wide"><span>Purpose</span><DxMemo @bind-Text="_editor.Purpose" CssClass="localgpt-editor" Rows="3" /></label>
             </div>
 
             <details class="council-advanced-section" open="@(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault)">
@@ -91,15 +91,15 @@
                     </label>
                     <label>
                         <span>Maximum output tokens per member</span>
-                        <DxSpinEdit @bind-Value="_editor.AllMembersReadinessPreflightMaxOutputTokens" CssClass="form-control" MinValue="32" MaxValue="2048" Enabled="@(!(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe))" />
+                        <DxSpinEdit @bind-Value="_editor.AllMembersReadinessPreflightMaxOutputTokens" CssClass="localgpt-editor" MinValue="32" MaxValue="2048" Enabled="@(!(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe))" />
                     </label>
                     <label class="wide">
                         <span>Role-aware preflight prompt override (optional)</span>
-                        <DxMemo @bind-Text="_editor.AllMembersReadinessPreflightPromptTemplate" CssClass="form-control council-script" Rows="5" Enabled="@(!(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe))" NullText="Blank uses the maintained compact probe. Placeholders: {{ModelName}}, {{TeamName}}, {{AssignedRoles}}, {{RoleResponsibilities}}" />
+                        <DxMemo @bind-Text="_editor.AllMembersReadinessPreflightPromptTemplate" CssClass="localgpt-editor council-script" Rows="5" Enabled="@(!(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe))" NullText="Blank uses the maintained compact probe. Placeholders: {{ModelName}}, {{TeamName}}, {{AssignedRoles}}, {{RoleResponsibilities}}" />
                     </label>
                 </div>
-                <label class="form-check mt-2">
-                    <DxCheckBox @bind-Checked="_editor.IncludeAllMembersReadinessPreflightInWorkflowContext" CssClass="form-check-input" Enabled="@(!(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe))" />
+                <label class="localgpt-check-row mt-2">
+                    <DxCheckBox @bind-Checked="_editor.IncludeAllMembersReadinessPreflightInWorkflowContext" CssClass="localgpt-check" Enabled="@(!(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe))" />
                     <span>Include all preflight member output in later workflow model context (can be very large on big Councils)</span>
                 </label>
                 <p class="hint mb-0">When this context option is off, preflight responses remain visible and persisted as run evidence but are filtered out of later model transcript context. This prevents 100+ member readiness chatter from consuming the task budget.</p>
@@ -199,9 +199,9 @@
                                 }
                             </div>
                         </header>
-                        <label><span>Role name</span><DxTextBox @bind-Text="role.Role" CssClass="form-control" /></label>
-                        <label><span>Expertise or viewpoint</span><DxTextBox @bind-Text="role.Expertise" CssClass="form-control" /></label>
-                        <label class="wide"><span>Responsibility</span><DxMemo @bind-Text="role.Responsibility" CssClass="form-control" Rows="2" /></label>
+                        <label><span>Role name</span><DxTextBox @bind-Text="role.Role" CssClass="localgpt-editor" /></label>
+                        <label><span>Expertise or viewpoint</span><DxTextBox @bind-Text="role.Expertise" CssClass="localgpt-editor" /></label>
+                        <label class="wide"><span>Responsibility</span><DxMemo @bind-Text="role.Responsibility" CssClass="localgpt-editor" Rows="2" /></label>
                         <div class="wide council-role-policy-grid">
                             <label>
                                 <span>AI assignment</span>
@@ -218,18 +218,18 @@
                                     <span>Exact role invocations</span>
                                     <DxSpinEdit Value="@ExactRoleInvocationCount(role)"
                                                 ValueChanged="@((int? value) => SetExactRoleInvocationCount(roleIndex, value))"
-                                                CssClass="form-control"
+                                                CssClass="localgpt-editor"
                                                 MinValue="1"
                                                 NullText="Optional · use range below" />
                                 </label>
                             }
                             <label>
                                 <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Minimum pool invocations" : "Minimum random AI participants")</span>
-                                <DxSpinEdit @bind-Value="role.MinimumAiParticipants" CssClass="form-control" MinValue="1" Enabled="@(!(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly))" />
+                                <DxSpinEdit @bind-Value="role.MinimumAiParticipants" CssClass="localgpt-editor" MinValue="1" Enabled="@(!(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly))" />
                             </label>
                             <label>
                                 <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Maximum pool invocations" : "Maximum random AI participants")</span>
-                                <DxSpinEdit @bind-Value="role.MaximumAiParticipants" CssClass="form-control" MinValue="1" Enabled="@(!(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly))" />
+                                <DxSpinEdit @bind-Value="role.MaximumAiParticipants" CssClass="localgpt-editor" MinValue="1" Enabled="@(!(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly))" />
                             </label>
                             <label>
                                 <span>Human participation</span>
@@ -314,15 +314,15 @@
                         <div class="wide council-role-coordination-grid">
                             <label>
                                 <span>Distinct AI assignment group</span>
-                                <DxTextBox @bind-Text="role.DistinctAiAssignmentGroup" CssClass="form-control" NullText="Optional shared group key" />
+                                <DxTextBox @bind-Text="role.DistinctAiAssignmentGroup" CssClass="localgpt-editor" NullText="Optional shared group key" />
                             </label>
                             <label>
                                 <span>Match AI count to role</span>
-                                <DxTextBox @bind-Text="role.MatchAiParticipantCountToRole" CssClass="form-control" NullText="Optional role name" />
+                                <DxTextBox @bind-Text="role.MatchAiParticipantCountToRole" CssClass="localgpt-editor" NullText="Optional role name" />
                             </label>
                             <label>
                                 <span>Pair one-to-one with role</span>
-                                <DxTextBox @bind-Text="role.PairedRole" CssClass="form-control" NullText="Optional role name" />
+                                <DxTextBox @bind-Text="role.PairedRole" CssClass="localgpt-editor" NullText="Optional role name" />
                             </label>
                         </div>
                         <details class="wide council-runtime-class-picker">
@@ -407,10 +407,10 @@
                             </div>
                         </header>
                         <div class="council-workflow-fields">
-                            <label><span>Key</span><DxTextBox @bind-Text="step.Key" CssClass="form-control" /></label>
-                            <label><span>Display name</span><DxTextBox @bind-Text="step.DisplayName" CssClass="form-control" /></label>
-                            <label><span>Phase</span><DxTextBox @bind-Text="step.Phase" CssClass="form-control" /></label>
-                            <label><span>Role for this round</span><DxTextBox @bind-Text="step.Role" CssClass="form-control" /></label>
+                            <label><span>Key</span><DxTextBox @bind-Text="step.Key" CssClass="localgpt-editor" /></label>
+                            <label><span>Display name</span><DxTextBox @bind-Text="step.DisplayName" CssClass="localgpt-editor" /></label>
+                            <label><span>Phase</span><DxTextBox @bind-Text="step.Phase" CssClass="localgpt-editor" /></label>
+                            <label><span>Role for this round</span><DxTextBox @bind-Text="step.Role" CssClass="localgpt-editor" /></label>
                             <label>
                                 <span>Execution</span>
                                 <DxComboBox Data="@ExecutionModes"
@@ -428,7 +428,7 @@
                                             CssClass="localgpt-dx-combo"
                                             Enabled="@(step.ExecutionMode == "AssignedModelSingle")" />
                             </label>
-                            <label><span>Logical Council round (0 = automatic)</span><DxSpinEdit @bind-Value="step.LogicalRoundNumber" CssClass="form-control" MinValue="0" MaxValue="1000" /></label>
+                            <label><span>Logical Council round (0 = automatic)</span><DxSpinEdit @bind-Value="step.LogicalRoundNumber" CssClass="localgpt-editor" MinValue="0" MaxValue="1000" /></label>
                             <label>
                                 <span>Prior transcript visibility</span>
                                 <DxComboBox Data="@TranscriptVisibilityModes"
@@ -438,35 +438,35 @@
                                             CssClass="localgpt-dx-combo"
                                             Enabled="@step.IncludePriorTranscript" />
                             </label>
-                            <label><span>Repeat count inside this step</span><DxSpinEdit @bind-Value="step.RepeatCount" CssClass="form-control" MinValue="1" MaxValue="100" /></label>
-                            <label><span>Sort order</span><DxSpinEdit @bind-Value="step.SortOrder" CssClass="form-control" /></label>
+                            <label><span>Repeat count inside this step</span><DxSpinEdit @bind-Value="step.RepeatCount" CssClass="localgpt-editor" MinValue="1" MaxValue="100" /></label>
+                            <label><span>Sort order</span><DxSpinEdit @bind-Value="step.SortOrder" CssClass="localgpt-editor" /></label>
                             <label>
                                 <span>Loop group (optional)</span>
-                                <DxTextBox @bind-Text="step.LoopGroup" CssClass="form-control" NullText="Same key on consecutive steps" />
+                                <DxTextBox @bind-Text="step.LoopGroup" CssClass="localgpt-editor" NullText="Same key on consecutive steps" />
                             </label>
                             <label>
                                 <span>Maximum loop iterations</span>
-                                <DxSpinEdit @bind-Value="step.MaximumLoopIterations" CssClass="form-control" MinValue="1" MaxValue="100" Enabled="@(!(string.IsNullOrWhiteSpace(step.LoopGroup)))" />
+                                <DxSpinEdit @bind-Value="step.MaximumLoopIterations" CssClass="localgpt-editor" MinValue="1" MaxValue="100" Enabled="@(!(string.IsNullOrWhiteSpace(step.LoopGroup)))" />
                             </label>
                             <label class="wide">
                                 <span>Loop completion marker (optional)</span>
-                                <DxTextBox @bind-Text="step.LoopCompletionMarker" CssClass="form-control" NullText="Example: [[TOURNAMENT_COMPLETE]]" Enabled="@(!(string.IsNullOrWhiteSpace(step.LoopGroup)))" />
+                                <DxTextBox @bind-Text="step.LoopCompletionMarker" CssClass="localgpt-editor" NullText="Example: [[TOURNAMENT_COMPLETE]]" Enabled="@(!(string.IsNullOrWhiteSpace(step.LoopGroup)))" />
                             </label>
                             @if (step.ProducesAsciiFrame)
                             {
-                                <label><span>ASCII frame width</span><DxSpinEdit @bind-Value="step.AsciiFrameWidth" CssClass="form-control" MinValue="20" MaxValue="240" /></label>
-                                <label><span>ASCII frame height</span><DxSpinEdit @bind-Value="step.AsciiFrameHeight" CssClass="form-control" MinValue="8" MaxValue="120" /></label>
-                                <label><span>World step scale</span><DxSpinEdit @bind-Value="step.WorldStepScale" CssClass="form-control" MinValue="1" MaxValue="1000" /></label>
+                                <label><span>ASCII frame width</span><DxSpinEdit @bind-Value="step.AsciiFrameWidth" CssClass="localgpt-editor" MinValue="20" MaxValue="240" /></label>
+                                <label><span>ASCII frame height</span><DxSpinEdit @bind-Value="step.AsciiFrameHeight" CssClass="localgpt-editor" MinValue="8" MaxValue="120" /></label>
+                                <label><span>World step scale</span><DxSpinEdit @bind-Value="step.WorldStepScale" CssClass="localgpt-editor" MinValue="1" MaxValue="1000" /></label>
                                 <div class="wide alert alert-info mb-0">Exactly one AI must own the complete frame. Use LeaderSingle, RoundRobinSingle or AssignedModelSingle and emit <code>[[ASCII_FRAME]]...[[/ASCII_FRAME]]</code>.</div>
                             }
-                            <label class="wide"><span>Round prompt</span><DxMemo @bind-Text="step.PromptTemplate" CssClass="form-control council-script" Rows="7" /></label>
+                            <label class="wide"><span>Round prompt</span><DxMemo @bind-Text="step.PromptTemplate" CssClass="localgpt-editor council-script" Rows="7" /></label>
                         </div>
                         <details class="council-advanced-section" open="@(step.EnableRolePeerReview || step.SummarizeRoleResults)">
                             <summary>Role-member coordination @(step.EnableRolePeerReview || step.SummarizeRoleResults ? "· enabled" : "· disabled")</summary>
                             <p class="hint">Optional and off by default. Primary role members still execute exactly as configured above. Peer review adds a small role-local usefulness/vote pass without DX side effects. Role synthesis can then ask one assigned role member to merge the primary answers into one authoritative result for this role before the next workflow step.</p>
                             <div class="council-step-options">
-                                <label class="form-check"><DxCheckBox @bind-Checked="step.EnableRolePeerReview" CssClass="form-check-input" /><span>Peer-review role-member answers, report usefulness and vote for the strongest role result</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="step.SummarizeRoleResults" CssClass="form-check-input" /><span>Summarize multiple role-member answers into one final result of this role</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.EnableRolePeerReview" CssClass="localgpt-check" /><span>Peer-review role-member answers, report usefulness and vote for the strongest role result</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.SummarizeRoleResults" CssClass="localgpt-check" /><span>Summarize multiple role-member answers into one final result of this role</span></label>
                             </div>
                             @if (step.SummarizeRoleResults)
                             {
@@ -493,10 +493,10 @@
                             }
                         </details>
                         <div class="council-step-options">
-                            <label class="form-check"><DxCheckBox @bind-Checked="step.IsEnabled" CssClass="form-check-input" /><span>Enabled</span></label>
-                            <label class="form-check"><DxCheckBox @bind-Checked="step.IncludePriorTranscript" CssClass="form-check-input" /><span>Include prior transcript according to visibility policy</span></label>
-                            <label class="form-check"><DxCheckBox @bind-Checked="step.ProducesFinalAnswer" CssClass="form-check-input" /><span>Can become final answer</span></label>
-                            <label class="form-check"><DxCheckBox @bind-Checked="step.RequiresHumanCheckpoint" CssClass="form-check-input" /><span>Respect human gate before round</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.IsEnabled" CssClass="localgpt-check" /><span>Enabled</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.IncludePriorTranscript" CssClass="localgpt-check" /><span>Include prior transcript according to visibility policy</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.ProducesFinalAnswer" CssClass="localgpt-check" /><span>Can become final answer</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequiresHumanCheckpoint" CssClass="localgpt-check" /><span>Respect human gate before round</span></label>
                             <label>
                                 <span>Automatic/native function policy</span>
                                 <DxComboBox Data="@AutomaticFunctionPolicyModes"
@@ -506,7 +506,7 @@
                                             ValueChanged="@((CouncilAutomaticFunctionPolicyMode value) => SetAutomaticFunctionPolicy(step, new ChangeEventArgs { Value = value.ToString() }))"
                                             CssClass="localgpt-dx-combo" />
                             </label>
-                            <label class="form-check"><DxCheckBox @bind-Checked="step.ProducesAsciiFrame" CssClass="form-check-input" /><span>Produces one AI-owned ASCII frame</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.ProducesAsciiFrame" CssClass="localgpt-check" /><span>Produces one AI-owned ASCII frame</span></label>
                         </div>
                         @if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.TeamAllowList)
                         {
@@ -518,7 +518,7 @@
                                 <span>Exact automatic/native function names · one per line</span>
                                 <DxMemo Text="@CouncilText.FormatMultilineNameList(step.AllowedAutomaticFunctions)"
                                         TextChanged="@((string value) => SetStepAutomaticFunctions(step, new ChangeEventArgs { Value = value }))"
-                                        CssClass="form-control council-script" Rows="4" />
+                                        CssClass="localgpt-editor council-script" Rows="4" />
                             </label>
                         }
                         <details class="council-advanced-section">
@@ -533,10 +533,10 @@
                                                 TextFieldName="@nameof(LocalGptSelectionOption<CouncilMemberFailureRecoveryMode>.Label)"
                                                 CssClass="localgpt-dx-combo" />
                                 </label>
-                                <label><span>Round-level recovery turns after built-in safe fallback</span><DxSpinEdit @bind-Value="step.MemberFailureRecoveryAttempts" CssClass="form-control" MinValue="0" MaxValue="8" Enabled="@(!(step.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.Disabled))" /></label>
-                                <label><span>Role-compliance corrective retries</span><DxSpinEdit @bind-Value="step.RoleComplianceRetryCount" CssClass="form-control" MinValue="0" MaxValue="3" /></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="step.FinalAnswerRecoveryEnabled" CssClass="form-check-input" /><span>Recover a final answer when only thinking/non-final content was returned</span></label>
-                                <label><span>Final-answer recovery max output tokens</span><DxSpinEdit @bind-Value="step.FinalAnswerRecoveryMaxOutputTokens" CssClass="form-control" MinValue="128" MaxValue="32768" Enabled="@(!(!step.FinalAnswerRecoveryEnabled))" /></label>
+                                <label><span>Round-level recovery turns after built-in safe fallback</span><DxSpinEdit @bind-Value="step.MemberFailureRecoveryAttempts" CssClass="localgpt-editor" MinValue="0" MaxValue="8" Enabled="@(!(step.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.Disabled))" /></label>
+                                <label><span>Role-compliance corrective retries</span><DxSpinEdit @bind-Value="step.RoleComplianceRetryCount" CssClass="localgpt-editor" MinValue="0" MaxValue="3" /></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.FinalAnswerRecoveryEnabled" CssClass="localgpt-check" /><span>Recover a final answer when only thinking/non-final content was returned</span></label>
+                                <label><span>Final-answer recovery max output tokens</span><DxSpinEdit @bind-Value="step.FinalAnswerRecoveryMaxOutputTokens" CssClass="localgpt-editor" MinValue="128" MaxValue="32768" Enabled="@(!(!step.FinalAnswerRecoveryEnabled))" /></label>
                             </div>
                         </details>
                         <details class="council-advanced-section">
@@ -550,15 +550,15 @@
                                 <DxButton CssClass="btn btn-outline-danger btn-sm" Click="() => ApplyXRoundPreset(step, CouncilXRoundPreset.Disabled)">Clear X policy</DxButton>
                             </div>
                             <div class="council-step-options">
-                                <label class="form-check"><DxCheckBox @bind-Checked="step.XFunctionsEnabled" CssClass="form-check-input" /><span>Enable X-Functions for this step</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="step.XCanRevisit" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May revisit another step</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="step.XCanReturnText" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May return text and finish parent workflow</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="step.XCanStartSingleModel" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May start one selected model subtask</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="step.XCanStartCouncil" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May start another Council team</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="step.XRequiresHumanApproval" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>Human must approve every accepted X control request</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.XFunctionsEnabled" CssClass="localgpt-check" /><span>Enable X-Functions for this step</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.XCanRevisit" CssClass="localgpt-check" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May revisit another step</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.XCanReturnText" CssClass="localgpt-check" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May return text and finish parent workflow</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.XCanStartSingleModel" CssClass="localgpt-check" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May start one selected model subtask</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.XCanStartCouncil" CssClass="localgpt-check" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May start another Council team</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.XRequiresHumanApproval" CssClass="localgpt-check" Enabled="@(!(!step.XFunctionsEnabled))" /><span>Human must approve every accepted X control request</span></label>
                             </div>
                             <div class="council-workflow-fields">
-                                <label><span>X transition budget for this source step</span><DxSpinEdit @bind-Value="step.XMaximumTransitions" CssClass="form-control" MinValue="1" MaxValue="100" Enabled="@(!(!step.XFunctionsEnabled))" /></label>
+                                <label><span>X transition budget for this source step</span><DxSpinEdit @bind-Value="step.XMaximumTransitions" CssClass="localgpt-editor" MinValue="1" MaxValue="100" Enabled="@(!(!step.XFunctionsEnabled))" /></label>
                                 <label>
                                     <span>Default revisit target</span>
                                     <DxComboBox Data="@XRevisitTargetOptions(stepIndex)"
@@ -577,7 +577,7 @@
                                                 CssClass="localgpt-dx-combo"
                                                 Enabled="@(step.XFunctionsEnabled && step.XCanStartCouncil)" />
                                 </label>
-                                <label><span>Maximum child-Council nesting depth</span><DxSpinEdit @bind-Value="step.XMaximumChildCouncilDepth" CssClass="form-control" MinValue="1" MaxValue="10" Enabled="@(!(!step.XFunctionsEnabled || !step.XCanStartCouncil))" /></label>
+                                <label><span>Maximum child-Council nesting depth</span><DxSpinEdit @bind-Value="step.XMaximumChildCouncilDepth" CssClass="localgpt-editor" MinValue="1" MaxValue="10" Enabled="@(!(!step.XFunctionsEnabled || !step.XCanStartCouncil))" /></label>
                                 <label class="wide">
                                     <span>Default single-model target</span>
                                     <DxComboBox Data="@XChildModelOptions(step)"
@@ -597,25 +597,25 @@
             <details class="council-advanced-section">
                 <summary>Advanced prompt compatibility and JSON import/export</summary>
                 <div class="council-team-fields">
-                    <label class="wide"><span>Legacy expert preparation prompt</span><DxMemo @bind-Text="_editor.ExpertPreparationPromptTemplate" CssClass="form-control council-script" Rows="6" /></label>
-                    <label class="wide"><span>Legacy leader synthesis prompt</span><DxMemo @bind-Text="_editor.LeaderSynthesisPromptTemplate" CssClass="form-control council-script" Rows="6" /></label>
-                    <label class="wide"><span>Legacy main-round instruction</span><DxMemo @bind-Text="_editor.MainRoundInstructionTemplate" CssClass="form-control council-script" Rows="4" /></label>
-                    <label class="wide"><span>Roles JSON</span><DxMemo @bind-Text="_rolesJson" CssClass="form-control council-script" Rows="8" /></label>
-                    <label class="wide"><span>Workflow steps JSON</span><DxMemo @bind-Text="_workflowJson" CssClass="form-control council-script" Rows="12" /></label>
+                    <label class="wide"><span>Legacy expert preparation prompt</span><DxMemo @bind-Text="_editor.ExpertPreparationPromptTemplate" CssClass="localgpt-editor council-script" Rows="6" /></label>
+                    <label class="wide"><span>Legacy leader synthesis prompt</span><DxMemo @bind-Text="_editor.LeaderSynthesisPromptTemplate" CssClass="localgpt-editor council-script" Rows="6" /></label>
+                    <label class="wide"><span>Legacy main-round instruction</span><DxMemo @bind-Text="_editor.MainRoundInstructionTemplate" CssClass="localgpt-editor council-script" Rows="4" /></label>
+                    <label class="wide"><span>Roles JSON</span><DxMemo @bind-Text="_rolesJson" CssClass="localgpt-editor council-script" Rows="8" /></label>
+                    <label class="wide"><span>Workflow steps JSON</span><DxMemo @bind-Text="_workflowJson" CssClass="localgpt-editor council-script" Rows="12" /></label>
                     <div class="wide council-json-actions">
                         <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="RefreshAdvancedJson">Refresh JSON from editor</DxButton>
                         <DxButton CssClass="btn btn-outline-primary btn-sm" Click="ApplyAdvancedJson">Apply JSON to editor</DxButton>
                     </div>
-                    <label class="wide"><span>Preferred organic capabilities JSON</span><DxMemo @bind-Text="_capabilitiesJson" CssClass="form-control council-script" Rows="5" /></label>
-                    <label class="wide"><span>Team automatic/native function allow-list JSON</span><DxMemo @bind-Text="_allowedFunctionsJson" CssClass="form-control council-script" Rows="5" /></label>
-                    <label class="wide"><span>Architecture contracts JSON</span><DxMemo @bind-Text="_contractsJson" CssClass="form-control council-script" Rows="5" /></label>
+                    <label class="wide"><span>Preferred organic capabilities JSON</span><DxMemo @bind-Text="_capabilitiesJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
+                    <label class="wide"><span>Team automatic/native function allow-list JSON</span><DxMemo @bind-Text="_allowedFunctionsJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
+                    <label class="wide"><span>Architecture contracts JSON</span><DxMemo @bind-Text="_contractsJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
                 </div>
             </details>
 
             <div class="council-team-savebar">
                 <span class="council-expanded-count">@EnabledRoundCount enabled step(s), up to @ExpandedRoundCount expanded round(s)</span>
-                <label class="form-check"><DxCheckBox @bind-Checked="_editor.IsEnabled" CssClass="form-check-input" /><span>Enabled</span></label>
-                <label class="form-check"><DxCheckBox @bind-Checked="_confirmed" @bind-Checked:after="ReviewConfirmationChanged" CssClass="form-check-input" /><span>I reviewed this social structure and its prompts</span></label>
+                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_editor.IsEnabled" CssClass="localgpt-check" /><span>Enabled</span></label>
+                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_confirmed" @bind-Checked:after="ReviewConfirmationChanged" CssClass="localgpt-check" /><span>I reviewed this social structure and its prompts</span></label>
                 <DxButton CssClass="btn btn-primary" Click="SaveAsync" Enabled="@(!(_busy || _editor.IsDeleted))">Save reviewed team</DxButton>
             </div>
         </section>

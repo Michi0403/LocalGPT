@@ -658,3 +658,37 @@ dxbl-popup-root > dxbl-popup-cell dxbl-dropdown-dialog[role="listbox"] {
     overflow: auto;
     overscroll-behavior: contain;
 }
+
+/* v4.6.3: DevExpress editors must not inherit Bootstrap native-input positioning/sizing. */
+.localgpt-editor {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.localgpt-check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: .5rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.localgpt-check-row > .localgpt-check,
+.localgpt-check-row > dxbl-check {
+    flex: 0 0 auto;
+    margin: .12rem 0 0;
+}
+
+.localgpt-check-row > span,
+.localgpt-check-row > strong,
+.localgpt-check-row > code {
+    min-width: 0;
+}
+
+.localgpt-check {
+    position: static !important;
+    float: none !important;
+    margin: 0 !important;
+}

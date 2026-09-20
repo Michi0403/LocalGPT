@@ -67,6 +67,18 @@ namespace LocalGPT
                 // The bundled desktop/WebView host binds to a random HTTP loopback port.
                 // HTTPS redirection has no target port there and only produces noisy startup warnings.
                 _ = app.UseRequestLocalization();
+                // UI language remains localized, while mathematical/editor values use invariant number
+                // separators. Keep the selected culture's date/time/text conventions and replace only its
+                // NumberFormat so decimal editors cannot change meaning when the display language changes.
+                app.Use(async (context, next) =>
+                {
+                    var uiCulture = CultureInfo.CurrentUICulture;
+                    var numericCulture = (CultureInfo)uiCulture.Clone();
+                    numericCulture.NumberFormat = (NumberFormatInfo)CultureInfo.InvariantCulture.NumberFormat.Clone();
+                    CultureInfo.CurrentCulture = numericCulture;
+                    CultureInfo.CurrentUICulture = uiCulture;
+                    await next(context).ConfigureAwait(false);
+                });
                 app.UseStaticFiles();
                 app.UseRouting();
                 if (!app.Environment.IsDevelopment())

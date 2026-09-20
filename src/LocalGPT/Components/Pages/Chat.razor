@@ -322,7 +322,7 @@
                 </label>
                 <label title="Save the currently visible per-model roads and token ranges as a reusable hardware performance profile.">
                     <span>@L("Chat.HardwarePerformancePreset.Name", "Performance preset name")</span>
-                    <DxTextBox @bind-Text="HardwarePerformancePresetName" CssClass="form-control" MaxLength="160" NullText="My benchmark profile" />
+                    <DxTextBox @bind-Text="HardwarePerformancePresetName" CssClass="localgpt-editor" MaxLength="160" NullText="My benchmark profile" />
                 </label>
                 <div class="hardware-performance-preset-actions">
                     <DxButton CssClass="btn btn-outline-secondary" Enabled="@(!(isHardwarePerformancePresetBusy || CouncilEditorRoutes.Count == 0 || string.IsNullOrWhiteSpace(HardwarePerformancePresetName)))" Click="SaveHardwarePerformancePresetAsync">@L("Chat.HardwarePerformancePreset.Save", "Save current")</DxButton>
@@ -347,7 +347,7 @@
             </label>
             <label title="Saving updates an existing preset with the same name instead of creating duplicates.">
                 <span>Preset name</span>
-                <DxTextBox @bind-Text="ModelPresetName" CssClass="form-control" MaxLength="160" NullText="My council team" />
+                <DxTextBox @bind-Text="ModelPresetName" CssClass="localgpt-editor" MaxLength="160" NullText="My council team" />
             </label>
             <label class="inline-dx-check" title="Creates a database-first project/revision for each explicit AI Council run when no project is selected.">
                 <DxCheckBox @bind-Checked="CreateProjectPerCouncilRun" />
@@ -842,7 +842,7 @@
             }
             <label class="live-contribution-editor" title="This does not cancel the current model. It enters at the next council heartbeat as a human peer contribution.">
                 <span>Ask AI Assistant / Council correction</span>
-                <DxTextBox @bind-Text="RunningCouncilContribution" CssClass="form-control" Enabled="@(!(!IsLiveCouncilInteractionAvailable))" NullText="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
+                <DxTextBox @bind-Text="RunningCouncilContribution" CssClass="localgpt-editor" Enabled="@(!(!IsLiveCouncilInteractionAvailable))" NullText="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
             </label>
             @if (collaborationSnapshot.Profile.IsEnabled && IsLiveCouncilInteractionAvailable && !string.IsNullOrWhiteSpace(RunningCouncilContribution))
             {

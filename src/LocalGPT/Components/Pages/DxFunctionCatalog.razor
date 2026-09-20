@@ -60,7 +60,7 @@
     <section class="dx-catalog-toolbar">
         <label>
             <span>Search</span>
-            <DxTextBox @bind-Text="_filter" BindValueMode="BindValueMode.OnInput" CssClass="form-control" NullText="Function, service, route or purpose" />
+            <DxTextBox @bind-Text="_filter" BindValueMode="BindValueMode.OnInput" CssClass="localgpt-editor" NullText="Function, service, route or purpose" />
         </label>
         <label>
             <span>Kind</span>
@@ -69,8 +69,8 @@
                         ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
                         TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
         </label>
-        <label class="form-check dx-inline-check">
-            <DxCheckBox @bind-Checked="_onlyExposed" CssClass="form-check-input" />
+        <label class="localgpt-check-row dx-inline-check">
+            <DxCheckBox @bind-Checked="_onlyExposed" CssClass="localgpt-check" />
             <span>Only exposed to 1-Wire</span>
         </label>
         <label>
@@ -80,8 +80,8 @@
                         ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
                         TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
         </label>
-        <label class="form-check dx-inline-check">
-            <DxCheckBox @bind-Checked="_groupCardsByNamespace" CssClass="form-check-input" Enabled="@(_viewMode == "Cards")" />
+        <label class="localgpt-check-row dx-inline-check">
+            <DxCheckBox @bind-Checked="_groupCardsByNamespace" CssClass="localgpt-check" Enabled="@(_viewMode == "Cards")" />
             <span>Group cards by namespace</span>
         </label>
     </section>
@@ -103,31 +103,31 @@
                     <DxGridDataColumn Caption="Enabled" Width="95px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <DxCheckBox @bind-Checked="entry.IsEnabled" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.IsEnabled" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="localgpt-check" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="AI chat" Width="95px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <DxCheckBox @bind-Checked="entry.ExposeToAiChat" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.ExposeToAiChat" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="localgpt-check" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="1-Wire" Width="95px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <DxCheckBox @bind-Checked="entry.ExposeToOneWire" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.ExposeToOneWire" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="localgpt-check" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="Remote" Width="95px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <DxCheckBox @bind-Checked="entry.AllowRemoteInvocation" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.AllowRemoteInvocation" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="localgpt-check" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="Frontend" Width="105px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <DxCheckBox @bind-Checked="entry.RequiresFrontendConfirmation" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.RequiresFrontendConfirmation" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="localgpt-check" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="Action" Width="105px">
@@ -176,18 +176,18 @@
                                 </dl>
                             </details>
                             <div class="dx-policy-grid">
-                                <label class="form-check"><DxCheckBox @bind-Checked="entry.IsEnabled" CssClass="form-check-input" /><span>Enabled</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="entry.ExposeToAiChat" CssClass="form-check-input" /><span>Reveal to AI chat</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="entry.ExposeToOneWire" CssClass="form-check-input" /><span>Reveal to linked app</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="entry.AllowRemoteInvocation" CssClass="form-check-input" /><span>Allow linked invocation</span></label>
-                                <label class="form-check"><DxCheckBox @bind-Checked="entry.RequiresFrontendConfirmation" CssClass="form-check-input" /><span>Require this frontend</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="entry.IsEnabled" CssClass="localgpt-check" /><span>Enabled</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="entry.ExposeToAiChat" CssClass="localgpt-check" /><span>Reveal to AI chat</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="entry.ExposeToOneWire" CssClass="localgpt-check" /><span>Reveal to linked app</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="entry.AllowRemoteInvocation" CssClass="localgpt-check" /><span>Allow linked invocation</span></label>
+                                <label class="localgpt-check-row"><DxCheckBox @bind-Checked="entry.RequiresFrontendConfirmation" CssClass="localgpt-check" /><span>Require this frontend</span></label>
                                 <label>
                                     <span>Frontend editor</span>
                                     <DxComboBox Data="@InteractionEditorOptions" @bind-Value="entry.InteractionEditor" />
                                 </label>
                                 <label class="wide">
                                     <span>Allowed peer IDs JSON (empty array = any explicitly connected peer)</span>
-                                    <DxTextBox @bind-Text="entry.AllowedPeerIdsJson" CssClass="form-control" />
+                                    <DxTextBox @bind-Text="entry.AllowedPeerIdsJson" CssClass="localgpt-editor" />
                                 </label>
                             </div>
                             <footer>

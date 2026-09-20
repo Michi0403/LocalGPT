@@ -42,20 +42,20 @@
                 <h4>1. Local host hardware</h4>
                 <p>LocalGPT detects the physical host CPU, RAM/unified memory and every GPU it can identify. The optional CanIRun.ai hardware match is separate so a user can choose the catalog variant without overwriting LocalGPT's detected hardware facts.</p>
                 <label>Physical host endpoint
-                    <DxTextBox @bind-Text="hardwareEndpoint" CssClass="form-control" />
+                    <DxTextBox @bind-Text="hardwareEndpoint" CssClass="localgpt-editor" />
                 </label>
                 <div class="initial-setup-hardware-list">
                     @foreach (var device in hardware)
                     {
                         <div class="initial-setup-hardware-row" @key="device.Key">
                             <label class="initial-setup-hardware-use"><DxCheckBox @bind-Checked="device.Selected" /> Use this host/device row</label>
-                            <label>Provider endpoint / physical host<DxTextBox @bind-Text="device.Endpoint" CssClass="form-control" /></label>
-                            <label>CPU / SoC<DxTextBox @bind-Text="device.CpuName" CssClass="form-control" /></label>
-                            <label>GPU / accelerator (optional)<DxTextBox @bind-Text="device.Name" CssClass="form-control" /></label>
-                            <label>GPU vendor<DxTextBox @bind-Text="device.Vendor" CssClass="form-control" /></label>
-                            <label>Dedicated VRAM GiB<DxSpinEdit @bind-Value="device.DedicatedVramGiB" CssClass="form-control" Increment="0.25" MinValue="0" /></label>
-                            <label>System / unified RAM GiB<DxSpinEdit @bind-Value="device.SystemMemoryGiB" CssClass="form-control" Increment="0.25" MinValue="0" /></label>
-                            <label class="initial-setup-hardware-canirun">CanIRun.ai hardware match (optional catalog variant)<DxTextBox @bind-Text="device.CanIRunHardwareName" CssClass="form-control" /></label>
+                            <label>Provider endpoint / physical host<DxTextBox @bind-Text="device.Endpoint" CssClass="localgpt-editor" /></label>
+                            <label>CPU / SoC<DxTextBox @bind-Text="device.CpuName" CssClass="localgpt-editor" /></label>
+                            <label>GPU / accelerator (optional)<DxTextBox @bind-Text="device.Name" CssClass="localgpt-editor" /></label>
+                            <label>GPU vendor<DxTextBox @bind-Text="device.Vendor" CssClass="localgpt-editor" /></label>
+                            <label>Dedicated VRAM GiB<InvariantDoubleEditor @bind-Value="device.DedicatedVramGiB" Min="0" Step="0.25" DecimalPlaces="2" /></label>
+                            <label>System / unified RAM GiB<InvariantDoubleEditor @bind-Value="device.SystemMemoryGiB" Min="0" Step="0.25" DecimalPlaces="2" /></label>
+                            <label class="initial-setup-hardware-canirun">CanIRun.ai hardware match (optional catalog variant)<DxTextBox @bind-Text="device.CanIRunHardwareName" CssClass="localgpt-editor" /></label>
                             <DxButton CssClass="localgpt-native-button initial-setup-hardware-remove" Click="() => RemoveHardware(device)">Remove row</DxButton>
                         </div>
                     }
@@ -68,7 +68,7 @@
                 <details>
                     <summary>HWiNFO text import</summary>
                     <p>The report stays local. LocalGPT deterministically extracts all supported GPU-memory sections plus CPU/RAM/OS facts.</p>
-                    <DxMemo @bind-Text="hwInfoText" CssClass="form-control" Rows="6" NullText="Paste HWiNFO text export" />
+                    <DxMemo @bind-Text="hwInfoText" CssClass="localgpt-editor" Rows="6" NullText="Paste HWiNFO text export" />
                     <InputFile OnChange="ReadHwInfoFileAsync" accept=".txt,text/plain" />
                     <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || string.IsNullOrWhiteSpace(hwInfoText)))" Click="ImportHwInfoAsync">Import HWiNFO</DxButton>
                 </details>
@@ -77,22 +77,44 @@
             <article class="initial-setup-card">
                 <h4>2. Optional CanIRun.ai hardware-fit model discovery</h4>
                 <p><strong>Credit:</strong> <a href="https://www.canirun.ai/" target="_blank" rel="noopener noreferrer">CanIRun.ai by midudev</a> can discover open models that fit the reviewed consumer hardware, including models the user may not already know. This optional web lookup is independent from the provider's own model inventory/catalog.</p>
-                <label class="form-check">
-                    <DxCheckBox @bind-Checked="canIRunOptIn" CssClass="form-check-input" />
+                <label class="localgpt-check-row">
+                    <DxCheckBox @bind-Checked="canIRunOptIn" CssClass="localgpt-check" />
                     <span>I want LocalGPT to send the reviewed CPU, selected accelerator/CanIRun.ai variant, system/unified RAM and, when known, dedicated VRAM to CanIRun.ai. LocalGPT endpoint and host identifiers are not sent.</span>
                 </label>
                 <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || !canIRunOptIn))" Click="LoadRecommendationsAsync">Find hardware-fit models</DxButton>
                 @if (recommendations.Count > 0)
                 {
-                    <div class="initial-setup-model-list">
+                    <div class="initial-setup-model-list initial-setup-recommendation-list">
                         @foreach (var item in recommendations)
                         {
-                            <div class="initial-setup-model-row" @key="@(item.DeviceEndpoint + item.ModelId)">
-                                <strong>@item.ModelName</strong>
-                                <span>Grade @item.Grade · score @item.Score · @item.Status</span>
-                                <span>@item.Quantization @((item.RequiredVramGiB is null) ? string.Empty : $"· {item.RequiredVramGiB:0.##} GiB")</span>
-                                @if (!string.IsNullOrWhiteSpace(item.DeviceEndpoint)) { <code>@item.DeviceEndpoint</code> }
-                                <a href="@item.SourceUrl" target="_blank" rel="noopener noreferrer">CanIRun.ai source</a>
+                            var mappedChoice = FindRecommendationChoice(item);
+                            <div class="initial-setup-model-row initial-setup-recommendation-row" @key="@(item.DeviceEndpoint + item.ModelId)">
+                                <div class="initial-setup-model-title">
+                                    <strong>@item.ModelName</strong>
+                                    @if (!string.IsNullOrWhiteSpace(item.ModelId))
+                                    {
+                                        <code>@item.ModelId</code>
+                                    }
+                                </div>
+                                <div class="initial-setup-model-meta">
+                                    <span>@T("Grade") @item.Grade · @T("score") @item.Score · @item.Status</span>
+                                    @if (!string.IsNullOrWhiteSpace(item.Quantization))
+                                    {
+                                        <span>@item.Quantization@if (item.RequiredVramGiB is > 0) { <text> · @FormatInvariant(item.RequiredVramGiB.Value) GiB</text> }</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(item.DeviceEndpoint)) { <code>@item.DeviceEndpoint</code> }
+                                </div>
+                                <div class="initial-setup-model-actions">
+                                    <a href="@item.SourceUrl" target="_blank" rel="noopener noreferrer">@T("CanIRun.ai source")</a>
+                                    @if (mappedChoice?.IsInstalled == true && mappedChoice.CanCheckUpdate)
+                                    {
+                                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => CheckUpdateModelAsync(mappedChoice)">@T("Check / refresh model")</DxButton>
+                                    }
+                                    else
+                                    {
+                                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy && SelectedProvider is not null)" Click="() => ResolveAndInstallRecommendationAsync(item)">@T("Resolve & install model")</DxButton>
+                                    }
+                                </div>
                             </div>
                         }
                     </div>
@@ -181,7 +203,7 @@
                 @if (SelectedProvider is not null)
                 {
                     <label>Model ID
-                        <DxTextBox @bind-Text="manualModelId" CssClass="form-control" NullText="Provider model ID, for example qwen3:4b" />
+                        <DxTextBox @bind-Text="manualModelId" CssClass="localgpt-editor" NullText="Provider model ID, for example qwen3:4b" />
                     </label>
                     <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || string.IsNullOrWhiteSpace(manualModelId)))" Click="InstallManualModelAsync">Download / install model</DxButton>
                     <small>The provider model ID is validated as one safe token and installed through the same provider bootstrap service. Use the official provider catalog link to discover additional models even when CanIRun.ai is unavailable.</small>
@@ -189,7 +211,7 @@
                     {
                         <div class="initial-setup-provider-catalog-search">
                             <label>Official provider catalog search
-                                <DxTextBox @bind-Text="providerCatalogQuery" CssClass="form-control" NullText="Optional search, for example qwen or deepseek" />
+                                <DxTextBox @bind-Text="providerCatalogQuery" CssClass="localgpt-editor" NullText="Optional search, for example qwen or deepseek" />
                             </label>
                             <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="SearchProviderCatalogAsync">Search official provider catalog</DxButton>
                             <small>This user-triggered lookup contacts only the selected provider's maintained public catalog. It does not send LocalGPT endpoints, hardware facts, or CanIRun.ai state.</small>
@@ -206,50 +228,49 @@
                         @foreach (var choice in modelChoices)
                         {
                             <div class="initial-setup-model-row" @key="choice.ProviderModelId">
-                                <label class="form-check">
-                                    <DxCheckBox @bind-Checked="choice.Selected" CssClass="form-check-input" />
-                                    <span><strong>@choice.DisplayName</strong> → <code>@choice.ProviderModelId</code></span>
-                                </label>
-                                <span>
-                                    @(choice.IsInstalled ? T("installed") : choice.CanInstall ? T("available to install") : T("manual provider ID required"))
-                                    @if (choice.IsProviderInventory) { <text> @T("· provider inventory")</text> }
-                                    @if (choice.IsProviderCatalogEntry) { <text> @T("· official provider catalog")</text> }
-                                    @if (choice.IsProviderCatalogKnown) { <text> @T("· provider catalog known")</text> }
-                                    @if (choice.IsHardwareRecommended) { <text> @T("· CanIRun.ai hardware-fit discovery")</text> }
-                                    @if (!string.IsNullOrWhiteSpace(choice.RecommendationGrade)) { <text> @T("· grade") @choice.RecommendationGrade</text> }
-                                    @if (choice.RecommendationScore > 0) { <text> @T("· score") @choice.RecommendationScore</text> }
-                                    @if (!string.IsNullOrWhiteSpace(choice.RecommendationStatus)) { <text> · @choice.RecommendationStatus</text> }
-                                    @if (!string.IsNullOrWhiteSpace(choice.Quantization)) { <text> · @choice.Quantization</text> }
-                                    @if (choice.RequiredVramGiB is > 0) { <text> · @choice.RequiredVramGiB.Value.ToString("0.##") GiB</text> }
-                                </span>
+                                <div class="initial-setup-model-title">
+                                    <label class="localgpt-check-row">
+                                        <DxCheckBox @bind-Checked="choice.Selected" CssClass="localgpt-check" />
+                                        <span><strong>@choice.DisplayName</strong> → <code>@choice.ProviderModelId</code></span>
+                                    </label>
+                                </div>
+                                <div class="initial-setup-model-meta">
+                                    <span>@(choice.IsInstalled ? T("installed") : choice.CanInstall ? T("available to install") : T("provider resolution required"))</span>
+                                    @if (choice.IsProviderInventory) { <span>@T("provider inventory")</span> }
+                                    @if (choice.IsProviderCatalogEntry || choice.IsProviderCatalogKnown) { <span>@T("provider catalog")</span> }
+                                    @if (choice.IsHardwareRecommended) { <span>@T("CanIRun.ai hardware-fit")</span> }
+                                    @if (!string.IsNullOrWhiteSpace(choice.RecommendationGrade)) { <span>@T("grade") @choice.RecommendationGrade@if (choice.RecommendationScore > 0) { <text> · @T("score") @choice.RecommendationScore</text> }</span> }
+                                    @if (!string.IsNullOrWhiteSpace(choice.Quantization)) { <span>@choice.Quantization@if (choice.RequiredVramGiB is > 0) { <text> · @FormatInvariant(choice.RequiredVramGiB.Value) GiB</text> }</span> }
+                                </div>
                                 @if (!string.IsNullOrWhiteSpace(choice.HardwareCompatibilityNote))
                                 {
                                     <small class="initial-setup-evidence-note"><strong>@T("Hardware-fit evidence"):</strong> @choice.HardwareCompatibilityNote</small>
                                 }
-                                @if (!string.IsNullOrWhiteSpace(choice.SourceUrl))
+                                <div class="initial-setup-model-actions">
+                                    @if (!string.IsNullOrWhiteSpace(choice.SourceUrl))
+                                    {
+                                        <a href="@choice.SourceUrl" target="_blank" rel="noopener noreferrer">@T("CanIRun.ai source")</a>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(choice.ProviderCatalogUrl))
+                                    {
+                                        <a href="@choice.ProviderCatalogUrl" target="_blank" rel="noopener noreferrer">@T(choice.IsProviderCatalogUrlExact ? "Provider model page" : "Search provider catalog")</a>
+                                    }
+                                    @if (!choice.IsInstalled && choice.CanInstall)
+                                    {
+                                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => InstallModelAsync(choice)">@T("Install model")</DxButton>
+                                    }
+                                    else if (choice.IsInstalled && choice.CanCheckUpdate)
+                                    {
+                                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => CheckUpdateModelAsync(choice)">@T("Check / refresh model")</DxButton>
+                                    }
+                                    else if (!choice.IsInstalled && choice.IsHardwareRecommended)
+                                    {
+                                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => ResolveAndInstallModelAsync(choice)">@T("Resolve & install model")</DxButton>
+                                    }
+                                </div>
+                                @if (!choice.IsInstalled && !choice.CanInstall)
                                 {
-                                    <a href="@choice.SourceUrl" target="_blank" rel="noopener noreferrer">CanIRun.ai model</a>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(choice.ProviderCatalogUrl))
-                                {
-                                    <a href="@choice.ProviderCatalogUrl" target="_blank" rel="noopener noreferrer">@T(choice.IsProviderCatalogUrlExact ? "Provider model page" : "Search provider catalog for this model")</a>
-                                }
-                                @if (!choice.IsInstalled && choice.CanInstall)
-                                {
-                                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => InstallModelAsync(choice)">Install model</DxButton>
-                                }
-                                else if (choice.IsInstalled && choice.CanCheckUpdate)
-                                {
-                                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => CheckUpdateModelAsync(choice)">Check / refresh model</DxButton>
-                                }
-                                else if (!choice.IsInstalled && choice.IsHardwareRecommended)
-                                {
-                                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => ResolveAndInstallModelAsync(choice)">@T("Resolve & install model")</DxButton>
-                                    <small>@T(choice.MappingStatus) @T("LocalGPT can check the selected provider's official catalog before installing; ambiguous results remain review-only.")</small>
-                                }
-                                else if (!choice.IsInstalled)
-                                {
-                                    <small>@T(choice.MappingStatus) @T("Enter the provider model ID above to install manually.")</small>
+                                    <small>@T(choice.MappingStatus) @T(choice.IsHardwareRecommended ? "LocalGPT resolves this against the selected provider before installing; ambiguous results remain review-only." : "Enter the provider model ID above to install manually.")</small>
                                 }
                             </div>
                         }
@@ -264,37 +285,36 @@
                             @foreach (var choice in providerCatalogChoices)
                             {
                                 <div class="initial-setup-model-row" @key="choice.ProviderModelId">
-                                    <span><strong>@choice.DisplayName</strong> → <code>@choice.ProviderModelId</code></span>
-                                    <span>
-                                        @(choice.IsInstalled ? T("installed") : choice.CanInstall ? T("available to install") : T("manual provider ID required"))
-                                        @T("· official provider catalog") @T("· provider catalog known")
-                                        @if (choice.IsHardwareRecommended) { <text> @T("· CanIRun.ai hardware-fit discovery")</text> }
-                                        @if (!string.IsNullOrWhiteSpace(choice.RecommendationGrade)) { <text> @T("· grade") @choice.RecommendationGrade</text> }
-                                        @if (choice.RecommendationScore > 0) { <text> @T("· score") @choice.RecommendationScore</text> }
-                                        @if (!string.IsNullOrWhiteSpace(choice.RecommendationStatus)) { <text> · @choice.RecommendationStatus</text> }
-                                        @if (!string.IsNullOrWhiteSpace(choice.Quantization)) { <text> · @choice.Quantization</text> }
-                                        @if (choice.RequiredVramGiB is > 0) { <text> · @choice.RequiredVramGiB.Value.ToString("0.##") GiB</text> }
-                                    </span>
+                                    <div class="initial-setup-model-title"><strong>@choice.DisplayName</strong><code>@choice.ProviderModelId</code></div>
+                                    <div class="initial-setup-model-meta">
+                                        <span>@(choice.IsInstalled ? T("installed") : choice.CanInstall ? T("available to install") : T("manual provider ID required"))</span>
+                                        <span>@T("provider catalog")</span>
+                                        @if (choice.IsHardwareRecommended) { <span>@T("CanIRun.ai hardware-fit")</span> }
+                                        @if (!string.IsNullOrWhiteSpace(choice.RecommendationGrade)) { <span>@T("grade") @choice.RecommendationGrade@if (choice.RecommendationScore > 0) { <text> · @T("score") @choice.RecommendationScore</text> }</span> }
+                                        @if (!string.IsNullOrWhiteSpace(choice.Quantization)) { <span>@choice.Quantization@if (choice.RequiredVramGiB is > 0) { <text> · @FormatInvariant(choice.RequiredVramGiB.Value) GiB</text> }</span> }
+                                    </div>
                                     @if (!string.IsNullOrWhiteSpace(choice.HardwareCompatibilityNote))
                                     {
                                         <small class="initial-setup-evidence-note"><strong>@T("Hardware-fit evidence"):</strong> @choice.HardwareCompatibilityNote</small>
                                     }
-                                    @if (!string.IsNullOrWhiteSpace(choice.SourceUrl))
-                                    {
-                                        <a href="@choice.SourceUrl" target="_blank" rel="noopener noreferrer">CanIRun.ai model</a>
-                                    }
-                                    @if (!string.IsNullOrWhiteSpace(choice.ProviderCatalogUrl))
-                                    {
-                                        <a href="@choice.ProviderCatalogUrl" target="_blank" rel="noopener noreferrer">@T("Provider model page")</a>
-                                    }
-                                    @if (!choice.IsInstalled && choice.CanInstall)
-                                    {
-                                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => InstallModelAsync(choice)">Install model</DxButton>
-                                    }
-                                    else if (choice.IsInstalled && choice.CanCheckUpdate)
-                                    {
-                                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => CheckUpdateModelAsync(choice)">Check / refresh model</DxButton>
-                                    }
+                                    <div class="initial-setup-model-actions">
+                                        @if (!string.IsNullOrWhiteSpace(choice.SourceUrl))
+                                        {
+                                            <a href="@choice.SourceUrl" target="_blank" rel="noopener noreferrer">@T("CanIRun.ai source")</a>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(choice.ProviderCatalogUrl))
+                                        {
+                                            <a href="@choice.ProviderCatalogUrl" target="_blank" rel="noopener noreferrer">@T("Provider model page")</a>
+                                        }
+                                        @if (!choice.IsInstalled && choice.CanInstall)
+                                        {
+                                            <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => InstallModelAsync(choice)">@T("Install model")</DxButton>
+                                        }
+                                        else if (choice.IsInstalled && choice.CanCheckUpdate)
+                                        {
+                                            <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => CheckUpdateModelAsync(choice)">@T("Check / refresh model")</DxButton>
+                                        }
+                                    </div>
                                 </div>
                             }
                         </div>
@@ -324,14 +344,13 @@
                             var selected = selectedModels.Contains(model.SelectionKey);
                             var preferred = preferredCuratorModels.Contains(model.SelectionKey);
                             <div class="initial-setup-installed-row" @key="model.SelectionKey">
-                                <label><DxCheckBox Checked="@selected" CheckedChanged="@((bool value) => ToggleModel(model.SelectionKey, value))" /> @T("Use")</label>
-                                <label><DxCheckBox Checked="@preferred" CheckedChanged="@((bool value) => TogglePreferredModel(model.SelectionKey, value))" /> @T("Curator")</label>
-                                <strong>@model.DisplayName</strong>
-                                <code>@model.EndpointLabel</code>
+                                <label class="localgpt-check-row initial-setup-installed-toggle"><DxCheckBox Checked="@selected" CheckedChanged="@((bool value) => ToggleModel(model.SelectionKey, value))" CssClass="localgpt-check" /><span>@T("Use")</span></label>
+                                <label class="localgpt-check-row initial-setup-installed-toggle"><DxCheckBox Checked="@preferred" CheckedChanged="@((bool value) => TogglePreferredModel(model.SelectionKey, value))" CssClass="localgpt-check" /><span>@T("Curator")</span></label>
+                                <div class="initial-setup-installed-identity"><strong>@model.DisplayName</strong><code>@model.EndpointLabel</code></div>
                             </div>
                         }
                     </div>
-                    <label>Team name<DxTextBox @bind-Text="benchmarkTeamName" CssClass="form-control" /></label>
+                    <label>Team name<DxTextBox @bind-Text="benchmarkTeamName" CssClass="localgpt-editor" /></label>
                     <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="CreateBenchmarkTeamAsync">Create / refresh hardware benchmark team</DxButton>
                 }
             </article>
@@ -493,7 +512,12 @@
                 snapshot = value;
                 ollamaStatus = processStatus;
                 hardware.Clear();
-                hardware.AddRange(value.Hardware);
+                foreach (var device in value.Hardware)
+                {
+                    device.SystemMemoryGiB = NormalizeHardwareCapacity(device.SystemMemoryGiB, 0.5d);
+                    device.DedicatedVramGiB = NormalizeHardwareCapacity(device.DedicatedVramGiB, 0.25d);
+                    hardware.Add(device);
+                }
                 if (!string.IsNullOrWhiteSpace(selectedProviderKey)
                     && value.ProviderProfiles.All(item => !item.Key.Equals(selectedProviderKey, StringComparison.OrdinalIgnoreCase)))
                     selectedProviderKey = string.Empty;
@@ -960,6 +984,72 @@
         }
         catch (Exception exception) { Logger.LogError(exception, "Initial setup provider action failed; provider command omitted."); await SetStatusAsync(TF("{0} failed. Review LocalGPT logs.", label)).ConfigureAwait(false); }
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    /// <summary>Finds the selected-provider model choice associated with one attributed CanIRun.ai recommendation.</summary>
+    private InitialSetupModelChoice? FindRecommendationChoice(CanIRunModelRecommendation recommendation)
+    {
+        if (recommendation is null)
+            return null;
+        return modelChoices.FirstOrDefault(choice =>
+            choice.IsHardwareRecommended
+            && choice.RecommendationId.Equals(recommendation.ModelId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Runs the familiar CanIRun.ai resolve-and-install action directly from the hardware-fit result card.</summary>
+    private async Task ResolveAndInstallRecommendationAsync(CanIRunModelRecommendation recommendation)
+    {
+        if (recommendation is null || SelectedProvider is null)
+            return;
+        try
+        {
+            var mapped = FindRecommendationChoice(recommendation);
+            if (mapped?.IsInstalled == true)
+            {
+                if (mapped.CanCheckUpdate)
+                    await CheckUpdateModelAsync(mapped).ConfigureAwait(false);
+                else
+                    await SetStatusAsync(T("The selected provider already reports this model as installed.")).ConfigureAwait(false);
+                return;
+            }
+            if (mapped is { CanInstall: true } && !string.IsNullOrWhiteSpace(mapped.ProviderModelId))
+            {
+                await InstallModelAsync(mapped).ConfigureAwait(false);
+                return;
+            }
+
+            var transient = mapped ?? new InitialSetupModelChoice
+            {
+                RecommendationId = recommendation.ModelId,
+                DisplayName = recommendation.ModelName,
+                SourceUrl = recommendation.SourceUrl,
+                RecommendationGrade = recommendation.Grade,
+                RecommendationScore = recommendation.Score,
+                RecommendationStatus = recommendation.Status,
+                Quantization = recommendation.Quantization,
+                RequiredVramGiB = recommendation.RequiredVramGiB,
+                IsHardwareRecommended = true,
+                CanInstall = false
+            };
+            await ResolveAndInstallModelAsync(transient).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "CanIRun.ai recommendation resolve/install action failed; model identifiers were omitted.");
+            await SetStatusAsync(T("Provider model resolution or installation failed. Review the provider catalog results, shared console, and LocalGPT logs.")).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Formats one numeric evidence value with stable invariant decimal notation.</summary>
+    private string FormatInvariant(double value)
+        => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    /// <summary>Normalizes detected memory capacities to stable reviewable increments instead of exposing raw byte-to-GiB noise.</summary>
+    private double? NormalizeHardwareCapacity(double? value, double step)
+    {
+        if (value is null || value <= 0d || step <= 0d)
+            return value;
+        return Math.Round(value.Value / step, MidpointRounding.AwayFromZero) * step;
     }
 
     /// <summary>Installs an explicitly entered first-model identifier without requiring CanIRun.ai recommendations.</summary>

@@ -130,11 +130,11 @@
                 }
                 <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="OnMaximumContextChanged" />
                 <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="OnMaximumOutputChanged" />
-                <label class="benchmark-check form-check"><DxCheckBox @bind-Checked="includeCouncilReview" CssClass="form-check-input" /> <span>@T("Council review")</span></label>
-                <label class="benchmark-check form-check"><DxCheckBox @bind-Checked="stopWhenImprovementStalls" CssClass="form-check-input" /> <span>Allow early stop</span></label>
+                <label class="benchmark-check localgpt-check-row"><DxCheckBox @bind-Checked="includeCouncilReview" CssClass="localgpt-check" /> <span>@T("Council review")</span></label>
+                <label class="benchmark-check localgpt-check-row"><DxCheckBox @bind-Checked="stopWhenImprovementStalls" CssClass="localgpt-check" /> <span>Allow early stop</span></label>
                 @if (profileMode == ProviderModelBenchmarkProfileMode.Adaptive)
                 {
-                    <label class="benchmark-check form-check"><DxCheckBox @bind-Checked="includeCpuSafeControl" CssClass="form-check-input" /> <span>CPU-safe control</span></label>
+                    <label class="benchmark-check localgpt-check-row"><DxCheckBox @bind-Checked="includeCpuSafeControl" CssClass="localgpt-check" /> <span>CPU-safe control</span></label>
                 }
             </div>
             <p class="benchmark-council-summary">
