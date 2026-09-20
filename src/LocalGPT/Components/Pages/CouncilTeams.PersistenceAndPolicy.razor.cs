@@ -299,14 +299,22 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Change event containing the requested positive invocation count.</param>
     private void SetExactRoleInvocationCount(int roleIndex, ChangeEventArgs args)
     {
-        if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
+        if (!int.TryParse(args.Value?.ToString(), out var count))
             return;
-        if (!int.TryParse(args.Value?.ToString(), out var count) || count < 1)
+        SetExactRoleInvocationCount(roleIndex, count);
+    }
+
+    /// <summary>Sets or clears the optional exact provider-bound role invocation count from the DevExpress number editor.</summary>
+    /// <param name="roleIndex">Zero-based index of the role being edited.</param>
+    /// <param name="count">Positive fixed invocation count, or null when the editor is left unspecified.</param>
+    private void SetExactRoleInvocationCount(int roleIndex, int? count)
+    {
+        if (roleIndex < 0 || roleIndex >= _editor.Roles.Count || count is null || count < 1)
             return;
 
         var role = _editor.Roles[roleIndex];
-        role.MinimumAiParticipants = count;
-        role.MaximumAiParticipants = count;
+        role.MinimumAiParticipants = count.Value;
+        role.MaximumAiParticipants = count.Value;
         _confirmed = false;
     }
 

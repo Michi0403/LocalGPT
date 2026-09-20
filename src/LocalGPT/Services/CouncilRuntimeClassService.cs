@@ -20,7 +20,7 @@ public sealed class CouncilRuntimeClassService(
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilRuntimeClassService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 7;
+    private const int CurrentSeedVersion = 8;
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="CouncilRuntimeClassService"/> while executing its surrounding workflow.
     /// </summary>
@@ -246,6 +246,11 @@ public sealed class CouncilRuntimeClassService(
                         Field("guardReduction", "Guard damage reduction", "int", "7", RuntimeFieldInputMode.Shared, true, true),
                         Field("recoveryAmount", "Recovery amount", "int", "6", RuntimeFieldInputMode.Shared, true, true),
                         Field("maximumExchangesPerMatch", "Maximum exchanges per match", "int", "12", RuntimeFieldInputMode.Shared, true, true),
+                        Field("creaturesPerTrainer", "Creatures per trainer", "int", "3", RuntimeFieldInputMode.Shared, true, true),
+                        Field("maximumCreatureSwitchesPerFight", "Maximum trainer switches per fight", "int", "3", RuntimeFieldInputMode.Shared, true, true),
+                        Field("restRecoveryPerExchange", "Reserve rest recovery per exchange", "int", "3", RuntimeFieldInputMode.Shared, true, true),
+                        Field("trainerFocusBonus", "Trainer focus damage bonus", "int", "2", RuntimeFieldInputMode.Shared, true, true),
+                        Field("trainerBraceReduction", "Trainer brace damage reduction", "int", "2", RuntimeFieldInputMode.Shared, true, true),
                         Field("animationFrameDelayMilliseconds", "Animation frame delay", "int", "320", RuntimeFieldInputMode.Shared, true, true),
                         Field("subtitleHoldMilliseconds", "Subtitle hold", "int", "1500", RuntimeFieldInputMode.Shared, true, true)
                     ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], []),

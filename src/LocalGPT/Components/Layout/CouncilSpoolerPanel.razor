@@ -5,27 +5,25 @@
 @inject ILocalGptVocabularyService Vocabulary
 @inject ILogger<CouncilSpoolerPanel> Logger
 
-<button type="button" data-localgpt-command="open-spooler"
-        class="council-spooler-launcher" @onclick="Toggle" title="Rejoin a running or recent AI Council session">
+<DxButton data-localgpt-command="open-spooler"
+        CssClass="council-spooler-launcher" Click="Toggle" title="Rejoin a running or recent AI Council session">
     <span>Council spooler</span>
     @if (RunningCount > 0) { <b>@RunningCount</b> }
-</button>
+</DxButton>
 
 @if (_open)
 {
     <aside class="council-spooler-panel" data-localgpt-overlay="spooler" aria-label="AI Council spooler and live run restore">
         <header>
             <div><strong>AI Council spooler</strong><small>Rejoin live runs and inspect recent checkpoints without stopping model work.</small></div>
-            <button type="button" @onclick="Toggle">×</button>
+            <DxButton Click="Toggle">×</DxButton>
         </header>
         <div class="council-spooler-toolbar">
-            <select value="@SelectedValue" @onchange="SelectRun">
-                @foreach (var run in _runs)
-                {
-                    <option value="@run.RunId">@run.Status · @run.StartedAtUtc.ToLocalTime().ToString("g") · round @run.CurrentRound · @run.Phase</option>
-                }
-            </select>
-            <button type="button" @onclick="Refresh">Refresh</button>
+            <DxComboBox Data="@_runs"
+                        Value="@Selected"
+                        TextFieldName="@nameof(CouncilSpoolerSnapshot.Phase)"
+                        ValueChanged="@((CouncilSpoolerSnapshot? run) => SelectRun(run))" />
+            <DxButton Click="Refresh">Refresh</DxButton>
         </div>
         @if (Selected is null)
         {
@@ -114,10 +112,10 @@
     /// <summary>
     /// Performs select run for <see cref="CouncilSpoolerPanel"/>, keeping the operation consistent with the state and invariants of the surrounding council spooler panel workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the council spooler panel operation and used when producing its result.</param>
-    private void SelectRun(ChangeEventArgs args)
+    /// <param name="run">Selected Council run checkpoint.</param>
+    private void SelectRun(CouncilSpoolerSnapshot? run)
     {
-        _selectedRunId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
+        _selectedRunId = run?.RunId;
         Refresh();
     }
     /// <summary>

@@ -51,7 +51,7 @@
                         <DxButton Text="Create pairing material" Enabled="@_status.HasSecret" Click="CreatePairingMaterialAsync" />
                         <DxButton Text="Regenerate identity" Enabled="@(_status.HasSecret && _allowReset)" Click="RegenerateAsync" RenderStyle="ButtonRenderStyle.Warning" />
                         <DxButton Text="Delete identity" Enabled="@(_status.HasSecret && _allowReset)" Click="DeleteAsync" RenderStyle="ButtonRenderStyle.Danger" />
-                        <label><input type="checkbox" @bind="_allowReset" /> allow trust reset</label>
+                        <label><DxCheckBox @bind-Checked="_allowReset" /> allow trust reset</label>
                     </div>
                     @if (!string.IsNullOrWhiteSpace(_status.Warning))
                     {
@@ -147,13 +147,13 @@
                                     <h3>Authenticator enrollment</h3>
                                     <p>Scan this QR code with an Authenticator-compatible app.</p>
                                     <div id="localgpt-security-otp-qr" class="onewire-security-qr" aria-label="LocalGPT Authenticator QR code"></div>
-                                    <textarea rows="5" readonly>@_otpUri</textarea>
+                                    <DxMemo Text="@_otpUri" Rows="5" ReadOnly="true" />
                                 </article>
                                 <article class="onewire-security-subcard">
                                     <h3>Public pairing ticket</h3>
                                     <p>The short-lived ticket contains public keys and a signature only.</p>
                                     <div id="localgpt-security-ticket-qr" class="onewire-security-qr" aria-label="LocalGPT public pairing ticket QR code"></div>
-                                    <textarea rows="12" readonly>@_pairingTicketJson</textarea>
+                                    <DxMemo Text="@_pairingTicketJson" Rows="12" ReadOnly="true" />
                                 </article>
                             </div>
                         }
@@ -168,11 +168,11 @@
                             </div>
                         </div>
                         <label>Remote public pairing ticket
-                            <textarea rows="11" @bind="_remoteTicketJson" @bind:event="oninput" placeholder="Paste the PublisherStudio, ESP32 gateway or custom add-on pairing-ticket JSON."></textarea>
+                            <DxMemo @bind-Text="_remoteTicketJson" Rows="11" BindValueMode="BindValueMode.OnInput" NullText="Paste the PublisherStudio, ESP32 gateway or custom add-on pairing-ticket JSON." />
                         </label>
                         <div class="onewire-security-inline">
-                            <label>Current LocalGPT MFA code <input inputmode="numeric" maxlength="8" @bind="_mfaCode" /></label>
-                            <label>Validity in minutes <input type="number" min="5" max="525600" @bind="_validForMinutes" /></label>
+                            <label>Current LocalGPT MFA code <DxTextBox @bind-Text="_mfaCode" MaxLength="8" /></label>
+                            <label>Validity in minutes <DxSpinEdit @bind-Value="_validForMinutes" MinValue="5" MaxValue="525600" /></label>
                         </div>
                         <DxButton Text="Verify MFA and trust peer" Click="EstablishTrustAsync" RenderStyle="ButtonRenderStyle.Primary" />
                         <p>Trust is reciprocal. Repeat the process in the remote application with LocalGPT's public ticket. Private material never crosses the wire.</p>

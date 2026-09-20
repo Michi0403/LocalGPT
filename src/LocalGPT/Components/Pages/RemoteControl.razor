@@ -47,39 +47,35 @@
                     <h2>@T("RemoteControl.Connectors", "Connectors")</h2>
                     <small>@T("RemoteControl.Connectors.Help", "REST/OData pulls or token-protected inbound webhooks.")</small>
                 </div>
-                <button class="localgpt-native-button" @onclick="NewConnector">@T("Common.New", "New")</button>
+                <DxButton CssClass="localgpt-native-button" Click="NewConnector">@T("Common.New", "New")</DxButton>
             </div>
 
             <div class="remote-control-list">
                 @foreach (var connector in ConnectorRows)
                 {
-                    <button type="button" class="remote-control-list-item @(ConnectorEdit.Key == connector.Key ? "selected" : string.Empty)" @onclick="() => SelectConnectorAsync(connector.Key)">
+                    <DxButton CssClass="@(ConnectorEdit.Key == connector.Key ? "remote-control-list-item selected" : "remote-control-list-item")" Click="() => SelectConnectorAsync(connector.Key)">
                         <strong>@connector.DisplayName</strong>
                         <span>@connector.Key · @connector.Transport</span>
                         <small>@(connector.IsEnabled ? T("Common.Enabled", "Enabled") : T("Common.Disabled", "Disabled")) · @(connector.NetworkEnabled ? T("RemoteControl.NetworkOn", "network on") : T("RemoteControl.NetworkOff", "network off"))</small>
-                    </button>
+                    </DxButton>
                 }
             </div>
 
             <div class="remote-control-form">
-                <label>@T("RemoteControl.Key", "Key")<input @bind="ConnectorEdit.Key" /></label>
-                <label>@T("Common.Name", "Name")<input @bind="ConnectorEdit.DisplayName" /></label>
-                <label class="wide">@T("RemoteControl.Description", "Description")<textarea rows="2" @bind="ConnectorEdit.Description"></textarea></label>
+                <label>@T("RemoteControl.Key", "Key")<DxTextBox @bind-Text="ConnectorEdit.Key" /></label>
+                <label>@T("Common.Name", "Name")<DxTextBox @bind-Text="ConnectorEdit.DisplayName" /></label>
+                <label class="wide">@T("RemoteControl.Description", "Description")<DxMemo @bind-Text="ConnectorEdit.Description" Rows="2" /></label>
                 <label>@T("RemoteControl.Transport", "Transport")
-                    <select @bind="ConnectorEdit.Transport">
-                        @foreach (var value in TransportKinds) { <option value="@value">@value</option> }
-                    </select>
+                    <DxComboBox Data="@TransportKinds" @bind-Value="ConnectorEdit.Transport" />
                 </label>
                 <label>@T("RemoteControl.Method", "HTTP method")
-                    <select @bind="ConnectorEdit.Method">
-                        @foreach (var value in HttpMethods) { <option value="@value">@value</option> }
-                    </select>
+                    <DxComboBox Data="@HttpMethods" @bind-Value="ConnectorEdit.Method" />
                 </label>
-                <label class="check"><input type="checkbox" @bind="ConnectorEdit.IsEnabled" /> @T("RemoteControl.CapabilityEnabled", "Connector enabled")</label>
+                <label class="check"><DxCheckBox @bind-Checked="ConnectorEdit.IsEnabled" /> @T("RemoteControl.CapabilityEnabled", "Connector enabled")</label>
                 @if (ConnectorEdit.Transport != RemoteControlTransportKind.Webhook)
                 {
-                    <label class="check"><input type="checkbox" @bind="ConnectorEdit.NetworkEnabled" /> @T("RemoteControl.NetworkEnabled", "Allow outbound network access")</label>
-                    <label class="wide">@T("RemoteControl.UrlTemplate", "URL template")<input @bind="ConnectorEdit.UrlTemplate" placeholder="https://example.org/api?city={{var:CITY}}" /></label>
+                    <label class="check"><DxCheckBox @bind-Checked="ConnectorEdit.NetworkEnabled" /> @T("RemoteControl.NetworkEnabled", "Allow outbound network access")</label>
+                    <label class="wide">@T("RemoteControl.UrlTemplate", "URL template")<DxTextBox @bind-Text="ConnectorEdit.UrlTemplate" NullText="https://example.org/api?city={{var:CITY}}" /></label>
 
                     <section class="wide remote-control-guided" aria-label='@T("RemoteControl.AllowedHosts", "Allowed hosts")'>
                         <div class="remote-control-guided-heading">
@@ -88,8 +84,8 @@
                                 <small>@T("RemoteControl.AllowedHosts.Help", "Add the host names this connector may contact. LocalGPT stores the same JSON array format behind this guided editor.")</small>
                             </div>
                             <div class="remote-control-guided-actions">
-                                <button type="button" class="localgpt-native-button" @onclick="AddAllowedHost">@T("RemoteControl.AddHost", "Add host")</button>
-                                <button type="button" class="localgpt-native-button" @onclick="UseUrlHost">@T("RemoteControl.UseUrlHost", "Use URL host")</button>
+                                <DxButton CssClass="localgpt-native-button" Click="AddAllowedHost">@T("RemoteControl.AddHost", "Add host")</DxButton>
+                                <DxButton CssClass="localgpt-native-button" Click="UseUrlHost">@T("RemoteControl.UseUrlHost", "Use URL host")</DxButton>
                             </div>
                         </div>
                         @if (AllowedHostRows.Count == 0)
@@ -100,8 +96,8 @@
                         {
                             var rowIndex = index;
                             <div class="remote-control-guided-row">
-                                <input aria-label='@T("RemoteControl.AllowedHostName", "Allowed host name")' @bind="AllowedHostRows[rowIndex]" placeholder="api.example.org" />
-                                <button type="button" class="localgpt-native-button danger compact" @onclick="() => RemoveAllowedHost(rowIndex)">@T("RemoteControl.RemoveHost", "Remove")</button>
+                                <DxTextBox @bind-Text="AllowedHostRows[rowIndex]" NullText="api.example.org" />
+                                <DxButton CssClass="localgpt-native-button danger compact" Click="() => RemoveAllowedHost(rowIndex)">@T("RemoteControl.RemoveHost", "Remove")</DxButton>
                             </div>
                         }
                     </section>
@@ -112,13 +108,13 @@
                                 <strong>@T("RemoteControl.Headers", "Request headers")</strong>
                                 <small>@T("RemoteControl.Headers.Help", "Add headers one at a time. Template variables stay supported and LocalGPT serializes these rows to the existing JSON object format when you save.")</small>
                             </div>
-                            <button type="button" class="localgpt-native-button" @onclick="AddHeader">@T("RemoteControl.AddHeader", "Add header")</button>
+                            <DxButton CssClass="localgpt-native-button" Click="AddHeader">@T("RemoteControl.AddHeader", "Add header")</DxButton>
                         </div>
                         <div class="remote-control-preset-row" aria-label='@T("RemoteControl.HeaderPresets", "Header presets")'>
                             <span>@T("RemoteControl.HeaderPresets", "Presets")</span>
-                            <button type="button" class="localgpt-native-button compact" @onclick="AddAcceptJsonHeader">@T("RemoteControl.PresetAcceptJson", "Accept JSON")</button>
-                            <button type="button" class="localgpt-native-button compact" @onclick="AddBearerHeader">@T("RemoteControl.PresetBearer", "Bearer token")</button>
-                            <button type="button" class="localgpt-native-button compact" @onclick="AddApiKeyHeader">@T("RemoteControl.PresetApiKey", "API key")</button>
+                            <DxButton CssClass="localgpt-native-button compact" Click="AddAcceptJsonHeader">@T("RemoteControl.PresetAcceptJson", "Accept JSON")</DxButton>
+                            <DxButton CssClass="localgpt-native-button compact" Click="AddBearerHeader">@T("RemoteControl.PresetBearer", "Bearer token")</DxButton>
+                            <DxButton CssClass="localgpt-native-button compact" Click="AddApiKeyHeader">@T("RemoteControl.PresetApiKey", "API key")</DxButton>
                         </div>
                         @if (HeaderRows.Count == 0)
                         {
@@ -130,20 +126,20 @@
                             <div class="remote-control-header-row">
                                 <label>
                                     <span>@T("RemoteControl.HeaderName", "Header name")</span>
-                                    <input @bind="HeaderRows[rowIndex].Name" placeholder="X-API-Key" />
+                                    <DxTextBox @bind-Text="HeaderRows[rowIndex].Name" NullText="X-API-Key" />
                                 </label>
                                 <label>
                                     <span>@T("RemoteControl.HeaderValue", "Header value")</span>
-                                    <input @bind="HeaderRows[rowIndex].Value" placeholder="{{var:API_KEY}}" />
+                                    <DxTextBox @bind-Text="HeaderRows[rowIndex].Value" NullText="{{var:API_KEY}}" />
                                 </label>
-                                <button type="button" class="localgpt-native-button danger compact" @onclick="() => RemoveHeader(rowIndex)">@T("RemoteControl.RemoveHeader", "Remove")</button>
+                                <DxButton CssClass="localgpt-native-button danger compact" Click="() => RemoveHeader(rowIndex)">@T("RemoteControl.RemoveHeader", "Remove")</DxButton>
                             </div>
                         }
                     </section>
 
-                    <label class="wide">@T("RemoteControl.RequestBody", "Request body template")<textarea rows="3" @bind="ConnectorEdit.RequestBodyTemplate"></textarea></label>
-                    <label>@T("RemoteControl.RequestContentType", "Request content type")<input @bind="ConnectorEdit.RequestContentType" /></label>
-                    <label class="check"><input type="checkbox" @bind="ConnectorEdit.AllowInsecureHttp" /> @T("RemoteControl.AllowHttp", "Explicitly allow plain HTTP")</label>
+                    <label class="wide">@T("RemoteControl.RequestBody", "Request body template")<DxMemo @bind-Text="ConnectorEdit.RequestBodyTemplate" Rows="3" /></label>
+                    <label>@T("RemoteControl.RequestContentType", "Request content type")<DxTextBox @bind-Text="ConnectorEdit.RequestContentType" /></label>
+                    <label class="check"><DxCheckBox @bind-Checked="ConnectorEdit.AllowInsecureHttp" /> @T("RemoteControl.AllowHttp", "Explicitly allow plain HTTP")</label>
                 }
                 else
                 {
@@ -154,27 +150,25 @@
                     </div>
                 }
                 <label>@T("RemoteControl.ResponseFormat", "Response format")
-                    <select @bind="ConnectorEdit.ResponseFormat">
-                        @foreach (var value in ResponseFormats) { <option value="@value">@value</option> }
-                    </select>
+                    <DxComboBox Data="@ResponseFormats" @bind-Value="ConnectorEdit.ResponseFormat" />
                 </label>
-                <label>@T("RemoteControl.ResponseSelector", "JSON selector")<input @bind="ConnectorEdit.ResponseSelector" placeholder="current.weather[0]" /></label>
-                <label>@T("RemoteControl.PollSeconds", "Poll seconds (0 = off)")<input type="number" min="0" @bind="ConnectorEdit.PollIntervalSeconds" /></label>
-                <label>@T("RemoteControl.TimeoutSeconds", "Timeout seconds")<input type="number" min="0" @bind="ConnectorEdit.TimeoutSeconds" /></label>
-                <label>@T("RemoteControl.MaxPayload", "Max payload bytes")<input type="number" min="1" @bind="ConnectorEdit.MaxPayloadBytes" /></label>
+                <label>@T("RemoteControl.ResponseSelector", "JSON selector")<DxTextBox @bind-Text="ConnectorEdit.ResponseSelector" NullText="current.weather[0]" /></label>
+                <label>@T("RemoteControl.PollSeconds", "Poll seconds (0 = off)")<DxSpinEdit @bind-Value="ConnectorEdit.PollIntervalSeconds" MinValue="0" /></label>
+                <label>@T("RemoteControl.TimeoutSeconds", "Timeout seconds")<DxSpinEdit @bind-Value="ConnectorEdit.TimeoutSeconds" MinValue="0" /></label>
+                <label>@T("RemoteControl.MaxPayload", "Max payload bytes")<DxSpinEdit @bind-Value="ConnectorEdit.MaxPayloadBytes" MinValue="1" /></label>
             </div>
 
             <div class="remote-control-actions">
-                <button class="localgpt-native-button" @onclick="SaveConnectorAsync">@T("Common.Save", "Save")</button>
+                <DxButton CssClass="localgpt-native-button" Click="SaveConnectorAsync">@T("Common.Save", "Save")</DxButton>
                 @if (ConnectorEdit.Transport != RemoteControlTransportKind.Webhook)
                 {
-                    <button class="localgpt-native-button" @onclick="PullConnectorAsync">@T("RemoteControl.PullNow", "Pull now")</button>
+                    <DxButton CssClass="localgpt-native-button" Click="PullConnectorAsync">@T("RemoteControl.PullNow", "Pull now")</DxButton>
                 }
                 else
                 {
-                    <button class="localgpt-native-button" @onclick="RotateWebhookTokenAsync">@T("RemoteControl.RotateToken", "Rotate token")</button>
+                    <DxButton CssClass="localgpt-native-button" Click="RotateWebhookTokenAsync">@T("RemoteControl.RotateToken", "Rotate token")</DxButton>
                 }
-                <button class="localgpt-native-button danger" @onclick="DeleteConnectorAsync">@T("Common.Delete", "Delete")</button>
+                <DxButton CssClass="localgpt-native-button danger" Click="DeleteConnectorAsync">@T("Common.Delete", "Delete")</DxButton>
             </div>
             @if (!string.IsNullOrWhiteSpace(LastWebhookToken))
             {
@@ -197,69 +191,73 @@
                     <h2>@T("RemoteControl.Pipelines", "Action pipelines")</h2>
                     <small>@T("RemoteControl.Pipelines.Help", "Compose existing DXFunctions or published public service methods; no raw reflection path is used.")</small>
                 </div>
-                <button class="localgpt-native-button" @onclick="NewPipeline">@T("Common.New", "New")</button>
+                <DxButton CssClass="localgpt-native-button" Click="NewPipeline">@T("Common.New", "New")</DxButton>
             </div>
 
             <div class="remote-control-list compact">
                 @foreach (var pipeline in PipelineRows)
                 {
-                    <button type="button" class="remote-control-list-item @(PipelineEdit.Key == pipeline.Key ? "selected" : string.Empty)" @onclick="() => SelectPipelineAsync(pipeline.Key)">
+                    <DxButton CssClass="@(PipelineEdit.Key == pipeline.Key ? "remote-control-list-item selected" : "remote-control-list-item")" Click="() => SelectPipelineAsync(pipeline.Key)">
                         <strong>@pipeline.DisplayName</strong>
                         <span>@pipeline.Key · @pipeline.Triggers</span>
                         <small>@(pipeline.IsEnabled ? T("Common.Enabled", "Enabled") : T("Common.Disabled", "Disabled"))</small>
-                    </button>
+                    </DxButton>
                 }
             </div>
 
             <div class="remote-control-form">
-                <label>@T("RemoteControl.Key", "Key")<input @bind="PipelineEdit.Key" /></label>
-                <label>@T("Common.Name", "Name")<input @bind="PipelineEdit.DisplayName" /></label>
-                <label class="wide">@T("RemoteControl.Description", "Description")<textarea rows="2" @bind="PipelineEdit.Description"></textarea></label>
+                <label>@T("RemoteControl.Key", "Key")<DxTextBox @bind-Text="PipelineEdit.Key" /></label>
+                <label>@T("Common.Name", "Name")<DxTextBox @bind-Text="PipelineEdit.DisplayName" /></label>
+                <label class="wide">@T("RemoteControl.Description", "Description")<DxMemo @bind-Text="PipelineEdit.Description" Rows="2" /></label>
                 <label>@T("RemoteControl.Connector", "Connector")
-                    <select @bind="PipelineEdit.ConnectorKey">
-                        <option value="">@T("RemoteControl.ManualOnly", "Manual payload only")</option>
-                        @foreach (var connector in ConnectorRows) { <option value="@connector.Key">@connector.DisplayName (@connector.Key)</option> }
-                    </select>
+                    <DxComboBox Data="@ConnectorRows"
+                                @bind-Value="PipelineEdit.ConnectorKey"
+                                ValueFieldName="Key"
+                                TextFieldName="DisplayName"
+                                NullText='@T("RemoteControl.ManualOnly", "Manual payload only")'
+                                ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
                 </label>
-                <label class="check"><input type="checkbox" @bind="PipelineEdit.IsEnabled" /> @T("RemoteControl.PipelineEnabled", "Pipeline enabled")</label>
+                <label class="check"><DxCheckBox @bind-Checked="PipelineEdit.IsEnabled" /> @T("RemoteControl.PipelineEnabled", "Pipeline enabled")</label>
                 <div class="wide remote-control-trigger-row">
-                    <label class="check"><input type="checkbox" @bind="TriggerManual" /> @T("RemoteControl.Trigger.Manual", "Manual")</label>
-                    <label class="check"><input type="checkbox" @bind="TriggerPull" /> @T("RemoteControl.Trigger.Pull", "Pull")</label>
-                    <label class="check"><input type="checkbox" @bind="TriggerWebhook" /> @T("RemoteControl.Trigger.Webhook", "Webhook")</label>
+                    <label class="check"><DxCheckBox @bind-Checked="TriggerManual" /> @T("RemoteControl.Trigger.Manual", "Manual")</label>
+                    <label class="check"><DxCheckBox @bind-Checked="TriggerPull" /> @T("RemoteControl.Trigger.Pull", "Pull")</label>
+                    <label class="check"><DxCheckBox @bind-Checked="TriggerWebhook" /> @T("RemoteControl.Trigger.Webhook", "Webhook")</label>
                 </div>
             </div>
 
             <div class="remote-control-steps">
                 <div class="remote-control-subheading">
                     <strong>@T("RemoteControl.Steps", "Steps")</strong>
-                    <button class="localgpt-native-button" @onclick="AddStep">@T("RemoteControl.AddStep", "Add step")</button>
+                    <DxButton CssClass="localgpt-native-button" Click="AddStep">@T("RemoteControl.AddStep", "Add step")</DxButton>
                 </div>
                 @for (var index = 0; index < EditingSteps.Count; index++)
                 {
                     var step = EditingSteps[index];
                     var stepIndex = index;
                     <div class="remote-control-step">
-                        <div class="remote-control-step-head"><strong>@(index + 1). @step.DisplayName</strong><button class="localgpt-native-button danger" @onclick="() => RemoveStep(stepIndex)">@T("Common.Remove", "Remove")</button></div>
-                        <label>@T("RemoteControl.StepKey", "Step key")<input @bind="step.Key" /></label>
-                        <label>@T("RemoteControl.StepName", "Step name")<input @bind="step.DisplayName" /></label>
+                        <div class="remote-control-step-head"><strong>@(index + 1). @step.DisplayName</strong><DxButton CssClass="localgpt-native-button danger" Click="() => RemoveStep(stepIndex)">@T("Common.Remove", "Remove")</DxButton></div>
+                        <label>@T("RemoteControl.StepKey", "Step key")<DxTextBox @bind-Text="step.Key" /></label>
+                        <label>@T("RemoteControl.StepName", "Step name")<DxTextBox @bind-Text="step.DisplayName" /></label>
                         <label class="wide">@T("RemoteControl.Target", "DXFunction / public service target")
-                            <select @bind="step.TargetCatalogKey">
-                                <option value="">@T("RemoteControl.SelectTarget", "Select a catalog target…")</option>
-                                @foreach (var target in TargetEntries) { <option value="@target.CatalogKey">@target.DisplayName — @target.CatalogKey</option> }
-                            </select>
+                            <DxComboBox Data="@TargetEntries"
+                                    @bind-Value="step.TargetCatalogKey"
+                                    ValueFieldName="CatalogKey"
+                                    TextFieldName="DisplayName"
+                                    NullText='@T("RemoteControl.SelectTarget", "Select a catalog target…")'
+                                    ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
                         </label>
-                        <label class="wide">@T("RemoteControl.ArgumentsTemplate", "Arguments JSON template")<textarea rows="5" @bind="step.ArgumentsTemplateJson"></textarea></label>
-                        <label class="check"><input type="checkbox" @bind="step.ContinueOnFailure" /> @T("RemoteControl.ContinueOnFailure", "Continue when this step fails")</label>
+                        <label class="wide">@T("RemoteControl.ArgumentsTemplate", "Arguments JSON template")<DxMemo @bind-Text="step.ArgumentsTemplateJson" Rows="5" /></label>
+                        <label class="check"><DxCheckBox @bind-Checked="step.ContinueOnFailure" /> @T("RemoteControl.ContinueOnFailure", "Continue when this step fails")</label>
                     </div>
                 }
             </div>
 
             <div class="remote-control-actions">
-                <button class="localgpt-native-button" @onclick="SavePipelineAsync">@T("Common.Save", "Save")</button>
-                <button class="localgpt-native-button" @onclick="ExecutePipelineAsync">@T("RemoteControl.Execute", "Execute")</button>
-                <button class="localgpt-native-button danger" @onclick="DeletePipelineAsync">@T("Common.Delete", "Delete")</button>
+                <DxButton CssClass="localgpt-native-button" Click="SavePipelineAsync">@T("Common.Save", "Save")</DxButton>
+                <DxButton CssClass="localgpt-native-button" Click="ExecutePipelineAsync">@T("RemoteControl.Execute", "Execute")</DxButton>
+                <DxButton CssClass="localgpt-native-button danger" Click="DeletePipelineAsync">@T("Common.Delete", "Delete")</DxButton>
             </div>
-            <label class="remote-control-manual-payload">@T("RemoteControl.ManualPayload", "Manual execution payload")<textarea rows="6" @bind="ManualPayload"></textarea></label>
+            <label class="remote-control-manual-payload">@T("RemoteControl.ManualPayload", "Manual execution payload")<DxMemo @bind-Text="ManualPayload" Rows="6" /></label>
         </article>
             </ConfigurationWorkbenchPanel>
 
@@ -267,7 +265,7 @@
     <section class="remote-control-panel remote-control-history">
         <div class="remote-control-panel-heading">
             <div><h2>@T("RemoteControl.History", "Execution history")</h2><small>@T("RemoteControl.History.Help", "Bounded audit metadata only; full remote payloads are not persisted here.")</small></div>
-            <button class="localgpt-native-button" @onclick="ReloadAsync">@T("Common.Refresh", "Refresh")</button>
+            <DxButton CssClass="localgpt-native-button" Click="ReloadAsync">@T("Common.Refresh", "Refresh")</DxButton>
         </div>
         <div class="table-responsive">
             <table class="table">

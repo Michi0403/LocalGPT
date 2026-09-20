@@ -4,6 +4,8 @@
 @inject ICouncilGameSessionService Games
 @inject IGameProjectService GameProjects
 @inject IHumanCollaborationService HumanCollaboration
+@inject IDeferredDxAiInvocationService DeferredDxInvocations
+@inject ISupervisedTaskRunner TaskRunner
 @inject ILocalHumanInteractionContext HumanAmbientContext
 @inject IConsoleCommandService Console
 @inject IConsoleOperatorService Operator
@@ -144,6 +146,48 @@
     else if (conversationMode)
     {
         <div class="ascii-conversation-stage">
+            @if (HasGameInteractionRequest)
+            {
+                <section class="chat-game-control-card chat-game-hotseat-card chat-game-ai-request-card ascii-conversation-request" aria-label="AI request awaiting review">
+                    <div class="chat-game-hotseat-heading">
+                        <strong>@gameInteractionRequest!.Title</strong>
+                        <span>@gameInteractionRequest.RequestedRole · @gameInteractionRequest.RequestedBy</span>
+                    </div>
+                    <div class="chat-game-control-status" role="status">
+                        <span>@(string.IsNullOrWhiteSpace(gameInteractionRequest.ResponsePrompt) ? gameInteractionRequest.Description : gameInteractionRequest.ResponsePrompt)</span>
+                    </div>
+                    @if (IsApprovalGameInteraction)
+                    {
+                        <div class="chat-game-hotseat-dash" aria-label="AI request decision">
+                            <DxButton Text="APPROVE" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Success" Enabled="@(!gameInteractionSubmitting)" Click='@(() => SubmitGameInteractionAsync(true, gameInteractionText, string.Empty))' />
+                            <DxButton Text="DECLINE" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Danger" Enabled="@(!gameInteractionSubmitting)" Click='@(() => SubmitGameInteractionAsync(false, gameInteractionText, gameInteractionText))' />
+                        </div>
+                    }
+                    @if (gameInteractionRequest.SuggestedResponses.Count > 0)
+                    {
+                        <div class="chat-game-ai-request-options" aria-label="Suggested responses">
+                            @foreach (var suggestion in gameInteractionRequest.SuggestedResponses)
+                            {
+                                <DxButton Text="@suggestion" CssClass="ascii-console-button" Enabled="@(!gameInteractionSubmitting)" Click='@(() => SubmitGameInteractionAsync(null, suggestion, string.Empty))' />
+                            }
+                        </div>
+                    }
+                    @if (gameInteractionRequest.AllowFreeText || !IsApprovalGameInteraction)
+                    {
+                        <form class="chat-game-hotseat-text" @onsubmit="SubmitGameInteractionTextAsync" @onsubmit:preventDefault="true">
+                            <label>@(IsApprovalGameInteraction ? "Decision note / decline reason" : "Your answer")</label>
+                            <div>
+                                <DxTextBox @bind-Text="gameInteractionText" BindValueMode="BindValueMode.OnInput" MaxLength="2000" NullText="Respond without leaving ASCII mode" Enabled="@(!gameInteractionSubmitting)" CssClass="ascii-game-interaction-input" />
+                                @if (!IsApprovalGameInteraction)
+                                {
+                                    <DxButton Text="SEND" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!gameInteractionSubmitting && !string.IsNullOrWhiteSpace(gameInteractionText))" SubmitFormOnClick="true" />
+                                }
+                            </div>
+                        </form>
+                    }
+                    <small>This function/review request belongs to the active Council session and remains usable in ASCII Chat mode even when no game is running.</small>
+                </section>
+            }
             @if (asciiSequenceFrames.Count > 1)
             {
                 <section class="ascii-sequence-player" aria-label="ASCII animation from the latest chat message">
@@ -165,18 +209,76 @@
     }
     else if (snapshot is null)
     {
-        <div class="chat-game-console-placeholder">
-            <pre>┌──────────────────────────────────────────────────────────────────────────────┐
-│  No ASCII game is running.                                                   │
-│  CHAT returns to the mirrored conversation.                                  │
-│  Start a built-in game above or let Council game functions create a session. │
+        @if (HasGameInteractionRequest)
+        {
+            <div class="chat-game-stage screen-only council-work-surface">
+                <div class="chat-game-screen-viewport council-work-screen">
+                    <pre class="chat-game-screen">┌──────────────────────────────────────────────────────────────────────────────┐
+│  COUNCIL WORK CONTROL                                                       │
+│  No deterministic game is required for this AI review/function request.     │
+│  Use the same durable Chat approval below; completed work returns to Chat.   │
 └───────────────────────────────────────────────────────────────────────────────┘</pre>
-        </div>
+                    <section class="chat-game-control-card chat-game-hotseat-card chat-game-ai-request-card council-work-request" aria-label="Non-game Council request awaiting review">
+                        <div class="chat-game-hotseat-heading">
+                            <strong>@gameInteractionRequest!.Title</strong>
+                            <span>@gameInteractionRequest.RequestedRole · @gameInteractionRequest.RequestedBy</span>
+                        </div>
+                        <div class="chat-game-control-status" role="status">
+                            <span>@(string.IsNullOrWhiteSpace(gameInteractionRequest.ResponsePrompt) ? gameInteractionRequest.Description : gameInteractionRequest.ResponsePrompt)</span>
+                        </div>
+                        @if (IsApprovalGameInteraction)
+                        {
+                            <div class="chat-game-hotseat-dash" aria-label="AI request decision">
+                                <DxButton Text="APPROVE" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Success" Enabled="@(!gameInteractionSubmitting)" Click='@(() => SubmitGameInteractionAsync(true, gameInteractionText, string.Empty))' />
+                                <DxButton Text="DECLINE" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Danger" Enabled="@(!gameInteractionSubmitting)" Click='@(() => SubmitGameInteractionAsync(false, gameInteractionText, gameInteractionText))' />
+                            </div>
+                        }
+                        @if (gameInteractionRequest.SuggestedResponses.Count > 0)
+                        {
+                            <div class="chat-game-ai-request-options" aria-label="Suggested responses">
+                                @foreach (var suggestion in gameInteractionRequest.SuggestedResponses)
+                                {
+                                    <DxButton Text="@suggestion" CssClass="ascii-console-button" Enabled="@(!gameInteractionSubmitting)" Click='@(() => SubmitGameInteractionAsync(null, suggestion, string.Empty))' />
+                                }
+                            </div>
+                        }
+                        @if (gameInteractionRequest.AllowFreeText || !IsApprovalGameInteraction)
+                        {
+                            <form class="chat-game-hotseat-text" @onsubmit="SubmitGameInteractionTextAsync" @onsubmit:preventDefault="true">
+                                <label>@(IsApprovalGameInteraction ? "Decision note / decline reason" : "Your answer")</label>
+                                <div>
+                                    <DxTextBox @bind-Text="gameInteractionText" BindValueMode="BindValueMode.OnInput" MaxLength="2000" NullText="Respond to the Council work request" Enabled="@(!gameInteractionSubmitting)" CssClass="ascii-game-interaction-input" />
+                                    @if (!IsApprovalGameInteraction)
+                                    {
+                                        <DxButton Text="SEND" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!gameInteractionSubmitting && !string.IsNullOrWhiteSpace(gameInteractionText))" SubmitFormOnClick="true" />
+                                    }
+                                </div>
+                            </form>
+                        }
+                        <small>Game controls are reused as a bounded non-game work console; this does not create or mutate a game session.</small>
+                    </section>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="chat-game-console-placeholder">
+                <pre>┌──────────────────────────────────────────────────────────────────────────────┐
+│  No ASCII game or pending Council work request is running.                   │
+│  CHAT returns to the mirrored conversation.                                  │
+│  Start a built-in game or let a Council/function request create work.        │
+└───────────────────────────────────────────────────────────────────────────────┘</pre>
+            </div>
+        }
     }
     else
     {
         <div class="chat-game-stage @(ShowControlGuide ? "has-guide" : "screen-only")">
             <div class="chat-game-screen-viewport">
+                @if (!string.IsNullOrWhiteSpace(GamePreparationStatus))
+                {
+                    <div class="chat-game-live-status" role="status" aria-live="polite">@GamePreparationStatus</div>
+                }
                 <pre class="chat-game-screen" data-game-animation-screen aria-live="polite">@snapshot.FrameText</pre>
                 <div class="chat-game-animation-subtitle" data-game-animation-subtitle aria-live="polite" hidden>@snapshot.AnimationSubtitle</div>
             </div>
@@ -293,18 +395,18 @@
                                 }
                             </div>
                             <div class="chat-game-touch-grid">
-                                <button type="button" class="up" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-forward" @onclick='@(() => SendControlAsync("move-forward"))'>▲</button>
-                                <button type="button" class="left" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="left" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</button>
-                                <button type="button" class="down" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-backward" @onclick='@(() => SendControlAsync("move-backward"))'>▼</button>
-                                <button type="button" class="right" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="right" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-left" @onclick='@(() => SendControlAsync("turn-left"))'>Aim ◁</button>
-                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-right" @onclick='@(() => SendControlAsync("turn-right"))'>Aim ▷</button>
+                                <DxButton CssClass="up" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-forward" Click='@(() => SendControlAsync("move-forward"))'>▲</DxButton>
+                                <DxButton CssClass="left" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="left" Click='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</DxButton>
+                                <DxButton CssClass="down" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-backward" Click='@(() => SendControlAsync("move-backward"))'>▼</DxButton>
+                                <DxButton CssClass="right" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="right" Click='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</DxButton>
+                                <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-left" Click='@(() => SendControlAsync("turn-left"))'>Aim ◁</DxButton>
+                                <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-right" Click='@(() => SendControlAsync("turn-right"))'>Aim ▷</DxButton>
                                 @if (snapshot.GameKey == "ascii-doom")
                                 {
-                                    <button type="button" class="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="shoot" @onclick='@(() => SendControlAsync("shoot"))'>Shoot</button>
-                                    <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="duck" @onclick='@(() => SendControlAsync("duck"))'>Duck</button>
+                                    <DxButton CssClass="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="shoot" Click='@(() => SendControlAsync("shoot"))'>Shoot</DxButton>
+                                    <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="duck" Click='@(() => SendControlAsync("duck"))'>Duck</DxButton>
                                 }
-                                <button type="button" class="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="use" @onclick='@(() => SendControlAsync("use"))'>Use</button>
+                                <DxButton CssClass="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="use" Click='@(() => SendControlAsync("use"))'>Use</DxButton>
                             </div>
                             <small>Keyboard and connected gamepads use these exact actions. Controller polling only runs while this game surface can accept input.</small>
                         </div>
@@ -387,6 +489,9 @@
     /// </summary>
     /// <value>The close requested value exposed by <see cref="ChatGameConsole"/>.</value>
     [Parameter] public EventCallback CloseRequested { get; set; }
+    /// <summary>Reports whether this terminal currently owns a running game for its chat/Council context.</summary>
+    /// <value>Callback used by the Chat page to make game/view availability visible before the user opens the game plane.</value>
+    [Parameter] public EventCallback<bool> GameAvailabilityChanged { get; set; }
     /// <summary>Gets or sets the saved chats exposed to the in-terminal Operator session selector.</summary>
     /// <value>Saved conversation summaries available to the current Chat page.</value>
     [Parameter] public IReadOnlyList<ChatMemoryConversationSummary> SavedConversations { get; set; } = [];
@@ -429,6 +534,8 @@
     /// Stores the internal attached state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
     /// </summary>
     private bool attached;
+    /// <summary>Remembers the last game-availability state reported to the owning Chat page.</summary>
+    private bool? lastReportedGameAvailability;
     /// <summary>
     /// Stores whether asynchronous teardown has already started so duplicate renderer disposal calls remain harmless.
     /// </summary>
@@ -443,6 +550,10 @@
     private bool? lastJsInputEnabled;
     /// <summary>Remembers the last scale mode sent to JavaScript so unrelated renders do not repeat interop calls.</summary>
     private string? lastJsScaleMode;
+    /// <summary>Remembers the last renderer/layout payload presented to JavaScript so token-stream renders do not repeatedly force layout and scrolling.</summary>
+    private string lastJsLayoutSignature = string.Empty;
+    /// <summary>Remembers which Council run supplied the projected human request so ordinary parent renders do not requery collaboration state.</summary>
+    private Guid? lastHumanRequestProjectionRunId;
     /// <summary>
     /// Stores the internal show controls state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
     /// </summary>
@@ -591,6 +702,34 @@
                 ? "No game is running; CHAT returns to the replayable conversation."
                 : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}";
 
+    /// <summary>Gets a compact live workflow hint while the tournament engine is waiting for AI-authored lineup/bracket evidence.</summary>
+    private string GamePreparationStatus
+    {
+        get
+        {
+            if (snapshot is null || !string.Equals(snapshot.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase) || snapshot.Turn > 0)
+                return string.Empty;
+            if (CouncilParticipantActivities.Count == 0)
+                return "Tournament engine ready · waiting for Council lineup activity…";
+            var running = CouncilParticipantActivities.Count(activity => activity.IsRunning);
+            var finished = CouncilParticipantActivities.Count(activity => !activity.IsRunning && !string.IsNullOrWhiteSpace(activity.FinalContent));
+            var current = CouncilParticipantActivities.FirstOrDefault(activity => activity.IsRunning);
+            var currentLabel = current is null ? string.Empty : $" · {current.Role}: {current.StatusMessage}";
+            return $"Tournament preparation · {finished} completed · {running} active{currentLabel}";
+        }
+    }
+
+    /// <summary>Reports game availability only when the state actually changes.</summary>
+    private async Task ReportGameAvailabilityAsync()
+    {
+        var available = snapshot is not null && string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase);
+        if (lastReportedGameAvailability == available)
+            return;
+        lastReportedGameAvailability = available;
+        if (GameAvailabilityChanged.HasDelegate)
+            await GameAvailabilityChanged.InvokeAsync(available).ConfigureAwait(true);
+    }
+
     /// <summary>Resolves the running game owned by this chat conversation or active Council run without cross-attaching an unrelated session.</summary>
     /// <returns>The correlated running game, or <c>null</c> when this surface has no owned game.</returns>
     private async Task<CouncilGameSessionSnapshot?> ResolveActiveGameAsync()
@@ -640,7 +779,9 @@
         if (availableShells.Count > 0 && !availableShells.Any(item => item.Shell == operatorShell))
             operatorShell = availableShells[0].Shell;
         snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);
+        await ReportGameAvailabilityAsync().ConfigureAwait(true);
         await RefreshHotSeatRequestAsync().ConfigureAwait(true);
+        lastHumanRequestProjectionRunId = CouncilRunId;
     }
 
     /// <summary>
@@ -651,9 +792,25 @@
     {
         if (snapshot is null || !MatchesCurrentGameContext(snapshot))
             snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);
+        await ReportGameAvailabilityAsync().ConfigureAwait(true);
+
+        // Game/operator presentation does not need to rebuild the complete chat transcript for every streamed token.
+        // The projection is refreshed on demand when the user switches back to Chat mode.
+        if (conversationMode && !operatorMode)
+            RefreshConversationProjection();
+
+        if (lastHumanRequestProjectionRunId != CouncilRunId)
+        {
+            lastHumanRequestProjectionRunId = CouncilRunId;
+            await RefreshHotSeatRequestAsync().ConfigureAwait(true);
+        }
+    }
+
+    /// <summary>Rebuilds the canonical ASCII conversation projection only when the Chat plane is actually visible.</summary>
+    private void RefreshConversationProjection()
+    {
         asciiConversationText = AsciiText.BuildConversationTranscript(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName);
         asciiSequenceFrames = AsciiText.ExtractSequenceFrames(ConversationMessages, CouncilParticipantActivities);
-        await RefreshHotSeatRequestAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -663,73 +820,131 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!attached)
+        if (disposed)
+            return;
+
+        try
         {
-            reference ??= DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
-            attached = true;
-        }
-        var inputEnabled = CanSubmitHumanControl && !operatorMode && !conversationMode;
-        if (lastJsInputEnabled != inputEnabled)
-        {
-            await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
-            lastJsInputEnabled = inputEnabled;
-        }
-        if (!string.Equals(lastJsScaleMode, fullscreenScaleMode, StringComparison.Ordinal))
-        {
-            await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
-            lastJsScaleMode = fullscreenScaleMode;
-        }
-        if (!operatorMode && !conversationMode && snapshot is not null)
-        {
-            var framePresentationSignature = AsciiText.BuildFramePresentationSignature(snapshot);
-            if (!string.Equals(lastJsFramePresentationSignature, framePresentationSignature, StringComparison.Ordinal))
+            if (!attached)
+            {
+                reference ??= DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                attached = true;
+            }
+
+            var inputEnabled = CanSubmitHumanControl && !operatorMode && !conversationMode;
+            if (lastJsInputEnabled != inputEnabled)
+            {
+                await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                lastJsInputEnabled = inputEnabled;
+            }
+            if (!string.Equals(lastJsScaleMode, fullscreenScaleMode, StringComparison.Ordinal))
+            {
+                await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                lastJsScaleMode = fullscreenScaleMode;
+            }
+
+            if (!operatorMode && !conversationMode && snapshot is not null)
+            {
+                var framePresentationSignature = AsciiText.BuildFramePresentationSignature(snapshot);
+                if (!string.Equals(lastJsFramePresentationSignature, framePresentationSignature, StringComparison.Ordinal))
+                {
+                    await JS.InvokeVoidAsync(
+                        "localGptGameConsole.setFramePresentation",
+                        elementId,
+                        snapshot.FrameText,
+                        snapshot.AsciiColorMode.ToString(),
+                        snapshot.DefaultForegroundColor,
+                        snapshot.DefaultBackgroundColor,
+                        snapshot.FrameStyleRuns).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                    lastJsFramePresentationSignature = framePresentationSignature;
+                }
+            }
+            else
+            {
+                lastJsFramePresentationSignature = string.Empty;
+            }
+
+            IReadOnlyList<string> activeSequenceFrames = !operatorMode && conversationMode
+                ? asciiSequenceFrames
+                : !operatorMode && !conversationMode && snapshot is not null
+                    ? snapshot.AnimationFrames
+                    : Array.Empty<string>();
+            var sequenceTarget = conversationMode ? "conversation" : "game";
+            var sequenceDelay = !conversationMode && snapshot is not null ? snapshot.AnimationDelayMilliseconds : 650;
+            var sequenceSubtitle = !conversationMode && snapshot is not null ? snapshot.AnimationSubtitle : string.Empty;
+            var sequenceSubtitleHold = !conversationMode && snapshot is not null ? snapshot.AnimationSubtitleHoldMilliseconds : 1500;
+            var sequenceSignature = activeSequenceFrames.Count > 1
+                ? $"{sequenceTarget}:{sequenceDelay}:{sequenceSubtitleHold}:{sequenceSubtitle}:{AsciiText.BuildSequenceSignature(activeSequenceFrames)}:{(snapshot is null ? string.Empty : AsciiText.BuildAnimationPresentationSignature(snapshot))}"
+                : string.Empty;
+            if (!string.Equals(lastJsSequenceSignature, sequenceSignature, StringComparison.Ordinal))
             {
                 await JS.InvokeVoidAsync(
-                    "localGptGameConsole.setFramePresentation",
+                    "localGptGameConsole.setSequence",
                     elementId,
-                    snapshot.FrameText,
-                    snapshot.AsciiColorMode.ToString(),
-                    snapshot.DefaultForegroundColor,
-                    snapshot.DefaultBackgroundColor,
-                    snapshot.FrameStyleRuns).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
-                lastJsFramePresentationSignature = framePresentationSignature;
+                    activeSequenceFrames,
+                    sequenceDelay,
+                    sequenceTarget,
+                    sequenceSubtitle,
+                    sequenceSubtitleHold,
+                    snapshot?.AsciiColorMode.ToString() ?? CouncilAsciiColorMode.TerminalDefault.ToString(),
+                    snapshot?.DefaultForegroundColor ?? 46,
+                    snapshot?.DefaultBackgroundColor ?? 0,
+                    snapshot?.AnimationFrameStyleRuns ?? [],
+                    snapshot?.AnimationSubtitleStyle).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                lastJsSequenceSignature = sequenceSignature;
+            }
+
+            var conversationSignature = conversationMode
+                ? AsciiText.BuildSequenceSignature([asciiConversationText])
+                : string.Empty;
+            var layoutSignature = AsciiText.BuildConsoleLayoutSignature(
+                operatorMode ? "operator" : conversationMode ? "conversation" : "game",
+                fullscreenScaleMode,
+                lastJsFramePresentationSignature,
+                lastJsSequenceSignature,
+                conversationSignature,
+                consoleOutput.Count,
+                gameInteractionRequest?.Id,
+                hotSeatRequest?.Id);
+            if (firstRender || !string.Equals(lastJsLayoutSignature, layoutSignature, StringComparison.Ordinal))
+            {
+                await JS.InvokeVoidAsync("localGptGameConsole.refreshLayout", elementId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                await JS.InvokeVoidAsync("localGptGameConsole.followTail", elementId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                lastJsLayoutSignature = layoutSignature;
             }
         }
-        else
+        catch (TaskCanceledException exception)
         {
-            lastJsFramePresentationSignature = string.Empty;
+            ResetJavaScriptAttachmentState();
+            Logger.LogDebug(exception, "ASCII game-console JS interop was canceled while the browser circuit was changing state.");
         }
-        IReadOnlyList<string> activeSequenceFrames = !operatorMode && conversationMode
-            ? asciiSequenceFrames
-            : !operatorMode && !conversationMode && snapshot is not null
-                ? snapshot.AnimationFrames
-                : Array.Empty<string>();
-        var sequenceTarget = conversationMode ? "conversation" : "game";
-        var sequenceDelay = !conversationMode && snapshot is not null ? snapshot.AnimationDelayMilliseconds : 650;
-        var sequenceSubtitle = !conversationMode && snapshot is not null ? snapshot.AnimationSubtitle : string.Empty;
-        var sequenceSubtitleHold = !conversationMode && snapshot is not null ? snapshot.AnimationSubtitleHoldMilliseconds : 1500;
-        var sequenceSignature = activeSequenceFrames.Count > 1
-            ? $"{sequenceTarget}:{sequenceDelay}:{sequenceSubtitleHold}:{sequenceSubtitle}:{AsciiText.BuildSequenceSignature(activeSequenceFrames)}:{(snapshot is null ? string.Empty : AsciiText.BuildAnimationPresentationSignature(snapshot))}"
-            : string.Empty;
-        if (!string.Equals(lastJsSequenceSignature, sequenceSignature, StringComparison.Ordinal))
+        catch (JSDisconnectedException exception)
         {
-            await JS.InvokeVoidAsync(
-                "localGptGameConsole.setSequence",
-                elementId,
-                activeSequenceFrames,
-                sequenceDelay,
-                sequenceTarget,
-                sequenceSubtitle,
-                sequenceSubtitleHold,
-                snapshot?.AsciiColorMode.ToString() ?? CouncilAsciiColorMode.TerminalDefault.ToString(),
-                snapshot?.DefaultForegroundColor ?? 46,
-                snapshot?.DefaultBackgroundColor ?? 0,
-                snapshot?.AnimationFrameStyleRuns ?? [],
-                snapshot?.AnimationSubtitleStyle).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
-            lastJsSequenceSignature = sequenceSignature;
+            ResetJavaScriptAttachmentState();
+            Logger.LogDebug(exception, "ASCII game-console JS interop stopped because the browser circuit disconnected.");
         }
-        await JS.InvokeVoidAsync("localGptGameConsole.refreshLayout", elementId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+        catch (ObjectDisposedException exception)
+        {
+            ResetJavaScriptAttachmentState();
+            Logger.LogDebug(exception, "ASCII game-console JS interop stopped because browser resources were disposed.");
+        }
+        catch (Exception exception)
+        {
+            ResetJavaScriptAttachmentState();
+            Logger.LogWarning(exception, "ASCII game-console browser synchronization failed; the next render will retry the bounded attachment state.");
+        }
+    }
+
+    /// <summary>Clears browser-side presentation caches after a transient circuit/interop failure so a later render can safely reattach.</summary>
+    private void ResetJavaScriptAttachmentState()
+    {
+        attached = false;
+        lastJsInputEnabled = null;
+        lastJsScaleMode = null;
+        lastJsFramePresentationSignature = string.Empty;
+        lastJsSequenceSignature = string.Empty;
+        lastJsLayoutSignature = string.Empty;
     }
 
     /// <summary>Shows the canonical replayable chat transcript on the shared ASCII surface.</summary>
@@ -738,6 +953,8 @@
     {
         operatorMode = false;
         conversationMode = true;
+        RefreshConversationProjection();
+        lastJsLayoutSignature = string.Empty;
         return InvokeAsync(StateHasChanged);
     }
 
@@ -1107,6 +1324,7 @@
         if (snapshot is null)
             return;
         snapshot = await Games.EndAsync(snapshot.Id, "Human User").ConfigureAwait(true);
+        await ReportGameAvailabilityAsync().ConfigureAwait(true);
         conversationMode = true;
         operatorMode = false;
         await InvokeAsync(StateHasChanged).ConfigureAwait(true);
@@ -1193,9 +1411,9 @@
                 .OrderBy(request => request.RequestedAtUtc)
                 .ToList();
             hotSeatRequest = pending.FirstOrDefault(AsciiText.IsCouncilRoleResponseRequest);
-            gameInteractionRequest = snapshot is null ? null : pending.FirstOrDefault(request => !AsciiText.IsCouncilRoleResponseRequest(request));
+            gameInteractionRequest = pending.FirstOrDefault(request => !AsciiText.IsCouncilRoleResponseRequest(request));
 
-            if ((hotSeatRequest is not null || gameInteractionRequest is not null) && !operatorMode)
+            if ((hotSeatRequest is not null || gameInteractionRequest is not null) && !operatorMode && snapshot is not null)
                 conversationMode = false;
         }
         catch (Exception exception)
@@ -1289,10 +1507,12 @@
                 request.CouncilRunId,
                 request.RequestedCouncilRound,
                 request.RequestedCouncilPhase);
-            await HumanCollaboration.ResolveRequestAsync(
+            var resolved = await HumanCollaboration.ResolveRequestAsync(
                 request.Id,
                 new HumanDecisionSubmission(approved, normalizedResponse, normalizedReason),
                 consoleRenderCancellation.Token).ConfigureAwait(true);
+            if (approved == true && resolved is not null)
+                QueueApprovedGameInteractionExecution(request.Id);
             gameInteractionText = string.Empty;
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
         }
@@ -1311,6 +1531,35 @@
             if (!disposed)
                 await InvokeAsync(StateHasChanged).ConfigureAwait(true);
         }
+    }
+
+    /// <summary>Queues deferred DXFunction calls approved from the ASCII surface without blocking terminal input.</summary>
+    /// <param name="approvalRequestId">Approval request whose deferred function calls may execute.</param>
+    private void QueueApprovedGameInteractionExecution(Guid approvalRequestId)
+    {
+        TaskRunner.Run(
+            nameof(ChatGameConsole),
+            "ExecuteApprovedAsciiDeferredCalls",
+            async cancellationToken =>
+            {
+                var outcomes = await DeferredDxInvocations
+                    .ExecuteApprovedForApprovalRequestAsync(approvalRequestId, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                if (outcomes.Count == 0 || disposed)
+                    return;
+                var failed = outcomes.Count(outcome => !string.Equals(
+                    outcome.Status,
+                    Vocabulary.Get().DeferredCompleted,
+                    StringComparison.OrdinalIgnoreCase));
+                await InvokeAsync(() =>
+                {
+                    operatorStatus = failed == 0
+                        ? $"Approved AI action completed ({outcomes.Count} function call(s))."
+                        : $"Approved AI action completed with {failed} failure(s) across {outcomes.Count} function call(s).";
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+            },
+            consoleRenderCancellation.Token);
     }
 
     /// <summary>Submits the free-text response currently entered for the projected in-game AI/Council request.</summary>
@@ -1344,6 +1593,7 @@
             if (candidate is null || !MatchesCurrentGameContext(candidate))
                 return;
             snapshot = candidate;
+            await ReportGameAvailabilityAsync().ConfigureAwait(true);
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
             if (!hadSnapshot && !operatorMode)
                 conversationMode = false;

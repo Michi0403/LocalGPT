@@ -17,7 +17,7 @@
             <h1>AI Council social structures</h1>
             <p>The supplied LocalGPT council remains available as the default. Create or duplicate a team to define any role set and any workflow from one round up to the technical run limit.</p>
         </div>
-        <button type="button" class="btn btn-secondary" @onclick="ReloadAsync" disabled="@_busy">Reload</button>
+        <DxButton CssClass="btn btn-secondary" Click="ReloadAsync" Enabled="@(!_busy)">Reload</DxButton>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(_status))
@@ -29,35 +29,34 @@
         <aside class="council-team-list">
             <label>
                 <span>Team</span>
-                <select class="form-select" value="@_selectedKey" @onchange="OnTeamChanged">
-                    @foreach (var team in _teams)
-                    {
-                        <option value="@team.Key">@team.DisplayName (@team.Key)</option>
-                    }
-                </select>
+                <DxComboBox Data="@TeamSelectionOptions"
+                            Value="@_selectedKey"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="@((string value) => OnTeamChanged(new ChangeEventArgs { Value = value }))"
+                            CssClass="localgpt-dx-combo" />
             </label>
             @foreach (var team in _teams)
             {
-                <button type="button" class="council-team-list-item @(team.Key == _selectedKey ? "active" : string.Empty)" @onclick="() => SelectTeam(team)">
+                <DxButton CssClass="@(team.Key == _selectedKey ? "council-team-list-item active" : "council-team-list-item")" Click="() => SelectTeam(team)">
                     <strong>@team.DisplayName</strong>
                     <small>@team.Key · @(team.IsDeleted ? "deleted" : team.IsEnabled ? "enabled" : "disabled") · @WorkflowLabel(team)</small>
                     <span>@team.Purpose</span>
-                </button>
+                </DxButton>
             }
             <div class="council-team-list-actions">
-                <button type="button" class="btn btn-outline-primary" @onclick="CreateTeam">Create empty structure</button>
-                <button type="button" class="btn btn-outline-secondary" @onclick="DuplicateTeam" disabled="@(_teams.Count == 0 || _editor.IsDeleted)">Duplicate selected</button>
+                <DxButton CssClass="btn btn-outline-primary" Click="CreateTeam">Create empty structure</DxButton>
+                <DxButton CssClass="btn btn-outline-secondary" Click="DuplicateTeam" Enabled="@(!(_teams.Count == 0 || _editor.IsDeleted))">Duplicate selected</DxButton>
                 <label>
                     <span>Supplied reset template</span>
-                    <select class="form-select" @bind="_resetTemplateKey">
-                        @foreach (var template in _defaultTemplates)
-                        {
-                            <option value="@template.Key">@template.DisplayName (@template.Key)</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@ResetTemplateOptions"
+                                @bind-Value="_resetTemplateKey"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                CssClass="localgpt-dx-combo" />
                 </label>
-                <button type="button" class="btn btn-outline-warning" @onclick="ResetSelectedFromTemplateAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_selectedKey) || string.IsNullOrWhiteSpace(_resetTemplateKey))">Reset selected from template</button>
-                <button type="button" class="btn btn-outline-danger" @onclick="DeleteSelectedAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_selectedKey) || _editor.IsDeleted)">Delete selected preset</button>
+                <DxButton CssClass="btn btn-outline-warning" Click="ResetSelectedFromTemplateAsync" Enabled="@(!(_busy || string.IsNullOrWhiteSpace(_selectedKey) || string.IsNullOrWhiteSpace(_resetTemplateKey)))">Reset selected from template</DxButton>
+                <DxButton CssClass="btn btn-outline-danger" Click="DeleteSelectedAsync" Enabled="@(!(_busy || string.IsNullOrWhiteSpace(_selectedKey) || _editor.IsDeleted))">Delete selected preset</DxButton>
                 <small class="hint">Delete/reset require the review-confirmation checkbox in the editor. Deleted presets remain as tombstones here so you can restore them from any supplied template; they cannot run.</small>
             </div>
         </aside>
@@ -73,9 +72,9 @@
             }
 
             <div class="council-team-fields">
-                <label><span>Key</span><input class="form-control" @bind="_editor.Key" /></label>
-                <label><span>Display name</span><input class="form-control" @bind="_editor.DisplayName" /></label>
-                <label class="wide"><span>Purpose</span><textarea class="form-control" rows="3" @bind="_editor.Purpose"></textarea></label>
+                <label><span>Key</span><DxTextBox @bind-Text="_editor.Key" CssClass="form-control" /></label>
+                <label><span>Display name</span><DxTextBox @bind-Text="_editor.DisplayName" CssClass="form-control" /></label>
+                <label class="wide"><span>Purpose</span><DxMemo @bind-Text="_editor.Purpose" CssClass="form-control" Rows="3" /></label>
             </div>
 
             <details class="council-advanced-section" open="@(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault)">
@@ -84,24 +83,23 @@
                 <div class="council-workflow-fields">
                     <label>
                         <span>Preflight mode</span>
-                        <select class="form-select" @bind="_editor.AllMembersReadinessPreflightMode">
-                            @foreach (var mode in AllMembersReadinessPreflightModes)
-                            {
-                                <option value="@mode.Value">@mode.Label</option>
-                            }
-                        </select>
+                        <DxComboBox Data="@AllMembersReadinessPreflightModes"
+                                    @bind-Value="_editor.AllMembersReadinessPreflightMode"
+                                    ValueFieldName="@nameof(LocalGptSelectionOption<CouncilAllMembersReadinessPreflightMode>.Value)"
+                                    TextFieldName="@nameof(LocalGptSelectionOption<CouncilAllMembersReadinessPreflightMode>.Label)"
+                                    CssClass="localgpt-dx-combo" />
                     </label>
                     <label>
                         <span>Maximum output tokens per member</span>
-                        <input class="form-control" type="number" min="32" max="2048" @bind="_editor.AllMembersReadinessPreflightMaxOutputTokens" disabled="@(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe)" />
+                        <DxSpinEdit @bind-Value="_editor.AllMembersReadinessPreflightMaxOutputTokens" CssClass="form-control" MinValue="32" MaxValue="2048" Enabled="@(!(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe))" />
                     </label>
                     <label class="wide">
                         <span>Role-aware preflight prompt override (optional)</span>
-                        <textarea class="form-control council-script" rows="5" @bind="_editor.AllMembersReadinessPreflightPromptTemplate" disabled="@(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe)" placeholder="Blank uses the maintained compact probe. Placeholders: {{ModelName}}, {{TeamName}}, {{AssignedRoles}}, {{RoleResponsibilities}}"></textarea>
+                        <DxMemo @bind-Text="_editor.AllMembersReadinessPreflightPromptTemplate" CssClass="form-control council-script" Rows="5" Enabled="@(!(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe))" NullText="Blank uses the maintained compact probe. Placeholders: {{ModelName}}, {{TeamName}}, {{AssignedRoles}}, {{RoleResponsibilities}}" />
                     </label>
                 </div>
                 <label class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" @bind="_editor.IncludeAllMembersReadinessPreflightInWorkflowContext" disabled="@(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe)" />
+                    <DxCheckBox @bind-Checked="_editor.IncludeAllMembersReadinessPreflightInWorkflowContext" CssClass="form-check-input" Enabled="@(!(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe))" />
                     <span>Include all preflight member output in later workflow model context (can be very large on big Councils)</span>
                 </label>
                 <p class="hint mb-0">When this context option is off, preflight responses remain visible and persisted as run evidence but are filtered out of later model transcript context. This prevents 100+ member readiness chatter from consuming the task budget.</p>
@@ -127,10 +125,10 @@
                             @foreach (var entry in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
                             {
                                 var recommended = RecommendedRuntimeFunctions.Contains(entry.FunctionName);
-                                <label class="form-check council-runtime-class-option">
-                                    <input class="form-check-input" type="checkbox"
-                                           checked="@_editor.PreferredCapabilities.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
-                                           @onchange="args => TogglePreferredCapability(entry.FunctionName, args)" />
+                                <label class="council-runtime-class-option">
+                                    <DxCheckBox CssClass="council-runtime-class-checkbox"
+                                                Checked="@_editor.PreferredCapabilities.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
+                                                CheckedChanged="@((bool value) => TogglePreferredCapability(entry.FunctionName, new ChangeEventArgs { Value = value }))" />
                                     <span><strong>@entry.DisplayName</strong> <small>@entry.FunctionName@(recommended ? " · runtime-class recommendation" : string.Empty)</small></span>
                                 </label>
                             }
@@ -144,7 +142,7 @@
                 <p class="hint">This is runtime policy, not a recommendation. Workflow steps using “Team allow-list” receive only these registered functions. The persisted team configuration is authoritative; supplied templates are resettable starting points.</p>
                 @if (!_dxFunctionsLoaded)
                 {
-                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="LoadDxFunctionCatalogAsync" disabled="@_dxFunctionsLoading">@(_dxFunctionsLoading ? "Loading DXFunctions…" : "Load DXFunction catalog")</button>
+                    <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="LoadDxFunctionCatalogAsync" Enabled="@(!_dxFunctionsLoading)">@(_dxFunctionsLoading ? "Loading DXFunctions…" : "Load DXFunction catalog")</DxButton>
                 }
                 else
                 {
@@ -154,10 +152,10 @@
                             <legend>@group.Key</legend>
                             @foreach (var entry in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
                             {
-                                <label class="form-check council-runtime-class-option">
-                                    <input class="form-check-input" type="checkbox"
-                                           checked="@_editor.AllowedAutomaticFunctions.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
-                                           @onchange="args => ToggleTeamAutomaticFunction(entry.FunctionName, args)" />
+                                <label class="council-runtime-class-option">
+                                    <DxCheckBox CssClass="council-runtime-class-checkbox"
+                                                Checked="@_editor.AllowedAutomaticFunctions.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
+                                                CheckedChanged="@((bool value) => ToggleTeamAutomaticFunction(entry.FunctionName, new ChangeEventArgs { Value = value }))" />
                                     <span><strong>@entry.DisplayName</strong> <small>@entry.FunctionName</small></span>
                                 </label>
                             }
@@ -172,7 +170,7 @@
                         <h2>Roles</h2>
                         <p>Roles are free-form social responsibilities. They do not need to match LocalGPT's supplied role names.</p>
                     </div>
-                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddRole">Add role</button>
+                    <DxButton CssClass="btn btn-outline-primary btn-sm" Click="AddRole">Add role</DxButton>
                 </header>
                 @if (_editor.Roles.Count == 0)
                 {
@@ -201,74 +199,69 @@
                                 }
                             </div>
                         </header>
-                        <label><span>Role name</span><input class="form-control" @bind="role.Role" /></label>
-                        <label><span>Expertise or viewpoint</span><input class="form-control" @bind="role.Expertise" /></label>
-                        <label class="wide"><span>Responsibility</span><textarea class="form-control" rows="2" @bind="role.Responsibility"></textarea></label>
+                        <label><span>Role name</span><DxTextBox @bind-Text="role.Role" CssClass="form-control" /></label>
+                        <label><span>Expertise or viewpoint</span><DxTextBox @bind-Text="role.Expertise" CssClass="form-control" /></label>
+                        <label class="wide"><span>Responsibility</span><DxMemo @bind-Text="role.Responsibility" CssClass="form-control" Rows="2" /></label>
                         <div class="wide council-role-policy-grid">
                             <label>
                                 <span>AI assignment</span>
-                                <select class="form-select" @bind="role.AiSelectionMode" disabled="@(role.HumanParticipationMode == HumanParticipationMode.HumanOnly)">
-                                    @foreach (var mode in AiSelectionModes)
-                                    {
-                                        <option value="@mode.Value">@mode.Label</option>
-                                    }
-                                </select>
+                                <DxComboBox Data="@AiSelectionModes"
+                                            @bind-Value="role.AiSelectionMode"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<CouncilRoleAiSelectionMode>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<CouncilRoleAiSelectionMode>.Label)"
+                                            CssClass="localgpt-dx-combo"
+                                            Enabled="@(role.HumanParticipationMode != HumanParticipationMode.HumanOnly)" />
                             </label>
                             @if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
                             {
                                 <label>
                                     <span>Exact role invocations</span>
-                                    <input class="form-control"
-                                           type="number"
-                                           min="1"
-                                           value="@(role.MinimumAiParticipants == role.MaximumAiParticipants ? role.MinimumAiParticipants.ToString() : string.Empty)"
-                                           placeholder="Optional · use range below"
-                                           @onchange="args => SetExactRoleInvocationCount(roleIndex, args)" />
+                                    <DxSpinEdit Value="@ExactRoleInvocationCount(role)"
+                                                ValueChanged="@((int? value) => SetExactRoleInvocationCount(roleIndex, value))"
+                                                CssClass="form-control"
+                                                MinValue="1"
+                                                NullText="Optional · use range below" />
                                 </label>
                             }
                             <label>
                                 <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Minimum pool invocations" : "Minimum random AI participants")</span>
-                                <input class="form-control" type="number" min="1" @bind="role.MinimumAiParticipants" disabled="@(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly)" />
+                                <DxSpinEdit @bind-Value="role.MinimumAiParticipants" CssClass="form-control" MinValue="1" Enabled="@(!(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly))" />
                             </label>
                             <label>
                                 <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Maximum pool invocations" : "Maximum random AI participants")</span>
-                                <input class="form-control" type="number" min="1" @bind="role.MaximumAiParticipants" disabled="@(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly)" />
+                                <DxSpinEdit @bind-Value="role.MaximumAiParticipants" CssClass="form-control" MinValue="1" Enabled="@(!(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly))" />
                             </label>
                             <label>
                                 <span>Human participation</span>
-                                <select class="form-select" @bind="role.HumanParticipationMode">
-                                    @foreach (var mode in HumanParticipationModes)
-                                    {
-                                        <option value="@mode.Value">@mode.Label</option>
-                                    }
-                                </select>
+                                <DxComboBox Data="@HumanParticipationModes"
+                                            @bind-Value="role.HumanParticipationMode"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<HumanParticipationMode>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<HumanParticipationMode>.Label)"
+                                            CssClass="localgpt-dx-combo" />
                             </label>
                             <label>
                                 <span>Role performance</span>
-                                <select class="form-select" @bind="role.PerformanceMode">
-                                    @foreach (var mode in PerformanceModes)
-                                    {
-                                        <option value="@mode.Value">@mode.Label</option>
-                                    }
-                                </select>
+                                <DxComboBox Data="@PerformanceModes"
+                                            @bind-Value="role.PerformanceMode"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<CouncilRolePerformanceMode>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<CouncilRolePerformanceMode>.Label)"
+                                            CssClass="localgpt-dx-combo" />
                             </label>
                             <label>
                                 <span>Role boundary</span>
-                                <select class="form-select" @bind="role.BoundaryMode">
-                                    @foreach (var mode in BoundaryModes)
-                                    {
-                                        <option value="@mode.Value">@mode.Label</option>
-                                    }
-                                </select>
+                                <DxComboBox Data="@BoundaryModes"
+                                            @bind-Value="role.BoundaryMode"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<CouncilRoleBoundaryMode>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<CouncilRoleBoundaryMode>.Label)"
+                                            CssClass="localgpt-dx-combo" />
                             </label>
                             <label>
                                 <span>Response language</span>
-                                <select class="form-select" @bind="role.LanguageMode">
-                                    @foreach (var mode in LanguageModes)
-                                    {
-                                        <option value="@mode.Value">@mode.Label</option>
-                                    }
-                                </select>
+                                <DxComboBox Data="@LanguageModes"
+                                            @bind-Value="role.LanguageMode"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<CouncilRoleLanguageMode>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<CouncilRoleLanguageMode>.Label)"
+                                            CssClass="localgpt-dx-combo" />
                             </label>
                         </div>
                         @if (UsesRandomParticipantCount(role) && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
@@ -296,10 +289,10 @@
                                         <div class="council-provider-model-grid">
                                             @foreach (var candidate in providerGroup.OrderBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase))
                                             {
-                                                <label class="form-check council-provider-model-option">
-                                                    <input class="form-check-input" type="checkbox"
-                                                           checked="@role.AssignedModelKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)"
-                                                           @onchange="args => ToggleRoleModel(roleIndex, candidate.SelectionKey, args)" />
+                                                <label class="council-provider-model-option">
+                                                    <DxCheckBox CssClass="council-provider-model-checkbox"
+                                                                Checked="@role.AssignedModelKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)"
+                                                                CheckedChanged="@((bool value) => ToggleRoleModel(roleIndex, candidate.SelectionKey, new ChangeEventArgs { Value = value }))" />
                                                     <span>
                                                         <strong>@candidate.ModelName</strong>
                                                         <small>@(candidate.IsInstalled ? "reachable" : candidate.IsConfigured ? "configured" : "discovered")</small>
@@ -313,7 +306,7 @@
                                 {
                                     <div class="council-stale-model-binding">
                                         <span><strong>Saved but unavailable:</strong> @savedModelKey</span>
-                                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveRoleModel(roleIndex, savedModelKey)">Remove binding</button>
+                                        <DxButton CssClass="btn btn-outline-danger btn-sm" Click="() => RemoveRoleModel(roleIndex, savedModelKey)">Remove binding</DxButton>
                                     </div>
                                 }
                             </details>
@@ -321,15 +314,15 @@
                         <div class="wide council-role-coordination-grid">
                             <label>
                                 <span>Distinct AI assignment group</span>
-                                <input class="form-control" @bind="role.DistinctAiAssignmentGroup" placeholder="Optional shared group key" />
+                                <DxTextBox @bind-Text="role.DistinctAiAssignmentGroup" CssClass="form-control" NullText="Optional shared group key" />
                             </label>
                             <label>
                                 <span>Match AI count to role</span>
-                                <input class="form-control" list="council-role-names" @bind="role.MatchAiParticipantCountToRole" placeholder="Optional role name" />
+                                <DxTextBox @bind-Text="role.MatchAiParticipantCountToRole" CssClass="form-control" NullText="Optional role name" />
                             </label>
                             <label>
                                 <span>Pair one-to-one with role</span>
-                                <input class="form-control" list="council-role-names" @bind="role.PairedRole" placeholder="Optional role name" />
+                                <DxTextBox @bind-Text="role.PairedRole" CssClass="form-control" NullText="Optional role name" />
                             </label>
                         </div>
                         <details class="wide council-runtime-class-picker">
@@ -341,10 +334,10 @@
                                     <legend>@group.Key</legend>
                                     @foreach (var runtimeClass in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
                                     {
-                                        <label class="form-check council-runtime-class-option">
-                                            <input class="form-check-input" type="checkbox"
-                                                   checked="@role.RuntimeClassKeys.Contains(runtimeClass.Key, StringComparer.OrdinalIgnoreCase)"
-                                                   @onchange="args => ToggleRuntimeClass(roleIndex, runtimeClass.Key, args)" />
+                                        <label class="council-runtime-class-option">
+                                            <DxCheckBox CssClass="council-runtime-class-checkbox"
+                                                        Checked="@role.RuntimeClassKeys.Contains(runtimeClass.Key, StringComparer.OrdinalIgnoreCase)"
+                                                        CheckedChanged="@((bool value) => ToggleRuntimeClass(roleIndex, runtimeClass.Key, new ChangeEventArgs { Value = value }))" />
                                             <span><strong>@runtimeClass.DisplayName</strong> <small>@runtimeClass.Key · @runtimeClass.Kind</small></span>
                                         </label>
                                     }
@@ -355,39 +348,34 @@
                                 <article class="council-runtime-class-preview">
                                     <header><strong>@runtimeClass.DisplayName</strong><small>@runtimeClass.Key</small></header>
                                     <p>@runtimeClass.Description</p>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm align-middle">
-                                            <thead><tr><th>Field</th><th>Type/default</th><th>Input</th><th>AI</th><th>Human</th><th>Blocks next round</th><th>Keyboard</th><th>Gamepad</th></tr></thead>
-                                            <tbody>
-                                            @foreach (var field in runtimeClass.Fields)
-                                            {
-                                                <tr>
-                                                    <td><strong>@field.DisplayName</strong><br /><small>@field.Name</small></td>
-                                                    <td>@field.DataType<br /><small>@field.DefaultValue</small></td>
-                                                    <td>@field.InputMode</td>
-                                                    <td>@(field.AiAssignable ? "yes" : "no")</td>
-                                                    <td>@(field.HumanAssignable ? "yes" : "no")</td>
-                                                    <td>@(field.BlocksNextRoundUntilHumanInput ? "required gate" : "no")</td>
-                                                    <td>@field.KeyboardKey</td>
-                                                    <td>@field.GamepadButton</td>
-                                                </tr>
-                                            }
-                                            </tbody>
-                                        </table>
+                                    <div class="council-runtime-field-list">
+                                        @foreach (var field in runtimeClass.Fields)
+                                        {
+                                            <section class="council-runtime-field-card">
+                                                <header>
+                                                    <strong>@field.DisplayName</strong>
+                                                    <small>@field.Name</small>
+                                                </header>
+                                                <dl>
+                                                    <div><dt>Type / default</dt><dd>@field.DataType · @field.DefaultValue</dd></div>
+                                                    <div><dt>Input</dt><dd>@field.InputMode</dd></div>
+                                                    <div><dt>AI ownership</dt><dd>@(field.AiAssignable ? "allowed" : "not allowed")</dd></div>
+                                                    <div><dt>Human ownership</dt><dd>@(field.HumanAssignable ? "allowed" : "not allowed")</dd></div>
+                                                    <div><dt>Round gate</dt><dd>@(field.BlocksNextRoundUntilHumanInput ? "human input required" : "non-blocking")</dd></div>
+                                                    <div><dt>Keyboard</dt><dd>@(string.IsNullOrWhiteSpace(field.KeyboardKey) ? "—" : field.KeyboardKey)</dd></div>
+                                                    <div><dt>Gamepad</dt><dd>@(string.IsNullOrWhiteSpace(field.GamepadButton) ? "—" : field.GamepadButton)</dd></div>
+                                                </dl>
+                                            </section>
+                                        }
                                     </div>
                                 </article>
                             }
                         </details>
                         <p class="wide council-role-policy-help">@RolePolicyExplanation(role) @RolePerformanceExplanation(role) @RoleBoundaryExplanation(role) @RoleLanguageExplanation(role) @RoleCoordinationExplanation(role)</p>
-                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveRole(roleIndex)">Remove role</button>
+                        <DxButton CssClass="btn btn-outline-danger btn-sm" Click="() => RemoveRole(roleIndex)">Remove role</DxButton>
                     </article>
                 }
-                <datalist id="council-role-names">
-                    @foreach (var role in _editor.Roles.Where(role => !string.IsNullOrWhiteSpace(role.Role)))
-                    {
-                        <option value="@role.Role"></option>
-                    }
-                </datalist>
+
             </section>
 
             <section id="x-functions-automation" class="council-structure-section">
@@ -396,7 +384,7 @@
                         <h2>Rounds, workflow &amp; automated X Functions</h2>
                         <p>Each enabled entry is a workflow step. Multiple steps may share one logical Council round, and every role/model binding is authoritative for that run. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{ExecutingRoleMember}}</code>, <code>{{RolePeerMembers}}</code>, <code>{{RuntimeClasses}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{RolePerformanceMode}}</code>, <code>{{RoleBoundaryMode}}</code>, <code>{{RoleLanguageMode}}</code>, <code>{{RolePerformanceInstruction}}</code>, <code>{{RoleBoundaryInstruction}}</code>, <code>{{RoleLanguageInstruction}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
                     </div>
-                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddWorkflowStep">Add round</button>
+                    <DxButton CssClass="btn btn-outline-primary btn-sm" Click="AddWorkflowStep">Add round</DxButton>
                 </header>
                 @if (_editor.WorkflowSteps.Count == 0)
                 {
@@ -413,124 +401,112 @@
                                 <small>@step.ExecutionMode · repeat @step.RepeatCount · @WorkflowLoopLabel(step) · @WorkflowRolePolicyLabel(step.Role)</small>
                             </div>
                             <div class="council-step-actions">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => MoveWorkflowStep(stepIndex, -1)" disabled="@(stepIndex == 0)">Up</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => MoveWorkflowStep(stepIndex, 1)" disabled="@(stepIndex == _editor.WorkflowSteps.Count - 1)">Down</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveWorkflowStep(stepIndex)">Remove</button>
+                                <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="() => MoveWorkflowStep(stepIndex, -1)" Enabled="@(stepIndex != 0)">Up</DxButton>
+                                <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="() => MoveWorkflowStep(stepIndex, 1)" Enabled="@(stepIndex != _editor.WorkflowSteps.Count - 1)">Down</DxButton>
+                                <DxButton CssClass="btn btn-outline-danger btn-sm" Click="() => RemoveWorkflowStep(stepIndex)">Remove</DxButton>
                             </div>
                         </header>
                         <div class="council-workflow-fields">
-                            <label><span>Key</span><input class="form-control" @bind="step.Key" /></label>
-                            <label><span>Display name</span><input class="form-control" @bind="step.DisplayName" /></label>
-                            <label><span>Phase</span><input class="form-control" @bind="step.Phase" /></label>
-                            <label><span>Role for this round</span><input class="form-control" list="council-role-names" @bind="step.Role" /></label>
+                            <label><span>Key</span><DxTextBox @bind-Text="step.Key" CssClass="form-control" /></label>
+                            <label><span>Display name</span><DxTextBox @bind-Text="step.DisplayName" CssClass="form-control" /></label>
+                            <label><span>Phase</span><DxTextBox @bind-Text="step.Phase" CssClass="form-control" /></label>
+                            <label><span>Role for this round</span><DxTextBox @bind-Text="step.Role" CssClass="form-control" /></label>
                             <label>
                                 <span>Execution</span>
-                                <select class="form-select" @bind="step.ExecutionMode">
-                                    @foreach (var mode in ExecutionModes)
-                                    {
-                                        <option value="@mode.Value">@mode.Label</option>
-                                    }
-                                </select>
+                                <DxComboBox Data="@ExecutionModes"
+                                            @bind-Value="step.ExecutionMode"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                            CssClass="localgpt-dx-combo" />
                             </label>
                             <label>
                                 <span>Exact provider model</span>
-                                <select class="form-select" @bind="step.AssignedModelName" disabled="@(step.ExecutionMode != "AssignedModelSingle")">
-                                    <option value="">Select provider / host / model</option>
-                                    @if (!string.IsNullOrWhiteSpace(step.AssignedModelName) && !IsWorkflowModelAvailable(step.AssignedModelName))
-                                    {
-                                        <option value="@step.AssignedModelName">Saved but unavailable · @step.AssignedModelName</option>
-                                    }
-                                    @foreach (var candidate in WorkflowModelCandidates(step))
-                                    {
-                                        <option value="@candidate.SelectionKey">@candidate.Provider · @candidate.ModelName · @candidate.Endpoint</option>
-                                    }
-                                </select>
+                                <DxComboBox Data="@WorkflowAssignedModelOptions(step)"
+                                            @bind-Value="step.AssignedModelName"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                            CssClass="localgpt-dx-combo"
+                                            Enabled="@(step.ExecutionMode == "AssignedModelSingle")" />
                             </label>
-                            <label><span>Logical Council round (0 = automatic)</span><input class="form-control" type="number" min="0" max="1000" @bind="step.LogicalRoundNumber" /></label>
+                            <label><span>Logical Council round (0 = automatic)</span><DxSpinEdit @bind-Value="step.LogicalRoundNumber" CssClass="form-control" MinValue="0" MaxValue="1000" /></label>
                             <label>
                                 <span>Prior transcript visibility</span>
-                                <select class="form-select" @bind="step.TranscriptVisibility" disabled="@(!step.IncludePriorTranscript)">
-                                    @foreach (var visibility in TranscriptVisibilityModes)
-                                    {
-                                        <option value="@visibility.Value">@visibility.Label</option>
-                                    }
-                                </select>
+                                <DxComboBox Data="@TranscriptVisibilityModes"
+                                            @bind-Value="step.TranscriptVisibility"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<CouncilTranscriptVisibilityMode>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<CouncilTranscriptVisibilityMode>.Label)"
+                                            CssClass="localgpt-dx-combo"
+                                            Enabled="@step.IncludePriorTranscript" />
                             </label>
-                            <label><span>Repeat count inside this step</span><input class="form-control" type="number" min="1" max="100" @bind="step.RepeatCount" /></label>
-                            <label><span>Sort order</span><input class="form-control" type="number" @bind="step.SortOrder" /></label>
+                            <label><span>Repeat count inside this step</span><DxSpinEdit @bind-Value="step.RepeatCount" CssClass="form-control" MinValue="1" MaxValue="100" /></label>
+                            <label><span>Sort order</span><DxSpinEdit @bind-Value="step.SortOrder" CssClass="form-control" /></label>
                             <label>
                                 <span>Loop group (optional)</span>
-                                <input class="form-control" @bind="step.LoopGroup" placeholder="Same key on consecutive steps" />
+                                <DxTextBox @bind-Text="step.LoopGroup" CssClass="form-control" NullText="Same key on consecutive steps" />
                             </label>
                             <label>
                                 <span>Maximum loop iterations</span>
-                                <input class="form-control" type="number" min="1" max="100" @bind="step.MaximumLoopIterations" disabled="@(string.IsNullOrWhiteSpace(step.LoopGroup))" />
+                                <DxSpinEdit @bind-Value="step.MaximumLoopIterations" CssClass="form-control" MinValue="1" MaxValue="100" Enabled="@(!(string.IsNullOrWhiteSpace(step.LoopGroup)))" />
                             </label>
                             <label class="wide">
                                 <span>Loop completion marker (optional)</span>
-                                <input class="form-control" @bind="step.LoopCompletionMarker" placeholder="Example: [[TOURNAMENT_COMPLETE]]" disabled="@(string.IsNullOrWhiteSpace(step.LoopGroup))" />
+                                <DxTextBox @bind-Text="step.LoopCompletionMarker" CssClass="form-control" NullText="Example: [[TOURNAMENT_COMPLETE]]" Enabled="@(!(string.IsNullOrWhiteSpace(step.LoopGroup)))" />
                             </label>
                             @if (step.ProducesAsciiFrame)
                             {
-                                <label><span>ASCII frame width</span><input class="form-control" type="number" min="20" max="240" @bind="step.AsciiFrameWidth" /></label>
-                                <label><span>ASCII frame height</span><input class="form-control" type="number" min="8" max="120" @bind="step.AsciiFrameHeight" /></label>
-                                <label><span>World step scale</span><input class="form-control" type="number" min="1" max="1000" @bind="step.WorldStepScale" /></label>
+                                <label><span>ASCII frame width</span><DxSpinEdit @bind-Value="step.AsciiFrameWidth" CssClass="form-control" MinValue="20" MaxValue="240" /></label>
+                                <label><span>ASCII frame height</span><DxSpinEdit @bind-Value="step.AsciiFrameHeight" CssClass="form-control" MinValue="8" MaxValue="120" /></label>
+                                <label><span>World step scale</span><DxSpinEdit @bind-Value="step.WorldStepScale" CssClass="form-control" MinValue="1" MaxValue="1000" /></label>
                                 <div class="wide alert alert-info mb-0">Exactly one AI must own the complete frame. Use LeaderSingle, RoundRobinSingle or AssignedModelSingle and emit <code>[[ASCII_FRAME]]...[[/ASCII_FRAME]]</code>.</div>
                             }
-                            <label class="wide"><span>Round prompt</span><textarea class="form-control council-script" rows="7" @bind="step.PromptTemplate"></textarea></label>
+                            <label class="wide"><span>Round prompt</span><DxMemo @bind-Text="step.PromptTemplate" CssClass="form-control council-script" Rows="7" /></label>
                         </div>
                         <details class="council-advanced-section" open="@(step.EnableRolePeerReview || step.SummarizeRoleResults)">
                             <summary>Role-member coordination @(step.EnableRolePeerReview || step.SummarizeRoleResults ? "· enabled" : "· disabled")</summary>
                             <p class="hint">Optional and off by default. Primary role members still execute exactly as configured above. Peer review adds a small role-local usefulness/vote pass without DX side effects. Role synthesis can then ask one assigned role member to merge the primary answers into one authoritative result for this role before the next workflow step.</p>
                             <div class="council-step-options">
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.EnableRolePeerReview" /><span>Peer-review role-member answers, report usefulness and vote for the strongest role result</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.SummarizeRoleResults" /><span>Summarize multiple role-member answers into one final result of this role</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="step.EnableRolePeerReview" CssClass="form-check-input" /><span>Peer-review role-member answers, report usefulness and vote for the strongest role result</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="step.SummarizeRoleResults" CssClass="form-check-input" /><span>Summarize multiple role-member answers into one final result of this role</span></label>
                             </div>
                             @if (step.SummarizeRoleResults)
                             {
                                 <div class="council-workflow-fields">
                                     <label>
                                         <span>Role result summarizer</span>
-                                        <select class="form-select" @bind="step.RoleResultSynthesisMemberMode">
-                                            @foreach (var mode in RoleResultSynthesisMemberModes)
-                                            {
-                                                <option value="@mode.Value">@mode.Label</option>
-                                            }
-                                        </select>
+                                        <DxComboBox Data="@RoleResultSynthesisMemberModes"
+                                                    @bind-Value="step.RoleResultSynthesisMemberMode"
+                                                    ValueFieldName="@nameof(LocalGptSelectionOption<CouncilRoleResultSynthesisMemberMode>.Value)"
+                                                    TextFieldName="@nameof(LocalGptSelectionOption<CouncilRoleResultSynthesisMemberMode>.Label)"
+                                                    CssClass="localgpt-dx-combo" />
                                     </label>
                                     <label>
                                         <span>Selected role member</span>
-                                        <select class="form-select" @bind="step.RoleResultSynthesisModelName" disabled="@(step.RoleResultSynthesisMemberMode != CouncilRoleResultSynthesisMemberMode.AssignedRoleMember)">
-                                            <option value="">Choose one exact role member</option>
-                                            @if (!string.IsNullOrWhiteSpace(step.RoleResultSynthesisModelName) && !IsWorkflowModelAvailable(step.RoleResultSynthesisModelName))
-                                            {
-                                                <option value="@step.RoleResultSynthesisModelName">Saved but unavailable · @step.RoleResultSynthesisModelName</option>
-                                            }
-                                            @foreach (var candidate in WorkflowModelCandidates(step))
-                                            {
-                                                <option value="@candidate.SelectionKey">@candidate.Provider · @candidate.ModelName · @candidate.Endpoint</option>
-                                            }
-                                        </select>
+                                        <DxComboBox Data="@RoleResultSynthesisModelOptions(step)"
+                                                    @bind-Value="step.RoleResultSynthesisModelName"
+                                                    ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                                    TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                                    CssClass="localgpt-dx-combo"
+                                                    Enabled="@(step.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember)" />
                                     </label>
                                 </div>
                                 <p class="hint mb-0">Random selection is stable for one run/round so rejoin and replay diagnostics stay understandable. A selected model is used only when it is actually assigned to this role in the run; otherwise LocalGPT safely falls back to a deterministic role member and records a warning.</p>
                             }
                         </details>
                         <div class="council-step-options">
-                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IsEnabled" /><span>Enabled</span></label>
-                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IncludePriorTranscript" /><span>Include prior transcript according to visibility policy</span></label>
-                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.ProducesFinalAnswer" /><span>Can become final answer</span></label>
-                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.RequiresHumanCheckpoint" /><span>Respect human gate before round</span></label>
+                            <label class="form-check"><DxCheckBox @bind-Checked="step.IsEnabled" CssClass="form-check-input" /><span>Enabled</span></label>
+                            <label class="form-check"><DxCheckBox @bind-Checked="step.IncludePriorTranscript" CssClass="form-check-input" /><span>Include prior transcript according to visibility policy</span></label>
+                            <label class="form-check"><DxCheckBox @bind-Checked="step.ProducesFinalAnswer" CssClass="form-check-input" /><span>Can become final answer</span></label>
+                            <label class="form-check"><DxCheckBox @bind-Checked="step.RequiresHumanCheckpoint" CssClass="form-check-input" /><span>Respect human gate before round</span></label>
                             <label>
                                 <span>Automatic/native function policy</span>
-                                <select class="form-select" value="@step.AutomaticFunctionPolicyMode" @onchange="args => SetAutomaticFunctionPolicy(step, args)">
-                                    @foreach (var policy in AutomaticFunctionPolicyModes)
-                                    {
-                                        <option value="@policy.Value">@policy.Label</option>
-                                    }
-                                </select>
+                                <DxComboBox Data="@AutomaticFunctionPolicyModes"
+                                            Value="@step.AutomaticFunctionPolicyMode"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<CouncilAutomaticFunctionPolicyMode>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<CouncilAutomaticFunctionPolicyMode>.Label)"
+                                            ValueChanged="@((CouncilAutomaticFunctionPolicyMode value) => SetAutomaticFunctionPolicy(step, new ChangeEventArgs { Value = value.ToString() }))"
+                                            CssClass="localgpt-dx-combo" />
                             </label>
-                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.ProducesAsciiFrame" /><span>Produces one AI-owned ASCII frame</span></label>
+                            <label class="form-check"><DxCheckBox @bind-Checked="step.ProducesAsciiFrame" CssClass="form-check-input" /><span>Produces one AI-owned ASCII frame</span></label>
                         </div>
                         @if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.TeamAllowList)
                         {
@@ -540,7 +516,9 @@
                         {
                             <label class="wide">
                                 <span>Exact automatic/native function names · one per line</span>
-                                <textarea class="form-control council-script" rows="4" value="@CouncilText.FormatMultilineNameList(step.AllowedAutomaticFunctions)" @onchange="args => SetStepAutomaticFunctions(step, args)"></textarea>
+                                <DxMemo Text="@CouncilText.FormatMultilineNameList(step.AllowedAutomaticFunctions)"
+                                        TextChanged="@((string value) => SetStepAutomaticFunctions(step, new ChangeEventArgs { Value = value }))"
+                                        CssClass="form-control council-script" Rows="4" />
                             </label>
                         }
                         <details class="council-advanced-section">
@@ -549,77 +527,65 @@
                             <div class="council-workflow-fields">
                                 <label>
                                     <span>Provider/member failure recovery</span>
-                                    <select class="form-select" @bind="step.MemberFailureRecoveryMode">
-                                        @foreach (var option in MemberFailureRecoveryModes)
-                                        {
-                                            <option value="@option.Value">@option.Label</option>
-                                        }
-                                    </select>
+                                    <DxComboBox Data="@MemberFailureRecoveryModes"
+                                                @bind-Value="step.MemberFailureRecoveryMode"
+                                                ValueFieldName="@nameof(LocalGptSelectionOption<CouncilMemberFailureRecoveryMode>.Value)"
+                                                TextFieldName="@nameof(LocalGptSelectionOption<CouncilMemberFailureRecoveryMode>.Label)"
+                                                CssClass="localgpt-dx-combo" />
                                 </label>
-                                <label><span>Round-level recovery turns after built-in safe fallback</span><input class="form-control" type="number" min="0" max="8" @bind="step.MemberFailureRecoveryAttempts" disabled="@(step.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.Disabled)" /></label>
-                                <label><span>Role-compliance corrective retries</span><input class="form-control" type="number" min="0" max="3" @bind="step.RoleComplianceRetryCount" /></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.FinalAnswerRecoveryEnabled" /><span>Recover a final answer when only thinking/non-final content was returned</span></label>
-                                <label><span>Final-answer recovery max output tokens</span><input class="form-control" type="number" min="128" max="32768" @bind="step.FinalAnswerRecoveryMaxOutputTokens" disabled="@(!step.FinalAnswerRecoveryEnabled)" /></label>
+                                <label><span>Round-level recovery turns after built-in safe fallback</span><DxSpinEdit @bind-Value="step.MemberFailureRecoveryAttempts" CssClass="form-control" MinValue="0" MaxValue="8" Enabled="@(!(step.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.Disabled))" /></label>
+                                <label><span>Role-compliance corrective retries</span><DxSpinEdit @bind-Value="step.RoleComplianceRetryCount" CssClass="form-control" MinValue="0" MaxValue="3" /></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="step.FinalAnswerRecoveryEnabled" CssClass="form-check-input" /><span>Recover a final answer when only thinking/non-final content was returned</span></label>
+                                <label><span>Final-answer recovery max output tokens</span><DxSpinEdit @bind-Value="step.FinalAnswerRecoveryMaxOutputTokens" CssClass="form-control" MinValue="128" MaxValue="32768" Enabled="@(!(!step.FinalAnswerRecoveryEnabled))" /></label>
                             </div>
                         </details>
                         <details class="council-advanced-section">
                             <summary>X-Rounds / revisable control flow · X Functions &amp; automation @(step.XFunctionsEnabled ? "· enabled" : "· disabled")</summary>
                             <p class="hint"><strong>Automated X Functions:</strong> enable and authorize the X actions for this workflow step here. The existing X-Round engine remains the execution layer. X-Rounds do not erase history. A revisit creates a new workflow-step revision caused by the requesting step. Reconsider suppresses DX/organic side effects; Reexecute deliberately runs the target's normal function policy again.</p>
                             <div class="d-flex flex-wrap gap-2 mb-2" aria-label="X-Round workflow presets">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.Gatekeeper)">Gatekeeper</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.ReactiveRevisit)">Reactive revisit</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.DerivedSingleModel)">Derived single model</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.DerivedCouncil)">Derived Council</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.Disabled)">Clear X policy</button>
+                                <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="() => ApplyXRoundPreset(step, CouncilXRoundPreset.Gatekeeper)">Gatekeeper</DxButton>
+                                <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="() => ApplyXRoundPreset(step, CouncilXRoundPreset.ReactiveRevisit)">Reactive revisit</DxButton>
+                                <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="() => ApplyXRoundPreset(step, CouncilXRoundPreset.DerivedSingleModel)">Derived single model</DxButton>
+                                <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="() => ApplyXRoundPreset(step, CouncilXRoundPreset.DerivedCouncil)">Derived Council</DxButton>
+                                <DxButton CssClass="btn btn-outline-danger btn-sm" Click="() => ApplyXRoundPreset(step, CouncilXRoundPreset.Disabled)">Clear X policy</DxButton>
                             </div>
                             <div class="council-step-options">
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XFunctionsEnabled" /><span>Enable X-Functions for this step</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XCanRevisit" disabled="@(!step.XFunctionsEnabled)" /><span>May revisit another step</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XCanReturnText" disabled="@(!step.XFunctionsEnabled)" /><span>May return text and finish parent workflow</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XCanStartSingleModel" disabled="@(!step.XFunctionsEnabled)" /><span>May start one selected model subtask</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XCanStartCouncil" disabled="@(!step.XFunctionsEnabled)" /><span>May start another Council team</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XRequiresHumanApproval" disabled="@(!step.XFunctionsEnabled)" /><span>Human must approve every accepted X control request</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="step.XFunctionsEnabled" CssClass="form-check-input" /><span>Enable X-Functions for this step</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="step.XCanRevisit" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May revisit another step</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="step.XCanReturnText" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May return text and finish parent workflow</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="step.XCanStartSingleModel" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May start one selected model subtask</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="step.XCanStartCouncil" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>May start another Council team</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="step.XRequiresHumanApproval" CssClass="form-check-input" Enabled="@(!(!step.XFunctionsEnabled))" /><span>Human must approve every accepted X control request</span></label>
                             </div>
                             <div class="council-workflow-fields">
-                                <label><span>X transition budget for this source step</span><input class="form-control" type="number" min="1" max="100" @bind="step.XMaximumTransitions" disabled="@(!step.XFunctionsEnabled)" /></label>
+                                <label><span>X transition budget for this source step</span><DxSpinEdit @bind-Value="step.XMaximumTransitions" CssClass="form-control" MinValue="1" MaxValue="100" Enabled="@(!(!step.XFunctionsEnabled))" /></label>
                                 <label>
                                     <span>Default revisit target</span>
-                                    <select class="form-select" @bind="step.XDefaultTargetStepKey" disabled="@(!step.XFunctionsEnabled || !step.XCanRevisit)">
-                                        <option value="">Require the AI to name a target</option>
-                                        @foreach (var targetStep in _editor.WorkflowSteps.Take(stepIndex + 1))
-                                        {
-                                            <option value="@targetStep.Key">@targetStep.DisplayName · @targetStep.Key</option>
-                                        }
-                                    </select>
+                                    <DxComboBox Data="@XRevisitTargetOptions(stepIndex)"
+                                                @bind-Value="step.XDefaultTargetStepKey"
+                                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                                CssClass="localgpt-dx-combo"
+                                                Enabled="@(step.XFunctionsEnabled && step.XCanRevisit)" />
                                 </label>
                                 <label>
                                     <span>Default child Council team</span>
-                                    <select class="form-select" @bind="step.XChildCouncilTeamKey" disabled="@(!step.XFunctionsEnabled || !step.XCanStartCouncil)">
-                                        <option value="">Require teamKey in the X call</option>
-                                        @if (!string.IsNullOrWhiteSpace(step.XChildCouncilTeamKey) && !_teams.Any(team => team.Key.Equals(step.XChildCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
-                                        {
-                                            <option value="@step.XChildCouncilTeamKey">Saved but unavailable · @step.XChildCouncilTeamKey</option>
-                                        }
-                                        @foreach (var availableTeam in _teams.Where(team => team.IsEnabled))
-                                        {
-                                            <option value="@availableTeam.Key">@availableTeam.DisplayName · @availableTeam.Key</option>
-                                        }
-                                    </select>
+                                    <DxComboBox Data="@XChildCouncilTeamOptions(step)"
+                                                @bind-Value="step.XChildCouncilTeamKey"
+                                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                                CssClass="localgpt-dx-combo"
+                                                Enabled="@(step.XFunctionsEnabled && step.XCanStartCouncil)" />
                                 </label>
-                                <label><span>Maximum child-Council nesting depth</span><input class="form-control" type="number" min="1" max="10" @bind="step.XMaximumChildCouncilDepth" disabled="@(!step.XFunctionsEnabled || !step.XCanStartCouncil)" /></label>
+                                <label><span>Maximum child-Council nesting depth</span><DxSpinEdit @bind-Value="step.XMaximumChildCouncilDepth" CssClass="form-control" MinValue="1" MaxValue="10" Enabled="@(!(!step.XFunctionsEnabled || !step.XCanStartCouncil))" /></label>
                                 <label class="wide">
                                     <span>Default single-model target</span>
-                                    <select class="form-select" @bind="step.XChildModelName" disabled="@(!step.XFunctionsEnabled || !step.XCanStartSingleModel)">
-                                        <option value="">Use the current Council leader</option>
-                                        @if (!string.IsNullOrWhiteSpace(step.XChildModelName) && !IsWorkflowModelAvailable(step.XChildModelName))
-                                        {
-                                            <option value="@step.XChildModelName">Saved but unavailable · @step.XChildModelName</option>
-                                        }
-                                        @foreach (var candidate in _providerModels.Where(model => model.IsInstalled || model.IsConfigured).OrderBy(model => model.Provider).ThenBy(model => model.ModelName))
-                                        {
-                                            <option value="@candidate.SelectionKey">@candidate.Provider · @candidate.ModelName · @candidate.Endpoint</option>
-                                        }
-                                    </select>
+                                    <DxComboBox Data="@XChildModelOptions(step)"
+                                                @bind-Value="step.XChildModelName"
+                                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                                CssClass="localgpt-dx-combo"
+                                                Enabled="@(step.XFunctionsEnabled && step.XCanStartSingleModel)" />
                                 </label>
                                 <div class="wide alert alert-info mb-0">X functions exposed to the role are <code>council.x.status</code>, <code>council.x.revisit</code>, <code>council.x.return_text</code>, <code>council.x.start_single_model</code> and <code>council.x.start_council</code>. X-Rounds also require a function policy that exposes the corresponding X functions because they are explicit DXFunctions.</div>
                             </div>
@@ -631,26 +597,26 @@
             <details class="council-advanced-section">
                 <summary>Advanced prompt compatibility and JSON import/export</summary>
                 <div class="council-team-fields">
-                    <label class="wide"><span>Legacy expert preparation prompt</span><textarea class="form-control council-script" rows="6" @bind="_editor.ExpertPreparationPromptTemplate"></textarea></label>
-                    <label class="wide"><span>Legacy leader synthesis prompt</span><textarea class="form-control council-script" rows="6" @bind="_editor.LeaderSynthesisPromptTemplate"></textarea></label>
-                    <label class="wide"><span>Legacy main-round instruction</span><textarea class="form-control council-script" rows="4" @bind="_editor.MainRoundInstructionTemplate"></textarea></label>
-                    <label class="wide"><span>Roles JSON</span><textarea class="form-control council-script" rows="8" @bind="_rolesJson"></textarea></label>
-                    <label class="wide"><span>Workflow steps JSON</span><textarea class="form-control council-script" rows="12" @bind="_workflowJson"></textarea></label>
+                    <label class="wide"><span>Legacy expert preparation prompt</span><DxMemo @bind-Text="_editor.ExpertPreparationPromptTemplate" CssClass="form-control council-script" Rows="6" /></label>
+                    <label class="wide"><span>Legacy leader synthesis prompt</span><DxMemo @bind-Text="_editor.LeaderSynthesisPromptTemplate" CssClass="form-control council-script" Rows="6" /></label>
+                    <label class="wide"><span>Legacy main-round instruction</span><DxMemo @bind-Text="_editor.MainRoundInstructionTemplate" CssClass="form-control council-script" Rows="4" /></label>
+                    <label class="wide"><span>Roles JSON</span><DxMemo @bind-Text="_rolesJson" CssClass="form-control council-script" Rows="8" /></label>
+                    <label class="wide"><span>Workflow steps JSON</span><DxMemo @bind-Text="_workflowJson" CssClass="form-control council-script" Rows="12" /></label>
                     <div class="wide council-json-actions">
-                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="RefreshAdvancedJson">Refresh JSON from editor</button>
-                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="ApplyAdvancedJson">Apply JSON to editor</button>
+                        <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="RefreshAdvancedJson">Refresh JSON from editor</DxButton>
+                        <DxButton CssClass="btn btn-outline-primary btn-sm" Click="ApplyAdvancedJson">Apply JSON to editor</DxButton>
                     </div>
-                    <label class="wide"><span>Preferred organic capabilities JSON</span><textarea class="form-control council-script" rows="5" @bind="_capabilitiesJson"></textarea></label>
-                    <label class="wide"><span>Team automatic/native function allow-list JSON</span><textarea class="form-control council-script" rows="5" @bind="_allowedFunctionsJson"></textarea></label>
-                    <label class="wide"><span>Architecture contracts JSON</span><textarea class="form-control council-script" rows="5" @bind="_contractsJson"></textarea></label>
+                    <label class="wide"><span>Preferred organic capabilities JSON</span><DxMemo @bind-Text="_capabilitiesJson" CssClass="form-control council-script" Rows="5" /></label>
+                    <label class="wide"><span>Team automatic/native function allow-list JSON</span><DxMemo @bind-Text="_allowedFunctionsJson" CssClass="form-control council-script" Rows="5" /></label>
+                    <label class="wide"><span>Architecture contracts JSON</span><DxMemo @bind-Text="_contractsJson" CssClass="form-control council-script" Rows="5" /></label>
                 </div>
             </details>
 
             <div class="council-team-savebar">
                 <span class="council-expanded-count">@EnabledRoundCount enabled step(s), up to @ExpandedRoundCount expanded round(s)</span>
-                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_editor.IsEnabled" /><span>Enabled</span></label>
-                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_confirmed" @bind:after="ReviewConfirmationChanged" /><span>I reviewed this social structure and its prompts</span></label>
-                <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@(_busy || _editor.IsDeleted)">Save reviewed team</button>
+                <label class="form-check"><DxCheckBox @bind-Checked="_editor.IsEnabled" CssClass="form-check-input" /><span>Enabled</span></label>
+                <label class="form-check"><DxCheckBox @bind-Checked="_confirmed" @bind-Checked:after="ReviewConfirmationChanged" CssClass="form-check-input" /><span>I reviewed this social structure and its prompts</span></label>
+                <DxButton CssClass="btn btn-primary" Click="SaveAsync" Enabled="@(!(_busy || _editor.IsDeleted))">Save reviewed team</DxButton>
             </div>
         </section>
     </section>

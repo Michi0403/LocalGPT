@@ -200,6 +200,7 @@ namespace LocalGPT.Services
                         }
 
                         recoveryStep.WorkflowStepKey = definition.Key;
+                        recoveryStep.RecoveryTargetModelName = failedModel;
                         recoveryStep.WorkflowRevision = Math.Max(1, workflowRevision);
                         recoveryStep.XRoundCause = xRoundCause ?? string.Empty;
                         recoverySteps.Add(recoveryStep);

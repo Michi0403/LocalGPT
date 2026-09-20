@@ -51,48 +51,38 @@
             <div class="form-grid">
                 <label>
                     <span>Project name</span>
-                    <input @bind="request.ProjectName" />
+                    <DxTextBox @bind-Text="request.ProjectName" />
                 </label>
                 <label>
                     <span>Mod id</span>
-                    <input @bind="request.ModId" />
+                    <DxTextBox @bind-Text="request.ModId" />
                 </label>
                 <label>
                     <span>Package</span>
-                    <input @bind="request.PackageName" />
+                    <DxTextBox @bind-Text="request.PackageName" />
                 </label>
                 <label>
                     <span>Minecraft version</span>
-                    <input @bind="request.MinecraftVersion" />
+                    <DxTextBox @bind-Text="request.MinecraftVersion" />
                 </label>
                 <label>
                     <span>Loader</span>
-                    <select @bind="request.Loader">
-                        <option>Fabric Mod</option>
-                        <option>NeoForge Mod</option>
-                        <option>Paper Plugin</option>
-                        <option>Datapack</option>
-                        <option>Bedrock Add-on</option>
-                    </select>
+                    <DxComboBox Data="@MinecraftLoaderOptions" @bind-Value="request.Loader" />
                 </label>
                 <label>
                     <span>Java</span>
-                    <input @bind="request.JavaVersion" />
+                    <DxTextBox @bind-Text="request.JavaVersion" />
                 </label>
                 <label>
                     <span>Gradle</span>
-                    <input @bind="request.GradleVersion" />
+                    <DxTextBox @bind-Text="request.GradleVersion" />
                 </label>
                 <label>
                     <span>IDE</span>
-                    <select @bind="request.Ide">
-                        <option>Eclipse</option>
-                        <option>IntelliJ IDEA</option>
-                        <option>Visual Studio Code</option>
-                    </select>
+                    <DxComboBox Data="@MinecraftIdeOptions" @bind-Value="request.Ide" />
                 </label>
                 <label class="checkbox-label" title="Adds a small item, command, and design brief for the Living Cities 0.1 sample.">
-                    <input type="checkbox" @bind="request.IncludeLivingCitiesStarter" />
+                    <DxCheckBox @bind-Checked="request.IncludeLivingCitiesStarter" />
                     <span>Living Cities starter</span>
                 </label>
             </div>
@@ -100,16 +90,16 @@
             <div class="builder-ai-grid">
                 <label class="wide-field">
                     <span>What should the mod do?</span>
-                    <textarea @bind="request.Description" rows="8" placeholder="Example: Create a magic ore, a wand item, custom crafting recipes, and server-side commands to grant spell XP."></textarea>
+                    <DxMemo @bind-Text="request.Description" Rows="8" NullText="Example: Create a magic ore, a wand item, custom crafting recipes, and server-side commands to grant spell XP." />
                 </label>
 
                 <div class="builder-council-card">
                     <label class="wide-field">
                         <span>Council Models</span>
-                        <input @bind="councilModels" placeholder="gpt-oss:20b, qwen3-coder:30b" />
+                        <DxTextBox @bind-Text="councilModels" NullText="gpt-oss:20b, qwen3-coder:30b" />
                     </label>
                     <label class="checkbox-label" title="When enabled, LocalGPT sends num_gpu=0 to Ollama for safer low-resource council tests. Turn it off only when you intentionally want a GPU-backed model run.">
-                        <input type="checkbox" @bind="useCpuOnlyCouncil" />
+                        <DxCheckBox @bind-Checked="useCpuOnlyCouncil" />
                         <span>CPU-only council</span>
                     </label>
                     <p>Use a single configured model for a fast plan or the Council for a multi-model implementation review.</p>
@@ -159,11 +149,11 @@
             <div class="command-grid">
                 <label>
                     Command
-                    <input @bind="commandFileName" />
+                    <DxTextBox @bind-Text="commandFileName" />
                 </label>
                 <label>
                     Arguments
-                    <input @bind="commandArguments" />
+                    <DxTextBox @bind-Text="commandArguments" />
                 </label>
                 <DxButton Text="Run Command"
                           RenderStyle="ButtonRenderStyle.Primary"
@@ -231,6 +221,9 @@
 </div>
 
 @code {
+    private IReadOnlyList<string> MinecraftLoaderOptions { get; } = ["Fabric Mod", "NeoForge Mod", "Paper Plugin", "Datapack", "Bedrock Add-on"];
+    private IReadOnlyList<string> MinecraftIdeOptions { get; } = ["Eclipse", "IntelliJ IDEA", "Visual Studio Code"];
+
     /// <summary>
     /// Stores the internal toast name state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
     /// </summary>

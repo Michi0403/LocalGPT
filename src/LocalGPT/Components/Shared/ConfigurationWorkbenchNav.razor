@@ -6,10 +6,10 @@
     @foreach (var item in Items)
     {
         var active = string.Equals(item.Key, ActiveKey, StringComparison.OrdinalIgnoreCase);
-        <button type="button"
-                class="configuration-workbench-nav-item @(active ? "active" : string.Empty)"
+        <DxButton
+                CssClass="@(active ? "configuration-workbench-nav-item active" : "configuration-workbench-nav-item")"
                 aria-current="@(active ? "page" : null)"
-                @onclick="@(() => SelectAsync(item.Key))">
+                Click="@(() => SelectAsync(item.Key))">
             <span class="configuration-workbench-nav-label">@item.Label</span>
             @if (!string.IsNullOrWhiteSpace(item.Badge))
             {
@@ -19,7 +19,7 @@
             {
                 <small>@item.Description</small>
             }
-        </button>
+        </DxButton>
     }
 </nav>
 

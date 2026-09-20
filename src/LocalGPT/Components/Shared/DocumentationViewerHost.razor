@@ -9,13 +9,13 @@
             role="dialog"
             aria-modal="true"
             aria-labelledby="localgpt-documentation-viewer-title"
-            @onclick="Close">
+            Click="Close">
         <section class="localgpt-documentation-dialog" @onclick:stopPropagation="true">
             <header>
                 <h2 id="localgpt-documentation-viewer-title">@Viewer.State.Title</h2>
                 <div>
                     <a href="@Viewer.State.Url" target="_blank" rel="noopener noreferrer" data-enhance-nav="false">Open in browser tab</a>
-                    <button data-documentation-viewer-close type="button" aria-label="Close documentation viewer" @onclick="Close">Close</button>
+                    <DxButton data-documentation-viewer-close aria-label="Close documentation viewer" Click="Close">Close</DxButton>
                 </div>
             </header>
             <iframe @key="Viewer.State.Revision"

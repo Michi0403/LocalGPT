@@ -14,7 +14,7 @@
             <p>This assistant remains available after first run. Hardware, provider installation, model selection and the initial benchmark team all use normal LocalGPT services and DXFunctions.</p>
         </div>
         <div class="initial-setup-heading-actions">
-            <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="RefreshAsync">Refresh</button>
+            <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="RefreshAsync">Refresh</DxButton>
             @if (snapshot?.CanStartAiGuidedSetup == true)
             {
                 <a class="localgpt-native-button" data-enhance-nav="false" href="@snapshot.AiGuidedSetupRoute">Continue with AI setup Council</a>
@@ -42,35 +42,35 @@
                 <h4>1. Local host hardware</h4>
                 <p>LocalGPT detects the physical host CPU, RAM/unified memory and every GPU it can identify. The optional CanIRun.ai hardware match is separate so a user can choose the catalog variant without overwriting LocalGPT's detected hardware facts.</p>
                 <label>Physical host endpoint
-                    <input class="form-control" @bind="hardwareEndpoint" />
+                    <DxTextBox @bind-Text="hardwareEndpoint" CssClass="form-control" />
                 </label>
                 <div class="initial-setup-hardware-list">
                     @foreach (var device in hardware)
                     {
                         <div class="initial-setup-hardware-row" @key="device.Key">
-                            <label class="initial-setup-hardware-use"><input type="checkbox" @bind="device.Selected" /> Use this host/device row</label>
-                            <label>Provider endpoint / physical host<input class="form-control" @bind="device.Endpoint" /></label>
-                            <label>CPU / SoC<input class="form-control" @bind="device.CpuName" /></label>
-                            <label>GPU / accelerator (optional)<input class="form-control" @bind="device.Name" /></label>
-                            <label>GPU vendor<input class="form-control" @bind="device.Vendor" /></label>
-                            <label>Dedicated VRAM GiB<input class="form-control" type="number" step="0.25" min="0" @bind="device.DedicatedVramGiB" /></label>
-                            <label>System / unified RAM GiB<input class="form-control" type="number" step="0.25" min="0" @bind="device.SystemMemoryGiB" /></label>
-                            <label class="initial-setup-hardware-canirun">CanIRun.ai hardware match (optional catalog variant)<input class="form-control" @bind="device.CanIRunHardwareName" /></label>
-                            <button type="button" class="localgpt-native-button initial-setup-hardware-remove" @onclick="() => RemoveHardware(device)">Remove row</button>
+                            <label class="initial-setup-hardware-use"><DxCheckBox @bind-Checked="device.Selected" /> Use this host/device row</label>
+                            <label>Provider endpoint / physical host<DxTextBox @bind-Text="device.Endpoint" CssClass="form-control" /></label>
+                            <label>CPU / SoC<DxTextBox @bind-Text="device.CpuName" CssClass="form-control" /></label>
+                            <label>GPU / accelerator (optional)<DxTextBox @bind-Text="device.Name" CssClass="form-control" /></label>
+                            <label>GPU vendor<DxTextBox @bind-Text="device.Vendor" CssClass="form-control" /></label>
+                            <label>Dedicated VRAM GiB<DxSpinEdit @bind-Value="device.DedicatedVramGiB" CssClass="form-control" Increment="0.25" MinValue="0" /></label>
+                            <label>System / unified RAM GiB<DxSpinEdit @bind-Value="device.SystemMemoryGiB" CssClass="form-control" Increment="0.25" MinValue="0" /></label>
+                            <label class="initial-setup-hardware-canirun">CanIRun.ai hardware match (optional catalog variant)<DxTextBox @bind-Text="device.CanIRunHardwareName" CssClass="form-control" /></label>
+                            <DxButton CssClass="localgpt-native-button initial-setup-hardware-remove" Click="() => RemoveHardware(device)">Remove row</DxButton>
                         </div>
                     }
                 </div>
                 <div class="initial-setup-actions">
-                    <button type="button" class="localgpt-native-button" @onclick="AddHardware">Add hardware row</button>
-                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="DetectLocalHardwareAsync">Detect local hardware</button>
-                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="SaveHardwareAsync">Save reviewed list</button>
+                    <DxButton CssClass="localgpt-native-button" Click="AddHardware">Add hardware row</DxButton>
+                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="DetectLocalHardwareAsync">Detect local hardware</DxButton>
+                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="SaveHardwareAsync">Save reviewed list</DxButton>
                 </div>
                 <details>
                     <summary>HWiNFO text import</summary>
                     <p>The report stays local. LocalGPT deterministically extracts all supported GPU-memory sections plus CPU/RAM/OS facts.</p>
-                    <textarea class="form-control" rows="6" @bind="hwInfoText" placeholder="Paste HWiNFO text export"></textarea>
+                    <DxMemo @bind-Text="hwInfoText" CssClass="form-control" Rows="6" NullText="Paste HWiNFO text export" />
                     <InputFile OnChange="ReadHwInfoFileAsync" accept=".txt,text/plain" />
-                    <button type="button" class="localgpt-native-button" disabled="@(busy || string.IsNullOrWhiteSpace(hwInfoText))" @onclick="ImportHwInfoAsync">Import HWiNFO</button>
+                    <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || string.IsNullOrWhiteSpace(hwInfoText)))" Click="ImportHwInfoAsync">Import HWiNFO</DxButton>
                 </details>
             </article>
 
@@ -78,10 +78,10 @@
                 <h4>2. Optional CanIRun.ai hardware-fit model discovery</h4>
                 <p><strong>Credit:</strong> <a href="https://www.canirun.ai/" target="_blank" rel="noopener noreferrer">CanIRun.ai by midudev</a> can discover open models that fit the reviewed consumer hardware, including models the user may not already know. This optional web lookup is independent from the provider's own model inventory/catalog.</p>
                 <label class="form-check">
-                    <input class="form-check-input" type="checkbox" @bind="canIRunOptIn" />
+                    <DxCheckBox @bind-Checked="canIRunOptIn" CssClass="form-check-input" />
                     <span>I want LocalGPT to send the reviewed CPU, selected accelerator/CanIRun.ai variant, system/unified RAM and, when known, dedicated VRAM to CanIRun.ai. LocalGPT endpoint and host identifiers are not sent.</span>
                 </label>
-                <button type="button" class="localgpt-native-button" disabled="@(busy || !canIRunOptIn)" @onclick="LoadRecommendationsAsync">Find hardware-fit models</button>
+                <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || !canIRunOptIn))" Click="LoadRecommendationsAsync">Find hardware-fit models</DxButton>
                 @if (recommendations.Count > 0)
                 {
                     <div class="initial-setup-model-list">
@@ -121,13 +121,13 @@
                     </div>
                 }
                 <label>Provider profile
-                    <select class="form-select" @bind="selectedProviderKey" @bind:after="ProviderSelectionChangedAsync">
-                        <option value="">Choose provider</option>
-                        @foreach (var profile in snapshot.ProviderProfiles)
-                        {
-                            <option value="@profile.Key">@profile.DisplayName · @profile.Platform</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@ProviderProfileOptions"
+                                Value="@selectedProviderKey"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                ValueChanged="@((string value) => ProviderSelectionChangedAsync(value))"
+                                NullText="Choose provider"
+                                ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
                 </label>
                 @if (SelectedProvider is not null)
                 {
@@ -154,23 +154,23 @@
                         <small>If a guided install/start action is unavailable for this host, open the vendor source, complete the vendor setup, then use Detect again. LocalGPT keeps manual and guided paths equivalent.</small>
                     </div>
                     <div class="initial-setup-actions">
-                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="DetectProviderAsync">Detect</button>
-                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="ListProviderModelsAsync">List local models</button>
-                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="InstallProviderAsync">Install (confirmed)</button>
+                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="DetectProviderAsync">Detect</DxButton>
+                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="ListProviderModelsAsync">List local models</DxButton>
+                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="InstallProviderAsync">Install (confirmed)</DxButton>
                         @if (IsSelectedOllama)
                         {
-                            <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="GuidedOllamaSetupAsync">@T("Set up Ollama (confirmed: install / start / register)")</button>
-                            <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsInstalled || ollamaStatus.IsRunning)" @onclick="StartOllamaAsync">Start Ollama</button>
-                            <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsRunning)" @onclick="StopOllamaAsync">Stop Ollama</button>
-                            <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsInstalled)" @onclick="RestartOllamaAsync">Restart Ollama</button>
-                            <button type="button" class="localgpt-native-button" disabled="@(busy || !ollamaStatus.IsInstalled)" @onclick="UpdateOllamaAsync">@T("Update Ollama (confirmed)")</button>
-                            <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="RefreshAsync">Refresh Ollama / models</button>
+                            <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="GuidedOllamaSetupAsync">@T("Set up Ollama (confirmed: install / start / register)")</DxButton>
+                            <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || !ollamaStatus.IsInstalled || ollamaStatus.IsRunning))" Click="StartOllamaAsync">Start Ollama</DxButton>
+                            <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || !ollamaStatus.IsRunning))" Click="StopOllamaAsync">Stop Ollama</DxButton>
+                            <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || !ollamaStatus.IsInstalled))" Click="RestartOllamaAsync">Restart Ollama</DxButton>
+                            <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || !ollamaStatus.IsInstalled))" Click="UpdateOllamaAsync">@T("Update Ollama (confirmed)")</DxButton>
+                            <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="RefreshAsync">Refresh Ollama / models</DxButton>
                         }
                         else
                         {
-                            <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="StartProviderAsync">Start (confirmed)</button>
+                            <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="StartProviderAsync">Start (confirmed)</DxButton>
                         }
-                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="ConfigureProviderAsync">Register endpoint in LocalGPT</button>
+                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="ConfigureProviderAsync">Register endpoint in LocalGPT</DxButton>
                     </div>
                 }
             </article>
@@ -181,17 +181,17 @@
                 @if (SelectedProvider is not null)
                 {
                     <label>Model ID
-                        <input class="form-control" @bind="manualModelId" placeholder="Provider model ID, for example qwen3:4b" />
+                        <DxTextBox @bind-Text="manualModelId" CssClass="form-control" NullText="Provider model ID, for example qwen3:4b" />
                     </label>
-                    <button type="button" class="localgpt-native-button" disabled="@(busy || string.IsNullOrWhiteSpace(manualModelId))" @onclick="InstallManualModelAsync">Download / install model</button>
+                    <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || string.IsNullOrWhiteSpace(manualModelId)))" Click="InstallManualModelAsync">Download / install model</DxButton>
                     <small>The provider model ID is validated as one safe token and installed through the same provider bootstrap service. Use the official provider catalog link to discover additional models even when CanIRun.ai is unavailable.</small>
                     @if (!string.IsNullOrWhiteSpace(SelectedProvider.ModelCatalogUrl))
                     {
                         <div class="initial-setup-provider-catalog-search">
                             <label>Official provider catalog search
-                                <input class="form-control" @bind="providerCatalogQuery" placeholder="Optional search, for example qwen or deepseek" />
+                                <DxTextBox @bind-Text="providerCatalogQuery" CssClass="form-control" NullText="Optional search, for example qwen or deepseek" />
                             </label>
-                            <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="SearchProviderCatalogAsync">Search official provider catalog</button>
+                            <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="SearchProviderCatalogAsync">Search official provider catalog</DxButton>
                             <small>This user-triggered lookup contacts only the selected provider's maintained public catalog. It does not send LocalGPT endpoints, hardware facts, or CanIRun.ai state.</small>
                         </div>
                     }
@@ -207,7 +207,7 @@
                         {
                             <div class="initial-setup-model-row" @key="choice.ProviderModelId">
                                 <label class="form-check">
-                                    <input class="form-check-input" type="checkbox" @bind="choice.Selected" />
+                                    <DxCheckBox @bind-Checked="choice.Selected" CssClass="form-check-input" />
                                     <span><strong>@choice.DisplayName</strong> → <code>@choice.ProviderModelId</code></span>
                                 </label>
                                 <span>
@@ -236,15 +236,15 @@
                                 }
                                 @if (!choice.IsInstalled && choice.CanInstall)
                                 {
-                                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => InstallModelAsync(choice)">Install model</button>
+                                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => InstallModelAsync(choice)">Install model</DxButton>
                                 }
                                 else if (choice.IsInstalled && choice.CanCheckUpdate)
                                 {
-                                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => CheckUpdateModelAsync(choice)">Check / refresh model</button>
+                                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => CheckUpdateModelAsync(choice)">Check / refresh model</DxButton>
                                 }
                                 else if (!choice.IsInstalled && choice.IsHardwareRecommended)
                                 {
-                                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => ResolveAndInstallModelAsync(choice)">@T("Resolve & install model")</button>
+                                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => ResolveAndInstallModelAsync(choice)">@T("Resolve & install model")</DxButton>
                                     <small>@T(choice.MappingStatus) @T("LocalGPT can check the selected provider's official catalog before installing; ambiguous results remain review-only.")</small>
                                 }
                                 else if (!choice.IsInstalled)
@@ -289,11 +289,11 @@
                                     }
                                     @if (!choice.IsInstalled && choice.CanInstall)
                                     {
-                                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => InstallModelAsync(choice)">Install model</button>
+                                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => InstallModelAsync(choice)">Install model</DxButton>
                                     }
                                     else if (choice.IsInstalled && choice.CanCheckUpdate)
                                     {
-                                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => CheckUpdateModelAsync(choice)">Check / refresh model</button>
+                                        <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="() => CheckUpdateModelAsync(choice)">Check / refresh model</DxButton>
                                     }
                                 </div>
                             }
@@ -324,15 +324,15 @@
                             var selected = selectedModels.Contains(model.SelectionKey);
                             var preferred = preferredCuratorModels.Contains(model.SelectionKey);
                             <div class="initial-setup-installed-row" @key="model.SelectionKey">
-                                <label><input type="checkbox" checked="@selected" @onchange="args => ToggleModel(model.SelectionKey, args)" /> @T("Use")</label>
-                                <label><input type="checkbox" checked="@preferred" @onchange="args => TogglePreferredModel(model.SelectionKey, args)" /> @T("Curator")</label>
+                                <label><DxCheckBox Checked="@selected" CheckedChanged="@((bool value) => ToggleModel(model.SelectionKey, value))" /> @T("Use")</label>
+                                <label><DxCheckBox Checked="@preferred" CheckedChanged="@((bool value) => TogglePreferredModel(model.SelectionKey, value))" /> @T("Curator")</label>
                                 <strong>@model.DisplayName</strong>
                                 <code>@model.EndpointLabel</code>
                             </div>
                         }
                     </div>
-                    <label>Team name<input class="form-control" @bind="benchmarkTeamName" /></label>
-                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="CreateBenchmarkTeamAsync">Create / refresh hardware benchmark team</button>
+                    <label>Team name<DxTextBox @bind-Text="benchmarkTeamName" CssClass="form-control" /></label>
+                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="CreateBenchmarkTeamAsync">Create / refresh hardware benchmark team</DxButton>
                 }
             </article>
 
@@ -424,6 +424,12 @@
     /// </summary>
     /// <value>The selected provider value exposed by <see cref="InitialSetupAssistantPanel"/>.</value>
     private AiProviderBootstrapProfile? SelectedProvider => snapshot?.ProviderProfiles.FirstOrDefault(item => item.Key.Equals(selectedProviderKey, StringComparison.OrdinalIgnoreCase));
+    /// <summary>Provides a stable primitive-value list for the provider selector so selection never depends on object identity or mutable provider profile instances.</summary>
+    /// <value>The ordered provider choices exposed to the setup provider selector.</value>
+    private IReadOnlyList<LocalGptSelectionOption<string>> ProviderProfileOptions => snapshot?.ProviderProfiles
+        .OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+        .Select(item => new LocalGptSelectionOption<string>(item.Key, item.DisplayName))
+        .ToList() ?? [];
     /// <summary>Reports whether the selected setup profile resolves to LocalGPT's Ollama provider path.</summary>
     /// <value><see langword="true"/> when the selected profile represents Ollama; otherwise <see langword="false"/>.</value>
     private bool IsSelectedOllama => SelectedProvider is { } profile
@@ -657,11 +663,14 @@
     /// <summary>
     /// Performs provider selection changed for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
+    /// <param name="value">Stable provider key selected by the DevExpress provider selector.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task ProviderSelectionChangedAsync()
+    private async Task ProviderSelectionChangedAsync(string value)
     {
+        selectedProviderKey = value?.Trim() ?? string.Empty;
         await InvokeAsync(() => providerCatalogChoices.Clear()).ConfigureAwait(false);
         await RebuildModelChoicesAsync().ConfigureAwait(false);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
 
     /// <summary>Searches the selected provider's official model catalog only after this explicit button action.</summary>
@@ -1111,10 +1120,10 @@
     /// Performs toggle model for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <param name="selectionKey">Selection key value supplied to the initial setup assistant panel operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the initial setup assistant panel operation and used when producing its result.</param>
-    private void ToggleModel(string selectionKey, ChangeEventArgs args)
+    /// <param name="enabled">Whether the DevExpress checkbox is enabled.</param>
+    private void ToggleModel(string selectionKey, bool enabled)
     {
-        if (args.Value is bool enabled && enabled) selectedModels.Add(selectionKey); else selectedModels.Remove(selectionKey);
+        if (enabled) selectedModels.Add(selectionKey); else selectedModels.Remove(selectionKey);
         if (!selectedModels.Contains(selectionKey)) preferredCuratorModels.Remove(selectionKey);
     }
 
@@ -1122,10 +1131,10 @@
     /// Performs toggle preferred model for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <param name="selectionKey">Selection key value supplied to the initial setup assistant panel operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the initial setup assistant panel operation and used when producing its result.</param>
-    private void TogglePreferredModel(string selectionKey, ChangeEventArgs args)
+    /// <param name="enabled">Whether the DevExpress checkbox is enabled.</param>
+    private void TogglePreferredModel(string selectionKey, bool enabled)
     {
-        if (args.Value is bool enabled && enabled) { selectedModels.Add(selectionKey); preferredCuratorModels.Add(selectionKey); }
+        if (enabled) { selectedModels.Add(selectionKey); preferredCuratorModels.Add(selectionKey); }
         else preferredCuratorModels.Remove(selectionKey);
     }
 

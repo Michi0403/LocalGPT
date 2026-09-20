@@ -81,7 +81,7 @@
 
 .project-editor label { display: grid; gap: .3rem; min-width: 0; }
 .project-editor input, .project-editor textarea, .project-editor select { width: 100%; min-width: 0; }
-.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.form-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .check-row { display: flex; flex-wrap: wrap; gap: 1rem; }
 .record-list { display: grid; gap: .5rem; padding-left: 1.2rem; }
 .record-list li { padding: .5rem; }

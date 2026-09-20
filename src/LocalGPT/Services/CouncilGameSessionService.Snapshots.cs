@@ -87,6 +87,7 @@ namespace LocalGPT.Services
         AnimationSubtitleStyle = NormalizeAsciiStyle(session.AnimationSubtitleStyle, session.AsciiColorMode),
         TournamentRuntimeClassKey = session.TournamentRuntimeClassKey,
         TournamentFighters = session.TournamentFighters.Select(CloneTournamentFighter).ToArray(),
+        TournamentTimeline = session.TournamentTimeline.Select(CloneTournamentTimelineEntry).ToArray(),
         TournamentRound = session.TournamentRound,
         TournamentExchange = session.TournamentExchange,
         TournamentChampion = session.TournamentFighters.FirstOrDefault(fighter => string.Equals(fighter.FighterId, session.TournamentChampionFighterId, StringComparison.OrdinalIgnoreCase))?.CreatureName ?? string.Empty,
@@ -141,6 +142,16 @@ namespace LocalGPT.Services
                 TrainerModelName = source.TrainerModelName,
                 CreatureModelName = source.CreatureModelName,
                 CreatureName = source.CreatureName,
+                CreatureSpecies = source.CreatureSpecies,
+                CreatureStyle = source.CreatureStyle,
+                CreatureForm = source.CreatureForm,
+                CreatureTrait = source.CreatureTrait,
+                CreatureVoice = source.CreatureVoice,
+                TrainerRig = CloneAsciiActorRig(source.TrainerRig),
+                CreatureRoster = source.CreatureRoster.Select(CloneTournamentCreature).ToList(),
+                ActiveCreatureId = source.ActiveCreatureId,
+                SwitchesUsedInCurrentFight = source.SwitchesUsedInCurrentFight,
+                LastTrainerAction = source.LastTrainerAction,
                 Health = source.Health,
                 Wins = source.Wins,
                 Eliminated = source.Eliminated
@@ -149,6 +160,90 @@ namespace LocalGPT.Services
         catch (Exception exception)
         {
             logger.LogError(exception, "Copying Kernel Creature Tournament fighter state failed.");
+            throw;
+        }
+    }
+
+
+
+    /// <summary>Creates an independent tournament creature snapshot.</summary>
+    private CouncilKernelTournamentCreatureState CloneTournamentCreature(CouncilKernelTournamentCreatureState source)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            return new CouncilKernelTournamentCreatureState
+            {
+                CreatureId = source.CreatureId,
+                Name = source.Name,
+                Species = source.Species,
+                Style = source.Style,
+                Form = source.Form,
+                Trait = source.Trait,
+                Voice = source.Voice,
+                Health = source.Health,
+                IsActive = source.IsActive,
+                IsResting = source.IsResting,
+                RestedExchanges = source.RestedExchanges,
+                Rig = CloneAsciiActorRig(source.Rig)
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Copying Kernel Creature Tournament creature state failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Creates an independent persistent ASCII actor rig snapshot.</summary>
+    private CouncilAsciiActorRig CloneAsciiActorRig(CouncilAsciiActorRig source)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            return new CouncilAsciiActorRig
+            {
+                RigKey = source.RigKey,
+                Width = source.Width,
+                Height = source.Height,
+                HeadGlyph = source.HeadGlyph,
+                TorsoGlyph = source.TorsoGlyph,
+                Joints = source.Joints.Select(joint => new CouncilAsciiActorJoint
+                {
+                    Name = joint.Name,
+                    X = joint.X,
+                    Y = joint.Y
+                }).ToList()
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Copying tournament ASCII actor rig failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Creates an independent tournament timeline snapshot.</summary>
+    private CouncilKernelTournamentTimelineEntry CloneTournamentTimelineEntry(CouncilKernelTournamentTimelineEntry source)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            return new CouncilKernelTournamentTimelineEntry
+            {
+                Sequence = source.Sequence,
+                Round = source.Round,
+                Match = source.Match,
+                Exchange = source.Exchange,
+                EventKind = source.EventKind,
+                LeftState = source.LeftState,
+                RightState = source.RightState,
+                Detail = source.Detail
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Copying Kernel Creature Tournament timeline state failed.");
             throw;
         }
     }

@@ -10,18 +10,18 @@
     {
         var rowIndex = index;
         <div class="row g-2 align-items-center mb-2">
-            <div class="col-md-3"><input class="form-control" @bind="_variables[rowIndex].Name" placeholder="JAVA_HOME" /></div>
-            <div class="col-md-6"><input class="form-control" @bind="_variables[rowIndex].Value" placeholder="Toolchain-specific value" /></div>
-            <div class="col-md-2"><input class="form-control" @bind="_variables[rowIndex].Source" placeholder="User" /></div>
+            <div class="col-md-3"><DxTextBox @bind-Text="_variables[rowIndex].Name" CssClass="form-control" NullText="JAVA_HOME" /></div>
+            <div class="col-md-6"><DxTextBox @bind-Text="_variables[rowIndex].Value" CssClass="form-control" NullText="Toolchain-specific value" /></div>
+            <div class="col-md-2"><DxTextBox @bind-Text="_variables[rowIndex].Source" CssClass="form-control" NullText="User" /></div>
             <div class="col-md-1 d-flex gap-1">
-                <input class="form-check-input" type="checkbox" @bind="_variables[rowIndex].IsEnabled" title='@T("Common.Enabled", "Enabled")' />
-                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => Remove(rowIndex)" title='@T("Common.Delete", "Remove")'>×</button>
+                <DxCheckBox @bind-Checked="_variables[rowIndex].IsEnabled" CssClass="form-check-input" />
+                <DxButton CssClass="btn btn-sm btn-outline-danger" Click="() => Remove(rowIndex)" title='@T("Common.Delete", "Remove")'>×</DxButton>
             </div>
         </div>
     }
     <div class="d-flex gap-2 flex-wrap">
-        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Add">@T("Toolchain.Environment.Add", "Add variable")</button>
-        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="SaveAsync" disabled="@_busy">@T("Toolchain.Environment.Save", "Save environment list")</button>
+        <DxButton CssClass="btn btn-sm btn-outline-secondary" Click="Add">@T("Toolchain.Environment.Add", "Add variable")</DxButton>
+        <DxButton CssClass="btn btn-sm btn-outline-primary" Click="SaveAsync" Enabled="@(!_busy)">@T("Toolchain.Environment.Save", "Save environment list")</DxButton>
     </div>
     @if (!string.IsNullOrWhiteSpace(_status))
     {

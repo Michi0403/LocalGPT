@@ -5,13 +5,13 @@
 @inject IProviderModelBenchmarkService BenchmarkService
 
 <div class="benchmark-task-evidence">
-    <button type="button"
-            class="benchmark-task-evidence-toggle"
+    <DxButton
+            CssClass="benchmark-task-evidence-toggle"
             aria-expanded="@evidenceExpanded"
-            @onclick="@(() => evidenceExpanded = !evidenceExpanded)">
+            Click="@(() => evidenceExpanded = !evidenceExpanded)">
         <span>@Task.TaskName</span>
         <small>@StatusSummary · @(evidenceExpanded ? "hide evidence" : "inspect evidence")</small>
-    </button>
+    </DxButton>
 
     @if (evidenceExpanded)
     {
@@ -69,12 +69,11 @@
                     @if (fullEvidence is null)
                     {
                         <p>The complete captured assignment, provider stream and scored final answer are stored outside the recurrent render tree.</p>
-                        <button type="button"
-                                class="benchmark-task-evidence-load"
-                                disabled="@isLoadingFullEvidence"
-                                @onclick="LoadFullEvidenceAsync">
+                        <DxButton
+                                CssClass="benchmark-task-evidence-load" Enabled="@(!isLoadingFullEvidence)"
+                                Click="LoadFullEvidenceAsync">
                             @(isLoadingFullEvidence ? "Loading archived evidence…" : "Load complete archived evidence")
-                        </button>
+                        </DxButton>
                         @if (!string.IsNullOrWhiteSpace(fullEvidenceError))
                         {
                             <p class="benchmark-evidence-error">@fullEvidenceError</p>

@@ -165,13 +165,10 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Handles the council resource load changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <param name="value">New hardware load percentage supplied by the bounded DevExpress editor.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task OnCouncilResourceLoadChanged(ChangeEventArgs args)
+    private Task OnCouncilResourceLoadChanged(int value)
     {
-        if (!int.TryParse(args.Value?.ToString(), out var value))
-            return Task.CompletedTask;
-
         value = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100);
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {

@@ -45,12 +45,12 @@
             {
                 @foreach (var project in ProjectSummaries)
                 {
-                    <button type="button"
-                            class="project-select @(SelectedProject?.Project.Id == project.Id ? "selected" : string.Empty)"
-                            @onclick="@(() => SelectProjectAsync(project.Id))">
+                    <DxButton
+                            CssClass="@(SelectedProject?.Project.Id == project.Id ? "project-select selected" : "project-select")"
+                            Click="@(() => SelectProjectAsync(project.Id))">
                         <strong>@project.DisplayName</strong>
                         <span>@project.ProjectType · @project.Status · @project.TopicCount topic(s) · @project.VersionCount version(s)</span>
-                    </button>
+                    </DxButton>
                 }
             }
         </aside>
@@ -60,61 +60,54 @@
 
             <label>
                 Name
-                <input @bind="ProjectEdit.Name" maxlength="200" />
+                <DxTextBox @bind-Text="ProjectEdit.Name" MaxLength="200" />
             </label>
 
             <label>
                 Purpose
-                <textarea @bind="ProjectEdit.Purpose" rows="4"></textarea>
+                <DxMemo @bind-Text="ProjectEdit.Purpose" Rows="4" />
             </label>
 
             <label title="This is stored as path metadata. Scanning or building still requires a separate explicit approval.">
                 Project directory
-                <input @bind="ProjectEdit.RootPath" maxlength="2048" placeholder="C:\Projects\MyProject" />
+                <DxTextBox @bind-Text="ProjectEdit.RootPath" MaxLength="2048" NullText="C:\Projects\MyProject" />
             </label>
 
             <div class="form-grid">
                 <label>
                     Project type
-                    <input @bind="ProjectEdit.ProjectType" maxlength="120" list="localgpt-project-types" placeholder="DotNetSolution, Game, Java, Python, Cpp..." />
-                    <datalist id="localgpt-project-types">
-                        <option value="DotNetSolution"></option>
-                        <option value="Game"></option>
-                        <option value="Java"></option>
-                        <option value="Python"></option>
-                        <option value="Cpp"></option>
-                    </datalist>
+                    <DxTextBox @bind-Text="ProjectEdit.ProjectType" MaxLength="120" NullText="DotNetSolution, Game, Java, Python, Cpp..." />
                 </label>
                 <label>
                     Solution file path
-                    <input @bind="ProjectEdit.SolutionPath" maxlength="2048" placeholder="C:\Projects\MyProject\MyProject.sln" />
+                    <DxTextBox @bind-Text="ProjectEdit.SolutionPath" MaxLength="2048" NullText="C:\Projects\MyProject\MyProject.sln" />
                 </label>
             </div>
             <details>
                 <summary>Solution and file discovery regular expressions</summary>
-                <label>Solution regex<input @bind="ProjectEdit.SolutionSearchPattern" /></label>
-                <label>Included files regex<textarea @bind="ProjectEdit.FileIncludePattern" rows="2"></textarea></label>
-                <label>Excluded paths regex<textarea @bind="ProjectEdit.FileExcludePattern" rows="2"></textarea></label>
+                <label>Solution regex<DxTextBox @bind-Text="ProjectEdit.SolutionSearchPattern" /></label>
+                <label>Included files regex<DxMemo @bind-Text="ProjectEdit.FileIncludePattern" Rows="2" /></label>
+                <label>Excluded paths regex<DxMemo @bind-Text="ProjectEdit.FileExcludePattern" Rows="2" /></label>
             </details>
 
             <div class="form-grid">
                 <label>
                     Current version
-                    <input @bind="ProjectEdit.CurrentVersion" maxlength="120" />
+                    <DxTextBox @bind-Text="ProjectEdit.CurrentVersion" MaxLength="120" />
                 </label>
                 <label>
                     Status
-                    <input @bind="ProjectEdit.Status" maxlength="80" />
+                    <DxTextBox @bind-Text="ProjectEdit.Status" MaxLength="80" />
                 </label>
             </div>
 
             <div class="check-row">
                 <label>
-                    <input type="checkbox" @bind="ProjectEdit.RecommendGit" />
+                    <DxCheckBox @bind-Checked="ProjectEdit.RecommendGit" />
                     Recommend Git for revision history
                 </label>
                 <label>
-                    <input type="checkbox" @bind="ProjectEdit.IsArchived" />
+                    <DxCheckBox @bind-Checked="ProjectEdit.IsArchived" />
                     Archive project
                 </label>
             </div>
@@ -138,83 +131,81 @@
                     <div class="form-grid">
                         <label>
                             Game key
-                            <input @bind="GameProfileEdit.GameKey" maxlength="160" placeholder="neon-relay-arena" />
+                            <DxTextBox @bind-Text="GameProfileEdit.GameKey" MaxLength="160" NullText="neon-relay-arena" />
                         </label>
                         <label>
                             Display name
-                            <input @bind="GameProfileEdit.DisplayName" maxlength="240" />
+                            <DxTextBox @bind-Text="GameProfileEdit.DisplayName" MaxLength="240" />
                         </label>
                         <label>
                             Runtime profile
-                            <select @bind="GameProfileEdit.RuntimeProfile">
-                                <option value="@CouncilGameRuntimeProfile.Corridor">Corridor simulation</option>
-                                <option value="@CouncilGameRuntimeProfile.Story">Story / choice simulation</option>
-                            </select>
+                            <DxComboBox Data="@GameRuntimeProfileOptions"
+                                        @bind-Value="GameProfileEdit.RuntimeProfile"
+                                        ValueFieldName="@nameof(LocalGptSelectionOption<CouncilGameRuntimeProfile>.Value)"
+                                        TextFieldName="@nameof(LocalGptSelectionOption<CouncilGameRuntimeProfile>.Label)" />
                         </label>
                         <label>
                             Default Council team
-                            <input @bind="GameProfileEdit.DefaultTeamKey" maxlength="160" />
+                            <DxTextBox @bind-Text="GameProfileEdit.DefaultTeamKey" MaxLength="160" />
                         </label>
                         <label>
                             Default control mode
-                            <select @bind="GameProfileEdit.DefaultControlMode">
-                                <option value="@CouncilGameControlMode.Human">Human</option>
-                                <option value="@CouncilGameControlMode.Shared">Shared</option>
-                                <option value="@CouncilGameControlMode.Ai">AI</option>
-                            </select>
+                            <DxComboBox Data="@GameControlModeOptions"
+                                        @bind-Value="GameProfileEdit.DefaultControlMode"
+                                        ValueFieldName="@nameof(LocalGptSelectionOption<CouncilGameControlMode>.Value)"
+                                        TextFieldName="@nameof(LocalGptSelectionOption<CouncilGameControlMode>.Label)" />
                         </label>
                         <label>
                             Director mode
-                            <select @bind="GameProfileEdit.DirectorMode">
-                                <option value="@CouncilGameDirectorMode.Deterministic">Deterministic</option>
-                                <option value="@CouncilGameDirectorMode.CouncilModelPreferred">Council model preferred</option>
-                            </select>
+                            <DxComboBox Data="@GameDirectorModeOptions"
+                                        @bind-Value="GameProfileEdit.DirectorMode"
+                                        ValueFieldName="@nameof(LocalGptSelectionOption<CouncilGameDirectorMode>.Value)"
+                                        TextFieldName="@nameof(LocalGptSelectionOption<CouncilGameDirectorMode>.Label)" />
                         </label>
                         <label>
                             GameDirector model
-                            <input @bind="GameProfileEdit.GameDirectorModelName" maxlength="240" />
+                            <DxTextBox @bind-Text="GameProfileEdit.GameDirectorModelName" MaxLength="240" />
                         </label>
                         <label>
                             Creature directors
-                            <input type="number" min="1" max="8" @bind="GameProfileEdit.CreatureDirectorCount" />
+                            <DxSpinEdit @bind-Value="GameProfileEdit.CreatureDirectorCount" MinValue="1" MaxValue="8" />
                         </label>
                         <label>
                             Frame width
-                            <input type="number" min="20" max="240" @bind="GameProfileEdit.FrameWidth" />
+                            <DxSpinEdit @bind-Value="GameProfileEdit.FrameWidth" MinValue="20" MaxValue="240" />
                         </label>
                         <label>
                             Frame height
-                            <input type="number" min="8" max="100" @bind="GameProfileEdit.FrameHeight" />
+                            <DxSpinEdit @bind-Value="GameProfileEdit.FrameHeight" MinValue="8" MaxValue="100" />
                         </label>
                         <label>
                             ASCII color mode
-                            <select @bind="GameProfileEdit.AsciiColorMode">
-                                <option value="@CouncilAsciiColorMode.TerminalDefault">Terminal default (LocalGPT black/green)</option>
-                                <option value="@CouncilAsciiColorMode.Ansi16">ANSI 16 colors</option>
-                                <option value="@CouncilAsciiColorMode.Indexed256">Indexed 256 colors</option>
-                            </select>
+                            <DxComboBox Data="@AsciiColorModeOptions"
+                                        @bind-Value="GameProfileEdit.AsciiColorMode"
+                                        ValueFieldName="@nameof(LocalGptSelectionOption<CouncilAsciiColorMode>.Value)"
+                                        TextFieldName="@nameof(LocalGptSelectionOption<CouncilAsciiColorMode>.Label)" />
                         </label>
                         <label>
                             Default foreground index
-                            <input type="number" min="0" max="@(GameProfileEdit.AsciiColorMode == CouncilAsciiColorMode.Ansi16 ? 15 : 255)" @bind="GameProfileEdit.DefaultForegroundColor" />
+                            <DxSpinEdit @bind-Value="GameProfileEdit.DefaultForegroundColor" MinValue="0" MaxValue="@(GameProfileEdit.AsciiColorMode == CouncilAsciiColorMode.Ansi16 ? 15 : 255)" />
                         </label>
                         <label>
                             Default background index
-                            <input type="number" min="0" max="@(GameProfileEdit.AsciiColorMode == CouncilAsciiColorMode.Ansi16 ? 15 : 255)" @bind="GameProfileEdit.DefaultBackgroundColor" />
+                            <DxSpinEdit @bind-Value="GameProfileEdit.DefaultBackgroundColor" MinValue="0" MaxValue="@(GameProfileEdit.AsciiColorMode == CouncilAsciiColorMode.Ansi16 ? 15 : 255)" />
                         </label>
                         <label>
                             Autoplay delay (ms)
-                            <input type="number" min="250" max="10000" @bind="GameProfileEdit.AutoplayDelayMilliseconds" />
+                            <DxSpinEdit @bind-Value="GameProfileEdit.AutoplayDelayMilliseconds" MinValue="250" MaxValue="10000" />
                         </label>
                         <label>
                             Map seed
-                            <input type="number" min="1" @bind="GameProfileEdit.MapSeed" />
+                            <DxSpinEdit @bind-Value="GameProfileEdit.MapSeed" MinValue="1" />
                         </label>
                     </div>
                     <p class="hint">Terminal default keeps the familiar black/green LocalGPT surface for unstyled cells. ANSI-16 uses indexes 0-15 (bright green is 10); indexed-256 uses 0-255 (green 46, black 0). Game renderers can still assign colors to individual ASCII runs without placing ANSI escapes in game text.</p>
                     <label>
                         Scenario / world description
-                        <textarea @bind="GameProfileEdit.ScenarioPrompt" rows="4" maxlength="240"></textarea>
+                        <DxMemo @bind-Text="GameProfileEdit.ScenarioPrompt" Rows="4" MaxLength="240" />
                     </label>
                     <div class="button-row">
                         <DxButton Text="Save Game Design"
@@ -245,16 +236,16 @@
                 <div class="form-grid">
                     <label>
                         Topic name
-                        <input @bind="TopicEdit.Name" maxlength="240" />
+                        <DxTextBox @bind-Text="TopicEdit.Name" MaxLength="240" />
                     </label>
                     <label>
                         Status
-                        <input @bind="TopicEdit.Status" maxlength="80" />
+                        <DxTextBox @bind-Text="TopicEdit.Status" MaxLength="80" />
                     </label>
                 </div>
                 <label>
                     Topic description
-                    <textarea @bind="TopicEdit.Description" rows="3"></textarea>
+                    <DxMemo @bind-Text="TopicEdit.Description" Rows="3" />
                 </label>
                 <DxButton Text="Add Topic"
                           RenderStyle="ButtonRenderStyle.Secondary"
@@ -281,19 +272,19 @@
                 <div class="form-grid">
                     <label>
                         Version
-                        <input @bind="VersionEdit.Version" maxlength="120" />
+                        <DxTextBox @bind-Text="VersionEdit.Version" MaxLength="120" />
                     </label>
                     <label>
                         Path snapshot
-                        <input @bind="VersionEdit.PathSnapshot" maxlength="1024" />
+                        <DxTextBox @bind-Text="VersionEdit.PathSnapshot" MaxLength="1024" />
                     </label>
                 </div>
                 <label>
                     Notes
-                    <textarea @bind="VersionEdit.Notes" rows="3"></textarea>
+                    <DxMemo @bind-Text="VersionEdit.Notes" Rows="3" />
                 </label>
                 <label>
-                    <input type="checkbox" @bind="VersionEdit.IsCurrent" />
+                    <DxCheckBox @bind-Checked="VersionEdit.IsCurrent" />
                     Mark as current version
                 </label>
                 <DxButton Text="Add Version"
@@ -325,33 +316,30 @@
                 <div class="form-grid">
                     <label>
                         Branch name
-                        <input @bind="RevisionEdit.BranchName" maxlength="160" />
+                        <DxTextBox @bind-Text="RevisionEdit.BranchName" MaxLength="160" />
                     </label>
                     <label>
                         Revision name
-                        <input @bind="RevisionEdit.RevisionName" maxlength="160" />
+                        <DxTextBox @bind-Text="RevisionEdit.RevisionName" MaxLength="160" />
                     </label>
                 </div>
                 <label>
                     Parent revision
-                    <select @bind="RevisionParentValue">
-                        <option value="">No parent</option>
-                        @foreach (var revision in SelectedProject.Revisions)
-                        {
-                            <option value="@revision.Id">@revision.BranchName/@revision.RevisionName</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@RevisionParentOptions"
+                                @bind-Value="RevisionParentValue"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
                 </label>
                 <label>
                     Revision summary
-                    <textarea @bind="RevisionEdit.Summary" rows="3"></textarea>
+                    <DxMemo @bind-Text="RevisionEdit.Summary" Rows="3" />
                 </label>
                 <label title="JSON object or array describing folders, files, logical modules, services, controllers, functions, or other project nodes.">
                     Project structure JSON
-                    <textarea @bind="RevisionEdit.ProjectStructureJson" rows="5"></textarea>
+                    <DxMemo @bind-Text="RevisionEdit.ProjectStructureJson" Rows="5" />
                 </label>
                 <label>
-                    <input type="checkbox" @bind="RevisionEdit.IsCurrent" />
+                    <DxCheckBox @bind-Checked="RevisionEdit.IsCurrent" />
                     Mark revision as current
                 </label>
                 <DxButton Text="Save Revision"
@@ -382,32 +370,32 @@
                 <div class="form-grid">
                     <label>
                         Requirement name
-                        <input @bind="RequirementEdit.Name" maxlength="240" />
+                        <DxTextBox @bind-Text="RequirementEdit.Name" MaxLength="240" />
                     </label>
                     <label>
                         Required capability
-                        <input @bind="RequirementEdit.RequiredCapability" maxlength="240" placeholder="C#, local knowledge import, SQL maintenance..." />
+                        <DxTextBox @bind-Text="RequirementEdit.RequiredCapability" MaxLength="240" NullText="C#, local knowledge import, SQL maintenance..." />
                     </label>
                     <label>
                         Type
-                        <input @bind="RequirementEdit.RequirementType" maxlength="80" />
+                        <DxTextBox @bind-Text="RequirementEdit.RequirementType" MaxLength="80" />
                     </label>
                     <label>
                         Status
-                        <input @bind="RequirementEdit.Status" maxlength="80" />
+                        <DxTextBox @bind-Text="RequirementEdit.Status" MaxLength="80" />
                     </label>
                     <label>
                         Priority
-                        <input @bind="RequirementEdit.Priority" maxlength="40" />
+                        <DxTextBox @bind-Text="RequirementEdit.Priority" MaxLength="40" />
                     </label>
                     <label>
                         Council rating (0-100)
-                        <input type="number" min="0" max="100" @bind="RequirementEdit.CouncilRating" />
+                        <DxSpinEdit @bind-Value="RequirementEdit.CouncilRating" MinValue="0" MaxValue="100" />
                     </label>
                 </div>
                 <label>
                     Requirement description
-                    <textarea @bind="RequirementEdit.Description" rows="4"></textarea>
+                    <DxMemo @bind-Text="RequirementEdit.Description" Rows="4" />
                 </label>
                 <DxButton Text="Save Requirement"
                           RenderStyle="ButtonRenderStyle.Secondary"
@@ -433,34 +421,26 @@
                     <h3>Link requirement to a named capability</h3>
                     <div class="form-grid">
                         <label>Requirement
-                            <select @bind="RequirementLinkRequirementValue">
-                                <option value="">Choose requirement</option>
-                                @foreach (var requirement in SelectedProject.Requirements)
-                                {
-                                    <option value="@requirement.Id">@requirement.Name</option>
-                                }
-                            </select>
+                            <DxComboBox Data="@RequirementLinkOptions"
+                                        @bind-Value="RequirementLinkRequirementValue"
+                                        ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                        TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
                         </label>
                         <label>Target kind
-                            <select @bind="RequirementLinkEdit.TargetKind">
-                                @foreach (var kind in RequirementTargetKinds)
-                                {
-                                    <option value="@kind">@kind</option>
-                                }
-                            </select>
+                            <DxComboBox Data="@RequirementTargetKinds" @bind-Value="RequirementLinkEdit.TargetKind" />
                         </label>
                         <label>Stable target name
-                            <input @bind="RequirementLinkEdit.TargetName" maxlength="240" placeholder="function/table/object/config name" />
+                            <DxTextBox @bind-Text="RequirementLinkEdit.TargetName" MaxLength="240" NullText="function/table/object/config name" />
                         </label>
                         <label>Target table
-                            <input @bind="RequirementLinkEdit.TargetTable" maxlength="160" />
+                            <DxTextBox @bind-Text="RequirementLinkEdit.TargetTable" MaxLength="160" />
                         </label>
                         <label>Target id
-                            <input @bind="RequirementLinkEdit.TargetId" maxlength="160" />
+                            <DxTextBox @bind-Text="RequirementLinkEdit.TargetId" MaxLength="160" />
                         </label>
                     </div>
                     <label>Why this link is relevant
-                        <textarea @bind="RequirementLinkEdit.LinkPurpose" rows="2"></textarea>
+                        <DxMemo @bind-Text="RequirementLinkEdit.LinkPurpose" Rows="2" />
                     </label>
                     <DxButton Text="Save Requirement Link" RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Contained" Enabled="@(!isBusy && RequirementLinkEdit.RequirementId != Guid.Empty && !string.IsNullOrWhiteSpace(RequirementLinkEdit.TargetName))" Click="SaveRequirementLinkAsync" />
                 }
@@ -471,47 +451,39 @@
                 <div class="form-grid">
                     <label>
                         Kind
-                        <select @bind="ArtifactEdit.ArtifactKind">
-                            @foreach (var kind in ArtifactKinds)
-                            {
-                                <option value="@kind">@kind</option>
-                            }
-                        </select>
+                        <DxComboBox Data="@ArtifactKinds" @bind-Value="ArtifactEdit.ArtifactKind" />
                     </label>
                     <label>
                         Name
-                        <input @bind="ArtifactEdit.Name" maxlength="240" />
+                        <DxTextBox @bind-Text="ArtifactEdit.Name" MaxLength="240" />
                     </label>
                     <label>
                         Data type
-                        <input @bind="ArtifactEdit.DataType" maxlength="120" />
+                        <DxTextBox @bind-Text="ArtifactEdit.DataType" MaxLength="120" />
                     </label>
                     <label>
                         Flags / options
-                        <input @bind="ArtifactEdit.Flags" maxlength="160" />
+                        <DxTextBox @bind-Text="ArtifactEdit.Flags" MaxLength="160" />
                     </label>
                     <label>
                         Requirement link
-                        <select @bind="ArtifactRequirementValue">
-                            <option value="">No requirement</option>
-                            @foreach (var requirement in SelectedProject.Requirements)
-                            {
-                                <option value="@requirement.Id">@requirement.Name</option>
-                            }
-                        </select>
+                        <DxComboBox Data="@ArtifactRequirementOptions"
+                                    @bind-Value="ArtifactRequirementValue"
+                                    ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                    TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
                     </label>
                     <label>
-                        <input type="checkbox" @bind="ArtifactEdit.IsSensitive" />
+                        <DxCheckBox @bind-Checked="ArtifactEdit.IsSensitive" />
                         Sensitive value
                     </label>
                 </div>
                 <label>
                     Description
-                    <textarea @bind="ArtifactEdit.Description" rows="3"></textarea>
+                    <DxMemo @bind-Text="ArtifactEdit.Description" Rows="3" />
                 </label>
                 <label>
                     Value
-                    <textarea @bind="ArtifactEdit.Value" rows="5"></textarea>
+                    <DxMemo @bind-Text="ArtifactEdit.Value" Rows="5" />
                 </label>
                 <DxButton Text="Save Project Artifact"
                           RenderStyle="ButtonRenderStyle.Secondary"
@@ -541,6 +513,55 @@
     /// Defines the toast name constant used by <see cref="Projects"/> so callers and internal logic share the same stable value.
     /// </summary>
     const string toastName = "ProjectToasts";
+
+
+    /// <summary>Gets the supported project-owned game runtime profiles.</summary>
+    readonly IReadOnlyList<LocalGptSelectionOption<CouncilGameRuntimeProfile>> GameRuntimeProfileOptions =
+    [
+        new(CouncilGameRuntimeProfile.Corridor, "Corridor simulation"),
+        new(CouncilGameRuntimeProfile.Story, "Story / choice simulation")
+    ];
+
+    /// <summary>Gets the supported default game control modes.</summary>
+    readonly IReadOnlyList<LocalGptSelectionOption<CouncilGameControlMode>> GameControlModeOptions =
+    [
+        new(CouncilGameControlMode.Human, "Human"),
+        new(CouncilGameControlMode.Shared, "Shared"),
+        new(CouncilGameControlMode.Ai, "AI")
+    ];
+
+    /// <summary>Gets the supported game director modes.</summary>
+    readonly IReadOnlyList<LocalGptSelectionOption<CouncilGameDirectorMode>> GameDirectorModeOptions =
+    [
+        new(CouncilGameDirectorMode.Deterministic, "Deterministic"),
+        new(CouncilGameDirectorMode.CouncilModelPreferred, "Council model preferred")
+    ];
+
+    /// <summary>Gets the supported project game ASCII color modes.</summary>
+    readonly IReadOnlyList<LocalGptSelectionOption<CouncilAsciiColorMode>> AsciiColorModeOptions =
+    [
+        new(CouncilAsciiColorMode.TerminalDefault, "Terminal default (LocalGPT black/green)"),
+        new(CouncilAsciiColorMode.Ansi16, "ANSI 16 colors"),
+        new(CouncilAsciiColorMode.Indexed256, "Indexed 256 colors")
+    ];
+
+    /// <summary>Gets revision-parent choices including the explicit no-parent state.</summary>
+    IReadOnlyList<LocalGptSelectionOption<string>> RevisionParentOptions =>
+        [new(string.Empty, "No parent"),
+         .. (SelectedProject?.Revisions.Select(revision => new LocalGptSelectionOption<string>(revision.Id.ToString(), $"{revision.BranchName}/{revision.RevisionName}"))
+             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+
+    /// <summary>Gets requirement choices for capability links.</summary>
+    IReadOnlyList<LocalGptSelectionOption<string>> RequirementLinkOptions =>
+        [new(string.Empty, "Choose requirement"),
+         .. (SelectedProject?.Requirements.Select(requirement => new LocalGptSelectionOption<string>(requirement.Id.ToString(), requirement.Name))
+             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+
+    /// <summary>Gets requirement choices for project-linked artifacts.</summary>
+    IReadOnlyList<LocalGptSelectionOption<string>> ArtifactRequirementOptions =>
+        [new(string.Empty, "No requirement"),
+         .. (SelectedProject?.Requirements.Select(requirement => new LocalGptSelectionOption<string>(requirement.Id.ToString(), requirement.Name))
+             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
 
     /// <summary>
     /// Gets or sets the project summaries collection maintained or exposed by this projects instance for downstream processing.

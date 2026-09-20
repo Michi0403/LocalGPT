@@ -122,11 +122,11 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     function suggestionRegion(button, host, composer) {
         try {
             if (!(button instanceof HTMLElement) || composer?.contains(button)) return false;
-            if (button.closest('[role="toolbar"],.dxbl-toolbar,.chat-session-toolbar,.chat-provider-row')) return false;
+            if (button.closest('[role="toolbar"],.dxbl-toolbar,.chat-session-toolbar,.chat-provider-row,.localgpt-live-participant-board,.localgpt-live-participant-card,.localgpt-live-update-footer,.localgpt-message-utility-row,.localgpt-direct-council-starter')) return false;
             const text = (button.textContent || '').replace(/\s+/g, ' ').trim();
             if (text.length < 4 || text.length > 260) return false;
             if (/close|collapse|expand|menu|copy|retry|regenerate|send|attach|upload|file|refresh|approve|hide/i.test(marker(button))) return false;
-            return Boolean(button.closest('[class*="suggest"],[class*="welcome"],[class*="empty"],ul,ol') || host.querySelectorAll('button').length <= 16);
+            return Boolean(button.closest('[class*="suggest" i],[class*="welcome" i],[class*="empty" i]'));
         } catch (error) {
             diagnostics.report('localgpt-chat-ui.suggestionRegion', error);
             throw error;

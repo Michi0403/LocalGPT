@@ -75,6 +75,7 @@
       "RemoveKnowledgeProjectRelationshipAsync"
     ],
     "Components/Shared/ChatGameConsole.razor": [
+      "ReportGameAvailabilityAsync",
       "ResolveActiveGameAsync",
       "ToggleOperatorModeAsync",
       "SubmitOperatorLineAsync",

@@ -476,13 +476,18 @@
                                     <DxComboBox Data="@BooleanValueOptions" Value="@value" ValueChanged="@((string newValue) => SetEditValue(column.Name, newValue))" ReadOnly="@readOnly" />
                                     break;
                                 case "Secret":
-                                    <input type="password" value="@value" readonly="@readOnly" @onchange="@((ChangeEventArgs args) => SetEditValue(column.Name, args.Value?.ToString() ?? string.Empty))" />
+                                    <DxTextBox Text="@value" TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))" Password="true" ReadOnly="@readOnly" />
                                     break;
                                 case "Number":
-                                    <input type="number" step="any" value="@value" readonly="@readOnly" @onchange="@((ChangeEventArgs args) => SetEditValue(column.Name, args.Value?.ToString() ?? string.Empty))" />
+                                    <DxSpinEdit Value="@ParseNullableDecimal(value)"
+                                                ValueChanged="@((decimal? newValue) => SetEditValue(column.Name, FormatNullableDecimal(newValue)))"
+                                                ReadOnly="@readOnly" />
                                     break;
                                 case "DateTime":
-                                    <input type="datetime-local" value="@ToDateTimeLocalValue(value)" readonly="@readOnly" @onchange="@((ChangeEventArgs args) => SetEditValue(column.Name, args.Value?.ToString() ?? string.Empty))" />
+                                    <DxDateEdit Date="@ParseNullableDateTime(value)"
+                                                DateChanged="@((DateTime? newValue) => SetEditValue(column.Name, FormatNullableDateTime(newValue)))"
+                                                TimeSectionVisible="true"
+                                                ReadOnly="@readOnly" />
                                     break;
                                 default:
                                     <DxTextBox Text="@value" TextChanged="@((string newValue) => SetEditValue(column.Name, newValue))" ReadOnly="@readOnly" />
@@ -1282,6 +1287,14 @@
             ? parsed.ToLocalTime().ToString("yyyy-MM-ddTHH:mm")
             : string.Empty;
     }
+
+    private decimal? ParseNullableDecimal(string? value) => decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
+
+    private string FormatNullableDecimal(decimal? value) => value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+
+    private DateTime? ParseNullableDateTime(string? value) => DateTimeOffset.TryParse(value, out var parsed) ? parsed.LocalDateTime : null;
+
+    private string FormatNullableDateTime(DateTime? value) => value?.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
 
     /// <summary>
     /// Persists knowledge rating for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.

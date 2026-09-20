@@ -233,7 +233,7 @@
                 if (!(region instanceof HTMLElement) || state.followTailRegions.has(region)) return;
                 const entry = { enabled: true, observer: null };
                 region.addEventListener('scroll', () => { entry.enabled = isNearBottom(region); }, { signal: state.abort.signal, passive: true });
-                entry.observer = new MutationObserver(() => { if (entry.enabled) scrollToTail(region); });
+                entry.observer = new MutationObserver(() => scrollToTail(region));
                 entry.observer.observe(region, { childList: true, subtree: true, characterData: true });
                 state.followTailRegions.set(region, entry);
                 requestAnimationFrame(() => scrollToTail(region));
@@ -244,6 +244,47 @@
             }
         } catch (error) {
             diagnostics.report('localgpt-game-console.attachFollowTail', error);
+        }
+    }
+
+    function fullscreenHost(element) {
+        try {
+            if (!(element instanceof HTMLElement)) return null;
+            const popupRoot = element.closest('dxbl-popup-root');
+            return popupRoot instanceof HTMLElement ? popupRoot : element;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.fullscreenHost', error);
+            return element instanceof HTMLElement ? element : null;
+        }
+    }
+
+    function setFullscreenPopupPresentation(state, active) {
+        try {
+            if (!state?.element) return;
+            const element = state.element;
+            const host = fullscreenHost(element);
+            const popupCell = element.closest('dxbl-popup-cell');
+            const modalRoot = element.closest('dxbl-modal-root');
+            const modalDialog = element.closest('dxbl-modal-dialog');
+            if (host instanceof HTMLElement) host.classList.toggle('localgpt-game-fullscreen-host', active);
+            if (popupCell instanceof HTMLElement) popupCell.classList.toggle('localgpt-game-fullscreen-cell', active);
+            if (modalRoot instanceof HTMLElement) modalRoot.classList.toggle('localgpt-game-fullscreen-modal-root', active);
+            if (modalDialog instanceof HTMLElement) modalDialog.classList.toggle('localgpt-game-fullscreen-dialog', active);
+            element.classList.toggle('localgpt-game-fullscreen', active);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.setFullscreenPopupPresentation', error);
+        }
+    }
+
+    function updateFullscreenPresentation(state) {
+        try {
+            if (!state?.element) return;
+            const host = fullscreenHost(state.element);
+            const active = host instanceof HTMLElement && document.fullscreenElement === host;
+            setFullscreenPopupPresentation(state, active);
+            requestScale(state);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.updateFullscreenPresentation', error);
         }
     }
 
@@ -453,7 +494,7 @@
                     if (isInteractiveTarget(event.target)) return;
                     element.focus({ preventScroll:true });
                 }, { signal:state.abort.signal });
-                document.addEventListener('fullscreenchange', () => requestScale(state), { signal:state.abort.signal });
+                document.addEventListener('fullscreenchange', () => updateFullscreenPresentation(state), { signal:state.abort.signal });
                 window.addEventListener('resize', () => requestScale(state), { signal:state.abort.signal });
                 if (typeof ResizeObserver === 'function') {
                     state.resizeObserver = new ResizeObserver(() => requestScale(state));
@@ -601,18 +642,34 @@
             try {
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
-                if (document.fullscreenElement === element) await document.exitFullscreen();
-                else await element.requestFullscreen({ navigationUI:'hide' });
+                const host = fullscreenHost(element);
+                if (!(host instanceof HTMLElement)) return;
+                if (document.fullscreenElement === host) await document.exitFullscreen();
+                else await host.requestFullscreen({ navigationUI:'hide' });
                 element.focus({ preventScroll:true });
-                requestScale(states.get(id));
+                updateFullscreenPresentation(states.get(id));
             } catch (error) { diagnostics.report('localgpt-game-console.fullscreen', error); }
         },
         async exitFullscreen(id) {
             try {
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
-                if (document.fullscreenElement === element) await document.exitFullscreen();
+                const state = states.get(id) ?? { element };
+                const host = fullscreenHost(element);
+                if (host instanceof HTMLElement && document.fullscreenElement === host) await document.exitFullscreen();
+                setFullscreenPopupPresentation(state, false);
+                requestScale(state);
             } catch (error) { diagnostics.report('localgpt-game-console.exitFullscreen', error); }
+        },
+        followTail(id) {
+            try {
+                const state = states.get(id);
+                if (!state) return;
+                attachFollowTail(state);
+                state.element.querySelectorAll('.ascii-conversation-output, .ascii-operator-output').forEach(region => {
+                    if (region instanceof HTMLElement) scrollToTail(region);
+                });
+            } catch (error) { diagnostics.report('localgpt-game-console.followTail', error); }
         }
     };
 })();

@@ -1,47 +1,22 @@
 @using System.Globalization
-@inject IJSRuntime JS
 
 <div class="bounded-number-editor @CssClass">
     <label for="@InputId">@Label</label>
     <div class="bounded-number-control">
-        <input id="@InputId"
-               class="form-control bounded-number-input"
-               type="number"
-               min="@Min"
-               max="@Max"
-               step="@Step"
-               value="@Value.ToString(CultureInfo.InvariantCulture)"
-               title="@HelpText"
-               @onfocus="OpenSlider"
-               @onclick="OpenSlider"
-               @onchange="OnNumberChangedAsync" />
-        <button type="button"
-                class="btn btn-outline-secondary bounded-number-toggle"
-                title="Adjust @Label with a slider"
-                aria-label="Adjust @Label with a slider"
-                aria-expanded="@sliderOpen"
-                @onclick="ToggleSlider">
-            <span aria-hidden="true">↔</span>
-        </button>
-        @if (sliderOpen)
-        {
-            <div class="bounded-number-popover" @ref="popoverElement" role="dialog" aria-label="@($"Adjust {Label}")">
-                <div class="bounded-number-scale">
-                    <span>@Min.ToString("N0")</span>
-                    <strong>@Value.ToString("N0")@Suffix</strong>
-                    <span>@Max.ToString("N0")</span>
-                </div>
-                <input class="form-range"
-                       type="range"
-                       min="@Min"
-                       max="@Max"
-                       step="@Step"
-                       value="@Value.ToString(CultureInfo.InvariantCulture)"
-                       aria-label="@Label"
-                       @onchange="OnSliderChangedAsync" />
-                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseSlider">Done</button>
-            </div>
-        }
+        <DxSpinEdit id="@InputId"
+                    Value="@Value"
+                    ValueChanged="@((int value) => OnNumberChangedAsync(value))"
+                    MinValue="@Min"
+                    MaxValue="@Max"
+                    Increment="@Step"
+                    CssClass="bounded-number-input"
+                    title="@(string.IsNullOrWhiteSpace(HelpText) ? $"Adjust {Label}" : HelpText)"
+                    aria-label="@($"Adjust {Label}")" />
+        <div class="bounded-number-hint" aria-live="off">
+            <span>@Min.ToString("N0")</span>
+            <strong>@Value.ToString("N0")@Suffix</strong>
+            <span>@Max.ToString("N0") · step @Math.Max(1, Step).ToString("N0")</span>
+        </div>
     </div>
 </div>
 
@@ -97,68 +72,13 @@
     /// </summary>
     readonly string InputId = $"bounded-number-{Guid.NewGuid():N}";
     /// <summary>
-    /// Stores the internal slider open state used by <see cref="BoundedNumberEditor"/> while executing its surrounding workflow.
-    /// </summary>
-    bool sliderOpen;
-    /// <summary>
-    /// Stores the internal popover element state used by <see cref="BoundedNumberEditor"/> while executing its surrounding workflow.
-    /// </summary>
-    ElementReference popoverElement;
-
-    /// <summary>Clamps the rendered slider popover back into the current browser viewport after each render that can move or resize it.</summary>
-    /// <param name="firstRender">Indicates whether this is the component's first completed render.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!sliderOpen)
-            return;
-
-        try
-        {
-            await JS.InvokeVoidAsync("localGptBoundedNumberEditor.clamp", popoverElement).ConfigureAwait(false);
-        }
-        catch (JSDisconnectedException)
-        {
-            // The circuit disappeared while a purely visual viewport correction was pending.
-        }
-    }
-
-    /// <summary>
-    /// Opens slider for <see cref="BoundedNumberEditor"/>, keeping the operation consistent with the state and invariants of the surrounding bounded number editor workflow.
-    /// </summary>
-    void OpenSlider() => sliderOpen = true;
-    /// <summary>
-    /// Performs toggle slider for <see cref="BoundedNumberEditor"/>, keeping the operation consistent with the state and invariants of the surrounding bounded number editor workflow.
-    /// </summary>
-    void ToggleSlider() => sliderOpen = !sliderOpen;
-    /// <summary>
-    /// Closes slider for <see cref="BoundedNumberEditor"/>, keeping the operation consistent with the state and invariants of the surrounding bounded number editor workflow.
-    /// </summary>
-    void CloseSlider() => sliderOpen = false;
-
-    /// <summary>
     /// Handles the number changed async lifecycle or event notification for <see cref="BoundedNumberEditor"/>, updating the state required by the surrounding workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the bounded number editor operation and used when producing its result.</param>
+    /// <param name="value">New bounded numeric value supplied by the DevExpress number editor.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    async Task OnNumberChangedAsync(ChangeEventArgs args)
+    async Task OnNumberChangedAsync(int value)
     {
-        if (int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            || int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.CurrentCulture, out value))
-        {
-            await SetValueAsync(value).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>
-    /// Handles the slider changed async lifecycle or event notification for <see cref="BoundedNumberEditor"/>, updating the state required by the surrounding workflow.
-    /// </summary>
-    /// <param name="args">Args value supplied to the bounded number editor operation and used when producing its result.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    async Task OnSliderChangedAsync(ChangeEventArgs args)
-    {
-        if (int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
-            await SetValueAsync(value).ConfigureAwait(false);
+        await SetValueAsync(value).ConfigureAwait(false);
     }
 
     /// <summary>

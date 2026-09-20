@@ -26,13 +26,11 @@
             <h2>@T("ProjectMaintenance.Project", "Project and solution")</h2>
             <label>
                 @T("ProjectMaintenance.SelectedProject", "Selected project")
-                <select @bind="SelectedProjectValue" disabled="@busy">
-                    <option value="">@T("ProjectMaintenance.SelectProject", "Select a project")</option>
-                    @foreach (var project in projectSummaries)
-                    {
-                        <option value="@project.Id">@project.DisplayName</option>
-                    }
-                </select>
+                <DxComboBox Data="@ProjectSelectionOptions"
+                            @bind-Value="SelectedProjectValue"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            Enabled="@(!busy)" />
             </label>
             @if (selectedProject is not null)
             {
@@ -44,22 +42,19 @@
                 </dl>
                 <label>
                     @T("ProjectMaintenance.Revision", "Revision")
-                    <select @bind="SelectedRevisionValue">
-                        <option value="">@T("ProjectMaintenance.SelectRevision", "Select a revision")</option>
-                        @foreach (var revision in selectedProject.Revisions)
-                        {
-                            <option value="@revision.Id">@revision.BranchName/@revision.RevisionName @(revision.ReadyForTesting ? "✓" : string.Empty)</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@RevisionSelectionOptions"
+                                @bind-Value="SelectedRevisionValue"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
                 </label>
                 @if (selectedRevisionId is Guid)
                 {
                     <div class="field-grid revision-workspace">
                         <label class="span-all">@T("ProjectMaintenance.RevisionSourceRoot", "Revision source root")
-                            <div class="path-picker-row"><input @bind="revisionWorkspaceEdit.SourceRootPath" /><button type="button" class="btn btn-outline-secondary" @onclick='@(() => OpenPathExplorer("RevisionSource"))'>Browse…</button></div>
+                            <div class="path-picker-row"><DxTextBox @bind-Text="revisionWorkspaceEdit.SourceRootPath" /><DxButton CssClass="btn btn-outline-secondary" Click='@(() => OpenPathExplorer("RevisionSource"))'>Browse…</DxButton></div>
                         </label>
                         <label class="span-all">@T("ProjectMaintenance.RevisionSolutionPath", "Revision solution path")
-                            <div class="path-picker-row"><input @bind="revisionWorkspaceEdit.SolutionPath" /><button type="button" class="btn btn-outline-secondary" @onclick='@(() => OpenPathExplorer("RevisionSolution"))'>Browse…</button></div>
+                            <div class="path-picker-row"><DxTextBox @bind-Text="revisionWorkspaceEdit.SolutionPath" /><DxButton CssClass="btn btn-outline-secondary" Click='@(() => OpenPathExplorer("RevisionSolution"))'>Browse…</DxButton></div>
                         </label>
                     </div>
                     <div class="action-row">
@@ -84,13 +79,10 @@
             {
                 <label>
                     @T("ProjectMaintenance.TrackedFile", "Tracked file")
-                    <select @bind="SelectedTrackedFileValue">
-                        <option value="">@T("ProjectMaintenance.SelectTrackedFile", "Select a tracked file")</option>
-                        @foreach (var file in trackedFiles)
-                        {
-                            <option value="@file.Id">@file.ProjectRelativePath</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@TrackedFileSelectionOptions"
+                                @bind-Value="SelectedTrackedFileValue"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
                 </label>
                 @if (selectedTrackedFileId is Guid && selectedTrackedFile is not null)
                 {
@@ -100,9 +92,9 @@
                         <dt>@T("ProjectMaintenance.ContentHash", "Content hash")</dt><dd><code>@selectedTrackedFile.ContentHash</code></dd>
                     </dl>
                     <div class="field-grid">
-                        <label>@T("ProjectMaintenance.FileRole", "File role")<input @bind="filePatternEdit.FileRole" /></label>
-                        <label class="span-all">@T("ProjectMaintenance.StructureRegex", "Structure regex")<textarea @bind="filePatternEdit.StructureRegex" rows="4"></textarea></label>
-                        <label class="span-all">@T("ProjectMaintenance.ContentFormatRegex", "Content-format regex")<textarea @bind="filePatternEdit.ContentFormatRegex" rows="4"></textarea></label>
+                        <label>@T("ProjectMaintenance.FileRole", "File role")<DxTextBox @bind-Text="filePatternEdit.FileRole" /></label>
+                        <label class="span-all">@T("ProjectMaintenance.StructureRegex", "Structure regex")<DxMemo @bind-Text="filePatternEdit.StructureRegex" Rows="4" /></label>
+                        <label class="span-all">@T("ProjectMaintenance.ContentFormatRegex", "Content-format regex")<DxMemo @bind-Text="filePatternEdit.ContentFormatRegex" Rows="4" /></label>
                     </div>
                     <DxButton Text='@T("ProjectMaintenance.SaveFilePatterns", "Save file patterns")' Enabled="@(!busy)" Click="SaveFilePatternsAsync" />
                 }
@@ -113,41 +105,37 @@
             <h2>@T("ProjectMaintenance.WorkspaceRoots", "Workspace roots")</h2>
             <p>@T("ProjectMaintenance.WorkspaceHelp", "Project scope wins over project-type scope; global scope is the fallback. Source projects are never overwritten by revision snapshots.")</p>
             <div class="field-grid">
-                <label>@T("Common.Name", "Name")<input @bind="workspaceEdit.Name" /></label>
+                <label>@T("Common.Name", "Name")<DxTextBox @bind-Text="workspaceEdit.Name" /></label>
                 <label>@T("Common.Path", "Path")
-                    <div class="path-picker-row"><input @bind="workspaceEdit.RootPath" placeholder="Local workspace folder" /><button type="button" class="btn btn-outline-secondary" @onclick='@(() => OpenPathExplorer("WorkspaceRoot"))'>Browse…</button></div>
+                    <div class="path-picker-row"><DxTextBox @bind-Text="workspaceEdit.RootPath" NullText="Local workspace folder" /><DxButton CssClass="btn btn-outline-secondary" Click='@(() => OpenPathExplorer("WorkspaceRoot"))'>Browse…</DxButton></div>
                 </label>
                 <label>@T("Common.Scope", "Scope")
-                    <select @bind="workspaceEdit.ScopeKind">
-                        <option value="Project">@T("ProjectMaintenance.ScopeProject", "Selected project")</option>
-                        <option value="ProjectType">@T("ProjectMaintenance.ScopeProjectType", "Project type regex")</option>
-                        <option value="Global">@T("ProjectMaintenance.ScopeGlobal", "Global")</option>
-                    </select>
+                    <DxComboBox Data="@WorkspaceScopeOptions"
+                                @bind-Value="workspaceEdit.ScopeKind"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
                 </label>
-                <label>@T("ProjectMaintenance.ProjectTypeRegex", "Project type regex")<input @bind="workspaceEdit.ProjectTypePattern" placeholder="(?i)DotNet.*" /></label>
-                <label>@T("ProjectMaintenance.SolutionRegex", "Solution regex")<input @bind="workspaceEdit.SolutionPattern" /></label>
-                <label>@T("ProjectMaintenance.EnvironmentKind", "Local environment kind")<select @bind="workspaceEdit.EnvironmentKind"><option>LocalHost</option><option>PythonNet</option><option>PlatformIO</option><option>ArduinoCLI</option><option>Custom</option></select></label>
+                <label>@T("ProjectMaintenance.ProjectTypeRegex", "Project type regex")<DxTextBox @bind-Text="workspaceEdit.ProjectTypePattern" NullText="(?i)DotNet.*" /></label>
+                <label>@T("ProjectMaintenance.SolutionRegex", "Solution regex")<DxTextBox @bind-Text="workspaceEdit.SolutionPattern" /></label>
+                <label>@T("ProjectMaintenance.EnvironmentKind", "Local environment kind")<DxComboBox Data="@EnvironmentKindOptions" @bind-Value="workspaceEdit.EnvironmentKind" /></label>
                 <label>@T("ProjectMaintenance.EnvironmentRoot", "Environment root")
-                    <div class="path-picker-row"><input @bind="workspaceEdit.EnvironmentRootPath" placeholder="Optional local environment folder" /><button type="button" class="btn btn-outline-secondary" @onclick='@(() => OpenPathExplorer("EnvironmentRoot"))'>Browse…</button></div>
+                    <div class="path-picker-row"><DxTextBox @bind-Text="workspaceEdit.EnvironmentRootPath" NullText="Optional local environment folder" /><DxButton CssClass="btn btn-outline-secondary" Click='@(() => OpenPathExplorer("EnvironmentRoot"))'>Browse…</DxButton></div>
                 </label>
                 <label>@T("ProjectMaintenance.PreferredCompiler", "Preferred compiler")
-                    <select @bind="workspaceEdit.PreferredCompilerInstallationId">
-                        <option value="">@T("Common.None", "None")</option>
-                        @foreach (var compiler in compilers.Where(item => item.IsEnabled))
-                        {
-                            <option value="@compiler.Id">@compiler.Language · @compiler.Name</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@PreferredCompilerOptions"
+                                @bind-Value="workspaceEdit.PreferredCompilerInstallationId"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<Guid?>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<Guid?>.Label)" />
                 </label>
-                <label>@T("Common.Priority", "Priority")<input type="number" @bind="workspaceEdit.Priority" /></label>
-                <label class="span-all">@T("ProjectMaintenance.WorkspaceBuildArguments", "Workspace build arguments")<textarea @bind="workspaceEdit.BuildArguments" rows="2" placeholder="run -e localgpt-esp32"></textarea></label>
-                <label class="span-all">@T("ProjectMaintenance.WorkspaceEnvironmentJson", "Environment variables JSON")<textarea @bind="workspaceEdit.EnvironmentVariablesJson" rows="3" placeholder='{"PLATFORMIO_CORE_DIR":".localenv/platformio"}'></textarea></label>
-                <label class="span-all">@T("ProjectMaintenance.DefaultSubdirectories", "Expected project subdirectories JSON")<textarea @bind="workspaceEdit.DefaultSubdirectoriesJson" rows="3" placeholder='["src","include","docs","tests","artifacts"]'></textarea></label>
-                <label class="span-all">@T("ProjectMaintenance.ExpectedStructureRegex", "Expected project structure regex")<textarea @bind="workspaceEdit.ExpectedStructureRegex" rows="3" placeholder="(?s)(^|\n)src/.*(^|\n)(platformio\.ini|CMakeLists\.txt)$"></textarea></label>
-                <label class="span-all">@T("ProjectMaintenance.AccessPolicyJson", "Regex access policy JSON")<textarea @bind="workspaceEdit.AccessPolicyJson" rows="7" placeholder='[{"name":"firmware sources","relativePathRegex":"(?i)^(src|include)/","expectedEntryKind":"Either","requiredAccess":"ReadWrite","severity":"Danger","required":true,"councilMaintained":true}]'></textarea></label>
+                <label>@T("Common.Priority", "Priority")<DxSpinEdit @bind-Value="workspaceEdit.Priority" /></label>
+                <label class="span-all">@T("ProjectMaintenance.WorkspaceBuildArguments", "Workspace build arguments")<DxMemo @bind-Text="workspaceEdit.BuildArguments" Rows="2" NullText="run -e localgpt-esp32" /></label>
+                <label class="span-all">@T("ProjectMaintenance.WorkspaceEnvironmentJson", "Environment variables JSON")<DxMemo @bind-Text="workspaceEdit.EnvironmentVariablesJson" Rows="3" /></label>
+                <label class="span-all">@T("ProjectMaintenance.DefaultSubdirectories", "Expected project subdirectories JSON")<DxMemo @bind-Text="workspaceEdit.DefaultSubdirectoriesJson" Rows="3" /></label>
+                <label class="span-all">@T("ProjectMaintenance.ExpectedStructureRegex", "Expected project structure regex")<DxMemo @bind-Text="workspaceEdit.ExpectedStructureRegex" Rows="3" NullText="(?s)(^|\n)src/.*(^|\n)(platformio\.ini|CMakeLists\.txt)$" /></label>
+                <label class="span-all">@T("ProjectMaintenance.AccessPolicyJson", "Regex access policy JSON")<DxMemo @bind-Text="workspaceEdit.AccessPolicyJson" Rows="7" /></label>
             </div>
-            <label class="check"><input type="checkbox" @bind="workspaceEdit.IsDefault" /> @T("Common.Default", "Default")</label>
-            <label class="check"><input type="checkbox" @bind="workspaceEdit.IsEnabled" /> @T("Common.Enabled", "Enabled")</label>
+            <label class="check"><DxCheckBox @bind-Checked="workspaceEdit.IsDefault" /> @T("Common.Default", "Default")</label>
+            <label class="check"><DxCheckBox @bind-Checked="workspaceEdit.IsEnabled" /> @T("Common.Enabled", "Enabled")</label>
             <DxButton Text='@T("ProjectMaintenance.SaveWorkspace", "Save workspace root")' Enabled="@(!busy && !string.IsNullOrWhiteSpace(workspaceEdit.Name) && !string.IsNullOrWhiteSpace(workspaceEdit.RootPath))" Click="SaveWorkspaceAsync" />
             <ul class="compact-list">
                 @foreach (var workspace in workspaceRoots)
@@ -196,7 +184,7 @@
             <h2>@T("ProjectMaintenance.Compilers", "Compiler installations")</h2>
             <p>@T("ProjectMaintenance.CompilerHelp", "Discovery checks PATH, common installation directories, and optional custom roots. Version probes and builds run only after fresh confirmation.")</p>
             <label>@T("ProjectMaintenance.CustomCompilerRoots", "Additional compiler search roots")
-                <textarea @bind="customCompilerRoots" rows="3" placeholder="D:\SDKs\dotnet&#10;D:\Toolchains\jdk-23"></textarea>
+                <DxMemo @bind-Text="customCompilerRoots" Rows="3" NullText="D:\SDKs\dotnet&#10;D:\Toolchains\jdk-23" />
             </label>
             <div class="action-row">
                 <DxButton Text='@T("ProjectMaintenance.DiscoverCompilers", "Discover compilers")' Enabled="@(!busy)" Click="DiscoverCompilersAsync" />
@@ -208,24 +196,24 @@
             <div class="compiler-grid">
                 @foreach (var compiler in compilers)
                 {
-                    <button type="button" class="compiler-item @(selectedCompilerId == compiler.Id ? "selected" : string.Empty)" @onclick="@(() => selectedCompilerId = compiler.Id)">
+                    <DxButton CssClass="@(selectedCompilerId == compiler.Id ? "compiler-item selected" : "compiler-item")" Click="@(() => selectedCompilerId = compiler.Id)">
                         <strong>@compiler.Name</strong>
                         <span>@compiler.Language · @(string.IsNullOrWhiteSpace(compiler.Version) ? T("Common.Unvalidated", "Unvalidated") : compiler.Version)</span>
                         <code>@compiler.ExecutablePath</code>
-                    </button>
+                    </DxButton>
                 }
             </div>
             <details>
                 <summary>@T("ProjectMaintenance.AddCustomCompiler", "Add custom compiler installation")</summary>
                 <div class="field-grid">
-                    <label>@T("Common.Name", "Name")<input @bind="compilerEdit.Name" /></label>
-                    <label>@T("Common.Language", "Language")<select @bind="compilerEdit.Language"><option>DotNet</option><option>Java</option><option>Python</option><option>Cpp</option><option>Embedded</option><option>PowerShell</option></select></label>
-                    <label>@T("ProjectMaintenance.ExecutablePath", "Executable path")<input @bind="compilerEdit.ExecutablePath" /></label>
-                    <label>@T("ProjectMaintenance.CompilerHome", "Compiler home")<input @bind="compilerEdit.CompilerHomePath" /></label>
-                    <label>@T("ProjectMaintenance.ValidationArguments", "Validation arguments")<input @bind="compilerEdit.ValidationArguments" /></label>
-                    <label class="span-all">@T("ProjectMaintenance.CompilerEnvironment", "Compiler environment JSON")<textarea @bind="compilerEdit.EnvironmentVariablesJson" rows="3" placeholder='{"DOTNET_ROOT":"D:\SDKs\dotnet-10"}'></textarea></label>
+                    <label>@T("Common.Name", "Name")<DxTextBox @bind-Text="compilerEdit.Name" /></label>
+                    <label>@T("Common.Language", "Language")<DxComboBox Data="@CompilerLanguageOptions" @bind-Value="compilerEdit.Language" /></label>
+                    <label>@T("ProjectMaintenance.ExecutablePath", "Executable path")<DxTextBox @bind-Text="compilerEdit.ExecutablePath" /></label>
+                    <label>@T("ProjectMaintenance.CompilerHome", "Compiler home")<DxTextBox @bind-Text="compilerEdit.CompilerHomePath" /></label>
+                    <label>@T("ProjectMaintenance.ValidationArguments", "Validation arguments")<DxTextBox @bind-Text="compilerEdit.ValidationArguments" /></label>
+                    <label class="span-all">@T("ProjectMaintenance.CompilerEnvironment", "Compiler environment JSON")<DxMemo @bind-Text="compilerEdit.EnvironmentVariablesJson" Rows="3" /></label>
                 </div>
-                <label class="check"><input type="checkbox" @bind="compilerEdit.IsDefaultForLanguage" /> @T("ProjectMaintenance.DefaultForLanguage", "Default for this language")</label>
+                <label class="check"><DxCheckBox @bind-Checked="compilerEdit.IsDefaultForLanguage" /> @T("ProjectMaintenance.DefaultForLanguage", "Default for this language")</label>
                 <DxButton Text='@T("ProjectMaintenance.SaveCompiler", "Save compiler")' Enabled="@(!busy && !string.IsNullOrWhiteSpace(compilerEdit.Name) && !string.IsNullOrWhiteSpace(compilerEdit.ExecutablePath))" Click="SaveCompilerAsync" />
             </details>
         </article>
@@ -235,17 +223,14 @@
             <p>@T("ProjectMaintenance.ReadyGateHelp", "A revision becomes ready only after a successful compiler run, requested tests, a stored council review, and fresh user approval. The final snapshot copies exact file bytes into a separate ZIP.")</p>
             <div class="field-grid">
                 <label>@T("ProjectMaintenance.Compiler", "Compiler")
-                    <select @bind="SelectedCompilerValue">
-                        <option value="">@T("ProjectMaintenance.SelectCompiler", "Select a compiler")</option>
-                        @foreach (var compiler in compilers.Where(item => item.IsEnabled))
-                        {
-                            <option value="@compiler.Id">@compiler.Language · @compiler.Name</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@CompilerSelectionOptions"
+                                @bind-Value="SelectedCompilerValue"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
                 </label>
-                <label>@T("Common.Configuration", "Configuration")<input @bind="buildEdit.Configuration" /></label>
-                <label>@T("ProjectMaintenance.BuildArguments", "Build arguments")<input @bind="buildEdit.Arguments" placeholder="Leave empty for safe project-type default" /></label>
-                <label>@T("ProjectMaintenance.TestArguments", "Test arguments")<input @bind="buildEdit.TestArguments" placeholder="test &quot;solution.sln&quot; --configuration Debug" /></label>
+                <label>@T("Common.Configuration", "Configuration")<DxTextBox @bind-Text="buildEdit.Configuration" /></label>
+                <label>@T("ProjectMaintenance.BuildArguments", "Build arguments")<DxTextBox @bind-Text="buildEdit.Arguments" NullText="Leave empty for safe project-type default" /></label>
+                <label>@T("ProjectMaintenance.TestArguments", "Test arguments")<DxTextBox @bind-Text="buildEdit.TestArguments" NullText="test &quot;solution.sln&quot; --configuration Debug" /></label>
             </div>
             <DxButton Text='@T("ProjectMaintenance.RunBuildVerification", "Run build verification")' Enabled="@(CanVerifyBuild)" Click="RunBuildVerificationAsync" />
 
@@ -269,8 +254,8 @@
             }
             @if (reviewVerificationId is Guid)
             {
-                <label>@T("ProjectMaintenance.CouncilReviewSummary", "Council review summary")<textarea @bind="councilReviewEdit.Summary" rows="4"></textarea></label>
-                <label class="check"><input type="checkbox" @bind="councilReviewEdit.CompileErrorsAbsent" /> @T("ProjectMaintenance.NoCompileErrors", "Council confirms no compile errors in the stored evidence")</label>
+                <label>@T("ProjectMaintenance.CouncilReviewSummary", "Council review summary")<DxMemo @bind-Text="councilReviewEdit.Summary" Rows="4" /></label>
+                <label class="check"><DxCheckBox @bind-Checked="councilReviewEdit.CompileErrorsAbsent" /> @T("ProjectMaintenance.NoCompileErrors", "Council confirms no compile errors in the stored evidence")</label>
                 <DxButton Text='@T("ProjectMaintenance.SaveCouncilReview", "Save council review")' Enabled="@(!busy)" Click="SaveCouncilReviewAsync" />
             }
         </article>
@@ -290,6 +275,46 @@
     /// Defines the toast name constant used by <see cref="ProjectMaintenance"/> so callers and internal logic share the same stable value.
     /// </summary>
     const string ToastName = "ProjectMaintenanceToasts";
+
+    /// <summary>Gets project choices for the DevExpress maintenance selector.</summary>
+    IReadOnlyList<LocalGptSelectionOption<string>> ProjectSelectionOptions =>
+        [new(string.Empty, T("ProjectMaintenance.SelectProject", "Select a project")),
+         .. projectSummaries.Select(project => new LocalGptSelectionOption<string>(project.Id.ToString(), project.DisplayName))];
+
+    /// <summary>Gets revision choices for the selected project.</summary>
+    IReadOnlyList<LocalGptSelectionOption<string>> RevisionSelectionOptions =>
+        [new(string.Empty, T("ProjectMaintenance.SelectRevision", "Select a revision")),
+         .. (selectedProject?.Revisions.Select(revision => new LocalGptSelectionOption<string>(revision.Id.ToString(), $"{revision.BranchName}/{revision.RevisionName} {(revision.ReadyForTesting ? "✓" : string.Empty)}".TrimEnd()))
+             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+
+    /// <summary>Gets tracked file choices for the selected revision.</summary>
+    IReadOnlyList<LocalGptSelectionOption<string>> TrackedFileSelectionOptions =>
+        [new(string.Empty, T("ProjectMaintenance.SelectTrackedFile", "Select a tracked file")),
+         .. trackedFiles.Select(file => new LocalGptSelectionOption<string>(file.Id.ToString(), file.ProjectRelativePath))];
+
+    /// <summary>Gets supported workspace scope values with localized labels.</summary>
+    IReadOnlyList<LocalGptSelectionOption<string>> WorkspaceScopeOptions =>
+    [
+        new("Project", T("ProjectMaintenance.ScopeProject", "Selected project")),
+        new("ProjectType", T("ProjectMaintenance.ScopeProjectType", "Project type regex")),
+        new("Global", T("ProjectMaintenance.ScopeGlobal", "Global"))
+    ];
+
+    /// <summary>Gets supported local workspace environment kinds.</summary>
+    readonly string[] EnvironmentKindOptions = ["LocalHost", "PythonNet", "PlatformIO", "ArduinoCLI", "Custom"];
+
+    /// <summary>Gets enabled compiler choices for an optional workspace preference.</summary>
+    IReadOnlyList<LocalGptSelectionOption<Guid?>> PreferredCompilerOptions =>
+        [new(null, T("Common.None", "None")),
+         .. compilers.Where(item => item.IsEnabled).Select(compiler => new LocalGptSelectionOption<Guid?>(compiler.Id, $"{compiler.Language} · {compiler.Name}"))];
+
+    /// <summary>Gets supported compiler language categories.</summary>
+    readonly string[] CompilerLanguageOptions = ["DotNet", "Java", "Python", "Cpp", "Embedded", "PowerShell"];
+
+    /// <summary>Gets enabled compilers for build verification.</summary>
+    IReadOnlyList<LocalGptSelectionOption<string>> CompilerSelectionOptions =>
+        [new(string.Empty, T("ProjectMaintenance.SelectCompiler", "Select a compiler")),
+         .. compilers.Where(item => item.IsEnabled).Select(compiler => new LocalGptSelectionOption<string>(compiler.Id.ToString(), $"{compiler.Language} · {compiler.Name}"))];
     /// <summary>
     /// Stores the in-memory project summaries collection maintained internally by <see cref="ProjectMaintenance"/> for its current workflow state.
     /// </summary>

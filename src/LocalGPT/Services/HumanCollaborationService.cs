@@ -2,6 +2,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using System.Text;
 
@@ -32,6 +33,8 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
         /// Stores the local GPT runtime policy data service dependency used by <see cref="HumanCollaborationService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
+        /// <summary>Creates short-lived scopes for collaborators that intentionally have scoped lifetimes while this coordinator remains singleton-owned by hosted and 1-Wire infrastructure.</summary>
+        private readonly IServiceScopeFactory serviceScopeFactory;
         /// <summary>
         /// Stores the logger used by <see cref="HumanCollaborationService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -43,6 +46,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
         /// <param name="ambientContext">Injected dependency used by the HumanCollaborationService.</param>
         /// <param name="componentActivity">Injected dependency used by the HumanCollaborationService.</param>
         /// <param name="runtimePolicy">Injected dependency used by the HumanCollaborationService.</param>
+        /// <param name="serviceScopeFactory">Scope factory used to resolve scoped post-decision collaborators without capturing them in this singleton.</param>
         /// <param name="logger">Injected dependency used by the HumanCollaborationService.</param>
         public HumanCollaborationService(
             ILocalGptVocabularyService vocabulary,
@@ -50,6 +54,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
             IAmbientLocalGptContext ambientContext,
             IComponentActivityService componentActivity,
             ILocalGptRuntimePolicyDataService runtimePolicy,
+            IServiceScopeFactory serviceScopeFactory,
             ILogger<HumanCollaborationService> logger)
         {
             this.vocabulary = vocabulary;
@@ -57,6 +62,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
             this.ambientContext = ambientContext;
             this.componentActivity = componentActivity;
             this.runtimePolicy = runtimePolicy;
+            this.serviceScopeFactory = serviceScopeFactory;
             this.logger = logger;
         }
 
@@ -456,6 +462,12 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                     request.DecisionVersion,
                     request.Status,
                     request.ApprovalReuseScope);
+                if (request.OperationKey.StartsWith("knowledge.freshness.", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var freshnessScope = serviceScopeFactory.CreateScope();
+                    var knowledgeFreshness = freshnessScope.ServiceProvider.GetRequiredService<IKnowledgeFreshnessReviewService>();
+                    await knowledgeFreshness.ApplyHumanDecisionAsync(request, submission, cancellationToken).ConfigureAwait(false);
+                }
                 return request;
             }
             finally

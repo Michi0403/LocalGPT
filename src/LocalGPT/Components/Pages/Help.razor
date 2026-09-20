@@ -27,10 +27,10 @@
             </div>
         </div>
         <div class="help-actions" aria-label="Documentation actions">
-            <button class="btn btn-primary" type="button" @onclick="OpenHtmlDocumentation">Open HTML documentation</button>
-            <button class="btn btn-outline-secondary" type="button" @onclick="OpenPdfDocumentation">@Localization.GetText("Open PDF documentation")</button>
-            <button class="btn btn-outline-secondary" type="button" @onclick="OpenBuildStatus">Build status JSON</button>
-            <button class="btn btn-outline-secondary" type="button" @onclick="OpenXmlComments">Browse XML comments</button>
+            <DxButton CssClass="btn btn-primary" Click="OpenHtmlDocumentation">Open HTML documentation</DxButton>
+            <DxButton CssClass="btn btn-outline-secondary" Click="OpenPdfDocumentation">@Localization.GetText("Open PDF documentation")</DxButton>
+            <DxButton CssClass="btn btn-outline-secondary" Click="OpenBuildStatus">Build status JSON</DxButton>
+            <DxButton CssClass="btn btn-outline-secondary" Click="OpenXmlComments">Browse XML comments</DxButton>
         </div>
     </section>
 
@@ -38,32 +38,32 @@
         <article class="help-panel">
             <h2>Chat and AI Council</h2>
             <p>Provider selection, Council teams, model routes, human participation, memory and responsive configuration surfaces.</p>
-            <button type="button" @onclick="OpenChatAndCouncil">Read chapter</button>
+            <DxButton Click="OpenChatAndCouncil">Read chapter</DxButton>
         </article>
         <article class="help-panel">
             <h2>Embedded firmware</h2>
             <p>ESP32/Arduino pin planning, transport-neutral wiring, firmware artifacts and approval-gated compiler boundaries.</p>
-            <button type="button" @onclick="OpenEmbeddedFirmware">Read chapter</button>
+            <DxButton Click="OpenEmbeddedFirmware">Read chapter</DxButton>
         </article>
         <article class="help-panel">
             <h2>Workspaces</h2>
             <p>Local environments, compiler profiles, expected structures, regex policies and Approved/Warning/Danger findings.</p>
-            <button type="button" @onclick="OpenWorkspaces">Read chapter</button>
+            <DxButton Click="OpenWorkspaces">Read chapter</DxButton>
         </article>
         <article class="help-panel">
             <h2>GameDirector runtime</h2>
             <p>Authoritative move validation, controller proposals, creature/object subdirectors and runtime-class factories.</p>
-            <button type="button" @onclick="OpenGameDirector">Read chapter</button>
+            <DxButton Click="OpenGameDirector">Read chapter</DxButton>
         </article>
         <article class="help-panel">
             <h2>Security</h2>
             <p>Local-first execution, untrusted inputs, bounded writes, protected transports and explicit approval boundaries.</p>
-            <button type="button" @onclick="OpenSecurity">Read chapter</button>
+            <DxButton Click="OpenSecurity">Read chapter</DxButton>
         </article>
         <article class="help-panel help-api-panel">
             <h2>API reference</h2>
             <p>Public services, controllers, business contracts and runtime capabilities generated from XML documentation.</p>
-            <button type="button" @onclick="OpenApiReference">Open API reference</button>
+            <DxButton Click="OpenApiReference">Open API reference</DxButton>
         </article>
     </section>
 

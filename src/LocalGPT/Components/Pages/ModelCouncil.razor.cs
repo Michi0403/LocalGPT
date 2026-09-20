@@ -150,6 +150,14 @@ namespace LocalGPT.Components.Pages
     /// <value>The selected topic value value exposed by <see cref="ModelCouncil"/>.</value>
     string SelectedTopicValue => Request.ProjectTopicId?.ToString() ?? string.Empty;
 
+    IReadOnlyList<LocalGptSelectionOption<string>> ProjectSelectionOptions => ProjectSummaries
+        .Select(project => new LocalGptSelectionOption<string>(project.Id.ToString(), project.DisplayName))
+        .ToArray();
+
+    IReadOnlyList<LocalGptSelectionOption<string>> TopicSelectionOptions => SelectedProjectDetails?.Topics
+        .Select(topic => new LocalGptSelectionOption<string>(topic.Id.ToString(), topic.Name))
+        .ToArray() ?? [];
+
     /// <summary>
     /// Gets a value indicating whether run applies to the model council state.
     /// </summary>
@@ -358,15 +366,15 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Performs select project for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the model council operation and used when producing its result.</param>
+    /// <param name="selectedValue">Selected project identifier supplied by the DevExpress selector.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    async Task SelectProjectAsync(ChangeEventArgs args)
+    async Task SelectProjectAsync(string? selectedValue)
     {
         Request.ProjectTopicId = null;
         Request.UserConfirmedProjectLink = false;
         SelectedProjectDetails = null;
 
-        if (!Guid.TryParse(Convert.ToString(args.Value), out var projectId))
+        if (!Guid.TryParse(selectedValue, out var projectId))
         {
             Request.ProjectId = null;
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
@@ -381,25 +389,22 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Performs select project topic for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the model council operation and used when producing its result.</param>
-    void SelectProjectTopic(ChangeEventArgs args)
+    /// <param name="selectedValue">Selected project-topic identifier supplied by the DevExpress selector.</param>
+    void SelectProjectTopic(string? selectedValue)
     {
-        Request.ProjectTopicId = Guid.TryParse(Convert.ToString(args.Value), out var topicId)
+        Request.ProjectTopicId = Guid.TryParse(selectedValue, out var topicId)
             ? topicId
             : null;
         Request.UserConfirmedProjectLink = false;
     }
 
+
     /// <summary>
     /// Performs toggle artifact generation for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the model council operation and used when producing its result.</param>
-    void ToggleArtifactGeneration(ChangeEventArgs args)
+    /// <param name="enabled">Whether implementation-artifact generation is enabled for the next Council run.</param>
+    void ToggleArtifactGeneration(bool enabled)
     {
-        var enabled = args.Value is bool flag
-            ? flag
-            : bool.TryParse(Convert.ToString(args.Value), out var parsed) && parsed;
-
         Request.GenerateImplementationArtifact = enabled;
         // The council checkbox only requests a review heartbeat. Build approval is never carried into the run.
         Request.UserConfirmedArtifactBuild = false;

@@ -218,7 +218,14 @@ namespace LocalGPT.Services
                         }
 
                         var attemptBuilder = new StringBuilder();
-                        var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger);
+                        var enforceBoundedGameRepetitionGuard =
+                            (string.Equals(role, "Creature Trainer", StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(phase, "Trainer selection", StringComparison.OrdinalIgnoreCase))
+                            || (string.Equals(role, "Kernel Creature", StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(phase, "Creature introduction", StringComparison.OrdinalIgnoreCase))
+                            || (string.Equals(role, "ASCII Team Artist", StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(phase, "Team building ASCII", StringComparison.OrdinalIgnoreCase));
+                        var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger, enforceBoundedGameRepetitionGuard);
                         using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
                         using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
                         var liveInputSignal = new TaskCompletionSource<IReadOnlyList<HumanCouncilContribution>>(
@@ -256,10 +263,10 @@ namespace LocalGPT.Services
                                     if (repetitionFailure is not null)
                                     {
                                         progressMessage?.Invoke(
-                                            $"Repetition watchdog stopped runaway generation from {modelName} during {phase}; existing member recovery will now handle this failed attempt.");
+                                            $"Repetition watchdog stopped runaway generation from {modelName} during {phase}; LocalGPT will preserve the partial stream and apply the configured workflow failure policy without an immediate same-model retry.");
                                         streamUpdate?.Invoke(
                                             $"\n\n> **LocalGPT repetition watchdog:** sustained repeated generation was detected and only this provider request is being stopped. " +
-                                            $"The partial stream remains evidence; configured same-member and round-member recovery remain authoritative. {WebUtility.HtmlEncode(repetitionFailure.Message)}\n\n");
+                                            $"The partial stream remains evidence; LocalGPT will not immediately restart this same looping provider request. {WebUtility.HtmlEncode(repetitionFailure.Message)}\n\n");
                                         streamCts.Cancel();
                                         throw repetitionFailure;
                                     }
@@ -535,7 +542,7 @@ namespace LocalGPT.Services
                     logger.LogWarning(ex, "Council participant {ModelName} failed in {Phase}.", modelName, phase);
                     runtimeLease?.Dispose();
                     runtimeLease = null;
-                    if (allowRecovery)
+                    if (allowRecovery && ex is not ProviderStreamRepetitionException)
                     {
                         var recovered = await RetryParticipantWithSafeLimitsAsync(
                             baseUri, modelName, councilMembers, round, phase, role, prompt, bootstrap,

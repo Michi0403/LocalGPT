@@ -36,7 +36,7 @@ def main() -> int:
         ("campaign settings are serializable business data", "public sealed class CouncilGameLevelProfile" in models),
         ("start contract supports team-class campaign override", 'public string CampaignRuntimeClassKey { get; set; } = string.Empty;' in models),
         ("starter campaign is visible runtime-class seed", 'BuildDefinition("games.ascii.doom.campaign"' in runtime_classes),
-        ("runtime-class seed version advanced", "private const int CurrentSeedVersion = 7;" in runtime_classes),
+        ("runtime-class seed version advanced", "private const int CurrentSeedVersion = 8;" in runtime_classes),
         ("starter contains exactly ten ordered levels", level_numbers[:10] == list(range(1, 11)) and len(level_numbers) >= 10),
         ("starter difficulty is explicit 1 through 10", all(f"Difficulty = {level}" in starter_method for level in range(1, 11))),
         ("starter map sizes progress", "MapWidth = 28" in starter_method and "MapWidth = 64" in starter_method and "MapHeight = 18" in starter_method and "MapHeight = 32" in starter_method),

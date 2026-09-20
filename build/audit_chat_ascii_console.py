@@ -36,7 +36,7 @@ def main() -> int:
         ("console exposes close event callback", "[Parameter] public EventCallback CloseRequested" in console),
         ("close button is outside snapshot-only action branch", '            }\n            <DxButton Text="× Close"\n                      CssClass="ascii-console-button chat-game-console-close"' in console),
         ("close exits fullscreen before callback", console.index("localGptGameConsole.exitFullscreen") < console.index("CloseRequested.InvokeAsync")),
-        ("fullscreen exit is one-way", "async exitFullscreen(id)" in js and "document.fullscreenElement === element" in js),
+        ("fullscreen exit targets the same popup-aware host", "async exitFullscreen(id)" in js and "const host = fullscreenHost(element);" in js and "document.fullscreenElement === host" in js),
         ("close action has responsive/fullscreen styling", ".chat-game-console-close" in css and ":fullscreen .chat-game-console-close" in css),
         ("DevExpress mode-button CssClass values are pure Razor expressions",
          'CssClass="ascii-console-button ascii-operator-toggle @(' not in console

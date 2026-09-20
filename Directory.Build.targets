@@ -254,4 +254,16 @@
     <Message Importance="High" Text="Added @(LocalGptDocumentationPublishFiles->Count()) generated documentation files to the LocalGPT publish payload." />
   </Target>
 
+
+  <PropertyGroup>
+    <DevExpressBlazorControlsScript>$(MSBuildThisFileDirectory)build/Assert-DevExpressBlazorControls.ps1</DevExpressBlazorControlsScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptDevExpressBlazorControls"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptInteractiveServerRenderModes"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipDevExpressBlazorControlsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(DevExpressBlazorControlsScript)')" Text="DevExpress Blazor control guard script is missing: $(DevExpressBlazorControlsScript)" />
+    <Exec Condition="Exists('$(DevExpressBlazorControlsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(DevExpressBlazorControlsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
 </Project>

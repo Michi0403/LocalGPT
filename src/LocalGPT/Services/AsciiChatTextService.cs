@@ -260,6 +260,48 @@ public sealed class AsciiChatTextService
     }
 
     /// <summary>
+    /// Builds the browser-layout change signature for the shared ASCII console so components do not own string projection logic.
+    /// </summary>
+    /// <param name="surfaceMode">Active ASCII surface mode such as chat, game, or operator.</param>
+    /// <param name="scaleMode">Configured fullscreen scaling mode.</param>
+    /// <param name="framePresentationSignature">Current styled-frame presentation signature.</param>
+    /// <param name="sequenceSignature">Current animation-sequence signature.</param>
+    /// <param name="conversationSignature">Current conversation projection signature.</param>
+    /// <param name="consoleOutputCount">Number of retained operator-console output rows.</param>
+    /// <param name="interactionRequestId">Optional active Council interaction request identifier.</param>
+    /// <param name="hotSeatRequestId">Optional active hot-seat request identifier.</param>
+    /// <returns>A content-bounded signature used only to avoid redundant browser layout work.</returns>
+    public string BuildConsoleLayoutSignature(
+        string surfaceMode,
+        string scaleMode,
+        string framePresentationSignature,
+        string sequenceSignature,
+        string conversationSignature,
+        int consoleOutputCount,
+        Guid? interactionRequestId,
+        Guid? hotSeatRequestId)
+    {
+        try
+        {
+            return string.Join(
+                ':',
+                surfaceMode,
+                scaleMode,
+                framePresentationSignature,
+                sequenceSignature,
+                conversationSignature,
+                consoleOutputCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                interactionRequestId?.ToString("N") ?? string.Empty,
+                hotSeatRequestId?.ToString("N") ?? string.Empty);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "ASCII console layout signature generation failed; the renderer will refresh defensively.");
+            return Guid.NewGuid().ToString("N");
+        }
+    }
+
+    /// <summary>
     /// Builds a bounded signature for Council participant activity used to detect when the mirrored ASCII transcript needs refreshing.
     /// </summary>
     /// <param name="participantActivities">Server-owned Council participant snapshots associated with the current chat.</param>

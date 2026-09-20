@@ -84,7 +84,7 @@
                     <h3 id="provider-install-guide-heading">@T("Install.ProviderInstall.Title", "Need Ollama or LM Studio first?")</h3>
                     <p>@T("Install.ProviderInstall.Help", "Use the official installer for your operating system, start a local model server, then return here and refresh connectivity. Guided install/start/model actions run only after your explicit confirmation; if a guided action cannot install the vendor runtime, use the official download link and then click Detect again.")</p>
                 </div>
-                <button type="button" class="localgpt-native-button" @onclick="OpenGuidedRuntimeSetup">@T("Install.ProviderInstall.GuidedAction", "Open guided install actions")</button>
+                <DxButton CssClass="localgpt-native-button" Click="OpenGuidedRuntimeSetup">@T("Install.ProviderInstall.GuidedAction", "Open guided install actions")</DxButton>
             </header>
             <div class="provider-install-guide-grid">
                 <article class="provider-install-guide-card">
@@ -244,17 +244,17 @@
                                 <summary>Host hardware · @hardwareDraft.HostKey</summary>
                                 <p class="field-help">This definition belongs to the physical configured host and is shared by provider/model bindings on that host. Confirmed/imported values are stored in the LocalGPT database and are not overwritten by weak discovery.</p>
                                 <div class="configured-host-hardware-grid">
-                                    <label>Host name<input class="form-control" @bind="hardwareDraft.HostName" /></label>
-                                    <label>Operating system<input class="form-control" @bind="hardwareDraft.OperatingSystem" /></label>
-                                    <label>CPU<input class="form-control" @bind="hardwareDraft.CpuName" /></label>
-                                    <label>System RAM (GiB)<input class="form-control" type="number" step="0.5" min="0" @bind="hardwareDraft.SystemMemoryGiB" /></label>
-                                    <label>GPU<input class="form-control" @bind="hardwareDraft.GpuName" /></label>
-                                    <label>GPU vendor<input class="form-control" @bind="hardwareDraft.GpuVendor" /></label>
-                                    <label>Dedicated VRAM (GiB)<input class="form-control" type="number" step="0.25" min="0" @bind="hardwareDraft.DedicatedVramGiB" /></label>
-                                    <label>Source<input class="form-control" value="@hardwareDraft.SourceKind" readonly /></label>
+                                    <label>Host name<DxTextBox @bind-Text="hardwareDraft.HostName" CssClass="form-control" /></label>
+                                    <label>Operating system<DxTextBox @bind-Text="hardwareDraft.OperatingSystem" CssClass="form-control" /></label>
+                                    <label>CPU<DxTextBox @bind-Text="hardwareDraft.CpuName" CssClass="form-control" /></label>
+                                    <label>System RAM (GiB)<DxSpinEdit @bind-Value="hardwareDraft.SystemMemoryGiB" CssClass="form-control" Increment="0.5" MinValue="0" /></label>
+                                    <label>GPU<DxTextBox @bind-Text="hardwareDraft.GpuName" CssClass="form-control" /></label>
+                                    <label>GPU vendor<DxTextBox @bind-Text="hardwareDraft.GpuVendor" CssClass="form-control" /></label>
+                                    <label>Dedicated VRAM (GiB)<DxSpinEdit @bind-Value="hardwareDraft.DedicatedVramGiB" CssClass="form-control" Increment="0.25" MinValue="0" /></label>
+                                    <label>Source<DxTextBox Text="@hardwareDraft.SourceKind" ReadOnly="true" CssClass="form-control" /></label>
                                 </div>
                                 <label class="configured-host-report">HWiNFO text report (optional deterministic import)
-                                    <textarea rows="5" @bind="hardwareDraft.HwInfoReportText" placeholder="Paste an HWiNFO text report here. LocalGPT parses GPU VRAM deterministically; the report is not sent to an AI."></textarea>
+                                    <DxMemo @bind-Text="hardwareDraft.HwInfoReportText" Rows="5" NullText="Paste an HWiNFO text report here. LocalGPT parses GPU VRAM deterministically; the report is not sent to an AI." />
                                 </label>
                                 <label class="configured-host-report">Or choose an HWiNFO text report
                                     <InputFile OnChange="@(args => ImportHostHardwareFileAsync(configured.Endpoint, args))" accept=".txt,text/plain" />
@@ -688,7 +688,7 @@
             </div>
             <label class="toolchain-search-roots">
                 @T("Install.Toolchains.CustomRoots", "Additional search roots (one path per line)")
-                <textarea rows="3" @bind="ToolchainSearchRoots" placeholder="/opt/custom-toolchains&#10;C:\Toolchains"></textarea>
+                <DxMemo @bind-Text="ToolchainSearchRoots" Rows="3" NullText="/opt/custom-toolchains&#10;C:\Toolchains" />
             </label>
             @if (!string.IsNullOrWhiteSpace(ToolchainStatus))
             {
@@ -764,14 +764,14 @@
             <div class="localization-import-grid">
                 <label>
                     @T("Install.Localization.CultureName", "Culture name")
-                    <input @bind="LocalizationCulture" placeholder="fr-FR" autocomplete="off" />
+                    <DxTextBox @bind-Text="LocalizationCulture" NullText="fr-FR" />
                 </label>
                 <label class="localization-file-input">
                     @T("Install.Localization.JsonFile", "Language JSON file")
                     <InputFile OnChange="ImportLocalizationFileAsync" accept=".json,application/json" disabled="@IsLocalizationImporting" />
                 </label>
                 <label class="localization-overwrite">
-                    <input type="checkbox" @bind="OverwriteLocalizationCatalog" />
+                    <DxCheckBox @bind-Checked="OverwriteLocalizationCatalog" />
                     @T("Install.Localization.Overwrite", "Replace an existing user catalog for this culture")
                 </label>
             </div>

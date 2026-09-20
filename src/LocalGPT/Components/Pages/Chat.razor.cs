@@ -55,6 +55,75 @@ namespace LocalGPT.Components.Pages
         new("architecture", Localization.Get("Chat.Configuration.Architecture", fallback: "Architecture"), "Optional implementation decisions for the next Council answer.")
     ];
 
+    /// <summary>Gets provider choices for the DevExpress chat provider selector.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> ProviderSessionOptions => ModelsList
+        .Select(session => new LocalGptSelectionOption<string>(session.Name, ProviderOptionLabel(session)))
+        .ToList();
+
+    /// <summary>Gets the supported Ollama acceleration policies for the DevExpress selector.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> OllamaAccelerationOptions =>
+    [
+        new(Catalog.OllamaModeAutoGpu, "Auto GPU"),
+        new(Catalog.OllamaModeSafeCpu, "Safe CPU"),
+        new(Catalog.OllamaModeLimitedGpu, "Limited GPU")
+    ];
+
+    /// <summary>Gets the Council hardware-road scheduling policies for the DevExpress selector.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> CouncilSchedulingOptions =>
+    [
+        new("host-balanced", "Host-balanced · different AI hosts parallel"),
+        new("road-parallel", "Hardware-road parallel · use configured lanes")
+    ];
+
+    /// <summary>Gets persisted hardware-performance presets including the explicit custom state.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> HardwarePerformancePresetOptions =>
+        [new(string.Empty, L("Chat.HardwarePerformancePreset.Custom", "Custom hardware settings")),
+         .. HardwarePerformancePresetItems.Select(preset => new LocalGptSelectionOption<string>(preset.Id.ToString(), $"{preset.Name}{(preset.IsDefault ? " (default)" : string.Empty)}"))];
+
+    /// <summary>Gets model presets including the explicit custom-selection state.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> ModelPresetOptions =>
+        [new(string.Empty, "Custom selection"),
+         .. ModelPresets.Select(preset => new LocalGptSelectionOption<string>(preset.Id.ToString(), $"{preset.Name}{(preset.IsDefault ? " (default)" : string.Empty)}"))];
+
+    /// <summary>Gets configured Council teams for the DevExpress selector.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> CouncilTeamOptions => CouncilTeams
+        .Select(team => new LocalGptSelectionOption<string>(team.Key, team.DisplayName))
+        .ToList();
+
+    /// <summary>Gets saved conversations for the memory selector.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> SavedConversationOptions => SavedConversations
+        .Select(conversation => new LocalGptSelectionOption<string>(conversation.Id.ToString(), conversation.DisplayName))
+        .ToList();
+
+    /// <summary>Gets projects including the explicit no-project context.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> ChatProjectOptions =>
+        [new(string.Empty, "No project"),
+         .. ChatProjects.Select(project => new LocalGptSelectionOption<string>(project.Id.ToString(), project.DisplayName))];
+
+    /// <summary>Gets versions for the selected project including the unspecified/current context.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> ChatProjectVersionOptions =>
+        [new(string.Empty, "Current / unspecified"),
+         .. (SelectedChatProjectDetails?.Versions.OrderByDescending(item => item.CreatedAtUtc)
+             .Select(version => new LocalGptSelectionOption<string>(version.Id.ToString(), $"{version.Version}{(version.IsCurrent ? " (current)" : string.Empty)}"))
+             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+
+    /// <summary>Gets live Council sessions with current round/phase context for rejoin.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> RunningCouncilSessionOptions => RunningLiveCouncilSessions
+        .Select(session =>
+        {
+            var run = collaborationSnapshot.ActiveRuns.FirstOrDefault(item => item.RunId == session.RunId);
+            var runState = run is null ? "live" : $"round {run.CurrentRound} · {run.Phase}";
+            return new LocalGptSelectionOption<string>(
+                session.RunId.ToString(),
+                CouncilText.FormatLiveCouncilSessionOption(session.StartedAtUtc, runState, session.CouncilMembers));
+        })
+        .ToList();
+
+    /// <summary>Gets assistant response feedback targets for the DevExpress selector.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> FeedbackTargetOptions => FeedbackTargets
+        .Select(target => new LocalGptSelectionOption<string>(target.SortOrder.ToString(CultureInfo.InvariantCulture), target.Label))
+        .ToList();
+
     /// <summary>
     /// Handles the chat configuration section changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
     /// </summary>
@@ -139,6 +208,10 @@ namespace LocalGPT.Components.Pages
     /// Stores the internal show game console state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>
     bool showGameConsole;
+    /// <summary>Forces a fresh DevExpress popup subtree whenever the ASCII terminal is reopened.</summary>
+    int gameConsoleRenderKey;
+    /// <summary>Tracks whether the terminal has reported an owned active game for this chat/Council context.</summary>
+    bool asciiGameAvailable;
     /// <summary>Stores whether contextual/random ASCII fun is enabled for the current chat.</summary>
     bool asciiFunModeEnabled;
     /// <summary>Stores the canonical conversation transcript independently of the currently selected provider session.</summary>
@@ -990,6 +1063,46 @@ namespace LocalGPT.Components.Pages
 
 
 
+    /// <summary>Indicates that the selected workflow or the terminal itself has an ASCII game surface available.</summary>
+    private bool IsAsciiGameHintAvailable
+    {
+        get
+        {
+            if (asciiGameAvailable)
+                return true;
+            var selectedTeam = CouncilTeams.FirstOrDefault(team =>
+                string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase));
+            return AsciiText.RequiresAsciiSurface(selectedTeam);
+        }
+    }
+
+    /// <summary>Gets the primary ASCII-terminal action text, including an explicit game-ready hint.</summary>
+    private string AsciiTerminalButtonText => showGameConsole
+        ? "Hide ASCII terminal"
+        : IsAsciiGameHintAvailable ? "GAME READY · Open ASCII terminal" : "Show ASCII terminal";
+
+    /// <summary>Gets the DevExpress render style used to call out an available game without changing non-game chat behavior.</summary>
+    private ButtonRenderStyle AsciiTerminalButtonRenderStyle => IsAsciiGameHintAvailable
+        ? ButtonRenderStyle.Success
+        : ButtonRenderStyle.Secondary;
+
+    /// <summary>Gets the terminal button CSS classes used by the maintained rounded-action presentation.</summary>
+    private string AsciiTerminalButtonCssClass => IsAsciiGameHintAvailable
+        ? "localgpt-rounded-action localgpt-action-success chat-ascii-game-ready"
+        : "localgpt-rounded-action localgpt-action-neutral";
+
+    /// <summary>Gets the accessible terminal-button hint shown while a game surface is available.</summary>
+    private string AsciiTerminalButtonTitle => IsAsciiGameHintAvailable
+        ? "An ASCII game/view is available for this chat. Open the terminal to play or watch it."
+        : "Open the shared ASCII chat, game and operator terminal.";
+
+    /// <summary>Receives authoritative game availability from the mounted shared ASCII terminal.</summary>
+    private Task OnAsciiGameAvailabilityChangedAsync(bool available)
+    {
+        asciiGameAvailable = available;
+        return InvokeAsync(StateHasChanged);
+    }
+
     /// <summary>Toggles contextual ASCII creativity for subsequent chat/model turns without opening or closing the terminal.</summary>
     /// <returns>A task that completes after the updated fun-mode state is rendered.</returns>
     private Task ToggleAsciiFunModeAsync()
@@ -1010,10 +1123,16 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes after an opening surface has refreshed its replayable transcript.</returns>
     private async Task OnGameConsoleVisibilityChangedAsync(bool visible)
     {
+        var opening = visible && !showGameConsole;
         showGameConsole = visible;
+        if (opening)
+            gameConsoleRenderKey++;
         UpdateAsciiExperienceState();
         if (!showGameConsole)
+        {
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
             return;
+        }
 
         await RefreshAsciiConversationMirrorAsync().ConfigureAwait(false);
         StartAsciiConversationMirrorLoop();
@@ -1027,6 +1146,7 @@ namespace LocalGPT.Components.Pages
     {
         showGameConsole = false;
         UpdateAsciiExperienceState();
+        _ = InvokeAsync(StateHasChanged);
     }
 
     /// <summary>Publishes an OPEN ASCII surface before a Council team marked as presentation-required can start provider work.</summary>
@@ -1040,6 +1160,8 @@ namespace LocalGPT.Components.Pages
 
         var opened = !showGameConsole;
         showGameConsole = true;
+        if (opened)
+            gameConsoleRenderKey++;
         UpdateAsciiExperienceState();
         StartAsciiConversationMirrorLoop();
         return opened;

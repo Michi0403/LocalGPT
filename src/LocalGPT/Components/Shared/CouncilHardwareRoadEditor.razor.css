@@ -3,11 +3,9 @@
     gap: .75rem;
     min-width: 0;
     max-width: 100%;
-    max-height: min(58dvh, 46rem);
-    overflow: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    padding: .25rem .35rem .35rem 0;
+    max-height: none;
+    overflow: visible;
+    padding: .25rem 0 .35rem;
 }
 
 .council-road-editor-header {
@@ -46,7 +44,7 @@
 
 .council-road-card > header {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: .55rem;
@@ -57,7 +55,7 @@
 
 .council-road-fields {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: .7rem;
     min-width: 0;
 }
@@ -72,7 +70,7 @@
     overflow-wrap: anywhere;
 }
 
-.council-road-fields label.wide { grid-column: span 2; }
+.council-road-fields label.wide { grid-column: auto; }
 
 .council-road-fields input,
 .council-road-fields select {
@@ -90,17 +88,17 @@
 
 .council-road-load-row {
     display: grid;
-    grid-template-columns: minmax(10rem, auto) minmax(12rem, 1fr) auto;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
     gap: .65rem;
     min-width: 0;
 }
 
-.council-road-load-row input[type="range"] { width: 100%; min-width: 0; }
+.council-road-load-editor { display:grid; gap:.25rem; min-width:0; }
+.council-road-load-editor ::deep .dxbl-text-edit { width:100%; min-width:0; }
 .council-road-effective { margin: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 760px) {
-    .council-road-editor { max-height: 62dvh; }
     .council-road-fields { grid-template-columns: 1fr; }
     .council-road-fields label.wide { grid-column: auto; }
     .council-road-load-row { grid-template-columns: 1fr; align-items: stretch; }

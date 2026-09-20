@@ -61,7 +61,7 @@
                 <label class="manual-model">
                     Add legacy Ollama model name
                     <span>
-                        <input @bind="ManualModelName" placeholder="qwen3-coder:30b" />
+                        <DxTextBox @bind-Text="ManualModelName" NullText="qwen3-coder:30b" />
                         <DxButton Text="Add"
                                   RenderStyle="ButtonRenderStyle.Secondary"
                                   RenderStyleMode="ButtonRenderStyleMode.Contained"
@@ -73,35 +73,40 @@
             <div class="control-grid">
                 <label>
                     Review rounds
-                    <input type="number" min="0" max="3" @bind="Request.MaxRounds" />
+                    <DxSpinEdit @bind-Value="Request.MaxRounds" MinValue="0" MaxValue="3" />
                 </label>
                 <label>
                     Parallel models per AI host
-                    <input type="number" min="1" max="4" @bind="Request.MaxParallelModels" />
+                    <DxSpinEdit @bind-Value="Request.MaxParallelModels" MinValue="1" MaxValue="4" />
                     <small>Each participating Ollama/AI PC gets this concurrency budget; the next Council phase still waits for every assigned member.</small>
                 </label>
                 <label>
                     Max output tokens
-                    <input type="number" min="64" max="262144" step="1024" @bind="Request.MaxOutputTokens" />
+                    <DxSpinEdit @bind-Value="Request.MaxOutputTokens" MinValue="64" MaxValue="262144" Increment="1024" />
                 </label>
                 <label>
                     Context tokens
-                    <input type="number" min="2048" max="262144" step="2048" @bind="Request.MaxContextTokens" />
+                    <DxSpinEdit @bind-Value="Request.MaxContextTokens" MinValue="2048" MaxValue="262144" Increment="2048" />
                 </label>
                 <label>
                     Timeout seconds
-                    <input type="number" min="30" max="1800" step="30" @bind="Request.ModelTimeoutSeconds" />
+                    <DxSpinEdit @bind-Value="Request.ModelTimeoutSeconds" MinValue="30" MaxValue="1800" Increment="30" />
                 </label>
                 <label>
                     Ollama keep-alive
-                    <input @bind="KeepAliveText" placeholder="auto" />
+                    <DxTextBox @bind-Text="KeepAliveText" NullText="auto" />
                 </label>
                 <label class="council-load-setting" title="Each model receives min + this percentage of its own configured min/max road range.">
                     Hardware load
-                    <span class="range-with-output">
-                        <input type="range" min="0" max="100" step="5" @bind="Request.ResourceLoadPercent" @bind:event="oninput" />
+                    <span class="bounded-load-editor">
+                        <DxSpinEdit Value="@Request.ResourceLoadPercent"
+                                    ValueChanged="@((int value) => Request.ResourceLoadPercent = Math.Clamp(value, 0, 100))"
+                                    MinValue="0"
+                                    MaxValue="100"
+                                    Increment="5" />
                         <output>@Request.ResourceLoadPercent%</output>
                     </span>
+                    <small>0% keeps the model at its configured minimum; 100% uses the configured maximum for that hardware road.</small>
                 </label>
             </div>
             <div class="run-row">
@@ -139,21 +144,20 @@
 
             <div class="check-row">
                 <label title="Passes Ollama num_gpu=0 for this council run. This is slower, but reduces GPU pressure while debugging.">
-                    <input type="checkbox" @bind="ForceCpuOnlyOllama" />
+                    <DxCheckBox @bind-Checked="ForceCpuOnlyOllama" />
                     CPU-only Ollama
                 </label>
                 <label title="Shares saved LocalGPT memory and AI project guidance with every council participant.">
-                    <input type="checkbox" @bind="Request.IncludeMemory" />
+                    <DxCheckBox @bind-Checked="Request.IncludeMemory" />
                     Shared memory
                 </label>
                 <label title="Stores the full council transcript in SQLite chat memory after the run.">
-                    <input type="checkbox" @bind="Request.SaveToMemory" />
+                    <DxCheckBox @bind-Checked="Request.SaveToMemory" />
                     Memorize transcript
                 </label>
                 <label title="Ask the council to prepare an immutable change-review heartbeat. No files are written and no build is started until a later explicit approval of the exact review hash.">
-                    <input type="checkbox"
-                           checked="@Request.GenerateImplementationArtifact"
-                           @onchange="ToggleArtifactGeneration" />
+                    <DxCheckBox Checked="@Request.GenerateImplementationArtifact"
+                                CheckedChanged="@((bool value) => ToggleArtifactGeneration(value))" />
                     Prepare code-generation change review
                 </label>
             </div>
@@ -162,35 +166,29 @@
                 <div class="control-title">Project cooperation</div>
                 <label>
                     Project
-                    <select value="@SelectedProjectValue" @onchange="SelectProjectAsync">
-                        <option value="">No project selected</option>
-                        @foreach (var project in ProjectSummaries)
-                        {
-                            <option value="@project.Id">@project.DisplayName</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@ProjectSelectionOptions"
+                                Value="@SelectedProjectValue"
+                                ValueChanged="@((string value) => SelectProjectAsync(value))"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                NullText="No project selected"
+                                ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
                 </label>
 
                 <label>
                     Topic
-                    <select value="@SelectedTopicValue"
-                            @onchange="SelectProjectTopic"
-                            disabled="@(SelectedProjectDetails is null)">
-                        <option value="">No topic selected</option>
-                        @if (SelectedProjectDetails is not null)
-                        {
-                            @foreach (var topic in SelectedProjectDetails.Topics)
-                            {
-                                <option value="@topic.Id">@topic.Name</option>
-                            }
-                        }
-                    </select>
+                    <DxComboBox Data="@TopicSelectionOptions"
+                                Value="@SelectedTopicValue"
+                                ValueChanged="@((string value) => SelectProjectTopic(value))"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                NullText="No topic selected"
+                                ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                                Enabled="@(SelectedProjectDetails is not null)" />
                 </label>
 
                 <label title="After this run, link the generated council knowledge entry to the selected topic. This confirmation is cleared after every run.">
-                    <input type="checkbox"
-                           @bind="Request.UserConfirmedProjectLink"
-                           disabled="@(Request.ProjectTopicId is null)" />
+                    <DxCheckBox @bind-Checked="Request.UserConfirmedProjectLink" Enabled="@(!(Request.ProjectTopicId is null))" />
                     Link this run's knowledge to the selected topic
                 </label>
                 <p class="hint">The project path is context only. Council members do not access files, initialize Git, commit, push, or execute anything from it without a separate user-approved action.</p>
@@ -237,7 +235,7 @@
         <div class="prompt-panel">
             <label>
                 Council prompt
-                <textarea @bind="Request.Prompt" rows="14"></textarea>
+                <DxMemo @bind-Text="Request.Prompt" Rows="14" />
             </label>
             <div class="run-row">
                 <DxButton Text="Run Council"
@@ -341,19 +339,16 @@
                 <div class="poll-options">
                     @foreach (var option in LastResult.UserPoll.Options)
                     {
-                        <button type="button"
+                        <DxButton
                                 title="@option.FollowUpPrompt"
-                                @onclick="@(() => ApplyPollOption(option))">
+                                Click="@(() => ApplyPollOption(option))">
                             @option.Label
-                        </button>
+                        </DxButton>
                     }
                 </div>
                 <div class="poll-feedback">
                     <label for="custom-poll-feedback">Custom direction for the next round</label>
-                    <textarea id="custom-poll-feedback"
-                              @bind="CustomPollFeedback"
-                              rows="3"
-                              placeholder="Describe exactly what or how the council should implement..."></textarea>
+                    <DxMemo @bind-Text="CustomPollFeedback" id="custom-poll-feedback" Rows="3" NullText="Describe exactly what or how the council should implement..." />
                     <DxButton Text="Use Custom Feedback"
                               RenderStyle="ButtonRenderStyle.Secondary"
                               RenderStyleMode="ButtonRenderStyleMode.Contained"
@@ -419,7 +414,7 @@
                 @if (LastResult.ChangeReview.Status == CodeGenerationReviewStatuses.AwaitingUserDecision && !LastResult.ChangeReview.ApprovalConsumed)
                 {
                     <label class="review-build-choice" title="This is a separate confirmation for the bounded dotnet build after reviewed files are generated.">
-                        <input type="checkbox" @bind="BuildApprovedReview" disabled="@isBusy" />
+                        <DxCheckBox @bind-Checked="BuildApprovedReview" Enabled="@(!(isBusy))" />
                         Also run the bounded .NET build after generation
                     </label>
                     <div class="run-row">

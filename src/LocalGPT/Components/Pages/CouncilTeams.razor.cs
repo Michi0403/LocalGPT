@@ -44,109 +44,173 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Stores the in-memory execution modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(string Value, string Label)> ExecutionModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<string>> ExecutionModes =
     [
-        ("AllMembersParallel", "All role members in parallel"),
-        ("AllMembersSequentialOnEachAIHostParallel", "One role member per AI host at a time; AI hosts in parallel"),
-        ("AllMembersSequential", "All role members sequentially"),
-        ("LeaderSingle", "Council leader or one role member"),
-        ("RoundRobinSingle", "One rotating role member"),
-        ("AssignedModelSingle", "Assigned model only"),
-        ("SystemBenchmarkCalibration", "LocalGPT all-member benchmark calibration engine")
+        new("AllMembersParallel", "All role members in parallel"),
+        new("AllMembersSequentialOnEachAIHostParallel", "One role member per AI host at a time; AI hosts in parallel"),
+        new("AllMembersSequential", "All role members sequentially"),
+        new("LeaderSingle", "Council leader or one role member"),
+        new("RoundRobinSingle", "One rotating role member"),
+        new("AssignedModelSingle", "Assigned model only"),
+        new("SystemBenchmarkCalibration", "LocalGPT all-member benchmark calibration engine")
     ];
     /// <summary>
     /// Stores the in-memory all members readiness preflight modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(CouncilAllMembersReadinessPreflightMode Value, string Label)> AllMembersReadinessPreflightModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilAllMembersReadinessPreflightMode>> AllMembersReadinessPreflightModes =
     [
-        (CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault, "Legacy compatibility (built-in readiness only)"),
-        (CouncilAllMembersReadinessPreflightMode.Disabled, "Disabled"),
-        (CouncilAllMembersReadinessPreflightMode.RoleAwareProbe, "Role-aware probe for every selected member")
+        new(CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault, "Legacy compatibility (built-in readiness only)"),
+        new(CouncilAllMembersReadinessPreflightMode.Disabled, "Disabled"),
+        new(CouncilAllMembersReadinessPreflightMode.RoleAwareProbe, "Role-aware probe for every selected member")
     ];
     /// <summary>
     /// Stores the in-memory automatic function policy modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(CouncilAutomaticFunctionPolicyMode Value, string Label)> AutomaticFunctionPolicyModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilAutomaticFunctionPolicyMode>> AutomaticFunctionPolicyModes =
     [
-        (CouncilAutomaticFunctionPolicyMode.Disabled, "Disabled — expose no automatic/native tools"),
-        (CouncilAutomaticFunctionPolicyMode.AllPolicyApproved, "All registered functions allowed by LocalGPT safety policy"),
-        (CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Use this team's allow-list"),
-        (CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Use this step's exact allow-list")
+        new(CouncilAutomaticFunctionPolicyMode.Disabled, "Disabled — expose no automatic/native tools"),
+        new(CouncilAutomaticFunctionPolicyMode.AllPolicyApproved, "All registered functions allowed by LocalGPT safety policy"),
+        new(CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Use this team's allow-list"),
+        new(CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Use this step's exact allow-list")
     ];
     /// <summary>
     /// Stores the in-memory role result synthesis member modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(CouncilRoleResultSynthesisMemberMode Value, string Label)> RoleResultSynthesisMemberModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilRoleResultSynthesisMemberMode>> RoleResultSynthesisMemberModes =
     [
-        (CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember, "Random assigned role member (stable per run)"),
-        (CouncilRoleResultSynthesisMemberMode.AssignedRoleMember, "One selected role member")
+        new(CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember, "Random assigned role member (stable per run)"),
+        new(CouncilRoleResultSynthesisMemberMode.AssignedRoleMember, "One selected role member")
     ];
     /// <summary>
     /// Stores the in-memory member failure recovery modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(CouncilMemberFailureRecoveryMode Value, string Label)> MemberFailureRecoveryModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilMemberFailureRecoveryMode>> MemberFailureRecoveryModes =
     [
-        (CouncilMemberFailureRecoveryMode.Disabled, "Disabled — preserve failure without automatic round repair"),
-        (CouncilMemberFailureRecoveryMode.RetrySameMember, "Retry the same provider-qualified role member"),
-        (CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool, "After same-member safe fallback, use another eligible member from this role pool")
+        new(CouncilMemberFailureRecoveryMode.Disabled, "Disabled — preserve failure without automatic round repair"),
+        new(CouncilMemberFailureRecoveryMode.RetrySameMember, "Retry the same provider-qualified role member"),
+        new(CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool, "After same-member safe fallback, use another eligible member from this role pool")
     ];
     /// <summary>
     /// Stores the in-memory transcript visibility modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(CouncilTranscriptVisibilityMode Value, string Label)> TranscriptVisibilityModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilTranscriptVisibilityMode>> TranscriptVisibilityModes =
     [
-        (CouncilTranscriptVisibilityMode.FullCouncil, "Full Council transcript"),
-        (CouncilTranscriptVisibilityMode.SameRole, "Only this role"),
-        (CouncilTranscriptVisibilityMode.CurrentRound, "Only this logical round"),
-        (CouncilTranscriptVisibilityMode.SameRoleCurrentRound, "This role in this logical round"),
-        (CouncilTranscriptVisibilityMode.None, "No accumulated transcript")
+        new(CouncilTranscriptVisibilityMode.FullCouncil, "Full Council transcript"),
+        new(CouncilTranscriptVisibilityMode.SameRole, "Only this role"),
+        new(CouncilTranscriptVisibilityMode.CurrentRound, "Only this logical round"),
+        new(CouncilTranscriptVisibilityMode.SameRoleCurrentRound, "This role in this logical round"),
+        new(CouncilTranscriptVisibilityMode.None, "No accumulated transcript")
     ];
     /// <summary>
     /// Stores the in-memory AI selection modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(CouncilRoleAiSelectionMode Value, string Label)> AiSelectionModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilRoleAiSelectionMode>> AiSelectionModes =
     [
-        (CouncilRoleAiSelectionMode.AllSelected, "All selected council AIs"),
-        (CouncilRoleAiSelectionMode.RandomRange, "Random role members within range"),
-        (CouncilRoleAiSelectionMode.AssignedModels, "All exact models from connected providers"),
-        (CouncilRoleAiSelectionMode.AssignedModelsRandomRange, "Random count from exact provider pool (repeats allowed)")
+        new(CouncilRoleAiSelectionMode.AllSelected, "All selected council AIs"),
+        new(CouncilRoleAiSelectionMode.RandomRange, "Random role members within range"),
+        new(CouncilRoleAiSelectionMode.AssignedModels, "All exact models from connected providers"),
+        new(CouncilRoleAiSelectionMode.AssignedModelsRandomRange, "Random count from exact provider pool (repeats allowed)")
     ];
     /// <summary>
     /// Stores the in-memory human participation modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(HumanParticipationMode Value, string Label)> HumanParticipationModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<HumanParticipationMode>> HumanParticipationModes =
     [
-        (HumanParticipationMode.None, "No human role"),
-        (HumanParticipationMode.Optional, "Human may participate"),
-        (HumanParticipationMode.Required, "Human response required"),
-        (HumanParticipationMode.HumanOnly, "Human only; no AI")
+        new(HumanParticipationMode.None, "No human role"),
+        new(HumanParticipationMode.Optional, "Human may participate"),
+        new(HumanParticipationMode.Required, "Human response required"),
+        new(HumanParticipationMode.HumanOnly, "Human only; no AI")
     ];
     /// <summary>
     /// Stores the in-memory performance modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(CouncilRolePerformanceMode Value, string Label)> PerformanceModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilRolePerformanceMode>> PerformanceModes =
     [
-        (CouncilRolePerformanceMode.TaskSpecialist, "Task specialist"),
-        (CouncilRolePerformanceMode.ImprovisationPlayer, "Improvisation player / actor")
+        new(CouncilRolePerformanceMode.TaskSpecialist, "Task specialist"),
+        new(CouncilRolePerformanceMode.ImprovisationPlayer, "Improvisation player / actor")
     ];
     /// <summary>
     /// Stores the in-memory boundary modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(CouncilRoleBoundaryMode Value, string Label)> BoundaryModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilRoleBoundaryMode>> BoundaryModes =
     [
-        (CouncilRoleBoundaryMode.Bounded, "Bounded role"),
-        (CouncilRoleBoundaryMode.Collaborative, "Collaborative role"),
-        (CouncilRoleBoundaryMode.Strict, "Strict role ownership")
+        new(CouncilRoleBoundaryMode.Bounded, "Bounded role"),
+        new(CouncilRoleBoundaryMode.Collaborative, "Collaborative role"),
+        new(CouncilRoleBoundaryMode.Strict, "Strict role ownership")
     ];
     /// <summary>
     /// Stores the in-memory language modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
-    private readonly IReadOnlyList<(CouncilRoleLanguageMode Value, string Label)> LanguageModes =
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilRoleLanguageMode>> LanguageModes =
     [
-        (CouncilRoleLanguageMode.ModelChoice, "Model chooses language"),
-        (CouncilRoleLanguageMode.SenderLanguage, "Match latest human sender"),
-        (CouncilRoleLanguageMode.English, "English")
+        new(CouncilRoleLanguageMode.ModelChoice, "Model chooses language"),
+        new(CouncilRoleLanguageMode.SenderLanguage, "Match latest human sender"),
+        new(CouncilRoleLanguageMode.English, "English")
     ];
+    /// <summary>Gets team choices for the DevExpress team selector.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> TeamSelectionOptions => _teams
+        .Select(team => new LocalGptSelectionOption<string>(team.Key, $"{team.DisplayName} ({team.Key})"))
+        .ToList();
+
+    /// <summary>Gets supplied templates for the DevExpress reset selector.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> ResetTemplateOptions => _defaultTemplates
+        .Select(template => new LocalGptSelectionOption<string>(template.Key, $"{template.DisplayName} ({template.Key})"))
+        .ToList();
+
+    /// <summary>Gets the fixed invocation count when the role's minimum and maximum match.</summary>
+    private int? ExactRoleInvocationCount(OrganicCouncilRoleDefinition role) =>
+        role.MinimumAiParticipants == role.MaximumAiParticipants ? role.MinimumAiParticipants : null;
+
+    /// <summary>Gets provider-qualified model choices for an assigned workflow step.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> WorkflowAssignedModelOptions(CouncilWorkflowStepDefinition step) =>
+        WorkflowModelOptions(step, step.AssignedModelName, "Select provider / host / model");
+
+    /// <summary>Gets provider-qualified model choices for role-result synthesis.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> RoleResultSynthesisModelOptions(CouncilWorkflowStepDefinition step) =>
+        WorkflowModelOptions(step, step.RoleResultSynthesisModelName, "Choose one exact role member");
+
+    /// <summary>Builds a provider-qualified workflow-model choice list while preserving unavailable saved bindings.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> WorkflowModelOptions(CouncilWorkflowStepDefinition step, string? selectedValue, string emptyLabel)
+    {
+        var options = new List<LocalGptSelectionOption<string>> { new(string.Empty, emptyLabel) };
+        if (!string.IsNullOrWhiteSpace(selectedValue) && !IsWorkflowModelAvailable(selectedValue))
+            options.Add(new(selectedValue, $"Saved but unavailable · {selectedValue}"));
+        options.AddRange(WorkflowModelCandidates(step)
+            .Select(candidate => new LocalGptSelectionOption<string>(candidate.SelectionKey, $"{candidate.Provider} · {candidate.ModelName} · {candidate.Endpoint}")));
+        return options;
+    }
+
+    /// <summary>Gets legal revisit targets up to and including the current workflow step.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> XRevisitTargetOptions(int stepIndex) =>
+        [new(string.Empty, "Require the AI to name a target"),
+         .. _editor.WorkflowSteps.Take(stepIndex + 1)
+             .Select(step => new LocalGptSelectionOption<string>(step.Key, $"{step.DisplayName} · {step.Key}"))];
+
+    /// <summary>Gets child-Council choices while preserving a saved unavailable team key.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> XChildCouncilTeamOptions(CouncilWorkflowStepDefinition step)
+    {
+        var options = new List<LocalGptSelectionOption<string>> { new(string.Empty, "Require teamKey in the X call") };
+        if (!string.IsNullOrWhiteSpace(step.XChildCouncilTeamKey) && !_teams.Any(team => team.Key.Equals(step.XChildCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
+            options.Add(new(step.XChildCouncilTeamKey, $"Saved but unavailable · {step.XChildCouncilTeamKey}"));
+        options.AddRange(_teams.Where(team => team.IsEnabled)
+            .Select(team => new LocalGptSelectionOption<string>(team.Key, $"{team.DisplayName} · {team.Key}")));
+        return options;
+    }
+
+    /// <summary>Gets single-model X child choices while preserving a saved unavailable provider binding.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> XChildModelOptions(CouncilWorkflowStepDefinition step)
+    {
+        var options = new List<LocalGptSelectionOption<string>> { new(string.Empty, "Use the current Council leader") };
+        if (!string.IsNullOrWhiteSpace(step.XChildModelName) && !IsWorkflowModelAvailable(step.XChildModelName))
+            options.Add(new(step.XChildModelName, $"Saved but unavailable · {step.XChildModelName}"));
+        options.AddRange(_providerModels
+            .Where(model => model.IsInstalled || model.IsConfigured)
+            .OrderBy(model => model.Provider)
+            .ThenBy(model => model.ModelName)
+            .Select(candidate => new LocalGptSelectionOption<string>(candidate.SelectionKey, $"{candidate.Provider} · {candidate.ModelName} · {candidate.Endpoint}")));
+        return options;
+    }
+
     /// <summary>
     /// Stores the in-memory teams collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>

@@ -1,11 +1,11 @@
-# LocalGPT 4.5.1
+# LocalGPT 4.6.1
 
-LocalGPT 4.5.1 is the compile/build-guard repair release for the 4.5.0 ASCII color system. It preserves the full ANSI-16/indexed-256 presentation contract, the terminal-default black/green compatibility path, existing DOOM/Green Dragon/Kernel Tournament/hot-seat integration, custom Game-project palette authoring, and the small-model Project/knowledge/regex guidance introduced in 4.5.0.
+LocalGPT 4.6.1 is a narrow startup hotfix for the service-lifetime regression in 4.6.0. The user-provided Windows runtime log showed service-provider validation rejecting `IHumanCollaborationService` because the singleton `HumanCollaborationService` directly captured scoped `IKnowledgeFreshnessReviewService`.
 
-The repair moves styled-frame and animation presentation-signature string projection out of `ChatGameConsole.razor` and into the already injected `AsciiChatTextService`, restoring the repository's text-service ownership boundary. The component now remains presentation/orchestration-only while the service owns the bounded `string.Join` work and diagnostics.
+The singleton lifetime is intentionally preserved because hosted 1-Wire and collaboration infrastructure depend on it. Instead of weakening those ownership boundaries, `HumanCollaborationService` now injects the singleton-safe `IServiceScopeFactory` and creates a short-lived scope only when a `knowledge.freshness.*` decision needs the scoped freshness-review service.
 
-The Kernel Creature Tournament compile regression is also corrected. Tournament animation and current-frame semantic style generation now call the maintained five-argument `BuildSemanticAsciiStyleRuns(gameKey, runtimeProfile, frame, frameWidth, frameHeight)` contract explicitly. This keeps tournament color semantics unchanged while matching the actual service signature.
+A 4.6.1 release audit now asserts the intended singleton/scoped registrations, forbids direct constructor capture of `IKnowledgeFreshnessReviewService` by `HumanCollaborationService`, and requires scoped resolution at the post-decision call site. The 4.6.0 UI/editor and Council compile corrections remain unchanged.
 
-No seed-data bump was needed for this repair: Council team seed version remains 33 and runtime-class seed version remains 7. The wire protocol remains unchanged. Browser cache keys, package/application versions, user-agent strings and documentation release identity are advanced to 4.5.1.
+This release intentionally does not start the broader multi-LocalGPT pairing/orchestration, curator-gate, generic project ingestion, blob reconstruction, or semantic ASCII mouse/action work. Those changes are deferred until this repaired baseline is tested by the user.
 
-Validation remains source/static only in this environment: no `dotnet` restore, compile, build or publish and no GitHub/online repository access were used. The supplied Visual Studio build diagnostics were used as the concrete regression targets, and the repository's maintained static audits are rerun against the repaired source and again after clean ZIP extraction where supported.
+No PublisherStudio source change is required for this LocalGPT-only hotfix.

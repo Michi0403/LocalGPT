@@ -250,6 +250,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IDocumentationCatalogService, DocumentationCatalogService>();
                 builder.Services.AddScoped<IDocumentationViewerService, DocumentationViewerService>();
                 builder.Services.AddScoped<IRemoteKnowledgeImportService, RemoteKnowledgeImportService>();
+                builder.Services.AddScoped<IKnowledgeFreshnessReviewService, KnowledgeFreshnessReviewService>();
                 builder.Services.AddScoped<IRemoteControlTemplateService, RemoteControlTemplateService>();
                 builder.Services.AddScoped<IRemoteControlTransportService, RemoteControlTransportService>();
                 builder.Services.AddScoped<IRemoteControlExecutionStoreService, RemoteControlExecutionStoreService>();

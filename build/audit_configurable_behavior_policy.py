@@ -74,7 +74,7 @@ try:
 
     config = 'src/LocalGPT/Services/CouncilTeamConfigurationService.cs'
     for needle in [
-        'private const int CurrentSeedVersion = 33;',
+        'private const int CurrentSeedVersion = 36;',
         'GetDefaultTemplatesAsync',
         'DeleteAsync',
         'ResetToTemplateAsync',

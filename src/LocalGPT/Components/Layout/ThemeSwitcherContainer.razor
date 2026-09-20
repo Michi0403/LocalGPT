@@ -15,7 +15,7 @@
                 <strong>@T("Theme Fusion")</strong>
                 <small>@ThemeRouteSummary</small>
             </div>
-            <button type="button" class="localgpt-native-button" @onclick="CloseAsync">@T("Done")</button>
+            <DxButton CssClass="localgpt-native-button" Click="CloseAsync">@T("Done")</DxButton>
         </div>
         <div class="blazor-themes blazor-scroll-view">
             <section class="theme-layer-section" aria-label="@(T("Base theme"))">
@@ -96,12 +96,11 @@
                     }
 
                     <div class="theme-route-reset">
-                        <button type="button"
-                                class="localgpt-native-button"
-                                disabled="@(Themes.ThemeChangeRequestDispatcher is null)"
-                                @onclick="ResetFusionRouteAsync">
+                        <DxButton
+                                CssClass="localgpt-native-button" Enabled="@(!(Themes.ThemeChangeRequestDispatcher is null))"
+                                Click="ResetFusionRouteAsync">
                             @T("Reset route")
-                        </button>
+                        </DxButton>
                         <small>@T("Keeps the current Base Theme and Style Layer, removes earlier swaps, then reloads the page cleanly.")</small>
                     </div>
                 </div>

@@ -10,11 +10,10 @@
     <header class="provider-model-heading">
         @if (ShowSelection)
         {
-            <input id="@SelectionId"
-                   type="checkbox"
-                   checked="@Selected"
-                   @onchange="OnSelectionChangedAsync"
-                   aria-label="@($"Select {Model.DisplayName} from {Model.EndpointLabel}")" />
+            <DxCheckBox id="@SelectionId"
+                        Checked="@Selected"
+                        CheckedChanged="@((bool value) => OnSelectionChangedAsync(value))"
+                        aria-label="@($"Select {Model.DisplayName} from {Model.EndpointLabel}")" />
         }
         <div class="provider-model-title">
             <strong id="@HeadingId">@Model.ModelName</strong>
@@ -43,41 +42,40 @@
     <div class="provider-model-commandbar" role="group" aria-label="@($"Actions for {Model.DisplayName}")">
         @if (ShowUseAction)
         {
-            <button type="button" class="model-action model-action-primary" @onclick="ActivateAsync">@UseActionText</button>
+            <DxButton CssClass="model-action model-action-primary" Click="ActivateAsync">@UseActionText</DxButton>
         }
         <details class="provider-model-menu">
             <summary class="model-action" aria-label="@(T("Open model actions"))">@T("Actions")</summary>
             <div class="provider-model-menu-items" role="menu">
                 @if (showProperties)
                 {
-                    <button type="button"
+                    <DxButton
                             role="menuitem"
-                            class="btn btn-sm btn-outline-secondary"
-                            @onclick="ToggleProperties"
+                            CssClass="btn btn-sm btn-outline-secondary"
+                            Click="ToggleProperties"
                             aria-expanded="true"
-                            aria-controls="@PropertiesId">@T("Hide properties")</button>
+                            aria-controls="@PropertiesId">@T("Hide properties")</DxButton>
                 }
                 else
                 {
-                    <button type="button"
+                    <DxButton
                             role="menuitem"
-                            class="btn btn-sm btn-outline-secondary"
-                            @onclick="ToggleProperties"
+                            CssClass="btn btn-sm btn-outline-secondary"
+                            Click="ToggleProperties"
                             aria-expanded="false"
-                            aria-controls="@PropertiesId">@T("Properties")</button>
+                            aria-controls="@PropertiesId">@T("Properties")</DxButton>
                 }
-                <button type="button"
+                <DxButton
                         role="menuitem"
-                        class="btn btn-sm btn-outline-secondary"
-                        disabled="@(!Model.SupportsBenchmark || isBusy)"
-                        @onclick="ToggleBenchmark"
+                        CssClass="btn btn-sm btn-outline-secondary" Enabled="@(!(!Model.SupportsBenchmark || isBusy))"
+                        Click="ToggleBenchmark"
                         aria-expanded="@showBenchmark"
-                        aria-controls="@BenchmarkId">@(showBenchmark ? T("Hide benchmark") : T("Benchmark"))</button>
+                        aria-controls="@BenchmarkId">@(showBenchmark ? T("Hide benchmark") : T("Benchmark"))</DxButton>
             </div>
         </details>
         @if (isBusy)
         {
-            <button type="button" class="model-action" @onclick="CancelBenchmark">@T("Cancel")</button>
+            <DxButton CssClass="model-action" Click="CancelBenchmark">@T("Cancel")</DxButton>
         }
         @if (activeRunId is Guid)
         {
@@ -113,14 +111,14 @@
             <div class="benchmark-config-grid">
                 <label>
                     <span>Profile plan</span>
-                    <select class="form-select" @bind="profileMode">
-                        <option value="@ProviderModelBenchmarkProfileMode.EvenlySpaced">Evenly spaced to maximum</option>
-                        <option value="@ProviderModelBenchmarkProfileMode.Adaptive">Adaptive named profiles (legacy)</option>
-                    </select>
+                    <DxComboBox Data="@BenchmarkProfileModeOptions"
+                            @bind-Value="profileMode"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<ProviderModelBenchmarkProfileMode>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<ProviderModelBenchmarkProfileMode>.Label)" />
                 </label>
                 <label>
                     <span>@(profileMode == ProviderModelBenchmarkProfileMode.EvenlySpaced ? "Even steps" : "Adaptive profiles")</span>
-                    <input class="form-control" type="number" min="1" step="1" @bind="maxProfiles" />
+                    <DxSpinEdit @bind-Value="maxProfiles" MinValue="1" Increment="1" />
                 </label>
                 <BoundedNumberEditor Label="Tasks" Min="1" Max="4" Value="@maxTasks" ValueChanged="@(value => maxTasks = value)" />
                 <BoundedNumberEditor Label="Timeout seconds" Min="10" Max="900" Step="10" Suffix=" s" Value="@maxSeconds" ValueChanged="@(value => maxSeconds = value)" />
@@ -132,18 +130,18 @@
                 }
                 <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="OnMaximumContextChanged" />
                 <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="OnMaximumOutputChanged" />
-                <label class="benchmark-check form-check"><input class="form-check-input" type="checkbox" @bind="includeCouncilReview" /> <span>@T("Council review")</span></label>
-                <label class="benchmark-check form-check"><input class="form-check-input" type="checkbox" @bind="stopWhenImprovementStalls" /> <span>Allow early stop</span></label>
+                <label class="benchmark-check form-check"><DxCheckBox @bind-Checked="includeCouncilReview" CssClass="form-check-input" /> <span>@T("Council review")</span></label>
+                <label class="benchmark-check form-check"><DxCheckBox @bind-Checked="stopWhenImprovementStalls" CssClass="form-check-input" /> <span>Allow early stop</span></label>
                 @if (profileMode == ProviderModelBenchmarkProfileMode.Adaptive)
                 {
-                    <label class="benchmark-check form-check"><input class="form-check-input" type="checkbox" @bind="includeCpuSafeControl" /> <span>CPU-safe control</span></label>
+                    <label class="benchmark-check form-check"><DxCheckBox @bind-Checked="includeCpuSafeControl" CssClass="form-check-input" /> <span>CPU-safe control</span></label>
                 }
             </div>
             <p class="benchmark-council-summary">
                 @T("Review council"):@(" " + ReviewerSummary)
             </p>
             <div class="provider-model-actions">
-                <button type="button" class="model-action model-action-primary" disabled="@isBusy" @onclick="RunBenchmarkAsync">Run bounded benchmark</button>
+                <DxButton CssClass="model-action model-action-primary" Enabled="@(!isBusy)" Click="RunBenchmarkAsync">Run bounded benchmark</DxButton>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(statusText))
@@ -178,6 +176,12 @@
 </article>
 
 @code {
+    private IReadOnlyList<LocalGptSelectionOption<ProviderModelBenchmarkProfileMode>> BenchmarkProfileModeOptions { get; } =
+    [
+        new(ProviderModelBenchmarkProfileMode.EvenlySpaced, "Evenly spaced to maximum"),
+        new(ProviderModelBenchmarkProfileMode.Adaptive, "Adaptive named profiles (legacy)")
+    ];
+
     /// <summary>
     /// Performs t for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
     /// </summary>
@@ -372,13 +376,10 @@
     /// <summary>
     /// Handles the selection changed async lifecycle or event notification for <see cref="ProviderModelPanel"/>, updating the state required by the surrounding workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the provider model panel operation and used when producing its result.</param>
+    /// <param name="selected">The selected state reported by the DevExpress checkbox.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    async Task OnSelectionChangedAsync(ChangeEventArgs args)
+    async Task OnSelectionChangedAsync(bool selected)
     {
-        var selected = args.Value is bool value
-            ? value
-            : bool.TryParse(Convert.ToString(args.Value), out var parsed) && parsed;
         await SelectedChanged.InvokeAsync(selected).ConfigureAwait(false);
     }
 

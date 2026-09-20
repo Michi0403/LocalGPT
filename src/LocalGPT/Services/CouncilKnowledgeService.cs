@@ -88,6 +88,25 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Retrieves one persisted knowledge entry by its stable identifier.</summary>
+        public async Task<CouncilKnowledgeEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
+                return await db.CouncilKnowledgeEntries.AsNoTracking()
+                    .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error retrieving Council knowledge entry {KnowledgeEntryId}.", id);
+                throw;
+            }
+        }
+
         /// <summary>
         /// Persists entry as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
@@ -253,7 +272,9 @@ namespace LocalGPT.Services
                     builder
                         .Append("- ")
                         .Append(entry.Topic)
-                        .Append(" [")
+                        .Append(" [knowledgeId ")
+                        .Append(entry.Id)
+                        .Append(", ")
                         .Append(entry.Scope)
                         .Append(", ")
                         .Append(trust)

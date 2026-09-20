@@ -38,6 +38,13 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     public partial class Chat
     {
+    /// <summary>Tracks the last live-Council availability published to the browser composer bridge so streaming renders do not repeat JS interop.</summary>
+    private bool? lastCouncilComposerAvailability;
+    /// <summary>Tracks the last Council run id published to the reconnect bridge so streaming token renders remain renderer-light.</summary>
+    private Guid? lastReconnectCouncilRunId;
+    /// <summary>Tracks whether the reconnect bridge has received its initial null/non-null run value.</summary>
+    private bool reconnectCouncilRunPublished;
+
     /// <summary>
     /// Handles the after render async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
     /// </summary>
@@ -55,8 +62,8 @@ namespace LocalGPT.Components.Pages
                 interactiveAttached = true;
                 chatInteropReference ??= DotNetObjectReference.Create(this);
                 if (AutoStartCouncilStarter || !string.IsNullOrWhiteSpace(RequestedCouncilStarterKey))
-                    await JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").ConfigureAwait(false);
-                Logger.LogInformation($"Chat interactive render attached; waiting for the DXAiChat control before background work starts.");
+                    await JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").ConfigureAwait(true);
+                Logger.LogInformation("Chat interactive render attached; waiting for the DXAiChat control before background work starts.");
                 ComponentActivity.RecordInformation(nameof(Chat), "InteractiveAttach", "The Chat page attached to the interactive circuit and is waiting for its chat control.");
                 if (!initialStateInitializationStarted)
                 {
@@ -70,21 +77,39 @@ namespace LocalGPT.Components.Pages
                 ScheduleChatRuntimeActivation();
             }
 
-            if (chatInteropReference is not null)
+            var composerAvailable = IsLiveCouncilInteractionAvailable;
+            if (chatInteropReference is not null && lastCouncilComposerAvailability != composerAvailable)
             {
                 await JS.InvokeVoidAsync(
                     "localGptChatUi.registerCouncilComposer",
                     chatInteropReference,
-                    IsLiveCouncilInteractionAvailable).ConfigureAwait(false);
+                    composerAvailable).ConfigureAwait(true);
+                lastCouncilComposerAvailability = composerAvailable;
             }
 
-            await JS.InvokeVoidAsync(
-                "localGptReconnect.setCouncilRun",
-                ResolveRunningCouncilRunId()?.ToString()).ConfigureAwait(false);
+            var runningCouncilRunId = ResolveRunningCouncilRunId();
+            if (!reconnectCouncilRunPublished || lastReconnectCouncilRunId != runningCouncilRunId)
+            {
+                await JS.InvokeVoidAsync(
+                    "localGptReconnect.setCouncilRun",
+                    runningCouncilRunId?.ToString()).ConfigureAwait(true);
+                lastReconnectCouncilRunId = runningCouncilRunId;
+                reconnectCouncilRunPublished = true;
+            }
         }
-        catch (JSDisconnectedException) when (isDisposed)
+        catch (TaskCanceledException exception)
         {
-            // The browser circuit disconnected while the Chat page was being disposed.
+            // JS interop is cancelled during circuit reconnect/navigation. Treat this as a transient UI condition;
+            // the next render republishes the composer/rejoin state instead of faulting the server-side component.
+            lastCouncilComposerAvailability = null;
+            reconnectCouncilRunPublished = false;
+            Logger.LogDebug(exception, "Chat JS interop was cancelled while the interactive circuit was changing state.");
+        }
+        catch (JSDisconnectedException exception)
+        {
+            lastCouncilComposerAvailability = null;
+            reconnectCouncilRunPublished = false;
+            Logger.LogDebug(exception, "Chat JS interop stopped because the browser circuit disconnected.");
         }
         catch (Exception ex)
         {
@@ -334,13 +359,12 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Handles the provider selection changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <param name="selectedName">Stable provider-session key selected by the DevExpress combo box.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task OnProviderSelectionChanged(ChangeEventArgs args)
+    private async Task OnProviderSelectionChanged(string selectedName)
     {
         try
         {
-            var selectedName = args.Value?.ToString();
             if (string.IsNullOrWhiteSpace(selectedName)) return;
             var selectedSession = ModelsList.FirstOrDefault(session =>
                 string.Equals(session.Name, selectedName, StringComparison.Ordinal));

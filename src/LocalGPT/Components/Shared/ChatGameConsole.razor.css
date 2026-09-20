@@ -153,7 +153,8 @@
     box-shadow:0 0 .8rem color-mix(in srgb, var(--bs-warning) 55%, transparent);
 }
 
-.chat-game-console:fullscreen {
+.chat-game-console:fullscreen,
+.chat-game-console.localgpt-game-fullscreen {
     width:100vw;
     height:100vh;
     border-radius:0;
@@ -161,15 +162,21 @@
     grid-template-rows:auto minmax(0,1fr) auto;
     background:#020704;
 }
-.chat-game-console:fullscreen .chat-game-console-close { position: sticky; top: 0; right: 0; }
-.chat-game-console:fullscreen .chat-game-stage { min-height:0; height:100%; }
-.chat-game-console:fullscreen[data-scale-mode="native"] .chat-game-screen { font-size:.9rem !important; }
+.chat-game-console:fullscreen .chat-game-console-close,
+.chat-game-console.localgpt-game-fullscreen .chat-game-console-close { position: sticky; top: 0; right: 0; }
+.chat-game-console:fullscreen .chat-game-stage,
+.chat-game-console.localgpt-game-fullscreen .chat-game-stage { min-height:0; height:100%; }
+.chat-game-console:fullscreen[data-scale-mode="native"] .chat-game-screen,
+.chat-game-console.localgpt-game-fullscreen[data-scale-mode="native"] .chat-game-screen { font-size:.9rem !important; }
 .chat-game-console:fullscreen[data-scale-mode="fit"] .chat-game-screen,
-.chat-game-console:fullscreen[data-scale-mode="width"] .chat-game-screen {
+.chat-game-console:fullscreen[data-scale-mode="width"] .chat-game-screen,
+.chat-game-console.localgpt-game-fullscreen[data-scale-mode="fit"] .chat-game-screen,
+.chat-game-console.localgpt-game-fullscreen[data-scale-mode="width"] .chat-game-screen {
     min-width:0;
     font-size:var(--localgpt-game-fit-font-size, 1rem);
 }
-.chat-game-console:fullscreen[data-scale-mode="native"] .chat-game-screen-viewport { place-items:start; }
+.chat-game-console:fullscreen[data-scale-mode="native"] .chat-game-screen-viewport,
+.chat-game-console.localgpt-game-fullscreen[data-scale-mode="native"] .chat-game-screen-viewport { place-items:start; }
 
 @media (max-width: 1000px) {
     .chat-game-stage.has-guide { grid-template-columns: minmax(0,1fr) minmax(15rem,20rem); }
@@ -193,23 +200,15 @@
     .chat-game-touch-grid button { min-height:2.7rem; padding:.3rem; }
 }
 
-/* v2.2.1 runtime stabilization: keep the guide mounted, retain control focus,
-   and reserve equal guide-sized gutters so the ASCII frame remains centered against
-   the complete stage rather than shifting into the space left beside the guide. */
+/* v4.5.2: the game canvas uses the available width directly. The former mirrored
+   left gutter made a real game look like half of fullscreen was unused. */
 .chat-game-console,
 .chat-game-stage {
     overflow-anchor: none;
 }
 
 .chat-game-stage.has-guide {
-    grid-template-columns: clamp(18rem, 24vw, 25rem) minmax(0, 1fr) clamp(18rem, 24vw, 25rem);
-}
-
-.chat-game-stage.has-guide::before {
-    content: "";
-    grid-column: 1;
-    grid-row: 1;
-    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) clamp(18rem, 24vw, 25rem);
 }
 
 .chat-game-screen-viewport {
@@ -222,7 +221,7 @@
 }
 
 .chat-game-stage.has-guide .chat-game-screen-viewport {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
 }
 
@@ -238,7 +237,7 @@
 }
 
 .chat-game-stage.has-guide .chat-game-control-guide {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
 }
 
@@ -256,7 +255,7 @@
 
 @media (max-width: 1000px) {
     .chat-game-stage.has-guide {
-        grid-template-columns: clamp(15rem, 28vw, 20rem) minmax(0, 1fr) clamp(15rem, 28vw, 20rem);
+        grid-template-columns: minmax(0, 1fr) clamp(15rem, 28vw, 20rem);
     }
 }
 
@@ -264,10 +263,6 @@
     .chat-game-stage.has-guide {
         grid-template-columns: 1fr;
         grid-template-rows: minmax(12rem, 1fr) auto;
-    }
-
-    .chat-game-stage.has-guide::before {
-        display: none;
     }
 
     .chat-game-stage.has-guide .chat-game-screen-viewport {
@@ -624,10 +619,13 @@
     }
 }
 
-/* v4.3.8: fullscreen now applies consistently to chat, game and Operator planes. */
+/* v4.3.8/v4.5.2: fullscreen applies consistently even when the DevExpress popup root owns browser fullscreen. */
 .chat-game-console:fullscreen .ascii-operator-stage,
 .chat-game-console:fullscreen .ascii-conversation-stage,
-.chat-game-console:fullscreen .chat-game-console-placeholder {
+.chat-game-console:fullscreen .chat-game-console-placeholder,
+.chat-game-console.localgpt-game-fullscreen .ascii-operator-stage,
+.chat-game-console.localgpt-game-fullscreen .ascii-conversation-stage,
+.chat-game-console.localgpt-game-fullscreen .chat-game-console-placeholder {
     height: 100%;
     min-height: 0;
     max-height: none;
@@ -685,4 +683,52 @@
 .chat-game-hotseat-text ::deep input,
 .chat-game-scenario-row ::deep textarea {
     font-family: "Cascadia Mono","Consolas","DejaVu Sans Mono",monospace;
+}
+
+
+/* v4.5.2: live preparation feedback keeps long Council setup visibly active without changing the authoritative frame. */
+.chat-game-live-status {
+    position: absolute;
+    inset-inline: .75rem;
+    top: .65rem;
+    z-index: 4;
+    margin-inline: auto;
+    width: fit-content;
+    max-width: calc(100% - 1.5rem);
+    padding: .35rem .6rem;
+    border: 1px solid rgba(0,255,255,.38);
+    border-radius: 999px;
+    background: rgba(2,7,4,.9);
+    color: #a8ffb5;
+    font-family: "Cascadia Mono","Consolas","DejaVu Sans Mono",monospace;
+    font-size: .72rem;
+    text-align: center;
+    pointer-events: none;
+}
+
+/* 4.5.7: non-game Council review/function requests remain operable in ASCII Chat mode. */
+.ascii-conversation-request {
+    margin: .65rem;
+    border-color: color-mix(in srgb, var(--bs-info, #0dcaf0) 45%, var(--bs-border-color));
+    background: color-mix(in srgb, #020704 88%, var(--bs-info, #0dcaf0) 12%);
+    color: #d7ffd7;
+}
+.ascii-conversation-request small { color: #a8c9ae; }
+
+/* 4.5.7: The Game plane also hosts bounded non-game Council review/function requests. */
+.council-work-surface {
+    min-height: 0;
+}
+
+.council-work-screen {
+    display: grid;
+    align-content: start;
+    gap: .8rem;
+    padding: .8rem;
+    overflow: auto;
+}
+
+.council-work-request {
+    width: min(52rem, 100%);
+    margin-inline: auto;
 }

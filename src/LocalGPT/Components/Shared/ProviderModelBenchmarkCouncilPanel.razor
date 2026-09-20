@@ -18,14 +18,14 @@
     <div class="benchmark-council-config">
         <label>
             <span>Profile plan</span>
-            <select class="form-select" @bind="profileMode">
-                <option value="@ProviderModelBenchmarkProfileMode.EvenlySpaced">Evenly spaced to maximum</option>
-                <option value="@ProviderModelBenchmarkProfileMode.Adaptive">Adaptive named profiles (legacy)</option>
-            </select>
+            <DxComboBox Data="@BenchmarkProfileModeOptions"
+                            @bind-Value="profileMode"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<ProviderModelBenchmarkProfileMode>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<ProviderModelBenchmarkProfileMode>.Label)" />
         </label>
         <label>
             <span>@(profileMode == ProviderModelBenchmarkProfileMode.EvenlySpaced ? "Even steps per model" : "Adaptive profiles per model")</span>
-            <input class="form-control" type="number" min="1" step="1" @bind="maxProfiles" />
+            <DxSpinEdit @bind-Value="maxProfiles" MinValue="1" Increment="1" />
         </label>
         <BoundedNumberEditor Label="Tasks per profile" Min="1" Max="4" Value="@maxTasks" ValueChanged="@(value => maxTasks = value)" />
         <BoundedNumberEditor Label="Timeout seconds" Min="10" Max="900" Step="10" Suffix=" s" Value="@maxSeconds" ValueChanged="@(value => maxSeconds = value)" />
@@ -38,19 +38,19 @@
         <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="OnMaximumContextChanged" />
         <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="OnMaximumOutputChanged" />
         <label class="benchmark-option">
-            <input type="checkbox" @bind="stopWhenImprovementStalls" />
+            <DxCheckBox @bind-Checked="stopWhenImprovementStalls" />
             <span>Allow improvement-based early stop</span>
         </label>
         @if (profileMode == ProviderModelBenchmarkProfileMode.Adaptive)
         {
             <label class="benchmark-option">
-                <input type="checkbox" @bind="includeCpuSafeControl" />
+                <DxCheckBox @bind-Checked="includeCpuSafeControl" />
                 <span>Include Ollama CPU-safe control</span>
             </label>
         }
         <label>
             <span>Reviewers per recommendation</span>
-            <input class="form-control" type="number" min="0" step="1" @bind="maxCouncilReviewers" />
+            <DxSpinEdit @bind-Value="maxCouncilReviewers" MinValue="0" Increment="1" />
         </label>
     </div>
 
@@ -61,9 +61,8 @@
             @foreach (var reviewer in Models.OrderBy(ReviewerPolicy.GetPriority).ThenBy(model => model.DisplayName, StringComparer.OrdinalIgnoreCase))
             {
                 <label>
-                    <input type="checkbox"
-                           checked="@reviewerSelectionKeys.Contains(reviewer.SelectionKey)"
-                           @onchange="args => ToggleReviewer(reviewer.SelectionKey, args)" />
+                    <DxCheckBox Checked="@reviewerSelectionKeys.Contains(reviewer.SelectionKey)"
+                                CheckedChanged="@((bool selected) => ToggleReviewer(reviewer.SelectionKey, selected))" />
                     <span>@reviewer.DisplayName</span>
                 </label>
             }
@@ -71,10 +70,10 @@
     </details>
 
     <div class="benchmark-council-actions">
-        <button type="button" class="btn btn-primary" disabled="@(isBusy || Models.Count == 0)" @onclick="RunAsync">Benchmark all selected models</button>
+        <DxButton CssClass="btn btn-primary" Enabled="@(!(isBusy || Models.Count == 0))" Click="RunAsync">Benchmark all selected models</DxButton>
         @if (isBusy)
         {
-            <button type="button" class="btn btn-outline-danger" @onclick="Cancel">Cancel</button>
+            <DxButton CssClass="btn btn-outline-danger" Click="Cancel">Cancel</DxButton>
         }
         @if (activeRunId is Guid)
         {
@@ -130,6 +129,12 @@
 </section>
 
 @code {
+    private IReadOnlyList<LocalGptSelectionOption<ProviderModelBenchmarkProfileMode>> BenchmarkProfileModeOptions { get; } =
+    [
+        new(ProviderModelBenchmarkProfileMode.EvenlySpaced, "Evenly spaced to maximum"),
+        new(ProviderModelBenchmarkProfileMode.Adaptive, "Adaptive named profiles (legacy)")
+    ];
+
     /// <summary>
     /// Gets or sets the models collection maintained or exposed by this provider model benchmark council panel instance for downstream processing.
     /// </summary>
@@ -400,10 +405,9 @@
     /// Performs toggle reviewer for <see cref="ProviderModelBenchmarkCouncilPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark council panel workflow.
     /// </summary>
     /// <param name="selectionKey">Selection key value supplied to the provider model benchmark council panel operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the provider model benchmark council panel operation and used when producing its result.</param>
-    void ToggleReviewer(string selectionKey, ChangeEventArgs args)
+    /// <param name="selected">Whether the reviewer is selected.</param>
+    void ToggleReviewer(string selectionKey, bool selected)
     {
-        var selected = args.Value is bool value && value;
         if (selected)
             reviewerSelectionKeys.Add(selectionKey);
         else

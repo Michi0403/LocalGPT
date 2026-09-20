@@ -542,7 +542,7 @@
    is rendered in the stage, while the left rail remains stable and independently usable. */
 .install-workbench-layout {
     display: grid;
-    grid-template-columns: minmax(13.5rem, 18rem) minmax(0, 1fr);
+    grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
     gap: .85rem;
     align-items: start;
     min-width: 0;
@@ -679,7 +679,7 @@
 }
 
 .install-workbench-layout {
-    grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr) !important;
+    grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr) !important;
     align-items: stretch;
 }
 
@@ -731,8 +731,8 @@
 
 .configured-host-hardware-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-    gap: .6rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .7rem;
     margin: .6rem 0;
 }
 
@@ -783,7 +783,7 @@
 
 .provider-install-guide-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: .8rem;
 }
 

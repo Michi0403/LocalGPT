@@ -27,11 +27,22 @@
 }
 
 .council-runtime-class-option {
-    display: flex;
-    gap: 0.5rem;
-    align-items: flex-start;
-    margin-bottom: 0.4rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.7rem;
+    align-items: start;
+    margin: 0;
+    padding: 0.6rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 68%, transparent);
+    cursor: pointer;
 }
+
+.council-runtime-class-option:last-child { border-bottom: 0; }
+.council-runtime-class-option > span { display: grid; min-width: 0; gap: .1rem; line-height: 1.28; }
+.council-runtime-class-option strong,
+.council-runtime-class-option small { overflow-wrap: break-word; word-break: normal; }
+::deep .council-runtime-class-checkbox,
+::deep .council-provider-model-checkbox { align-self: start; margin-top: .15rem; flex: 0 0 auto; }
 
 .council-runtime-class-option small,
 .council-runtime-class-preview small {
@@ -53,8 +64,56 @@
     flex-wrap: wrap;
 }
 
-.council-runtime-class-preview table {
-    color: var(--bs-body-color);
+.council-runtime-field-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .55rem;
+    margin-top: .65rem;
+}
+
+.council-runtime-field-card {
+    display: grid;
+    gap: .5rem;
+    min-width: 0;
+    padding: .65rem;
+    border: 1px solid color-mix(in srgb, var(--bs-border-color) 78%, transparent);
+    border-radius: .4rem;
+    background: var(--bs-tertiary-bg);
+}
+
+.council-runtime-field-card header {
+    display: grid;
+    gap: .1rem;
+}
+
+.council-runtime-field-card dl {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .38rem;
+    margin: 0;
+}
+
+.council-runtime-field-card dl > div {
+    display: grid;
+    grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+    gap: .65rem;
+    min-width: 0;
+}
+
+.council-runtime-field-card dt {
+    color: var(--bs-secondary-color);
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.council-runtime-field-card dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: break-word;
+}
+
+@media (max-width: 720px) {
+    .council-runtime-field-card dl > div { grid-template-columns: minmax(0, 1fr); gap: .08rem; }
 }
 
 .council-provider-model-picker {
@@ -90,13 +149,14 @@
 }
 .council-provider-model-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
 }
 
 .council-provider-model-option {
-    display: flex;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.7rem;
     align-items: flex-start;
     margin: 0;
     padding: 0.6rem;

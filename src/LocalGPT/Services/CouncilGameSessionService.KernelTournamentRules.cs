@@ -64,6 +64,11 @@ public sealed partial class CouncilGameSessionService
                 GuardReduction = ReadTournamentRule(fields, "guardReduction", 7, 0, maximumDamage - 1),
                 RecoveryAmount = ReadTournamentRule(fields, "recoveryAmount", 6, 0, startingHealth),
                 MaximumExchangesPerMatch = ReadTournamentRule(fields, "maximumExchangesPerMatch", 12, 1, 50),
+                CreaturesPerTrainer = ReadTournamentRule(fields, "creaturesPerTrainer", 3, 1, 5),
+                MaximumCreatureSwitchesPerFight = ReadTournamentRule(fields, "maximumCreatureSwitchesPerFight", 3, 0, 12),
+                RestRecoveryPerExchange = ReadTournamentRule(fields, "restRecoveryPerExchange", 3, 0, startingHealth),
+                TrainerFocusBonus = ReadTournamentRule(fields, "trainerFocusBonus", 2, 0, maximumDamage),
+                TrainerBraceReduction = ReadTournamentRule(fields, "trainerBraceReduction", 2, 0, maximumDamage),
                 AnimationFrameDelayMilliseconds = ReadTournamentRule(fields, "animationFrameDelayMilliseconds", 320, 250, 5000),
                 SubtitleHoldMilliseconds = ReadTournamentRule(fields, "subtitleHoldMilliseconds", 1500, 500, 10000)
             };
@@ -84,6 +89,8 @@ public sealed partial class CouncilGameSessionService
             if (definition.Kind != RuntimeClassKind.State)
                 return false;
             var fields = definition.Fields.Select(field => field.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // Keep 4.5.8 user-copied rule definitions valid. The 4.5.9 team/switch fields are
+            // optional extensions and ResolveKernelTournamentRules falls back to seeded defaults when absent.
             return fields.Contains("startingHealth")
                 && fields.Contains("minimumDamage")
                 && fields.Contains("maximumDamage")

@@ -60,29 +60,28 @@
     <section class="dx-catalog-toolbar">
         <label>
             <span>Search</span>
-            <input class="form-control" placeholder="Function, service, route or purpose" @bind="_filter" @bind:event="oninput" />
+            <DxTextBox @bind-Text="_filter" BindValueMode="BindValueMode.OnInput" CssClass="form-control" NullText="Function, service, route or purpose" />
         </label>
         <label>
             <span>Kind</span>
-            <select class="form-select" @bind="_kindFilter">
-                <option value="">All</option>
-                <option value="@Vocabulary.Get().CatalogDxFunction">DX functions</option>
-                <option value="@Vocabulary.Get().CatalogPublicServiceMethod">Public service methods</option>
-            </select>
+            <DxComboBox Data="@KindFilterOptions"
+                        @bind-Value="_kindFilter"
+                        ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                        TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
         </label>
         <label class="form-check dx-inline-check">
-            <input class="form-check-input" type="checkbox" @bind="_onlyExposed" />
+            <DxCheckBox @bind-Checked="_onlyExposed" CssClass="form-check-input" />
             <span>Only exposed to 1-Wire</span>
         </label>
         <label>
             <span>View</span>
-            <select class="form-select" @bind="_viewMode">
-                <option value="Cards">Cards</option>
-                <option value="Grid">Mass-edit DXGrid</option>
-            </select>
+            <DxComboBox Data="@ViewModeOptions"
+                        @bind-Value="_viewMode"
+                        ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                        TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
         </label>
         <label class="form-check dx-inline-check">
-            <input class="form-check-input" type="checkbox" @bind="_groupCardsByNamespace" disabled="@(_viewMode != "Cards")" />
+            <DxCheckBox @bind-Checked="_groupCardsByNamespace" CssClass="form-check-input" Enabled="@(_viewMode == "Cards")" />
             <span>Group cards by namespace</span>
         </label>
     </section>
@@ -104,40 +103,40 @@
                     <DxGridDataColumn Caption="Enabled" Width="95px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <input class="form-check-input" type="checkbox" @bind="entry.IsEnabled" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.IsEnabled" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="AI chat" Width="95px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <input class="form-check-input" type="checkbox" @bind="entry.ExposeToAiChat" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.ExposeToAiChat" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="1-Wire" Width="95px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <input class="form-check-input" type="checkbox" @bind="entry.ExposeToOneWire" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.ExposeToOneWire" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="Remote" Width="95px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <input class="form-check-input" type="checkbox" @bind="entry.AllowRemoteInvocation" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.AllowRemoteInvocation" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="Frontend" Width="105px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <input class="form-check-input" type="checkbox" @bind="entry.RequiresFrontendConfirmation" @bind:after="() => MarkGridEntryDirty(entry)" @onclick:stopPropagation="true" />
+                            <DxCheckBox @bind-Checked="entry.RequiresFrontendConfirmation" @bind-Checked:after="() => MarkGridEntryDirty(entry)" CssClass="form-check-input" @onclick:stopPropagation="true" />
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                     <DxGridDataColumn Caption="Action" Width="105px">
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
-                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => SaveAsync(entry)" @onclick:stopPropagation="true" disabled="@_busy">Save</button>
+                            <DxButton CssClass="btn btn-sm btn-outline-primary" Click="() => SaveAsync(entry)" @onclick:stopPropagation="true" disabled="@_busy">Save</DxButton>
                             @if (entry.Source == "UserDxFunction")
                             {
-                                <button type="button" class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => EditUserFunction(entry.FunctionName)" @onclick:stopPropagation="true" disabled="@_busy">Edit</button>
+                                <DxButton CssClass="btn btn-sm btn-outline-secondary ms-1" Click="() => EditUserFunction(entry.FunctionName)" @onclick:stopPropagation="true" disabled="@_busy">Edit</DxButton>
                             }
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
@@ -177,23 +176,18 @@
                                 </dl>
                             </details>
                             <div class="dx-policy-grid">
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.IsEnabled" /><span>Enabled</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.ExposeToAiChat" /><span>Reveal to AI chat</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.ExposeToOneWire" /><span>Reveal to linked app</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.AllowRemoteInvocation" /><span>Allow linked invocation</span></label>
-                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="entry.RequiresFrontendConfirmation" /><span>Require this frontend</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="entry.IsEnabled" CssClass="form-check-input" /><span>Enabled</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="entry.ExposeToAiChat" CssClass="form-check-input" /><span>Reveal to AI chat</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="entry.ExposeToOneWire" CssClass="form-check-input" /><span>Reveal to linked app</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="entry.AllowRemoteInvocation" CssClass="form-check-input" /><span>Allow linked invocation</span></label>
+                                <label class="form-check"><DxCheckBox @bind-Checked="entry.RequiresFrontendConfirmation" CssClass="form-check-input" /><span>Require this frontend</span></label>
                                 <label>
                                     <span>Frontend editor</span>
-                                    <select class="form-select" @bind="entry.InteractionEditor">
-                                        @foreach (var editor in Enum.GetValues<OneWireInteractionEditor>())
-                                        {
-                                            <option value="@editor">@editor</option>
-                                        }
-                                    </select>
+                                    <DxComboBox Data="@InteractionEditorOptions" @bind-Value="entry.InteractionEditor" />
                                 </label>
                                 <label class="wide">
                                     <span>Allowed peer IDs JSON (empty array = any explicitly connected peer)</span>
-                                    <input class="form-control" @bind="entry.AllowedPeerIdsJson" />
+                                    <DxTextBox @bind-Text="entry.AllowedPeerIdsJson" CssClass="form-control" />
                                 </label>
                             </div>
                             <footer>
@@ -201,9 +195,9 @@
                                 <div class="d-flex gap-2">
                                     @if (entry.Source == "UserDxFunction")
                                     {
-                                        <button type="button" class="btn btn-outline-secondary" @onclick="() => EditUserFunction(entry.FunctionName)" disabled="@_busy">Edit function</button>
+                                        <DxButton CssClass="btn btn-outline-secondary" Click="() => EditUserFunction(entry.FunctionName)" disabled="@_busy">Edit function</DxButton>
                                     }
-                                    <button type="button" class="btn btn-outline-primary" @onclick="() => SaveAsync(entry)" disabled="@_busy">Save policy</button>
+                                    <DxButton CssClass="btn btn-outline-primary" Click="() => SaveAsync(entry)" disabled="@_busy">Save policy</DxButton>
                                 </div>
                             </footer>
                         </article>
@@ -231,8 +225,8 @@
                             else
                             {
                                 <div class="dx-user-function-actions">
-                                    <button type="button" class="btn btn-primary" @onclick='() => CreateUserFunction("Source")'>New JSON / OData AI function</button>
-                                    <button type="button" class="btn btn-outline-primary" @onclick='() => CreateUserFunction("Pipeline")'>Advanced pipeline AI function</button>
+                                    <DxButton CssClass="btn btn-primary" Click='() => CreateUserFunction("Source")'>New JSON / OData AI function</DxButton>
+                                    <DxButton CssClass="btn btn-outline-primary" Click='() => CreateUserFunction("Pipeline")'>Advanced pipeline AI function</DxButton>
                                 </div>
                             }
 
@@ -272,6 +266,15 @@
 </main>
 
 @code {
+    private IReadOnlyList<LocalGptSelectionOption<string>> KindFilterOptions =>
+    [
+        new(string.Empty, "All"),
+        new(Vocabulary.Get().CatalogDxFunction, "DX functions"),
+        new(Vocabulary.Get().CatalogPublicServiceMethod, "Public service methods")
+    ];
+    private IReadOnlyList<LocalGptSelectionOption<string>> ViewModeOptions { get; } = [new("Cards", "Cards"), new("Grid", "Mass-edit DXGrid")];
+    private IReadOnlyList<OneWireInteractionEditor> InteractionEditorOptions { get; } = Enum.GetValues<OneWireInteractionEditor>();
+
     /// <summary>
     /// Stores the in-memory entries collection maintained internally by <see cref="DxFunctionCatalog"/> for its current workflow state.
     /// </summary>

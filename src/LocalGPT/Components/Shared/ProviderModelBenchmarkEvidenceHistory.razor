@@ -6,18 +6,19 @@
     <summary>Saved benchmark audit evidence (@storedEvidence.Count recent archive(s))</summary>
     <div class="benchmark-evidence-history-body">
         <div class="benchmark-evidence-history-actions">
-            <button type="button" class="btn btn-outline-secondary" disabled="@isBusy" @onclick="RefreshAsync">Refresh saved evidence</button>
+            <DxButton CssClass="btn btn-outline-secondary" Enabled="@(!isBusy)" Click="RefreshAsync">Refresh saved evidence</DxButton>
             @if (storedEvidence.Count > 0)
             {
                 <label>
                     <span>Stored benchmark run</span>
-                    <select class="form-select" value="@selectedRunValue" @onchange="OnStoredRunChangedAsync" disabled="@isBusy">
-                        <option value="">Select a durable run…</option>
-                        @foreach (var item in storedEvidence)
-                        {
-                            <option value="@item.RunId">@FormatTimestamp(item.StoredAtUtc) · @ShortRunId(item.RunId) · @FormatBytes(item.ByteLength)</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@StoredRunOptions"
+                                Value="@selectedRunValue"
+                                ValueChanged="@((string value) => OnStoredRunChangedAsync(value))"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                NullText="Select a durable run…"
+                                Enabled="@(!isBusy)"
+                                ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
                 </label>
             }
         </div>
@@ -43,12 +44,9 @@
 
             <label class="benchmark-evidence-history-target-picker">
                 <span>Inspect provider-qualified target</span>
-                <select class="form-select" value="@selectedTargetKey" @onchange="OnTargetChanged">
-                    @foreach (var target in loadedReport.Targets)
-                    {
-                        <option value="@target.Model.SelectionKey">@target.Model.SelectionKey</option>
-                    }
-                </select>
+                <DxComboBox Data="@TargetSelectionKeys"
+                            Value="@selectedTargetKey"
+                            ValueChanged="@((string value) => OnTargetChanged(value))" />
             </label>
 
             @if (SelectedTarget is { } selectedTarget)
@@ -77,6 +75,12 @@
 </details>
 
 @code {
+    private IReadOnlyList<LocalGptSelectionOption<string>> StoredRunOptions => storedEvidence
+        .Select(item => new LocalGptSelectionOption<string>(item.RunId.ToString(), $"{FormatTimestamp(item.StoredAtUtc)} · {ShortRunId(item.RunId)} · {FormatBytes(item.ByteLength)}"))
+        .ToArray();
+
+    private IReadOnlyList<string> TargetSelectionKeys => loadedReport?.Targets.Select(target => target.Model.SelectionKey).ToArray() ?? [];
+
     /// <summary>
     /// Stores the in-memory stored evidence collection maintained internally by <see cref="ProviderModelBenchmarkEvidenceHistory"/> for its current workflow state.
     /// </summary>
@@ -154,11 +158,11 @@
     /// <summary>
     /// Handles the stored run changed async lifecycle or event notification for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, updating the state required by the surrounding workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the provider model benchmark evidence history operation and used when producing its result.</param>
+    /// <param name="value">Selected stored run identifier.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task OnStoredRunChangedAsync(ChangeEventArgs args)
+    private async Task OnStoredRunChangedAsync(string? value)
     {
-        selectedRunValue = Convert.ToString(args.Value) ?? string.Empty;
+        selectedRunValue = value ?? string.Empty;
         loadedReport = null;
         selectedTargetKey = string.Empty;
         statusText = string.Empty;
@@ -196,9 +200,9 @@
     /// <summary>
     /// Handles the target changed lifecycle or event notification for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, updating the state required by the surrounding workflow.
     /// </summary>
-    /// <param name="args">Args value supplied to the provider model benchmark evidence history operation and used when producing its result.</param>
-    private void OnTargetChanged(ChangeEventArgs args) =>
-        selectedTargetKey = Convert.ToString(args.Value) ?? string.Empty;
+    /// <param name="value">Selected provider-qualified model key.</param>
+    private void OnTargetChanged(string? value) =>
+        selectedTargetKey = value ?? string.Empty;
 
     /// <summary>
     /// Performs short run identifier for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.

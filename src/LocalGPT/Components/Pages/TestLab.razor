@@ -82,7 +82,7 @@
                 </label>
                 <label class="test-lab-field">
                     <span>Maximum bytes per selected file</span>
-                    <input type="number" min="1024" max="16777216" step="65536" @bind="learnBaseMaximumFileBytes" />
+                    <DxSpinEdit @bind-Value="learnBaseMaximumFileBytes" MinValue="1024" MaxValue="16777216" Increment="65536" />
                 </label>
             </div>
             <div class="learnbase-workbench">
@@ -94,10 +94,10 @@
                         <p>@Catalog.LearnBaseDuplicatePolicySummary</p>
                     </div>
                     <div class="learnbase-mode-grid">
-                        <label><input type="checkbox" @bind="learnBaseImportManifests" /> Import installer learning-source manifests</label>
-                        <label><input type="checkbox" @bind="learnBaseImportDocumentation" /> Detect known documentation corpora</label>
-                        <label><input type="checkbox" @bind="learnBaseImportProjects" /> Build project architecture summaries</label>
-                        <label><input type="checkbox" @bind="saveToKnowledge" /> Save or update SQLite Council knowledge</label>
+                        <label><DxCheckBox @bind-Checked="learnBaseImportManifests" /> Import installer learning-source manifests</label>
+                        <label><DxCheckBox @bind-Checked="learnBaseImportDocumentation" /> Detect known documentation corpora</label>
+                        <label><DxCheckBox @bind-Checked="learnBaseImportProjects" /> Build project architecture summaries</label>
+                        <label><DxCheckBox @bind-Checked="saveToKnowledge" /> Save or update SQLite Council knowledge</label>
                     </div>
                 </div>
 
@@ -105,16 +105,15 @@
                     <summary>File selection & dynamic regex policy (@selectedLearnBaseExtensions.Count endings)</summary>
                     <p class="human-inbox-note">The rules are runtime data. Council regex tools can list, test and refine database-backed patterns without recompiling LocalGPT.</p>
                     <div class="learnbase-extension-toolbar">
-                        <button type="button" @onclick="SelectAllLearnBaseExtensions">Select all known</button>
-                        <button type="button" @onclick="ClearLearnBaseExtensions">Clear selection</button>
+                        <DxButton Click="SelectAllLearnBaseExtensions">Select all known</DxButton>
+                        <DxButton Click="ClearLearnBaseExtensions">Clear selection</DxButton>
                     </div>
                     <div class="learnbase-extension-grid" aria-label="LearnBase file ending selection">
                         @foreach (var extension in Catalog.LearnBaseKnownExtensions.OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
                         {
                             <label>
-                                <input type="checkbox"
-                                       checked="@selectedLearnBaseExtensions.Contains(extension)"
-                                       @onchange="@((ChangeEventArgs args) => ToggleLearnBaseExtension(extension, args))" />
+                                <DxCheckBox Checked="@selectedLearnBaseExtensions.Contains(extension)"
+                                            CheckedChanged="@((bool selected) => ToggleLearnBaseExtension(extension, selected))" />
                                 <code>@extension</code>
                             </label>
                         }
@@ -122,15 +121,15 @@
                     <div class="learnbase-policy-grid">
                         <label class="test-lab-field">
                             <span>Additional file endings</span>
-                            <input @bind="learnBaseAdditionalExtensions" placeholder=".fzz; .kicad_sch; .custom" />
+                            <DxTextBox @bind-Text="learnBaseAdditionalExtensions" NullText=".fzz; .kicad_sch; .custom" />
                         </label>
                         <label class="test-lab-field">
                             <span>Include regex (empty means all selected endings)</span>
-                            <textarea rows="3" @bind="learnBaseIncludeRegex"></textarea>
+                            <DxMemo @bind-Text="learnBaseIncludeRegex" Rows="3" />
                         </label>
                         <label class="test-lab-field">
                             <span>Exclude regex</span>
-                            <textarea rows="3" @bind="learnBaseExcludeRegex"></textarea>
+                            <DxMemo @bind-Text="learnBaseExcludeRegex" Rows="3" />
                         </label>
                     </div>
                 </details>
@@ -148,41 +147,35 @@
             <h2>GitHub / Website Knowledge</h2>
             <p>Download a public repository or webpage into LocalGPT's bounded source cache, inspect the returned files, apply a regex/file-ending policy, and optionally pass the result into the existing learn-base database importer.</p>
             <div class="test-lab-actions remote-source-presets" aria-label="Remote source presets">
-                <button type="button" @onclick='@(() => SelectRemoteSourcePreset("doom"))'>DOOM source</button>
-                <button type="button" @onclick='@(() => SelectRemoteSourcePreset("lotgd"))'>Green Dragon source</button>
-                <button type="button" @onclick='@(() => SelectRemoteSourcePreset("php"))'>PHP manual</button>
-                <button type="button" @onclick='@(() => SelectRemoteSourcePreset("llvm"))'>LLVM source</button>
+                <DxButton Click='@(() => SelectRemoteSourcePreset("doom"))'>DOOM source</DxButton>
+                <DxButton Click='@(() => SelectRemoteSourcePreset("lotgd"))'>Green Dragon source</DxButton>
+                <DxButton Click='@(() => SelectRemoteSourcePreset("php"))'>PHP manual</DxButton>
+                <DxButton Click='@(() => SelectRemoteSourcePreset("llvm"))'>LLVM source</DxButton>
             </div>
             <label class="test-lab-field">
                 <span>GitHub repository or webpage URL</span>
-                <input @bind="remoteSourceUrl" @bind:after="ResetRemoteApproval" placeholder="https://github.com/owner/repository or https://example.org/docs" />
+                <DxTextBox @bind-Text="remoteSourceUrl" @bind-Text:after="ResetRemoteApproval" NullText="https://github.com/owner/repository or https://example.org/docs" />
             </label>
             <div class="test-lab-custom remote-knowledge-fields remote-source-fields">
-                <label class="test-lab-field compact-field"><span>Source kind</span><select @bind="remoteSourceKind"><option>Auto</option><option>GitHub</option><option>Web</option></select></label>
-                <label class="test-lab-field compact-field"><span>Branch</span><input @bind="remoteBranch" /></label>
-                <label class="test-lab-field compact-field"><span>Max files</span><input type="number" min="1" max="20000" @bind="remoteMaxFiles" /></label>
+                <label class="test-lab-field compact-field"><span>Source kind</span><DxComboBox Data="@RemoteSourceKindOptions" @bind-Value="remoteSourceKind" /></label>
+                <label class="test-lab-field compact-field"><span>Branch</span><DxTextBox @bind-Text="remoteBranch" /></label>
+                <label class="test-lab-field compact-field"><span>Max files</span><DxSpinEdit @bind-Value="remoteMaxFiles" MinValue="1" MaxValue="20000" /></label>
             </div>
             <label class="test-lab-field">
                 <span>File include regex</span>
-                <input @bind="remoteFileRegex" />
+                <DxTextBox @bind-Text="remoteFileRegex" />
             </label>
             <div class="test-lab-custom remote-knowledge-fields remote-role-fields">
                 <label class="test-lab-field compact-field">
                     <span>Existing Council role</span>
-                    <select @bind="remoteSelectedRoleKey">
-                        <option value="">No preset role</option>
-                        @foreach (var role in availableRemoteRoleKeys)
-                        {
-                            <option value="@role">@role</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@availableRemoteRoleKeys" @bind-Value="remoteSelectedRoleKey" NullText="No preset role" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
                 </label>
                 <label class="test-lab-field">
                     <span>Additional/new role keys (semicolon separated)</span>
-                    <input @bind="remoteRoleKeys" placeholder="Map Architect; ASCII Frame Renderer" />
+                    <DxTextBox @bind-Text="remoteRoleKeys" NullText="Map Architect; ASCII Frame Renderer" />
                 </label>
             </div>
-            <label class="test-lab-field"><span>Topics (semicolon separated)</span><input @bind="remoteTopics" placeholder="DOOM source architecture; C rendering" /></label>
+            <label class="test-lab-field"><span>Topics (semicolon separated)</span><DxTextBox @bind-Text="remoteTopics" NullText="DOOM source architecture; C rendering" /></label>
             <div class="remote-import-options" role="group" aria-label="Remote knowledge import selections">
                 <label class="remote-import-option">
                     <DxCheckBox @bind-Checked="remoteSaveToKnowledge" />
@@ -223,7 +216,7 @@
         <h2>Custom Local Route</h2>
         <p>Allowed routes are constrained to local diagnostics and artifact paths.</p>
         <div class="test-lab-custom">
-            <input @bind="customRoute" />
+            <DxTextBox @bind-Text="customRoute" />
             <DxButton Text="Run"
                       RenderStyle="ButtonRenderStyle.Secondary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
@@ -272,10 +265,10 @@
             <div class="workspace-file-list">
                 @foreach (var file in artifactWorkspaceFiles.Take(80))
                 {
-                    <button type="button" @onclick="@(() => OpenWorkspaceFileAsync(file))">
+                    <DxButton Click="@(() => OpenWorkspaceFileAsync(file))">
                         <span>@file.RelativePath</span>
                         <small>@file.Length bytes</small>
-                    </button>
+                    </DxButton>
                 }
             </div>
         }
@@ -299,7 +292,7 @@
                 }
             </div>
         }
-        <textarea class="test-lab-output" readonly>@resultText</textarea>
+        <DxMemo Text="@resultText" ReadOnly="true" Rows="14" CssClass="test-lab-output" />
     </section>
     </ConfigurationWorkbenchPanel>
         </div>
@@ -338,7 +331,7 @@
                 <div class="source-editor-grid">
                     <label>
                         Raw source
-                        <textarea class="source-editor" @bind="openSourceContent"></textarea>
+                        <DxMemo @bind-Text="openSourceContent" CssClass="source-editor" />
                     </label>
                     <div>
                         <span class="source-preview-title">DevExpress HTML preview</span>
@@ -353,6 +346,8 @@
 </main>
 
 @code {
+    private IReadOnlyList<string> RemoteSourceKindOptions { get; } = ["Auto", "GitHub", "Web"];
+
     /// <summary>
     /// Gets or sets the active test lab section value that forms part of the test lab state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -799,10 +794,10 @@
     /// Performs toggle learn base extension for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
     /// </summary>
     /// <param name="extension">Extension value supplied to the test lab operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the test lab operation and used when producing its result.</param>
-    private void ToggleLearnBaseExtension(string extension, ChangeEventArgs args)
+    /// <param name="selected">Whether the file extension is selected.</param>
+    private void ToggleLearnBaseExtension(string extension, bool selected)
     {
-        if (args.Value is true || (bool.TryParse(args.Value?.ToString(), out var selected) && selected))
+        if (selected)
             selectedLearnBaseExtensions.Add(extension);
         else
             selectedLearnBaseExtensions.Remove(extension);

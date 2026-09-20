@@ -37,3 +37,9 @@ Documentation cursor paws, paw trails, click bursts, hover sparkles, satellites,
 
 A documentation-background or decorative-only request must not change article, navigation, footer, rail, scroll, sizing, or stacking behavior unless the task explicitly asks for such a layout change. The regression contract is simple: moving the pointer, creating trails, or animating decorative objects must not change `scrollWidth` or `scrollHeight`. `build/Assert-DocumentationPointerOverlay.ps1` enforces the source-level containment contract on normal builds.
 
+
+## DevExpress Blazor UI ownership
+
+LocalGPT is DevExpress-first for ordinary interactive Razor UI. When DevExpress Blazor 25.x provides a suitable control, use it instead of raw HTML or Microsoft `Input*` editors. In particular: use `DxButton` for actions, `DxTextBox` for single-line text/password input, `DxMemo` for multiline text, `DxCheckBox` for booleans, `DxSpinEdit` for simple integer/decimal editor fields, `DxDateEdit` for date/time editors, and `DxComboBox`/`DxListBox`/`DxTreeView` for selection/list/tree workflows. Use `DxRangeSelector` for slider/range-style interaction that is not merely a simple numeric editor. If more than one DevExpress component is genuinely plausible and the interaction semantics are unclear, ask the maintainer rather than falling back to a native equivalent.
+
+`build/Assert-DevExpressBlazorControls.ps1` is a build-breaking maintenance guard and must continue to scan every Razor component recursively, emitting exact file/line/column diagnostics for native `button`, `input`, `textarea`, `select`, `datalist`, `option`, and Microsoft Blazor `Input*` controls. The only maintained native-button exception is the pair of reconnect/reload actions in `App.razor`, because those must function while the InteractiveServer circuit itself is unavailable and therefore cannot depend on DevExpress component event dispatch.

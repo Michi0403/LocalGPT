@@ -36,24 +36,13 @@
                     }
                     <div class="language-switcher" aria-label="@LanguageLabel">
                         <label for="localgpt-language-select" class="visually-hidden">@LanguageLabel</label>
-                        <select id="localgpt-language-select"
-                                name="culture"
-                                aria-label="@LanguageLabel"
-                                data-enhance-nav="false"
-                                onchange="window.location.assign(this.selectedOptions[0].dataset.selectionUrl)">
-                            @foreach (var culture in Localization.GetAvailableCultures())
-                            {
-                                var selectionUrl = Localization.BuildCultureSelectionUrl(NavigationManager.Uri, culture);
-                                if (string.Equals(culture, CurrentCulture, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <option value="@culture" data-selection-url="@selectionUrl" selected>@CultureLabel(culture)</option>
-                                }
-                                else
-                                {
-                                    <option value="@culture" data-selection-url="@selectionUrl">@CultureLabel(culture)</option>
-                                }
-                            }
-                        </select>
+                        <DxComboBox Data="@LanguageOptions"
+                                    Value="@CurrentCulture"
+                                    ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                    TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                    ValueChanged="@((string value) => OnCultureChanged(value))"
+                                    aria-label="@LanguageLabel"
+                                    CssClass="localgpt-language-select" />
                     </div>
                 </div>
                 <SafeErrorBoundary @key="NavigationManager.Uri" Area="MainLayout" ToastName="ComponentSafetyToasts">
@@ -97,6 +86,20 @@
     /// <value>The is install page value exposed by <see cref="MainLayout"/>.</value>
     private bool IsInstallPage =>
         string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/install", StringComparison.OrdinalIgnoreCase);
+
+    private IReadOnlyList<LocalGptSelectionOption<string>> LanguageOptions => Localization.GetAvailableCultures()
+        .Select(culture => new LocalGptSelectionOption<string>(culture, CultureLabel(culture)))
+        .ToArray();
+
+    private void OnCultureChanged(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture) || string.Equals(culture, CurrentCulture, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        NavigationManager.NavigateTo(Localization.BuildCultureSelectionUrl(NavigationManager.Uri, culture), forceLoad: true);
+    }
 
     /// <summary>
     /// Handles the initialized lifecycle or event notification for <see cref="MainLayout"/>, updating the state required by the surrounding workflow.

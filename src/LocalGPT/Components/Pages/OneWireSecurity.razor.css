@@ -92,7 +92,7 @@
 .onewire-security-card input,
 .onewire-security-subcard textarea,
 .onewire-security-subcard input { width: 100%; box-sizing: border-box; }
-.onewire-security-inline { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(14rem,100%),1fr)); gap: .65rem; margin: .7rem 0; }
+.onewire-security-inline { display: grid; grid-template-columns: minmax(0,1fr); gap: .65rem; margin: .7rem 0; }
 .onewire-security-peer { display: flex; justify-content: space-between; align-items: center; gap: .8rem; padding: .8rem 0; border-bottom: 1px solid var(--bs-border-color, #ced4da); }
 .onewire-security-peer:last-child { border-bottom: 0; }
 .onewire-security-peer > div { display: grid; gap: .14rem; min-width: 0; }

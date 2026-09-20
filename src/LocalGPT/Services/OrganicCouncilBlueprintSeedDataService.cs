@@ -105,6 +105,8 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
         CreatePowerShellBuildDevelopmentTeam(),
         CreateJavaHostedDevelopmentTeam(),
         CreateMinecraftDevelopmentTeam(),
+        CreateProgramCompilerTeam(),
+        CreateProjectReleaseOrchestrationTeam(),
         new()
         {
             Key = "embedded-firmware-wiring",
@@ -234,6 +236,19 @@ Original request:
                     DistinctAiAssignmentGroup = "kernel-creature-tournament",
                     MatchAiParticipantCountToRole = "Creature Trainer",
                     PairedRole = "Creature Trainer"
+                },
+                new()
+                {
+                    Role = "ASCII Team Artist",
+                    Expertise = "bounded terminal-safe ASCII character design, silhouettes, reveal cards and small pregenerated animations",
+                    Responsibility = "turn the resolved trainer and creature identities into a compact fictional team-building reveal without changing game state or tournament consequences",
+                    AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                    MinimumAiParticipants = 1,
+                    MaximumAiParticipants = 1,
+                    HumanParticipationMode = HumanParticipationMode.None,
+                    PerformanceMode = CouncilRolePerformanceMode.ImprovisationPlayer,
+                    BoundaryMode = CouncilRoleBoundaryMode.Strict,
+                    LanguageMode = CouncilRoleLanguageMode.SenderLanguage
                 }
             ],
             WorkflowSteps =
@@ -277,8 +292,8 @@ Runtime pairings:
 {{RoleLanguageInstruction}}
 {{HumanParticipationInstruction}}
 
-You are the trainer paired with {{PairedParticipant}}. Invent one original harmless fictional creature for that exact kernel. Do not reference existing franchises, repositories, files or unrelated projects. Output exactly these four compact lines and nothing else:
-NAME: <original creature nickname>
+You are the trainer paired with {{PairedParticipant}}. Invent the lead original harmless fictional creature for that exact kernel. LocalGPT's runtime rule class may provide reserve creature slots; the deterministic engine derives stable reserve partners from this lead identity so the trainer can switch without extra model calls. Decide from concrete visible features first: fictional species/form, one visual trait, and one tactical trait. Then create one pronounceable nickname from those features and commit to it once. Do not brainstorm alternatives, repeat candidate names, reconsider a chosen name, expose naming deliberation, reference existing franchises, repositories, files or unrelated projects. If uncertain, choose the first valid two-part feature nickname and finish immediately. Output exactly these four compact lines and nothing else:
+NAME: <one final original creature nickname, 2-24 visible characters>
 SPECIES: <original fictional species>
 STYLE: <short tactical style>
 CHALLENGE: <friendly sportsmanlike line>
@@ -293,7 +308,11 @@ All runtime pairings:
                     UseBuiltInBehavior = false,
                     IsEnabled = true,
                     RequiresHumanCheckpoint = false,
-                    CanUseOrganicFunctions = false
+                    CanUseOrganicFunctions = false,
+                    RoleComplianceRetryCount = 0,
+                    MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool,
+                    MemberFailureRecoveryAttempts = 2,
+                    FinalAnswerRecoveryEnabled = false
                 },
                 new()
                 {
@@ -307,8 +326,8 @@ All runtime pairings:
 {{RoleBoundaryInstruction}}
 {{RoleLanguageInstruction}}
 
-You are the fictional creature paired with trainer {{PairedParticipant}}. Adopt that trainer's latest creature identity for your exact pair. LocalGPT owns all HP and tournament state; do not assign HP, damage, status, elimination or victory. Output exactly these four compact lines and nothing else:
-NAME: <adopted nickname>
+You are the fictional creature paired with trainer {{PairedParticipant}}. Adopt that trainer's latest creature identity for your exact pair. If the trainer result has no usable NAME because its provider failed, choose one compact fallback nickname from the trainer model token and one visible creature feature, commit to it once, and continue without brainstorming alternatives. LocalGPT owns all HP and tournament state; do not assign HP, damage, status, elimination or victory. Output exactly these four compact lines and nothing else:
+NAME: <adopted or single fallback nickname>
 FORM: <one-line visual form>
 TRAIT: <one-line tactical personality>
 VOICE: <one short in-character arena line>
@@ -320,7 +339,50 @@ VOICE: <one short in-character arena line>
                     UseBuiltInBehavior = false,
                     IsEnabled = true,
                     RequiresHumanCheckpoint = false,
-                    CanUseOrganicFunctions = false
+                    CanUseOrganicFunctions = false,
+                    RoleComplianceRetryCount = 0,
+                    MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool,
+                    MemberFailureRecoveryAttempts = 2,
+                    FinalAnswerRecoveryEnabled = false
+                },
+                new()
+                {
+                    Key = "team-building-ascii",
+                    DisplayName = "Animated trainer and creature reveal",
+                    SortOrder = 34,
+                    Phase = "Team building ASCII",
+                    Role = "ASCII Team Artist",
+                    PromptTemplate = """
+{{RolePerformanceInstruction}}
+{{RoleBoundaryInstruction}}
+{{RoleLanguageInstruction}}
+
+Read the resolved Trainer selection and Creature introduction results already present in the Council transcript. Build a short terminal-safe team reveal for every trainer/creature pair. A trainer image is a fictional arena avatar/emblem inspired only by that AI role and its creature; never claim it is a real person's likeness. Show the team-building progression with 2 to 4 complete pregenerated ASCII frames. Each frame must be at most 72 columns by 16 rows, use printable ASCII only, and keep every trainer and paired creature recognizable between frames. Do not assign HP, damage, status, elimination, winner or bracket state. Do not call tools and do not explain your process.
+
+Output only 2 to 4 fenced text blocks, one complete frame per block, in display order:
+```text
+<complete frame 1>
+```
+```text
+<complete frame 2>
+```
+""",
+                    ExecutionMode = "LeaderSingle",
+                    RepeatCount = 1,
+                    IncludePriorTranscript = true,
+                    ProducesFinalAnswer = false,
+                    ProducesAsciiFrame = true,
+                    AsciiFrameWidth = 72,
+                    AsciiFrameHeight = 16,
+                    UseBuiltInBehavior = false,
+                    IsEnabled = true,
+                    RequiresHumanCheckpoint = false,
+                    CanUseOrganicFunctions = false,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
+                    RoleComplianceRetryCount = 0,
+                    MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool,
+                    MemberFailureRecoveryAttempts = 2,
+                    FinalAnswerRecoveryEnabled = false
                 },
                 new()
                 {
@@ -352,8 +414,10 @@ VOICE: <one short in-character arena line>
 {{RoleLanguageInstruction}}
 {{HumanParticipationInstruction}}
 
-Battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the latest LocalGPT Tournament Engine scoreboard. If your creature is in the current legal match, choose one bounded suggestion; otherwise choose WAIT. Never assign consequences or claim a result. Output exactly:
+Battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the latest LocalGPT Tournament Engine scoreboard, including the active creature, reserve roster, recent team-state timeline and remaining switch budget. If your team is in the current legal match, choose one creature command and one independent trainer action; otherwise choose WAIT/NONE. Trainer SWITCH is legal only while the persisted per-fight switch budget remains and should name the requested healthy reserve. Switched-out/reserve creatures rest under engine-owned rules. Never assign consequences or claim a result. Output exactly:
 COMMAND: ATTACK|GUARD|RECOVER|WAIT
+TRAINER_ACTION: FOCUS|BRACE|REST|SWITCH|NONE
+SWITCH: <reserve creature name when TRAINER_ACTION is SWITCH, otherwise blank>
 TACTIC: <one short tactical intention>
 VOICE: <one short trainer line>
 """,
@@ -366,7 +430,9 @@ VOICE: <one short trainer line>
                     MaximumLoopIterations = 24,
                     IsEnabled = true,
                     RequiresHumanCheckpoint = false,
-                    CanUseOrganicFunctions = false
+                    CanUseOrganicFunctions = false,
+                    MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool,
+                    MemberFailureRecoveryAttempts = 2
                 },
                 new()
                 {
@@ -380,7 +446,7 @@ VOICE: <one short trainer line>
 {{RoleBoundaryInstruction}}
 {{RoleLanguageInstruction}}
 
-Battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the latest LocalGPT Tournament Engine scoreboard and your paired trainer's latest command. If you are in the current legal match, suggest one fictional move; otherwise choose WAIT. LocalGPT—not you—resolves HP, damage, guard/recovery effects, eliminations and winners. Output exactly:
+Battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the latest LocalGPT Tournament Engine scoreboard, recent team-state timeline and your paired trainer's latest command/action. If your currently active creature identity is in the legal match, suggest one fictional move; otherwise choose WAIT. The active creature may change after a legal trainer switch or engine KO switch, so follow the scoreboard identity instead of assuming the opening creature remains active. LocalGPT—not you—resolves HP, damage, switch legality, reserve rest, guard/recovery effects, eliminations and winners. Output exactly:
 MOVE: ATTACK|GUARD|RECOVER|WAIT
 FLAVOR: <one short terminal-safe visual action description>
 VOICE: <one short in-character line>
@@ -394,7 +460,9 @@ VOICE: <one short in-character line>
                     MaximumLoopIterations = 24,
                     IsEnabled = true,
                     RequiresHumanCheckpoint = false,
-                    CanUseOrganicFunctions = false
+                    CanUseOrganicFunctions = false,
+                    MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool,
+                    MemberFailureRecoveryAttempts = 2
                 },
                 new()
                 {
@@ -868,7 +936,9 @@ Runtime classes: {{RuntimeClasses}}
                 "localgpt.text.json.translate",
                 "localgpt.memory",
                 "localgpt.logs",
-                "localgpt.knowledge"
+                "localgpt.knowledge",
+                "localgpt.knowledge.freshness.report",
+                "localgpt.knowledge.source.refresh"
             ],
             WorkflowSteps =
             [
@@ -877,7 +947,7 @@ Inventory the evidence actually available for the user's learning request before
 
 User learning request:
 {{UserPrompt}}
-""", "LeaderSingle", canUseOrganicFunctions: true, includePriorTranscript: false, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.regex.list"]),
+""", "LeaderSingle", canUseOrganicFunctions: true, includePriorTranscript: false, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.knowledge.freshness.report", "localgpt.regex.list"]),
                 Step("learning-study", "Study concepts, terminology and relationships", 20, "Study", "Pattern and terminology analyst", """
 Study the evidence inventory and the underlying evidence itself. Extract source-backed concepts, terminology, relationships, explanations, repeated structures and reusable patterns for the user's actual subject. The subject may be science, school work, research, creative material, software or anything else; do not impose a coding/project frame. Distinguish direct user statements and source evidence from model inference. Use bounded read-only functions when they can resolve uncertainty. Regex is optional: propose a regex candidate only when a repeated textual pattern would materially improve future retrieval or validation, and test it before recommending storage. Return concrete learning findings, not a discussion of how you would learn later.
 
@@ -886,16 +956,16 @@ User learning request:
 
 Evidence inventory:
 {{PreviousStep}}
-""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
+""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.knowledge.freshness.report", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
                 Step("learning-verify", "Verify learning claims and contradictions", 30, "Verification", "Evidence verifier", """
-Verify the proposed learning findings against the available evidence. Reject unsupported quality claims, self-reported capability claims and conclusions that contradict tool-visible evidence. Resolve disagreements with bounded read-only functions when possible instead of asking the user. Mark what is directly observed, what the user asserted, what is inferred, and what remains genuinely unresolved. Preserve useful minority findings when evidence supports them. Return the compact verified candidate set that the learning leader can maintain.
+Verify the proposed learning findings against the available evidence. Reject unsupported quality claims, self-reported capability claims and conclusions that contradict tool-visible evidence. When a stable knowledgeId from LocalGPT knowledge is actually used and the evidence shows it is outdated, call localgpt.knowledge.freshness.report with that exact knowledgeId and a concrete reason; do not silently overwrite it. Resolve disagreements with bounded read-only functions when possible instead of asking the user. Mark what is directly observed, what the user asserted, what is inferred, and what remains genuinely unresolved. Preserve useful minority findings when evidence supports them. Return the compact verified candidate set that the learning leader can maintain.
 
 User learning request:
 {{UserPrompt}}
 
 Prior learning findings:
 {{PreviousStep}}
-""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
+""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.knowledge.freshness.report", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
                 Step("learning-maintain", "Maintain reusable learning and answer", 40, "Learning synthesis", "Learning leader", """
 Turn the verified evidence into a useful answer and bounded reusable LocalGPT learning. Store compact source-backed facts through localgpt.learning.maintain as ModelSuggested/NeedsUserReview evidence. When the chat workspace contains repository-shaped software source, the same maintenance call must leave synchronizeProjectStructure enabled and must identify the inspected workspaceName when known; LocalGPT then records the repository as a source-backed project/version/revision/workspace and persists its complete tracked-file structure. Store regex definitions only when the verified evidence shows a clear reusable retrieval/validation purpose and the pattern has been tested. Runtime, SDK, target-framework and version claims must be read from repository metadata; never invent .NET versions or ask for a runtime that the inspected project already declares. Do not invent authority, do not write into source repositories, and do not substitute a future-work plan for the requested learning. In the visible answer summarize what LocalGPT learned, exactly which projects/versions/file counts were synchronized, important contradictions or uncertainty, and the most useful next collaboration point if one genuinely remains.
 
@@ -904,7 +974,7 @@ User learning request:
 
 Verified learning candidates:
 {{PreviousStep}}
-""", "LeaderSingle", canUseOrganicFunctions: true, producesFinalAnswer: true, allowedAutomaticFunctions: ["localgpt.learning.maintain", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.regex.upsert", "chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file"])
+""", "LeaderSingle", canUseOrganicFunctions: true, producesFinalAnswer: true, allowedAutomaticFunctions: ["localgpt.learning.maintain", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.knowledge.freshness.report", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.regex.upsert", "chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file"])
             ],
             ExpertPreparationPromptTemplate = """
 You lead the expert preparation round for {{TeamName}}. Treat the user's subject as domain-neutral: it may be science, school work, research, software, LocalGPT, creative work or any other topic. First establish what evidence is actually available. Inventory the upload workspace with chat.upload_workspace_files/context when uploads are present, inspect representative content with bounded chat.upload_workspace_file reads, and use localgpt.learning.snapshot where existing knowledge matters. A large flattened text upload is evidence to inspect, not proof that the underlying subject is absent. Distinguish uploads, user-written statements, prior memory, project context, logs and model hypotheses. If a read-only function can resolve an ambiguity, use it instead of asking the user. Do not make quality, architecture or domain claims before reading supporting evidence. Return concrete evidence slices, contradictions and learning targets rather than a plan for how you might start.
@@ -912,13 +982,13 @@ User learning request:
 {{UserPrompt}}
 """,
             LeaderSynthesisPromptTemplate = """
-You are the learning leader for {{TeamName}}. Convert the inspected preparation evidence into a bounded democratic learning work order that performs the user's learning request rather than merely discussing it. Assign members by source slice, concept or verification question, not by an assumed software/code domain. Require every reusable claim to identify the evidence it came from. Resolve disagreements with available read-only tools before escalating to the user. Knowledge entries are the primary learning output; propose regexes only where a reusable pattern materially improves retrieval or validation and test them before storage. Facts saved through localgpt.learning.maintain remain ModelSuggested/NeedsUserReview; this knowledge self-maintenance needs no approval because it cannot run commands, mutate projects or authorize side effects.
+You are the learning leader for {{TeamName}}. Convert the inspected preparation evidence into a bounded democratic learning work order that performs the user's learning request rather than merely discussing it. Assign members by source slice, concept or verification question, not by an assumed software/code domain. Require every reusable claim to identify the evidence it came from. Resolve disagreements with available read-only tools before escalating to the user. Knowledge entries are the primary learning output; propose regexes only where a reusable pattern materially improves retrieval or validation and test them before storage. Facts saved through localgpt.learning.maintain remain ModelSuggested/NeedsUserReview; this knowledge self-maintenance needs no approval because it cannot run commands, mutate projects or authorize side effects. If existing knowledge is shown stale, report it through localgpt.knowledge.freshness.report; refreshing an external source is a separate exact-URL operation that requires human approval.
 Expert preparation:
 {{Preparation}}
 Original learning request:
 {{UserPrompt}}
 """,
-            MainRoundInstructionTemplate = "Every member must inspect the assigned evidence before concluding. Extract source-backed facts, terminology, relationships, reusable explanations and contradictions for the user's actual topic. Cite the local source category and distinguish user assertions from model inference. Do not ask the user to repeat scope already present in the request, and do not substitute meta-planning for evidence work. Use localgpt.learning.maintain for bounded untrusted knowledge maintenance. Propose and test regexes only when they have a clear reusable purpose; never promote self-reports to user-approved authority and never perform external side effects.",
+            MainRoundInstructionTemplate = "Every member must inspect the assigned evidence before concluding. Extract source-backed facts, terminology, relationships, reusable explanations and contradictions for the user's actual topic. Cite the local source category and distinguish user assertions from model inference. Do not ask the user to repeat scope already present in the request, and do not substitute meta-planning for evidence work. Use localgpt.learning.maintain for bounded untrusted knowledge maintenance. If a persisted knowledge entry used in the round is demonstrably stale, report its stable knowledgeId through localgpt.knowledge.freshness.report so the local human receives keep/review/refresh/reject controls. Propose and test regexes only when they have a clear reusable purpose; never promote self-reports to user-approved authority and never perform external side effects.",
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
@@ -926,7 +996,7 @@ Original learning request:
                 "User uploads and user-written chat content are first-class learning evidence. Members inventory and inspect available evidence before making domain, quality or completeness claims.",
                 "Learning reads bounded service-backed evidence and never depends on an in-memory static prompt or regex catalog. If a read-only tool can settle an ambiguity, it is preferred over an unnecessary user clarification.",
                 "New facts remain ModelSuggested/NeedsUserReview until verified; regex definitions are optional learning aids and must compile with a timeout before persistence.",
-                "Knowledge self-maintenance may run automatically because it cannot execute commands, write project files or grant permissions.",
+                "Knowledge self-maintenance and stale-knowledge reporting may run automatically because they cannot execute commands, write project files or grant permissions; exact external source refresh remains human-approved per complete URL parameters.",
                 "For repository-shaped chat uploads, a completed learning round synchronizes source-backed project identity, exact version, SDK/target frameworks, revision, chat-workspace root and complete tracked-file structure into the existing database-first project model. LocalGPT source maintains LocalGPT Core; PublisherStudio or BlazorPublisher source maintains PublisherStudio; another identifiable repository maintains its own project tied to the chat workspace instead of a generic Learning Round project. This records evidence; it never writes into the uploaded source repository.",
                 "The user supplied canonical public repositories https://github.com/Michi0403/LocalGPT and https://github.com/Michi0403/BlazorPublisher. Members may use localgpt.knowledge.remote.inspect for current read-only repository facts. The localgpt.repository.knowledge.refresh function and its two seeded manual pipelines are for explicit user-requested persisted source-knowledge refreshes and are not automatic model actions.",
                 "SDK, runtime, target framework, project version and structure are repository facts. Members inspect project metadata and must not invent fallback versions such as .NET 7 or .NET 8 when the source declares another requirement."

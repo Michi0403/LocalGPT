@@ -573,15 +573,14 @@
 }
 
 .chat-provider-row {
-    display: grid;
-    grid-template-columns: minmax(18rem, 2fr) minmax(15rem, 1fr) minmax(15rem, 1fr);
-    align-items: center;
-    gap: .75rem;
     min-width: 0;
+    width: 100%;
     margin-bottom: .75rem;
 }
 
-.chat-provider-row > *,
+.chat-provider-row ::deep .dxbl-fl,
+.chat-provider-row ::deep .dxbl-fl-group,
+.chat-provider-row ::deep .dxbl-fl-item,
 .chat-provider-selector,
 .chat-provider-selector ::deep .dxbl-combobox {
     min-width: 0;
@@ -698,14 +697,10 @@
 }
 
 @media (max-width: 1050px) {
-    .chat-provider-row { grid-template-columns: 1fr 1fr; }
-    .chat-provider-selector { grid-column: 1 / -1; }
     .council-member-list { grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr)); }
 }
 
 @media (max-width: 680px) {
-    .chat-provider-row { grid-template-columns: 1fr; }
-    .chat-provider-selector { grid-column: auto; }
     .council-command-center[open] { max-height: 62dvh; }
     .demo-chat {
         min-height: 32rem;
@@ -846,10 +841,14 @@
     caret-color: var(--bs-primary, Highlight) !important;
 }
 .demo-chat ::deep .localgpt-prompt-suggestion {
-    color: var(--bs-emphasis-color, var(--bs-body-color, CanvasText)) !important;
+    color: var(--localgpt-body-color, var(--bs-emphasis-color, var(--bs-body-color, CanvasText))) !important;
     -webkit-text-fill-color: currentColor !important;
+    background: color-mix(in srgb, var(--localgpt-control-bg, var(--bs-body-bg, Canvas)) 92%, var(--bs-primary, Highlight) 8%) !important;
+    border-color: color-mix(in srgb, var(--localgpt-border-color, var(--bs-border-color, currentColor)) 82%, currentColor 18%) !important;
     font-weight: 650 !important;
+    line-height: 1.35 !important;
     opacity: 1 !important;
+    text-shadow: none !important;
 }
 .demo-chat ::deep .localgpt-prompt-suggestion * { color: inherit !important; -webkit-text-fill-color: currentColor !important; opacity: 1 !important; }
 #localgpt-chat-host { width: 100%; min-width: 0; max-width: 100%; }
@@ -1033,9 +1032,9 @@
 }
 
 .demo-chat ::deep .localgpt-prompt-suggestion {
-    flex: 0 0 clamp(9rem, 12vw, 12.5rem) !important;
-    min-height: 4.6rem !important;
-    max-height: 5.35rem !important;
+    flex: 0 0 clamp(11rem, 14vw, 15rem) !important;
+    min-height: 5rem !important;
+    max-height: 6rem !important;
     padding: .65rem .7rem !important;
     overflow: hidden !important;
 }
@@ -1377,7 +1376,7 @@
 
 .demo-chat ::deep .localgpt-prompt-suggestions {
     flex: 0 0 auto !important;
-    max-height: 5.8rem !important;
+    max-height: 6.5rem !important;
 }
 
 .demo-chat ::deep .localgpt-chat-composer {
@@ -1857,7 +1856,14 @@
     border-color: var(--bs-primary);
     box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--bs-primary) 18%, transparent);
 }
-.council-direct-starter span { overflow-wrap: anywhere; opacity: .82; }
+.council-direct-starter-content {
+    display: grid;
+    gap: .35rem;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+}
+.council-direct-starter-content > span { overflow-wrap: anywhere; opacity: .82; }
 
 
 /* v2.1.22: an open configuration workspace must never become a transparent click-blocking overlay. */
@@ -2073,7 +2079,6 @@
     background: var(--bs-tertiary-bg);
 }
 
-.chat-provider-row,
 .model-toolbar,
 .memory-toolbar,
 .council-preset-toolbar,
@@ -2085,7 +2090,6 @@
     min-width: 0;
 }
 
-.chat-provider-row > *,
 .model-toolbar > *,
 .memory-toolbar > *,
 .council-preset-toolbar > *,
@@ -2206,7 +2210,6 @@
 }
 
 @container (max-width: 760px) {
-    .chat-provider-row,
     .model-toolbar,
     .memory-toolbar,
     .council-preset-toolbar,
@@ -2482,8 +2485,7 @@
 .chat-configuration-ribbon[open] .model-toolbar,
 .chat-configuration-ribbon[open] .memory-toolbar,
 .chat-configuration-ribbon[open] .council-preset-toolbar,
-.chat-configuration-ribbon[open] .council-team-toolbar,
-.chat-configuration-ribbon[open] .chat-provider-row {
+.chat-configuration-ribbon[open] .council-team-toolbar {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)) !important;
     align-items: start !important;
 }
@@ -2491,8 +2493,7 @@
 .chat-configuration-ribbon[open] .model-toolbar > *,
 .chat-configuration-ribbon[open] .memory-toolbar > *,
 .chat-configuration-ribbon[open] .council-preset-toolbar > *,
-.chat-configuration-ribbon[open] .council-team-toolbar > *,
-.chat-configuration-ribbon[open] .chat-provider-row > * {
+.chat-configuration-ribbon[open] .council-team-toolbar > * {
     align-self: stretch;
     min-width: 0 !important;
 }
@@ -3176,4 +3177,50 @@
 #localgpt-chat-host,
 .chat-session-active #localgpt-chat-host {
     flex-shrink: 0 !important;
+}
+
+/* 4.5.7: function approvals and AI-seeded guidance stay in the active Chat session instead of
+   forcing the user into the global collaboration rail. */
+.chat-inline-ai-requests {
+    display: grid;
+    gap: .65rem;
+    width: 100%;
+    margin: .65rem 0 .85rem;
+    padding: .75rem;
+    border: 1px solid color-mix(in srgb, var(--bs-info, #0dcaf0) 42%, var(--bs-border-color));
+    border-radius: .7rem;
+    background: color-mix(in srgb, var(--bs-body-bg) 94%, var(--bs-info, #0dcaf0) 6%);
+    color: var(--bs-body-color);
+}
+.chat-inline-ai-requests > header,
+.chat-inline-ai-request-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+    min-width: 0;
+}
+.chat-inline-ai-requests > header > div,
+.chat-inline-ai-request-heading > div { display: grid; gap: .15rem; min-width: 0; }
+.chat-inline-ai-requests small,
+.chat-inline-ai-request small { color: var(--bs-secondary-color); overflow-wrap: anywhere; }
+.chat-inline-ai-request {
+    display: grid;
+    gap: .55rem;
+    min-width: 0;
+    padding: .7rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .55rem;
+    background: var(--bs-body-bg);
+}
+.chat-inline-ai-request p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-inline-ai-request-risk { white-space: nowrap; font-size: .78rem; font-weight: 700; color: var(--bs-secondary-color); }
+.chat-inline-ai-request-actions,
+.chat-inline-ai-request-suggestions { display: flex; flex-wrap: wrap; gap: .45rem; min-width: 0; }
+.chat-inline-ai-request-response { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .45rem; align-items: end; min-width: 0; }
+.chat-inline-ai-request-response ::deep .dxbl-text-edit { min-width: 0; width: 100%; }
+@media (max-width: 720px) {
+    .chat-inline-ai-requests > header,
+    .chat-inline-ai-request-heading { display: grid; }
+    .chat-inline-ai-request-response { grid-template-columns: 1fr; }
 }

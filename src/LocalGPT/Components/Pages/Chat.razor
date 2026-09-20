@@ -30,6 +30,8 @@
 @inject IChatSessionContext SessionContext
 @inject IChatAsciiExperienceState AsciiExperience
 @inject IHumanCollaborationService HumanCollaboration
+@inject IDeferredDxAiInvocationService DeferredDxInvocations
+@inject ILocalGptVocabularyService Vocabulary
 @inject ICouncilLiveSessionService CouncilLiveSessions
 @inject ICouncilRunConfigurationService CouncilRunConfigurations
 @inject ICouncilHardwareRoadConfigurationService CouncilHardwareRoads
@@ -55,11 +57,12 @@
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       IconCssClass="oi oi-plus"
                       Click="ClearHistoryAsync" />
-            <DxButton Text="@(showGameConsole ? "Hide ASCII terminal" : "Show ASCII terminal")"
-                      CssClass="localgpt-rounded-action localgpt-action-neutral"
-                      RenderStyle="ButtonRenderStyle.Secondary"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+            <DxButton Text="@AsciiTerminalButtonText"
+                      CssClass="@AsciiTerminalButtonCssClass"
+                      RenderStyle="@AsciiTerminalButtonRenderStyle"
+                      RenderStyleMode="@(IsAsciiGameHintAvailable ? ButtonRenderStyleMode.Contained : ButtonRenderStyleMode.Outline)"
                       IconCssClass="oi oi-monitor"
+                      Title="@AsciiTerminalButtonTitle"
                       Click="ToggleGameConsoleAsync" />
             <DxButton Text="@(AsciiFunModeEnabled ? "Contextual ASCII fun: ON" : "Contextual ASCII fun: OFF")"
                       CssClass="@AsciiFunButtonCssClass"
@@ -87,7 +90,7 @@
                 <summary class="btn btn-outline-secondary"><span class="oi oi-menu" aria-hidden="true"></span> Open actions</summary>
                 <div class="chat-actions-menu-items" role="menu">
                     <a role="menuitem" href="/install" data-enhance-nav="false"><span class="oi oi-cog" aria-hidden="true"></span> Provider setup</a>
-                    <button role="menuitem" type="button" disabled="@isModelRefreshBusy" @onclick="RefreshOllamaModelsAsync"><span class="oi oi-reload" aria-hidden="true"></span> Refresh provider models</button>
+                    <DxButton role="menuitem" Enabled="@(!isModelRefreshBusy)" Click="RefreshOllamaModelsAsync"><span class="oi oi-reload" aria-hidden="true"></span> Refresh provider models</DxButton>
                     <a role="menuitem" href="/onewire-security" data-enhance-nav="false"><span class="oi oi-lock-locked" aria-hidden="true"></span> 1-Wire Security</a>
                     <a role="menuitem" href="/council-teams" data-enhance-nav="false"><span class="oi oi-people" aria-hidden="true"></span> Council Teams</a>
                     <a role="menuitem" href="/test-lab#remote-knowledge" data-enhance-nav="false"><span class="oi oi-cloud-download" aria-hidden="true"></span> Import knowledge</a>
@@ -100,39 +103,39 @@
             }
         </nav>
 
-        <div id="chat-provider-controls" class="chat-provider-row" data-testid="chat-top-controls">
-            <label class="chat-provider-selector" title="Choose the local or cloud model for the next response.">
-                <span>AI provider</span>
-                <select class="form-select selector-container-combo-editor chat-provider-native-select"
-                        aria-label="AI provider"
-                        value="@SelectedProviderSessionName"
-                        @onchange="OnProviderSelectionChanged"
-                        disabled="@(ModelsList.Count == 0)">
-                    @if (ModelsList.Count == 0)
-                    {
-                        <option value="">No configured AI provider</option>
-                    }
-                    else
-                    {
-                        @foreach (var session in ModelsList)
-                        {
-                            <option value="@session.Name">@ProviderOptionLabel(session)</option>
-                        }
-                    }
-                </select>
-            </label>
-            <label class="inline-dx-check" title="Keeps the current chat visible when switching to another configured AI.">
-                <DxCheckBox @bind-Checked="ReuseContextWhenSwitching" />
-                <span>Reuse context when switching AI</span>
-            </label>
-            <label class="inline-dx-check" title="Loads the most recent saved memory thread automatically when the Chat page opens. Leave off for a clean local-model context.">
-                <DxCheckBox @bind-Checked="AutoLoadLatestConversation" />
-                <span>Auto-load latest memory</span>
-            </label>
-            <label class="inline-dx-check" title="When the ASCII terminal is open, models may occasionally add small contextual ASCII pictures or bounded frame sequences. Real interactive games continue through LocalGPT's Council game runtime.">
-                <DxCheckBox @bind-Checked="AsciiFunModeEnabled" />
-                <span>ASCII fun mode (contextual)</span>
-            </label>
+        <div id="chat-provider-controls" data-testid="chat-top-controls">
+            <DxFormLayout CssClass="chat-provider-row">
+                <DxFormLayoutItem Caption="AI provider" ColSpanMd="5">
+                    <div class="chat-provider-selector" title="Choose the local or cloud model for the next response.">
+                        <DxComboBox Data="@ProviderSessionOptions"
+                                    Value="@SelectedProviderSessionName"
+                                    ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                    TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                    ValueChanged="@((string selectedName) => OnProviderSelectionChanged(selectedName))"
+                                    CssClass="selector-container-combo-editor chat-provider-combo"
+                                    NullText="No configured AI provider"
+                                    Enabled="@(ModelsList.Count > 0)" />
+                    </div>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem ColSpanMd="3">
+                    <div class="inline-dx-check" title="Keeps the current chat visible when switching to another configured AI.">
+                        <DxCheckBox @bind-Checked="ReuseContextWhenSwitching" />
+                        <span>Reuse context when switching AI</span>
+                    </div>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem ColSpanMd="2">
+                    <div class="inline-dx-check" title="Loads the most recent saved memory thread automatically when the Chat page opens. Leave off for a clean local-model context.">
+                        <DxCheckBox @bind-Checked="AutoLoadLatestConversation" />
+                        <span>Auto-load latest memory</span>
+                    </div>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem ColSpanMd="2">
+                    <div class="inline-dx-check" title="When the ASCII terminal is open, models may occasionally add small contextual ASCII pictures or bounded frame sequences. Real interactive games continue through LocalGPT's Council game runtime.">
+                        <DxCheckBox @bind-Checked="AsciiFunModeEnabled" />
+                        <span>ASCII fun mode (contextual)</span>
+                    </div>
+                </DxFormLayoutItem>
+            </DxFormLayout>
         </div>
         @if (ModelsList.Any(session => !session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase)))
         {
@@ -166,11 +169,11 @@
         <div class="model-toolbar" aria-label="DXAiChat model and council controls" data-testid="chat-model-toolbar">
             <label class="ollama-mode-setting" title="Controls Ollama's num_gpu option for DXAiChat and AI Council. Auto GPU lets Ollama use your GPU; Safe CPU forces num_gpu=0; Limited GPU uses a partial GPU-layer cap.">
                 <span>Ollama acceleration</span>
-                <select class="form-select" value="@OllamaAccelerationMode" @onchange="OnOllamaAccelerationModeChanged">
-                    <option value="@Catalog.OllamaModeAutoGpu">Auto GPU</option>
-                    <option value="@Catalog.OllamaModeSafeCpu">Safe CPU</option>
-                    <option value="@Catalog.OllamaModeLimitedGpu">Limited GPU</option>
-                </select>
+                <DxComboBox Data="@OllamaAccelerationOptions"
+                            Value="@OllamaAccelerationMode"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="@((string value) => OnOllamaAccelerationModeChanged(new ChangeEventArgs { Value = value }))" />
             </label>
             @if (OllamaAccelerationMode == Catalog.OllamaModeLimitedGpu)
             {
@@ -203,17 +206,18 @@
                                  Min="0" Max="3"
                                  Value="@CouncilCritiqueRounds"
                                  ValueChanged="OnCouncilCritiqueRoundsChanged" />
-            <label class="council-load-setting" title="Sets the session position between every selected model's own minimum and maximum CPU/GPU road values. 30% means min + 30% of that model's configured range.">
-                <span>Hardware load</span>
-                <input class="form-range" type="range" min="0" max="100" step="5" value="@CouncilEditorResourceLoadPercent" @onchange="OnCouncilResourceLoadChanged" />
-                <output>@CouncilEditorResourceLoadPercent%</output>
-            </label>
+            <BoundedNumberEditor Label="Hardware load"
+                                 HelpText="Sets the session position between every selected model's own minimum and maximum CPU/GPU road values. 30% means min + 30% of that model's configured range."
+                                 Min="0" Max="100" Step="5" Suffix="%"
+                                 Value="@CouncilEditorResourceLoadPercent"
+                                 ValueChanged="OnCouncilResourceLoadChanged" />
             <label class="council-scheduling-setting" title="Choose the simple scheduling policy. Host-balanced keeps each AI host single-flight while allowing different machines to work in parallel. Hardware-road parallel additionally uses the configured CPU/GPU lanes within a host.">
                 <span>Load balancing</span>
-                <select class="form-select" value="@CouncilEditorSchedulingMode" @onchange="OnCouncilSchedulingModeChanged">
-                    <option value="host-balanced">Host-balanced · different AI hosts parallel</option>
-                    <option value="road-parallel">Hardware-road parallel · use configured lanes</option>
-                </select>
+                <DxComboBox Data="@CouncilSchedulingOptions"
+                            Value="@CouncilEditorSchedulingMode"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="@((string value) => OnCouncilSchedulingModeChanged(new ChangeEventArgs { Value = value }))" />
                 <small>@CouncilSchedulingSummary</small>
             </label>
             <BoundedNumberEditor Label="Parallel models per AI host"
@@ -246,7 +250,7 @@
                                 <strong>@L("Chat.Council.UnavailableRoutes.Title", "Unavailable selected Council routes")</strong>
                                 <small>@L("Chat.Council.UnavailableRoutes.Help", "These exact provider/host/model routes remain selected but are not currently configured or discoverable. LocalGPT will not substitute a same-name model from another host.")</small>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="RemoveAllUnavailableCouncilSelections">@L("Chat.Council.UnavailableRoutes.RemoveAll", "Remove all unavailable")</button>
+                            <DxButton CssClass="btn btn-sm btn-outline-danger" Click="RemoveAllUnavailableCouncilSelections">@L("Chat.Council.UnavailableRoutes.RemoveAll", "Remove all unavailable")</DxButton>
                         </header>
                         <div class="council-unavailable-route-list">
                             @foreach (var selectionKey in UnavailableCouncilSelections)
@@ -256,7 +260,7 @@
                                         <strong>@L("Chat.Council.UnavailableRoutes.Unreachable", "Unavailable")</strong>
                                         <code>@selectionKey</code>
                                     </div>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveUnavailableCouncilSelection(selectionKey)">@L("Common.Remove", "Remove")</button>
+                                    <DxButton CssClass="btn btn-sm btn-outline-danger" Click="() => RemoveUnavailableCouncilSelection(selectionKey)">@L("Common.Remove", "Remove")</DxButton>
                                 </article>
                             }
                         </div>
@@ -272,8 +276,8 @@
                                     <small>@host.EndpointLabel · @host.Models.Count model@(host.Models.Count == 1 ? string.Empty : "s")</small>
                                 </div>
                                 <div class="council-host-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => SetCouncilHostSelection(host, true)">Select host</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => SetCouncilHostSelection(host, false)">Clear host</button>
+                                    <DxButton CssClass="btn btn-sm btn-outline-secondary" Click="() => SetCouncilHostSelection(host, true)">Select host</DxButton>
+                                    <DxButton CssClass="btn btn-sm btn-outline-secondary" Click="() => SetCouncilHostSelection(host, false)">Clear host</DxButton>
                                 </div>
                             </header>
                             <div class="council-member-list provider-model-list">
@@ -309,22 +313,21 @@
             <div class="hardware-performance-preset-toolbar" aria-label="Hardware performance presets" data-testid="hardware-performance-presets">
                 <label title="Apply benchmarked token ranges and hardware roads to matching selected provider/model identities without changing Council membership.">
                     <span>@L("Chat.HardwarePerformancePreset.Label", "Performance preset")</span>
-                    <select class="form-select" value="@SelectedHardwarePerformancePresetValue" @onchange="OnHardwarePerformancePresetChangedAsync" disabled="@isHardwarePerformancePresetBusy">
-                        <option value="">@L("Chat.HardwarePerformancePreset.Custom", "Custom hardware settings")</option>
-                        @foreach (var preset in HardwarePerformancePresetItems)
-                        {
-                            <option value="@preset.Id">@preset.Name@(preset.IsDefault ? " (default)" : string.Empty)</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@HardwarePerformancePresetOptions"
+                                Value="@SelectedHardwarePerformancePresetValue"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                ValueChanged="@((string value) => OnHardwarePerformancePresetChangedAsync(new ChangeEventArgs { Value = value }))"
+                                Enabled="@(!isHardwarePerformancePresetBusy)" />
                 </label>
                 <label title="Save the currently visible per-model roads and token ranges as a reusable hardware performance profile.">
                     <span>@L("Chat.HardwarePerformancePreset.Name", "Performance preset name")</span>
-                    <input class="form-control" @bind="HardwarePerformancePresetName" maxlength="160" placeholder="My benchmark profile" />
+                    <DxTextBox @bind-Text="HardwarePerformancePresetName" CssClass="form-control" MaxLength="160" NullText="My benchmark profile" />
                 </label>
                 <div class="hardware-performance-preset-actions">
-                    <button type="button" class="btn btn-outline-secondary" disabled="@(isHardwarePerformancePresetBusy || CouncilEditorRoutes.Count == 0 || string.IsNullOrWhiteSpace(HardwarePerformancePresetName))" @onclick="SaveHardwarePerformancePresetAsync">@L("Chat.HardwarePerformancePreset.Save", "Save current")</button>
-                    <button type="button" class="btn btn-outline-danger" disabled="@(isHardwarePerformancePresetBusy || SelectedHardwarePerformancePreset is null)" @onclick="DeleteHardwarePerformancePresetAsync">@L("Chat.HardwarePerformancePreset.Delete", "Delete preset")</button>
-                    <button type="button" class="btn btn-outline-secondary" disabled="@isHardwarePerformancePresetBusy" @onclick="RefreshHardwarePerformancePresetsAsync">@L("Common.Refresh", "Refresh")</button>
+                    <DxButton CssClass="btn btn-outline-secondary" Enabled="@(!(isHardwarePerformancePresetBusy || CouncilEditorRoutes.Count == 0 || string.IsNullOrWhiteSpace(HardwarePerformancePresetName)))" Click="SaveHardwarePerformancePresetAsync">@L("Chat.HardwarePerformancePreset.Save", "Save current")</DxButton>
+                    <DxButton CssClass="btn btn-outline-danger" Enabled="@(!(isHardwarePerformancePresetBusy || SelectedHardwarePerformancePreset is null))" Click="DeleteHardwarePerformancePresetAsync">@L("Chat.HardwarePerformancePreset.Delete", "Delete preset")</DxButton>
+                    <DxButton CssClass="btn btn-outline-secondary" Enabled="@(!isHardwarePerformancePresetBusy)" Click="RefreshHardwarePerformancePresetsAsync">@L("Common.Refresh", "Refresh")</DxButton>
                 </div>
                 <small class="memory-status">@L("Chat.HardwarePerformancePreset.Help", "Benchmark runs add profiles here automatically. Selecting one applies only matching provider/endpoint/model roads; selected Council members stay unchanged.")</small>
             </div>
@@ -336,17 +339,15 @@
         <div class="model-toolbar council-preset-toolbar" aria-label="AI Council model presets" data-testid="council-model-presets">
             <label title="Load a database-backed preset for council model selection and runtime limits.">
                 <span>Model preset</span>
-                <select class="form-select" value="@SelectedModelPresetValue" @onchange="OnModelPresetChangedAsync">
-                    <option value="">Custom selection</option>
-                    @foreach (var preset in ModelPresets)
-                    {
-                        <option value="@preset.Id">@preset.Name@(preset.IsDefault ? " (default)" : string.Empty)</option>
-                    }
-                </select>
+                <DxComboBox Data="@ModelPresetOptions"
+                            Value="@SelectedModelPresetValue"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="@((string value) => OnModelPresetChangedAsync(new ChangeEventArgs { Value = value }))" />
             </label>
             <label title="Saving updates an existing preset with the same name instead of creating duplicates.">
                 <span>Preset name</span>
-                <input class="form-control" @bind="ModelPresetName" maxlength="160" placeholder="My council team" />
+                <DxTextBox @bind-Text="ModelPresetName" CssClass="form-control" MaxLength="160" NullText="My council team" />
             </label>
             <label class="inline-dx-check" title="Creates a database-first project/revision for each explicit AI Council run when no project is selected.">
                 <DxCheckBox @bind-Checked="CreateProjectPerCouncilRun" />
@@ -355,24 +356,21 @@
             <details class="component-actions-menu">
                 <summary class="btn btn-outline-secondary">Preset actions</summary>
                 <div class="component-actions-menu-items" role="menu">
-                    <button role="menuitem" type="button"
-                            disabled="@(isModelPresetBusy || SelectedCouncilModelNames.Count == 0 || string.IsNullOrWhiteSpace(ModelPresetName))"
-                            @onclick="SaveModelPresetAsync">Save preset</button>
-                    <button role="menuitem" type="button"
-                            disabled="@(isModelPresetBusy || SelectedModelPreset is null)"
-                            @onclick="ArchiveModelPresetAsync">Archive preset</button>
+                    <DxButton role="menuitem" Enabled="@(!(isModelPresetBusy || SelectedCouncilModelNames.Count == 0 || string.IsNullOrWhiteSpace(ModelPresetName)))"
+                            Click="SaveModelPresetAsync">Save preset</DxButton>
+                    <DxButton role="menuitem" Enabled="@(!(isModelPresetBusy || SelectedModelPreset is null))"
+                            Click="ArchiveModelPresetAsync">Archive preset</DxButton>
                 </div>
             </details>
         </div>
         <div class="memory-toolbar council-team-toolbar" aria-label="AI Council team and heartbeat configuration" data-testid="council-team-picker">
             <label title="Selects the database-backed roles, prompts and heartbeat workflow for the next AI Council run.">
                 <span>Council team</span>
-                <select class="form-select" value="@SelectedCouncilTeamKey" @onchange="OnCouncilTeamChanged">
-                    @foreach (var team in CouncilTeams)
-                    {
-                        <option value="@team.Key">@team.DisplayName</option>
-                    }
-                </select>
+                <DxComboBox Data="@CouncilTeamOptions"
+                            Value="@SelectedCouncilTeamKey"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="@((string value) => OnCouncilTeamChanged(new ChangeEventArgs { Value = value }))" />
             </label>
             <span class="memory-status">Roles, preparation prompts and heartbeat scripts are stored in SQLite and can be adjusted without replacing compiled services.</span>
             <a class="btn btn-outline-secondary btn-sm" href="/council-teams" data-enhance-nav="false">Edit teams and workflow</a>
@@ -387,10 +385,12 @@
                 <div class="council-direct-starter-grid">
                     @foreach (var starter in CouncilStarterSuggestions)
                     {
-                        <button type="button" class="council-direct-starter" @onclick="async () => { await StartCouncilPromptAsync(starter, startFresh: true).ConfigureAwait(true); }">
-                            <strong>@starter.Title</strong>
-                            <span>@starter.Text</span>
-                        </button>
+                        <DxButton CssClass="council-direct-starter" Click="() => StartCouncilPromptAsync(starter, startFresh: true)">
+                            <span class="council-direct-starter-content">
+                                <strong>@starter.Title</strong>
+                                <span>@starter.Text</span>
+                            </span>
+                        </DxButton>
                     }
                 </div>
             </section>
@@ -408,30 +408,21 @@
             <details class="component-actions-menu">
                 <summary class="btn btn-outline-secondary">Memory actions</summary>
                 <div class="component-actions-menu-items" role="menu">
-                    <button role="menuitem" type="button" disabled="@isMemoryBusy" @onclick="SaveCurrentConversationAsync">Save memory</button>
-                    <button role="menuitem" type="button" disabled="@(isMemoryBusy || SavedConversations.Count == 0)" @onclick="LoadLatestConversationAsync">Recall latest</button>
-                    <button role="menuitem" type="button" disabled="@(isMemoryBusy || SelectedConversation is null)" @onclick="LoadSelectedConversationAsync">Recall selected chat</button>
+                    <DxButton role="menuitem" Enabled="@(!isMemoryBusy)" Click="SaveCurrentConversationAsync">Save memory</DxButton>
+                    <DxButton role="menuitem" Enabled="@(!(isMemoryBusy || SavedConversations.Count == 0))" Click="LoadLatestConversationAsync">Recall latest</DxButton>
+                    <DxButton role="menuitem" Enabled="@(!(isMemoryBusy || SelectedConversation is null))" Click="LoadSelectedConversationAsync">Recall selected chat</DxButton>
                 </div>
             </details>
             <label class="memory-all-conversations" title="Pick any saved chat from the SQLite memory database and continue it in the chat window.">
                 <span>All saved chats</span>
-                <select class="form-select memory-selector"
-                        aria-label="All saved chats"
-                        value="@(SelectedConversation?.Id.ToString() ?? string.Empty)"
-                        @onchange="OnSavedConversationSelectionChangedAsync"
-                        disabled="@(isMemoryBusy || SavedConversations.Count == 0)">
-                    @if (SavedConversations.Count == 0)
-                    {
-                        <option value="">No saved chats</option>
-                    }
-                    else
-                    {
-                        @foreach (var conversation in SavedConversations)
-                        {
-                            <option value="@conversation.Id">@conversation.DisplayName</option>
-                        }
-                    }
-                </select>
+                <DxComboBox Data="@SavedConversationOptions"
+                            Value="@(SelectedConversation?.Id.ToString() ?? string.Empty)"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="@((string value) => OnSavedConversationSelectionChangedAsync(new ChangeEventArgs { Value = value }))"
+                            CssClass="memory-selector"
+                            NullText="No saved chats"
+                            Enabled="@(!isMemoryBusy && SavedConversations.Count > 0)" />
             </label>
             @if (!string.IsNullOrWhiteSpace(memoryStatus))
             {
@@ -441,28 +432,20 @@
         <div class="memory-toolbar" aria-label="Chat project and release context" data-testid="chat-project-context">
             <label title="Optionally links this chat and its function calls to a LocalGPT project.">
                 <span>Project</span>
-                <select value="@SelectedChatProjectValue" @onchange="OnChatProjectChangedAsync">
-                    <option value="">No project</option>
-                    @foreach (var project in ChatProjects)
-                    {
-                        <option value="@project.Id">@project.DisplayName</option>
-                    }
-                </select>
+                <DxComboBox Data="@ChatProjectOptions"
+                            Value="@SelectedChatProjectValue"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="@((string value) => OnChatProjectChangedAsync(new ChangeEventArgs { Value = value }))" />
             </label>
             <label title="Links the chat to an exact saved project version for traceability.">
                 <span>Project version</span>
-                <select value="@SelectedChatProjectVersionValue"
-                        @onchange="OnChatProjectVersionChangedAsync"
-                        disabled="@(SelectedChatProjectDetails is null)">
-                    <option value="">Current / unspecified</option>
-                    @if (SelectedChatProjectDetails is not null)
-                    {
-                        @foreach (var version in SelectedChatProjectDetails.Versions.OrderByDescending(item => item.CreatedAtUtc))
-                        {
-                            <option value="@version.Id">@version.Version@(version.IsCurrent ? " (current)" : string.Empty)</option>
-                        }
-                    }
-                </select>
+                <DxComboBox Data="@ChatProjectVersionOptions"
+                            Value="@SelectedChatProjectVersionValue"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="@((string value) => OnChatProjectVersionChangedAsync(new ChangeEventArgs { Value = value }))"
+                            Enabled="@(SelectedChatProjectDetails is not null)" />
             </label>
             <span class="memory-status">LocalGPT @SessionContext.ApplicationVersion</span>
         </div>
@@ -491,60 +474,33 @@
             <div class="architecture-poll-grid">
                 <label title="Choose the target language and toolchain. The options are database-provisioned and do not force .NET when the repository or request uses another ecosystem.">
                     <span>Language / toolchain</span>
-                    <select @bind="ArchitectureLanguageToolchain">
-                        @foreach (var option in Catalog.ArchitectureLanguageToolchainOptions)
-                        {
-                            <option value="@option">@option</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@Catalog.ArchitectureLanguageToolchainOptions" @bind-Value="ArchitectureLanguageToolchain" />
                 </label>
                 <label title="Choose whether generated UI should use DevExpress components, plain web/native UI, another target-specific stack, or ask at runtime.">
                     <span>UI stack</span>
-                    <select @bind="ArchitectureUiStack">
-                        @foreach (var option in Catalog.ArchitectureUiStackOptions)
-                        {
-                            <option value="@option">@option</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@Catalog.ArchitectureUiStackOptions" @bind-Value="ArchitectureUiStack" />
                 </label>
                 <label title="Choose whether the generated work should be one solution, split into backend/frontend projects, or ask at runtime.">
                     <span>Solution shape</span>
-                    <select @bind="ArchitectureSolutionShape">
-                        @foreach (var option in Catalog.ArchitectureSolutionShapeOptions)
-                        {
-                            <option value="@option">@option</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@Catalog.ArchitectureSolutionShapeOptions" @bind-Value="ArchitectureSolutionShape" />
                 </label>
                 <label title="Choose the hosting/runtime model. This is not limited to Blazor; use Ask when the app target is unclear.">
                     <span>Runtime/rendering</span>
-                    <select @bind="ArchitectureRenderMode">
-                        @foreach (var option in Catalog.ArchitectureRenderModeOptions)
-                        {
-                            <option value="@option">@option</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@Catalog.ArchitectureRenderModeOptions" @bind-Value="ArchitectureRenderMode" />
                 </label>
                 <label title="Choose how closely generated UI should recreate the reference application, or ask at runtime.">
                     <span>Reference look</span>
-                    <select @bind="ArchitectureReferenceLook">
-                        @foreach (var option in Catalog.ArchitectureReferenceLookOptions)
-                        {
-                            <option value="@option">@option</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@Catalog.ArchitectureReferenceLookOptions" @bind-Value="ArchitectureReferenceLook" />
                 </label>
             </div>
             <div class="architecture-poll-actions">
                 <label class="architecture-consent" title="When checked, the council may choose remaining non-dangerous sandbox defaults if your prompt already describes the intended design well enough. It still may not integrate features into LocalGPT without explicit approval.">
-                    <input type="checkbox" @bind="AllowCouncilToChooseSandboxDetails" />
+                    <DxCheckBox @bind-Checked="AllowCouncilToChooseSandboxDetails" />
                     <span>Let council choose safe sandbox details when my design intent is clear</span>
                 </label>
                 <label title="Optional detail for the next council answer, for example an app to recode or special backend constraints.">
                     <span>Extra direction</span>
-                    <input type="text"
-                           @bind="ArchitecturePollNotes"
-                           placeholder="Example: ask me first if target platform, framework, data model, or deployment are unclear." />
+                    <DxTextBox @bind-Text="ArchitecturePollNotes" NullText="Example: ask me first if target platform, framework, data model, or deployment are unclear." />
                 </label>
                 <DxButton CssClass="localgpt-rounded-action localgpt-action-primary" Text="Add Decision To Chat"
                           RenderStyle="ButtonRenderStyle.Primary"
@@ -565,33 +521,38 @@
                 </div>
             </div>
         </details>
-        <DxPopup Visible="@showGameConsole"
-                 VisibleChanged="OnGameConsoleVisibilityChangedAsync"
-                 HeaderText="LocalGPT ASCII console"
-                 Width="min(1680px, 97vw)"
-                 Height="min(900px, 90vh)"
-                 MaxHeight="95vh"
-                 CloseOnOutsideClick="false">
-            <BodyContentTemplate>
-                <div class="chat-game-popup-body" aria-label="Optional ASCII game console">
-                    <ChatGameConsole ConversationId="@ActiveConversationId"
-                                     CouncilRunId="@(AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? SelectedCouncilRunId)"
-                                     SuggestedTeamKey="@SelectedCouncilTeamKey"
-                                     ConversationMessages="@AsciiConversationMessages"
-                                     CouncilParticipantActivities="@AsciiCouncilParticipantActivities"
-                                     AssistantDisplayName="@AsciiAssistantDisplayName"
-                                     FunModeEnabled="@AsciiFunModeEnabled"
-                                     SavedConversations="@SavedConversations"
-                                     ChatPromptRequested="SubmitOperatorChatPromptAsync"
-                                     CouncilPromptRequested="SubmitOperatorCouncilPromptAsync"
-                                     NewSessionRequested="ClearHistoryAsync"
-                                     SessionOpenRequested="OpenOperatorSavedConversationAsync"
-                                     CouncilStopRequested="StopSelectedCouncilSessionAsync"
-                                     CouncilSkipRequested="SkipCurrentCouncilRoundAsync"
-                                     CloseRequested="CloseGameConsole" />
-                </div>
-            </BodyContentTemplate>
-        </DxPopup>
+        @if (showGameConsole)
+        {
+            <DxPopup @key="gameConsoleRenderKey"
+                     Visible="true"
+                     VisibleChanged="OnGameConsoleVisibilityChangedAsync"
+                     HeaderText="LocalGPT ASCII console"
+                     Width="min(1680px, 97vw)"
+                     Height="min(900px, 90vh)"
+                     MaxHeight="95vh"
+                     CloseOnOutsideClick="false">
+                <BodyContentTemplate>
+                    <div class="chat-game-popup-body" aria-label="Optional ASCII game console">
+                        <ChatGameConsole ConversationId="@ActiveConversationId"
+                                         CouncilRunId="@(AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? SelectedCouncilRunId)"
+                                         SuggestedTeamKey="@SelectedCouncilTeamKey"
+                                         ConversationMessages="@AsciiConversationMessages"
+                                         CouncilParticipantActivities="@AsciiCouncilParticipantActivities"
+                                         AssistantDisplayName="@AsciiAssistantDisplayName"
+                                         FunModeEnabled="@AsciiFunModeEnabled"
+                                         SavedConversations="@SavedConversations"
+                                         ChatPromptRequested="SubmitOperatorChatPromptAsync"
+                                         CouncilPromptRequested="SubmitOperatorCouncilPromptAsync"
+                                         NewSessionRequested="ClearHistoryAsync"
+                                         SessionOpenRequested="OpenOperatorSavedConversationAsync"
+                                         CouncilStopRequested="StopSelectedCouncilSessionAsync"
+                                         CouncilSkipRequested="SkipCurrentCouncilRoundAsync"
+                                         GameAvailabilityChanged="OnAsciiGameAvailabilityChangedAsync"
+                                         CloseRequested="CloseGameConsole" />
+                    </div>
+                </BodyContentTemplate>
+            </DxPopup>
+        }
         @if (RunningLiveCouncilSessions.Count > 0 && ActiveLiveCouncilSession is null)
         {
             var newestLiveSession = RunningLiveCouncilSessions[0];
@@ -620,15 +581,15 @@
                                                   PromptMessage="@suggestion.PromptMessage" />
                     }
                 </PromptSuggestions>
-                <MessageContentTemplate >
+                <MessageContentTemplate Context="messageContext">
                     @{
-                        var liveCouncilMessage = ResolveLiveCouncilMessage(context.Content);
+                        var liveCouncilMessage = ResolveLiveCouncilMessage(messageContext.Content);
                     }
                     <div class="demo-chat-content" data-localgpt-details-host data-localgpt-copyable="true">
                         @(new MarkupString(ChatContentRenderer.Render(
                             liveCouncilMessage is not null
-                                ? LiveCouncilTranscript(liveCouncilMessage.RunId, context.Content)
-                                : context.Content)))
+                                ? LiveCouncilTranscript(liveCouncilMessage.RunId, messageContext.Content)
+                                : messageContext.Content)))
                         @if (liveCouncilMessage is not null)
                         {
                             var participantActivities = LiveCouncilParticipantActivities(liveCouncilMessage.RunId);
@@ -672,11 +633,11 @@
                                             }
                                             else if (!revealedCompletedCouncilActivityEvidence.Contains(activity.ActivityKey))
                                             {
-                                                <button type="button"
-                                                        class="localgpt-live-participant-evidence-button"
-                                                        @onclick="@(() => revealedCompletedCouncilActivityEvidence.Add(activity.ActivityKey))">
+                                                <DxButton
+                                                        CssClass="localgpt-live-participant-evidence-button"
+                                                        Click="@(() => revealedCompletedCouncilActivityEvidence.Add(activity.ActivityKey))">
                                                     Inspect completed answer and provider evidence
-                                                </button>
+                                                </DxButton>
                                             }
                                             else
                                             {
@@ -733,6 +694,62 @@
 
             </DxAIChat>
         </div>
+        @if (InlineChatRequests.Count > 0)
+        {
+            <section class="chat-inline-ai-requests" aria-label="AI requests awaiting your review" data-testid="chat-inline-ai-requests">
+                <header>
+                    <div>
+                        <strong>AI requests for this session</strong>
+                        <small>Review function approvals and AI-seeded choices directly where the Council is working.</small>
+                    </div>
+                    <span>@InlineChatRequests.Count waiting</span>
+                </header>
+                @foreach (var request in InlineChatRequests)
+                {
+                    <article class="chat-inline-ai-request" @key="request.Id">
+                        <div class="chat-inline-ai-request-heading">
+                            <div>
+                                <strong>@request.Title</strong>
+                                <small>@request.RequestedRole · @request.RequestedBy · @request.OperationKey</small>
+                            </div>
+                            <span class="chat-inline-ai-request-risk">@request.RiskLevel</span>
+                        </div>
+                        <p>@(string.IsNullOrWhiteSpace(request.ResponsePrompt) ? request.Description : request.ResponsePrompt)</p>
+                        @if (IsInlineApprovalRequest(request))
+                        {
+                            <div class="chat-inline-ai-request-actions">
+                                <DxButton Text="Approve" RenderStyle="ButtonRenderStyle.Success" Enabled="@(!inlineRequestSubmissions.Contains(request.Id))" Click="@(() => ResolveInlineChatRequestAsync(request, true, GetInlineRequestText(request)))" />
+                                <DxButton Text="Decline" RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!inlineRequestSubmissions.Contains(request.Id))" Click="@(() => ResolveInlineChatRequestAsync(request, false, GetInlineRequestText(request)))" />
+                            </div>
+                        }
+                        @if (request.SuggestedResponses.Count > 0)
+                        {
+                            <div class="chat-inline-ai-request-suggestions" aria-label="Suggested responses">
+                                @foreach (var suggestion in request.SuggestedResponses)
+                                {
+                                    <DxButton Text="@suggestion" RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!inlineRequestSubmissions.Contains(request.Id))" Click="@(() => ResolveInlineChatRequestAsync(request, null, suggestion))" />
+                                }
+                            </div>
+                        }
+                        @if (request.AllowFreeText || !IsInlineApprovalRequest(request))
+                        {
+                            <div class="chat-inline-ai-request-response">
+                                <DxTextBox Text="@GetInlineRequestText(request)"
+                                           TextChanged="@((string value) => SetInlineRequestText(request.Id, value))"
+                                           BindValueMode="BindValueMode.OnInput"
+                                           MaxLength="2000"
+                                           NullText="Answer, add a review note, or explain a decline…"
+                                           Enabled="@(!inlineRequestSubmissions.Contains(request.Id))" />
+                                @if (!IsInlineApprovalRequest(request))
+                                {
+                                    <DxButton Text="Send" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!inlineRequestSubmissions.Contains(request.Id) && !string.IsNullOrWhiteSpace(GetInlineRequestText(request)))" Click="@(() => ResolveInlineChatRequestAsync(request, null, GetInlineRequestText(request)))" />
+                                }
+                            </div>
+                        }
+                    </article>
+                }
+            </section>
+        }
         @* Quick selectors stay outside the DevExpress chat host. One normal-flow DevExpress form row
            sits directly below Chat and above Running session tools; no composer geometry is changed. *@
         <div class="w-100" data-testid="chat-quick-configuration-bar" aria-label="Quick Council configuration">
@@ -763,7 +780,7 @@
             {
                 <div class="chat-game-latency-hint" role="status">
                     <span><strong>ASCII hot-seat:</strong> two distinct AI runtime roles are used. Smaller responsive models make each turn noticeably faster; the selected hardware performance profile still controls matching provider/model roads.</span>
-                    <button type="button" class="btn btn-sm btn-outline-success" @onclick="ApplyReactiveAsciiGameplayPresetAsync">Use Reactive ASCII Gameplay preset</button>
+                    <DxButton CssClass="btn btn-sm btn-outline-success" Click="ApplyReactiveAsciiGameplayPresetAsync">Use Reactive ASCII Gameplay preset</DxButton>
                 </div>
             }
         </div>
@@ -782,35 +799,26 @@
         <div class="memory-toolbar human-live-contribution" aria-label="Join and add information to a running AI Council" data-testid="live-council-participation">
             <label class="live-session-selector" title="Join any council heartbeat that is still running in this LocalGPT process.">
                 <span>Running Council session</span>
-                <select class="form-select" value="@SelectedCouncilRunValue"
-                        @onchange="OnActiveCouncilRunChanged"
-                        disabled="@(RunningLiveCouncilSessions.Count == 0)">
-                    @if (RunningLiveCouncilSessions.Count == 0)
-                    {
-                        <option value="">No Council heartbeat is running</option>
-                    }
-                    else
-                    {
-                        @foreach (var session in RunningLiveCouncilSessions)
-                        {
-                            var run = collaborationSnapshot.ActiveRuns.FirstOrDefault(item => item.RunId == session.RunId);
-                            var runState = run is null ? "live" : $"round {run.CurrentRound} · {run.Phase}";
-                            <option value="@session.RunId">@CouncilText.FormatLiveCouncilSessionOption(session.StartedAtUtc, runState, session.CouncilMembers)</option>
-                        }
-                    }
-                </select>
+                <DxComboBox Data="@RunningCouncilSessionOptions"
+                            Value="@SelectedCouncilRunValue"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="@((string value) => OnActiveCouncilRunChanged(new ChangeEventArgs { Value = value }))"
+                            CssClass="localgpt-dx-combo"
+                            NullText="No Council heartbeat is running"
+                            Enabled="@(RunningLiveCouncilSessions.Count > 0)" />
             </label>
             <details class="component-actions-menu live-session-actions-menu">
                 <summary class="btn btn-outline-secondary">Session actions</summary>
                 <div class="component-actions-menu-items" role="menu">
-                    <button role="menuitem" type="button" @onclick="RefreshHumanCollaborationAsync">Refresh running sessions</button>
+                    <DxButton role="menuitem" Click="RefreshHumanCollaborationAsync">Refresh running sessions</DxButton>
                     @if (ActiveCouncilRun is not null)
                     {
-                        <button role="menuitem" type="button" @onclick="SkipCurrentCouncilRoundAsync">Skip current round</button>
+                        <DxButton role="menuitem" Click="SkipCurrentCouncilRoundAsync">Skip current round</DxButton>
                     }
                     @if (!collaborationSnapshot.Profile.IsEnabled)
                     {
-                        <button role="menuitem" type="button" @onclick="EnableHumanParticipationAsync">Enable human participation</button>
+                        <DxButton role="menuitem" Click="EnableHumanParticipationAsync">Enable human participation</DxButton>
                     }
                 </div>
             </details>
@@ -834,10 +842,7 @@
             }
             <label class="live-contribution-editor" title="This does not cancel the current model. It enters at the next council heartbeat as a human peer contribution.">
                 <span>Ask AI Assistant / Council correction</span>
-                <input class="form-control" type="text"
-                       @bind="RunningCouncilContribution"
-                       disabled="@(!IsLiveCouncilInteractionAvailable)"
-                       placeholder="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
+                <DxTextBox @bind-Text="RunningCouncilContribution" CssClass="form-control" Enabled="@(!(!IsLiveCouncilInteractionAvailable))" NullText="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
             </label>
             @if (collaborationSnapshot.Profile.IsEnabled && IsLiveCouncilInteractionAvailable && !string.IsNullOrWhiteSpace(RunningCouncilContribution))
             {
@@ -864,16 +869,15 @@
             <div class="memory-toolbar" aria-label="Assistant response feedback" data-testid="chat-feedback-controls">
                 <label title="Choose the assistant response you want to rate.">
                     <span>Response</span>
-                    <select value="@SelectedFeedbackSortOrderValue" @onchange="OnFeedbackTargetChanged">
-                        @foreach (var target in FeedbackTargets)
-                        {
-                            <option value="@target.SortOrder">@target.Label</option>
-                        }
-                    </select>
+                    <DxComboBox Data="@FeedbackTargetOptions"
+                                Value="@SelectedFeedbackSortOrderValue"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                ValueChanged="@((string value) => OnFeedbackTargetChanged(new ChangeEventArgs { Value = value }))" />
                 </label>
                 <label title="Optional local note stored with the selected assistant message.">
                     <span>Comment</span>
-                    <input type="text" maxlength="4000" @bind="FeedbackComment" placeholder="What was useful or wrong?" />
+                    <DxTextBox @bind-Text="FeedbackComment" MaxLength="4000" NullText="What was useful or wrong?" />
                 </label>
                 <div class="chat-feedback-actions">
                     <DxButton CssClass="localgpt-rounded-action localgpt-action-success" Text="Helpful"

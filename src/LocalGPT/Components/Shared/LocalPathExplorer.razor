@@ -6,11 +6,11 @@
          Width="min(1080px, 96vw)"
          MaxHeight="90vh"
          CloseOnOutsideClick="false">
-    <BodyContentTemplate>
+    <BodyContentTemplate Context="popupBodyContext">
         <div class="local-path-explorer">
             <div class="local-path-explorer-toolbar">
                 <DxButton Text="Up" RenderStyle="ButtonRenderStyle.Secondary" Enabled="@CanGoUp" Click="GoUpAsync" />
-                <input class="local-path-address" @bind="pathInput" @onkeydown="OnPathKeyDown" aria-label="Local path" />
+                <DxTextBox @bind-Text="pathInput" CssClass="local-path-address" @onkeydown="OnPathKeyDown" aria-label="Local path" />
                 <DxButton Text="Open" RenderStyle="ButtonRenderStyle.Secondary" Click="BrowseTypedAsync" />
                 @if (SelectionMode.Equals("Directory", StringComparison.OrdinalIgnoreCase) && current.Exists && current.IsDirectory)
                 {
@@ -21,7 +21,7 @@
             <div class="local-path-root-strip" aria-label="Suggested local roots">
                 @foreach (var root in current.SuggestedRoots.Take(10))
                 {
-                    <button type="button" title="@root" @onclick="() => BrowseAsync(root)">@ShortRoot(root)</button>
+                    <DxButton title="@root" Click="() => BrowseAsync(root)">@ShortRoot(root)</DxButton>
                 }
             </div>
 
@@ -45,11 +45,11 @@
                             @{ var entry = (LocalPathEntry)cell.DataItem; }
                             @if (entry.CanEnter)
                             {
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => BrowseAsync(entry.FullPath)" @onclick:stopPropagation="true">Open</button>
+                                <DxButton CssClass="btn btn-sm btn-outline-secondary" Click="() => BrowseAsync(entry.FullPath)" @onclick:stopPropagation="true">Open</DxButton>
                             }
                             @if (CanSelect(entry))
                             {
-                                <button type="button" class="btn btn-sm btn-primary ms-1" @onclick="() => SelectAsync(entry.FullPath)" @onclick:stopPropagation="true">Select</button>
+                                <DxButton CssClass="btn btn-sm btn-primary ms-1" Click="() => SelectAsync(entry.FullPath)" @onclick:stopPropagation="true">Select</DxButton>
                             }
                         </CellDisplayTemplate>
                     </DxGridDataColumn>

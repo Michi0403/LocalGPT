@@ -12,7 +12,6 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 @inject ISupervisedTaskRunner TaskRunner
-@inject IJSRuntime JS
 
 <ToastWrapper Name="HumanCollaborationToasts" />
 
@@ -26,24 +25,24 @@
             <small>@nextRequest.RequestKind · @nextRequest.QuestionScope · @GetGateLabel(nextRequest) · @nextRequest.RequestedBy</small>
         </div>
         <div class="human-approval-bar-actions">
-            <button type="button" class="human-primary" data-localgpt-command="open-approvals" @onclick="OpenApprovalPanel">Review and work through</button>
-            <button type="button" class="human-secondary" @onclick="HideApprovalBar">Hide bar</button>
+            <DxButton CssClass="human-primary" data-localgpt-command="open-approvals" Click="OpenApprovalPanel">Review and work through</DxButton>
+            <DxButton CssClass="human-secondary" Click="HideApprovalBar">Hide bar</DxButton>
         </div>
     </aside>
 }
 
-<button type="button"
+<DxButton
         data-localgpt-command="open-approvals"
-        class="human-inbox-launcher @(PendingCount > 0 ? "has-pending" : string.Empty)"
+        CssClass="@(PendingCount > 0 ? "human-inbox-launcher has-pending" : "human-inbox-launcher")"
         title="Approvals, permissions and human Council participation"
-        @onclick="TogglePanel">
+        Click="TogglePanel">
     <span aria-hidden="true">🔒</span>
     <span>Approvals & team</span>
     @if (PendingCount > 0)
     {
         <strong>@PendingCount</strong>
     }
-</button>
+</DxButton>
 
 @if (isOpen)
 {
@@ -53,7 +52,7 @@
                 <h2>Human Collaboration</h2>
                 <p>Persistent approvals, guidance, and council participation.</p>
             </div>
-            <button type="button" class="human-inbox-close" @onclick="TogglePanel" aria-label="Close">×</button>
+            <DxButton CssClass="human-inbox-close" Click="TogglePanel" aria-label="Close">×</DxButton>
         </header>
 
         @if (isBusy)
@@ -89,26 +88,26 @@
         <section class="human-inbox-section">
             <h3>Take Part</h3>
             <label class="human-inbox-check">
-                <input type="checkbox" @bind="profile.IsEnabled" @bind:after="MarkProfileDirty" />
+                <DxCheckBox @bind-Checked="profile.IsEnabled" @bind-Checked:after="MarkProfileDirty" />
                 <span>Join active councils as a human peer</span>
             </label>
             <label>
                 Display name
-                <input @bind="profile.DisplayName" @bind:after="MarkProfileDirty" maxlength="120" />
+                <DxTextBox @bind-Text="profile.DisplayName" @bind-Text:after="MarkProfileDirty" MaxLength="120" />
             </label>
             <label>
                 Team role
-                <input @bind="profile.RoleName" @bind:after="MarkProfileDirty" maxlength="180" placeholder="Architecture reviewer, domain expert, musician…" />
+                <DxTextBox @bind-Text="profile.RoleName" @bind-Text:after="MarkProfileDirty" MaxLength="180" NullText="Architecture reviewer, domain expert, musician…" />
             </label>
             <label>
                 Expertise
-                <textarea @bind="profile.Expertise" @bind:after="MarkProfileDirty" maxlength="2000" rows="3"></textarea>
+                <DxMemo @bind-Text="profile.Expertise" @bind-Text:after="MarkProfileDirty" MaxLength="2000" Rows="3" />
             </label>
             <label>
                 Working style
-                <textarea @bind="profile.WorkingStyle" @bind:after="MarkProfileDirty" maxlength="1200" rows="2"></textarea>
+                <DxMemo @bind-Text="profile.WorkingStyle" @bind-Text:after="MarkProfileDirty" MaxLength="1200" Rows="2" />
             </label>
-            <button type="button" class="human-primary" @onclick="SaveProfileAsync">Save participant profile</button>
+            <DxButton CssClass="human-primary" Click="SaveProfileAsync">Save participant profile</DxButton>
             <p class="human-inbox-note">Participation is peer input, not automatic truth and not security approval.</p>
         </section>
 
@@ -128,12 +127,12 @@
                             <p><strong>Paused:</strong> this Council boundary is waiting for all applicable blocking questions below to be answered.</p>
                         }
                         <p>Your message enters the next heartbeat as a clearly marked human council contribution. Models must review it like every other member answer.</p>
-                        <textarea id="@GetContributionEditorId(run.RunId)"
-                                  data-localgpt-heartbeat-draft="true"
-                                  maxlength="1000000"
-                                  rows="4"
-                                  placeholder="Add evidence, corrections, constraints, or your own answer without stopping the run."></textarea>
-                        <button type="button" class="human-primary" @onclick="(() => SubmitContributionAsync(run.RunId))">Add to next heartbeat</button>
+                        <DxMemo Text="@GetContributionDraft(run.RunId)"
+                                TextChanged="@((string value) => SetContributionDraft(run.RunId, value))"
+                                MaxLength="1000000"
+                                Rows="4"
+                                NullText="Add evidence, corrections, constraints, or your own answer without stopping the run." />
+                        <DxButton CssClass="human-primary" Click="(() => SubmitContributionAsync(run.RunId))">Add to next heartbeat</DxButton>
                     </article>
                 }
             </section>
@@ -177,7 +176,7 @@
                         <div class="human-suggestions">
                             @foreach (var suggestion in request.SuggestedResponses)
                             {
-                                <button type="button" @onclick="(() => editor.Response = suggestion)">@suggestion</button>
+                                <DxButton Click="(() => editor.Response = suggestion)">@suggestion</DxButton>
                             }
                         </div>
                     }
@@ -189,36 +188,35 @@
                     {
                         <label>
                             @(string.IsNullOrWhiteSpace(request.ResponsePrompt) ? "Response" : request.ResponsePrompt)
-                            <textarea @bind="editor.Response" maxlength="1000000" rows="3"></textarea>
+                            <DxMemo @bind-Text="editor.Response" MaxLength="1000000" Rows="3" />
                         </label>
                     }
                     <label>
                         Reason / team note
-                        <textarea @bind="editor.Reason" maxlength="2000" rows="2"></textarea>
+                        <DxMemo @bind-Text="editor.Reason" MaxLength="2000" Rows="2" />
                     </label>
                     @if (request.RequestKind == Vocabulary.Get().HumanRequestApproval)
                     {
                         <label>
                             Reuse scope
-                            <select class="form-select" @bind="editor.ReuseScope">
-                                <option value="@HumanApprovalReuseScope.ExactRequestOnce">Exact request once</option>
-                                <option value="@HumanApprovalReuseScope.CurrentApplicationSession">Current application session</option>
-                                <option value="@HumanApprovalReuseScope.PersistentUntilChanged">Persistent until changed</option>
-                            </select>
+                            <DxComboBox Data="@ApprovalReuseScopeOptions"
+                                        @bind-Value="editor.ReuseScope"
+                                        ValueFieldName="@nameof(LocalGptSelectionOption<HumanApprovalReuseScope>.Value)"
+                                        TextFieldName="@nameof(LocalGptSelectionOption<HumanApprovalReuseScope>.Label)" />
                         </label>
                         <label class="human-inbox-check">
-                            <input type="checkbox" @bind="editor.ConsumeApproval" />
+                            <DxCheckBox @bind-Checked="editor.ConsumeApproval" />
                             <span>Consume the saved approval after one matching use</span>
                         </label>
                         <p class="human-inbox-note">Reuse always remains bound to the exact operation and parameter fingerprint. High-impact requests default to one use.</p>
                         <div class="human-decision-row">
-                            <button type="button" class="human-approve" @onclick="(() => ResolveAsync(request, true))">Approve and save</button>
-                            <button type="button" class="human-decline" @onclick="(() => ResolveAsync(request, false))">Decline and save</button>
+                            <DxButton CssClass="human-approve" Click="(() => ResolveAsync(request, true))">Approve and save</DxButton>
+                            <DxButton CssClass="human-decline" Click="(() => ResolveAsync(request, false))">Decline and save</DxButton>
                         </div>
                     }
                     else
                     {
-                        <button type="button" class="human-primary" @onclick="(() => ResolveAsync(request, null))">Send to team</button>
+                        <DxButton CssClass="human-primary" Click="(() => ResolveAsync(request, null))">Send to team</DxButton>
                     }
                 </article>
             }
@@ -269,35 +267,34 @@
                         {
                             <label>
                                 @(string.IsNullOrWhiteSpace(request.ResponsePrompt) ? "Response" : request.ResponsePrompt)
-                                <textarea @bind="editor.Response" maxlength="1000000" rows="3"></textarea>
+                                <DxMemo @bind-Text="editor.Response" MaxLength="1000000" Rows="3" />
                             </label>
                         }
                         <label>
                             Reason / team note
-                            <textarea @bind="editor.Reason" maxlength="2000" rows="2"></textarea>
+                            <DxMemo @bind-Text="editor.Reason" MaxLength="2000" Rows="2" />
                         </label>
                         @if (request.RequestKind == Vocabulary.Get().HumanRequestApproval)
                         {
                             <label>
                                 Reuse scope
-                                <select class="form-select" @bind="editor.ReuseScope">
-                                    <option value="@HumanApprovalReuseScope.ExactRequestOnce">Exact request once</option>
-                                    <option value="@HumanApprovalReuseScope.CurrentApplicationSession">Current application session</option>
-                                    <option value="@HumanApprovalReuseScope.PersistentUntilChanged">Persistent until changed</option>
-                                </select>
+                                <DxComboBox Data="@ApprovalReuseScopeOptions"
+                                        @bind-Value="editor.ReuseScope"
+                                        ValueFieldName="@nameof(LocalGptSelectionOption<HumanApprovalReuseScope>.Value)"
+                                        TextFieldName="@nameof(LocalGptSelectionOption<HumanApprovalReuseScope>.Label)" />
                             </label>
                             <label class="human-inbox-check">
-                                <input type="checkbox" @bind="editor.ConsumeApproval" />
+                                <DxCheckBox @bind-Checked="editor.ConsumeApproval" />
                                 <span>Consume the saved approval after one matching use</span>
                             </label>
                             <div class="human-decision-row">
-                                <button type="button" class="human-approve" @onclick="(() => ResolveAsync(request, true))">Save as approved</button>
-                                <button type="button" class="human-decline" @onclick="(() => ResolveAsync(request, false))">Save as declined</button>
+                                <DxButton CssClass="human-approve" Click="(() => ResolveAsync(request, true))">Save as approved</DxButton>
+                                <DxButton CssClass="human-decline" Click="(() => ResolveAsync(request, false))">Save as declined</DxButton>
                             </div>
                         }
                         else
                         {
-                            <button type="button" class="human-primary" @onclick="(() => ResolveAsync(request, null))">Save updated answer</button>
+                            <DxButton CssClass="human-primary" Click="(() => ResolveAsync(request, null))">Save updated answer</DxButton>
                         }
                     </details>
                 }
@@ -307,6 +304,20 @@
 }
 
 @code {
+    private IReadOnlyList<LocalGptSelectionOption<HumanApprovalReuseScope>> ApprovalReuseScopeOptions { get; } =
+    [
+        new(HumanApprovalReuseScope.ExactRequestOnce, "Exact request once"),
+        new(HumanApprovalReuseScope.CurrentApplicationSession, "Current application session"),
+        new(HumanApprovalReuseScope.PersistentUntilChanged, "Persistent until changed")
+    ];
+
+    private readonly Dictionary<Guid, string> contributionDrafts = [];
+
+    private string GetContributionDraft(Guid runId) => contributionDrafts.TryGetValue(runId, out var value) ? value : string.Empty;
+
+    private void SetContributionDraft(Guid runId, string value) => contributionDrafts[runId] = value;
+
+
     /// <summary>
     /// Retrieves gate label for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
     /// </summary>
@@ -531,8 +542,7 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SubmitContributionAsync(Guid runId)
     {
-        var editorId = GetContributionEditorId(runId);
-        var content = await JS.InvokeAsync<string>("localGptHumanDrafts.read", editorId).ConfigureAwait(false);
+        var content = GetContributionDraft(runId);
         if (string.IsNullOrWhiteSpace(content))
         {
             statusText = "Write a Council contribution before adding it to the next heartbeat.";
@@ -547,7 +557,7 @@
                 nameof(HumanCollaborationInbox),
                 councilRunId: runId);
             await Collaboration.QueueContributionAsync(runId, content).ConfigureAwait(false);
-            await JS.InvokeVoidAsync("localGptHumanDrafts.clear", editorId).ConfigureAwait(false);
+            contributionDrafts.Remove(runId);
             statusText = "Your contribution will enter the next council heartbeat without stopping the current work.";
             Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Council contribution queued");
         }).ConfigureAwait(false);
@@ -763,12 +773,6 @@
                 .ToArray());
         return $"human-request-card risk-{(string.IsNullOrWhiteSpace(risk) ? "medium" : risk)}";
     }
-    /// <summary>
-    /// Retrieves contribution editor identifier for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
-    /// </summary>
-    /// <param name="runId">Identifier of the run to use for this operation.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string GetContributionEditorId(Guid runId) => $"localgpt-heartbeat-draft-{runId:N}";
 
     /// <summary>Refreshes request ownership when an ASCII game starts, ends, or changes Council association.</summary>
     /// <param name="sessionId">Identifier of the game session whose state changed.</param>

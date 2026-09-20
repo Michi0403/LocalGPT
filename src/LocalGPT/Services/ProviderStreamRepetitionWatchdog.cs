@@ -5,8 +5,8 @@ namespace LocalGPT.Services;
 
 /// <summary>
 /// Optionally watches one actively generated provider stream for sustained token-cycle repetition. The feature is
-/// operator controlled through the persisted LocalGPT runtime policy and is disabled in the shipped policy so a local
-/// model is never terminated by an invisible developer ceiling unless the operator explicitly enables that behavior.
+/// normally operator controlled through the persisted LocalGPT runtime policy. A bounded feature-owned workflow may
+/// explicitly force the guard on when repeated generation can starve a deterministic runtime that must remain responsive.
 /// </summary>
 internal sealed class ProviderStreamRepetitionWatchdog
 {
@@ -95,14 +95,15 @@ internal sealed class ProviderStreamRepetitionWatchdog
     /// </summary>
     private int suspiciousSamples;
 
-    /// <summary>Creates a repetition watchdog from database-backed operator policy.</summary>
+    /// <summary>Creates a repetition watchdog from database-backed operator policy, with an explicit opt-in for bounded feature-owned flows.</summary>
     /// <param name="catalog">Local gpt catalog service dependency used by the provider stream repetition watchdog workflow to provide the corresponding application capability.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-    public ProviderStreamRepetitionWatchdog(LocalGptCatalogService catalog, ILogger logger)
+    /// <param name="forceEnabled">Whether the surrounding bounded feature must enforce repetition protection even when the general operator policy is off.</param>
+    public ProviderStreamRepetitionWatchdog(LocalGptCatalogService catalog, ILogger logger, bool forceEnabled = false)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        enabled = catalog.ProviderStreamRepetitionWatchdogEnabled;
+        enabled = forceEnabled || catalog.ProviderStreamRepetitionWatchdogEnabled;
         maximumBufferedCharacters = Math.Max(1, catalog.ProviderStreamRepetitionMaximumBufferedCharacters);
         minimumObservedCharacters = Math.Max(1, catalog.ProviderStreamRepetitionMinimumObservedCharacters);
         minimumAnalyzedTokens = Math.Max(2, catalog.ProviderStreamRepetitionMinimumAnalyzedTokens);
@@ -118,7 +119,7 @@ internal sealed class ProviderStreamRepetitionWatchdog
         minimumSuspiciousDuration = TimeSpan.FromMilliseconds(Math.Max(0, catalog.ProviderStreamRepetitionMinimumSuspiciousDurationMilliseconds));
     }
 
-    /// <summary>Observes one provider-generated fragment and returns a failure only when the operator enabled the watchdog.</summary>
+    /// <summary>Observes one provider-generated fragment and returns a failure when the configured or feature-owned watchdog is enabled.</summary>
     /// <param name="fragment">Fragment value supplied to the provider stream repetition watchdog operation and used when producing its result.</param>
     /// <returns>The provider stream repetition exception produced by the operation.</returns>
     public ProviderStreamRepetitionException? Observe(string? fragment)

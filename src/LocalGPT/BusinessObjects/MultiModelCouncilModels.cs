@@ -581,6 +581,10 @@ namespace LocalGPT.BusinessObjects
         /// <value>The model name value exposed by <see cref="MultiModelCouncilStep"/>.</value>
         public string ModelName { get; set; } = string.Empty;
 
+        /// <summary>Gets or sets the originally assigned model slot represented by an automatic alternate-member recovery step.</summary>
+        /// <value>The failed/original model name when this step was produced by a healthy alternate; otherwise an empty string.</value>
+        public string RecoveryTargetModelName { get; set; } = string.Empty;
+
         /// <summary>
         /// Gets or sets the provider name value that forms part of the multi model council step state consumed or produced by the surrounding workflow.
         /// </summary>

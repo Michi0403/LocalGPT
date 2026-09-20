@@ -64,8 +64,96 @@ public sealed class CouncilKernelTournamentRules
     public int GuardReduction { get; set; } = 7;
     public int RecoveryAmount { get; set; } = 6;
     public int MaximumExchangesPerMatch { get; set; } = 12;
+    /// <summary>Gets or sets the default number of creature slots owned by each trainer for one fight.</summary>
+    public int CreaturesPerTrainer { get; set; } = 3;
+    /// <summary>Gets or sets the maximum trainer-initiated creature switches allowed during one fight.</summary>
+    public int MaximumCreatureSwitchesPerFight { get; set; } = 3;
+    /// <summary>Gets or sets the bounded passive health recovery applied to benched creatures after each exchange.</summary>
+    public int RestRecoveryPerExchange { get; set; } = 3;
+    /// <summary>Gets or sets the bounded attack bonus applied by the deterministic FOCUS trainer action.</summary>
+    public int TrainerFocusBonus { get; set; } = 2;
+    /// <summary>Gets or sets the bounded incoming-damage reduction applied by the deterministic BRACE trainer action.</summary>
+    public int TrainerBraceReduction { get; set; } = 2;
     public int AnimationFrameDelayMilliseconds { get; set; } = 320;
     public int SubtitleHoldMilliseconds { get; set; } = 1500;
+}
+
+/// <summary>Stores one named ASCII actor joint so persistent trainer/creature rigs can be rendered consistently across poses.</summary>
+public sealed class CouncilAsciiActorJoint
+{
+    /// <summary>Gets or sets the stable joint name.</summary>
+    public string Name { get; set; } = string.Empty;
+    /// <summary>Gets or sets the zero-based horizontal anchor coordinate inside the actor rig.</summary>
+    public int X { get; set; }
+    /// <summary>Gets or sets the zero-based vertical anchor coordinate inside the actor rig.</summary>
+    public int Y { get; set; }
+}
+
+/// <summary>Stores a small persistent ASCII actor rig that keeps model joints connected while presentation poses change.</summary>
+public sealed class CouncilAsciiActorRig
+{
+    /// <summary>Gets or sets the stable rig key.</summary>
+    public string RigKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets the rig width in terminal cells.</summary>
+    public int Width { get; set; } = 13;
+    /// <summary>Gets or sets the rig height in terminal cells.</summary>
+    public int Height { get; set; } = 6;
+    /// <summary>Gets or sets the identity glyph rendered at the rig head anchor.</summary>
+    public char HeadGlyph { get; set; } = '@';
+    /// <summary>Gets or sets the identity glyph rendered at the rig torso anchor.</summary>
+    public char TorsoGlyph { get; set; } = '#';
+    /// <summary>Gets or sets the stable base-pose joint anchors.</summary>
+    public List<CouncilAsciiActorJoint> Joints { get; set; } = [];
+}
+
+/// <summary>Stores one deterministic creature slot owned by a tournament trainer.</summary>
+public sealed class CouncilKernelTournamentCreatureState
+{
+    /// <summary>Gets or sets the stable creature slot identifier.</summary>
+    public string CreatureId { get; set; } = string.Empty;
+    /// <summary>Gets or sets the human-readable creature name.</summary>
+    public string Name { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded species descriptor.</summary>
+    public string Species { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded visual style descriptor.</summary>
+    public string Style { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded body/form descriptor.</summary>
+    public string Form { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded tactical trait descriptor.</summary>
+    public string Trait { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded in-character voice descriptor.</summary>
+    public string Voice { get; set; } = string.Empty;
+    /// <summary>Gets or sets the authoritative current health for this creature slot.</summary>
+    public int Health { get; set; } = 100;
+    /// <summary>Gets or sets whether this creature currently occupies the active arena slot.</summary>
+    public bool IsActive { get; set; }
+    /// <summary>Gets or sets whether this creature is currently resting on the trainer bench.</summary>
+    public bool IsResting { get; set; }
+    /// <summary>Gets or sets the number of completed exchanges this creature has spent resting.</summary>
+    public int RestedExchanges { get; set; }
+    /// <summary>Gets or sets the persistent ASCII actor rig for this creature.</summary>
+    public CouncilAsciiActorRig Rig { get; set; } = new();
+}
+
+/// <summary>Stores one compact engine event shown as the trainer/creature team timeline between exchanges.</summary>
+public sealed class CouncilKernelTournamentTimelineEntry
+{
+    /// <summary>Gets or sets the monotonically increasing timeline sequence.</summary>
+    public int Sequence { get; set; }
+    /// <summary>Gets or sets the tournament round that produced the entry.</summary>
+    public int Round { get; set; }
+    /// <summary>Gets or sets the match number within the current round.</summary>
+    public int Match { get; set; }
+    /// <summary>Gets or sets the exchange number within the current match.</summary>
+    public int Exchange { get; set; }
+    /// <summary>Gets or sets a compact event-kind label such as COMMAND, SWITCH, IMPACT or REST.</summary>
+    public string EventKind { get; set; } = string.Empty;
+    /// <summary>Gets or sets the left trainer/creature state summary.</summary>
+    public string LeftState { get; set; } = string.Empty;
+    /// <summary>Gets or sets the right trainer/creature state summary.</summary>
+    public string RightState { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded event detail.</summary>
+    public string Detail { get; set; } = string.Empty;
 }
 
 /// <summary>Pairs one trainer model with the distinct creature model it owns for the tournament bracket.</summary>
@@ -74,6 +162,21 @@ public sealed class CouncilKernelTournamentContestantSeed
     public string TrainerModelName { get; set; } = string.Empty;
     public string CreatureModelName { get; set; } = string.Empty;
     public string CreatureName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded species descriptor used to keep this tournament creature visually recognizable.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureSpecies { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded visual style descriptor used by ASCII creature presentation.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureStyle { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded body/form descriptor used by ASCII creature presentation.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureForm { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded tactical personality trait attached to this tournament creature.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureTrait { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded in-character voice line associated with this tournament creature.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureVoice { get; set; } = string.Empty;
 }
 
 /// <summary>Captures the latest bounded AI-authored trainer or creature evidence for one tournament exchange.</summary>
@@ -90,6 +193,9 @@ public sealed class CouncilKernelTournamentAdvanceRequest
     public Guid SessionId { get; set; }
     public bool InitializeOnly { get; set; }
     public IReadOnlyList<CouncilKernelTournamentContestantSeed> Contestants { get; set; } = [];
+    /// <summary>Gets or sets bounded presentation-only frames prepared by the tournament ASCII artist before deterministic bracket initialization.</summary>
+    /// <value>Complete terminal-safe frames that may precede the engine-owned lineup frames without changing authoritative tournament state.</value>
+    public IReadOnlyList<string> PresentationFrames { get; set; } = [];
     public IReadOnlyList<CouncilKernelTournamentRoleEvidence> Evidence { get; set; } = [];
 }
 
@@ -100,6 +206,31 @@ public sealed class CouncilKernelTournamentFighterState
     public string TrainerModelName { get; set; } = string.Empty;
     public string CreatureModelName { get; set; } = string.Empty;
     public string CreatureName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded species descriptor used to keep this tournament creature visually recognizable.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureSpecies { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded visual style descriptor used by ASCII creature presentation.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureStyle { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded body/form descriptor used by ASCII creature presentation.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureForm { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded tactical personality trait attached to this tournament creature.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureTrait { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded in-character voice line associated with this tournament creature.</summary>
+    /// <value>The persisted bounded creature descriptor.</value>
+    public string CreatureVoice { get; set; } = string.Empty;
+    /// <summary>Gets or sets the trainer's persistent ASCII actor rig.</summary>
+    public CouncilAsciiActorRig TrainerRig { get; set; } = new();
+    /// <summary>Gets or sets the complete creature roster owned by this trainer for the current fight.</summary>
+    public List<CouncilKernelTournamentCreatureState> CreatureRoster { get; set; } = [];
+    /// <summary>Gets or sets the active creature slot identifier mirrored by the compatibility creature fields above.</summary>
+    public string ActiveCreatureId { get; set; } = string.Empty;
+    /// <summary>Gets or sets the number of trainer-initiated creature switches used in the current fight.</summary>
+    public int SwitchesUsedInCurrentFight { get; set; }
+    /// <summary>Gets or sets the last bounded trainer action applied by the deterministic engine.</summary>
+    public string LastTrainerAction { get; set; } = "NONE";
     public int Health { get; set; } = 100;
     public int Wins { get; set; }
     public bool Eliminated { get; set; }
@@ -564,6 +695,8 @@ public sealed class CouncilGameSessionSnapshot
     public string TournamentRuntimeClassKey { get; set; } = string.Empty;
     /// <summary>Gets or sets the engine-owned tournament bracket fighters.</summary>
     public IReadOnlyList<CouncilKernelTournamentFighterState> TournamentFighters { get; set; } = [];
+    /// <summary>Gets or sets the recent bounded trainer/creature team timeline shown by the ASCII game surface.</summary>
+    public IReadOnlyList<CouncilKernelTournamentTimelineEntry> TournamentTimeline { get; set; } = [];
     /// <summary>Gets or sets the current 1-based tournament bracket round.</summary>
     public int TournamentRound { get; set; }
     /// <summary>Gets or sets the current 1-based exchange within the active match.</summary>
@@ -841,6 +974,10 @@ public sealed class CouncilGameSessionState
     public CouncilKernelTournamentRules TournamentRules { get; set; } = new();
     /// <summary>Gets or sets engine-owned fighter state.</summary>
     public List<CouncilKernelTournamentFighterState> TournamentFighters { get; set; } = [];
+    /// <summary>Gets or sets the recent bounded trainer/creature team timeline.</summary>
+    public List<CouncilKernelTournamentTimelineEntry> TournamentTimeline { get; set; } = [];
+    /// <summary>Gets or sets the next monotonic tournament timeline sequence.</summary>
+    public int TournamentTimelineSequence { get; set; }
     /// <summary>Gets or sets the fighter ids still participating in the current bracket round.</summary>
     public List<string> TournamentRoundFighterIds { get; set; } = [];
     /// <summary>Gets or sets winners/byes accumulated for the next bracket round.</summary>

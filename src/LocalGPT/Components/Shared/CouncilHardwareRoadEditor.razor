@@ -4,7 +4,7 @@
     <header class="council-road-editor-header">
         <div>
             <strong>Model hardware roads</strong>
-            <p>Each model owns independent minimum and maximum values. The session load slider chooses a point between them; a model may optionally override it.</p>
+            <p>Each model owns independent minimum and maximum values. The session load percentage chooses the interpolation point; a model may optionally override it with a typed value.</p>
         </div>
         <span class="council-road-load-badge">Session @ResourceLoadPercent%</span>
     </header>
@@ -26,42 +26,39 @@
                             <small>@GetRouteEndpointLabel(route)</small>
                         </div>
                         <label class="inline-dx-check compact">
-                            <input type="checkbox" checked="@route.IsEnabled" @onchange="args => SetEnabled(route, args)" />
+                            <DxCheckBox Checked="@route.IsEnabled" CheckedChanged="@((bool value) => SetEnabled(route, value))" />
                             <span>Enabled</span>
                         </label>
                     </header>
 
                     <div class="council-road-fields">
                         <label>Road
-                            <select value="@route.HardwareKind" @onchange="args => SetHardwareKind(route, args)">
-                                @foreach (var kind in Enum.GetValues<OneWireHardwareKind>())
-                                {
-                                    <option value="@kind">@kind</option>
-                                }
-                            </select>
+                            <DxComboBox Data="@HardwareKinds"
+                                        Value="@route.HardwareKind"
+                                        ValueChanged="@((OneWireHardwareKind value) => SetHardwareKind(route, value))" />
                         </label>
                         <label>Device index
-                            <input type="number" min="-1" max="64" value="@route.HardwareIndex" @onchange="args => SetInt(route, nameof(route.HardwareIndex), args)" />
+                            <DxSpinEdit Value="@route.HardwareIndex" ValueChanged="@((int value) => SetInt(route, nameof(route.HardwareIndex), value))" MinValue="-1" MaxValue="64" />
                         </label>
                         <label class="wide">Device name
-                            <input value="@route.HardwareName" @onchange="args => SetText(route, nameof(route.HardwareName), args)" placeholder="CPU, GPU 0, RTX 3060, iGPU…" />
+                            <DxTextBox Text="@route.HardwareName" TextChanged="@((string value) => SetText(route, nameof(route.HardwareName), value))" NullText="CPU, GPU 0, RTX 3060, iGPU…" />
                         </label>
                         <label>Min output
-                            <input type="number" min="1" max="262144" step="256" value="@route.MinOutputTokens" @onchange="args => SetInt(route, nameof(route.MinOutputTokens), args)" />
+                            <DxSpinEdit Value="@route.MinOutputTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MinOutputTokens), value))" MinValue="1" MaxValue="262144" Increment="256" />
                         </label>
                         <label>Max output
-                            <input type="number" min="1" max="262144" step="256" value="@route.MaxOutputTokens" @onchange="args => SetInt(route, nameof(route.MaxOutputTokens), args)" />
+                            <DxSpinEdit Value="@route.MaxOutputTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MaxOutputTokens), value))" MinValue="1" MaxValue="262144" Increment="256" />
                         </label>
                         <label>Min context
-                            <input type="number" min="256" max="1048576" step="1024" value="@route.MinContextTokens" @onchange="args => SetInt(route, nameof(route.MinContextTokens), args)" />
+                            <DxSpinEdit Value="@route.MinContextTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MinContextTokens), value))" MinValue="256" MaxValue="1048576" Increment="1024" />
                         </label>
                         <label>Max context
-                            <input type="number" min="256" max="1048576" step="1024" value="@route.MaxContextTokens" @onchange="args => SetInt(route, nameof(route.MaxContextTokens), args)" />
+                            <DxSpinEdit Value="@route.MaxContextTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MaxContextTokens), value))" MinValue="256" MaxValue="1048576" Increment="1024" />
                         </label>
                         @if (string.IsNullOrWhiteSpace(route.ProviderKind) || route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
                         {
                             <label title="CPU always uses 0. For GPU or accelerator roads leave this blank so Ollama chooses the offload automatically, or enter a positive layer count.">Ollama num_gpu
-                                <input type="number" min="0" max="999" value="@(route.OllamaNumGpu?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" @onchange="args => SetNullableInt(route, nameof(route.OllamaNumGpu), args)" placeholder="auto" />
+                                <DxSpinEdit Value="@route.OllamaNumGpu" ValueChanged="@((int? value) => SetNullableInt(route, nameof(route.OllamaNumGpu), value))" MinValue="0" MaxValue="999" NullText="auto" />
                             </label>
                         }
                         else
@@ -69,16 +66,23 @@
                             <div class="provider-road-note" title="This provider does not accept Ollama-specific GPU layer settings.">Provider acceleration is managed by @route.ProviderName.</div>
                         }
                         <label>Lane concurrency
-                            <input type="number" min="1" max="16" value="@route.MaxConcurrentModelsOnLane" @onchange="args => SetInt(route, nameof(route.MaxConcurrentModelsOnLane), args)" />
+                            <DxSpinEdit Value="@route.MaxConcurrentModelsOnLane" ValueChanged="@((int value) => SetInt(route, nameof(route.MaxConcurrentModelsOnLane), value))" MinValue="1" MaxValue="16" />
                         </label>
                     </div>
 
                     <div class="council-road-load-row">
-                        <label class="inline-dx-check compact" title="Enable a model-specific slider instead of the session-wide value.">
-                            <input type="checkbox" checked="@route.LoadPercentOverride.HasValue" @onchange="args => ToggleOverride(route, args)" />
+                        <label class="inline-dx-check compact" title="Enable a model-specific load percentage instead of the session-wide value.">
+                            <DxCheckBox Checked="@route.LoadPercentOverride.HasValue" CheckedChanged="@((bool value) => ToggleOverride(route, value))" />
                             <span>Model override</span>
                         </label>
-                        <input type="range" min="0" max="100" step="5" value="@load" disabled="@(!route.LoadPercentOverride.HasValue)" @onchange="args => SetLoadOverride(route, args)" />
+                        <label class="council-road-load-editor">Load percent
+                            <DxSpinEdit Value="@load"
+                                        ValueChanged="@((int value) => SetLoadOverride(route, value))"
+                                        MinValue="0"
+                                        MaxValue="100"
+                                        Increment="5"
+                                        Enabled="@route.LoadPercentOverride.HasValue" />
+                        </label>
                         <output>@load%</output>
                     </div>
                     <p class="council-road-effective">
@@ -92,6 +96,8 @@
 </section>
 
 @code {
+    private IReadOnlyList<OneWireHardwareKind> HardwareKinds { get; } = Enum.GetValues<OneWireHardwareKind>();
+
     /// <summary>
     /// Gets or sets the model names collection maintained or exposed by this council hardware road editor instance for downstream processing.
     /// </summary>
@@ -173,11 +179,11 @@
     /// Sets enabled for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
     /// </summary>
     /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="value">Whether the route is enabled.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task SetEnabled(OneWireCouncilModelRoute route, ChangeEventArgs args)
+    private Task SetEnabled(OneWireCouncilModelRoute route, bool value)
     {
-        route.IsEnabled = args.Value is bool value && value;
+        route.IsEnabled = value;
         return NormalizeAndNotify(route);
     }
 
@@ -185,13 +191,10 @@
     /// Sets hardware kind for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
     /// </summary>
     /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="kind">Hardware kind selected for the route.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task SetHardwareKind(OneWireCouncilModelRoute route, ChangeEventArgs args)
+    private Task SetHardwareKind(OneWireCouncilModelRoute route, OneWireHardwareKind kind)
     {
-        if (!Enum.TryParse<OneWireHardwareKind>(args.Value?.ToString(), out var kind))
-            return Task.CompletedTask;
-
         var previousKind = route.HardwareKind;
         route.HardwareKind = kind;
         if (kind == OneWireHardwareKind.Cpu)
@@ -235,11 +238,11 @@
     /// </summary>
     /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
     /// <param name="property">Property value supplied to the council hardware road editor operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="value">Text value to assign to the selected route property.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task SetText(OneWireCouncilModelRoute route, string property, ChangeEventArgs args)
+    private Task SetText(OneWireCouncilModelRoute route, string property, string value)
     {
-        if (property == nameof(route.HardwareName)) route.HardwareName = args.Value?.ToString() ?? string.Empty;
+        if (property == nameof(route.HardwareName)) route.HardwareName = value ?? string.Empty;
         return NormalizeAndNotify(route);
     }
 
@@ -248,12 +251,11 @@
     /// </summary>
     /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
     /// <param name="property">Property value supplied to the council hardware road editor operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="value">Integer value to assign to the selected route property.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task SetInt(OneWireCouncilModelRoute route, string property, ChangeEventArgs args)
+    private Task SetInt(OneWireCouncilModelRoute route, string property, int value)
     {
-        if (!int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)) return Task.CompletedTask;
-        switch (property)
+switch (property)
         {
             case nameof(route.HardwareIndex): route.HardwareIndex = value; break;
             case nameof(route.MinOutputTokens): route.MinOutputTokens = value; break;
@@ -270,12 +272,10 @@
     /// </summary>
     /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
     /// <param name="property">Property value supplied to the council hardware road editor operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="value">Nullable integer value to assign to the selected route property.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task SetNullableInt(OneWireCouncilModelRoute route, string property, ChangeEventArgs args)
+    private Task SetNullableInt(OneWireCouncilModelRoute route, string property, int? value)
     {
-        var text = args.Value?.ToString();
-        int? value = int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
         if (property == nameof(route.OllamaNumGpu)) route.OllamaNumGpu = value;
         return NormalizeAndNotify(route);
     }
@@ -284,25 +284,25 @@
     /// Performs toggle override for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
     /// </summary>
     /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="value">Whether the route-specific load override is enabled.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task ToggleOverride(OneWireCouncilModelRoute route, ChangeEventArgs args)
+    private Task ToggleOverride(OneWireCouncilModelRoute route, bool value)
     {
-        route.LoadPercentOverride = args.Value is bool value && value
+        route.LoadPercentOverride = value
             ? RoadConfiguration.NormalizeLoadPercent(ResourceLoadPercent)
             : null;
         return NormalizeAndNotify(route);
     }
 
     /// <summary>
-    /// Sets load override for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// Sets the model-specific load override from a strongly typed DevExpress number editor.
     /// </summary>
-    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
-    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    private Task SetLoadOverride(OneWireCouncilModelRoute route, ChangeEventArgs args)
+    /// <param name="route">Route whose interpolation load is being changed.</param>
+    /// <param name="value">Requested load percentage.</param>
+    /// <returns>A task that completes after the route has been normalized and published.</returns>
+    private Task SetLoadOverride(OneWireCouncilModelRoute route, int value)
     {
-        if (int.TryParse(args.Value?.ToString(), out var value)) route.LoadPercentOverride = RoadConfiguration.NormalizeLoadPercent(value);
+        route.LoadPercentOverride = RoadConfiguration.NormalizeLoadPercent(value);
         return NormalizeAndNotify(route);
     }
 }

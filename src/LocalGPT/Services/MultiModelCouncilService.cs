@@ -182,6 +182,7 @@ namespace LocalGPT.Services
         /// <param name="providerModels">Injected dependency used by the service.</param>
         /// <param name="runtimePolicy">Persisted operator runtime policy.</param>
         /// <param name="asciiExperience">Circuit-scoped ASCII chat presentation state supplied to Council participants as optional capability guidance.</param>
+        /// <param name="gameSessions">Council game-session service used to coordinate interactive game state.</param>
         /// <param name="logger">Injected dependency used by the service.</param>
         /// <param name="councilRuntime">Injected dependency used by the service.</param>
         /// <param name="councilText">Injected dependency used by the service.</param>

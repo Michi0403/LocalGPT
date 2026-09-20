@@ -13,7 +13,7 @@
             <h2>@(string.IsNullOrWhiteSpace(FunctionName) ? T("UserDx.Editor.CreateTitle", "Create user DXFunction") : T("UserDx.Editor.EditTitle", "Edit user DXFunction"))</h2>
             <p>@T("UserDx.Editor.Intro", "Create a simple JSON/OData-backed AI function or bind an advanced Remote Control pipeline. Both enter the normal DX registry, schema, approval and catalog policy path.")</p>
         </div>
-        <button type="button" class="btn btn-secondary" @onclick="CancelAsync" disabled="@_busy">@T("Common.Close", "Close")</button>
+        <DxButton CssClass="btn btn-secondary" Click="CancelAsync" Enabled="@(!_busy)">@T("Common.Close", "Close")</DxButton>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(_status))
@@ -24,99 +24,115 @@
     <div class="row g-3 user-dxfunction-form-grid">
         <div class="col-lg-4">
             <label class="form-label">@T("UserDx.Editor.RuntimeName", "Runtime name")</label>
-            <input class="form-control" @bind="_edit.FunctionName" placeholder="user.weather.to_knowledge" disabled="@_busy" />
+            <DxTextBox @bind-Text="_edit.FunctionName" CssClass="form-control" NullText="user.weather.to_knowledge" Enabled="@(!(_busy))" />
             <small class="text-muted">@T("UserDx.Editor.RuntimeHelp", "User-created runtime functions must use the user.* namespace.")</small>
         </div>
         <div class="col-lg-4">
             <label class="form-label">@T("Common.Name", "Display name")</label>
-            <input class="form-control" @bind="_edit.DisplayName" disabled="@_busy" />
+            <DxTextBox @bind-Text="_edit.DisplayName" CssClass="form-control" Enabled="@(!(_busy))" />
         </div>
         <div class="col-lg-4">
             <label class="form-label">@T("UserDx.Editor.Mode", "Implementation")</label>
-            <select class="form-select" @bind="_mode" disabled="@_busy">
-                <option value="Source">@T("UserDx.Editor.ModeSource", "JSON / OData source")</option>
-                <option value="Pipeline">@T("UserDx.Editor.ModePipeline", "Advanced Remote Control pipeline")</option>
-            </select>
+            <DxComboBox Data="@ModeOptions"
+                        @bind-Value="_mode"
+                        ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                        TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                        Enabled="@(!_busy)" />
         </div>
         @if (_mode == "Pipeline")
         {
             <div class="col-lg-4">
                 <label class="form-label">@T("UserDx.Editor.Pipeline", "Implementing pipeline")</label>
-                <select class="form-select" @bind="_edit.PipelineKey" disabled="@_busy">
-                    <option value="">@T("UserDx.Editor.SelectPipeline", "Select pipeline")</option>
-                    @foreach (var pipeline in _pipelines.Where(item => !UserFunctions.IsGeneratedSourceKey(item.Key)))
-                    {
-                        <option value="@pipeline.Key">@pipeline.DisplayName (@pipeline.Key)</option>
-                    }
-                </select>
+                <DxComboBox Data="@AvailablePipelines"
+                            @bind-Value="_edit.PipelineKey"
+                            ValueFieldName="@nameof(RemoteControlPipelineDefinition.Key)"
+                            TextFieldName="@nameof(RemoteControlPipelineDefinition.DisplayName)"
+                            NullText='@T("UserDx.Editor.SelectPipeline", "Select pipeline")'
+                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                            Enabled="@(!_busy)" />
             </div>
         }
         else
         {
             <div class="col-lg-4">
                 <label class="form-label">@T("UserDx.Editor.SourceType", "Source type")</label>
-                <select class="form-select" @bind="_sourceType" disabled="@_busy">
-                    <option value="Json">@T("UserDx.Editor.SourceJson", "JSON / REST")</option>
-                    <option value="OData">@T("UserDx.Editor.SourceOData", "OData")</option>
-                </select>
+                <DxComboBox Data="@SourceTypeOptions"
+                            @bind-Value="_sourceType"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            Enabled="@(!_busy)" />
             </div>
             <div class="col-12">
                 <label class="form-label">@T("UserDx.Editor.SourceUrl", "Source URL")</label>
-                <input class="form-control" @bind="_sourceUrl" placeholder="https://example.local/api/items" disabled="@_busy" />
+                <DxTextBox @bind-Text="_sourceUrl" CssClass="form-control" NullText="https://example.local/api/items" Enabled="@(!(_busy))" />
                 <small class="text-muted">@T("UserDx.Editor.SourceUrlHelp", "The host from this URL becomes the connector allow-list. Network access remains scoped to this saved source.")</small>
             </div>
             <div class="col-lg-6">
                 <label class="form-label">@T("UserDx.Editor.ResponseSelector", "Response selector")</label>
-                <input class="form-control" @bind="_responseSelector" placeholder="value" disabled="@_busy" />
+                <DxTextBox @bind-Text="_responseSelector" CssClass="form-control" NullText="value" Enabled="@(!(_busy))" />
             </div>
             <div class="col-lg-3">
                 <label class="form-label">@T("UserDx.Editor.Timeout", "Timeout (seconds)")</label>
-                <input class="form-control" type="number" min="1" max="300" @bind="_timeoutSeconds" disabled="@_busy" />
+                <DxSpinEdit @bind-Value="_timeoutSeconds" CssClass="form-control" MinValue="1" MaxValue="300" Enabled="@(!(_busy))" />
             </div>
             <div class="col-lg-3">
                 <label class="form-label">@T("UserDx.Editor.MaxPayload", "Maximum payload (bytes)")</label>
-                <input class="form-control" type="number" min="1024" max="16777216" @bind="_maxPayloadBytes" disabled="@_busy" />
+                <DxSpinEdit @bind-Value="_maxPayloadBytes" CssClass="form-control" MinValue="1024" MaxValue="16777216" Enabled="@(!(_busy))" />
             </div>
             <div class="col-12">
                 <label class="form-label">@T("UserDx.Editor.Headers", "Request headers JSON")</label>
-                <textarea class="form-control font-monospace" rows="3" @bind="_headersJson" disabled="@_busy"></textarea>
+                <DxMemo @bind-Text="_headersJson" CssClass="form-control font-monospace" Rows="3" Enabled="@(!(_busy))" />
             </div>
             <div class="col-12">
-                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_allowInsecureHttp" disabled="@_busy" /><span>@T("UserDx.Editor.AllowHttp", "Allow plain HTTP for this source")</span></label>
+                <label class="form-check"><DxCheckBox @bind-Checked="_allowInsecureHttp" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.AllowHttp", "Allow plain HTTP for this source")</span></label>
             </div>
         }
         <div class="col-lg-6">
             <label class="form-label">@T("UserDx.Editor.Purpose", "Purpose")</label>
-            <textarea class="form-control" rows="3" @bind="_edit.Purpose" disabled="@_busy"></textarea>
+            <DxMemo @bind-Text="_edit.Purpose" CssClass="form-control" Rows="3" Enabled="@(!(_busy))" />
         </div>
         <div class="col-lg-6">
             <label class="form-label">@T("UserDx.Editor.Safety", "Safety notes")</label>
-            <textarea class="form-control" rows="3" @bind="_edit.SafetyNotes" disabled="@_busy"></textarea>
+            <DxMemo @bind-Text="_edit.SafetyNotes" CssClass="form-control" Rows="3" Enabled="@(!(_busy))" />
         </div>
         <div class="col-12">
             <label class="form-label">@T("UserDx.Editor.Schema", "Parameter JSON Schema")</label>
-            <textarea class="form-control font-monospace" rows="8" @bind="_edit.ParameterSchemaJson" disabled="@_busy"></textarea>
+            <DxMemo @bind-Text="_edit.ParameterSchemaJson" CssClass="form-control font-monospace" Rows="8" Enabled="@(!(_busy))" />
         </div>
     </div>
 
     <div class="d-flex gap-4 flex-wrap mt-3">
-        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.IsEnabled" disabled="@_busy" /><span>@T("Common.Enabled", "Enabled")</span></label>
-        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.AvailableToAi" disabled="@_busy" /><span>@T("UserDx.Editor.VisibleToAi", "Visible to AI")</span></label>
-        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.IsReadOnly" disabled="@_busy" /><span>@T("UserDx.Editor.ReadOnly", "Read-only declaration")</span></label>
-        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.RequiresHumanConfirmation" disabled="@_busy" /><span>@T("UserDx.Editor.RequireConfirmation", "Require human confirmation")</span></label>
-        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.SupportsAutomaticInvocation" disabled="@_busy" /><span>@T("UserDx.Editor.Automatic", "Allow automatic invocation when registry policy permits")</span></label>
+        <label class="form-check"><DxCheckBox @bind-Checked="_edit.IsEnabled" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("Common.Enabled", "Enabled")</span></label>
+        <label class="form-check"><DxCheckBox @bind-Checked="_edit.AvailableToAi" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.VisibleToAi", "Visible to AI")</span></label>
+        <label class="form-check"><DxCheckBox @bind-Checked="_edit.IsReadOnly" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.ReadOnly", "Read-only declaration")</span></label>
+        <label class="form-check"><DxCheckBox @bind-Checked="_edit.RequiresHumanConfirmation" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.RequireConfirmation", "Require human confirmation")</span></label>
+        <label class="form-check"><DxCheckBox @bind-Checked="_edit.SupportsAutomaticInvocation" CssClass="form-check-input" Enabled="@(!(_busy))" /><span>@T("UserDx.Editor.Automatic", "Allow automatic invocation when registry policy permits")</span></label>
     </div>
 
     <footer class="d-flex gap-2 mt-3">
-        <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@_busy">@T("UserDx.Editor.Save", "Save user function")</button>
+        <DxButton CssClass="btn btn-primary" Click="SaveAsync" Enabled="@(!_busy)">@T("UserDx.Editor.Save", "Save user function")</DxButton>
         @if (!string.IsNullOrWhiteSpace(FunctionName))
         {
-            <button type="button" class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@_busy">@T("UserDx.Editor.Delete", "Delete user function")</button>
+            <DxButton CssClass="btn btn-outline-danger" Click="DeleteAsync" Enabled="@(!_busy)">@T("UserDx.Editor.Delete", "Delete user function")</DxButton>
         }
     </footer>
 </section>
 
 @code {
+    private IReadOnlyList<LocalGptSelectionOption<string>> ModeOptions =>
+    [
+        new("Source", T("UserDx.Editor.ModeSource", "JSON / OData source")),
+        new("Pipeline", T("UserDx.Editor.ModePipeline", "Advanced Remote Control pipeline"))
+    ];
+
+    private IReadOnlyList<LocalGptSelectionOption<string>> SourceTypeOptions =>
+    [
+        new("Json", T("UserDx.Editor.SourceJson", "JSON / REST")),
+        new("OData", T("UserDx.Editor.SourceOData", "OData"))
+    ];
+
+    private IEnumerable<RemoteControlPipelineDefinition> AvailablePipelines => _pipelines.Where(item => !UserFunctions.IsGeneratedSourceKey(item.Key));
+
     /// <summary>
     /// Gets or sets the function name value that forms part of the user DevExpress function editor state consumed or produced by the surrounding workflow.
     /// </summary>

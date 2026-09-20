@@ -18,7 +18,7 @@
                     <h1 id="first-run-title">@L("Home.FirstRun.Title", "Prepare models, knowledge and a council quick start")</h1>
                     <p>@L("Home.FirstRun.Intro", "Install only the models and official Git sources you need. LocalGPT has already seeded the benchmark, game and development teams; the links below open them directly in Chat.")</p>
                 </div>
-                <button type="button" class="btn btn-outline-secondary" @onclick="CompleteOnboardingAsync" disabled="@_onboardingBusy">@L("Home.FirstRun.Reviewed", "I reviewed this setup")</button>
+                <DxButton CssClass="btn btn-outline-secondary" Click="CompleteOnboardingAsync" Enabled="@(!_onboardingBusy)">@L("Home.FirstRun.Reviewed", "I reviewed this setup")</DxButton>
             </header>
 
             <div class="first-run-status-grid">

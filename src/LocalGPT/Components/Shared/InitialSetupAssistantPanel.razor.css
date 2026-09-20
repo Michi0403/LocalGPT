@@ -1,17 +1,17 @@
 .initial-setup-assistant { display: grid; gap: 1rem; }
 .initial-setup-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
 .initial-setup-heading p, .initial-setup-card p { margin: .25rem 0 .75rem; opacity: .82; }
-.initial-setup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 1rem; }
+.initial-setup-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .initial-setup-card { border: 1px solid var(--localgpt-border-color); border-radius: .65rem; padding: 1rem; background: var(--localgpt-surface-raised); display: grid; gap: .75rem; min-width: 0; }
 .initial-setup-wide { grid-column: 1 / -1; }
-.initial-setup-hardware-list, .initial-setup-model-list, .initial-setup-installed-grid { display: grid; gap: .5rem; max-height: 26rem; overflow: auto; }
-.initial-setup-hardware-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; align-items: end; border: 1px solid var(--localgpt-border-color); border-radius: .45rem; padding: .7rem; }
+.initial-setup-hardware-list, .initial-setup-model-list, .initial-setup-installed-grid { display: grid; gap: .65rem; max-height: none; overflow: visible; min-width: 0; }
+.initial-setup-hardware-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: .65rem; align-items: end; border: 1px solid var(--localgpt-border-color); border-radius: .45rem; padding: .7rem; }
 .initial-setup-hardware-row > label { display: grid; gap: .25rem; min-width: 0; }
 .initial-setup-hardware-use { grid-column: 1 / -1; display: flex !important; align-items: center; gap: .45rem !important; }
 .initial-setup-hardware-canirun { grid-column: 1 / -1; }
 .initial-setup-hardware-remove { justify-self: start; }
 .initial-setup-model-row, .initial-setup-installed-row { display: grid; gap: .25rem; border: 1px solid var(--localgpt-border-color); border-radius: .45rem; padding: .55rem; }
-.initial-setup-installed-row { grid-template-columns: auto auto minmax(12rem, 1fr) minmax(8rem, auto); align-items: center; }
+.initial-setup-installed-row { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
 .initial-setup-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .initial-setup-provider-detail { display: grid; gap: .35rem; }
 @media (max-width: 900px) { .initial-setup-hardware-row { grid-template-columns: 1fr; } .initial-setup-hardware-use, .initial-setup-hardware-canirun { grid-column: 1; } .initial-setup-installed-row { grid-template-columns: 1fr; } }
