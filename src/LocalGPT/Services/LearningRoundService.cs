@@ -23,6 +23,7 @@ public sealed class LearningRoundService(
     IDatabaseInitializationService databaseInitializer,
     ICouncilKnowledgeService knowledgeService,
     IRegexPatternService regexPatternService,
+    IRegexCuratorService regexCuratorService,
     ILearningProjectWorkspaceSyncService projectWorkspaceSync,
     ILogger<LearningRoundService> logger) : ILearningRoundService
 {
@@ -275,6 +276,7 @@ public sealed class LearningRoundService(
                     continue;
                 var name = regex.Name.Trim();
                 await regexPatternService.AddOrUpdateAsync(new RegexPatternDto(name, regex.Pattern, regex.Flags)).ConfigureAwait(false);
+                await regexCuratorService.MarkSuggestedAsync(name, "LearningRound model suggestion", "Project/toolchain/game classification", cancellationToken).ConfigureAwait(false);
                 regexNames.Add(name);
             }
 

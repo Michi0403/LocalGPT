@@ -64,18 +64,18 @@ namespace LocalGPT.Services
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    //if (input.SizeBytes > MaxSingleFileBytes)
-                    //{
-                    //    warnings.Add($"{input.Name} skipped: file is larger than {MaxSingleFileBytes:n0} bytes.");
-                    //    continue;
-                    //}
+                    if (input.SizeBytes > catalog.MaxSingleFileBytes)
+                    {
+                        warnings.Add($"{input.Name} skipped: file is larger than {catalog.MaxSingleFileBytes:n0} bytes.");
+                        continue;
+                    }
 
                     totalUploadedBytes += input.SizeBytes;
-                    //if (totalUploadedBytes > MaxTotalFileBytes)
-                    //{
-                    //    warnings.Add("Remaining files skipped: upload batch exceeded the LocalGPT prompt-workspace byte cap.");
-                    //    break;
-                    //}
+                    if (totalUploadedBytes > catalog.MaxTotalFileBytes)
+                    {
+                        warnings.Add("Remaining files skipped: upload batch exceeded the LocalGPT prompt-workspace byte cap.");
+                        break;
+                    }
 
                     var safeName = councilText.BuildUniqueFileName(originalRoot, input.Name, logger);
                     var originalPath = Path.Combine(originalRoot, safeName);
@@ -86,10 +86,10 @@ namespace LocalGPT.Services
                     if (councilRuntime.IsZip(input.Name, logger))
                     {
                         var buildSummary = councilRuntime.BuildBinarySummary(originalRelativePath, bytes.Length, "zip", false,
-                            "Original zip saved. Extracted safe entries are listed separately.", logger);
+                            "Original zip saved in quarantine. Extraction is deferred until the regex/knowledge ingestion gate and independent reviews approve promotion.", logger);
                         ArgumentNullException.ThrowIfNull(buildSummary);
                         analyzedFiles.Add(buildSummary);
-                        await ExtractZipAsync(root, extractedRoot, safeName, bytes, analyzedFiles, warnings, cancellationToken).ConfigureAwait(false);
+                        warnings.Add($"{safeName}: quarantined; archive extraction is deferred until approved promotion.");
                     }
                     else
                     {
@@ -126,6 +126,7 @@ namespace LocalGPT.Services
                             catalog.MaxContextCharacters,
                             catalog.MaxExcerptCharactersPerFile
                         },
+                        GateStatus = "Quarantined",
                         Warnings = warnings,
                         Files = analyzedFiles.Select(file => file.Summary)
                     }, catalog.JsonOptions),

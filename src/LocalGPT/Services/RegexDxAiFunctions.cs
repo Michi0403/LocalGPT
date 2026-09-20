@@ -183,7 +183,7 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, 
 /// <param name="regexPatterns">Regex pattern service dependency used by the upsert regex pattern function workflow to provide the corresponding application capability.</param>
 /// <param name="parameters">Regex function parameter service dependency used by the upsert regex pattern function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<UpsertRegexPatternFunction> logger) : IDxAiFunctionHandler
+public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPatterns, IRegexCuratorService regexCurator, IRegexFunctionParameterService parameters, ILogger<UpsertRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
     /// Gets the descriptor value that forms part of the upsert regex pattern function state consumed or produced by the surrounding workflow.
@@ -193,7 +193,7 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
         "localgpt.regex.upsert",
         "POST",
         "/api/dxai/functions/localgpt.regex.upsert/invoke",
-        "Creates or updates a named regex in LocalGPT's SQLite knowledge-maintenance catalog.",
+        "Creates or updates a named regex in LocalGPT's SQLite catalog and places AI-authored changes behind curator review.",
         "JSON parameters: name and pattern required; flags optional (i,m,s,x,n,c,compiled,ecmascript).",
         "Knowledge self-maintenance only. The pattern is compiled with a timeout before storage, cannot execute commands, and does not authorize project/file access.",
         IsReadOnly: false,
@@ -233,12 +233,13 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
                 ? flagsElement.GetString()
                 : null;
             await regexPatterns.AddOrUpdateAsync(new RegexPatternDto(name, pattern, flags)).ConfigureAwait(false);
-            logger.LogInformation("Regex catalog upsert DXFunction completed and persisted one database-backed pattern.");
+            await regexCurator.MarkSuggestedAsync(name, "DXFunction regex suggestion", "Project/toolchain/game classification", cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Regex catalog upsert DXFunction completed and persisted one curator-pending database-backed pattern.");
             return new DxAiFunctionInvocationResult
             {
                 Succeeded = true,
                 Status = "Completed",
-                Value = new { name, flags = flags ?? string.Empty, stored = true, knowledgeSelfMaintenance = true }
+                Value = new { name, flags = flags ?? string.Empty, stored = true, curatorStatus = "NeedsReview", knowledgeSelfMaintenance = true }
             };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

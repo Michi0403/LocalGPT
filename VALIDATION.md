@@ -1,26 +1,34 @@
-# LocalGPT 4.6.1 source validation
+# LocalGPT 4.6.2 source validation
 
-This package is a narrow corrective follow-up to LocalGPT 4.6.0. GitHub was not used and `dotnet`, restore, build, MSBuild, NuGet, or publish were not invoked.
+GitHub was not used and `dotnet`, restore, build, MSBuild, NuGet or publish were not invoked.
 
-## 4.6.1 corrective checks
+LocalGPT 4.6.2 completes the quarantine-first ingestion, reviewed regex curator, hash-verified blob reconstruction, generic repository/toolchain classification, prompt-visible normal 1-Wire trust/team workflow and shared semantic ASCII interaction layer while retaining the 4.6.1 startup-lifetime repair and earlier UI/compiler fixes.
 
-- version-slot policy and current application/installer/wrapper/browser-cache/documentation identity are 4.6.1;
-- `IHumanCollaborationService` remains registered as a singleton;
-- `IKnowledgeFreshnessReviewService` remains registered as scoped;
-- `HumanCollaborationService` no longer constructor-captures `IKnowledgeFreshnessReviewService`;
-- `HumanCollaborationService` receives `IServiceScopeFactory`, creates a short-lived scope for `knowledge.freshness.*` decisions, resolves `IKnowledgeFreshnessReviewService` from that scope, awaits the decision application, and disposes the scope;
-- the supplied 4.6.0 runtime failure signature is guarded against by the 4.6.1 release audit;
-- all 4.6.0 Council rejoin compiler/UI-editor corrections and the 4.5.9 dropdown/freshness/tournament work are retained;
-- InteractiveServer render-mode topology remains unchanged.
+## Completed source checks
 
-## Static audit results
+- 4.6.2 release audit: passed; version identity, quarantine/curator/blob/team/semantic-action wiring, 4.6.1 lifetime repair and 24 maintained JavaScript integrity hashes are consistent.
+- application architecture audit: passed.
+- async continuation audit: passed for 285 source files, 3,516 await tokens, 3,082 `ConfigureAwait(false)`, 202 renderer-affine `ConfigureAwait(true)`, 227 configured async disposals and 5 configured async streams.
+- service resilience audit: passed for 2,592 service methods; 29 iterator methods and 3 direct Program/Startup methods use their maintained exemptions.
+- DevExpress Blazor control audit: passed; only the two circuit-independent reconnect controls remain native.
+- Chat ASCII audit: passed (24 checks).
+- ASCII color/game-authoring audit: passed (58 checks).
+- provider-qualified Council audit: passed (282 checks).
+- Kernel Creature Tournament audit: passed (60 checks).
+- code-generation/DXFunction wiring audit: passed.
+- configurable Council behavior policy audit: passed.
+- Council SQL seed validation: passed with 60 idempotent current-schema rows.
+- Council X-Round/heartbeat source audit: passed.
+- cross-platform boundary audit: passed (22 checks).
+- PowerShell variable interpolation audit: passed.
+- JavaScript syntax: 137 files passed `node --check`.
+- JSON parsing: 38 files passed.
+- XML/MSBuild parsing: 10 files passed.
 
-The following maintained audits passed from the 4.6.1 tree: release identity/lifetime guard; DevExpress Blazor control policy; 60-check Kernel Creature Tournament; configurable Council behavior; application architecture; async continuations (275 source files, 3,400 await tokens); service resilience (2,537 service methods); Council X-Round wiring; 282-check provider-qualified Council; Council role-context isolation; cross-platform boundaries; code-generation/DXAIFunction wiring; Council SQL seed; PowerShell interpolation; Chat ASCII console; ASCII color/game-authoring; and ASCII DOOM campaign.
+## Packaging validation
 
-All 138 JavaScript files outside generated build folders passed `node --check`. All 38 JSON files parsed successfully. All 10 XML/MSBuild files parsed successfully.
+The distributed ZIP is produced only after the source checks above. It is then tested for ZIP CRC integrity, unsafe archive paths, clean extraction and byte-for-byte equality with this source tree (excluding transient `__pycache__` files from the package source).
 
-ZIP CRC/path safety and clean-extract byte comparison are performed after archive creation.
+## Runtime limitation
 
-## Limitation
-
-This environment does not run the .NET application. The service-provider repair is therefore validated from the exact registration/constructor/resolution source paths and against the runtime failure reported by the user; final startup/build confirmation belongs to the user's Windows/.NET environment.
+No .NET executable is run in this environment. Final compile/startup/runtime confirmation remains the user's Windows/macOS/Linux .NET environment.

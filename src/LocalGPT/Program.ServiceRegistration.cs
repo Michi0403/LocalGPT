@@ -150,6 +150,12 @@ namespace LocalGPT
                 builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
                 builder.Services.AddSingleton<IRegexCompilationService, RegexCompilationService>();
                 builder.Services.AddSingleton<IRegexPatternService, RegexPatternService>();
+                builder.Services.AddSingleton<IRegexCuratorService, RegexCuratorService>();
+                builder.Services.AddSingleton<IProjectEvidenceClassifierService, ProjectEvidenceClassifierService>();
+                builder.Services.AddScoped<IProjectIngestionService, ProjectIngestionService>();
+                builder.Services.AddScoped<IProjectBlobReconstructionService, ProjectBlobReconstructionService>();
+                builder.Services.AddScoped<IOneWireCouncilHostEnrollmentService, OneWireCouncilHostEnrollmentService>();
+                builder.Services.AddSingleton<IAsciiSemanticActionService, AsciiSemanticActionService>();
                 builder.Services.AddSingleton<IKnowledgeRegexLinkService, KnowledgeRegexLinkService>();
                 builder.Services.AddScoped<IPromptConfigService, PromptConfigService>();
                 builder.Services.AddScoped<IChatAsciiExperienceState, ChatAsciiExperienceState>();

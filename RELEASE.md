@@ -1,11 +1,13 @@
-# LocalGPT 4.6.1
+# LocalGPT 4.6.2
 
-LocalGPT 4.6.1 is a narrow startup hotfix for the service-lifetime regression in 4.6.0. The user-provided Windows runtime log showed service-provider validation rejecting `IHumanCollaborationService` because the singleton `HumanCollaborationService` directly captured scoped `IKnowledgeFreshnessReviewService`.
+LocalGPT 4.6.2 completes the quarantine/curator project-ingestion and trusted LocalGPT team workflow requested after the 4.6.1 startup hotfix.
 
-The singleton lifetime is intentionally preserved because hosted 1-Wire and collaboration infrastructure depend on it. Instead of weakening those ownership boundaries, `HumanCollaborationService` now injects the singleton-safe `IServiceScopeFactory` and creates a short-lived scope only when a `knowledge.freshness.*` decision needs the scoped freshness-review service.
+Uploaded project files and ZIPs are now quarantined before extraction. Promotion is gated by bounded path/size/archive inspection, curator-approved regex/knowledge evidence, independent review quorum and explicit user approval. Hash-verified chunked file/blob reconstruction feeds the same quarantine path. Regex suggestions now have durable provenance and review state, and only approved patterns participate in security-sensitive ingestion/classification.
 
-A 4.6.1 release audit now asserts the intended singleton/scoped registrations, forbids direct constructor capture of `IKnowledgeFreshnessReviewService` by `HumanCollaborationService`, and requires scoped resolution at the post-decision call site. The 4.6.0 UI/editor and Council compile corrections remain unchanged.
+Repository recognition is no longer `.csproj`-only: the classifier recognizes common .NET, Maven/Gradle Java, Node package-manager, Rust/Cargo, Go, Python and Minecraft/Fabric/Forge/NeoForge/Paper evidence without executing uploaded code. Missing toolchain/framework knowledge is routed through the existing human-collaboration knowledge workflow.
 
-This release intentionally does not start the broader multi-LocalGPT pairing/orchestration, curator-gate, generic project ingestion, blob reconstruction, or semantic ASCII mouse/action work. Those changes are deferred until this repaired baseline is tested by the user.
+Normal 1-Wire pairing remains authoritative. Prompt/controller functions expose status, pairing-ticket creation, explicit trust establishment/revocation and trusted Council-host enrollment without silently enabling LAN exposure or bypassing trust. Enrolled trusted LocalGPT peers are surfaced to Council orchestration.
 
-No PublisherStudio source change is required for this LocalGPT-only hotfix.
+The ASCII/game engine now exposes semantic actions shared by keyboard, gamepad, mouse/touch buttons and approved AI/team calls. AI invocation targets engine actions and current legal-action state rather than operating-system mouse coordinates.
+
+The 4.6.1 service-lifetime repair, 4.6.0 UI/compiler fixes and prior DevExpress/InteractiveServer behavior remain preserved. PublisherStudio source is unchanged.

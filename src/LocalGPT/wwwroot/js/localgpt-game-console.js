@@ -322,9 +322,10 @@
             const signature = [...active].sort().join('|');
             if (state.pressedSignature === signature) return;
             state.pressedSignature = signature;
-            state.element.querySelectorAll('[data-game-action]').forEach(button => {
-                const action = button.getAttribute('data-game-action');
-                const mapped = action === 'left' ? ['strafe-left', 'turn-left'] : action === 'right' ? ['strafe-right', 'turn-right'] : [action];
+            state.element.querySelectorAll('[data-game-action], [data-semantic-action]').forEach(button => {
+                const semantic = button.getAttribute('data-semantic-action');
+                const action = semantic || button.getAttribute('data-game-action');
+                const mapped = semantic ? [semantic] : action === 'left' ? ['strafe-left', 'turn-left'] : action === 'right' ? ['strafe-right', 'turn-right'] : [action];
                 button.classList.toggle('is-pressed', mapped.some(item => active.has(item)));
             });
         } catch (error) {
@@ -491,9 +492,15 @@
                 attachFollowTail(state);
                 requestScale(state);
                 element.addEventListener('pointerdown', event => {
+                    const target = event.target instanceof Element ? event.target.closest('[data-semantic-action]') : null;
+                    const semanticAction = target?.getAttribute('data-semantic-action');
+                    if (semanticAction) markPressed(state, new Set([semanticAction]));
                     if (isInteractiveTarget(event.target)) return;
                     element.focus({ preventScroll:true });
                 }, { signal:state.abort.signal });
+                const clearPointerPress = () => markPressed(state, state.keyboardActions);
+                element.addEventListener('pointerup', clearPointerPress, { signal:state.abort.signal });
+                element.addEventListener('pointercancel', clearPointerPress, { signal:state.abort.signal });
                 document.addEventListener('fullscreenchange', () => updateFullscreenPresentation(state), { signal:state.abort.signal });
                 window.addEventListener('resize', () => requestScale(state), { signal:state.abort.signal });
                 if (typeof ResizeObserver === 'function') {

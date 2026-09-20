@@ -395,20 +395,20 @@
                                 }
                             </div>
                             <div class="chat-game-touch-grid">
-                                <DxButton CssClass="up" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-forward" Click='@(() => SendControlAsync("move-forward"))'>▲</DxButton>
-                                <DxButton CssClass="left" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="left" Click='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</DxButton>
-                                <DxButton CssClass="down" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-backward" Click='@(() => SendControlAsync("move-backward"))'>▼</DxButton>
-                                <DxButton CssClass="right" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="right" Click='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</DxButton>
-                                <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-left" Click='@(() => SendControlAsync("turn-left"))'>Aim ◁</DxButton>
-                                <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-right" Click='@(() => SendControlAsync("turn-right"))'>Aim ▷</DxButton>
+                                <DxButton CssClass="up" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-forward" data-semantic-action="move-forward" Click='@(() => SendControlAsync("move-forward"))'>▲</DxButton>
+                                <DxButton CssClass="left" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="left" data-semantic-action='@(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left")' Click='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</DxButton>
+                                <DxButton CssClass="down" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-backward" data-semantic-action="move-backward" Click='@(() => SendControlAsync("move-backward"))'>▼</DxButton>
+                                <DxButton CssClass="right" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="right" data-semantic-action='@(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right")' Click='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</DxButton>
+                                <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-left" data-semantic-action="turn-left" Click='@(() => SendControlAsync("turn-left"))'>Aim ◁</DxButton>
+                                <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-right" data-semantic-action="turn-right" Click='@(() => SendControlAsync("turn-right"))'>Aim ▷</DxButton>
                                 @if (snapshot.GameKey == "ascii-doom")
                                 {
-                                    <DxButton CssClass="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="shoot" Click='@(() => SendControlAsync("shoot"))'>Shoot</DxButton>
-                                    <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="duck" Click='@(() => SendControlAsync("duck"))'>Duck</DxButton>
+                                    <DxButton CssClass="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="shoot" data-semantic-action="shoot" Click='@(() => SendControlAsync("shoot"))'>Shoot</DxButton>
+                                    <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="duck" data-semantic-action="duck" Click='@(() => SendControlAsync("duck"))'>Duck</DxButton>
                                 }
-                                <DxButton CssClass="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="use" Click='@(() => SendControlAsync("use"))'>Use</DxButton>
+                                <DxButton CssClass="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="use" data-semantic-action="use" Click='@(() => SendControlAsync("use"))'>Use</DxButton>
                             </div>
-                            <small>Keyboard and connected gamepads use these exact actions. Controller polling only runs while this game surface can accept input.</small>
+                            <small>Mouse/touch, keyboard, connected gamepads and approved AI/team calls share these semantic actions. Controller polling only runs while this game surface can accept input.</small>
                         </div>
                     }
                 </aside>

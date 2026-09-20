@@ -188,7 +188,10 @@ public sealed class LearningProjectWorkspaceSyncService(
         try
         {
             var candidates = new HashSet<string>(platform.PathComparer);
-            foreach (var projectFile in EnumerateRepositoryFiles(extractedRoot, "*.csproj"))
+            var markers = EnumerateRepositoryFiles(extractedRoot)
+                .Where(IsRepositoryMarker)
+                .Take(20000);
+            foreach (var projectFile in markers)
             {
                 var directory = Path.GetDirectoryName(projectFile);
                 if (string.IsNullOrWhiteSpace(directory))
@@ -229,6 +232,8 @@ public sealed class LearningProjectWorkspaceSyncService(
                 if (File.Exists(Path.Combine(current.FullName, "global.json")) ||
                     current.EnumerateFiles("*.sln", SearchOption.TopDirectoryOnly).Any() ||
                     current.EnumerateFiles("*.slnx", SearchOption.TopDirectoryOnly).Any() ||
+                    current.EnumerateFiles("*.csproj", SearchOption.TopDirectoryOnly).Any() ||
+                    new[] { "pom.xml", "build.gradle", "build.gradle.kts", "package.json", "Cargo.toml", "go.mod", "pyproject.toml", "requirements.txt", "fabric.mod.json", "mods.toml", "neoforge.mods.toml", "paper-plugin.yml", "plugin.yml" }.Any(name => File.Exists(Path.Combine(current.FullName, name))) ||
                     (Directory.Exists(Path.Combine(current.FullName, "src")) && current.EnumerateFiles("*.md", SearchOption.TopDirectoryOnly).Any()))
                 {
                     best = current;
@@ -288,6 +293,8 @@ public sealed class LearningProjectWorkspaceSyncService(
                 source.Version,
                 source.SdkVersion,
                 TargetFrameworks = source.TargetFrameworks,
+                ProjectType = source.ProjectType,
+                Toolchains = source.Toolchains,
                 WorkspaceName = workspaceName,
                 WorkspaceRoot = workspaceRootPath,
                 RepositoryRoot = repositoryRoot,
@@ -318,7 +325,7 @@ public sealed class LearningProjectWorkspaceSyncService(
 
             project.Name = databaseProjectName;
             project.RootPath = repositoryRoot;
-            project.ProjectType = "DotNetSolution";
+            project.ProjectType = source.ProjectType;
             project.SolutionPath = source.SolutionPath;
             project.CurrentVersion = source.Version;
             project.Status = "Active";
@@ -394,7 +401,7 @@ public sealed class LearningProjectWorkspaceSyncService(
             workspaceRoot.EnvironmentRootPath = repositoryRoot;
             workspaceRoot.EnvironmentKind = "LocalHost";
             workspaceRoot.SolutionPattern = @"(?i)\.(sln|slnx)$";
-            workspaceRoot.ProjectTypePattern = @"(?i)DotNet.*";
+            workspaceRoot.ProjectTypePattern = $@"(?i){Regex.Escape(source.ProjectType)}";
             workspaceRoot.DefaultSubdirectoriesJson = JsonSerializer.Serialize(Directory.EnumerateDirectories(repositoryRoot, "*", SearchOption.TopDirectoryOnly).Select(Path.GetFileName).Where(name => !string.IsNullOrWhiteSpace(name)).OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
             workspaceRoot.ExpectedStructureRegex = BuildExpectedStructureRegex(source);
             workspaceRoot.AccessPolicyJson = "[\"read\"]";
@@ -498,29 +505,159 @@ public sealed class LearningProjectWorkspaceSyncService(
     {
         try
         {
-            var projectFiles = EnumerateRepositoryFiles(repositoryRoot, "*.csproj").ToList();
-            var preferred = projectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "LocalGPT", StringComparison.OrdinalIgnoreCase))
-                ?? projectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "PublisherStudio.Web", StringComparison.OrdinalIgnoreCase))
-                ?? projectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "PublisherStudio", StringComparison.OrdinalIgnoreCase))
-                ?? projectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "BlazorPublisher", StringComparison.OrdinalIgnoreCase))
-                ?? projectFiles.OrderBy(path => path.Count(character => character is '/' or '\\')).ThenBy(path => path, StringComparer.OrdinalIgnoreCase).First();
+            var allFiles = EnumerateRepositoryFiles(repositoryRoot).ToList();
+            var dotnetProjectFiles = allFiles.Where(path => path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)).ToList();
+            var markerFiles = allFiles.Where(IsRepositoryMarker).OrderBy(path => path.Count(character => character is '/' or '\\')).ThenBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
+            if (markerFiles.Count == 0)
+                return new RepositoryInspection(Path.GetFileName(repositoryRoot), "0.0.0-source", string.Empty, [], string.Empty, [], "Unknown", []);
 
-            var projectName = CanonicalProjectName(Path.GetFileNameWithoutExtension(preferred), repositoryRoot, projectFiles);
-            var version = ReadProjectVersion(preferred);
+            var preferred = dotnetProjectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "LocalGPT", StringComparison.OrdinalIgnoreCase))
+                ?? dotnetProjectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "PublisherStudio.Web", StringComparison.OrdinalIgnoreCase))
+                ?? dotnetProjectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "PublisherStudio", StringComparison.OrdinalIgnoreCase))
+                ?? dotnetProjectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "BlazorPublisher", StringComparison.OrdinalIgnoreCase))
+                ?? markerFiles.First();
+
+            var projectType = DetermineProjectType(markerFiles);
+            var toolchains = DetermineToolchains(markerFiles);
+            var generic = ReadGenericProjectIdentity(preferred, repositoryRoot);
+            var projectName = dotnetProjectFiles.Count > 0
+                ? CanonicalProjectName(Path.GetFileNameWithoutExtension(preferred), repositoryRoot, dotnetProjectFiles)
+                : generic.Name;
+            var version = dotnetProjectFiles.Count > 0 ? ReadProjectVersion(preferred) : generic.Version;
             var sdkVersion = ReadSdkVersion(Path.Combine(repositoryRoot, "global.json"));
-            var frameworks = ReadTargetFrameworks(projectFiles);
-            var solutionPath = EnumerateRepositoryFiles(repositoryRoot)
+            var frameworks = ReadTargetFrameworks(dotnetProjectFiles);
+            var solutionPath = allFiles
                 .Where(path => path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-                .FirstOrDefault() ?? string.Empty;
+                .FirstOrDefault() ?? preferred;
 
-            return new RepositoryInspection(projectName, version, sdkVersion, frameworks, solutionPath, projectFiles);
+            return new RepositoryInspection(projectName, version, sdkVersion, frameworks, solutionPath, markerFiles, projectType, toolchains);
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Inspecting repository metadata failed; source content was omitted from logs.");
             throw;
         }
+    }
+
+    private bool IsRepositoryMarker(string path)
+    {
+        try
+        {
+            var name = Path.GetFileName(path);
+            var extension = Path.GetExtension(path);
+            var result = extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase) || extension.Equals(".sln", StringComparison.OrdinalIgnoreCase) || extension.Equals(".slnx", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("global.json", StringComparison.OrdinalIgnoreCase) || name.Equals("pom.xml", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("build.gradle", StringComparison.OrdinalIgnoreCase) || name.Equals("build.gradle.kts", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("package.json", StringComparison.OrdinalIgnoreCase) || name.Equals("pnpm-lock.yaml", StringComparison.OrdinalIgnoreCase) || name.Equals("yarn.lock", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("Cargo.toml", StringComparison.OrdinalIgnoreCase) || name.Equals("go.mod", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("pyproject.toml", StringComparison.OrdinalIgnoreCase) || name.Equals("requirements.txt", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("fabric.mod.json", StringComparison.OrdinalIgnoreCase) || name.Equals("mods.toml", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("neoforge.mods.toml", StringComparison.OrdinalIgnoreCase) || name.Equals("paper-plugin.yml", StringComparison.OrdinalIgnoreCase) || name.Equals("plugin.yml", StringComparison.OrdinalIgnoreCase);
+            logger.LogDebug("Repository marker classification completed.");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Repository marker classification failed.");
+            throw;
+        }
+    }
+
+    private string DetermineProjectType(IReadOnlyList<string> markerFiles)
+    {
+        try
+        {
+            bool Has(string name) => markerFiles.Any(path => string.Equals(Path.GetFileName(path), name, StringComparison.OrdinalIgnoreCase));
+            string result;
+            if (markerFiles.Any(path => path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))) result = "DotNetSolution";
+            else if (markerFiles.Any(path => path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))) result = "DotNetProject";
+            else if (Has("fabric.mod.json") || Has("mods.toml") || Has("neoforge.mods.toml")) result = "MinecraftMod";
+            else if (Has("paper-plugin.yml") || Has("plugin.yml")) result = "MinecraftPlugin";
+            else if (Has("pom.xml")) result = "JavaMaven";
+            else if (Has("build.gradle") || Has("build.gradle.kts")) result = "JavaGradle";
+            else if (Has("package.json")) result = "Node";
+            else if (Has("Cargo.toml")) result = "Rust";
+            else if (Has("go.mod")) result = "Go";
+            else if (Has("pyproject.toml") || Has("requirements.txt")) result = "Python";
+            else result = "GenericRepository";
+            logger.LogDebug("Repository project type classified as {ProjectType}.", result);
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Repository project-type classification failed.");
+            throw;
+        }
+    }
+
+    private IReadOnlyList<string> DetermineToolchains(IReadOnlyList<string> markerFiles)
+    {
+        try
+        {
+            var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var names = markerFiles.Select(Path.GetFileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (markerFiles.Any(path => path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))) values.Add(".NET/MSBuild");
+            if (names.Contains("pom.xml")) values.Add("Java/Maven");
+            if (names.Contains("build.gradle") || names.Contains("build.gradle.kts")) values.Add("Java/Gradle");
+            if (names.Contains("package.json")) values.Add("Node/npm");
+            if (names.Contains("pnpm-lock.yaml")) values.Add("Node/pnpm");
+            if (names.Contains("yarn.lock")) values.Add("Node/yarn");
+            if (names.Contains("Cargo.toml")) values.Add("Rust/Cargo");
+            if (names.Contains("go.mod")) values.Add("Go");
+            if (names.Contains("pyproject.toml") || names.Contains("requirements.txt")) values.Add("Python");
+            if (names.Contains("fabric.mod.json")) values.Add("Minecraft/Fabric");
+            if (names.Contains("mods.toml")) values.Add("Minecraft/Forge");
+            if (names.Contains("neoforge.mods.toml")) values.Add("Minecraft/NeoForge");
+            if (names.Contains("paper-plugin.yml") || names.Contains("plugin.yml")) values.Add("Minecraft/Paper/Bukkit");
+            var result = values.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToList();
+            logger.LogDebug("Detected {ToolchainCount} repository toolchain(s).", result.Count);
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Repository toolchain classification failed.");
+            throw;
+        }
+    }
+
+    private (string Name, string Version) ReadGenericProjectIdentity(string preferred, string repositoryRoot)
+    {
+        var name = Path.GetFileName(repositoryRoot);
+        var version = "0.0.0-source";
+        try
+        {
+            var fileName = Path.GetFileName(preferred);
+            var text = File.ReadAllText(preferred);
+            if (fileName.Equals("package.json", StringComparison.OrdinalIgnoreCase) || fileName.Equals("fabric.mod.json", StringComparison.OrdinalIgnoreCase))
+            {
+                using var json = JsonDocument.Parse(text);
+                if (json.RootElement.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String) name = n.GetString()?.Trim() ?? name;
+                if (json.RootElement.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(name)) name = id.GetString()?.Trim() ?? name;
+                if (json.RootElement.TryGetProperty("version", out var v) && v.ValueKind == JsonValueKind.String) version = v.GetString()?.Trim() ?? version;
+            }
+            else if (fileName.Equals("pom.xml", StringComparison.OrdinalIgnoreCase))
+            {
+                var doc = XDocument.Parse(text);
+                name = doc.Descendants().FirstOrDefault(element => element.Name.LocalName == "artifactId")?.Value?.Trim() ?? name;
+                version = doc.Descendants().FirstOrDefault(element => element.Name.LocalName == "version")?.Value?.Trim() ?? version;
+            }
+            else if (fileName.Equals("Cargo.toml", StringComparison.OrdinalIgnoreCase) || fileName.Equals("pyproject.toml", StringComparison.OrdinalIgnoreCase))
+            {
+                var nameMatch = Regex.Match(text, @"(?m)^\s*name\s*=\s*[""']([^""']+)[""']", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
+                var versionMatch = Regex.Match(text, @"(?m)^\s*version\s*=\s*[""']([^""']+)[""']", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
+                if (nameMatch.Success) name = nameMatch.Groups[1].Value.Trim();
+                if (versionMatch.Success) version = versionMatch.Groups[1].Value.Trim();
+            }
+            else if (fileName.Equals("go.mod", StringComparison.OrdinalIgnoreCase))
+            {
+                var module = Regex.Match(text, @"(?m)^\s*module\s+([^\s]+)", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
+                if (module.Success) name = module.Groups[1].Value.Split('/').Last();
+            }
+        }
+        catch { }
+        if (string.IsNullOrWhiteSpace(name)) name = "ImportedProject";
+        return (name, version);
     }
 
     /// <summary>
@@ -663,6 +800,8 @@ public sealed class LearningProjectWorkspaceSyncService(
                 required.Add((".NET SDK", $"Repository global.json requires SDK {source.SdkVersion}.", $"dotnet-sdk:{source.SdkVersion}"));
             foreach (var framework in source.TargetFrameworks)
                 required.Add(("Target framework", $"Repository project metadata declares target framework {framework}.", $"target-framework:{framework}"));
+            foreach (var toolchain in source.Toolchains)
+                required.Add(("Toolchain", $"Repository evidence declares or strongly indicates {toolchain}.", $"toolchain:{toolchain}"));
 
             var requiredCapabilities = required
                 .Select(item => item.Capability)
@@ -1172,5 +1311,7 @@ public sealed class LearningProjectWorkspaceSyncService(
         string SdkVersion,
         IReadOnlyList<string> TargetFrameworks,
         string SolutionPath,
-        IReadOnlyList<string> ProjectFiles);
+        IReadOnlyList<string> ProjectFiles,
+        string ProjectType,
+        IReadOnlyList<string> Toolchains);
 }
