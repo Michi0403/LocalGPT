@@ -1,0 +1,24 @@
+<div class="localgpt-operation-status @(Busy ? "is-busy" : "is-idle")" role="status" aria-live="polite">
+    <DxWaitIndicator Visible="@Busy" AnimationType="WaitIndicatorAnimationType.Spin" CssClass="localgpt-operation-spinner" />
+    <div class="localgpt-operation-copy">
+        @if (!string.IsNullOrWhiteSpace(Text))
+        {
+            <strong>@Text</strong>
+        }
+        @if (!string.IsNullOrWhiteSpace(Detail))
+        {
+            <span>@Detail</span>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>Whether the associated operation is still running.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>Primary user-visible operation status.</summary>
+    [Parameter] public string Text { get; set; } = string.Empty;
+
+    /// <summary>Optional supporting status or location hint.</summary>
+    [Parameter] public string Detail { get; set; } = string.Empty;
+}

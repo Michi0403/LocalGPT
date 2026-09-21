@@ -35,6 +35,8 @@ public sealed class ProjectIngestionGateRecord
     public List<ProjectIngestionFileEvidence> Files { get; set; } = [];
     public List<string> ProjectKinds { get; set; } = [];
     public List<string> Toolchains { get; set; } = [];
+    public List<string> Domains { get; set; } = [];
+    public List<string> MatchedEvidenceRules { get; set; } = [];
     public List<string> ApprovedKnowledgeHints { get; set; } = [];
     public List<string> RejectionReasons { get; set; } = [];
     public List<ProjectIngestionReviewEvidence> Reviews { get; set; } = [];
@@ -51,6 +53,16 @@ public sealed class ProjectIngestionReviewRequest
     public string WorkspaceName { get; set; } = string.Empty;
     public bool Approved { get; set; }
     public string Notes { get; set; } = string.Empty;
+}
+
+
+/// <summary>Data-driven classification result produced from curator-approved project-evidence regex rules.</summary>
+public sealed class ProjectEvidenceClassification
+{
+    public List<string> Domains { get; set; } = [];
+    public List<string> ProjectKinds { get; set; } = [];
+    public List<string> Toolchains { get; set; } = [];
+    public List<string> MatchedRuleNames { get; set; } = [];
 }
 
 /// <summary>One file declared for bounded hash-verified blob reconstruction.</summary>

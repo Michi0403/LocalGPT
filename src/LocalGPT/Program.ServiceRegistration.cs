@@ -153,6 +153,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IRegexCuratorService, RegexCuratorService>();
                 builder.Services.AddSingleton<IProjectEvidenceClassifierService, ProjectEvidenceClassifierService>();
                 builder.Services.AddScoped<IProjectIngestionService, ProjectIngestionService>();
+                builder.Services.AddScoped<IUploadProcessingRecommendationService, UploadProcessingRecommendationService>();
                 builder.Services.AddScoped<IProjectBlobReconstructionService, ProjectBlobReconstructionService>();
                 builder.Services.AddScoped<IOneWireCouncilHostEnrollmentService, OneWireCouncilHostEnrollmentService>();
                 builder.Services.AddSingleton<IAsciiSemanticActionService, AsciiSemanticActionService>();
@@ -162,6 +163,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
                 builder.Services.AddScoped<IFirstRunOnboardingService, FirstRunOnboardingService>();
                 builder.Services.AddSingleton<IConsoleCommandService, ConsoleCommandService>();
+                builder.Services.AddSingleton<IOperationalActivityFeedService, OperationalActivityFeedService>();
                 builder.Services.AddSingleton<IConsoleOperatorService, ConsoleOperatorService>();
                 builder.Services.AddScoped<ICanIRunHardwareRecommendationService, CanIRunHardwareRecommendationService>();
                 builder.Services.AddScoped<IAiProviderBootstrapService, AiProviderBootstrapService>();

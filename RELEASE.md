@@ -1,7 +1,9 @@
-# LocalGPT 4.6.4
+# LocalGPT 4.6.9
 
-LocalGPT 4.6.4 is a narrow XML-documentation warning cleanup following 4.6.3.
+LocalGPT 4.6.9 replaces the permanent `/chat` Upload advisor panel with an idle-invisible external-file drag/drop landing surface modeled on the existing PublisherStudio interaction pattern.
 
-The source now documents every parameter involved in the four compiler warnings reported from the 4.6.3 Windows build: `ProjectType` and `Toolchains` on the repository-inspection record, `regexCuratorService` on `LearningRoundService`, and `regexCurator` on `UpsertRegexPatternFunction`.
+Nothing is added to normal Chat document flow while the user is not dragging files. During an external file drag, a temporary viewport overlay is positioned over the Local Chat surface. A completed drop is streamed through a dedicated bounded multipart endpoint into the existing LocalGPT quarantine workspace service. The existing Chat paperclip attachment path remains separate and unchanged.
 
-No runtime or frontend behavior was intentionally changed. The 4.6.3 `/install` UI/invariant-number/CanIRun resolve-install repairs remain intact, as do the 4.6.2 project-ingestion/1-Wire/regex/semantic-ASCII work and the 4.6.1 startup-lifetime repair. PublisherStudio source is unchanged.
+After quarantine succeeds, the existing ingestion inspection and recommendation workflow runs and only then opens the review popup. The drop itself does not promote, build, publish, teach Knowledge or execute uploaded material; those existing gates remain authoritative.
+
+The 4.6.8 Kernel Creature Tournament, ASCII/Pixel, rejoin and terminal-layout repairs are preserved. PublisherStudio is unchanged in this release.

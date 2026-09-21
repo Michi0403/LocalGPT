@@ -1,95 +1,39 @@
 @using System.Globalization
 
-<DxTextBox Text="@_text"
-           TextChanged="@OnTextChangedAsync"
-           CssClass="localgpt-editor invariant-number-editor"
-           NullText="@NullText"
-           Enabled="@Enabled" />
+<DxSpinEdit Value="@Value"
+            ValueChanged="@((double? value) => OnValueChangedAsync(value))"
+            MinValue="@Min"
+            MaxValue="@Max"
+            Increment="@Step"
+            Mask="@NumericMask"
+            CssClass="localgpt-editor localgpt-invariant-number">
+    <DxNumericMaskProperties Culture="@CultureInfo.InvariantCulture" />
+</DxSpinEdit>
 
 @code {
-    /// <summary>Gets or sets the numeric value displayed by this culture-stable editor.</summary>
+    /// <summary>Numeric value edited with invariant decimal notation.</summary>
     [Parameter] public double? Value { get; set; }
 
-    /// <summary>Raised after a valid numeric value has been normalized.</summary>
+    /// <summary>Raises when the numeric value changes.</summary>
     [Parameter] public EventCallback<double?> ValueChanged { get; set; }
 
-    /// <summary>Minimum accepted value.</summary>
-    [Parameter] public double Min { get; set; }
+    /// <summary>Smallest accepted value.</summary>
+    [Parameter] public double Min { get; set; } = 0d;
 
-    /// <summary>Optional maximum accepted value.</summary>
-    [Parameter] public double? Max { get; set; }
+    /// <summary>Largest accepted value.</summary>
+    [Parameter] public double Max { get; set; } = 1_000_000d;
 
-    /// <summary>Optional normalization step.</summary>
-    [Parameter] public double Step { get; set; }
+    /// <summary>Spin-button increment.</summary>
+    [Parameter] public double Step { get; set; } = 1d;
 
-    /// <summary>Maximum number of fractional digits shown.</summary>
+    /// <summary>Maximum displayed fractional digits.</summary>
     [Parameter] public int DecimalPlaces { get; set; } = 2;
 
-    /// <summary>Placeholder used when the value is unknown.</summary>
-    [Parameter] public string NullText { get; set; } = string.Empty;
+    /// <summary>Invariant numeric mask used by the DevExpress Spin Edit.</summary>
+    private string NumericMask => DecimalPlaces <= 0
+        ? "0"
+        : $"0.{new string('#', Math.Clamp(DecimalPlaces, 1, 8))}";
 
-    /// <summary>Whether the editor accepts input.</summary>
-    [Parameter] public bool Enabled { get; set; } = true;
-
-    private string _text = string.Empty;
-
-    /// <inheritdoc />
-    protected override void OnParametersSet()
-    {
-        _text = Format(Normalize(Value));
-    }
-
-    /// <summary>Accepts invariant input while also tolerating the currently selected UI culture, then always renders one invariant representation.</summary>
-    private async Task OnTextChangedAsync(string? text)
-    {
-        var candidate = (text ?? string.Empty).Trim();
-        if (candidate.Length == 0)
-        {
-            Value = null;
-            _text = string.Empty;
-            await ValueChanged.InvokeAsync(null).ConfigureAwait(false);
-            return;
-        }
-
-        const NumberStyles styles = NumberStyles.Float | NumberStyles.AllowThousands;
-        if (!double.TryParse(candidate, styles, CultureInfo.InvariantCulture, out var parsed)
-            && !double.TryParse(candidate, styles, CultureInfo.CurrentUICulture, out parsed))
-        {
-            _text = Format(Value);
-            return;
-        }
-
-        var normalized = Normalize(parsed) ?? Min;
-
-        Value = normalized;
-        _text = Format(normalized);
-        await ValueChanged.InvokeAsync(normalized).ConfigureAwait(false);
-    }
-
-    /// <summary>Clamps and step-normalizes one value so hardware capacities render as reviewable values rather than raw binary conversion noise.</summary>
-    private double? Normalize(double? value)
-    {
-        if (value is null)
-            return null;
-        var normalized = Math.Max(Min, value.Value);
-        if (Max is double maximum)
-            normalized = Math.Min(maximum, normalized);
-        if (Step > 0d)
-        {
-            normalized = Min + (Math.Round((normalized - Min) / Step, MidpointRounding.AwayFromZero) * Step);
-            normalized = Math.Max(Min, normalized);
-            if (Max is double steppedMaximum)
-                normalized = Math.Min(steppedMaximum, normalized);
-        }
-        return normalized;
-    }
-
-    /// <summary>Formats editor values without localized decimal/group separators.</summary>
-    private string Format(double? value)
-    {
-        if (value is null)
-            return string.Empty;
-        var decimals = Math.Clamp(DecimalPlaces, 0, 8);
-        return value.Value.ToString(decimals == 0 ? "0" : $"0.{new string('#', decimals)}", CultureInfo.InvariantCulture);
-    }
+    /// <summary>Forwards a DevExpress Spin Edit value change to the caller.</summary>
+    private Task OnValueChangedAsync(double? value) => ValueChanged.InvokeAsync(value);
 }

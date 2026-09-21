@@ -33,11 +33,21 @@ def main() -> int:
                     violations.append(
                         f"{rel}:{line_no}:{match.start()+1}: native/legacy control; use {replacement}: {line.strip()}"
                     )
+
+        content = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"<DxGridLayoutItem\b[^>]*>(.*?)</DxGridLayoutItem\s*>", content, re.I | re.S):
+            body = match.group(1)
+            if re.match(r"\s*<Template(?:\s|>)", body, re.I):
+                continue
+            line_no = content.count("\n", 0, match.start()) + 1
+            violations.append(
+                f"{rel}:{line_no}:1: DxGridLayoutItem must wrap content in <Template>; implicit ChildContent fails at render time"
+            )
     if violations:
         print("DevExpress Blazor control audit failed:")
         print("\n".join(f"  - {item}" for item in violations))
         return 1
-    print("DevExpress Blazor control audit passed: only the two circuit-independent App.razor reconnect controls remain native.")
+    print("DevExpress Blazor control audit passed: only the two circuit-independent App.razor reconnect controls remain native and all DxGridLayoutItem content uses explicit Template children.")
     return 0
 
 if __name__ == "__main__":

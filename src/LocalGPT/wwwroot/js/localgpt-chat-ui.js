@@ -17,6 +17,8 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     let liveUserMessageSequence = 0;
     let layoutPulseTimer = 0;
     const liveUserMessages = new WeakMap();
+    let workspaceDropRegistration = null;
+
 
     function visible(element) {
         try {
@@ -1221,6 +1223,316 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
+
+    function workspaceDragHasFiles(event) {
+        try {
+            const transfer = event?.dataTransfer;
+            if (!transfer) return false;
+            return [...(transfer.types || [])].some(type => String(type).toLowerCase() === 'files')
+                || [...(transfer.items || [])].some(item => item?.kind === 'file');
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.workspaceDragHasFiles', error);
+            return false;
+        }
+    }
+
+    function workspaceDropRoot(state) {
+        try {
+            const selector = String(state?.options?.rootSelector || '[data-testid="chat-page"]');
+            const root = document.querySelector(selector);
+            return root instanceof HTMLElement ? root : null;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.workspaceDropRoot', error);
+            return null;
+        }
+    }
+
+    function workspaceDropContainsPoint(root, event) {
+        try {
+            if (!(root instanceof HTMLElement)) return false;
+            const rect = root.getBoundingClientRect();
+            const x = Number(event?.clientX || 0);
+            const y = Number(event?.clientY || 0);
+            return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.workspaceDropContainsPoint', error);
+            return false;
+        }
+    }
+
+    function updateWorkspaceDropOverlayBounds(state) {
+        try {
+            const root = workspaceDropRoot(state);
+            const overlay = state?.overlay;
+            if (!(root instanceof HTMLElement) || !(overlay instanceof HTMLElement)) return;
+            const rect = root.getBoundingClientRect();
+            overlay.style.left = `${Math.max(0, rect.left)}px`;
+            overlay.style.top = `${Math.max(0, rect.top)}px`;
+            overlay.style.width = `${Math.max(0, rect.width)}px`;
+            overlay.style.height = `${Math.max(0, rect.height)}px`;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.updateWorkspaceDropOverlayBounds', error);
+            throw error;
+        }
+    }
+
+    function workspaceDropCount(event) {
+        try {
+            const items = [...(event?.dataTransfer?.items || [])].filter(item => item?.kind === 'file');
+            return items.length || Number(event?.dataTransfer?.files?.length || 0);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.workspaceDropCount', error);
+            return 0;
+        }
+    }
+
+    function ensureWorkspaceDropOverlay(state, event) {
+        try {
+            if (!(state?.overlay instanceof HTMLElement)) {
+                const overlay = document.createElement('div');
+                overlay.className = 'localgpt-workspace-drop-overlay';
+                overlay.setAttribute('role', 'presentation');
+                overlay.setAttribute('aria-hidden', 'true');
+
+                const card = document.createElement('div');
+                card.className = 'localgpt-workspace-drop-card';
+                const icon = document.createElement('div');
+                icon.className = 'localgpt-workspace-drop-icon';
+                icon.textContent = '＋';
+                const title = document.createElement('strong');
+                title.className = 'localgpt-workspace-drop-title';
+                title.textContent = 'Drop into LocalGPT';
+                const detail = document.createElement('span');
+                detail.className = 'localgpt-workspace-drop-detail';
+                detail.textContent = 'Quarantine first · inspect automatically · choose what happens next';
+                const files = document.createElement('small');
+                files.className = 'localgpt-workspace-drop-files';
+                card.append(icon, title, detail, files);
+                overlay.appendChild(card);
+                document.body.appendChild(overlay);
+                state.overlay = overlay;
+                state.overlayFiles = files;
+                state.overlayTitle = title;
+                state.overlayDetail = detail;
+            }
+            updateWorkspaceDropOverlayBounds(state);
+            const count = workspaceDropCount(event);
+            if (state.overlayFiles instanceof HTMLElement)
+                state.overlayFiles.textContent = count > 0 ? `${count} file${count === 1 ? '' : 's'} ready to drop` : 'Release files anywhere inside Chat';
+            state.overlay.classList.remove('uploading');
+            return state.overlay;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.ensureWorkspaceDropOverlay', error);
+            throw error;
+        }
+    }
+
+    function clearWorkspaceDropOverlay(state) {
+        try {
+            if (!state) return;
+            if (state.hideTimer) {
+                clearTimeout(state.hideTimer);
+                state.hideTimer = 0;
+            }
+            state.overlay?.remove();
+            state.overlay = null;
+            state.overlayFiles = null;
+            state.overlayTitle = null;
+            state.overlayDetail = null;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.clearWorkspaceDropOverlay', error);
+        }
+    }
+
+    function scheduleWorkspaceDropOverlayClear(state) {
+        try {
+            if (!state || state.uploading) return;
+            if (state.hideTimer) clearTimeout(state.hideTimer);
+            state.hideTimer = window.setTimeout(() => {
+                try {
+                    state.hideTimer = 0;
+                    if (!state.uploading) clearWorkspaceDropOverlay(state);
+                } catch (error) {
+                    diagnostics.report('localgpt-chat-ui.scheduleWorkspaceDropOverlayClear.timer', error);
+                }
+            }, 140);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.scheduleWorkspaceDropOverlayClear', error);
+        }
+    }
+
+    function validateWorkspaceDropFiles(state, files) {
+        try {
+            if (!files.length) return 'No files were dropped.';
+            const maxFiles = Math.max(1, Number(state?.options?.maxFiles || files.length));
+            if (files.length > maxFiles) return `This drop contains ${files.length} files; LocalGPT currently accepts ${maxFiles} per batch.`;
+            const maxSingle = Math.max(1, Number(state?.options?.maxSingleFileBytes || Number.MAX_SAFE_INTEGER));
+            const maxTotal = Math.max(1, Number(state?.options?.maxTotalFileBytes || Number.MAX_SAFE_INTEGER));
+            let total = 0;
+            for (const file of files) {
+                const size = Math.max(0, Number(file?.size || 0));
+                if (size > maxSingle) return `${file?.name || 'One file'} exceeds the configured LocalGPT single-file limit.`;
+                total += size;
+                if (total > maxTotal) return 'The dropped batch exceeds the configured LocalGPT total upload limit.';
+            }
+            return '';
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.validateWorkspaceDropFiles', error);
+            return 'The dropped file batch could not be validated.';
+        }
+    }
+
+    async function reportWorkspaceDropFailure(state, message) {
+        try {
+            const text = String(message || 'The dropped files could not be quarantined.');
+            if (state?.dotNet) await state.dotNet.invokeMethodAsync('ExternalWorkspaceDropFailedAsync', text);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.reportWorkspaceDropFailure', error);
+        }
+    }
+
+    async function uploadWorkspaceDrop(state, files) {
+        try {
+            const validation = validateWorkspaceDropFiles(state, files);
+            if (validation) {
+                await reportWorkspaceDropFailure(state, validation);
+                return false;
+            }
+
+            const overlay = ensureWorkspaceDropOverlay(state, null);
+            state.uploading = true;
+            overlay?.classList.add('uploading');
+            if (state.overlayTitle instanceof HTMLElement) state.overlayTitle.textContent = 'Quarantining dropped files…';
+            if (state.overlayDetail instanceof HTMLElement) state.overlayDetail.textContent = 'LocalGPT is streaming the batch into its bounded workspace. Nothing is executed.';
+            if (state.overlayFiles instanceof HTMLElement) {
+                const names = files.slice(0, 3).map(file => file?.name || 'file');
+                state.overlayFiles.textContent = names.join(' · ') + (files.length > 3 ? ` · +${files.length - 3} more` : '');
+            }
+
+            const body = new FormData();
+            for (const file of files) body.append('files', file, file.name || 'file');
+            const response = await fetch(String(state.options.uploadUrl || '/api/chat-upload/drop'), {
+                method: 'POST',
+                body,
+                credentials: 'same-origin'
+            });
+            let payload = null;
+            try { payload = await response.json(); }
+            catch (parseError) { diagnostics.report('localgpt-chat-ui.uploadWorkspaceDrop.responseJson', parseError); }
+            if (!response.ok) throw new Error(payload?.error || `Workspace drop failed with HTTP ${response.status}.`);
+            const workspaceName = String(payload?.workspaceName || '').trim();
+            if (!workspaceName) throw new Error('LocalGPT accepted the file transfer but did not return a quarantine workspace identity.');
+
+            if (state.overlayTitle instanceof HTMLElement) state.overlayTitle.textContent = 'Inspecting workspace…';
+            if (state.overlayDetail instanceof HTMLElement) state.overlayDetail.textContent = 'Deterministic evidence and the processing recommendation are being prepared.';
+            if (state.dotNet)
+                await state.dotNet.invokeMethodAsync('ExternalWorkspaceDropAcceptedAsync', workspaceName, Number(payload?.fileCount || files.length));
+            return true;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.uploadWorkspaceDrop', error);
+            await reportWorkspaceDropFailure(state, error?.message || String(error));
+            return false;
+        } finally {
+            state.uploading = false;
+            clearWorkspaceDropOverlay(state);
+        }
+    }
+
+    function unregisterWorkspaceDropTarget() {
+        try {
+            const state = workspaceDropRegistration;
+            if (!state) return;
+            document.removeEventListener('dragenter', state.dragenter, true);
+            document.removeEventListener('dragover', state.dragover, true);
+            document.removeEventListener('dragleave', state.dragleave, true);
+            document.removeEventListener('drop', state.drop, true);
+            window.removeEventListener('resize', state.reposition);
+            window.removeEventListener('scroll', state.reposition, true);
+            clearWorkspaceDropOverlay(state);
+            workspaceDropRegistration = null;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.unregisterWorkspaceDropTarget', error);
+        }
+    }
+
+    function registerWorkspaceDropTarget(dotNetReference, options) {
+        try {
+            unregisterWorkspaceDropTarget();
+            const normalizedOptions = {
+                rootSelector: String(options?.rootSelector || options?.RootSelector || '[data-testid="chat-page"]'),
+                uploadUrl: String(options?.uploadUrl || options?.UploadUrl || '/api/chat-upload/drop'),
+                maxFiles: Number(options?.maxFiles ?? options?.MaxFiles ?? Number.MAX_SAFE_INTEGER),
+                maxSingleFileBytes: Number(options?.maxSingleFileBytes ?? options?.MaxSingleFileBytes ?? Number.MAX_SAFE_INTEGER),
+                maxTotalFileBytes: Number(options?.maxTotalFileBytes ?? options?.MaxTotalFileBytes ?? Number.MAX_SAFE_INTEGER)
+            };
+            const state = {
+                dotNet: dotNetReference,
+                options: normalizedOptions,
+                overlay: null,
+                overlayFiles: null,
+                overlayTitle: null,
+                overlayDetail: null,
+                hideTimer: 0,
+                uploading: false
+            };
+            state.dragenter = event => {
+                try {
+                    const root = workspaceDropRoot(state);
+                    if (!workspaceDragHasFiles(event) || !workspaceDropContainsPoint(root, event)) return;
+                    event.preventDefault();
+                    ensureWorkspaceDropOverlay(state, event);
+                } catch (error) { diagnostics.report('localgpt-chat-ui.workspaceDrop.dragenter', error); }
+            };
+            state.dragover = event => {
+                try {
+                    const root = workspaceDropRoot(state);
+                    if (!workspaceDragHasFiles(event) || !workspaceDropContainsPoint(root, event)) {
+                        scheduleWorkspaceDropOverlayClear(state);
+                        return;
+                    }
+                    event.preventDefault();
+                    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+                    if (state.hideTimer) { clearTimeout(state.hideTimer); state.hideTimer = 0; }
+                    ensureWorkspaceDropOverlay(state, event);
+                } catch (error) { diagnostics.report('localgpt-chat-ui.workspaceDrop.dragover', error); }
+            };
+            state.dragleave = event => {
+                try {
+                    if (!workspaceDragHasFiles(event)) return;
+                    scheduleWorkspaceDropOverlayClear(state);
+                } catch (error) { diagnostics.report('localgpt-chat-ui.workspaceDrop.dragleave', error); }
+            };
+            state.drop = event => {
+                try {
+                    const root = workspaceDropRoot(state);
+                    if (!workspaceDragHasFiles(event) || !workspaceDropContainsPoint(root, event)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const files = [...(event.dataTransfer?.files || [])].filter(file => file instanceof File);
+                    void uploadWorkspaceDrop(state, files);
+                } catch (error) {
+                    diagnostics.report('localgpt-chat-ui.workspaceDrop.drop', error);
+                    void reportWorkspaceDropFailure(state, error?.message || String(error));
+                    clearWorkspaceDropOverlay(state);
+                }
+            };
+            state.reposition = () => {
+                try { if (state.overlay instanceof HTMLElement) updateWorkspaceDropOverlayBounds(state); }
+                catch (error) { diagnostics.report('localgpt-chat-ui.workspaceDrop.reposition', error); }
+            };
+            document.addEventListener('dragenter', state.dragenter, true);
+            document.addEventListener('dragover', state.dragover, true);
+            document.addEventListener('dragleave', state.dragleave, true);
+            document.addEventListener('drop', state.drop, true);
+            window.addEventListener('resize', state.reposition);
+            window.addEventListener('scroll', state.reposition, true);
+            workspaceDropRegistration = state;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.registerWorkspaceDropTarget', error);
+            throw error;
+        }
+    }
+
     const observer = new MutationObserver(diagnostics.guard('localgpt-chat-ui.mutationObserver', records => { try {
         const changed = records.some(record => { try { return (record.type === 'attributes' || record.addedNodes.length > 0 || record.removedNodes.length > 0); } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:records.some@159', __javascriptError); throw __javascriptError; } });
         if (changed) {
@@ -1251,6 +1563,14 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 }
             });
             window.localGptChatUi = {
+                registerWorkspaceDropTarget(dotNetReference, options) {
+                    try { registerWorkspaceDropTarget(dotNetReference, options); }
+                    catch (error) { diagnostics.report('localgpt-chat-ui.api.registerWorkspaceDropTarget', error); throw error; }
+                },
+                unregisterWorkspaceDropTarget() {
+                    try { unregisterWorkspaceDropTarget(); }
+                    catch (error) { diagnostics.report('localgpt-chat-ui.api.unregisterWorkspaceDropTarget', error); }
+                },
                 stabilizeLayout() {
                     try {
                         scheduleLayoutStabilization();

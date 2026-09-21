@@ -1,5 +1,4 @@
 @using LocalGPT.BusinessObjects
-@using Microsoft.AspNetCore.Components.Forms
 @inject IInitialSetupAssistantService Setup
 @inject IAiProviderBootstrapService Providers
 @inject IOllamaProcessService OllamaProcesses
@@ -22,10 +21,9 @@
         </div>
     </header>
 
-    @if (!string.IsNullOrWhiteSpace(statusText))
-    {
-        <div class="alert alert-info" role="status">@statusText</div>
-    }
+    <OperationStatusStrip Busy='@(busy && busyArea == "global")'
+                          Text='@(busy && busyArea == "global" ? busyText : statusText)'
+                          Detail='@(busy ? T("The shared operational console below shows live command and application activity.") : string.Empty)' />
 
     @if (snapshot is null)
     {
@@ -40,6 +38,7 @@
         <div class="initial-setup-grid">
             <article class="initial-setup-card">
                 <h4>1. Local host hardware</h4>
+                <OperationStatusStrip Busy='@BusyFor("hardware")' Text='@(BusyFor("hardware") ? busyText : string.Empty)' Detail='@(BusyFor("hardware") ? T("Live details are mirrored to the shared operational console below.") : string.Empty)' />
                 <p>LocalGPT detects the physical host CPU, RAM/unified memory and every GPU it can identify. The optional CanIRun.ai hardware match is separate so a user can choose the catalog variant without overwriting LocalGPT's detected hardware facts.</p>
                 <label>Physical host endpoint
                     <DxTextBox @bind-Text="hardwareEndpoint" CssClass="localgpt-editor" />
@@ -69,13 +68,14 @@
                     <summary>HWiNFO text import</summary>
                     <p>The report stays local. LocalGPT deterministically extracts all supported GPU-memory sections plus CPU/RAM/OS facts.</p>
                     <DxMemo @bind-Text="hwInfoText" CssClass="localgpt-editor" Rows="6" NullText="Paste HWiNFO text export" />
-                    <InputFile OnChange="ReadHwInfoFileAsync" accept=".txt,text/plain" />
+                    <DxFileInput FilesUploading="ReadHwInfoFileAsync" UploadMode="UploadMode.OnButtonClick" MaxFileCount="1" MaxFileSize="8388608" AcceptedFileTypes="@HwInfoAcceptedTypes" AllowedFileExtensions="@HwInfoAllowedExtensions" />
                     <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || string.IsNullOrWhiteSpace(hwInfoText)))" Click="ImportHwInfoAsync">Import HWiNFO</DxButton>
                 </details>
             </article>
 
             <article class="initial-setup-card">
                 <h4>2. Optional CanIRun.ai hardware-fit model discovery</h4>
+                <OperationStatusStrip Busy='@BusyFor("canirun")' Text='@(BusyFor("canirun") ? busyText : string.Empty)' Detail='@(BusyFor("canirun") ? T("This can take a moment. Watch the shared operational console below for live provider and lookup activity.") : string.Empty)' />
                 <p><strong>Credit:</strong> <a href="https://www.canirun.ai/" target="_blank" rel="noopener noreferrer">CanIRun.ai by midudev</a> can discover open models that fit the reviewed consumer hardware, including models the user may not already know. This optional web lookup is independent from the provider's own model inventory/catalog.</p>
                 <label class="localgpt-check-row">
                     <DxCheckBox @bind-Checked="canIRunOptIn" CssClass="localgpt-check" />
@@ -123,6 +123,7 @@
 
             <article class="initial-setup-card">
                 <h4>3. Local AI provider</h4>
+                <OperationStatusStrip Busy='@BusyFor("provider")' Text='@(BusyFor("provider") ? busyText : string.Empty)' Detail='@(BusyFor("provider") ? T("Provider commands and progress are mirrored to the shared operational console below.") : string.Empty)' />
                 <p>Commands come from the local Knowledge Database. Install/download actions use the shared bounded console; Ollama lifecycle actions use LocalGPT's process service. Mutating actions require your explicit confirmation. Saved hosts are shown independently from reachability, so an offline remote Council host never removes the setup path for this computer.</p>
                 @if (snapshot.ConfiguredProviderHosts.Count > 0)
                 {
@@ -199,6 +200,7 @@
 
             <article class="initial-setup-card">
                 <h4>4. Provider models and hardware-fit discoveries</h4>
+                <OperationStatusStrip Busy='@BusyFor("models")' Text='@(BusyFor("models") ? busyText : string.Empty)' Detail='@(BusyFor("models") ? T("Model resolution, pulls, checks, and provider output are visible in the shared operational console below.") : string.Empty)' />
                 <p>Installed models and knowledge-backed provider catalog mappings are always shown. CanIRun.ai adds hardware-fit discoveries when you opt in; it does not gate the provider model list.</p>
                 @if (SelectedProvider is not null)
                 {
@@ -331,6 +333,7 @@
 
             <article class="initial-setup-card initial-setup-wide">
                 <h4>5. Hardware-curated benchmark Council</h4>
+                <OperationStatusStrip Busy='@BusyFor("benchmark")' Text='@(BusyFor("benchmark") ? busyText : string.Empty)' Detail='@(BusyFor("benchmark") ? T("Council setup activity is mirrored to the shared operational console below.") : string.Empty)' />
                 <p>Select installed provider-qualified models. Mark the strongest ones as curator models; the saved team binds curator/director/reviewer roles to that stronger pool while benchmark-subject roles can exercise the broader selection.</p>
                 @if (snapshot.InstalledModels.Count == 0)
                 {
@@ -356,9 +359,9 @@
             </article>
 
             <article class="initial-setup-card initial-setup-wide">
-                <h4>Shared ASCII command console</h4>
-                <p>The same bounded command feed appears in Chat's ASCII console whenever no game is running.</p>
-                <LocalConsoleFeed CssClass="initial-setup-console" MaxLines="120" />
+                <h4>Shared setup + ASCII operational console</h4>
+                <p>Provider commands, setup activity, bounded application events, and the same ASCII command feed are merged here while work is running.</p>
+                <OperationalActivityFeed LocalText="@statusText" CssClass="initial-setup-console" Rows="14" MaxConsoleLines="180" />
             </article>
         </div>
     }
@@ -436,6 +439,16 @@
     /// Stores the internal busy state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
     /// </summary>
     private bool busy;
+    /// <summary>Accepted MIME types for the DevExpress HWiNFO file picker.</summary>
+    private List<string> HwInfoAcceptedTypes { get; } = ["text/plain"];
+    /// <summary>Accepted file extensions for the DevExpress HWiNFO file picker.</summary>
+    private List<string> HwInfoAllowedExtensions { get; } = [".txt"];
+    /// <summary>Tracks nested long-running setup operations so inner refreshes do not hide an outer progress indicator.</summary>
+    private int busyDepth;
+    /// <summary>Stable setup-area key for the currently running operation.</summary>
+    private string busyArea = string.Empty;
+    /// <summary>User-visible description for the currently running operation.</summary>
+    private string busyText = string.Empty;
     /// <summary>Tracks whether a provider model pull reported that the installed Ollama runtime is too old for that model.</summary>
     private bool ollamaUpdateRequired;
     /// <summary>
@@ -479,7 +492,7 @@
     {
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "global", T("Refreshing setup, providers, models, and hardware state…")).ConfigureAwait(false);
             InitialSetupAssistantSnapshot value;
             var recoveryMode = false;
             try
@@ -605,7 +618,7 @@
     {
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "hardware", T("Detecting local CPU, memory, and accelerator hardware…")).ConfigureAwait(false);
             _ = await Setup.DetectHardwareAsync(hardwareEndpoint, userConfirmed: true).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
@@ -621,7 +634,7 @@
     {
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "hardware", T("Saving the reviewed hardware profile…")).ConfigureAwait(false);
             var saved = await Setup.SaveHardwareListAsync(hardware, hardwareEndpoint, userConfirmed: true).ConfigureAwait(false);
             await SetStatusAsync(TF("Hardware list saved for {0} physical host(s).", saved.Count)).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
@@ -631,16 +644,19 @@
     }
 
     /// <summary>
-    /// Reads hw info file for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// Reads a DevExpress-selected HWiNFO text report without routing the file through the chat upload control.
     /// </summary>
-    /// <param name="args">Input file change event args dependency used by the initial setup assistant panel workflow to provide the corresponding application capability.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task ReadHwInfoFileAsync(InputFileChangeEventArgs args)
+    /// <param name="args">DevExpress file-upload event arguments that expose the selected report stream.</param>
+    /// <returns>A task that completes when the bounded report has been read.</returns>
+    private async Task ReadHwInfoFileAsync(FilesUploadingEventArgs args)
     {
         try
         {
-            var file = args.File;
-            var stream = file.OpenReadStream(4 * 1024 * 1024);
+            var file = args.Files.FirstOrDefault();
+            if (file is null)
+                return;
+            var maximumSize = Math.Min(file.Size, 8 * 1024 * 1024);
+            var stream = file.OpenReadStream(maximumSize);
             await using (stream.ConfigureAwait(false))
             {
                 using var reader = new StreamReader(stream);
@@ -648,7 +664,11 @@
                 await InvokeAsync(() => hwInfoText = text).ConfigureAwait(false);
             }
         }
-        catch (Exception exception) { Logger.LogError(exception, "Reading HWiNFO file in setup assistant failed."); await SetStatusAsync(T("HWiNFO file could not be read.")).ConfigureAwait(false); }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Reading HWiNFO file in setup assistant failed.");
+            await SetStatusAsync(T("HWiNFO file could not be read.")).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -659,7 +679,7 @@
     {
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "hardware", T("Parsing the HWiNFO report and refreshing reviewed hardware…")).ConfigureAwait(false);
             _ = await Setup.ImportHwInfoAsync(hardwareEndpoint, hwInfoText, userConfirmed: true).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
@@ -675,7 +695,7 @@
     {
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "canirun", T("Querying CanIRun.ai and mapping hardware-fit recommendations…")).ConfigureAwait(false);
             var reduced = await Setup.GetHardwareRecommendationsAsync(hardware, canIRunOptIn).ConfigureAwait(false);
             await InvokeAsync(() => { recommendations.Clear(); recommendations.AddRange(reduced); statusText = TF("Loaded {0} attributed CanIRun.ai recommendation(s) without merging physical hosts.", reduced.Count); }).ConfigureAwait(false);
             await RebuildModelChoicesAsync().ConfigureAwait(false);
@@ -705,7 +725,7 @@
             return;
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "models", T("Searching the selected provider catalog…")).ConfigureAwait(false);
             var values = await Setup.SearchProviderCatalogAsync(selectedProviderKey, providerCatalogQuery, recommendations, userConfirmedWebLookup: true).ConfigureAwait(false);
             await InvokeAsync(() =>
             {
@@ -776,7 +796,7 @@
             return;
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "provider", T("Running the confirmed Ollama setup workflow…")).ConfigureAwait(false);
             var processStatus = await OllamaProcesses.GetStatusAsync().ConfigureAwait(false);
             if (!processStatus.IsInstalled)
             {
@@ -828,7 +848,7 @@
         var runtimeStoppedForUpdate = false;
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "provider", T("Updating Ollama through the confirmed provider workflow…")).ConfigureAwait(false);
             var before = await OllamaProcesses.GetStatusAsync().ConfigureAwait(false);
             wasRunning = before.IsRunning;
             if (wasRunning)
@@ -922,7 +942,7 @@
             return;
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "provider", T("Running the selected Ollama lifecycle operation…")).ConfigureAwait(false);
             var result = await action(default).ConfigureAwait(false);
             await InvokeAsync(() => ollamaStatus = result).ConfigureAwait(false);
             await SetStatusAsync(TF("{0}: {1}", label, T(result.Message))).ConfigureAwait(false);
@@ -953,7 +973,7 @@
         if (string.IsNullOrWhiteSpace(selectedProviderKey)) return;
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "provider", T("Registering the selected provider endpoint…")).ConfigureAwait(false);
             var endpoint = await Providers.ConfigureEndpointAsync(selectedProviderKey, true).ConfigureAwait(false);
             await SetStatusAsync(TF("Provider registration: configured {0}.", endpoint)).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
@@ -977,7 +997,7 @@
         if (string.IsNullOrWhiteSpace(selectedProviderKey)) return;
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "provider", T("Running the selected provider operation…")).ConfigureAwait(false);
             var result = await action(selectedProviderKey).ConfigureAwait(false);
             await SetStatusAsync(TF("{0}: {1}.", label, T(result.Status))).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
@@ -1060,7 +1080,7 @@
             return;
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "models", T("Resolving and installing the requested provider model…")).ConfigureAwait(false);
             var resolved = await Providers.ResolveModelIdAsync(selectedProviderKey, manualModelId).ConfigureAwait(false);
             var result = await Providers.InstallModelAsync(selectedProviderKey, resolved, true).ConfigureAwait(false);
             if (await HandleOllamaUpdateRequirementAsync(result).ConfigureAwait(false))
@@ -1089,7 +1109,7 @@
             return;
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "models", T("Resolving the hardware-fit recommendation against the selected provider catalog…")).ConfigureAwait(false);
             var resolution = await Setup.ResolveProviderCatalogRecommendationAsync(
                 selectedProviderKey,
                 choice.RecommendationId,
@@ -1189,7 +1209,7 @@
         if (string.IsNullOrWhiteSpace(selectedProviderKey) || !choice.CanInstall) return;
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "models", T("Checking or installing the selected provider model…")).ConfigureAwait(false);
             var result = await Providers.InstallModelAsync(selectedProviderKey, choice.ProviderModelId, true).ConfigureAwait(false);
             if (await HandleOllamaUpdateRequirementAsync(result).ConfigureAwait(false))
                 return;
@@ -1236,7 +1256,7 @@
     {
         try
         {
-            await SetBusyAsync(true).ConfigureAwait(false);
+            await SetBusyAsync(true, "benchmark", T("Creating the hardware-curated benchmark Council team…")).ConfigureAwait(false);
             var saved = await Setup.CreateBenchmarkTeamAsync(new CreateInitialBenchmarkTeamRequest
             {
                 DisplayName = benchmarkTeamName,
@@ -1254,8 +1274,34 @@
     /// Sets busy for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <param name="value">Value indicating whether value should apply to this operation.</param>
+    /// <param name="area">Stable setup-area key used to position the waiting indicator beside the active interaction.</param>
+    /// <param name="message">User-visible operation text shown while the action is running.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task SetBusyAsync(bool value) => InvokeAsync(() => busy = value);
+    private Task SetBusyAsync(bool value, string area = "global", string? message = null) => InvokeAsync(() =>
+    {
+        if (value)
+        {
+            if (busyDepth == 0)
+            {
+                busyArea = area;
+                busyText = message ?? T("Working…");
+            }
+            busyDepth++;
+            busy = true;
+            return;
+        }
+
+        busyDepth = Math.Max(0, busyDepth - 1);
+        busy = busyDepth > 0;
+        if (!busy)
+        {
+            busyArea = string.Empty;
+            busyText = string.Empty;
+        }
+    });
+
+    /// <summary>Returns whether the active long-running operation belongs to one setup area.</summary>
+    private bool BusyFor(string area) => busy && string.Equals(busyArea, area, StringComparison.Ordinal);
     /// <summary>
     /// Sets status for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>

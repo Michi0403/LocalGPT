@@ -13,6 +13,17 @@ namespace LocalGPT.BusinessObjects
         long SizeBytes,
         ReadOnlyMemory<byte> Data);
 
+    /// <summary>Represents a streamed file source used by DevExpress FileInput and other UI surfaces without buffering the complete upload in browser memory.</summary>
+    /// <param name="Name">Original file name supplied by the user.</param>
+    /// <param name="ContentType">Reported content type.</param>
+    /// <param name="SizeBytes">Declared byte length.</param>
+    /// <param name="OpenReadStream">Factory that opens the bounded input stream for immediate quarantine copy.</param>
+    public sealed record ChatUploadWorkspaceStreamInput(
+        string Name,
+        string ContentType,
+        long SizeBytes,
+        Func<Stream> OpenReadStream);
+
     /// <summary>
     /// Represents the outcome of chat upload workspace, carrying the data and status produced by the corresponding application operation.
     /// </summary>

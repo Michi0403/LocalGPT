@@ -22,5 +22,5 @@ public interface IProjectBlobReconstructionService
 /// <summary>Provides reviewed project-type and toolchain evidence without executing source content.</summary>
 public interface IProjectEvidenceClassifierService
 {
-    Task<(IReadOnlyList<string> ProjectKinds, IReadOnlyList<string> Toolchains)> ClassifyAsync(string rootPath, CancellationToken cancellationToken = default);
+    Task<ProjectEvidenceClassification> ClassifyAsync(string rootPath, CancellationToken cancellationToken = default);
 }

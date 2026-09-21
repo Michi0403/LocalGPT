@@ -46,6 +46,10 @@
             </Actions>
         </WorkbenchHeader>
 
+        <OperationStatusStrip Busy="@HasActiveInstallOperation"
+                              Text="@CurrentInstallOperationText"
+                              Detail="@(HasActiveInstallOperation ? T("Install.Workbench.OperationHelp", "Live provider, setup, command, and application activity is mirrored to Setup log and the shared ASCII operational console.") : string.Empty)" />
+
         @if (ApplicationPathLayout is not null)
         {
             <details class="provider-install-guide" data-testid="runtime-path-layout">
@@ -257,7 +261,12 @@
                                     <DxMemo @bind-Text="hardwareDraft.HwInfoReportText" Rows="5" NullText="Paste an HWiNFO text report here. LocalGPT parses GPU VRAM deterministically; the report is not sent to an AI." />
                                 </label>
                                 <label class="configured-host-report">Or choose an HWiNFO text report
-                                    <InputFile OnChange="@(args => ImportHostHardwareFileAsync(configured.Endpoint, args))" accept=".txt,text/plain" />
+                                    <DxFileInput FilesUploading="@(args => ImportHostHardwareFileAsync(configured.Endpoint, args))"
+                                                 UploadMode="UploadMode.OnButtonClick"
+                                                 MaxFileCount="1"
+                                                 MaxFileSize="8388608"
+                                                 AcceptedFileTypes="@HwInfoAcceptedTypes"
+                                                 AllowedFileExtensions="@HwInfoAllowedExtensions" />
                                 </label>
                                 <div class="configured-provider-actions">
                                     <DxButton Text="Save host hardware" Enabled="@(!IsSavingHostHardware)" Click="@(() => SaveHostHardwareAsync(configured.Endpoint))" />
@@ -768,7 +777,12 @@
                 </label>
                 <label class="localization-file-input">
                     @T("Install.Localization.JsonFile", "Language JSON file")
-                    <InputFile OnChange="ImportLocalizationFileAsync" accept=".json,application/json" disabled="@IsLocalizationImporting" />
+                    <DxFileInput FilesUploading="ImportLocalizationFileAsync"
+                                 UploadMode="UploadMode.OnButtonClick"
+                                 MaxFileCount="1"
+                                 MaxFileSize="4194304"
+                                 AcceptedFileTypes="@LocalizationAcceptedTypes"
+                                 AllowedFileExtensions="@LocalizationAllowedExtensions" />
                 </label>
                 <label class="localization-overwrite">
                     <DxCheckBox @bind-Checked="OverwriteLocalizationCatalog" />
@@ -794,7 +808,7 @@
                     <p class="field-help">@T("Install.Workbench.LogHelp", "Operational setup messages stay visible here while technical details continue to use the application logging pipeline.")</p>
                 </div>
             </div>
-            <DxMemo Rows="8" ReadOnly="true" @bind-Text="_log" CssClass="w-full setup-log-editor" />
+            <OperationalActivityFeed LocalText="@_log" Rows="16" CssClass="setup-log-editor" MaxConsoleLines="220" />
         </section>
         </ConfigurationWorkbenchPanel>
             </div>

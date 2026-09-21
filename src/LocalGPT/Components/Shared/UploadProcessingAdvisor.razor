@@ -1,0 +1,377 @@
+@inject IProjectIngestionService ProjectIngestion
+@inject IUploadProcessingRecommendationService Recommendations
+@inject LocalGptCatalogService Catalog
+@inject CouncilTextService CouncilText
+@inject ILogger<UploadProcessingAdvisor> Logger
+@inject IJSRuntime JS
+@inject INotificationService Notifier
+@implements IAsyncDisposable
+
+@* The upload advisor intentionally has no idle page chrome. The browser creates the PublisherStudio-style drop overlay only while external files are dragged over /chat. *@
+<DxPopup Visible="@reviewVisible"
+         VisibleChanged="OnReviewVisibilityChangedAsync"
+         HeaderText="Review upload recommendation"
+         Width="min(1120px, 96vw)"
+         MaxHeight="92vh"
+         CloseOnOutsideClick="false">
+    <BodyContentTemplate Context="reviewPopupContext">
+        @if (gate is not null && recommendation is not null)
+        {
+            <div class="upload-processing-review" data-testid="upload-processing-review">
+                <OperationStatusStrip Busy="@busy" Text="@busyText" Detail="@busyDetail" />
+
+                <DxFormLayout CssClass="upload-processing-review-summary">
+                    <DxFormLayoutItem Caption="Workspace" ColSpanMd="6"><code>@gate.WorkspaceName</code></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Gate" ColSpanMd="3"><strong>@gate.Status</strong></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Confidence" ColSpanMd="3"><span>@recommendation.Confidence%</span></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Detected domains" ColSpanMd="12"><span>@JoinOrFallback(recommendation.Domains, "No approved domain rule matched yet")</span></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Project / data kinds" ColSpanMd="12"><span>@JoinOrFallback(recommendation.ProjectKinds, "No approved project/data kind matched yet")</span></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Toolchains / processors" ColSpanMd="12"><span>@JoinOrFallback(recommendation.Toolchains, "No approved toolchain/processor rule matched yet")</span></DxFormLayoutItem>
+                </DxFormLayout>
+
+                <div class="upload-processing-recommendation-card">
+                    <strong>Recommended next step</strong>
+                    <p>@recommendation.Summary</p>
+                    <p>@recommendation.RecommendedAction</p>
+                    @if (!string.IsNullOrWhiteSpace(recommendation.SuggestedTeamName))
+                    {
+                        <div class="upload-processing-team-suggestion">
+                            <span><strong>Suggested team:</strong> @recommendation.SuggestedTeamName</span>
+                            <small>@recommendation.SuggestedConfiguration</small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="upload-processing-team-suggestion"><span><strong>Suggested mode:</strong> @recommendation.ProcessingMode</span><small>@recommendation.SuggestedConfiguration</small></div>
+                    }
+                </div>
+
+                @if (recommendation.RequiresClarification && recommendation.ClarifyingQuestions.Count > 0)
+                {
+                    <DxAccordion CssClass="upload-processing-accordion">
+                        <Items>
+                            <DxAccordionItem Text="Questions before processing">
+                                <ContentTemplate>
+                                    <ul>@foreach (var question in recommendation.ClarifyingQuestions) { <li>@question</li> }</ul>
+                                </ContentTemplate>
+                            </DxAccordionItem>
+                        </Items>
+                    </DxAccordion>
+                }
+
+                <DxAccordion CssClass="upload-processing-accordion">
+                    <Items>
+                        <DxAccordionItem Text="Evidence and approved Knowledge">
+                            <ContentTemplate>
+                                <div class="upload-processing-evidence-columns">
+                                    <div><strong>Curator evidence</strong><ul>@foreach (var item in recommendation.Evidence.Take(40)) { <li>@item</li> }</ul></div>
+                                    <div><strong>Knowledge references</strong><ul>@foreach (var item in recommendation.KnowledgeReferences.Take(20)) { <li>@item</li> }</ul></div>
+                                </div>
+                            </ContentTemplate>
+                        </DxAccordionItem>
+                        <DxAccordionItem Text="Independent review state">
+                            <ContentTemplate>
+                                <p>@ApprovedReviewCount of @gate.RequiredIndependentApprovals required independent approvals are present.</p>
+                                @if (gate.Reviews.Count > 0)
+                                {
+                                    <ul>@foreach (var review in gate.Reviews) { <li><strong>@review.ReviewerIdentity</strong> · @(review.Approved ? "approved" : "changes requested") · @review.Notes</li> }</ul>
+                                }
+                                @if (gate.RejectionReasons.Count > 0)
+                                {
+                                    <strong>Gate rejection reasons</strong><ul>@foreach (var reason in gate.RejectionReasons) { <li>@reason</li> }</ul>
+                                }
+                            </ContentTemplate>
+                        </DxAccordionItem>
+                    </Items>
+                </DxAccordion>
+
+                <div class="upload-processing-review-actions">
+                    <DxButton Text="Use recommendation in Chat" Enabled="@CanUseRecommendation" RenderStyle="ButtonRenderStyle.Primary" Click="UseInChatAsync" />
+                    <DxButton Text="Ask suggested Council team" Enabled="@CanUseSuggestedTeam" RenderStyle="ButtonRenderStyle.Secondary" Click="UseInCouncilAsync" />
+                    <DxButton Text="Request independent Council review" Enabled="@CanRequestReview" RenderStyle="ButtonRenderStyle.Secondary" Click="RequestCouncilReviewAsync" />
+                    <DxButton Text="Refresh recommendation" Enabled="@(!busy)" Click="RefreshRecommendationAsync" />
+                    <DxButton Text="Approve promotion" Enabled="@CanPromote" RenderStyle="ButtonRenderStyle.Success" Click="PromoteAsync" />
+                    <DxButton Text="Close" Enabled="@(!busy)" Click="CloseReviewAsync" />
+                </div>
+                <small class="upload-processing-review-boundary">Recommendation is advisory. Promotion remains blocked until deterministic checks, independent-review quorum, and this explicit user approval all pass.</small>
+            </div>
+        }
+    </BodyContentTemplate>
+</DxPopup>
+
+@code {
+    private string userGoal = string.Empty;
+    private DotNetObjectReference<UploadProcessingAdvisor>? dropBridgeReference;
+    private bool dropBridgeRegistered;
+    private bool disposed;
+    private string statusText = string.Empty;
+    private string busyText = string.Empty;
+    private string busyDetail = string.Empty;
+    private bool busy;
+    private bool reviewVisible;
+    private ProjectIngestionGateRecord? gate;
+    private UploadProcessingRecommendation? recommendation;
+
+    [Parameter] public EventCallback<UploadProcessingRecommendation> ChatRequested { get; set; }
+    [Parameter] public EventCallback<UploadProcessingRecommendation> CouncilRequested { get; set; }
+
+    private int ApprovedReviewCount => gate?.Reviews.Where(item => item.Approved).Select(item => item.ReviewerIdentity).Distinct(StringComparer.OrdinalIgnoreCase).Count() ?? 0;
+    private bool CanUseRecommendation => !busy && recommendation is not null && !string.IsNullOrWhiteSpace(recommendation.SuggestedPrompt);
+    private bool CanUseSuggestedTeam => CanUseRecommendation && !string.IsNullOrWhiteSpace(recommendation?.SuggestedTeamKey);
+    private bool CanRequestReview => CanUseRecommendation && gate?.DeterministicChecksPassed == true && gate.Status == "AwaitingIndependentReview";
+    private bool CanPromote => !busy && gate?.Status == "AwaitingUserApproval" && gate.DeterministicChecksPassed && ApprovedReviewCount >= Math.Max(1, gate.RequiredIndependentApprovals);
+
+    /// <summary>Connects this invisible advisor to the browser-owned drag/drop landing surface after InteractiveServer attaches.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (!firstRender || disposed || dropBridgeRegistered)
+                return;
+
+            dropBridgeReference = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync(
+                "localGptChatUi.registerWorkspaceDropTarget",
+                dropBridgeReference,
+                new
+                {
+                    RootSelector = "[data-testid=\"chat-page\"]",
+                    UploadUrl = "/api/chat-upload/drop",
+                    MaxFiles = Catalog.MaxFiles,
+                    MaxSingleFileBytes = Catalog.MaxSingleFileBytes,
+                    MaxTotalFileBytes = Catalog.MaxTotalFileBytes
+                }).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            dropBridgeRegistered = true;
+        }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogDebug(exception, "The chat workspace drop bridge ended because the browser circuit disconnected.");
+        }
+        catch (OperationCanceledException exception)
+        {
+            Logger.LogDebug(exception, "The chat workspace drop bridge was cancelled during circuit shutdown.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "The chat workspace drag/drop bridge could not be initialized.");
+            Notifier.ShowWarning("ChatToasts", "Drag and drop could not attach to this Chat circuit. The normal Chat attachment control remains available.", "Workspace drop unavailable");
+        }
+    }
+
+    /// <summary>Continues deterministic inspection and recommendation after the browser streamed a dropped batch into quarantine.</summary>
+    [JSInvokable]
+    public async Task ExternalWorkspaceDropAcceptedAsync(string workspaceName, int fileCount)
+    {
+        try
+        {
+            if (disposed || string.IsNullOrWhiteSpace(workspaceName))
+                return;
+
+            SetBusy(true, "Inspecting dropped files…", "The dropped files are already in bounded quarantine. LocalGPT is reading deterministic evidence before any optional AI recommendation runs.");
+            gate = await ProjectIngestion.InspectAsync(workspaceName).ConfigureAwait(false);
+            SetBusy(true, "Building a processing recommendation…", "LocalGPT is combining curator-approved data rules, approved Knowledge, and existing Council team definitions. No content is promoted by this step.");
+            recommendation = await Recommendations.RecommendAsync(new UploadProcessingRecommendationRequest
+            {
+                WorkspaceName = workspaceName,
+                UserGoal = userGoal
+            }).ConfigureAwait(false);
+            statusText = $"Quarantined {Math.Max(0, fileCount)} dropped file(s) in {workspaceName}; recommendation is ready for review.";
+            reviewVisible = true;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Dropped workspace analysis failed for {WorkspaceName}; file content was omitted from diagnostics.", workspaceName);
+            statusText = "The dropped files were quarantined, but LocalGPT could not complete their analysis. Review local diagnostics; nothing was promoted.";
+            await InvokeAsync(() => Notifier.ShowError("ChatToasts", statusText, "Dropped-file analysis failed")).ConfigureAwait(false);
+        }
+        finally
+        {
+            SetBusy(false, string.Empty, string.Empty);
+            try { await InvokeAsync(StateHasChanged).ConfigureAwait(false); }
+            catch (InvalidOperationException exception) { Logger.LogDebug(exception, "The upload review UI was already detached when dropped-file analysis completed."); }
+        }
+    }
+
+    /// <summary>Surfaces a bounded browser/server drop failure without adding permanent upload chrome to Chat.</summary>
+    [JSInvokable]
+    public async Task ExternalWorkspaceDropFailedAsync(string message)
+    {
+        try
+        {
+            if (disposed)
+                return;
+            var text = string.IsNullOrWhiteSpace(message)
+                ? "The dropped files could not be quarantined. Review local diagnostics and try again."
+                : message.Trim();
+            await InvokeAsync(() => Notifier.ShowError("ChatToasts", text, "Workspace drop failed")).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Reporting a workspace drop failure to Chat failed.");
+        }
+    }
+
+    private async Task RefreshRecommendationAsync()
+    {
+        if (gate is null)
+            return;
+        try
+        {
+            SetBusy(true, "Refreshing evidence and recommendation…", "The quarantine gate and approved Knowledge are being reread; promotion remains unchanged.");
+            gate = await ProjectIngestion.InspectAsync(gate.WorkspaceName).ConfigureAwait(false);
+            recommendation = await Recommendations.RecommendAsync(new UploadProcessingRecommendationRequest { WorkspaceName = gate.WorkspaceName, UserGoal = userGoal }).ConfigureAwait(false);
+            statusText = "Recommendation refreshed from current approved evidence and Knowledge.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Refreshing upload recommendation failed.");
+            statusText = "The upload recommendation could not be refreshed.";
+        }
+        finally
+        {
+            SetBusy(false, string.Empty, string.Empty);
+        }
+    }
+
+    private async Task UseInChatAsync()
+    {
+        if (recommendation is null)
+            return;
+        try { await ChatRequested.InvokeAsync(recommendation).ConfigureAwait(false); statusText = "Recommended prompt sent to Chat."; }
+        catch (Exception ex) { Logger.LogError(ex, "Sending upload recommendation to Chat failed; prompt text was omitted from diagnostics."); statusText = "The recommended prompt could not be sent to Chat."; }
+    }
+
+    private async Task UseInCouncilAsync()
+    {
+        if (recommendation is null)
+            return;
+        try { await CouncilRequested.InvokeAsync(recommendation).ConfigureAwait(false); statusText = "Recommended prompt sent to the suggested Council team."; }
+        catch (Exception ex) { Logger.LogError(ex, "Sending upload recommendation to Council failed; prompt text was omitted from diagnostics."); statusText = "The recommendation could not be sent to the suggested Council team."; }
+    }
+
+    private async Task RequestCouncilReviewAsync()
+    {
+        if (recommendation is null || gate is null)
+            return;
+        try
+        {
+            var reviewPrompt = $"Independently review quarantined workspace '{gate.WorkspaceName}' using project.ingestion.inspect and the approved regex/Knowledge evidence. Do not extract, execute, build, publish, or promote it. Each participating reviewer should call project.ingestion.review with its own verdict and concise evidence. User goal: {userGoal}";
+            var request = CloneRecommendation(recommendation, reviewPrompt);
+            await CouncilRequested.InvokeAsync(request).ConfigureAwait(false);
+            statusText = "Independent-review request sent to the suggested/current Council team. Refresh this overlay after reviewers finish.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Requesting independent Council review for an upload failed; prompt text was omitted from diagnostics.");
+            statusText = "The independent-review request could not be sent.";
+        }
+    }
+
+    private async Task PromoteAsync()
+    {
+        if (gate is null || !CanPromote)
+            return;
+        try
+        {
+            SetBusy(true, "Promoting reviewed files…", "Only now are approved archives extracted into the promoted workspace. Hash/path/size boundaries remain authoritative.");
+            gate = await ProjectIngestion.PromoteAsync(gate.WorkspaceName, true).ConfigureAwait(false);
+            statusText = $"Workspace promoted to {gate.PromotedRoot}. Project synchronization has been started through the existing maintenance pipeline.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "User-approved upload promotion failed for {WorkspaceName}.", gate.WorkspaceName);
+            statusText = $"Promotion was refused or failed: {ex.Message}";
+        }
+        finally
+        {
+            SetBusy(false, string.Empty, string.Empty);
+        }
+    }
+
+    private Task CloseReviewAsync() => OnReviewVisibilityChangedAsync(false);
+
+    private Task OnReviewVisibilityChangedAsync(bool visible)
+    {
+        reviewVisible = visible;
+        return Task.CompletedTask;
+    }
+
+    private void SetBusy(bool value, string text, string detail)
+    {
+        busy = value;
+        busyText = text;
+        busyDetail = detail;
+    }
+
+    private string JoinOrFallback(IEnumerable<string> values, string fallback)
+    {
+        return CouncilText.FormatDistinctJoinedListOrFallback(values, " · ", fallback);
+    }
+
+    private UploadProcessingRecommendation CloneRecommendation(UploadProcessingRecommendation source, string prompt)
+    {
+        return new UploadProcessingRecommendation
+        {
+            WorkspaceName = source.WorkspaceName,
+            GeneratedAtUtc = source.GeneratedAtUtc,
+            Source = source.Source,
+            Confidence = source.Confidence,
+            Summary = source.Summary,
+            RecommendedAction = source.RecommendedAction,
+            ProcessingMode = source.ProcessingMode,
+            SuggestedTeamKey = source.SuggestedTeamKey,
+            SuggestedTeamName = source.SuggestedTeamName,
+            SuggestedConfiguration = source.SuggestedConfiguration,
+            SuggestedPrompt = prompt,
+            RequiresClarification = source.RequiresClarification,
+            ClarifyingQuestions = source.ClarifyingQuestions.ToList(),
+            Domains = source.Domains.ToList(),
+            ProjectKinds = source.ProjectKinds.ToList(),
+            Toolchains = source.Toolchains.ToList(),
+            Evidence = source.Evidence.ToList(),
+            KnowledgeReferences = source.KnowledgeReferences.ToList(),
+            AlternativeActions = source.AlternativeActions.ToList()
+        };
+    }
+    /// <summary>Detaches the browser drag/drop handlers and releases the JS callback reference owned by this advisor.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (disposed)
+                return;
+            disposed = true;
+            if (dropBridgeRegistered)
+            {
+                try
+                {
+                    await JS.InvokeVoidAsync("localGptChatUi.unregisterWorkspaceDropTarget", dropBridgeReference).ConfigureAwait(false);
+                }
+                catch (JSDisconnectedException exception)
+                {
+                    Logger.LogDebug(exception, "The workspace drop bridge was already disconnected during component disposal.");
+                }
+                catch (OperationCanceledException exception)
+                {
+                    Logger.LogDebug(exception, "The workspace drop bridge disposal was cancelled during circuit shutdown.");
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "The workspace drop bridge could not be disposed cleanly.");
+        }
+        finally
+        {
+            dropBridgeRegistered = false;
+            dropBridgeReference?.Dispose();
+            dropBridgeReference = null;
+        }
+    }
+
+}

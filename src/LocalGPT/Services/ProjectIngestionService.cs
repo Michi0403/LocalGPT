@@ -61,7 +61,6 @@ public sealed class ProjectIngestionService(
                     Kind = councilRuntime.DetermineFileKind(path, logger),
                     IsArchive = path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
                 };
-                AddTypeHints(evidence.TypeHints, relative);
 
                 if (evidence.IsArchive)
                     InspectZip(path, evidence, record.RejectionReasons);
@@ -86,14 +85,10 @@ public sealed class ProjectIngestionService(
             var classified = await classifier.ClassifyAsync(originalRoot, cancellationToken).ConfigureAwait(false);
             record.ProjectKinds.AddRange(classified.ProjectKinds);
             record.Toolchains.AddRange(classified.Toolchains);
-            foreach (var file in record.Files)
-            {
-                foreach (var hint in file.TypeHints)
-                    if (!record.ProjectKinds.Contains(hint, StringComparer.OrdinalIgnoreCase)) record.ProjectKinds.Add(hint);
-            }
-
+            record.Domains.AddRange(classified.Domains);
+            record.MatchedEvidenceRules.AddRange(classified.MatchedRuleNames);
             var approvedKnowledge = await knowledge.GetEntriesAsync(false, 500, cancellationToken).ConfigureAwait(false);
-            var evidenceTerms = record.Toolchains.Concat(record.ProjectKinds).ToList();
+            var evidenceTerms = record.Toolchains.Concat(record.ProjectKinds).Concat(record.Domains).ToList();
             record.ApprovedKnowledgeHints = approvedKnowledge
                 .Where(entry => entry.IsUserApproved && !entry.IsArchived && evidenceTerms.Any(term =>
                     entry.Topic.Contains(term, StringComparison.OrdinalIgnoreCase) ||
@@ -211,6 +206,8 @@ public sealed class ProjectIngestionService(
                 var classification = await classifier.ClassifyAsync(promotedRoot, cancellationToken).ConfigureAwait(false);
                 record.ProjectKinds = classification.ProjectKinds.ToList();
                 record.Toolchains = classification.Toolchains.ToList();
+                record.Domains = classification.Domains.ToList();
+                record.MatchedEvidenceRules = classification.MatchedRuleNames.ToList();
                 record.UserApprovedPromotion = true;
                 record.PromotedRoot = promotedRoot;
                 record.PromotedAtUtc = DateTimeOffset.UtcNow;
@@ -248,7 +245,6 @@ public sealed class ProjectIngestionService(
                 expanded += entry.Length;
                 if (expanded > catalog.MaxExtractedBytes) { rejectionReasons.Add($"{evidence.RelativePath}: archive exceeds MaxExtractedBytes."); break; }
                 if (councilText.BuildSafeZipRelativePath(entry.FullName, logger) is null) rejectionReasons.Add($"{evidence.RelativePath}: contains an unsafe archive path.");
-                AddTypeHints(evidence.TypeHints, entry.FullName);
             }
             evidence.ArchiveEntryCount = entries;
             evidence.ArchiveExpandedBytes = expanded;
@@ -310,26 +306,6 @@ public sealed class ProjectIngestionService(
             return result;
         }
         catch (Exception ex) { logger.LogError(ex, "Hashing one quarantined project file failed."); throw; }
-    }
-
-    private void AddTypeHints(List<string> hints, string path)
-    {
-        try
-        {
-            var name = Path.GetFileName(path);
-            void Add(string value) { if (!hints.Contains(value, StringComparer.OrdinalIgnoreCase)) hints.Add(value); }
-            if (path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)) Add("DotNet");
-            if (name.Equals("pom.xml", StringComparison.OrdinalIgnoreCase)) Add("JavaMaven");
-            if (name.Equals("build.gradle", StringComparison.OrdinalIgnoreCase) || name.Equals("build.gradle.kts", StringComparison.OrdinalIgnoreCase)) Add("JavaGradle");
-            if (name.Equals("package.json", StringComparison.OrdinalIgnoreCase)) Add("Node");
-            if (name.Equals("Cargo.toml", StringComparison.OrdinalIgnoreCase)) Add("Rust");
-            if (name.Equals("go.mod", StringComparison.OrdinalIgnoreCase)) Add("Go");
-            if (name.Equals("pyproject.toml", StringComparison.OrdinalIgnoreCase) || name.Equals("requirements.txt", StringComparison.OrdinalIgnoreCase)) Add("Python");
-            if (name.Equals("fabric.mod.json", StringComparison.OrdinalIgnoreCase) || name.Equals("mods.toml", StringComparison.OrdinalIgnoreCase) || name.Equals("neoforge.mods.toml", StringComparison.OrdinalIgnoreCase)) Add("MinecraftMod");
-            if (name.Equals("paper-plugin.yml", StringComparison.OrdinalIgnoreCase) || name.Equals("plugin.yml", StringComparison.OrdinalIgnoreCase)) Add("MinecraftPlugin");
-            logger.LogDebug("Collected bounded project type hints for one path.");
-        }
-        catch (Exception ex) { logger.LogError(ex, "Collecting bounded project type hints failed."); throw; }
     }
 
     private string ReviewerIdentity(AmbientLocalGptContextSnapshot current)

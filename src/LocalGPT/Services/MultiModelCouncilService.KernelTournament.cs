@@ -19,7 +19,7 @@ namespace LocalGPT.Services
             try
             {
                 var startedAtUtc = DateTime.UtcNow;
-                var game = await gameSessions.GetActiveForCouncilRunAsync(result.RunId, cancellationToken).ConfigureAwait(false);
+                var game = await gameSessions.GetActiveForCouncilRunAsync(result.RunId, "kernel-creature-tournament", cancellationToken).ConfigureAwait(false);
                 if (game is null || !string.Equals(game.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase))
                 {
                     var endedGame = (await gameSessions.ListAsync(includeCompleted: true, cancellationToken: cancellationToken).ConfigureAwait(false))

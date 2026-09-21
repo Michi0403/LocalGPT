@@ -198,6 +198,27 @@ namespace LocalGPT.Components.Pages
     /// Stores the internal is saving host hardware state used by <see cref="Install"/> while executing its surrounding workflow.
     /// </summary>
     private bool IsSavingHostHardware;
+    /// <summary>Accepted MIME types for deterministic HWiNFO text imports.</summary>
+    private List<string> HwInfoAcceptedTypes { get; } = ["text/plain"];
+    /// <summary>Accepted filename extensions for deterministic HWiNFO text imports.</summary>
+    private List<string> HwInfoAllowedExtensions { get; } = [".txt"];
+    /// <summary>Accepted MIME types for LocalGPT localization-catalog imports.</summary>
+    private List<string> LocalizationAcceptedTypes { get; } = ["application/json", "text/json"];
+    /// <summary>Accepted filename extensions for LocalGPT localization-catalog imports.</summary>
+    private List<string> LocalizationAllowedExtensions { get; } = [".json"];
+    /// <summary>Gets whether a long-running setup action is active.</summary>
+    private bool HasActiveInstallOperation => IsDiscovering || IsConnectivityChecking || IsSaving || IsOllamaProcessBusy || IsOnboardingLoading || IsLocalizationImporting || IsToolchainBusy || IsSavingHostHardware || IsCertificateBusy;
+    /// <summary>Gets the human-visible operation text rendered beside the DevExpress wait indicator.</summary>
+    private string CurrentInstallOperationText =>
+        IsSaving ? "Saving provider and setup configuration…" :
+        IsDiscovering ? "Discovering configured AI providers and models…" :
+        IsConnectivityChecking ? "Checking provider connectivity…" :
+        IsOllamaProcessBusy ? "Waiting for the local Ollama process operation…" :
+        IsOnboardingLoading ? "Loading setup assistant state…" :
+        IsLocalizationImporting ? "Validating and importing the language catalog…" :
+        IsToolchainBusy ? "Discovering or validating project toolchains…" :
+        IsSavingHostHardware ? "Reading or saving physical-host hardware evidence…" :
+        IsCertificateBusy ? "Creating or validating the TLS certificate…" : string.Empty;
     /// <summary>
     /// Stores the in-memory host hardware drafts collection maintained internally by <see cref="Install"/> for its current workflow state.
     /// </summary>
@@ -726,12 +747,16 @@ namespace LocalGPT.Components.Pages
     /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
     /// <param name="args">Args value supplied to the install operation and used when producing its result.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task ImportHostHardwareFileAsync(string endpoint, Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs args)
+    private async Task ImportHostHardwareFileAsync(string endpoint, FilesUploadingEventArgs args)
     {
         try
         {
-            var file = args.File;
-            using var stream = file.OpenReadStream(8 * 1024 * 1024);
+            var file = args.Files.FirstOrDefault();
+            if (file is null)
+                return;
+            if (file.Size > 8 * 1024 * 1024)
+                throw new InvalidDataException("The selected HWiNFO report exceeds the 8 MiB import limit.");
+            using var stream = file.OpenReadStream(file.Size);
             using var reader = new StreamReader(stream);
             var draft = GetHostHardwareDraft(endpoint);
             draft.HwInfoReportText = await reader.ReadToEndAsync().ConfigureAwait(false);
@@ -994,16 +1019,20 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="args">Selected browser file.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task ImportLocalizationFileAsync(InputFileChangeEventArgs args)
+    private async Task ImportLocalizationFileAsync(FilesUploadingEventArgs args)
     {
         try
         {
             IsLocalizationImporting = true;
             LocalizationImportStatus = string.Empty;
-            var file = args.File;
+            var file = args.Files.FirstOrDefault();
+            if (file is null)
+                return;
+            if (file.Size > 4 * 1024 * 1024)
+                throw new InvalidDataException("The selected language catalog exceeds the 4 MiB import limit.");
             if (string.IsNullOrWhiteSpace(LocalizationCulture))
                 LocalizationCulture = Path.GetFileNameWithoutExtension(file.Name);
-            var stream = file.OpenReadStream(4 * 1024 * 1024);
+            var stream = file.OpenReadStream(file.Size);
             await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
             using var reader = new StreamReader(stream);
             var json = await reader.ReadToEndAsync().ConfigureAwait(false);

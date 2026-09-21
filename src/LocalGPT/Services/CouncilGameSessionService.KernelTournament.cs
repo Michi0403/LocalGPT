@@ -395,8 +395,8 @@ namespace LocalGPT.Services
                         int? rightHealth = null,
                         string centerEffect = "VS")
                     {
-                        var width = Math.Min(104, Math.Max(68, session.FrameWidth));
-                        var height = Math.Min(30, Math.Max(24, session.FrameHeight));
+                        var width = Math.Min(160, Math.Max(96, session.FrameWidth));
+                        var height = Math.Min(48, Math.Max(32, session.FrameHeight));
                         var rows = Enumerable.Repeat(string.Empty, height).ToArray();
                         var interior = width - 2;
                         var gutter = 5;

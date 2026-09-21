@@ -11,6 +11,7 @@ namespace LocalGPT.Controller;
 public sealed class ProjectIngestionController(
     IProjectIngestionService ingestion,
     IProjectBlobReconstructionService blobs,
+    IUploadProcessingRecommendationService recommendations,
     ILogger<ProjectIngestionController> logger) : ControllerBase
 {
     [HttpGet("{workspaceName}")]
@@ -23,6 +24,37 @@ public sealed class ProjectIngestionController(
     [HttpPost("{workspaceName}/inspect")]
     public async Task<ActionResult<ProjectIngestionGateRecord>> Inspect(string workspaceName, CancellationToken cancellationToken) =>
         Ok(await ingestion.InspectAsync(workspaceName, cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Returns the latest persisted advisory processing recommendation for one quarantine workspace.</summary>
+    [HttpGet("{workspaceName}/recommendation")]
+    public async Task<ActionResult<UploadProcessingRecommendation>> GetRecommendation(string workspaceName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var recommendation = await recommendations.GetAsync(workspaceName, cancellationToken).ConfigureAwait(false);
+            return recommendation is null ? NotFound() : Ok(recommendation);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Loading upload-processing recommendation failed for {WorkspaceName}.", workspaceName);
+            throw;
+        }
+    }
+
+    /// <summary>Builds a user-reviewable AI recommendation from curator-approved evidence, approved knowledge and existing Council teams.</summary>
+    [HttpPost("recommend")]
+    public async Task<ActionResult<UploadProcessingRecommendation>> Recommend([FromBody] UploadProcessingRecommendationRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await recommendations.RecommendAsync(request, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Generating upload-processing recommendation failed for {WorkspaceName}.", request.WorkspaceName);
+            throw;
+        }
+    }
 
     [HttpPost("review")]
     public async Task<ActionResult<ProjectIngestionGateRecord>> Review([FromBody] ProjectIngestionReviewRequest request, CancellationToken cancellationToken) =>

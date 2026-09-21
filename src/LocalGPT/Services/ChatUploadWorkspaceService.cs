@@ -1,9 +1,6 @@
-using DevExpress.CodeParser;
-using DevExpress.DataAccess.Native.Sql.MasterDetail;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.IO.Compression;
-using System.Security.AccessControl;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -163,6 +160,175 @@ namespace LocalGPT.Services
                 throw;
             }
 
+        }
+
+        /// <summary>Creates a quarantine workspace by streaming selected files directly to disk before analysis.</summary>
+        /// <param name="prompt">Optional user goal or upload context.</param>
+        /// <param name="files">Stream-backed input files supplied by an interactive upload surface.</param>
+        /// <param name="cancellationToken">Cancellation token that stops the quarantine copy.</param>
+        /// <returns>The created quarantine workspace.</returns>
+        public async Task<ChatUploadWorkspaceResult> CreateWorkspaceFromStreamsAsync(
+            string prompt,
+            IEnumerable<ChatUploadWorkspaceStreamInput> files,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                Directory.CreateDirectory(WorkspaceRoot);
+                var fileList = files
+                    .Where(file => !string.IsNullOrWhiteSpace(file.Name) && file.OpenReadStream is not null)
+                    .Take(catalog.MaxFiles)
+                    .ToList();
+                var nameInputs = fileList.Select(file => new ChatUploadWorkspaceInputFile(file.Name, file.ContentType, file.SizeBytes, ReadOnlyMemory<byte>.Empty)).ToList();
+                var workspaceName = councilRuntime.BuildWorkspaceName(prompt, nameInputs, logger);
+                var root = Path.Combine(WorkspaceRoot, workspaceName);
+                var originalRoot = Path.Combine(root, "original");
+                var extractedRoot = Path.Combine(root, "extracted");
+                Directory.CreateDirectory(originalRoot);
+                Directory.CreateDirectory(extractedRoot);
+
+                var warnings = new List<string>();
+                var analyzedFiles = new List<AnalyzedUploadFile>();
+                long totalUploadedBytes = 0;
+                foreach (var input in fileList)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (input.SizeBytes < 0 || input.SizeBytes > catalog.MaxSingleFileBytes)
+                    {
+                        warnings.Add($"{input.Name} skipped: file is larger than {catalog.MaxSingleFileBytes:n0} bytes.");
+                        continue;
+                    }
+                    if (totalUploadedBytes + input.SizeBytes > catalog.MaxTotalFileBytes)
+                    {
+                        warnings.Add("Remaining files skipped: upload batch exceeded the LocalGPT prompt-workspace byte cap.");
+                        break;
+                    }
+
+                    var safeName = councilText.BuildUniqueFileName(originalRoot, input.Name, logger);
+                    var originalPath = Path.Combine(originalRoot, safeName);
+                    long copiedBytes;
+                    using (var source = input.OpenReadStream())
+                    {
+                        var destination = new FileStream(originalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                        await using var configuredDestination = destination.ConfigureAwait(false);
+                        copiedBytes = await CopyBoundedStreamAsync(source, destination, catalog.MaxSingleFileBytes, cancellationToken).ConfigureAwait(false);
+                    }
+                    totalUploadedBytes += copiedBytes;
+                    if (totalUploadedBytes > catalog.MaxTotalFileBytes)
+                    {
+                        File.Delete(originalPath);
+                        warnings.Add("Remaining files skipped: upload batch exceeded the LocalGPT prompt-workspace byte cap.");
+                        break;
+                    }
+
+                    var originalRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
+                    if (councilRuntime.IsZip(input.Name, logger))
+                    {
+                        var summary = councilRuntime.BuildBinarySummary(originalRelativePath, copiedBytes, "zip", false,
+                            "Original zip saved in quarantine. Extraction is deferred until the regex/knowledge ingestion gate and independent reviews approve promotion.", logger);
+                        ArgumentNullException.ThrowIfNull(summary);
+                        analyzedFiles.Add(summary);
+                        warnings.Add($"{safeName}: quarantined; archive extraction is deferred until approved promotion.");
+                    }
+                    else if (copiedBytes <= Math.Min(catalog.MaxSingleFileBytes, 8L * 1024 * 1024))
+                    {
+                        var bytes = await File.ReadAllBytesAsync(originalPath, cancellationToken).ConfigureAwait(false);
+                        var analyzed = councilRuntime.AnalyzeBytes(originalRelativePath, bytes, logger);
+                        ArgumentNullException.ThrowIfNull(analyzed);
+                        analyzedFiles.Add(analyzed);
+                    }
+                    else
+                    {
+                        var summary = councilRuntime.BuildBinarySummary(
+                            originalRelativePath,
+                            copiedBytes,
+                            councilRuntime.DetermineFileKind(originalPath, logger),
+                            false,
+                            "Large streamed upload is retained in quarantine; bounded inspection and recommendation use metadata, reviewed regex rules and approved knowledge before any promotion.",
+                            logger);
+                        ArgumentNullException.ThrowIfNull(summary);
+                        analyzedFiles.Add(summary);
+                    }
+                }
+
+                if (fileList.Count == 0)
+                    warnings.Add("No files were supplied for this prompt workspace.");
+
+                var context = councilRuntime.BuildContextMarkdown(workspaceName, root, prompt, analyzedFiles, warnings, logger);
+                var contextPath = Path.Combine(root, "context.md");
+                await File.WriteAllTextAsync(contextPath, context, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+                var manifestPath = Path.Combine(root, "manifest.json");
+                await File.WriteAllTextAsync(
+                    manifestPath,
+                    JsonSerializer.Serialize(new
+                    {
+                        WorkspaceName = workspaceName,
+                        RootPath = root,
+                        CreatedAtUtc = DateTimeOffset.UtcNow,
+                        Prompt = prompt,
+                        Limits = new
+                        {
+                            catalog.MaxFiles,
+                            catalog.MaxSingleFileBytes,
+                            catalog.MaxTotalFileBytes,
+                            catalog.MaxZipEntries,
+                            catalog.MaxZipEntryBytes,
+                            catalog.MaxExtractedBytes,
+                            catalog.MaxContextCharacters,
+                            catalog.MaxExcerptCharactersPerFile
+                        },
+                        GateStatus = "Quarantined",
+                        Warnings = warnings,
+                        Files = analyzedFiles.Select(file => file.Summary)
+                    }, catalog.JsonOptions),
+                    Encoding.UTF8,
+                    cancellationToken).ConfigureAwait(false);
+
+                var summaries = analyzedFiles.Select(file => file.Summary)
+                    .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                logger.LogInformation("Created streamed chat upload workspace {WorkspaceName} with {FileCount} analyzed files.", workspaceName, summaries.Count);
+                return new ChatUploadWorkspaceResult(workspaceName, root, manifestPath, contextPath, DateTimeOffset.UtcNow, summaries, warnings, context);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not create the streamed chat upload workspace.");
+                throw;
+            }
+        }
+
+        /// <summary>Copies a stream while enforcing the configured quarantine byte cap.</summary>
+        private async Task<long> CopyBoundedStreamAsync(Stream source, Stream destination, long maximumBytes, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var buffer = new byte[128 * 1024];
+                long total = 0;
+                while (true)
+                {
+                    var read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                    if (read == 0)
+                        break;
+                    total += read;
+                    if (total > maximumBytes)
+                        throw new InvalidDataException($"Upload exceeded the configured {maximumBytes:n0}-byte single-file cap while streaming.");
+                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                }
+                return total;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Bounded streamed upload copy failed; file content was omitted from logs.");
+                throw;
+            }
         }
 
         /// <summary>

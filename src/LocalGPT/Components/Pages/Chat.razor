@@ -71,6 +71,7 @@
                       IconCssClass="oi oi-sparkles"
                       Click="ToggleAsciiFunModeAsync" />
         </div>
+        <UploadProcessingAdvisor ChatRequested="SubmitUploadRecommendationToChatAsync" CouncilRequested="SubmitUploadRecommendationToCouncilAsync" />
         <details class="chat-configuration-ribbon" data-testid="chat-configuration-ribbon">
             <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation." @onclick="OnChatConfigurationSummaryClickedAsync">
                 <span>Chat configuration</span>

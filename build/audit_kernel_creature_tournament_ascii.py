@@ -24,6 +24,9 @@ def main():
     bridge=read('src/LocalGPT/Services/MultiModelCouncilService.KernelTournament.cs')
     console=read('src/LocalGPT/Components/Shared/ChatGameConsole.razor')
     console_css=read('src/LocalGPT/Components/Shared/ChatGameConsole.razor.css')
+    chat_css=read('src/LocalGPT/Components/Pages/Chat.razor.css')
+    live_council=read('src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs')
+    game_service=read('src/LocalGPT/Services/CouncilGameSessionService.cs')
     js=read('src/LocalGPT/wwwroot/js/localgpt-game-console.js')
     checks=[
       ('runtime class seed', 'BuildDefinition("games.ascii.kernel-tournament.rules"' in runtime),
@@ -86,6 +89,20 @@ def main():
       ('subtitle overlay isolated', '.chat-game-animation-subtitle {' in console_css and 'position: relative;' in console_css),
       ('one-shot focus guard', 'state.sequenceOneShot && state.sequenceIndex >= state.sequenceFrames.length' in js),
       ('subtitle timer detached', 'cancelSequenceSubtitleTimer(state);' in js[js.find('detach(id)'):js.find('refreshLayout(id)')]),
+      ('exact run game lookup contract', 'GetActiveForCouncilRunAsync(' in interface and 'string gameKey' in interface),
+      ('exact run game lookup implementation', 'NormalizeGameKey(gameKey)' in game_service and 'string.Equals(item.GameKey, normalizedGameKey' in game_service),
+      ('bootstrap exact tournament lookup', 'GetActiveForCouncilRunAsync(request.RunId, gameKey' in bootstrap),
+      ('tournament high resolution bootstrap', 'FrameWidth = highResolutionTournament ? 144 : 80' in bootstrap and 'FrameHeight = highResolutionTournament ? 40 : 25' in bootstrap),
+      ('tournament high resolution renderer', 'Math.Min(160, Math.Max(96, session.FrameWidth))' in service and 'Math.Min(48, Math.Max(32, session.FrameHeight))' in service),
+      ('bridge exact tournament lookup', 'GetActiveForCouncilRunAsync(result.RunId, "kernel-creature-tournament"' in bridge),
+      ('pixel presentation selector', 'GameDisplayOptions' in console and 'new("Pixel", "Pixel screen")' in console),
+      ('pixel canvas surface', 'data-game-pixel-screen' in console and '.chat-game-pixel-screen' in console_css),
+      ('pixel renderer shares deterministic frame', 'renderPixelFrame' in js and 'setDisplayMode(id, mode)' in js and 'state.currentFrameText' in js),
+      ('operator returns to game plane', 'operatorReturnsToGame' in console and 'else if (operatorReturnsToGame && snapshot is not null)' in console),
+      ('bounded rejoin attachment gate', 'WaitAsync(TimeSpan.FromSeconds(3), componentLifetimeCts.Token)' in live_council),
+      ('same-run rejoin preserves attachment identity', 'Rejoining the run already projected by this circuit must not force DxAIChat to rebind' in live_council),
+      ('follow-tail respects manual scroll', 'if (entry.enabled) scrollToTail(region)' in js),
+      ('popup header bounded scrolling', 'max-height: min(15rem, 34dvh);' in chat_css and 'scrollbar-gutter: stable;' in chat_css),
     ]
     failed=[name for name,ok in checks if not ok]
     if failed: raise SystemExit(f"Kernel Creature Tournament audit failed: {len(failed)}/{len(checks)} checks failed: {', '.join(failed)}")

@@ -3224,3 +3224,36 @@
     .chat-inline-ai-request-heading { display: grid; }
     .chat-inline-ai-request-response { grid-template-columns: 1fr; }
 }
+
+/* v4.6.8: the detachable ASCII/pixel wall owns its own scrolling; the DevExpress popup body never double-scrolls it. */
+.chat-game-popup-body ::deep .chat-game-console-header,
+.chat-game-popup-body ::deep .chat-game-console-footer {
+    flex: 0 0 auto;
+}
+
+.chat-game-popup-body ::deep .chat-game-console-header {
+    max-height: min(15rem, 34dvh);
+    overflow-x: hidden;
+    overflow-y: auto;
+    align-content: flex-start;
+    scrollbar-gutter: stable;
+}
+
+.chat-game-popup-body ::deep .chat-game-console-actions {
+    min-width: 0;
+}
+
+.chat-game-popup-body ::deep .chat-game-screen,
+.chat-game-popup-body ::deep .chat-game-pixel-screen {
+    flex: none;
+}
+
+@media (max-width: 1100px) {
+    .chat-game-popup-body ::deep .chat-game-console-header {
+        align-items: flex-start;
+    }
+
+    .chat-game-popup-body ::deep .chat-game-console-actions {
+        width: 100%;
+    }
+}

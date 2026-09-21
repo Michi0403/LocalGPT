@@ -136,6 +136,116 @@
         }
     }
 
+    function renderPixelFrame(state, text, mode, foreground, background, runs) {
+        try {
+            if (!state?.element) return;
+            const canvas = state.element.querySelector('[data-game-pixel-screen]');
+            if (!(canvas instanceof HTMLCanvasElement)) return;
+            const value = String(text || '').replace(/\r\n?/g, '\n');
+            const presentation = normalizePresentation(mode, foreground, background, runs);
+            const lines = value.split('\n');
+            const columns = Math.max(1, ...lines.map(line => Array.from(line).length));
+            const rows = Math.max(1, lines.length);
+            const cellWidth = 6;
+            const cellHeight = 8;
+            canvas.width = Math.max(cellWidth, columns * cellWidth);
+            canvas.height = Math.max(cellHeight, rows * cellHeight);
+            canvas.dataset.columns = String(columns);
+            canvas.dataset.rows = String(rows);
+            const context = canvas.getContext('2d', { alpha: false });
+            if (!context) return;
+            context.imageSmoothingEnabled = false;
+            const defaultBackground = presentation.mode === 'TerminalDefault'
+                ? '#020704'
+                : paletteColor(presentation.mode, presentation.background) || '#020704';
+            const defaultForeground = presentation.mode === 'TerminalDefault'
+                ? '#b9ffba'
+                : paletteColor(presentation.mode, presentation.foreground) || '#b9ffba';
+            context.fillStyle = defaultBackground;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.font = '7px "Cascadia Mono", "Consolas", monospace';
+            context.textBaseline = 'alphabetic';
+
+            const byLine = new Map();
+            for (const run of presentation.runs) {
+                const y = Number(run?.y);
+                const x = Number(run?.x);
+                const length = Number(run?.length);
+                if (!Number.isInteger(y) || y < 0 || y >= rows || !Number.isFinite(x) || !Number.isFinite(length) || length <= 0 || !run?.style) continue;
+                if (!byLine.has(y)) byLine.set(y, []);
+                byLine.get(y).push({ x:Math.max(0, Math.trunc(x)), length:Math.max(1, Math.trunc(length)), style:run.style });
+            }
+
+            lines.forEach((line, y) => {
+                const chars = Array.from(line);
+                const styles = new Array(chars.length).fill(null);
+                for (const run of byLine.get(y) || []) {
+                    const end = Math.min(chars.length, run.x + run.length);
+                    for (let x = run.x; x < end; x += 1) styles[x] = run.style;
+                }
+                chars.forEach((character, x) => {
+                    if (!character || character === ' ') return;
+                    const style = styles[x];
+                    let foregroundCss = defaultForeground;
+                    let backgroundCss = null;
+                    if (style) {
+                        const styleMode = style.colorMode || (presentation.mode === 'TerminalDefault' ? 'Indexed256' : presentation.mode);
+                        let foregroundIndex = style.foregroundColor;
+                        let backgroundIndex = style.backgroundColor;
+                        if (style.invert) {
+                            const resolvedForeground = foregroundIndex ?? presentation.foreground;
+                            const resolvedBackground = backgroundIndex ?? presentation.background;
+                            foregroundIndex = resolvedBackground;
+                            backgroundIndex = resolvedForeground;
+                        }
+                        foregroundCss = paletteColor(styleMode, foregroundIndex) || foregroundCss;
+                        backgroundCss = paletteColor(styleMode, backgroundIndex);
+                    }
+                    const left = x * cellWidth;
+                    const top = y * cellHeight;
+                    if (backgroundCss) {
+                        context.fillStyle = backgroundCss;
+                        context.fillRect(left, top, cellWidth, cellHeight);
+                    }
+                    context.fillStyle = foregroundCss;
+                    if (character === '█') context.fillRect(left, top, cellWidth, cellHeight);
+                    else if (character === '▓') context.fillRect(left, top + 1, cellWidth, Math.max(1, cellHeight - 2));
+                    else if (character === '▒') context.fillRect(left + 1, top + 1, Math.max(1, cellWidth - 2), Math.max(1, cellHeight - 2));
+                    else if (character === '░') context.fillRect(left + 2, top + 2, Math.max(1, cellWidth - 4), Math.max(1, cellHeight - 4));
+                    else context.fillText(character, left, top + 7);
+                });
+            });
+            state.pixelCanvas = canvas;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.renderPixelFrame', error);
+        }
+    }
+
+    function updateDisplayMode(state, mode) {
+        try {
+            if (!state?.element) return;
+            const requested = String(mode || state.element.dataset.displayMode || 'ascii').toLowerCase();
+            state.displayMode = requested === 'pixel' ? 'pixel' : 'ascii';
+            state.element.dataset.displayMode = state.displayMode;
+            const screen = state.element.querySelector('[data-game-animation-screen]');
+            const canvas = state.element.querySelector('[data-game-pixel-screen]');
+            if (screen instanceof HTMLElement) screen.hidden = state.displayMode === 'pixel';
+            if (canvas instanceof HTMLCanvasElement) canvas.hidden = state.displayMode !== 'pixel';
+            if (state.displayMode === 'pixel' && typeof state.currentFrameText === 'string') {
+                renderPixelFrame(
+                    state,
+                    state.currentFrameText,
+                    state.currentFrameColorMode,
+                    state.currentFrameForeground,
+                    state.currentFrameBackground,
+                    state.currentFrameStyleRuns);
+            }
+            requestScale(state);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.updateDisplayMode', error);
+        }
+    }
+
     function applySubtitleStyle(state, subtitle) {
         try {
             if (!(subtitle instanceof HTMLElement)) return;
@@ -176,11 +286,28 @@
     function applyScale(state) {
         try {
             if (!state?.element) return;
-            const screen = state.element.querySelector('.chat-game-screen-viewport .chat-game-screen');
             const viewport = state.element.querySelector('.chat-game-screen-viewport');
             const scaleMode = state.element.dataset.scaleMode || 'fit';
+            if (!(viewport instanceof HTMLElement)) return;
+
+            if (state.displayMode === 'pixel') {
+                state.element.style.removeProperty('--localgpt-game-fit-font-size');
+                const canvas = state.element.querySelector('[data-game-pixel-screen]');
+                if (!(canvas instanceof HTMLCanvasElement) || canvas.hidden || canvas.width <= 0 || canvas.height <= 0) return;
+                const availableWidth = Math.max(1, viewport.clientWidth - 12);
+                const availableHeight = Math.max(1, viewport.clientHeight - 12);
+                const widthScale = availableWidth / canvas.width;
+                const heightScale = availableHeight / canvas.height;
+                const scale = scaleMode === 'native' ? 1 : scaleMode === 'width' ? widthScale : Math.min(widthScale, heightScale);
+                const boundedScale = Math.max(.15, Math.min(12, scale));
+                canvas.style.width = `${Math.max(1, Math.floor(canvas.width * boundedScale))}px`;
+                canvas.style.height = `${Math.max(1, Math.floor(canvas.height * boundedScale))}px`;
+                return;
+            }
+
+            const screen = state.element.querySelector('.chat-game-screen-viewport .chat-game-screen');
             const scaledMode = scaleMode === 'fit' || scaleMode === 'width';
-            if (!(screen instanceof HTMLElement) || !(viewport instanceof HTMLElement) || !scaledMode) {
+            if (!(screen instanceof HTMLElement) || !scaledMode) {
                 state.element.style.removeProperty('--localgpt-game-fit-font-size');
                 return;
             }
@@ -192,7 +319,7 @@
             const widthScale = availableWidth / Math.max(1, natural.width);
             const heightScale = availableHeight / Math.max(1, natural.height);
             const scale = scaleMode === 'width' ? widthScale : Math.min(widthScale, heightScale);
-            const fontSize = Math.max(4, Math.min(36, 16 * scale));
+            const fontSize = Math.max(5.5, Math.min(36, 16 * scale));
             state.element.style.setProperty('--localgpt-game-fit-font-size', `${fontSize.toFixed(2)}px`);
         } catch (error) {
             diagnostics.report('localgpt-game-console.applyScale', error);
@@ -233,7 +360,7 @@
                 if (!(region instanceof HTMLElement) || state.followTailRegions.has(region)) return;
                 const entry = { enabled: true, observer: null };
                 region.addEventListener('scroll', () => { entry.enabled = isNearBottom(region); }, { signal: state.abort.signal, passive: true });
-                entry.observer = new MutationObserver(() => scrollToTail(region));
+                entry.observer = new MutationObserver(() => { if (entry.enabled) scrollToTail(region); });
                 entry.observer.observe(region, { childList: true, subtree: true, characterData: true });
                 state.followTailRegions.set(region, entry);
                 requestAnimationFrame(() => scrollToTail(region));
@@ -451,7 +578,15 @@
             const frameRuns = Array.isArray(state.sequenceFrameStyleRuns?.[index]) ? state.sequenceFrameStyleRuns[index] : [];
             if (state.sequenceOneShot) renderStyledAscii(screen, frame, state.sequenceColorMode, state.sequenceDefaultForeground, state.sequenceDefaultBackground, frameRuns);
             else if (screen.textContent !== frame) screen.textContent = frame;
-            if (state.sequenceSelector === '[data-game-animation-screen]') requestScale(state);
+            if (state.sequenceSelector === '[data-game-animation-screen]') {
+                state.currentFrameText = frame;
+                state.currentFrameColorMode = state.sequenceColorMode;
+                state.currentFrameForeground = state.sequenceDefaultForeground;
+                state.currentFrameBackground = state.sequenceDefaultBackground;
+                state.currentFrameStyleRuns = frameRuns;
+                if (state.displayMode === 'pixel') renderPixelFrame(state, frame, state.sequenceColorMode, state.sequenceDefaultForeground, state.sequenceDefaultBackground, frameRuns);
+                requestScale(state);
+            }
             cancelSequenceTimer(state);
             if (state.sequenceOneShot && index >= state.sequenceFrames.length - 1) {
                 state.sequenceIndex = state.sequenceFrames.length;
@@ -487,9 +622,10 @@
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null, resizeObserver:null };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, displayMode:String(element.dataset.displayMode || 'ascii').toLowerCase() === 'pixel' ? 'pixel' : 'ascii', currentFrameText:'', currentFrameColorMode:'TerminalDefault', currentFrameForeground:46, currentFrameBackground:0, currentFrameStyleRuns:[], pixelCanvas:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null, resizeObserver:null };
                 states.set(id, state);
                 attachFollowTail(state);
+                updateDisplayMode(state, state.displayMode);
                 requestScale(state);
                 element.addEventListener('pointerdown', event => {
                     const target = event.target instanceof Element ? event.target.closest('[data-semantic-action]') : null;
@@ -602,7 +738,13 @@
                 if (!state) return;
                 const screen = state.element.querySelector('[data-game-animation-screen]');
                 if (!(screen instanceof HTMLElement)) return;
-                renderStyledAscii(screen, text, colorMode, defaultForegroundColor, defaultBackgroundColor, styleRuns);
+                state.currentFrameText = String(text || '');
+                state.currentFrameColorMode = String(colorMode || 'TerminalDefault');
+                state.currentFrameForeground = Number.isFinite(Number(defaultForegroundColor)) ? Number(defaultForegroundColor) : 46;
+                state.currentFrameBackground = Number.isFinite(Number(defaultBackgroundColor)) ? Number(defaultBackgroundColor) : 0;
+                state.currentFrameStyleRuns = Array.isArray(styleRuns) ? styleRuns : [];
+                renderStyledAscii(screen, state.currentFrameText, state.currentFrameColorMode, state.currentFrameForeground, state.currentFrameBackground, state.currentFrameStyleRuns);
+                if (state.displayMode === 'pixel') renderPixelFrame(state, state.currentFrameText, state.currentFrameColorMode, state.currentFrameForeground, state.currentFrameBackground, state.currentFrameStyleRuns);
                 requestScale(state);
             } catch (error) { diagnostics.report('localgpt-game-console.setFramePresentation', error); }
         },
@@ -629,11 +771,29 @@
                 updateGameSequenceSubtitle(state, state.sequenceOneShot && state.sequenceFrames.length > 1);
                 const screen = state.element.querySelector(state.sequenceSelector);
                 if (screen instanceof HTMLElement && state.sequenceFrames.length > 0) {
-                    if (state.sequenceOneShot) renderStyledAscii(screen, state.sequenceFrames[0], state.sequenceColorMode, state.sequenceDefaultForeground, state.sequenceDefaultBackground, state.sequenceFrameStyleRuns[0] || []);
+                    if (state.sequenceOneShot) {
+                        const frameRuns = state.sequenceFrameStyleRuns[0] || [];
+                        renderStyledAscii(screen, state.sequenceFrames[0], state.sequenceColorMode, state.sequenceDefaultForeground, state.sequenceDefaultBackground, frameRuns);
+                        state.currentFrameText = state.sequenceFrames[0];
+                        state.currentFrameColorMode = state.sequenceColorMode;
+                        state.currentFrameForeground = state.sequenceDefaultForeground;
+                        state.currentFrameBackground = state.sequenceDefaultBackground;
+                        state.currentFrameStyleRuns = frameRuns;
+                        if (state.displayMode === 'pixel') renderPixelFrame(state, state.currentFrameText, state.currentFrameColorMode, state.currentFrameForeground, state.currentFrameBackground, state.currentFrameStyleRuns);
+                    }
                     else screen.textContent = state.sequenceFrames[0];
                 }
                 if (state.sequenceFrames.length > 1) scheduleSequence(state);
             } catch (error) { diagnostics.report('localgpt-game-console.setSequence', error); }
+        },
+        setDisplayMode(id, mode) {
+            try {
+                const state = states.get(id);
+                const element = state?.element || document.getElementById(id);
+                if (!(element instanceof HTMLElement)) return;
+                if (state) updateDisplayMode(state, mode);
+                else element.dataset.displayMode = String(mode || '').toLowerCase() === 'pixel' ? 'pixel' : 'ascii';
+            } catch (error) { diagnostics.report('localgpt-game-console.setDisplayMode', error); }
         },
         setScaleMode(id, mode) {
             try {
@@ -673,9 +833,9 @@
                 const state = states.get(id);
                 if (!state) return;
                 attachFollowTail(state);
-                state.element.querySelectorAll('.ascii-conversation-output, .ascii-operator-output').forEach(region => {
-                    if (region instanceof HTMLElement) scrollToTail(region);
-                });
+                for (const [region, entry] of state.followTailRegions || []) {
+                    if (region instanceof HTMLElement && entry?.enabled) scrollToTail(region);
+                }
             } catch (error) { diagnostics.report('localgpt-game-console.followTail', error); }
         }
     };

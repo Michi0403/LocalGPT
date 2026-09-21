@@ -241,6 +241,34 @@ public sealed class InvokeAsciiSemanticActionFunction(IAsciiSemanticActionServic
     }
 }
 
+/// <summary>Builds an advisory processing plan for a quarantined upload from approved evidence, knowledge, and existing Council teams.</summary>
+public sealed class RecommendProjectIngestionFunction(IUploadProcessingRecommendationService recommendations, IDxAiFunctionJsonService json, ILogger<RecommendProjectIngestionFunction> logger) : IDxAiFunctionHandler
+{
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "project.ingestion.recommend", "POST", "/api/dxai/functions/project.ingestion.recommend/invoke",
+        "Recommends what to do with one quarantined upload and which existing LocalGPT Council team/configuration is a good fit, using curator-approved evidence and approved knowledge.",
+        "JSON: workspaceName required; userGoal optional.",
+        "Advisory only. It cannot promote, execute, build, install, publish, or bypass the quarantine/review gate.",
+        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true,
+        Source: "DIHandler", ParameterSchemaJson: """{"type":"object","required":["workspaceName"],"properties":{"workspaceName":{"type":"string","minLength":1},"userGoal":{"type":"string","maxLength":4000}},"additionalProperties":false}""", IsCoordinationOnly: true);
+
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var binding = json.Bind<UploadProcessingRecommendationRequest>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            return json.Success(await recommendations.RecommendAsync(binding.Value, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Project ingestion recommendation DXFunction failed.");
+            return new ProjectAutomationDxFunctionResults().Failed(ex);
+        }
+    }
+}
+
 public sealed class WorkspaceNameParameters { public string WorkspaceName { get; set; } = string.Empty; }
 public sealed class WorkspaceConfirmationParameters { public string WorkspaceName { get; set; } = string.Empty; public bool UserConfirmed { get; set; } }
 public sealed class BlobChunkParameters { public Guid SessionId { get; set; } public string RelativePath { get; set; } = string.Empty; public int ChunkIndex { get; set; } public string Base64Data { get; set; } = string.Empty; }

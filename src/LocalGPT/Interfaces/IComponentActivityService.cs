@@ -7,6 +7,8 @@ namespace LocalGPT.Interfaces;
 /// </summary>
 public interface IComponentActivityService
 {
+    /// <summary>Raised after the bounded application activity feed changes.</summary>
+    event Action? Changed;
     /// <summary>
     /// Performs record navigation as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

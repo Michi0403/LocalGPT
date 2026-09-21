@@ -71,4 +71,31 @@ if ($violations.Count -gt 0) {
     throw "DevExpress Blazor control validation failed with $($violations.Count) violation(s). Ordinary interactive Razor controls must use DevExpress Blazor components first."
 }
 
-Write-Output "DevExpress Blazor control validation passed: all ordinary Razor interactive controls use DevExpress components; only the two circuit-independent App.razor reconnect controls are native."
+$templateViolations = New-Object System.Collections.Generic.List[object]
+foreach ($file in $files) {
+    $relative = ($file.FullName.Substring($RepositoryRoot.Length).TrimStart([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) -replace '\\', '/')
+    $content = [IO.File]::ReadAllText($file.FullName)
+    foreach ($match in [regex]::Matches($content, '(?is)<DxGridLayoutItem\b[^>]*>(.*?)</DxGridLayoutItem\s*>')) {
+        $body = $match.Groups[1].Value
+        if ([regex]::IsMatch($body, '^\s*<Template(?:\s|>)', [Text.RegularExpressions.RegexOptions]::IgnoreCase)) { continue }
+
+        $prefix = $content.Substring(0, $match.Index)
+        $line = ([regex]::Matches($prefix, "`n").Count + 1)
+        $source = ($match.Value -replace '\s+', ' ').Trim()
+        if ($source.Length -gt 220) { $source = $source.Substring(0, 220) + '...' }
+        $templateViolations.Add([pscustomobject]@{
+            File = $relative
+            Line = $line
+            Source = $source
+        })
+    }
+}
+
+if ($templateViolations.Count -gt 0) {
+    foreach ($violation in $templateViolations) {
+        Write-Output ("{0}({1},1): error LGDX0002: DxGridLayoutItem content must be wrapped in its DevExpress <Template> child; implicit ChildContent fails at render time. Source: {2}" -f $violation.File, $violation.Line, $violation.Source)
+    }
+    throw "DevExpress Blazor template validation failed with $($templateViolations.Count) invalid DxGridLayoutItem template(s)."
+}
+
+Write-Output "DevExpress Blazor control validation passed: ordinary Razor controls use DevExpress components, DxGridLayoutItem content uses explicit Template children, and only the two circuit-independent App.razor reconnect controls are native."

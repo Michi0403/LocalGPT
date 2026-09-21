@@ -178,9 +178,9 @@ namespace LocalGPT.Components.Pages
         }
 
         RejoinCouncilRunId = selectedRunId;
-        AttachedLiveCouncilRunId = null;
-        attachedLiveCouncilSnapshot = null;
-        lastAttachedLiveCouncilUpdatedAtUtc = default;
+        // Rejoining the run already projected by this circuit must not force DxAIChat to rebind the
+        // complete transcript. The server-owned live-session projection already carries current state;
+        // retaining the attachment identity keeps rejoin bounded even after long Council/game streams.
         var attached = false;
         var retryDelays = new[] { 250, 700 };
         for (var attempt = 0; attempt < retryDelays.Length + 1 && !attached; attempt++)
@@ -636,7 +636,12 @@ namespace LocalGPT.Components.Pages
         var gateEntered = false;
         try
         {
-            await liveCouncilAttachGate.WaitAsync(componentLifetimeCts.Token).ConfigureAwait(false);
+            var gateAcquired = await liveCouncilAttachGate.WaitAsync(TimeSpan.FromSeconds(3), componentLifetimeCts.Token).ConfigureAwait(false);
+            if (!gateAcquired)
+            {
+                Logger.LogWarning("Timed out waiting for the live Council attachment gate for run {RunId}; the server-owned run remains active and a later bounded rejoin may retry.", runId);
+                return false;
+            }
             gateEntered = true;
             if (isDisposed || DxAiChat is null || ChatClientProvider is null)
                 return false;

@@ -408,6 +408,28 @@ namespace LocalGPT.Services
             catch (Exception exception) { serviceLogger.LogError(exception, "Joining display text failed."); return string.Empty; }
         }
 
+        /// <summary>Formats distinct non-empty display values or returns a caller-provided fallback when no values remain.</summary>
+        /// <param name="values">Display values to normalize for presentation.</param>
+        /// <param name="separator">Separator used between retained values.</param>
+        /// <param name="fallback">Text returned when the input contains no non-empty values or formatting fails.</param>
+        /// <returns>The distinct joined display text, or <paramref name="fallback"/> when no value can be presented.</returns>
+        public string FormatDistinctJoinedListOrFallback(IEnumerable<string>? values, string separator, string fallback)
+        {
+            try
+            {
+                var items = values?
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList() ?? [];
+                return items.Count == 0 ? fallback : FormatJoinedList(items, separator);
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Formatting a distinct display list with fallback failed.");
+                return fallback;
+            }
+        }
+
         /// <summary>Joins values using the platform newline sequence.</summary>
         /// <param name="values">String dependency used by the council text workflow to provide the corresponding application capability.</param>
         /// <returns>The string produced by the operation.</returns>

@@ -1,0 +1,146 @@
+@inject IConsoleCommandService Console
+@inject IComponentActivityService Activity
+@inject IOperationalActivityFeedService Feed
+@inject ILogger<OperationalActivityFeed> Logger
+@implements IDisposable
+
+<DxMemo @bind-Text="displayText"
+        ReadOnly="true"
+        Rows="@Rows"
+        CssClass="@CssClass"
+        aria-live="polite" />
+
+@code {
+    /// <summary>Optional route-local status text prepended to the shared operational feeds.</summary>
+    [Parameter] public string LocalText { get; set; } = string.Empty;
+
+    /// <summary>Maximum recent shared-console entries included in the bounded display.</summary>
+    [Parameter] public int MaxConsoleLines { get; set; } = 120;
+
+    /// <summary>Maximum recent application-activity entries included in the bounded display.</summary>
+    [Parameter] public int MaxActivityEntries { get; set; } = 30;
+
+    /// <summary>Visible row count for the DevExpress memo.</summary>
+    [Parameter] public int Rows { get; set; } = 14;
+
+    /// <summary>CSS class applied to the DevExpress memo.</summary>
+    [Parameter] public string CssClass { get; set; } = "localgpt-operational-feed";
+
+    private string displayText = string.Empty;
+    private int renderPending;
+    private int renderWorkerRunning;
+    private readonly CancellationTokenSource renderCancellation = new();
+    private bool disposed;
+
+    /// <summary>Subscribes to both bounded operational sources.</summary>
+    protected override void OnInitialized()
+    {
+        try
+        {
+            RefreshSnapshot();
+            Console.Changed += OnSourceChanged;
+            Activity.Changed += OnSourceChanged;
+        }
+        catch (Exception exception)
+        {
+            Console.Changed -= OnSourceChanged;
+            Activity.Changed -= OnSourceChanged;
+            throw new InvalidOperationException("Initializing the combined LocalGPT operational feed failed.", exception);
+        }
+    }
+
+    /// <summary>Refreshes route-local text passed by the parent.</summary>
+    protected override void OnParametersSet()
+    {
+        try
+        {
+            RefreshSnapshot();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Refreshing operational-feed parameters failed.");
+        }
+    }
+
+    /// <summary>Coalesces console and application-activity events before requesting a renderer update.</summary>
+    private void OnSourceChanged()
+    {
+        try
+        {
+            if (disposed)
+                return;
+            Interlocked.Exchange(ref renderPending, 1);
+            if (Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
+                _ = RefreshRenderAsync();
+        }
+        catch (Exception exception)
+        {
+            Interlocked.Exchange(ref renderWorkerRunning, 0);
+            Logger.LogWarning(exception, "Scheduling an operational-feed refresh failed.");
+        }
+    }
+
+    /// <summary>Refreshes at most four times per second while command output is arriving.</summary>
+    private async Task RefreshRenderAsync()
+    {
+        try
+        {
+            while (!renderCancellation.IsCancellationRequested)
+            {
+                await Task.Delay(250, renderCancellation.Token).ConfigureAwait(false);
+                Interlocked.Exchange(ref renderPending, 0);
+                await InvokeAsync(() =>
+                {
+                    RefreshSnapshot();
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+                if (Volatile.Read(ref renderPending) == 0)
+                    break;
+            }
+        }
+        catch (OperationCanceledException) when (renderCancellation.IsCancellationRequested)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Refreshing the combined LocalGPT operational feed failed.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref renderWorkerRunning, 0);
+            if (!disposed
+                && Volatile.Read(ref renderPending) != 0
+                && !renderCancellation.IsCancellationRequested
+                && Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
+                _ = RefreshRenderAsync();
+        }
+    }
+
+    /// <summary>Loads one bounded snapshot from service-owned formatters.</summary>
+    private void RefreshSnapshot()
+    {
+        displayText = Feed.BuildDisplayText(LocalText, Math.Max(1, MaxConsoleLines), Math.Max(1, MaxActivityEntries));
+    }
+
+    /// <summary>Unsubscribes the shared operational sources when the interactive circuit disposes this child.</summary>
+    public void Dispose()
+    {
+        try
+        {
+            if (disposed)
+                return;
+            disposed = true;
+            Console.Changed -= OnSourceChanged;
+            Activity.Changed -= OnSourceChanged;
+            renderCancellation.Cancel();
+            renderCancellation.Dispose();
+            GC.SuppressFinalize(this);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+}

@@ -26,10 +26,6 @@ public sealed class CouncilGameWorkflowBootstrapService(
             ArgumentNullException.ThrowIfNull(request);
             cancellationToken.ThrowIfCancellationRequested();
 
-            var existing = await games.GetActiveForCouncilRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
-            if (existing is not null)
-                return existing;
-
             var team = await teams.FindTeamAsync(request.CouncilTeamKey, cancellationToken).ConfigureAwait(false);
             if (team is null || !team.PreferredCapabilities.Contains(AsciiChatTextService.RequiredSurfaceCapability, StringComparer.OrdinalIgnoreCase))
                 return null;
@@ -59,6 +55,11 @@ public sealed class CouncilGameWorkflowBootstrapService(
                 return null;
             }
 
+            var existing = await games.GetActiveForCouncilRunAsync(request.RunId, gameKey, cancellationToken).ConfigureAwait(false);
+            if (existing is not null)
+                return existing;
+
+            var highResolutionTournament = string.Equals(gameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase);
             var snapshot = await games.StartAsync(new StartCouncilGameRequest
             {
                 GameKey = gameKey,
@@ -67,6 +68,8 @@ public sealed class CouncilGameWorkflowBootstrapService(
                 ConversationId = request.ContinueConversationId,
                 ControlMode = CouncilGameControlMode.Shared,
                 AutoplayEnabled = false,
+                FrameWidth = highResolutionTournament ? 144 : 80,
+                FrameHeight = highResolutionTournament ? 40 : 25,
                 StartedBy = "LocalGPT Council workflow bootstrap"
             }, cancellationToken).ConfigureAwait(false);
 

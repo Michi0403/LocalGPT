@@ -25,6 +25,16 @@ namespace LocalGPT.Interfaces
             IEnumerable<ChatUploadWorkspaceInputFile> files,
             CancellationToken cancellationToken = default);
 
+        /// <summary>Creates a quarantine workspace by streaming selected files directly to disk before analysis.</summary>
+        /// <param name="prompt">Optional user goal or upload context.</param>
+        /// <param name="files">Stream-backed input files.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The created quarantine workspace.</returns>
+        Task<ChatUploadWorkspaceResult> CreateWorkspaceFromStreamsAsync(
+            string prompt,
+            IEnumerable<ChatUploadWorkspaceStreamInput> files,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Lists workspaces as part of the chat upload workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>

@@ -322,6 +322,41 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         }
     }
 
+    /// <summary>Retrieves the newest running game of one specific family owned by one Council run.</summary>
+    /// <param name="councilRunId">Identifier of the Council run that owns the game.</param>
+    /// <param name="gameKey">Stable game-family key that must match the running session.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the lookup.</param>
+    /// <returns>The newest matching running game owned by the Council run, or <c>null</c> when none exists.</returns>
+    public Task<CouncilGameSessionSnapshot?> GetActiveForCouncilRunAsync(Guid councilRunId, string gameKey, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ThrowIfDisposed();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (councilRunId == Guid.Empty)
+                return Task.FromResult<CouncilGameSessionSnapshot?>(null);
+
+            var normalizedGameKey = NormalizeGameKey(gameKey);
+            var session = sessions.Values
+                .Where(item => item.Status == "Running"
+                    && item.CouncilRunId == councilRunId
+                    && string.Equals(item.GameKey, normalizedGameKey, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(item => item.UpdatedAtUtc)
+                .FirstOrDefault();
+            return Task.FromResult(session is null ? null : ToSnapshot(session));
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(exception, "Reading the active Council-run game session was cancelled for {CouncilRunId} and game family {GameKey}.", councilRunId, gameKey);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading the active Council-run game session failed for {CouncilRunId} and game family {GameKey}.", councilRunId, gameKey);
+            throw;
+        }
+    }
+
     /// <summary>Ends only the game runtime, preserving the surrounding chat, provider/Council sessions and ASCII terminal surface.</summary>
     /// <param name="sessionId">Identifier of the game session to end.</param>
     /// <param name="endedBy">Bounded actor label recorded for diagnostics and the final snapshot.</param>

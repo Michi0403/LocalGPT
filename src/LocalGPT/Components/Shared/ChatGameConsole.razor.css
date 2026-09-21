@@ -732,3 +732,61 @@
     width: min(52rem, 100%);
     margin-inline: auto;
 }
+
+/* v4.6.8: game presentation stays geometrically stable in a popup and can reuse the same frame as a pixel canvas. */
+.chat-game-screen-viewport {
+    overscroll-behavior: contain;
+    scroll-padding: .5rem;
+}
+
+.chat-game-pixel-screen {
+    display: block;
+    flex: none;
+    max-width: none;
+    max-height: none;
+    margin: auto;
+    background: #020704;
+    border: 0;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 0 1rem rgba(80,255,100,.12);
+}
+
+.chat-game-pixel-screen[hidden],
+.chat-game-screen[hidden] {
+    display: none !important;
+}
+
+.chat-game-console[data-display-mode="pixel"] .chat-game-screen-viewport {
+    place-items: center;
+}
+
+.chat-game-console[data-display-mode="pixel"][data-scale-mode="native"] .chat-game-screen-viewport {
+    place-items: start;
+}
+
+.chat-game-stage.kernel-tournament-stage.screen-only .chat-game-screen-viewport {
+    padding: .25rem;
+}
+
+.chat-game-stage.kernel-tournament-stage .chat-game-screen {
+    min-width: 0;
+    line-height: 1.04;
+}
+
+.chat-game-console:not(:fullscreen):not(.localgpt-game-fullscreen) .chat-game-stage,
+.chat-game-console:not(:fullscreen):not(.localgpt-game-fullscreen) .ascii-conversation-stage,
+.chat-game-console:not(:fullscreen):not(.localgpt-game-fullscreen) .ascii-operator-stage {
+    max-width: 100%;
+}
+
+@media (max-width: 1000px) {
+    .chat-game-console-actions {
+        align-items: flex-end;
+        row-gap: .3rem;
+    }
+
+    .chat-game-console-actions label {
+        flex: 1 1 10rem;
+    }
+}

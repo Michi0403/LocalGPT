@@ -18,6 +18,9 @@ public sealed class ComponentActivityService(
     IComponentActivityService,
     IServiceActivityService
 {
+    /// <summary>Raised after one bounded application activity item is recorded.</summary>
+    public event Action? Changed;
+
     /// <summary>
     /// Stores the internal entries state used by <see cref="ComponentActivityService"/> while executing its surrounding workflow.
     /// </summary>
@@ -309,6 +312,7 @@ public sealed class ComponentActivityService(
                 entry.Component,
                 entry.Operation,
                 entry.Status);
+            Changed?.Invoke();
     
     }
     catch (Exception __serviceMethodException)

@@ -22,6 +22,7 @@
          data-localgpt-game-console
          data-localgpt-copyable="true"
          data-scale-mode="@fullscreenScaleMode.ToLowerInvariant()"
+         data-display-mode="@gameDisplayMode.ToLowerInvariant()"
          aria-label="Persistent LocalGPT ASCII chat, game and operator console">
     <header class="chat-game-console-header">
         <div>
@@ -63,6 +64,14 @@
             }
             else if (!operatorMode && !conversationMode && snapshot is not null)
             {
+                <label>
+                    <span>Display</span>
+                    <DxComboBox Data="@GameDisplayOptions"
+                                Value="@SelectedGameDisplayOption"
+                                TextFieldName="Label"
+                                ValueChanged="@((AsciiSelectOption<string> option) => ChangeGameDisplayModeAsync(option))"
+                                CssClass="ascii-console-combo" />
+                </label>
                 @if (IsCouncilHotSeatGame)
                 {
                     <span class="chat-game-runtime-badge" title="This presentation is controlled by the Council workflow; the human role is played directly in the game surface.">
@@ -91,7 +100,10 @@
                         </label>
                     }
                 }
-                <DxButton Text="@(showControls ? "Hide guide" : "Show guide")" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="ToggleControls" />
+                @if (CanShowControlGuide)
+                {
+                    <DxButton Text="@(showControls ? "Hide guide" : "Show guide")" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="ToggleControls" />
+                }
                 @if (string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase))
                 {
                     <DxButton Text="End game" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Danger" Click="EndGameAsync" />
@@ -273,13 +285,14 @@
     }
     else
     {
-        <div class="chat-game-stage @(ShowControlGuide ? "has-guide" : "screen-only")">
+        <div class="chat-game-stage @(ShowControlGuide ? "has-guide" : "screen-only") @(IsKernelTournament ? "kernel-tournament-stage" : string.Empty)">
             <div class="chat-game-screen-viewport">
                 @if (!string.IsNullOrWhiteSpace(GamePreparationStatus))
                 {
                     <div class="chat-game-live-status" role="status" aria-live="polite">@GamePreparationStatus</div>
                 }
                 <pre class="chat-game-screen" data-game-animation-screen aria-live="polite">@snapshot.FrameText</pre>
+                <canvas class="chat-game-pixel-screen" data-game-pixel-screen aria-label="Pixel rendering of the current deterministic game frame" hidden></canvas>
                 <div class="chat-game-animation-subtitle" data-game-animation-subtitle aria-live="polite" hidden>@snapshot.AnimationSubtitle</div>
             </div>
             @if (ShowControlGuide)
@@ -433,6 +446,13 @@
         new("Native", "Native size + scroll")
     ];
 
+    /// <summary>Presentation choices that share the same deterministic game state and controls.</summary>
+    private readonly IReadOnlyList<AsciiSelectOption<string>> GameDisplayOptions =
+    [
+        new("Ascii", "ASCII screen"),
+        new("Pixel", "Pixel screen")
+    ];
+
     /// <summary>Maintained game-control choices preserving the existing Human/Shared/AI semantics.</summary>
     private readonly IReadOnlyList<AsciiSelectOption<CouncilGameControlMode>> ControlModeOptions =
     [
@@ -582,6 +602,12 @@
     /// Stores the internal fullscreen scale mode state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
     /// </summary>
     private string fullscreenScaleMode = "Fit";
+    /// <summary>Stores whether the deterministic frame is presented as text cells or a pixel-scaled canvas; mechanics remain shared.</summary>
+    private string gameDisplayMode = "Ascii";
+    /// <summary>Remembers the last display mode sent to JavaScript so unrelated renders do not repeat presentation work.</summary>
+    private string? lastJsDisplayMode;
+    /// <summary>Remembers whether Operator was opened from the game plane so closing it returns directly to the active game.</summary>
+    private bool operatorReturnsToGame;
     /// <summary>Stores whether the LocalGPT meta/operator layer currently owns the shared ASCII surface.</summary>
     private bool operatorMode;
     /// <summary>Stores whether the shared ASCII surface is rendering the canonical chat transcript instead of a game frame.</summary>
@@ -634,6 +660,11 @@
         FullscreenScaleOptions.FirstOrDefault(option => string.Equals(option.Value, fullscreenScaleMode, StringComparison.OrdinalIgnoreCase))
         ?? FullscreenScaleOptions[0];
 
+    /// <summary>Gets the current deterministic-frame presentation item.</summary>
+    private AsciiSelectOption<string> SelectedGameDisplayOption =>
+        GameDisplayOptions.FirstOrDefault(option => string.Equals(option.Value, gameDisplayMode, StringComparison.OrdinalIgnoreCase))
+        ?? GameDisplayOptions[0];
+
     /// <summary>Gets the current game-control item for the DevExpress selector.</summary>
     private AsciiSelectOption<CouncilGameControlMode> SelectedControlModeOption =>
         ControlModeOptions.FirstOrDefault(option => option.Value == snapshot?.ControlMode)
@@ -650,7 +681,15 @@
 
     /// <summary>Gets whether the active game should expose its human control guide.</summary>
     /// <value><c>true</c> when controls or in-game collaboration input are currently relevant.</value>
-    private bool ShowControlGuide => snapshot is not null && showControls && (HasHotSeatRequest || HasGameInteractionRequest || CanRestartCorridor || snapshot.ControlMode != CouncilGameControlMode.Ai);
+    private bool CanShowControlGuide => snapshot is not null
+        && (HasHotSeatRequest
+            || HasGameInteractionRequest
+            || CanRestartCorridor
+            || (snapshot.LegalActions.Count > 0 && snapshot.ControlMode != CouncilGameControlMode.Ai));
+    /// <summary>Gets whether the active game should currently expose its human control guide.</summary>
+    private bool ShowControlGuide => showControls && CanShowControlGuide;
+    /// <summary>Gets whether the active deterministic frame is the high-resolution Kernel Creature Tournament surface.</summary>
+    private bool IsKernelTournament => string.Equals(snapshot?.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase);
     /// <summary>
     /// Gets a value indicating whether submit human control applies to the chat game console state.
     /// </summary>
@@ -743,7 +782,9 @@
 
         if (CouncilRunId is Guid councilRunId)
         {
-            var councilGame = await Games.GetActiveForCouncilRunAsync(councilRunId).ConfigureAwait(true);
+            var councilGame = string.Equals(SuggestedTeamKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
+                ? await Games.GetActiveForCouncilRunAsync(councilRunId, "kernel-creature-tournament").ConfigureAwait(true)
+                : await Games.GetActiveForCouncilRunAsync(councilRunId).ConfigureAwait(true);
             if (councilGame is not null)
                 return councilGame;
         }
@@ -843,6 +884,11 @@
                 await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
                 lastJsScaleMode = fullscreenScaleMode;
             }
+            if (!string.Equals(lastJsDisplayMode, gameDisplayMode, StringComparison.Ordinal))
+            {
+                await JS.InvokeVoidAsync("localGptGameConsole.setDisplayMode", elementId, gameDisplayMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                lastJsDisplayMode = gameDisplayMode;
+            }
 
             if (!operatorMode && !conversationMode && snapshot is not null)
             {
@@ -900,7 +946,7 @@
                 : string.Empty;
             var layoutSignature = AsciiText.BuildConsoleLayoutSignature(
                 operatorMode ? "operator" : conversationMode ? "conversation" : "game",
-                fullscreenScaleMode,
+                $"{fullscreenScaleMode}:{gameDisplayMode}",
                 lastJsFramePresentationSignature,
                 lastJsSequenceSignature,
                 conversationSignature,
@@ -910,7 +956,8 @@
             if (firstRender || !string.Equals(lastJsLayoutSignature, layoutSignature, StringComparison.Ordinal))
             {
                 await JS.InvokeVoidAsync("localGptGameConsole.refreshLayout", elementId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
-                await JS.InvokeVoidAsync("localGptGameConsole.followTail", elementId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                if (operatorMode || conversationMode)
+                    await JS.InvokeVoidAsync("localGptGameConsole.followTail", elementId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
                 lastJsLayoutSignature = layoutSignature;
             }
         }
@@ -942,6 +989,7 @@
         attached = false;
         lastJsInputEnabled = null;
         lastJsScaleMode = null;
+        lastJsDisplayMode = null;
         lastJsFramePresentationSignature = string.Empty;
         lastJsSequenceSignature = string.Empty;
         lastJsLayoutSignature = string.Empty;
@@ -952,6 +1000,7 @@
     private Task ShowConversationModeAsync()
     {
         operatorMode = false;
+        operatorReturnsToGame = false;
         conversationMode = true;
         RefreshConversationProjection();
         lastJsLayoutSignature = string.Empty;
@@ -963,6 +1012,7 @@
     private Task ShowGameModeAsync()
     {
         operatorMode = false;
+        operatorReturnsToGame = false;
         conversationMode = false;
         return InvokeAsync(StateHasChanged);
     }
@@ -973,11 +1023,19 @@
     {
         try
         {
-            operatorMode = !operatorMode;
+            var enablingOperator = !operatorMode;
+            if (enablingOperator)
+                operatorReturnsToGame = !conversationMode && snapshot is not null;
+            operatorMode = enablingOperator;
             if (operatorMode)
             {
                 availableShells = Operator.GetAvailableShells();
                 Console.PublishOperatorMessage($"Operator layer enabled with {OperatorShellLabel}. :help lists meta commands.");
+            }
+            else if (operatorReturnsToGame && snapshot is not null)
+            {
+                conversationMode = false;
+                operatorReturnsToGame = false;
             }
             operatorStatus = operatorMode
                 ? "Operator layer enabled. Game input is paused while this command row owns the ASCII wall."
@@ -1284,6 +1342,16 @@
     /// </summary>
     private void ToggleControls() => showControls = !showControls;
 
+    /// <summary>Changes only the deterministic frame presentation; game mechanics, controls and session identity remain unchanged.</summary>
+    /// <param name="option">Selected ASCII or pixel presentation.</param>
+    private async Task ChangeGameDisplayModeAsync(AsciiSelectOption<string>? option)
+    {
+        gameDisplayMode = string.Equals(option?.Value, "Pixel", StringComparison.OrdinalIgnoreCase) ? "Pixel" : "Ascii";
+        lastJsLayoutSignature = string.Empty;
+        await JS.InvokeVoidAsync("localGptGameConsole.setDisplayMode", elementId, gameDisplayMode).ConfigureAwait(false);
+        lastJsDisplayMode = gameDisplayMode;
+    }
+
     /// <summary>
     /// Performs change fullscreen scale mode for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
@@ -1585,13 +1653,19 @@
     /// <param name="sessionId">Identifier of the session to use for this operation.</param>
     private void OnGameChanged(Guid sessionId)
     {
-        if (snapshot is not null && snapshot.Id != sessionId) return;
+        if (snapshot is not null && snapshot.Id != sessionId && CouncilRunId is null && ConversationId is null)
+            return;
         _ = InvokeAsync(async () =>
         {
             var hadSnapshot = snapshot is not null;
             var candidate = await Games.GetAsync(sessionId).ConfigureAwait(true);
             if (candidate is null || !MatchesCurrentGameContext(candidate))
                 return;
+            if (string.Equals(SuggestedTeamKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(candidate.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
             snapshot = candidate;
             await ReportGameAvailabilityAsync().ConfigureAwait(true);
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
