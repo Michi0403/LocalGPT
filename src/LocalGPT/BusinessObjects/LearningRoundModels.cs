@@ -201,3 +201,14 @@ public sealed record RepositoryKnowledgeRefreshResult(
     string ResolvedRevision,
     int DownloadedFileCount,
     IReadOnlyList<LearningProjectSyncResult> ProjectsSynchronized);
+
+/// <summary>Reports review-required Knowledge and regex candidates staged from one synchronized source revision.</summary>
+public sealed record ProjectRepositoryLearningResult(
+    Guid ProjectId,
+    Guid RevisionId,
+    string ProjectName,
+    int AddedFiles,
+    int ChangedFiles,
+    int RemovedFiles,
+    IReadOnlyList<Guid> KnowledgeIds,
+    IReadOnlyList<string> RegexNames);

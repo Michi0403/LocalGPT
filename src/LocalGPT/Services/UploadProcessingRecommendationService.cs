@@ -13,6 +13,7 @@ public sealed class UploadProcessingRecommendationService(
     ICouncilKnowledgeService knowledge,
     ICouncilTeamConfigurationService teams,
     IChatClientFactory chatClientFactory,
+    IUploadFileProcessingCapabilityService processingCapabilities,
     LocalGptCatalogService catalog,
     ILogger<UploadProcessingRecommendationService> logger) : IUploadProcessingRecommendationService
 {
@@ -29,7 +30,8 @@ public sealed class UploadProcessingRecommendationService(
             var approvedKnowledge = await knowledge.GetEntriesAsync(false, 500, cancellationToken).ConfigureAwait(false);
             var relevantKnowledge = SelectKnowledge(gate, approvedKnowledge);
             var teamCandidates = RankTeams(gate, availableTeams);
-            var fallback = BuildFallback(request, gate, relevantKnowledge, teamCandidates);
+            var processingRoutes = processingCapabilities.Evaluate(gate.Files);
+            var fallback = BuildFallback(request, gate, relevantKnowledge, teamCandidates, processingRoutes);
 
             try
             {
@@ -40,7 +42,7 @@ public sealed class UploadProcessingRecommendationService(
                 if (client.SelectedSession is null)
                     return await PersistAsync(fallback, cancellationToken).ConfigureAwait(false);
 
-                var prompt = BuildPrompt(request, gate, relevantKnowledge, teamCandidates);
+                var prompt = BuildPrompt(request, gate, relevantKnowledge, teamCandidates, processingRoutes);
                 var response = await client.GetResponseAsync(
                     [
                         new ChatMessage(ChatRole.System,
@@ -105,6 +107,7 @@ public sealed class UploadProcessingRecommendationService(
         try
         {
             var terms = gate.Domains.Concat(gate.ProjectKinds).Concat(gate.Toolchains)
+                .Concat(gate.Repositories.SelectMany(repository => new[] { repository.Name, repository.Kind, repository.Version }.Concat(repository.Markers)))
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
@@ -139,6 +142,7 @@ public sealed class UploadProcessingRecommendationService(
         try
         {
             var terms = gate.Domains.Concat(gate.ProjectKinds).Concat(gate.Toolchains)
+                .Concat(gate.Repositories.SelectMany(repository => new[] { repository.Name, repository.Kind, repository.Version }.Concat(repository.Markers)))
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
@@ -169,23 +173,39 @@ public sealed class UploadProcessingRecommendationService(
         UploadProcessingRecommendationRequest request,
         ProjectIngestionGateRecord gate,
         IReadOnlyList<CouncilKnowledgeEntry> relevantKnowledge,
-        IReadOnlyList<OrganicCouncilTeamDefinition> teamCandidates)
+        IReadOnlyList<OrganicCouncilTeamDefinition> teamCandidates,
+        IReadOnlyList<UploadFileProcessingRoute> processingRoutes)
     {
         try
         {
-            var team = teamCandidates.FirstOrDefault(item => string.Equals(item.Key, "general", StringComparison.OrdinalIgnoreCase))
+            var repository = gate.Repositories.FirstOrDefault();
+            var repositoryDetected = repository is not null;
+            var repositoryTeam = repositoryDetected
+                ? teamCandidates.FirstOrDefault(item => item.DisplayName.Contains("Repository", StringComparison.OrdinalIgnoreCase)
+                    || item.Purpose.Contains("repository", StringComparison.OrdinalIgnoreCase)
+                    || item.PreferredCapabilities.Any(capability => capability.Contains("repository", StringComparison.OrdinalIgnoreCase)))
+                : null;
+            var team = repositoryTeam
+                ?? teamCandidates.FirstOrDefault(item => string.Equals(item.Key, "general", StringComparison.OrdinalIgnoreCase))
                 ?? teamCandidates.FirstOrDefault();
             var domains = gate.Domains.Count > 0 ? string.Join(", ", gate.Domains) : "unclassified material";
+            var repositoryLabel = repositoryDetected
+                ? $"{repository!.Name}{(string.IsNullOrWhiteSpace(repository.Version) ? string.Empty : $" {repository.Version}")}{(repository.GitMetadataDetected ? " (Git metadata detected)" : string.Empty)}"
+                : string.Empty;
             return new UploadProcessingRecommendation
             {
                 WorkspaceName = gate.WorkspaceName,
                 GeneratedAtUtc = DateTimeOffset.UtcNow,
                 Source = "Deterministic evidence fallback",
                 Confidence = gate.DeterministicChecksPassed ? 55 : 20,
-                Summary = $"Quarantined upload currently classifies as {domains}. Deterministic checks are {(gate.DeterministicChecksPassed ? "passing" : "not passing")}; recommendation is advisory and does not bypass review.",
-                RecommendedAction = gate.DeterministicChecksPassed
-                    ? "Review the quarantined files against the listed evidence and approved knowledge, then choose whether to process them in solo Chat or with the suggested Council team before promotion."
-                    : "Resolve the quarantine rejection reasons before any processing or promotion.",
+                Summary = repositoryDetected
+                    ? $"Recognized {repositoryLabel} as a source repository inside bounded quarantine. Deterministic checks are {(gate.DeterministicChecksPassed ? "passing" : "not passing")}; repository identity does not bypass review."
+                    : $"Quarantined upload currently classifies as {domains}. Deterministic checks are {(gate.DeterministicChecksPassed ? "passing" : "not passing")}; recommendation is advisory and does not bypass review.",
+                RecommendedAction = !gate.DeterministicChecksPassed
+                    ? "Resolve the quarantine rejection reasons before any processing or promotion."
+                    : repositoryDetected
+                        ? "Review and promote the repository into its canonical LocalGPT project structure. Promotion records a source snapshot, compares it with the previous revision, and stages source/delta Knowledge plus repository regex candidates for explicit review before they can become trusted runtime knowledge."
+                        : "Review the quarantined files against the listed evidence and approved knowledge, then choose whether to process them in solo Chat or with the suggested Council team before promotion.",
                 ProcessingMode = team is null ? "Solo" : "SoloOrTeam",
                 SuggestedTeamKey = team?.Key ?? string.Empty,
                 SuggestedTeamName = team?.DisplayName ?? string.Empty,
@@ -196,9 +216,13 @@ public sealed class UploadProcessingRecommendationService(
                 Domains = gate.Domains.ToList(),
                 ProjectKinds = gate.ProjectKinds.ToList(),
                 Toolchains = gate.Toolchains.ToList(),
+                Repositories = gate.Repositories.Select(CloneRepository).ToList(),
+                ProcessingRoutes = processingRoutes.Select(CloneProcessingRoute).ToList(),
                 Evidence = gate.Files.Take(40).Select(file => $"{file.RelativePath} · {file.Kind} · {file.Length:n0} bytes · {string.Join(", ", file.ApprovedRegexMatches)}").ToList(),
                 KnowledgeReferences = relevantKnowledge.Select(entry => $"{entry.Topic} [{entry.Id:N}]").ToList(),
-                AlternativeActions = ["Inspect only", "Summarize into Chat", "Run a Council review", "Import reviewed facts into Knowledge", "Promote into a project workspace after review"]
+                AlternativeActions = repositoryDetected
+                    ? ["Inspect only", "Review repository delta", "Run a Council repository review", "Stage reviewed source knowledge/regex candidates", "Promote into the canonical project workspace after review", "Plan build/publish only after promotion"]
+                    : ["Inspect only", "Summarize into Chat", "Run a Council review", "Import reviewed facts into Knowledge", "Promote into a project workspace after review"]
             };
         }
         catch (Exception ex)
@@ -212,7 +236,8 @@ public sealed class UploadProcessingRecommendationService(
         UploadProcessingRecommendationRequest request,
         ProjectIngestionGateRecord gate,
         IReadOnlyList<CouncilKnowledgeEntry> relevantKnowledge,
-        IReadOnlyList<OrganicCouncilTeamDefinition> teamCandidates)
+        IReadOnlyList<OrganicCouncilTeamDefinition> teamCandidates,
+        IReadOnlyList<UploadFileProcessingRoute> processingRoutes)
     {
         try
         {
@@ -223,6 +248,15 @@ public sealed class UploadProcessingRecommendationService(
             builder.AppendLine($"Domains: {string.Join(", ", gate.Domains)}");
             builder.AppendLine($"Project kinds: {string.Join(", ", gate.ProjectKinds)}");
             builder.AppendLine($"Toolchains: {string.Join(", ", gate.Toolchains)}");
+            if (gate.Repositories.Count > 0)
+            {
+                builder.AppendLine("Detected source repositories:");
+                foreach (var repository in gate.Repositories.Take(12))
+                    builder.AppendLine($"- kind={repository.Kind}; name={repository.Name}; version={repository.Version}; git={repository.GitMetadataDetected}; root={repository.RootHint}; markers={string.Join(",", repository.Markers.Take(8))}");
+            }
+            builder.AppendLine("Current deterministic processor routes:");
+            foreach (var route in processingRoutes.Take(40))
+                builder.AppendLine($"- {route.RelativePath} | processor={route.Processor} | capability={route.CapabilityKey} | available={route.IsAvailable} | reason={route.Reason}");
             builder.AppendLine("Files/evidence:");
             foreach (var file in gate.Files.Take(40))
                 builder.AppendLine($"- {file.RelativePath} | {file.Kind} | {file.Length} bytes | rules={string.Join(",", file.ApprovedRegexMatches)}");
@@ -329,11 +363,55 @@ public sealed class UploadProcessingRecommendationService(
         try
         {
             var goal = string.IsNullOrWhiteSpace(request.UserGoal) ? "Help me decide what to do with these files" : request.UserGoal.Trim();
-            return $"{goal}. Use quarantined workspace '{gate.WorkspaceName}'. Start from the reviewed evidence and approved knowledge. Do not promote, execute, build, install, publish, network, or write outside the bounded workspace without the corresponding explicit user approval.";
+            var repositoryInstruction = gate.Repositories.Count == 0
+                ? string.Empty
+                : " The upload contains a recognized source repository; preserve its repository root, compare the promoted canonical revision with its previous revision, and keep generated Knowledge/regex evidence review-required.";
+            return $"{goal}. Use quarantined workspace '{gate.WorkspaceName}'. Start from the reviewed evidence and approved knowledge.{repositoryInstruction} Do not promote, execute, build, install, publish, network, or write outside the bounded workspace without the corresponding explicit user approval.";
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Building suggested upload prompt failed.");
+            throw;
+        }
+    }
+
+    private UploadFileProcessingRoute CloneProcessingRoute(UploadFileProcessingRoute source)
+    {
+        try
+        {
+            return new UploadFileProcessingRoute
+            {
+                RelativePath = source.RelativePath,
+                Processor = source.Processor,
+                CapabilityKey = source.CapabilityKey,
+                IsAvailable = source.IsAvailable,
+                Reason = source.Reason
+            };
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Cloning upload processor route failed.");
+            throw;
+        }
+    }
+
+    private RepositoryEvidenceIdentity CloneRepository(RepositoryEvidenceIdentity source)
+    {
+        try
+        {
+            return new RepositoryEvidenceIdentity
+            {
+                Kind = source.Kind,
+                Name = source.Name,
+                Version = source.Version,
+                RootHint = source.RootHint,
+                GitMetadataDetected = source.GitMetadataDetected,
+                Markers = source.Markers.ToList()
+            };
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Cloning upload repository identity failed.");
             throw;
         }
     }

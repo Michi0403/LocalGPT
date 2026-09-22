@@ -276,8 +276,10 @@ public sealed class LearningRoundService(
                 if (string.IsNullOrWhiteSpace(regex.Name) || string.IsNullOrWhiteSpace(regex.Pattern))
                     continue;
                 var name = regex.Name.Trim();
-                await regexPatternService.AddOrUpdateAsync(new RegexPatternDto(name, regex.Pattern, regex.Flags)).ConfigureAwait(false);
+                // Persist review metadata first so a process interruption can never leave an uncurated
+                // database regex that the legacy-reconciliation path could mistake for approved evidence.
                 await regexCuratorService.MarkSuggestedAsync(name, "LearningRound model suggestion", "Project/toolchain/game classification", cancellationToken).ConfigureAwait(false);
+                await regexPatternService.AddOrUpdateAsync(new RegexPatternDto(name, regex.Pattern, regex.Flags)).ConfigureAwait(false);
                 regexNames.Add(name);
             }
 

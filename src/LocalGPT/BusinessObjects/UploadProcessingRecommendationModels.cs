@@ -1,4 +1,15 @@
+
 namespace LocalGPT.BusinessObjects;
+
+/// <summary>Describes the deterministic processor route available for one quarantined file.</summary>
+public sealed class UploadFileProcessingRoute
+{
+    public string RelativePath { get; set; } = string.Empty;
+    public string Processor { get; set; } = "QuarantineOnly";
+    public string CapabilityKey { get; set; } = string.Empty;
+    public bool IsAvailable { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
 
 /// <summary>Request used to build an advisory processing plan for one quarantined upload workspace.</summary>
 public sealed class UploadProcessingRecommendationRequest
@@ -26,6 +37,8 @@ public sealed class UploadProcessingRecommendation
     public List<string> Domains { get; set; } = [];
     public List<string> ProjectKinds { get; set; } = [];
     public List<string> Toolchains { get; set; } = [];
+    public List<RepositoryEvidenceIdentity> Repositories { get; set; } = [];
+    public List<UploadFileProcessingRoute> ProcessingRoutes { get; set; } = [];
     public List<string> Evidence { get; set; } = [];
     public List<string> KnowledgeReferences { get; set; } = [];
     public List<string> AlternativeActions { get; set; } = [];

@@ -87,6 +87,7 @@ public sealed class ProjectIngestionService(
             record.Toolchains.AddRange(classified.Toolchains);
             record.Domains.AddRange(classified.Domains);
             record.MatchedEvidenceRules.AddRange(classified.MatchedRuleNames);
+            record.Repositories = classified.Repositories.ToList();
             var approvedKnowledge = await knowledge.GetEntriesAsync(false, 500, cancellationToken).ConfigureAwait(false);
             var evidenceTerms = record.Toolchains.Concat(record.ProjectKinds).Concat(record.Domains).ToList();
             record.ApprovedKnowledgeHints = approvedKnowledge
@@ -208,6 +209,7 @@ public sealed class ProjectIngestionService(
                 record.Toolchains = classification.Toolchains.ToList();
                 record.Domains = classification.Domains.ToList();
                 record.MatchedEvidenceRules = classification.MatchedRuleNames.ToList();
+                record.Repositories = classification.Repositories.ToList();
                 record.UserApprovedPromotion = true;
                 record.PromotedRoot = promotedRoot;
                 record.PromotedAtUtc = DateTimeOffset.UtcNow;
@@ -217,7 +219,9 @@ public sealed class ProjectIngestionService(
 
                 using var scope = scopeFactory.CreateScope();
                 var sync = scope.ServiceProvider.GetRequiredService<ILearningProjectWorkspaceSyncService>();
-                _ = await sync.SynchronizeAsync(workspaceName, cancellationToken).ConfigureAwait(false);
+                var synchronizedProjects = await sync.SynchronizeAsync(workspaceName, cancellationToken).ConfigureAwait(false);
+                var repositoryLearning = scope.ServiceProvider.GetRequiredService<IProjectRepositoryLearningService>();
+                _ = await repositoryLearning.StageCandidatesAsync(synchronizedProjects, cancellationToken).ConfigureAwait(false);
                 return record;
             }
             finally { Gate.Release(); }

@@ -202,6 +202,19 @@ public sealed class LearningProjectWorkspaceSyncService(
                     candidates.Add(root);
             }
 
+            // A user-supplied Git repository may intentionally contain no language/package marker at its root.
+            // Treat .git/config as repository identity evidence without adding Git internals to tracked source content.
+            foreach (var gitDirectory in Directory.EnumerateDirectories(extractedRoot, ".git", SearchOption.AllDirectories).Take(2000))
+            {
+                var gitConfig = Path.Combine(gitDirectory, "config");
+                if (!File.Exists(gitConfig))
+                    continue;
+
+                var repositoryDirectory = Directory.GetParent(gitDirectory);
+                if (repositoryDirectory is not null && platform.IsSameOrDescendantPath(extractedRoot, repositoryDirectory.FullName))
+                    candidates.Add(repositoryDirectory.FullName);
+            }
+
             return candidates
                 .Where(path => Directory.Exists(path))
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
@@ -356,6 +369,14 @@ public sealed class LearningProjectWorkspaceSyncService(
             var existingRevisions = await db.LocalGptProjectRevisions
                 .Where(item => item.ProjectId == project.Id)
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
+            var previousRevision = existingRevisions
+                .Where(item => item.IsCurrent && !string.Equals(item.SourceSnapshotHash, sourceSnapshotHash, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(item => item.UpdatedAtUtc)
+                .FirstOrDefault()
+                ?? existingRevisions
+                    .Where(item => !string.Equals(item.SourceSnapshotHash, sourceSnapshotHash, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(item => item.UpdatedAtUtc)
+                    .FirstOrDefault();
             foreach (var item in existingRevisions)
                 item.IsCurrent = false;
             var revisionName = $"source-{source.Version}-{sourceSnapshotHash[..12].ToLowerInvariant()}";
@@ -366,6 +387,7 @@ public sealed class LearningProjectWorkspaceSyncService(
                 {
                     Id = Guid.NewGuid(),
                     ProjectId = project.Id,
+                    ParentRevisionId = previousRevision?.Id,
                     CreatedAtUtc = now,
                     BranchName = sourceKind == "RemoteGitHub" ? "remote-main" : "chat-upload",
                     RevisionName = revisionName,
@@ -509,7 +531,12 @@ public sealed class LearningProjectWorkspaceSyncService(
             var dotnetProjectFiles = allFiles.Where(path => path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)).ToList();
             var markerFiles = allFiles.Where(IsRepositoryMarker).OrderBy(path => path.Count(character => character is '/' or '\\')).ThenBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
             if (markerFiles.Count == 0)
-                return new RepositoryInspection(Path.GetFileName(repositoryRoot), "0.0.0-source", string.Empty, [], string.Empty, [], "Unknown", []);
+            {
+                var gitConfig = Path.Combine(repositoryRoot, ".git", "config");
+                if (!File.Exists(gitConfig))
+                    return new RepositoryInspection(Path.GetFileName(repositoryRoot), "0.0.0-source", string.Empty, [], string.Empty, [], "Unknown", []);
+                return new RepositoryInspection(Path.GetFileName(repositoryRoot), "0.0.0-source", string.Empty, [], string.Empty, [gitConfig], "GitRepository", ["Git"]);
+            }
 
             var preferred = dotnetProjectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "LocalGPT", StringComparison.OrdinalIgnoreCase))
                 ?? dotnetProjectFiles.FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "PublisherStudio.Web", StringComparison.OrdinalIgnoreCase))

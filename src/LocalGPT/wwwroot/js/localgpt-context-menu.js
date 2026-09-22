@@ -16,6 +16,188 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         ['Projects', '/projects'], ['Approvals & MFA', '/onewire-security'], ['Council teams', '/council-teams']
     ];
 
+
+    const controllerStorageKey = 'localgpt.controllerMode';
+    const controllerCursorId = 'localgpt-controller-cursor';
+    const controllerBadgeId = 'localgpt-controller-mode-badge';
+    const controllerState = {
+        mode: localStorage.getItem(controllerStorageKey) === 'cursor' ? 'cursor' : 'control',
+        frame: 0,
+        buttons: [],
+        x: Math.max(24, globalThis.innerWidth / 2),
+        y: Math.max(24, globalThis.innerHeight / 2),
+        lastFrameTime: 0,
+        badgeTimer: 0
+    };
+
+    function controllerGamepad() { try {
+        if (typeof navigator.getGamepads !== 'function') return null;
+        return [...(navigator.getGamepads?.() || [])].find(Boolean) || null;
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerGamepad', __javascriptError); return null; }}
+
+    function controllerButtonPressed(gamepad, index) { try {
+        return Boolean(gamepad?.buttons?.[index]?.pressed || Number(gamepad?.buttons?.[index]?.value || 0) > .55);
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerButtonPressed', __javascriptError); return false; }}
+
+    function controllerButtonEdge(gamepad, index) { try {
+        const pressed = controllerButtonPressed(gamepad, index);
+        const previous = Boolean(controllerState.buttons[index]);
+        controllerState.buttons[index] = pressed;
+        return pressed && !previous;
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerButtonEdge', __javascriptError); return false; }}
+
+    function controllerAxis(value, deadzone = .18) { try {
+        const numeric = Number(value) || 0;
+        const magnitude = Math.abs(numeric);
+        if (magnitude <= deadzone) return 0;
+        const normalized = Math.min(1, (magnitude - deadzone) / Math.max(.01, 1 - deadzone));
+        return Math.sign(numeric) * Math.pow(normalized, 1.35);
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerAxis', __javascriptError); return 0; }}
+
+    function ensureControllerCursor() { try {
+        let cursor = document.getElementById(controllerCursorId);
+        if (!cursor) {
+            cursor = document.createElement('div');
+            cursor.id = controllerCursorId;
+            cursor.className = 'localgpt-controller-cursor';
+            cursor.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(cursor);
+        }
+        return cursor;
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:ensureControllerCursor', __javascriptError); throw __javascriptError; }}
+
+    function updateControllerCursor() { try {
+        const cursor = ensureControllerCursor();
+        const visible = controllerState.mode === 'cursor' && Boolean(controllerGamepad());
+        cursor.hidden = !visible;
+        if (visible) cursor.style.transform = `translate3d(${Math.round(controllerState.x)}px, ${Math.round(controllerState.y)}px, 0)`;
+        document.documentElement.dataset.localgptControllerMode = controllerState.mode;
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:updateControllerCursor', __javascriptError); throw __javascriptError; }}
+
+    function showControllerModeBadge() { try {
+        let badge = document.getElementById(controllerBadgeId);
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = controllerBadgeId;
+            badge.className = 'localgpt-controller-mode-badge';
+            badge.setAttribute('role', 'status');
+            badge.setAttribute('aria-live', 'polite');
+            document.body.appendChild(badge);
+        }
+        badge.textContent = controllerState.mode === 'cursor' ? 'Controller cursor mode · native mouse/touchpad stays active' : 'Controller control mode · keyboard and pointer stay active';
+        badge.hidden = false;
+        if (controllerState.badgeTimer) clearTimeout(controllerState.badgeTimer);
+        controllerState.badgeTimer = setTimeout(() => { try { badge.hidden = true; } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerBadgeTimer', __javascriptError); } }, 1300);
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:showControllerModeBadge', __javascriptError); throw __javascriptError; }}
+
+    function setControllerMode(mode, announce = true) { try {
+        controllerState.mode = mode === 'cursor' ? 'cursor' : 'control';
+        localStorage.setItem(controllerStorageKey, controllerState.mode);
+        updateControllerCursor();
+        document.dispatchEvent(new CustomEvent('localgpt:controller-mode-changed', { detail: { mode: controllerState.mode } }));
+        if (announce) showControllerModeBadge();
+        return controllerState.mode;
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:setControllerMode', __javascriptError); throw __javascriptError; }}
+
+    function controllerTarget() { try {
+        return document.elementFromPoint(controllerState.x, controllerState.y) || document.body;
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerTarget', __javascriptError); return document.body; }}
+
+    function controllerPrimaryAction() { try {
+        const target = controllerTarget();
+        const clickable = target?.closest?.('button,a,input,select,textarea,[role="button"],[role="menuitem"],[tabindex]');
+        if (clickable instanceof HTMLElement && !clickable.hasAttribute('disabled')) {
+            try { clickable.focus({ preventScroll: true }); } catch (__caughtJavaScriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerPrimaryAction-focus', __caughtJavaScriptError); }
+            clickable.click();
+            return true;
+        }
+        if (target instanceof HTMLElement) {
+            target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: controllerState.x, clientY: controllerState.y, view: globalThis }));
+            return true;
+        }
+        return false;
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerPrimaryAction', __javascriptError); throw __javascriptError; }}
+
+    function controllerContextAction(target = controllerTarget(), x = controllerState.x, y = controllerState.y) { try {
+        if (!(target instanceof Element)) return false;
+        const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, buttons: 2, clientX: x, clientY: y, view: globalThis });
+        Object.defineProperty(event, 'localGptControllerContext', { value: true });
+        target.dispatchEvent(event);
+        return true;
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerContextAction', __javascriptError); throw __javascriptError; }}
+
+    function controllerContextForControlMode() { try {
+        const target = document.activeElement instanceof Element ? document.activeElement : document.body;
+        const bounds = target.getBoundingClientRect?.();
+        const x = bounds && bounds.width > 0 ? Math.min(globalThis.innerWidth - 8, Math.max(8, bounds.left + bounds.width / 2)) : globalThis.innerWidth / 2;
+        const y = bounds && bounds.height > 0 ? Math.min(globalThis.innerHeight - 8, Math.max(8, bounds.top + bounds.height / 2)) : globalThis.innerHeight / 2;
+        return controllerContextAction(target, x, y);
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerContextForControlMode', __javascriptError); throw __javascriptError; }}
+
+    function controllerScroll(gamepad, elapsedSeconds) { try {
+        const vertical = controllerAxis(gamepad?.axes?.[3]);
+        const horizontal = controllerAxis(gamepad?.axes?.[2]);
+        if (!vertical && !horizontal) return;
+        const target = controllerTarget();
+        const scrollable = target?.closest?.('[data-controller-scroll],.dxbl-scroll-view,.blazor-scroll-view,[style*="overflow"]');
+        const amount = Math.max(1, 760 * elapsedSeconds);
+        if (scrollable instanceof HTMLElement) scrollable.scrollBy({ left: horizontal * amount, top: vertical * amount, behavior: 'auto' });
+        else globalThis.scrollBy({ left: horizontal * amount, top: vertical * amount, behavior: 'auto' });
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerScroll', __javascriptError); throw __javascriptError; }}
+
+    function pollController(time) { try {
+        controllerState.frame = 0;
+        if (document.hidden) return;
+        const gamepad = controllerGamepad();
+        if (!gamepad) {
+            controllerState.buttons = [];
+            controllerState.lastFrameTime = 0;
+            updateControllerCursor();
+            return;
+        }
+        const elapsedSeconds = controllerState.lastFrameTime ? Math.min(.05, Math.max(.001, (time - controllerState.lastFrameTime) / 1000)) : 1 / 60;
+        controllerState.lastFrameTime = time;
+
+        if (controllerButtonEdge(gamepad, 8)) setControllerMode(controllerState.mode === 'cursor' ? 'control' : 'cursor');
+        if (controllerButtonEdge(gamepad, 9)) controllerState.mode === 'cursor' ? controllerContextAction() : controllerContextForControlMode();
+
+        if (controllerState.mode === 'cursor') {
+            const dpadX = controllerButtonPressed(gamepad, 14) ? -1 : controllerButtonPressed(gamepad, 15) ? 1 : 0;
+            const dpadY = controllerButtonPressed(gamepad, 12) ? -1 : controllerButtonPressed(gamepad, 13) ? 1 : 0;
+            const x = dpadX || controllerAxis(gamepad.axes?.[0]);
+            const y = dpadY || controllerAxis(gamepad.axes?.[1]);
+            const speed = 980;
+            controllerState.x = Math.min(globalThis.innerWidth - 8, Math.max(8, controllerState.x + x * speed * elapsedSeconds));
+            controllerState.y = Math.min(globalThis.innerHeight - 8, Math.max(8, controllerState.y + y * speed * elapsedSeconds));
+            updateControllerCursor();
+            controllerScroll(gamepad, elapsedSeconds);
+            if (controllerButtonEdge(gamepad, 0)) controllerPrimaryAction();
+            if (controllerButtonEdge(gamepad, 4)) controllerContextAction();
+            if (controllerButtonEdge(gamepad, 1)) {
+                close();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+            }
+        } else {
+            // Keep button edge state current without intercepting native mouse/touchpad input.
+            for (const index of [0, 1, 4, 12, 13, 14, 15]) controllerButtonEdge(gamepad, index);
+            updateControllerCursor();
+        }
+        scheduleController();
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:pollController', __javascriptError); controllerState.frame = 0; scheduleController(); }}
+
+    function scheduleController() { try {
+        if (controllerState.frame || document.hidden || !controllerGamepad()) return;
+        controllerState.frame = requestAnimationFrame(pollController);
+     } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:scheduleController', __javascriptError); throw __javascriptError; }}
+
+    globalThis.localGptControllerInput = localGptDiagnostics.guardObject('localGptControllerInput', {
+        getMode: () => controllerState.mode,
+        setMode: mode => setControllerMode(mode),
+        shouldConsumeGameInput: () => controllerState.mode === 'control',
+        openContextAtCursor: () => controllerContextAction(),
+        schedule: () => scheduleController()
+    });
+
     function close() { try {
         const menu = document.getElementById(menuId);
         if (menu) menu.hidden = true;
@@ -28,6 +210,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
      } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:hasTextSelection', __javascriptError); throw __javascriptError; }}
 
     function shouldUseNativeContextMenu(target, event) { try {
+        if (event?.localGptControllerContext === true) return false;
         if (event?.shiftKey || event?.ctrlKey || event?.metaKey) return true;
         if (!(target instanceof Element)) return true;
         if (target.closest(editableSelector) || target.closest(copyableSelector) || hasTextSelection()) return true;
@@ -146,5 +329,25 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
      } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:callback:document.addEventListener@115', __javascriptError); throw __javascriptError; }});
     document.addEventListener('keydown', event => { try { if (event.key === 'Escape') close();  } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:callback:document.addEventListener@118', __javascriptError); throw __javascriptError; }});
     window.addEventListener('blur', close);
-    window.addEventListener('resize', close);
+    window.addEventListener('resize', () => { try {
+        close();
+        controllerState.x = Math.min(globalThis.innerWidth - 8, Math.max(8, controllerState.x));
+        controllerState.y = Math.min(globalThis.innerHeight - 8, Math.max(8, controllerState.y));
+        updateControllerCursor();
+    } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:resize-controller', __javascriptError); throw __javascriptError; }});
+    document.addEventListener('pointermove', event => { try {
+        if (controllerState.mode !== 'cursor' || event.pointerType === 'touch') return;
+        controllerState.x = Math.min(globalThis.innerWidth - 8, Math.max(8, Number(event.clientX) || controllerState.x));
+        controllerState.y = Math.min(globalThis.innerHeight - 8, Math.max(8, Number(event.clientY) || controllerState.y));
+        updateControllerCursor();
+    } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:pointer-sync-controller', __javascriptError); throw __javascriptError; }}, { passive: true });
+    window.addEventListener('gamepadconnected', scheduleController);
+    window.addEventListener('gamepaddisconnected', () => { try { controllerState.buttons = []; updateControllerCursor(); } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:gamepadDisconnected', __javascriptError); throw __javascriptError; }});
+    document.addEventListener('visibilitychange', () => { try {
+        if (document.hidden && controllerState.frame) cancelAnimationFrame(controllerState.frame);
+        controllerState.frame = 0;
+        if (!document.hidden) scheduleController();
+    } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:controllerVisibility', __javascriptError); throw __javascriptError; }});
+    updateControllerCursor();
+    scheduleController();
  } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-context-menu.js:ArrowFunction@2', __javascriptError); throw __javascriptError; }})();

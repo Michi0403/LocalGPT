@@ -501,6 +501,29 @@
         }
     }
 
+    function normalizedGamepadAxis(value, deadzone = .2) {
+        try {
+            const numeric = Number(value) || 0;
+            const magnitude = Math.abs(numeric);
+            if (magnitude <= deadzone) return 0;
+            const normalized = Math.min(1, (magnitude - deadzone) / Math.max(.01, 1 - deadzone));
+            return Math.sign(numeric) * Math.pow(normalized, 1.45);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.normalizedGamepadAxis', error);
+            return 0;
+        }
+    }
+
+    function gamepadRepeatDelay(strength) {
+        try {
+            const normalized = Math.max(0, Math.min(1, Number(strength) || 0));
+            return Math.round(210 - (normalized * 115));
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.gamepadRepeatDelay', error);
+            return 150;
+        }
+    }
+
     function pollGamepad(state) {
         try {
             if (!state || !states.has(state.id)) return;
@@ -509,23 +532,69 @@
             const pad = connectedGamepad();
             if (!pad) {
                 state.previousButtons.clear();
+                state.gamepadNextRepeat = 0;
+                state.gamepadRepeatAction = '';
                 markPressed(state, new Set());
                 return;
             }
+            if (globalThis.localGptControllerInput?.shouldConsumeGameInput?.() === false) {
+                state.previousButtons.clear();
+                state.gamepadNextRepeat = 0;
+                state.gamepadRepeatAction = '';
+                markPressed(state, new Set());
+                scheduleGamepadFrame(state);
+                return;
+            }
+
             const pressed = new Set();
-            const buttonAction = [[0,'use'],[1,'duck'],[2,'choice-1'],[3,'choice-2'],[7,'shoot'],[12,'move-forward'],[13,'move-backward'],[14,'turn-left'],[15,'turn-right']];
-            for (const [index, action] of buttonAction) if (pad.buttons[index]?.pressed) pressed.add(action);
-            const x = pad.axes[0] || 0;
-            const y = pad.axes[1] || 0;
-            const lookX = pad.axes[2] || 0;
-            if (y < -.62) pressed.add('move-forward');
-            if (y > .62) pressed.add('move-backward');
-            if (x < -.62) pressed.add('strafe-left');
-            if (x > .62) pressed.add('strafe-right');
-            if (lookX < -.62) pressed.add('turn-left');
-            if (lookX > .62) pressed.add('turn-right');
+            const discreteActions = [[0,'use'],[1,'duck'],[2,'choice-1'],[3,'choice-2']];
+            for (const [index, action] of discreteActions) if (pad.buttons[index]?.pressed) pressed.add(action);
+
+            const continuous = new Map();
+            const setContinuous = (action, strength) => {
+                if (!action || strength <= 0) return;
+                pressed.add(action);
+                continuous.set(action, Math.max(continuous.get(action) || 0, strength));
+            };
+            if (pad.buttons[7]?.pressed || Number(pad.buttons[7]?.value || 0) > .22)
+                setContinuous('shoot', Math.max(.45, Number(pad.buttons[7]?.value || 0)));
+            if (pad.buttons[12]?.pressed) setContinuous('move-forward', 1);
+            if (pad.buttons[13]?.pressed) setContinuous('move-backward', 1);
+            if (pad.buttons[14]?.pressed) setContinuous('turn-left', 1);
+            if (pad.buttons[15]?.pressed) setContinuous('turn-right', 1);
+
+            const x = normalizedGamepadAxis(pad.axes[0]);
+            const y = normalizedGamepadAxis(pad.axes[1]);
+            const lookX = normalizedGamepadAxis(pad.axes[2]);
+            if (y < 0) setContinuous('move-forward', -y);
+            if (y > 0) setContinuous('move-backward', y);
+            if (x < 0) setContinuous('strafe-left', -x);
+            if (x > 0) setContinuous('strafe-right', x);
+            if (lookX < 0) setContinuous('turn-left', -lookX);
+            if (lookX > 0) setContinuous('turn-right', lookX);
+
             markPressed(state, pressed);
-            for (const action of pressed) if (!state.previousButtons.has(action)) { submit(state, action); break; }
+            let submitted = false;
+            for (const action of pressed) {
+                if (!state.previousButtons.has(action)) {
+                    submit(state, action);
+                    submitted = true;
+                    state.gamepadRepeatAction = action;
+                    state.gamepadNextRepeat = performance.now() + gamepadRepeatDelay(continuous.get(action) || 1);
+                    break;
+                }
+            }
+
+            if (!submitted && continuous.size > 0 && performance.now() >= (state.gamepadNextRepeat || 0)) {
+                const [action, strength] = [...continuous.entries()].sort((left, right) => right[1] - left[1])[0];
+                submit(state, action);
+                state.gamepadRepeatAction = action;
+                state.gamepadNextRepeat = performance.now() + gamepadRepeatDelay(strength);
+            } else if (continuous.size === 0) {
+                state.gamepadRepeatAction = '';
+                state.gamepadNextRepeat = 0;
+            }
+
             state.previousButtons = pressed;
             scheduleGamepadFrame(state);
         } catch (error) {
@@ -622,7 +691,7 @@
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, displayMode:String(element.dataset.displayMode || 'ascii').toLowerCase() === 'pixel' ? 'pixel' : 'ascii', currentFrameText:'', currentFrameColorMode:'TerminalDefault', currentFrameForeground:46, currentFrameBackground:0, currentFrameStyleRuns:[], pixelCanvas:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null, resizeObserver:null };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), gamepadNextRepeat:0, gamepadRepeatAction:'', keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, displayMode:String(element.dataset.displayMode || 'ascii').toLowerCase() === 'pixel' ? 'pixel' : 'ascii', currentFrameText:'', currentFrameColorMode:'TerminalDefault', currentFrameForeground:46, currentFrameBackground:0, currentFrameStyleRuns:[], pixelCanvas:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null, resizeObserver:null };
                 states.set(id, state);
                 attachFollowTail(state);
                 updateDisplayMode(state, state.displayMode);

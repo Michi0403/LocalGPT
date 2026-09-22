@@ -1427,6 +1427,9 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             if (state.overlayDetail instanceof HTMLElement) state.overlayDetail.textContent = 'Deterministic evidence and the processing recommendation are being prepared.';
             if (state.dotNet)
                 await state.dotNet.invokeMethodAsync('ExternalWorkspaceDropAcceptedAsync', workspaceName, Number(payload?.fileCount || files.length));
+            if (state.overlayTitle instanceof HTMLElement) state.overlayTitle.textContent = 'Workspace analysis ready';
+            if (state.overlayDetail instanceof HTMLElement) state.overlayDetail.textContent = 'The files remain quarantined. Review the recommendation before promotion or learning actions.';
+            await new Promise(resolve => window.setTimeout(resolve, 2600));
             return true;
         } catch (error) {
             diagnostics.report('localgpt-chat-ui.uploadWorkspaceDrop', error);

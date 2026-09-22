@@ -693,7 +693,7 @@ dxbl-popup-root > dxbl-popup-cell dxbl-dropdown-dialog[role="listbox"] {
     margin: 0 !important;
 }
 
-/* v4.6.9: PublisherStudio-style Local Chat external-file landing overlay. It is created only during an active file drag and never occupies normal document flow. */
+/* v4.7.0: PublisherStudio-style Local Chat external-file landing overlay. It is created only during an active file drag and never occupies normal document flow. */
 .localgpt-workspace-drop-overlay {
   position: fixed;
   z-index: 2200;
@@ -756,3 +756,10 @@ dxbl-popup-root > dxbl-popup-cell dxbl-dropdown-dialog[role="listbox"] {
   background: color-mix(in srgb, var(--bs-secondary-bg) 86%, transparent);
   opacity: .88;
 }
+
+/* Controller adapter: a visual cursor only for explicit controller cursor mode.
+   Native mouse/touch/Steam Input pointer events remain untouched in every mode. */
+.localgpt-controller-cursor { position:fixed; left:0; top:0; width:1.05rem; height:1.05rem; margin:-.525rem 0 0 -.525rem; border:2px solid var(--bs-primary,#0d6efd); border-radius:50%; box-shadow:0 0 0 2px color-mix(in srgb,var(--bs-body-bg,#111) 72%,transparent),0 0 .8rem color-mix(in srgb,var(--bs-primary,#0d6efd) 60%,transparent); pointer-events:none; z-index:2190; contain:layout paint; }
+.localgpt-controller-cursor::after { content:""; position:absolute; inset:34%; border-radius:50%; background:var(--bs-primary,#0d6efd); }
+.localgpt-controller-cursor[hidden],.localgpt-controller-mode-badge[hidden]{display:none!important}
+.localgpt-controller-mode-badge { position:fixed; right:1rem; bottom:1rem; max-width:min(24rem,calc(100vw - 2rem)); padding:.45rem .7rem; border:1px solid var(--bs-border-color,#495057); border-radius:.65rem; background:color-mix(in srgb,var(--bs-body-bg,#111) 94%,transparent); color:var(--bs-body-color,#fff); box-shadow:0 .35rem 1.4rem rgba(0,0,0,.2); font-size:.82rem; font-weight:700; pointer-events:none; z-index:2189; }

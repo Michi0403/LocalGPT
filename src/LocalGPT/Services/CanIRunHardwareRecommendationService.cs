@@ -119,7 +119,7 @@ public sealed class CanIRunHardwareRecommendationService(
                 {
                     Content = new StringContent(requestJson, Encoding.UTF8, JsonMediaType)
                 };
-                request.Headers.UserAgent.ParseAdd("LocalGPT/4.6.9 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
+                request.Headers.UserAgent.ParseAdd("LocalGPT/4.7.1 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
                 var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 if ((int)response.StatusCode is < 300 or >= 400)
                     return response;
@@ -466,7 +466,7 @@ public sealed class CanIRunHardwareRecommendationService(
                 using var request = new HttpRequestMessage(method, currentUri);
                 if (requestJson is not null)
                     request.Content = new StringContent(requestJson, Encoding.UTF8, JsonMediaType);
-                request.Headers.UserAgent.ParseAdd("LocalGPT/4.6.9 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
+                request.Headers.UserAgent.ParseAdd("LocalGPT/4.7.1 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
                 var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 if ((int)response.StatusCode is < 300 or >= 400)
                     return response;

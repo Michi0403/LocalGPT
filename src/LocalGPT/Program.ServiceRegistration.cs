@@ -153,6 +153,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IRegexCuratorService, RegexCuratorService>();
                 builder.Services.AddSingleton<IProjectEvidenceClassifierService, ProjectEvidenceClassifierService>();
                 builder.Services.AddScoped<IProjectIngestionService, ProjectIngestionService>();
+                builder.Services.AddSingleton<IUploadFileProcessingCapabilityService, UploadFileProcessingCapabilityService>();
                 builder.Services.AddScoped<IUploadProcessingRecommendationService, UploadProcessingRecommendationService>();
                 builder.Services.AddScoped<IProjectBlobReconstructionService, ProjectBlobReconstructionService>();
                 builder.Services.AddScoped<IOneWireCouncilHostEnrollmentService, OneWireCouncilHostEnrollmentService>();
@@ -234,6 +235,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
                 builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
                 builder.Services.AddScoped<ILearningProjectWorkspaceSyncService, LearningProjectWorkspaceSyncService>();
+                builder.Services.AddScoped<IProjectRepositoryLearningService, ProjectRepositoryLearningService>();
                 builder.Services.AddScoped<ILearningRoundService, LearningRoundService>();
                 builder.Services.AddScoped<ILocalGptProjectService, LocalGptProjectService>();
                 builder.Services.AddScoped<IGameProjectService, GameProjectService>();
@@ -314,6 +316,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IPublisherInteractionDxSupport, PublisherInteractionDxSupport>();
                 builder.Services.AddSingleton<IOneWireRuntimeSecurityService, OneWireRuntimeSecurityService>();
                 builder.Services.AddSingleton<ILocalVisionOcrService, LocalVisionOcrService>();
+                builder.Services.AddSingleton<IWorkspaceVisionOcrService, WorkspaceVisionOcrService>();
                 builder.Services.AddSingleton<IOneWirePeerRegistry, OneWirePeerRegistry>();
                 builder.Services.AddSingleton<IOneWireConnectionRegistry, OneWireConnectionRegistry>();
                 builder.Services.AddSingleton<IOneWireReplayPolicyDataService, OneWireReplayPolicyDataService>();

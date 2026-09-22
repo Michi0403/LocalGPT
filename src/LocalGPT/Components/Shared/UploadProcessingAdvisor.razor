@@ -27,6 +27,10 @@
                     <DxFormLayoutItem Caption="Detected domains" ColSpanMd="12"><span>@JoinOrFallback(recommendation.Domains, "No approved domain rule matched yet")</span></DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Project / data kinds" ColSpanMd="12"><span>@JoinOrFallback(recommendation.ProjectKinds, "No approved project/data kind matched yet")</span></DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Toolchains / processors" ColSpanMd="12"><span>@JoinOrFallback(recommendation.Toolchains, "No approved toolchain/processor rule matched yet")</span></DxFormLayoutItem>
+                    @if (recommendation.Repositories.Count > 0)
+                    {
+                        <DxFormLayoutItem Caption="Repository" ColSpanMd="12"><span>@RepositorySummary</span></DxFormLayoutItem>
+                    }
                 </DxFormLayout>
 
                 <div class="upload-processing-recommendation-card">
@@ -69,6 +73,33 @@
                                 </div>
                             </ContentTemplate>
                         </DxAccordionItem>
+                        @if (recommendation.ProcessingRoutes.Count > 0)
+                        {
+                            <DxAccordionItem Text="Available processors">
+                                <ContentTemplate>
+                                    <ul>
+                                        @foreach (var route in recommendation.ProcessingRoutes.Take(40))
+                                        {
+                                            <li><strong>@route.Processor</strong> · <code>@route.RelativePath</code> · @(route.IsAvailable ? "available" : "unavailable")@(string.IsNullOrWhiteSpace(route.CapabilityKey) ? string.Empty : $" · {route.CapabilityKey}")<br /><small>@route.Reason</small></li>
+                                        }
+                                    </ul>
+                                </ContentTemplate>
+                            </DxAccordionItem>
+                        }
+                        @if (recommendation.Repositories.Count > 0)
+                        {
+                            <DxAccordionItem Text="Detected repository structure">
+                                <ContentTemplate>
+                                    <ul>
+                                        @foreach (var repository in recommendation.Repositories.Take(12))
+                                        {
+                                            <li><strong>@repository.Name</strong>@(string.IsNullOrWhiteSpace(repository.Version) ? string.Empty : $" · {repository.Version}") · @repository.Kind · @(repository.GitMetadataDetected ? "Git metadata present" : "source markers") · <code>@repository.RootHint</code></li>
+                                        }
+                                    </ul>
+                                    <small>After explicit promotion, LocalGPT preserves the repository root, compares the new canonical source revision with the previous one, and stages source/delta Knowledge plus repository regex candidates for review.</small>
+                                </ContentTemplate>
+                            </DxAccordionItem>
+                        }
                         <DxAccordionItem Text="Independent review state">
                             <ContentTemplate>
                                 <p>@ApprovedReviewCount of @gate.RequiredIndependentApprovals required independent approvals are present.</p>
@@ -120,6 +151,9 @@
     private bool CanUseSuggestedTeam => CanUseRecommendation && !string.IsNullOrWhiteSpace(recommendation?.SuggestedTeamKey);
     private bool CanRequestReview => CanUseRecommendation && gate?.DeterministicChecksPassed == true && gate.Status == "AwaitingIndependentReview";
     private bool CanPromote => !busy && gate?.Status == "AwaitingUserApproval" && gate.DeterministicChecksPassed && ApprovedReviewCount >= Math.Max(1, gate.RequiredIndependentApprovals);
+    private string RepositorySummary => recommendation is null
+        ? string.Empty
+        : JoinOrFallback(recommendation.Repositories.Select(repository => $"{repository.Name}{(string.IsNullOrWhiteSpace(repository.Version) ? string.Empty : $" {repository.Version}")}{(repository.GitMetadataDetected ? " · Git" : string.Empty)}"), "No repository identity detected");
 
     /// <summary>Connects this invisible advisor to the browser-owned drag/drop landing surface after InteractiveServer attaches.</summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -280,7 +314,7 @@
         {
             SetBusy(true, "Promoting reviewed files…", "Only now are approved archives extracted into the promoted workspace. Hash/path/size boundaries remain authoritative.");
             gate = await ProjectIngestion.PromoteAsync(gate.WorkspaceName, true).ConfigureAwait(false);
-            statusText = $"Workspace promoted to {gate.PromotedRoot}. Project synchronization has been started through the existing maintenance pipeline.";
+            statusText = $"Workspace promoted to {gate.PromotedRoot}. Canonical project synchronization completed and source snapshot/delta Knowledge plus repository regex candidates were staged for review where repository evidence was detected.";
         }
         catch (Exception ex)
         {
@@ -333,6 +367,23 @@
             Domains = source.Domains.ToList(),
             ProjectKinds = source.ProjectKinds.ToList(),
             Toolchains = source.Toolchains.ToList(),
+            Repositories = source.Repositories.Select(repository => new RepositoryEvidenceIdentity
+            {
+                Kind = repository.Kind,
+                Name = repository.Name,
+                Version = repository.Version,
+                RootHint = repository.RootHint,
+                GitMetadataDetected = repository.GitMetadataDetected,
+                Markers = repository.Markers.ToList()
+            }).ToList(),
+            ProcessingRoutes = source.ProcessingRoutes.Select(route => new UploadFileProcessingRoute
+            {
+                RelativePath = route.RelativePath,
+                Processor = route.Processor,
+                CapabilityKey = route.CapabilityKey,
+                IsAvailable = route.IsAvailable,
+                Reason = route.Reason
+            }).ToList(),
             Evidence = source.Evidence.ToList(),
             KnowledgeReferences = source.KnowledgeReferences.ToList(),
             AlternativeActions = source.AlternativeActions.ToList()

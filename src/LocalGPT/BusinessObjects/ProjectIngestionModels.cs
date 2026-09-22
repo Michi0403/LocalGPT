@@ -39,6 +39,7 @@ public sealed class ProjectIngestionGateRecord
     public List<string> MatchedEvidenceRules { get; set; } = [];
     public List<string> ApprovedKnowledgeHints { get; set; } = [];
     public List<string> RejectionReasons { get; set; } = [];
+    public List<RepositoryEvidenceIdentity> Repositories { get; set; } = [];
     public List<ProjectIngestionReviewEvidence> Reviews { get; set; } = [];
     public int RequiredIndependentApprovals { get; set; } = 2;
     public bool DeterministicChecksPassed { get; set; }
@@ -56,13 +57,25 @@ public sealed class ProjectIngestionReviewRequest
 }
 
 
-/// <summary>Data-driven classification result produced from curator-approved project-evidence regex rules.</summary>
+/// <summary>Describes one repository identity inferred from bounded technical markers without executing uploaded content.</summary>
+public sealed class RepositoryEvidenceIdentity
+{
+    public string Kind { get; set; } = "Repository";
+    public string Name { get; set; } = string.Empty;
+    public string Version { get; set; } = string.Empty;
+    public string RootHint { get; set; } = string.Empty;
+    public bool GitMetadataDetected { get; set; }
+    public List<string> Markers { get; set; } = [];
+}
+
+/// <summary>Data-driven classification result produced from curator-approved rules plus bounded repository identity markers.</summary>
 public sealed class ProjectEvidenceClassification
 {
     public List<string> Domains { get; set; } = [];
     public List<string> ProjectKinds { get; set; } = [];
     public List<string> Toolchains { get; set; } = [];
     public List<string> MatchedRuleNames { get; set; } = [];
+    public List<RepositoryEvidenceIdentity> Repositories { get; set; } = [];
 }
 
 /// <summary>One file declared for bounded hash-verified blob reconstruction.</summary>

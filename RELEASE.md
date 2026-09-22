@@ -1,9 +1,7 @@
-# LocalGPT 4.6.9
+# LocalGPT 4.7.1
 
-LocalGPT 4.6.9 replaces the permanent `/chat` Upload advisor panel with an idle-invisible external-file drag/drop landing surface modeled on the existing PublisherStudio interaction pattern.
+LocalGPT 4.7.1 is a focused build-policy repair release for the 4.7.0 repository/OCR/controller feature set.
 
-Nothing is added to normal Chat document flow while the user is not dragging files. During an external file drag, a temporary viewport overlay is positioned over the Local Chat surface. A completed drop is streamed through a dedicated bounded multipart endpoint into the existing LocalGPT quarantine workspace service. The existing Chat paperclip attachment path remains separate and unchanged.
+The bounded workspace OCR service now normalizes the configured Ollama host before constructing its URI, satisfying the repository system-variable-initialization guard without weakening the guard or moving OCR ownership out of the service layer. Repository intake, review-gated Knowledge/regex learning, PublisherStudio capability routing, idle-invisible drag/drop and additive Control/Cursor controller behavior are otherwise preserved from 4.7.0.
 
-After quarantine succeeds, the existing ingestion inspection and recommendation workflow runs and only then opens the review popup. The drop itself does not promote, build, publish, teach Knowledge or execute uploaded material; those existing gates remain authoritative.
-
-The 4.6.8 Kernel Creature Tournament, ASCII/Pixel, rejoin and terminal-layout repairs are preserved. PublisherStudio is unchanged in this release.
+See `CHANGELOG-v4.7.1-BUILD-POLICY-REPAIR.md` and `VALIDATION-v4.7.1-source.md`.

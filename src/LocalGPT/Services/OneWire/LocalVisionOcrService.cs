@@ -128,16 +128,27 @@ public sealed class LocalVisionOcrService(
 
             if (!string.IsNullOrWhiteSpace(requestedModel))
             {
-                var exact = configured.FirstOrDefault(item => string.Equals(item.ModelName, requestedModel.Trim(), StringComparison.OrdinalIgnoreCase));
+                var normalizedRequestedModel = requestedModel.Trim();
+                var exact = configured.FirstOrDefault(item => string.Equals(item.ModelName, normalizedRequestedModel, StringComparison.OrdinalIgnoreCase));
                 if (exact is not null)
                     return exact;
+
+                // OCR is a model-level capability of an Ollama host. A user should not have to replace the
+                // primary Chat model merely to invoke an already-installed OCR model on that same host.
+                var host = configured.First();
+                return new OllamaCoreOptions
+                {
+                    Uri = host.Uri,
+                    ModelName = normalizedRequestedModel,
+                    ResponseProtocol = host.ResponseProtocol
+                };
             }
 
             return configured.FirstOrDefault(item =>
                        item.ModelName.Contains("ocr", StringComparison.OrdinalIgnoreCase) ||
                        item.ModelName.Contains("vision", StringComparison.OrdinalIgnoreCase))
                    ?? throw new InvalidOperationException(
-                       "No OCR/vision model is configured. Add DeepSeek OCR or another Ollama-compatible vision model in LocalGPT settings.");
+                       "No OCR/vision model is configured. Request an installed OCR model such as deepseek-ocr explicitly, or configure an OCR/vision model in LocalGPT settings.");
         }
         catch (Exception exception)
         {
