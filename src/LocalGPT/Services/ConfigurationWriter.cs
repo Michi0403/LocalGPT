@@ -40,6 +40,7 @@ namespace LocalGPT.Services
 
                 SetSection(settings, nameof(root.LoggingCore), root.LoggingCore, serializerOptions);
                 SetSection(settings, nameof(root.PythonCore), root.PythonCore, serializerOptions);
+                SetSection(settings, nameof(root.ToolchainEnvironment), root.ToolchainEnvironment, serializerOptions);
                 SetSection(settings, nameof(root.ConnectionStringsCore), root.ConnectionStringsCore, serializerOptions);
                 SetSection(settings, nameof(root.AICore), root.AICore, serializerOptions);
                 SetSection(settings, nameof(root.LocalGPT), root.LocalGPT, serializerOptions);

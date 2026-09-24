@@ -481,10 +481,25 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshAsync()
     {
+        if (isDisposed)
+            return;
+
+        CancellationToken lifetimeToken;
+        try
+        {
+            lifetimeToken = lifetimeCts.Token;
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            return;
+        }
+
         try
         {
             snapshot = await Collaboration.GetSnapshotAsync(includeResolved: true, take: 80).ConfigureAwait(false);
-            var activeGames = await Games.ListAsync(includeCompleted: false, lifetimeCts.Token).ConfigureAwait(false);
+            if (isDisposed)
+                return;
+            var activeGames = await Games.ListAsync(includeCompleted: false, lifetimeToken).ConfigureAwait(false);
             asciiGameCouncilRunIds = activeGames
                 .Where(game => game.CouncilRunId.HasValue)
                 .Select(game => game.CouncilRunId!.Value)
@@ -507,6 +522,14 @@
             foreach (var request in snapshot.Requests)
                 editors.TryAdd(request.Id, CreateEditor(request));
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested || isDisposed)
+        {
+            // The owning circuit is shutting down; a queued refresh may finish after disposal begins.
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            // The lifetime source was disposed by the circuit while this refresh was awaiting service work.
         }
         catch (Exception ex)
         {

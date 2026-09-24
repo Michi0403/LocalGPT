@@ -94,6 +94,8 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
             ArchitectureContracts = DefaultArchitectureContracts()
         },
         CreateInitialSetupAssistantTeam(),
+        CreateWhisperAssistantTeam(),
+        CreateDynamicWebResearchTeam(),
         CreateAdaptiveBenchmarkTeam(),
         CreateGameProjectDiscoveryTeam(),
         CreateGameProjectDevelopmentTeam(),
@@ -357,7 +359,7 @@ VOICE: <one short in-character arena line>
 {{RoleBoundaryInstruction}}
 {{RoleLanguageInstruction}}
 
-Read the resolved Trainer selection and Creature introduction results already present in the Council transcript. Build a short terminal-safe team reveal for every trainer/creature pair. A trainer image is a fictional arena avatar/emblem inspired only by that AI role and its creature; never claim it is a real person's likeness. Show the team-building progression with 2 to 4 complete pregenerated ASCII frames. Each frame must be at most 72 columns by 16 rows, use printable ASCII only, and keep every trainer and paired creature recognizable between frames. Do not assign HP, damage, status, elimination, winner or bracket state. Do not call tools and do not explain your process.
+Read the resolved Trainer selection and Creature introduction results already present in the Council transcript. Build a short terminal-safe team reveal for every trainer/creature pair. A trainer image is a fictional arena avatar/emblem inspired only by that AI role and its creature; never claim it is a real person's likeness. Show the team-building progression with 2 to 4 complete pregenerated ASCII frames. Each frame must be at most 96 columns by 24 rows, use printable ASCII only, and keep every trainer and paired creature recognizable between frames. Give the reveal its own original terminal HUD language, emblemography and framing rather than repeating a fixed template. Do not assign HP, damage, status, elimination, winner or bracket state. Do not call tools and do not explain your process.
 
 Output only 2 to 4 fenced text blocks, one complete frame per block, in display order:
 ```text
@@ -372,8 +374,8 @@ Output only 2 to 4 fenced text blocks, one complete frame per block, in display 
                     IncludePriorTranscript = true,
                     ProducesFinalAnswer = false,
                     ProducesAsciiFrame = true,
-                    AsciiFrameWidth = 72,
-                    AsciiFrameHeight = 16,
+                    AsciiFrameWidth = 96,
+                    AsciiFrameHeight = 24,
                     UseBuiltInBehavior = false,
                     IsEnabled = true,
                     RequiresHumanCheckpoint = false,
@@ -420,8 +422,9 @@ TRAINER_ACTION: FOCUS|BRACE|REST|SWITCH|NONE
 SWITCH: <reserve creature name when TRAINER_ACTION is SWITCH, otherwise blank>
 TACTIC: <one short tactical intention>
 VOICE: <one short trainer line>
+HUD: <one new compact printable-ASCII arena HUD motif for this exchange, 6-32 characters>
 """,
-                    ExecutionMode = "AllMembersSequentialOnEachAIHostParallel",
+                    ExecutionMode = "AllMembersParallel",
                     RepeatCount = 1,
                     IncludePriorTranscript = true,
                     ProducesFinalAnswer = false,
@@ -450,8 +453,9 @@ Battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the lat
 MOVE: ATTACK|GUARD|RECOVER|WAIT
 FLAVOR: <one short terminal-safe visual action description>
 VOICE: <one short in-character line>
+EFFECT: <one new compact printable-ASCII motion/effect motif matching the move, 4-24 characters>
 """,
-                    ExecutionMode = "AllMembersSequentialOnEachAIHostParallel",
+                    ExecutionMode = "AllMembersParallel",
                     RepeatCount = 1,
                     IncludePriorTranscript = true,
                     ProducesFinalAnswer = false,

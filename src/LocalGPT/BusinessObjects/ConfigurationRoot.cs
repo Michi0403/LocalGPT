@@ -26,6 +26,11 @@ namespace LocalGPT.BusinessObjects
         /// <value>The python core value exposed by <see cref="ConfigurationRoot"/>.</value>
         public PythonCoreOptions? PythonCore { get; set; }
         /// <summary>
+        /// Gets or sets the LocalGPT-owned toolchain environment overrides shown and edited by the Toolchains workbench.
+        /// </summary>
+        /// <value>The toolchain environment configuration.</value>
+        public ToolchainEnvironmentOptions? ToolchainEnvironment { get; set; }
+        /// <summary>
         /// Gets or sets the connection strings core value that forms part of the configuration root state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The connection strings core value exposed by <see cref="ConfigurationRoot"/>.</value>

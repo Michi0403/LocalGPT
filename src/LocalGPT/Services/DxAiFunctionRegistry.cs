@@ -19,6 +19,7 @@ namespace LocalGPT.Services;
 /// <param name="handlerMapService">Devexpress ai function handler map service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="userFunctions">User devexpress ai function service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePlugins">Runtime plugin service dependency used to expose persisted runtime-extension functions through the central DevExpress AI function registry.</param>
 public sealed class DxAiFunctionRegistry(
     IServiceProvider serviceProvider,
     IHumanCollaborationService humanCollaboration,
@@ -28,6 +29,7 @@ public sealed class DxAiFunctionRegistry(
     ILocalGptVocabularyService vocabulary,
     DxAiFunctionHandlerMapService handlerMapService,
     IUserDxAiFunctionService userFunctions,
+    IRuntimePluginService runtimePlugins,
     ILogger<DxAiFunctionRegistry> logger) : IDxAiFunctionRegistry
 {
     // Resolve handlers only after the scoped registry has been constructed. One handler intentionally
@@ -52,6 +54,7 @@ public sealed class DxAiFunctionRegistry(
             var functions = handlersByName.Value.Values
                 .Select(handler => handler.Descriptor)
                 .Concat(userFunctions.GetDescriptors())
+                .Concat(runtimePlugins.GetDescriptors())
                 .GroupBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.Count() == 1
                     ? group.Single()
@@ -98,12 +101,20 @@ public sealed class DxAiFunctionRegistry(
 
         handlersByName.Value.TryGetValue(functionName, out var handler);
         DxaichatFunctionInfo descriptor;
-        var isUserFunction = handler is null;
+        var runtimeSource = handler is not null ? "Handler" : string.Empty;
         if (handler is not null)
         {
             descriptor = handler.Descriptor;
         }
-        else if (!userFunctions.TryGetDescriptor(functionName, out descriptor!))
+        else if (userFunctions.TryGetDescriptor(functionName, out descriptor!))
+        {
+            runtimeSource = "UserFunction";
+        }
+        else if (runtimePlugins.TryGetDescriptor(functionName, out descriptor!))
+        {
+            runtimeSource = "RuntimePlugin";
+        }
+        else
         {
             logger.LogWarning("Rejected unknown DXAIFunction {FunctionName}.", functionName);
             return new DxAiFunctionInvocationResult
@@ -111,22 +122,7 @@ public sealed class DxAiFunctionRegistry(
                 FunctionName = functionName,
                 OperationId = operationId,
                 Status = "NotFound",
-                Error = "No registered DXAIFunction or enabled user-owned function exists with this name."
-            };
-        }
-        if (request.AutomaticInvocation &&
-            (descriptor.RequiresHumanConfirmation
-                ? !descriptor.SupportsDeferredApprovalRequest || !descriptor.SupportsDirectInvocation
-                : !descriptor.SupportsAutomaticInvocation ||
-                  (!descriptor.IsReadOnly && !descriptor.IsCoordinationOnly)))
-        {
-            logger.LogWarning("Rejected automatic invocation of DXAIFunction {FunctionName}; it is neither automatic-safe nor eligible for an exact deferred approval request.", functionName);
-            return new DxAiFunctionInvocationResult
-            {
-                FunctionName = functionName,
-                OperationId = operationId,
-                Status = "AutomaticInvocationDenied",
-                Error = "This function cannot be invoked automatically. Present its proposed action to the current user instead."
+                Error = "No registered DXAIFunction, enabled user-owned function, or enabled runtime extension exists with this name."
             };
         }
         if (!descriptor.SupportsDirectInvocation)
@@ -140,6 +136,38 @@ public sealed class DxAiFunctionRegistry(
                 Error = "This function is discoverable but cannot be invoked through the generic dispatcher."
             };
         }
+        DxAiFunctionCatalogEntry? catalogPolicy = null;
+        try
+        {
+            var catalog = serviceProvider.GetService<IDxAiFunctionCatalogService>();
+            if (catalog is not null)
+                catalogPolicy = await catalog.GetByFunctionNameAsync(functionName, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // The runtime descriptor remains a safe fallback if catalog initialization is still catching up.
+            // Consequential calls are never made automatic-safe by this fallback.
+            logger.LogWarning(exception, "Could not read persisted DXAIFunction policy for {FunctionName}; descriptor safety defaults will be used.", functionName);
+        }
+
+        if (catalogPolicy is not null &&
+            (!catalogPolicy.IsAvailable || !catalogPolicy.IsEnabled || !catalogPolicy.ExposeToAiChat))
+        {
+            logger.LogInformation("Rejected DXAIFunction {FunctionName} because the user-owned catalog policy disables AI-chat invocation.", functionName);
+            return new DxAiFunctionInvocationResult
+            {
+                FunctionName = functionName,
+                OperationId = operationId,
+                Status = "DisabledByUserPolicy",
+                Error = "This function is disabled for AI chat by the current LocalGPT permission policy."
+            };
+        }
+
+        var requiresHumanConfirmation = catalogPolicy?.RequiresFrontendConfirmation
+            ?? descriptor.RequiresHumanConfirmation
+            || (!descriptor.IsReadOnly && !descriptor.IsCoordinationOnly)
+            || (request.AutomaticInvocation && !descriptor.SupportsAutomaticInvocation);
+
         var parameterValidationError = ValidateInvocationParameters(descriptor, request.Parameters);
         if (!string.IsNullOrWhiteSpace(parameterValidationError))
         {
@@ -154,7 +182,7 @@ public sealed class DxAiFunctionRegistry(
         }
 
         IDisposable? approvalScope = null;
-        if (descriptor.RequiresHumanConfirmation)
+        if (requiresHumanConfirmation)
         {
             var parameterFingerprint = BuildInvocationFingerprint(functionName, request);
             var correlationId = string.IsNullOrWhiteSpace(request.ConfirmationSummaryHash)
@@ -194,8 +222,7 @@ public sealed class DxAiFunctionRegistry(
 
             if (!gate.IsAuthorized)
             {
-                if (request.AutomaticInvocation &&
-                    descriptor.SupportsDeferredApprovalRequest &&
+                if ((request.AutomaticInvocation || descriptor.SupportsDeferredApprovalRequest) &&
                     gate.RequestId is Guid pendingApprovalRequestId)
                 {
                     await deferredInvocations.QueueAsync(
@@ -219,7 +246,7 @@ public sealed class DxAiFunctionRegistry(
                         gate.RequestId,
                         gate.CorrelationId,
                         RetryAfterApproval = true,
-                        DeferredExecutionAvailable = request.AutomaticInvocation && descriptor.SupportsDeferredApprovalRequest
+                        DeferredExecutionAvailable = request.AutomaticInvocation || descriptor.SupportsDeferredApprovalRequest
                     }
                 };
             }
@@ -242,9 +269,12 @@ public sealed class DxAiFunctionRegistry(
 
         try
         {
-            var result = isUserFunction
-                ? await userFunctions.InvokeAsync(functionName, request, cancellationToken).ConfigureAwait(false)
-                : await handler!.InvokeAsync(request, cancellationToken).ConfigureAwait(false);
+            var result = runtimeSource switch
+            {
+                "UserFunction" => await userFunctions.InvokeAsync(functionName, request, cancellationToken).ConfigureAwait(false),
+                "RuntimePlugin" => await runtimePlugins.InvokeAsync(functionName, request, cancellationToken).ConfigureAwait(false),
+                _ => await handler!.InvokeAsync(request, cancellationToken).ConfigureAwait(false)
+            };
             result.FunctionName = functionName;
             result.OperationId = operationId;
             logger.LogInformation(

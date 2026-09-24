@@ -19,6 +19,13 @@
 @inject IFeaturePersistenceService FeaturePersistence
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 @inject ILocalGptApplicationPathService ApplicationPaths
+@inject ILocalAiRuntimeService LocalAiRuntime
+@inject ILocalAiAcquisitionService LocalAiAcquisition
+@inject IHuggingFaceModelCatalogService HuggingFaceCatalog
+@inject IToolchainEnvironmentService ToolchainEnvironment
+@inject IToolchainAcquisitionService ToolchainAcquisition
+@inject IToolchainExecutionProfileService ToolchainExecutionProfiles
+@inject IRuntimePluginService RuntimePlugins
 
 <PageTitle>AI Setup</PageTitle>
 
@@ -699,10 +706,176 @@
                 @T("Install.Toolchains.CustomRoots", "Additional search roots (one path per line)")
                 <DxMemo @bind-Text="ToolchainSearchRoots" Rows="3" NullText="/opt/custom-toolchains&#10;C:\Toolchains" />
             </label>
+            <details class="provider-install-guide">
+                <summary><strong>Manual / custom compiler</strong> · configure any executable LocalGPT did not discover</summary>
+                <p class="field-help">Autodiscovery covers the maintained common profiles, including .NET, Java/JDK, Maven/Gradle, Python, Node.js, PowerShell, GCC/G++, Clang/LLVM, CMake, Rust/Cargo, Go, PlatformIO and Arduino CLI. For vendor SDKs, alternate C/C++ toolchains, cross-compilers or private runtimes, save the executable directly here. The same persisted profile is then available to Project Maintenance, process profiles and runtime extensions.</p>
+                <div class="toolchain-environment-editor-grid">
+                    <label>Name<DxTextBox @bind-Text="ManualToolchainName" NullText="ARM GCC 14 / custom SDK" /></label>
+                    <label>Language / family<DxTextBox @bind-Text="ManualToolchainLanguage" NullText="Cpp, DotNet, JavaScript, Custom..." /></label>
+                    <label class="local-ai-runtime-policy-wide">Executable path<DxTextBox @bind-Text="ManualToolchainExecutablePath" NullText="Absolute path to compiler/runtime executable" /></label>
+                    <label>Optional home path<DxTextBox @bind-Text="ManualToolchainHomePath" NullText="SDK/toolchain root" /></label>
+                    <label>Kind<DxTextBox @bind-Text="ManualToolchainKind" NullText="compiler, runtime, sdk, build-tool..." /></label>
+                    <label>Validation arguments<DxTextBox @bind-Text="ManualToolchainValidationArguments" NullText="--version" /></label>
+                    <label>Optional knowledge profile key<DxTextBox @bind-Text="ManualToolchainKnowledgeProfileKey" NullText="custom-vendor-sdk" /></label>
+                    <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="ManualToolchainDefault" /> Default for this language/family</label>
+                    <DxButton Text="Save custom toolchain" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!IsToolchainBusy && !string.IsNullOrWhiteSpace(ManualToolchainName) && !string.IsNullOrWhiteSpace(ManualToolchainLanguage) && !string.IsNullOrWhiteSpace(ManualToolchainExecutablePath))" Click="SaveManualToolchainAsync" />
+                </div>
+            </details>
+
             @if (!string.IsNullOrWhiteSpace(ToolchainStatus))
             {
                 <div class="installer-status-line"><span>@ToolchainStatus</span></div>
             }
+            @if (!string.IsNullOrWhiteSpace(ToolchainRuntimeStatus))
+            {
+                <div class="installer-status-line"><span>@ToolchainRuntimeStatus</span></div>
+            }
+
+            <details class="provider-install-guide" open>
+                <summary><strong>Python for embedded AI</strong> · discovery and LocalGPT-managed environment</summary>
+                <p class="field-help">The Python finder and linker live with the other toolchains. Discovery uses the same local knowledge profiles as .NET, Node.js, Java and native tools. Linking Python does not require a machine-wide PATH rewrite.</p>
+                <div class="toolchain-actions">
+                    <DxButton Text="Discover Python runtimes" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy && !ToolchainRuntimeBusy)" Click="DiscoverLocalAiPythonAsync" />
+                    <DxButton Text="Create managed Python environment + core" Enabled="@(!LocalAiBusy && !ToolchainRuntimeBusy)" Click="CreateLocalAiEnvironmentAsync" />
+                    <DxButton Text="Refresh toolchain helpers" Enabled="@(!ToolchainRuntimeBusy)" Click="RefreshToolchainRuntimeManagementAsync" />
+                </div>
+                @if (LocalAiPythonCandidates.Count > 0)
+                {
+                    <div class="toolchain-grid local-ai-candidate-grid">
+                        @foreach (var candidate in LocalAiPythonCandidates)
+                        {
+                            <article class="toolchain-card">
+                                <header><div><h4>Python @candidate.Version</h4><small>@candidate.DiscoverySource</small></div></header>
+                                <code>@candidate.ExecutablePath</code>
+                                <small>Home: @candidate.PythonHome</small>
+                                <small>CPython shared runtime: @(candidate.RuntimeLibraryDetected ? candidate.PythonRuntimeLibrary : "not resolved")</small>
+                                <DxButton Text="Use this Python for Local AI" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy && !ToolchainRuntimeBusy && candidate.RuntimeLibraryDetected)" Click="@(() => SelectLocalAiPythonAsync(candidate))" />
+                            </article>
+                        }
+                    </div>
+                }
+            </details>
+
+            <details class="provider-install-guide" open>
+                <summary><strong>Reviewed online acquisition</strong> · direct manufacturer/GitHub downloads, never auto-executed</summary>
+                <p class="field-help">LocalGPT can download reviewed toolchain artifacts directly over HTTPS without GitHub CLI. Python, .NET and Node.js are first-class entries; additional upstream source archives are available for build tools. Downloads require approval and are never executed automatically.</p>
+                <div class="toolchain-grid toolchain-acquisition-grid">
+                    @foreach (var source in ToolchainAcquisitionSources)
+                    {
+                        <article class="toolchain-card @(source.SupportedOnCurrentPlatform ? string.Empty : "toolchain-card-muted")">
+                            <header><div><h4>@source.DisplayName</h4><small>@source.Publisher · @source.SourceKind · @source.Version</small></div></header>
+                            <small>Profile: <code>@source.ProfileKey</code> · target: @source.Platform</small>
+                            <code>@source.DownloadUri</code>
+                            <p>@source.InstallHint</p>
+                            <DxButton Text="Download reviewed artifact" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!ToolchainRuntimeBusy && source.SupportedOnCurrentPlatform)" Click="@(() => DownloadToolchainSourceAsync(source))" />
+                        </article>
+                    }
+                </div>
+            </details>
+
+            <details class="provider-install-guide" open>
+                <summary><strong>Reusable process profiles</strong> · database-backed runtime commands and AI capability bindings</summary>
+                <p class="field-help">Profiles bind a registered toolchain to a module, script or executable without a command shell. Python/Whisper, .NET, Java/Maven, Node.js, C/C++, Go and custom executables use the same persisted contract. AI functions can list, save and run these profiles through the normal approval/permission UI.</p>
+                <div class="toolchain-environment-editor-grid">
+                    <label>Profile key
+                        <DxTextBox @bind-Text="ToolchainProfileKey" NullText="speech.whisper" />
+                    </label>
+                    <label>Name
+                        <DxTextBox @bind-Text="ToolchainProfileName" NullText="Whisper transcription" />
+                    </label>
+                    <label>Capability
+                        <DxTextBox @bind-Text="ToolchainProfileCapability" NullText="speech.transcribe" />
+                    </label>
+                    <label>Execution kind
+                        <DxComboBox Data="@ToolchainExecutionKinds" @bind-Value="ToolchainProfileExecutionKind" />
+                    </label>
+                    <label>Toolchain installation
+                        <DxComboBox Data="@CompilerInstallations" TextFieldName="@nameof(ProjectCompilerInstallation.Name)" ValueFieldName="@nameof(ProjectCompilerInstallation.Id)" @bind-Value="ToolchainProfileInstallationId" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
+                    </label>
+                    <label>Module / script / executable entry point
+                        <DxTextBox @bind-Text="ToolchainProfileEntryPoint" NullText="whisper" />
+                    </label>
+                    <label>Working directory
+                        <DxTextBox @bind-Text="ToolchainProfileWorkingDirectory" NullText="optional" />
+                    </label>
+                    <label>Arguments JSON array
+                        <DxMemo @bind-Text="ToolchainProfileArgumentsJson" Rows="2" />
+                    </label>
+                    <label>Environment JSON object
+                        <DxMemo @bind-Text="ToolchainProfileEnvironmentJson" Rows="2" />
+                    </label>
+                    <label>Capability configuration JSON
+                        <DxMemo @bind-Text="ToolchainProfileConfigurationJson" Rows="3" />
+                    </label>
+                    <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="ToolchainProfileIsDefault" /> Default for capability</label>
+                    <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="ToolchainProfileRequiresApproval" /> Require approval before execution</label>
+                    <DxButton Text="Save process profile" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!ToolchainRuntimeBusy && !string.IsNullOrWhiteSpace(ToolchainProfileKey) && !string.IsNullOrWhiteSpace(ToolchainProfileName))" Click="SaveToolchainExecutionProfileAsync" />
+                </div>
+                @if (ToolchainProfiles.Count > 0)
+                {
+                    <div class="toolchain-grid">
+                        @foreach (var profile in ToolchainProfiles)
+                        {
+                            <article class="toolchain-card">
+                                <header><div><h4>@profile.Name</h4><small>@profile.ProfileKey · @profile.CapabilityKey</small></div></header>
+                                <small>@profile.ExecutionKind · @(profile.ToolchainInstallationId?.ToString() ?? "standalone")</small>
+                                <code>@profile.EntryPoint</code>
+                                <div class="toolchain-actions">
+                                    <DxButton Text="Edit" Enabled="@(!ToolchainRuntimeBusy)" Click="@(() => EditToolchainExecutionProfile(profile))" />
+                                    <DxButton Text="Run" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!ToolchainRuntimeBusy)" Click="@(() => RunToolchainExecutionProfileAsync(profile))" />
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+            </details>
+
+            <details class="provider-install-guide" open>
+                <summary><strong>Environment variables</strong> · effective, process, LocalGPT application, user and machine scopes</summary>
+                <p class="field-help">Credential-like values are redacted in the list. Application overrides are persisted by LocalGPT and applied to its process without rewriting global environment settings. User/Machine mutation is exposed only where the runtime supports it.</p>
+                <div class="toolchain-environment-editor-grid">
+                    <label>Filter visible variables
+                        <DxTextBox @bind-Text="ToolchainEnvironmentSearch" NullText="PATH, PYTHON, DOTNET, NODE..." />
+                    </label>
+                    <label>Variable name
+                        <DxTextBox @bind-Text="ToolchainEnvironmentName" NullText="MY_TOOL_HOME" />
+                    </label>
+                    <label>Scope
+                        <DxComboBox Data="@ToolchainEnvironmentWritableScopes" @bind-Value="ToolchainEnvironmentEditScope" />
+                    </label>
+                    <label>Optional toolchain owner (Application scope)
+                        <DxComboBox Data="@CompilerInstallations" TextFieldName="@nameof(ProjectCompilerInstallation.Name)" ValueFieldName="@nameof(ProjectCompilerInstallation.Id)" @bind-Value="ToolchainEnvironmentToolchainId" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
+                    </label>
+                    <label>Value
+                        <DxTextBox @bind-Text="ToolchainEnvironmentValue" NullText="New value" />
+                    </label>
+                    <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="ToolchainEnvironmentRemove" /> Remove from selected scope</label>
+                    <DxButton Text="Apply environment change" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!ToolchainRuntimeBusy && !string.IsNullOrWhiteSpace(ToolchainEnvironmentName))" Click="ChangeToolchainEnvironmentAsync" />
+                </div>
+                @if (ToolchainEnvironmentSnapshot is not null)
+                {
+                    <div class="toolchain-environment-list">
+                        @foreach (var entry in VisibleToolchainEnvironmentEntries)
+                        {
+                            <div class="toolchain-environment-row">
+                                <strong>@entry.Name</strong>
+                                <code>@entry.Value</code>
+                                <small>@entry.Scope · @entry.Source@(entry.IsOverridden ? " · overridden" : string.Empty)@(entry.IsSensitive ? " · redacted" : string.Empty)</small>
+                            </div>
+                        }
+                    </div>
+                    @if (VisibleToolchainEnvironmentEntries.Count >= 300)
+                    {
+                        <p class="field-help">Showing the first 300 matching rows. Narrow the filter to inspect a specific variable.</p>
+                    }
+                }
+            </details>
+
+            <details class="provider-install-guide" open>
+                <summary><strong>Embedded / ESP32 / Arduino</strong> · existing firmware planning and compiler integration</summary>
+                <p class="field-help">LocalGPT still includes ESP32/Arduino board and GPIO planning, Arduino sketch generation, transport-neutral telemetry contracts, the embedded wiring Council starter, and DXFunctions. Arduino CLI and PlatformIO are normal Toolchain profiles: discover them from PATH or configure another compatible compiler/runtime manually, then use Project Maintenance for approved build verification.</p>
+            </details>
+
             @if (CompilerInstallations.Count == 0)
             {
                 <p class="field-help">@T("Install.Toolchains.None", "No stored toolchains yet. Discovery is explicit and only saves detected executable paths after you press the button.")</p>
@@ -747,6 +920,287 @@
                     }
                 </div>
             }
+
+            <details class="provider-install-guide" open>
+                <summary><strong>Runtime extensions</strong> · database-backed C# scripts, JavaScript and isolated .NET plugins</summary>
+                <p class="field-help">Definitions and source/package payloads live in LocalGPT persistence. C# scripts compile through a configured .NET toolchain; JavaScript uses a configured Node-compatible runtime. Trusted compiled plugins are materialized from their database payload and loaded into a collectible AssemblyLoadContext. All exposed plugin.* functions still pass through the central DXFunction schema, catalog policy and human-approval/deferred-execution gate.</p>
+                <div class="toolchain-actions">
+                    <DxButton Text="New runtime extension" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!RuntimePluginBusy)" Click="NewRuntimePlugin" />
+                    <DxButton Text="Refresh extensions" Enabled="@(!RuntimePluginBusy)" Click="RefreshRuntimePluginsAsync" />
+                </div>
+                @if (!string.IsNullOrWhiteSpace(RuntimePluginStatus))
+                {
+                    <p class="field-help">@RuntimePluginStatus</p>
+                }
+                @if (RuntimePluginDefinitions.Count == 0)
+                {
+                    <p class="field-help">No user runtime extensions are persisted yet.</p>
+                }
+                else
+                {
+                    <div class="toolchain-grid">
+                        @foreach (var plugin in RuntimePluginDefinitions)
+                        {
+                            <article class="toolchain-card">
+                                <header><div><h4>@plugin.Name</h4><small>@plugin.Kind · <code>@plugin.FunctionName</code></small></div></header>
+                                <p>@plugin.Purpose</p>
+                                <small>@plugin.LastBuildStatus@(plugin.LastLoadedAtUtc is null ? string.Empty : $" · loaded {plugin.LastLoadedAtUtc:u}")</small>
+                                @if (!string.IsNullOrWhiteSpace(plugin.LastBuildMessage))
+                                {
+                                    <p class="toolchain-validation-message">@plugin.LastBuildMessage</p>
+                                }
+                                <div class="toolchain-actions">
+                                    <DxButton Text="Edit" Enabled="@(!RuntimePluginBusy)" Click="@(() => EditRuntimePlugin(plugin))" />
+                                    <DxButton Text="Build / load" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!RuntimePluginBusy && plugin.IsEnabled)" Click="@(() => BuildRuntimePluginAsync(plugin.Id))" />
+                                    <DxButton Text="Remove" RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!RuntimePluginBusy)" Click="@(() => DeleteRuntimePluginAsync(plugin.Id))" />
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+            </details>
+
+            <DxPopup @bind-Visible="RuntimePluginEditorVisible" HeaderText="Runtime extension editor" Width="min(1040px, 96vw)" MaxHeight="92vh" CloseOnOutsideClick="false">
+                <BodyContentTemplate>
+                    <div class="source-popup">
+                        <p class="execution-boundary">Executable extension content is persisted in the LocalGPT database. Saving changes does not execute them; Build / load is a separate explicit action. Compiled .NET plugins are trusted in-process code and are not a security boundary.</p>
+                        <div class="local-ai-runtime-grid">
+                            <label>Name<DxTextBox @bind-Text="RuntimePluginDraft.Name" /></label>
+                            <label>Function name<DxTextBox @bind-Text="RuntimePluginDraft.FunctionName" NullText="plugin.example" /></label>
+                            <label>Kind<DxComboBox Data="@RuntimePluginKinds" @bind-Value="RuntimePluginDraft.Kind" /></label>
+                            <label>Compiler/runtime<DxComboBox Data="@CompilerInstallations" TextFieldName="@nameof(ProjectCompilerInstallation.Name)" ValueFieldName="@nameof(ProjectCompilerInstallation.Id)" @bind-Value="RuntimePluginDraft.CompilerInstallationId" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" /></label>
+                            <label class="local-ai-runtime-policy-wide">Purpose<DxMemo @bind-Text="RuntimePluginDraft.Purpose" Rows="2" /></label>
+                            <label class="local-ai-runtime-policy-wide">Safety notes<DxMemo @bind-Text="RuntimePluginDraft.SafetyNotes" Rows="2" /></label>
+                            <label class="local-ai-runtime-policy-wide">Parameter JSON schema<DxMemo @bind-Text="RuntimePluginDraft.ParameterSchemaJson" Rows="4" /></label>
+                            @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript)
+                            {
+                                <label class="local-ai-runtime-policy-wide">Script source
+                                    <DxMemo @bind-Text="RuntimePluginDraft.SourceCode" Rows="18" CssClass="source-editor" />
+                                </label>
+                                <details class="provider-install-guide local-ai-runtime-policy-wide">
+                                    <summary><strong>IDE helper</strong> · runtime contract and script entry-point hints</summary>
+                                    @if (RuntimePluginDraft.Kind == RuntimePluginKind.CSharpScript)
+                                    {
+                                        <p class="field-help">Write the body of <code>Task&lt;string&gt; ExecuteAsync(JsonElement parameters, CancellationToken cancellationToken)</code>. LocalGPT generates the contract wrapper, compiles it through the selected configured .NET SDK, and keeps <code>LocalGPT.PluginContracts</code> host-owned.</p>
+                                    }
+                                    else
+                                    {
+                                        <p class="field-help">The JavaScript file receives the validated parameters JSON on stdin and returns text or JSON on stdout. It runs through the selected configured Node-compatible executable without a command shell.</p>
+                                    }
+                                </details>
+                                <DxButton Text="Insert starter template" Enabled="@(!RuntimePluginBusy)" Click="InsertRuntimePluginTemplate" />
+                            }
+                            else
+                            {
+                                <label>Entry assembly<DxTextBox @bind-Text="RuntimePluginDraft.EntryAssemblyName" NullText="MyPlugin.dll" /></label>
+                                <label>Entry type<DxTextBox @bind-Text="RuntimePluginDraft.EntryTypeName" NullText="MyPlugin.EntryPoint" /></label>
+                                <label class="local-ai-runtime-policy-wide">Plugin ZIP as base64<DxMemo @bind-Text="RuntimePluginDraft.PackagePayloadBase64" Rows="8" NullText="Persisted package payload" /></label>
+                            }
+                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.IsEnabled" /> Enabled</label>
+                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.AvailableToAi" /> Expose to AI</label>
+                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.IsReadOnly" /> Declares read-only behavior</label>
+                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.RequiresHumanConfirmation" /> Require human confirmation</label>
+                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.SupportsAutomaticInvocation" /> Permit automatic invocation when policy allows</label>
+                        </div>
+                        <div class="toolchain-actions">
+                            <DxButton Text="Save definition" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!RuntimePluginBusy)" Click="SaveRuntimePluginAsync" />
+                            <DxButton Text="Close" Enabled="@(!RuntimePluginBusy)" Click="CloseRuntimePluginEditor" />
+                        </div>
+                    </div>
+                </BodyContentTemplate>
+            </DxPopup>
+        </section>
+        </ConfigurationWorkbenchPanel>
+
+        <ConfigurationWorkbenchPanel SectionKey="local-ai" ActiveKey="@ActiveInstallSection" AriaLabel="Local AI runtimes">
+        <section id="local-ai-runtime" class="installer-workbench-card install-workbench-region local-ai-runtime-workbench" aria-labelledby="local-ai-runtime-heading">
+            <div class="installer-card-heading">
+                <div>
+                    <span class="install-region-kicker">Specialized model runtime</span>
+                    <h3 id="local-ai-runtime-heading">Local AI models &amp; Python capabilities</h3>
+                    <p>Direct reviewed upstream projects and Python installation are the primary path. Provider-bound model hubs such as Hugging Face remain optional integrations. Specialized image/video/speech models are exposed through bounded DXFunctions rather than pretending to be conversational LLM Council members.</p>
+                </div>
+                <div class="top-container">
+                    <DxButton Text="Refresh" Enabled="@(!LocalAiBusy)" Click="RefreshLocalAiRuntimeAsync" />
+                    <DxButton Text="Probe Python.NET" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="ProbeLocalAiRuntimeAsync" />
+                    <DxButton Text="Unload cached models" Enabled="@(!LocalAiBusy)" Click="ClearLocalAiModelCacheAsync" />
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(LocalAiStatusText))
+            {
+                <div class="installer-status-line"><span>@LocalAiStatusText</span></div>
+            }
+
+            @if (LocalAiStatus is not null)
+            {
+                <div class="local-ai-status-grid">
+                    <span><strong>Configured</strong><small>@LocalAiStatus.Configured</small></span>
+                    <span><strong>Python.NET</strong><small>@(LocalAiStatus.PythonNetAvailable ? "available" : "not installed")</small></span>
+                    <span><strong>Interpreter</strong><small>@(LocalAiStatus.InterpreterInitialized ? "initialized" : "not started")</small></span>
+                    <span><strong>Queue</strong><small>@LocalAiStatus.QueueLength job(s)</small></span>
+                    <span><strong>Models</strong><small>@LocalAiStatus.InstalledModelCount installed</small></span>
+                    <span><strong>Device</strong><small>@(string.IsNullOrWhiteSpace(LocalAiStatus.DeviceSummary) ? "probe to detect" : LocalAiStatus.DeviceSummary)</small></span>
+                </div>
+                @if (LocalAiStatus.RestartRequired)
+                {
+                    <p class="local-ai-warning"><strong>Restart required:</strong> the Python binding changed after Python.NET initialization. LocalGPT will not attempt unsafe in-process rebinding.</p>
+                }
+            }
+
+            @if (LocalAiRuntimePolicy is not null)
+            {
+                <details class="provider-install-guide" open>
+                    <summary><strong>Python / Whisper execution policy</strong> · user- and AI-team configurable</summary>
+                    <p class="field-help">These values are persisted in LocalGPT configuration and are also exposed through approval-aware DXFunctions and controller endpoints. They control the bounded Python job lane; arbitrary Python source is still not accepted. Queue-capacity changes after Python.NET has initialized require a restart.</p>
+                    <div class="local-ai-runtime-policy-grid">
+                        <label>Default device
+                            <DxComboBox Data="@LocalAiDeviceOptions" @bind-Value="LocalAiRuntimePolicy.DefaultDevice" />
+                        </label>
+                        <label>Default Whisper model
+                            <DxComboBox Data="@LocalAiWhisperVariantOptions" @bind-Value="LocalAiRuntimePolicy.DefaultWhisperModel" />
+                        </label>
+                        <label>Speech task
+                            <DxComboBox Data="@LocalAiSpeechTaskOptions" @bind-Value="LocalAiRuntimePolicy.DefaultSpeechTask" />
+                        </label>
+                        <label>Speech language
+                            <DxTextBox @bind-Text="LocalAiRuntimePolicy.DefaultSpeechLanguage" NullText="auto-detect" />
+                        </label>
+                        <label>Queue capacity
+                            <DxSpinEdit @bind-Value="LocalAiRuntimePolicy.QueueCapacity" Min="1" Max="1024" />
+                        </label>
+                        <label>Maximum input MiB
+                            <DxSpinEdit @bind-Value="LocalAiRuntimePolicy.MaximumInputMegabytes" Min="1" Max="4096" />
+                        </label>
+                        <label>Maximum audio seconds
+                            <DxSpinEdit @bind-Value="LocalAiRuntimePolicy.MaximumAudioSeconds" Min="1" Max="86400" />
+                        </label>
+                        <label>Minimum audio bytes/second
+                            <DxSpinEdit @bind-Value="LocalAiRuntimePolicy.MinimumAudioBytesPerSecond" Min="1" Max="1048576" />
+                        </label>
+                        <label class="local-ai-runtime-policy-wide">Default speech prompt
+                            <DxMemo @bind-Text="LocalAiRuntimePolicy.DefaultSpeechInitialPrompt" Rows="3" NullText="Optional transcription vocabulary/context hint" />
+                        </label>
+                        <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="LocalAiRuntimePolicy.CacheModels" /> Cache loaded specialized models between jobs</label>
+                        <DxButton Text="Save Python / Whisper policy" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="SaveLocalAiRuntimePolicyAsync" />
+                    </div>
+                    @if (LocalAiRuntimePolicy.RestartRequired)
+                    {
+                        <p class="local-ai-warning"><strong>Restart required:</strong> @LocalAiRuntimePolicy.RestartReason</p>
+                    }
+                </details>
+            }
+
+            <details class="provider-install-guide" open>
+                <summary><strong>1 · Known direct model sources</strong> · GitHub/upstream first, Python runtime execution</summary>
+                <p class="field-help">This is LocalGPT's primary local-AI acquisition path. Sources are pre-seeded in a reviewed catalog and downloaded directly over HTTPS without Git/GitHub CLI or a model-hub client. Python discovery/linking lives in Toolchains. OpenAI Whisper can be installed as a real executable speech model in this release; other projects remain source-download-only until their bounded adapters exist.</p>
+                <div class="local-ai-model-grid">
+                    @foreach (var source in LocalAiKnownModels)
+                    {
+                        <article class="toolchain-card">
+                            <header><div><h4>@source.DisplayName</h4><small>@source.Publisher · @(source.CanInstall ? "runtime adapter available" : "source download")</small></div></header>
+                            <p>@source.Description</p>
+                            <small>Capabilities: @LocalAiRuntime.FormatCapabilities(source.Capabilities)</small>
+                            <small>@source.RuntimePrerequisites</small>
+                            <code>@source.RepositoryUri</code>
+                            @if (source.Key.Equals("openai-whisper", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <label>Whisper variant
+                                    <DxComboBox Data="@source.Variants.Select(item => item.Key).ToList()" @bind-Value="LocalAiWhisperVariant" />
+                                </label>
+                            }
+                            <div class="toolchain-actions">
+                                <DxButton Text="Download upstream source" Enabled="@(!LocalAiBusy)" Click="@(() => DownloadKnownLocalAiSourceAsync(source.Key))" />
+                                @if (source.CanInstall)
+                                {
+                                    <DxButton Text="Install real model via Python" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="@(() => InstallKnownLocalAiModelAsync(source.Key))" />
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+                <p class="field-help">Python runtime discovery, managed-environment creation, .NET/Node.js helpers and environment-variable management are intentionally centralized under <strong>Toolchains</strong>.</p>
+            </details>
+
+            <details class="provider-install-guide" open>
+                <summary><strong>2 · Python capability packages</strong> · isolated profiles, no global package pollution</summary>
+                <p class="field-help">The core profile supplies the Python.NET bridge only. PyTorch stays separate so CUDA, ROCm, Apple/MPS or other vendor-specific installs are never silently replaced by a generic wheel. OpenAI Whisper dependencies also avoid installing PyTorch. Model-hub clients are optional profiles. Install or change packages before probing/running the embedded interpreter; after Python.NET initializes, LocalGPT requires a restart before mutating that environment.</p>
+                <div class="local-ai-profile-grid">
+                    @foreach (var profile in LocalAiPackageProfiles)
+                    {
+                        <article class="toolchain-card">
+                            <header><div><h4>@profile.DisplayName</h4><small>@profile.Key</small></div></header>
+                            <p>@profile.Description</p>
+                            <small>@LocalAiRuntime.FormatPackageList(profile.Packages)</small>
+                            @if (profile.IncludesTorch)
+                            {
+                                <p class="local-ai-warning">This profile changes the PyTorch installation. Use it only when the default PyPI backend is the one you actually want.</p>
+                            }
+                            <DxButton Text="Install profile" Enabled="@(!LocalAiBusy)" Click="@(() => InstallLocalAiPackageProfileAsync(profile.Key))" />
+                        </article>
+                    }
+                </div>
+            </details>
+
+            <details class="provider-install-guide" open>
+                <summary><strong>3 · Optional model hubs</strong> · Hugging Face provider integration</summary>
+                <p class="field-help">Hugging Face is optional, provider-bound functionality rather than LocalGPT's default model source. Search is metadata-only. Snapshot installation is available only when you explicitly choose it and install the optional hub client profile; it does not git-clone or execute repository setup scripts. Gated/private models use the configured token environment variable and custom repository code stays disabled unless explicitly approved.</p>
+                <div class="local-ai-search-row">
+                    <label>Search
+                        <DxTextBox @bind-Text="LocalAiSearchQuery" NullText="Qwen Image, Wan, Whisper..." />
+                    </label>
+                    <label>Search capability filter
+                        <DxComboBox Data="@LocalAiCapabilityOptions" @bind-Value="LocalAiSearchCapability" />
+                    </label>
+                    <label>Explicit install capability
+                        <DxComboBox Data="@LocalAiCapabilityOptions" @bind-Value="LocalAiManualCapability" />
+                    </label>
+                    <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="LocalAiTrustRemoteCode" /> Allow <code>trust_remote_code</code> for the model I explicitly install</label>
+                    <DxButton Text="Search Hugging Face" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="SearchHuggingFaceAsync" />
+                </div>
+                @if (LocalAiSearchResults.Count > 0)
+                {
+                    <div class="local-ai-model-grid">
+                        @foreach (var model in LocalAiSearchResults)
+                        {
+                            <article class="toolchain-card">
+                                <header><div><h4>@model.ModelId</h4><small>@(string.IsNullOrWhiteSpace(model.PipelineTag) ? model.LibraryName : model.PipelineTag)</small></div></header>
+                                <small>Capabilities: @LocalAiRuntime.FormatCapabilities(model.Capabilities)</small>
+                                <small>@model.Downloads downloads · @model.Likes likes@(model.IsGated ? " · gated" : string.Empty)@(model.IsPrivate ? " · private" : string.Empty)</small>
+                                <DxButton Text="Install snapshot" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy && CanInstallLocalAiModel(model))" Click="@(() => InstallHuggingFaceModelAsync(model))" />
+                            </article>
+                        }
+                    </div>
+                }
+            </details>
+
+            <details class="provider-install-guide" open>
+                <summary><strong>4 · Installed specialized models</strong> · Council/DXFunction capability inventory</summary>
+                @if (LocalAiInstalledModels.Count == 0)
+                {
+                    <p class="field-help">No specialized models are installed yet.</p>
+                }
+                else
+                {
+                    <div class="local-ai-model-grid">
+                        @foreach (var model in LocalAiInstalledModels)
+                        {
+                            <article class="toolchain-card">
+                                <header><div><h4>@model.ModelId</h4><small>@model.Adapter · @model.Revision</small></div></header>
+                                <small>Capabilities: @LocalAiRuntime.FormatCapabilities(model.Capabilities)</small>
+                                @if (!string.IsNullOrWhiteSpace(model.SourceProvider))
+                                {
+                                    <small>Source: @model.SourceProvider@(string.IsNullOrWhiteSpace(model.RuntimeModelName) ? string.Empty : $" · {model.RuntimeModelName}")</small>
+                                }
+                                <small>Custom code: @(model.TrustRemoteCode ? "explicitly enabled" : "disabled")</small>
+                                <small>Installed @(model.InstalledAtUtc.ToLocalTime().ToString("g"))</small>
+                                <DxButton Text="Remove model" RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!LocalAiBusy)" Click="@(() => RemoveLocalAiModelAsync(model.InstallationId))" />
+                            </article>
+                        }
+                    </div>
+                }
+                <p class="field-help">Installed image/video/speech models become discoverable through <code>localai.*</code> DXFunctions. Image/video generation is approval-gated; workspace audio transcription is read-only and its private runtime copy is deleted after every job.</p>
+            </details>
         </section>
         </ConfigurationWorkbenchPanel>
 

@@ -2179,5 +2179,17 @@
   "Phrase.Show␠ASCII␠terminal": "ASCIIターミナルを表示",
   "Text.Show␠ASCII␠terminal": "ASCIIターミナルを表示",
   "Phrase.Hide␠ASCII␠terminal": "ASCIIターミナルを非表示",
-  "Text.Hide␠ASCII␠terminal": "ASCIIターミナルを非表示"
+  "Text.Hide␠ASCII␠terminal": "ASCIIターミナルを非表示",
+  "Chat.Microphone.Model": "Whisperモデル",
+  "Chat.Microphone.Stop": "停止して評議会を開始",
+  "Chat.Microphone.Start": "マイク",
+  "Chat.Microphone.Cancel": "録音をキャンセル",
+  "Chat.Microphone.Setup": "評議会にWhisperの設定を依頼",
+  "Chat.Microphone.Missing": "まず評議会またはインストールページでWhisperモデルをインストールしてください。",
+  "Chat.Microphone.Recording": "録音中。停止すると文字起こしし、現在の設定で評議会を開始します。",
+  "Chat.Microphone.Transcribing": "Whisperが文字起こし中…",
+  "Chat.Microphone.Empty": "音声が検出されませんでした。もう一度お試しください。",
+  "Chat.Microphone.Submitted": "文字起こし完了。現在の設定で評議会を開始します。",
+  "Chat.Microphone.Cancelled": "録音をキャンセルしました。",
+  "Chat.Microphone.Error": "マイクまたはWhisperでエラーが発生しました。マイクの権限とPython/Whisperの設定を確認してください。"
 }

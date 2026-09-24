@@ -26,7 +26,7 @@ public interface IToolchainKnowledgeService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The toolchain version knowledge result produced by the operation.</returns>
     Task<ToolchainVersionKnowledgeResult> GetVersionKnowledgeAsync(string profileKey, string version, CancellationToken cancellationToken = default);
-    /// <summary>Queues a non-blocking Human Collaboration request when an exact version/context article is missing.</summary>
+    /// <summary>Queues a non-blocking one-click Human Collaboration approval when an exact detected version has no approved local context.</summary>
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The toolchain version knowledge result produced by the operation.</returns>

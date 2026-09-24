@@ -2179,5 +2179,17 @@
   "Phrase.Show␠ASCII␠terminal": "Показати ASCII-термінал",
   "Text.Show␠ASCII␠terminal": "Показати ASCII-термінал",
   "Phrase.Hide␠ASCII␠terminal": "Сховати ASCII-термінал",
-  "Text.Hide␠ASCII␠terminal": "Сховати ASCII-термінал"
+  "Text.Hide␠ASCII␠terminal": "Сховати ASCII-термінал",
+  "Chat.Microphone.Model": "Модель Whisper",
+  "Chat.Microphone.Stop": "Зупинити й запустити Раду",
+  "Chat.Microphone.Start": "Мікрофон",
+  "Chat.Microphone.Cancel": "Скасувати запис",
+  "Chat.Microphone.Setup": "Попросити Раду налаштувати Whisper",
+  "Chat.Microphone.Missing": "Спочатку встановіть модель Whisper за допомогою Ради або на сторінці встановлення.",
+  "Chat.Microphone.Recording": "Триває запис. Зупиніть, щоб розпізнати мовлення й запустити Раду з поточними налаштуваннями.",
+  "Chat.Microphone.Transcribing": "Whisper розпізнає мовлення…",
+  "Chat.Microphone.Empty": "Мовлення не виявлено. Спробуйте ще раз.",
+  "Chat.Microphone.Submitted": "Мовлення розпізнано. Рада запускається з поточними налаштуваннями.",
+  "Chat.Microphone.Cancelled": "Запис скасовано.",
+  "Chat.Microphone.Error": "Помилка мікрофона або Whisper. Перевірте дозвіл на мікрофон і налаштування Python/Whisper."
 }

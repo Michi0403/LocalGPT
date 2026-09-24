@@ -1,4 +1,5 @@
 param(
+    [switch]$CompileOnly,
     [ValidateSet("all", "all-rids", "win-x64", "win-x86", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")]
     [string]$Runtime = "all",
     [ValidateSet("Release", "Debug")]
@@ -45,6 +46,10 @@ function Initialize-BuildConsoleEncoding {
 Initialize-BuildConsoleEncoding
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ($CompileOnly) {
+    & (Join-Path $root 'build/Invoke-ReleaseCompileValidation.ps1') -Solution 'src/LocalGPTWebviewWrapper.sln' -Configuration $Configuration
+    return
+}
 if (-not [string]::IsNullOrWhiteSpace($DocumentationCacheRoot)) {
     $env:FUTURE2_DOCUMENTATION_CACHE_ROOT = [IO.Path]::GetFullPath($DocumentationCacheRoot)
 }
@@ -284,10 +289,12 @@ function Prepare-LocalGptDocumentation {
     $documentationAssembly = Join-Path $neutralOutputRoot "LocalGPT.dll"
     $documentationXml = Join-Path $neutralOutputRoot "LocalGPT.xml"
     $documentationOutput = Join-Path $neutralOutputRoot "wwwroot/help-docs"
-    # Documentation is produced from the authoritative source-project graph. The release package is still
-    # packed and delivered for package-mode consumers, but rebuilding that same mutable local package
-    # version through NuGet can reuse a stale global-packages entry. That failure presents as hundreds of
-    # missing LocalGPT.WireProtocol types even though packing itself succeeded.
+    # Documentation is produced from the authoritative source-project graph. Project references remain
+    # enabled so freshly cleaned dependencies such as LocalGPT.PluginContracts and the local wire protocol
+    # are built in dependency order before LocalGPT itself. The release package is still packed and delivered
+    # for package-mode consumers, but rebuilding that same mutable local package version through NuGet can
+    # reuse a stale global-packages entry. That failure presents as hundreds of missing LocalGPT.WireProtocol
+    # types even though packing itself succeeded.
     $documentationBuildProperties = @(
         "-p:UseLocalWireProtocolProject=true",
         "-p:RuntimeIdentifier=",
@@ -299,7 +306,7 @@ function Prepare-LocalGptDocumentation {
 
     Write-Host "Building the RID-neutral LocalGPT assembly once for shared release documentation..." -ForegroundColor Cyan
     Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $documentationBuildProperties) -FailureMessage "RID-neutral LocalGPT restore for documentation failed."
-    Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false") + $documentationBuildProperties) -FailureMessage "RID-neutral LocalGPT build for documentation failed."
+    Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildLocalGptDocumentation=false") + $documentationBuildProperties) -FailureMessage "RID-neutral LocalGPT build for documentation failed."
 
     if (-not (Test-Path -LiteralPath $documentationAssembly -PathType Leaf)) { throw "Documentation assembly not found: $documentationAssembly" }
     if (-not (Test-Path -LiteralPath $documentationXml -PathType Leaf)) { throw "Documentation XML not found: $documentationXml" }

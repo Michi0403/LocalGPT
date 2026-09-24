@@ -2179,5 +2179,17 @@
   "Phrase.Show␠ASCII␠terminal": "Mostrar terminal ASCII",
   "Text.Show␠ASCII␠terminal": "Mostrar terminal ASCII",
   "Phrase.Hide␠ASCII␠terminal": "Ocultar terminal ASCII",
-  "Text.Hide␠ASCII␠terminal": "Ocultar terminal ASCII"
+  "Text.Hide␠ASCII␠terminal": "Ocultar terminal ASCII",
+  "Chat.Microphone.Model": "Modelo Whisper",
+  "Chat.Microphone.Stop": "Detener e iniciar el Consejo",
+  "Chat.Microphone.Start": "Micrófono",
+  "Chat.Microphone.Cancel": "Cancelar grabación",
+  "Chat.Microphone.Setup": "Pedir al Consejo que configure Whisper",
+  "Chat.Microphone.Missing": "Instala primero un modelo Whisper con el Consejo o en la página de instalación.",
+  "Chat.Microphone.Recording": "Grabando. Detén para transcribir e iniciar el Consejo con la configuración actual.",
+  "Chat.Microphone.Transcribing": "Whisper está transcribiendo…",
+  "Chat.Microphone.Empty": "No se detectó voz. Inténtalo de nuevo.",
+  "Chat.Microphone.Submitted": "Transcrito. Iniciando el Consejo con la configuración actual.",
+  "Chat.Microphone.Cancelled": "Grabación cancelada.",
+  "Chat.Microphone.Error": "Error de micrófono o Whisper. Revisa el permiso del micrófono y la configuración administrada de Python/Whisper."
 }

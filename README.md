@@ -164,7 +164,7 @@ pwsh ./build/Initialize-BuildPrerequisites.ps1
 
 On Apple Silicon this selects the `darwin-arm64` distribution; Intel Macs use `darwin-x64`; Linux uses the matching `linux-x64` or `linux-arm64` archive; Windows selects the matching ZIP. The resolved executable is exported as `PLAYWRIGHT_NODEJS_PATH` for DocFX/Playwright and its directory is prepended to the current build process `PATH` only.
 
-The documentation stage also looks for Chromium-family browsers both on `PATH` and in normal macOS application-bundle locations. `LOCALGPT_DOCUMENTATION_BROWSER` can still override the browser executable explicitly. If direct Chromium-family printing cannot produce the very large complete manual, the build falls back to the DocFX PDF plug-in using the provisioned Node.js runtime instead of asking the developer to install Node manually.
+The documentation stage looks for Chromium-family browsers through normal Windows install/App-Paths locations, `PATH`, and normal macOS application bundles. `LOCALGPT_DOCUMENTATION_BROWSER` can still override the browser executable explicitly. Large manuals are printed as small durable browser parts (8-12 pages by default, depending on host memory) and merged with the repository-owned `LocalGPT.ReleasePackaging` build helper. The monolithic DocFX PDF path remains only a bounded compatibility fallback; chunked/low-memory builds do not silently fall into it unless the existing operator override is explicitly enabled.
 
 Before publishing or creating a verified source package, follow the repository validation and release process rather than improvising a manual package:
 

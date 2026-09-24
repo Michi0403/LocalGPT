@@ -4,11 +4,10 @@
 @inject ILogger<OperationalActivityFeed> Logger
 @implements IDisposable
 
-<DxMemo @bind-Text="displayText"
-        ReadOnly="true"
-        Rows="@Rows"
-        CssClass="@CssClass"
-        aria-live="polite" />
+<pre class="localgpt-operational-feed @CssClass"
+     style="min-height: calc(@Rows * 1.45em + 1.5rem);"
+     aria-live="polite"
+     aria-atomic="false">@displayText</pre>
 
 @code {
     /// <summary>Optional route-local status text prepended to the shared operational feeds.</summary>
@@ -20,10 +19,10 @@
     /// <summary>Maximum recent application-activity entries included in the bounded display.</summary>
     [Parameter] public int MaxActivityEntries { get; set; } = 30;
 
-    /// <summary>Visible row count for the DevExpress memo.</summary>
+    /// <summary>Approximate visible row count for the ASCII terminal surface.</summary>
     [Parameter] public int Rows { get; set; } = 14;
 
-    /// <summary>CSS class applied to the DevExpress memo.</summary>
+    /// <summary>CSS class applied to the ASCII terminal surface.</summary>
     [Parameter] public string CssClass { get; set; } = "localgpt-operational-feed";
 
     private string displayText = string.Empty;

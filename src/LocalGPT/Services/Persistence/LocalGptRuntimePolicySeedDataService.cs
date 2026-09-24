@@ -384,6 +384,7 @@ public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolic
                     new(LocalGptRuntimePattern.PreEnd, "runtime.render.pre-end", @"</pre>", "i,c,compiled"),
                     new(LocalGptRuntimePattern.ToolchainKnowledgeBlock, "builtin.toolchain-knowledge-block", @"(?s)```localgpt-toolchain\s*(?<json>\{.*?\})\s*```", "s,c"),
                     new(LocalGptRuntimePattern.ToolchainVersionToken, "builtin.toolchain-version-token", @"(?i)(?<![A-Za-z0-9])(?:version\s*)?(?<version>\d+(?:\.\d+){0,4}(?:[-+][A-Za-z0-9._-]+)?)(?![A-Za-z0-9])", "i,c"),
+                    new(LocalGptRuntimePattern.ToolchainVersionTokenV2, "builtin.toolchain-version-token-v2", @"(?i)(?<![A-Za-z0-9])(?:(?:version\s*)|v)?(?<version>\d+(?:\.\d+){0,4}(?:[-+][A-Za-z0-9._-]+)?)(?![A-Za-z0-9])", "i,c"),
                     new(LocalGptRuntimePattern.ToolchainEnvironmentToken, "builtin.toolchain-environment-token", @"\$(?:\{(?<name>[A-Za-z_][A-Za-z0-9_]*)\}|(?<name>[A-Za-z_][A-Za-z0-9_]*))", "c"),
                 ]
             };

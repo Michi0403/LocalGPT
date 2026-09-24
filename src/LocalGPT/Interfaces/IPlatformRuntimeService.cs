@@ -43,6 +43,12 @@ public interface IPlatformRuntimeService
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     bool IsSameOrDescendantPath(string root, string candidate);
 
+    /// <summary>Prepares a configured executable and argument string for native process startup using host shell rules when the executable is a platform wrapper.</summary>
+    /// <param name="executablePath">Configured executable or wrapper path.</param>
+    /// <param name="arguments">Reviewed argument string to pass to the executable.</param>
+    /// <returns>The host executable path and argument string to supply to <see cref="System.Diagnostics.ProcessStartInfo"/>.</returns>
+    (string ExecutablePath, string Arguments) PrepareToolchainProcessInvocation(string executablePath, string arguments);
+
     /// <summary>Returns whether a workspace root is too broad or is a protected host/user location.</summary>
     /// <param name="path">Path value supplied to the platform runtime operation and used when producing its result.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>

@@ -90,6 +90,25 @@ public sealed class WindowsPlatformRuntimeService : IPlatformRuntimeService
         }
     }
 
+    /// <summary>Prepares native process startup for Windows command wrappers while leaving real executables unchanged.</summary>
+    /// <inheritdoc />
+    public (string ExecutablePath, string Arguments) PrepareToolchainProcessInvocation(string executablePath, string arguments)
+    {
+        try
+        {
+            var extension = Path.GetExtension(executablePath);
+            if (!extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase) && !extension.Equals(".bat", StringComparison.OrdinalIgnoreCase))
+                return (executablePath, arguments);
+            var commandProcessor = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";
+            return (commandProcessor, $"/d /s /c \"\"{executablePath}\" {arguments}\"");
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(WindowsPlatformRuntimeService), nameof(PrepareToolchainProcessInvocation), exception);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Determines whether protected workspace root as part of the windows platform runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -217,6 +236,21 @@ public sealed class UnixPlatformRuntimeService : IPlatformRuntimeService
         catch (Exception exception)
         {
             System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(UnixPlatformRuntimeService), nameof(IsSameOrDescendantPath), exception);
+            throw;
+        }
+    }
+
+    /// <summary>Returns the configured executable unchanged because Unix tool wrappers are launched through their executable/script entry point.</summary>
+    /// <inheritdoc />
+    public (string ExecutablePath, string Arguments) PrepareToolchainProcessInvocation(string executablePath, string arguments)
+    {
+        try
+        {
+            return (executablePath, arguments);
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(UnixPlatformRuntimeService), nameof(PrepareToolchainProcessInvocation), exception);
             throw;
         }
     }

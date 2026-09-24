@@ -98,7 +98,7 @@ namespace LocalGPT.Services
                         publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} received one corrective same-role retry after generic non-performance.");
                     }
 
-                    var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger);
+                    var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger, forceEnabled: true);
                     using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
                     try
                     {

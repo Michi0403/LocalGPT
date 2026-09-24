@@ -37,7 +37,7 @@ namespace LocalGPT.Services
                 var baseUri = councilText.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? catalog.DefaultOllamaUri, logger);
                 var selectedParticipants = await SelectParticipantsAsync(request, baseUri, cancellationToken).ConfigureAwait(false);
                 request.ModelRoutes = QualifyModelRoutes(request.ModelRoutes, request.ModelSelections);
-                var participantSelection = await ApplyApprovedOneRunModelExclusionsAsync(selectedParticipants, cancellationToken).ConfigureAwait(false);
+                var participantSelection = await ApplyApprovedOneRunModelExclusionsAsync(selectedParticipants, organicTeam, cancellationToken).ConfigureAwait(false);
                 var participants = participantSelection.Active;
                 var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? catalog.DefaultMaxParallelModels : request.MaxParallelModels, 1, catalog.MaxParticipants);
                 var maxContextTokens = Math.Clamp(

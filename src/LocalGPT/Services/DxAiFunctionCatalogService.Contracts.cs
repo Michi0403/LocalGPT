@@ -228,8 +228,14 @@ public sealed partial class DxAiFunctionCatalogService
             stored.ExposeToAiChat = policy.ExposeToAiChat;
             stored.ExposeToOneWire = policy.ExposeToOneWire;
             stored.AllowRemoteInvocation = policy.AllowRemoteInvocation;
-            stored.RequiresFrontendConfirmation = policy.RequiresFrontendConfirmation;
-            stored.InteractionEditor = policy.InteractionEditor;
+            // System-seed rows follow the current safe descriptor default. As soon as a human edits
+            // the row SavePolicyAsync marks it non-seed and that explicit permission remains authoritative.
+            stored.RequiresFrontendConfirmation = policy.IsSystemSeed
+                ? current.RequiresFrontendConfirmation
+                : policy.RequiresFrontendConfirmation;
+            stored.InteractionEditor = policy.IsSystemSeed
+                ? current.InteractionEditor
+                : policy.InteractionEditor;
             stored.AllowedPeerIdsJson = policy.AllowedPeerIdsJson;
             stored.IsSystemSeed = policy.IsSystemSeed;
             stored.CreatedAtUtc = policy.CreatedAtUtc == default ? DateTime.UtcNow : policy.CreatedAtUtc;

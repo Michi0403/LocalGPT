@@ -299,6 +299,55 @@ BLOCKERS: none | <specific missing capability or ambiguity>
             }
         }
 
+        /// <summary>Reconciles persisted provider-bound role assignments to the canonical participant identities active in the current run.</summary>
+        /// <remarks>Equivalent localhost/127.0.0.1, explicit :latest, and canonical Ollama facade identities are accepted without crossing provider hosts.</remarks>
+        private List<string> ResolveConfiguredRoleParticipantKeys(
+            string roleName,
+            IReadOnlyList<string> configuredModelKeys,
+            IReadOnlyList<string> participants)
+        {
+            try
+            {
+                var identity = new ProviderModelIdentity();
+                var resolved = new List<string>();
+                var missing = new List<string>();
+                foreach (var configuredModelKey in configuredModelKeys)
+                {
+                    var matches = participants
+                        .Where(participant => identity.AreEquivalentSelectionKeys(configuredModelKey, participant))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    if (matches.Count == 1)
+                    {
+                        resolved.Add(matches[0]);
+                        continue;
+                    }
+                    if (matches.Count > 1)
+                    {
+                        throw new InvalidOperationException(
+                            $"Role '{roleName}' model assignment '{configuredModelKey}' matches multiple provider-bound participants in this run. Choose the exact provider-qualified model; LocalGPT will not guess a host.");
+                    }
+                    missing.Add(configuredModelKey);
+                }
+
+                if (missing.Count > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Role '{roleName}' requires provider-bound model(s) {string.Join(", ", missing)}, but no equivalent provider/model identity is active in this run. Refresh provider models or update the team assignment; LocalGPT will not substitute another host or model.");
+                }
+
+                return resolved.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+            catch (Exception __serviceMethodException)
+            {
+                if (__serviceMethodException is OperationCanceledException)
+                    logger.LogDebug(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(ResolveConfiguredRoleParticipantKeys)} was canceled.");
+                else
+                    logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(ResolveConfiguredRoleParticipantKeys)} failed.");
+                throw;
+            }
+        }
+
         /// <summary>
         /// Resolves configured role assignment as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
@@ -369,18 +418,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                         if (configuredModelKeys.Count == 0)
                             throw new InvalidOperationException($"Role '{normalizedRole}' has provider-bound AI assignment enabled but no model identity is saved.");
 
-                        var missingModelKeys = configuredModelKeys
-                            .Where(value => !participants.Contains(value, StringComparer.OrdinalIgnoreCase))
-                            .ToList();
-                        if (missingModelKeys.Count > 0)
-                        {
-                            throw new InvalidOperationException(
-                                $"Role '{normalizedRole}' requires provider-bound model(s) {string.Join(", ", missingModelKeys)}, but they are unavailable in this run. Refresh provider models or update the team assignment; LocalGPT will not substitute another host or model.");
-                        }
-
-                        selectedAiParticipants = configuredModelKeys
-                            .Where(value => participants.Contains(value, StringComparer.OrdinalIgnoreCase))
-                            .ToList();
+                        configuredModelKeys = ResolveConfiguredRoleParticipantKeys(normalizedRole, configuredModelKeys, participants);
+                        selectedAiParticipants = configuredModelKeys;
                     }
                     else if (definition.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange)
                     {
@@ -392,14 +431,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                         if (configuredModelKeys.Count == 0)
                             throw new InvalidOperationException($"Role '{normalizedRole}' has random provider-pool assignment enabled but no model identity is saved.");
 
-                        var missingModelKeys = configuredModelKeys
-                            .Where(value => !participants.Contains(value, StringComparer.OrdinalIgnoreCase))
-                            .ToList();
-                        if (missingModelKeys.Count > 0)
-                        {
-                            throw new InvalidOperationException(
-                                $"Role '{normalizedRole}' requires provider-bound model(s) {string.Join(", ", missingModelKeys)}, but they are unavailable in this run. Refresh provider models or update the team assignment; LocalGPT will not substitute another host or model.");
-                        }
+                        configuredModelKeys = ResolveConfiguredRoleParticipantKeys(normalizedRole, configuredModelKeys, participants);
 
                         var rolePool = BuildConfiguredRoleParticipantPool(definition, participants, assignments)
                             .Where(value => configuredModelKeys.Contains(value, StringComparer.OrdinalIgnoreCase))

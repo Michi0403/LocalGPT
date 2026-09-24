@@ -527,7 +527,7 @@ namespace LocalGPT.Services
 
                 foreach (var message in conversation.Messages
                     .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
-                    .TakeLast(12))
+                    .TakeLast(24))
                 {
                     builder
                         .Append("- ")

@@ -50,16 +50,19 @@ public sealed class PromoteProjectIngestionFunction(IProjectIngestionService ing
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.ingestion.promote", "POST", "/api/dxai/functions/project.ingestion.promote/invoke",
-        "Promotes a quarantine only after deterministic checks, independent review quorum and explicit user confirmation.",
-        "JSON: workspaceName and userConfirmed=true.", "Consequential file promotion. Normal DXFunction human confirmation and the explicit userConfirmed gate are both required.",
+        "Promotes a quarantine only after deterministic checks, independent review quorum and exact approval through the common Human Collaboration workflow.",
+        "JSON: workspaceName required.", "Consequential file promotion. The generic DXFunction approval gate supplies the trusted human confirmation after review; a model cannot self-assert approval in parameters.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false,
-        Source: "DIHandler", ParameterSchemaJson: """{"type":"object","required":["workspaceName","userConfirmed"],"properties":{"workspaceName":{"type":"string"},"userConfirmed":{"type":"boolean"}},"additionalProperties":false}""");
+        SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler",
+        ParameterSchemaJson: """{"type":"object","required":["workspaceName"],"properties":{"workspaceName":{"type":"string","minLength":1,"maxLength":200}},"additionalProperties":false}""");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
-            var binding = json.Bind<WorkspaceConfirmationParameters>(request.Parameters); if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-            return json.Success(await ingestion.PromoteAsync(binding.Value.WorkspaceName, binding.Value.UserConfirmed, cancellationToken).ConfigureAwait(false));
+            var binding = json.Bind<WorkspaceNameParameters>(request.Parameters); if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            if (!request.UserConfirmed)
+                return new DxAiFunctionInvocationResult { Status = "HumanApprovalRequired", Error = "Exact human approval is required before project promotion." };
+            return json.Success(await ingestion.PromoteAsync(binding.Value.WorkspaceName, userConfirmed: true, cancellationToken).ConfigureAwait(false));
         }
         catch (Exception ex) { logger.LogError(ex, "Project ingestion promote DXFunction failed."); return new ProjectAutomationDxFunctionResults().Failed(ex); }
     }

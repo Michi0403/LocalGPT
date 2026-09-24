@@ -114,20 +114,24 @@ namespace LocalGPT.Services
                         return new CouncilAsciiActorRig
                         {
                             RigKey = $"trainer:{Convert.ToHexString(hash.AsSpan(0, 4)).ToLowerInvariant()}",
-                            Width = 13,
-                            Height = 5,
+                            Width = 17,
+                            Height = 7,
                             HeadGlyph = "oO@0"[hash[0] % 4],
                             TorsoGlyph = "*+#="[hash[1] % 4],
                             Joints =
                             [
-                                new() { Name = "head", X = 6, Y = 0 },
-                                new() { Name = "neck", X = 6, Y = 1 },
-                                new() { Name = "leftHand", X = 3, Y = 2 },
-                                new() { Name = "torso", X = 6, Y = 2 },
-                                new() { Name = "rightHand", X = 9, Y = 2 },
-                                new() { Name = "hip", X = 6, Y = 3 },
-                                new() { Name = "leftFoot", X = 4, Y = 4 },
-                                new() { Name = "rightFoot", X = 8, Y = 4 }
+                                new() { Name = "head", X = 8, Y = 0 },
+                                new() { Name = "neck", X = 8, Y = 1 },
+                                new() { Name = "leftElbow", X = 5, Y = 2 },
+                                new() { Name = "leftHand", X = 2, Y = 3 },
+                                new() { Name = "torso", X = 8, Y = 3 },
+                                new() { Name = "rightElbow", X = 11, Y = 2 },
+                                new() { Name = "rightHand", X = 14, Y = 3 },
+                                new() { Name = "hip", X = 8, Y = 4 },
+                                new() { Name = "leftKnee", X = 6, Y = 5 },
+                                new() { Name = "rightKnee", X = 10, Y = 5 },
+                                new() { Name = "leftFoot", X = 4, Y = 6 },
+                                new() { Name = "rightFoot", X = 12, Y = 6 }
                             ]
                         };
                     }
@@ -145,27 +149,29 @@ namespace LocalGPT.Services
                         return new CouncilAsciiActorRig
                         {
                             RigKey = $"creature:{Convert.ToHexString(hash.AsSpan(0, 4)).ToLowerInvariant()}",
-                            Width = 15,
-                            Height = 5,
+                            Width = 23,
+                            Height = 7,
                             HeadGlyph = head,
                             TorsoGlyph = descriptor.Contains("metal", StringComparison.OrdinalIgnoreCase) ? '#' : '=',
                             Joints =
                             [
-                                new() { Name = "head", X = 10, Y = 0 },
-                                new() { Name = "neck", X = 9, Y = 1 },
-                                new() { Name = "body", X = 7, Y = 2 },
-                                new() { Name = "tail", X = 2, Y = 2 },
-                                new() { Name = "frontPaw", X = 10, Y = 4 },
-                                new() { Name = "rearPaw", X = 5, Y = 4 },
-                                new() { Name = "wing", X = 6, Y = 0 }
+                                new() { Name = "crest", X = 19, Y = 0 },
+                                new() { Name = "head", X = 18, Y = 1 },
+                                new() { Name = "neck", X = 16, Y = 2 },
+                                new() { Name = "body", X = 11, Y = 3 },
+                                new() { Name = "tail", X = 2, Y = 4 },
+                                new() { Name = "frontPaw", X = 17, Y = 6 },
+                                new() { Name = "rearPaw", X = 8, Y = 6 },
+                                new() { Name = "wing", X = 10, Y = 0 },
+                                new() { Name = "rearWing", X = 7, Y = 1 }
                             ]
                         };
                     }
 
                     static string[] RenderRig(CouncilAsciiActorRig rig, string pose, bool facingRight, bool creature)
                     {
-                        var width = Math.Clamp(rig.Width, 9, 20);
-                        var height = Math.Clamp(rig.Height, 4, 8);
+                        var width = Math.Clamp(rig.Width, 9, 28);
+                        var height = Math.Clamp(rig.Height, 4, 10);
                         var canvas = Enumerable.Range(0, height).Select(_ => Enumerable.Repeat(' ', width).ToArray()).ToArray();
                         var joints = rig.Joints.ToDictionary(joint => joint.Name, joint => (joint.X, joint.Y), StringComparer.OrdinalIgnoreCase);
 
@@ -247,25 +253,33 @@ namespace LocalGPT.Services
                             Link("tail", "body");
                             Link("body", "neck");
                             Link("neck", "head");
+                            Link("head", "crest");
                             Link("body", "frontPaw");
                             Link("body", "rearPaw");
                             Link("body", "wing");
+                            Link("body", "rearWing");
                             if (joints.TryGetValue("head", out var head)) Put(head, rig.HeadGlyph);
                             if (joints.TryGetValue("body", out var body)) Put(body, rig.TorsoGlyph);
                             if (joints.TryGetValue("frontPaw", out var frontPaw)) Put(frontPaw, 'v');
                             if (joints.TryGetValue("rearPaw", out var rearPaw)) Put(rearPaw, 'v');
                             if (joints.TryGetValue("tail", out var tail)) Put(tail, '~');
                             if (joints.TryGetValue("wing", out var wing)) Put(wing, '^');
+                            if (joints.TryGetValue("rearWing", out var rearWing)) Put(rearWing, '^');
+                            if (joints.TryGetValue("crest", out var crest)) Put(crest, '*');
                         }
                         else
                         {
                             Link("head", "neck");
                             Link("neck", "torso");
-                            Link("torso", "leftHand");
-                            Link("torso", "rightHand");
+                            Link("torso", "leftElbow");
+                            Link("leftElbow", "leftHand");
+                            Link("torso", "rightElbow");
+                            Link("rightElbow", "rightHand");
                             Link("torso", "hip");
-                            Link("hip", "leftFoot");
-                            Link("hip", "rightFoot");
+                            Link("hip", "leftKnee");
+                            Link("leftKnee", "leftFoot");
+                            Link("hip", "rightKnee");
+                            Link("rightKnee", "rightFoot");
                             if (joints.TryGetValue("head", out var head)) Put(head, rig.HeadGlyph);
                             if (joints.TryGetValue("torso", out var torso)) Put(torso, rig.TorsoGlyph);
                             if (joints.TryGetValue("leftHand", out var leftHand)) Put(leftHand, 'o');
@@ -379,8 +393,8 @@ namespace LocalGPT.Services
                     string RosterLine(CouncilKernelTournamentFighterState fighter)
                     {
                         var names = fighter.CreatureRoster.Select(creature =>
-                            $"{(creature.IsActive ? '>' : creature.IsResting ? '~' : ' ')}{Compact(creature.Name, 12)}:{Math.Max(0, creature.Health)}");
-                        return Compact(string.Join(" ", names), 48);
+                            $"{(creature.IsActive ? '>' : creature.IsResting ? '~' : ' ')}{Compact(creature.Name, 18)}:{Math.Max(0, creature.Health)}");
+                        return Compact(string.Join(" ", names), 70);
                     }
 
                     string MakeFrame(
@@ -393,19 +407,37 @@ namespace LocalGPT.Services
                         string rightPose = "idle",
                         int? leftHealth = null,
                         int? rightHealth = null,
-                        string centerEffect = "VS")
+                        string centerEffect = "VS",
+                        string hudMotif = "",
+                        string leftStatement = "",
+                        string rightStatement = "")
                     {
-                        var width = Math.Min(160, Math.Max(96, session.FrameWidth));
-                        var height = Math.Min(48, Math.Max(32, session.FrameHeight));
+                        var width = Math.Min(180, Math.Max(112, session.FrameWidth));
+                        var height = Math.Min(52, Math.Max(34, session.FrameHeight));
                         var rows = Enumerable.Repeat(string.Empty, height).ToArray();
                         var interior = width - 2;
-                        var gutter = 5;
-                        var sideWidth = Math.Max(26, (interior - gutter) / 2);
+                        var gutter = 7;
+                        var sideWidth = Math.Max(34, (interior - gutter) / 2);
+                        var motif = Compact(hudMotif, 42);
+                        var horizontal = "-=~"[StableRange($"{session.Id:N}|{session.TournamentRound}|{session.TournamentExchange}|{headline}|{motif}", 0, 2)];
 
                         static string FitRaw(string value, int maximum)
                         {
                             var raw = value ?? string.Empty;
                             return raw.Length <= maximum ? raw : raw[..maximum];
+                        }
+
+                        string Box(string value)
+                        {
+                            var fitted = FitRaw(value, interior);
+                            return "|" + fitted.PadRight(interior) + "|";
+                        }
+
+                        string Center(string value)
+                        {
+                            var fitted = FitRaw(value, interior);
+                            var leftPadding = Math.Max(0, (interior - fitted.Length) / 2);
+                            return Box(new string(' ', leftPadding) + fitted);
                         }
 
                         string Sides(string leftText, string rightText, string center = "")
@@ -416,52 +448,49 @@ namespace LocalGPT.Services
                             var centered = FitRaw(center, gap);
                             var leftPad = Math.Max(0, (gap - centered.Length) / 2);
                             var rightPad = Math.Max(0, gap - centered.Length - leftPad);
-                            return FitRaw(lhs + new string(' ', leftPad) + centered + new string(' ', rightPad) + rhs, interior);
+                            return Box(FitRaw(lhs + new string(' ', leftPad) + centered + new string(' ', rightPad) + rhs, interior));
                         }
 
                         static string MiniHealth(int health, int startingHealth)
                         {
-                            const int cells = 10;
+                            const int cells = 14;
                             var filled = Math.Clamp((int)Math.Round(cells * Math.Max(0, health) / (double)Math.Max(1, startingHealth)), 0, cells);
                             return "[" + new string('#', filled) + new string('-', cells - filled) + $"] {Math.Max(0, health),3}";
                         }
 
-                        rows[0] = "+" + new string('-', width - 2) + "+";
-                        rows[1] = "| " + Compact(headline, width - 4).PadRight(width - 4) + " |";
-                        rows[2] = "+" + new string('-', width - 2) + "+";
+                        rows[0] = "+" + new string(horizontal, width - 2) + "+";
+                        rows[1] = Center(Compact(headline, interior));
+                        rows[2] = Center(string.IsNullOrWhiteSpace(motif) ? "LOCALGPT // LIVE ARENA" : $"HUD {motif}");
+                        rows[3] = "+" + new string(horizontal, width - 2) + "+";
                         if (left is not null && right is not null)
                         {
-                            rows[3] = Sides($"Trainer {ShortModel(left.TrainerModelName)} [{left.LastTrainerAction}]", $"Trainer {ShortModel(right.TrainerModelName)} [{right.LastTrainerAction}]");
+                            rows[4] = Sides($"Trainer {ShortModel(left.TrainerModelName)} [{left.LastTrainerAction}]", $"Trainer {ShortModel(right.TrainerModelName)} [{right.LastTrainerAction}]", centerEffect);
                             var leftTrainer = RenderRig(left.TrainerRig, leftPose, true, creature: false);
                             var rightTrainer = RenderRig(right.TrainerRig, rightPose, false, creature: false);
-                            for (var line = 0; line < 5; line++)
-                                rows[4 + line] = Sides(leftTrainer.ElementAtOrDefault(line) ?? string.Empty, rightTrainer.ElementAtOrDefault(line) ?? string.Empty, line == 2 ? centerEffect : string.Empty);
+                            for (var line = 0; line < 7; line++)
+                                rows[5 + line] = Sides(leftTrainer.ElementAtOrDefault(line) ?? string.Empty, rightTrainer.ElementAtOrDefault(line) ?? string.Empty, line == 3 ? centerEffect : string.Empty);
 
-                            rows[9] = Sides(
-                                $"{left.CreatureName} · {Compact(left.CreatureSpecies, 16)}",
-                                $"{right.CreatureName} · {Compact(right.CreatureSpecies, 16)}");
+                            rows[12] = Sides($"{left.CreatureName} · {Compact(left.CreatureSpecies, 24)}", $"{right.CreatureName} · {Compact(right.CreatureSpecies, 24)}", "CREATURES");
                             var leftActive = ActiveCreature(left);
                             var rightActive = ActiveCreature(right);
                             var leftCreature = RenderRig(leftActive?.Rig ?? BuildCreatureRig(left.FighterId, left.CreatureSpecies), leftPose, true, creature: true);
                             var rightCreature = RenderRig(rightActive?.Rig ?? BuildCreatureRig(right.FighterId, right.CreatureSpecies), rightPose, false, creature: true);
-                            for (var line = 0; line < 5; line++)
-                                rows[10 + line] = Sides(leftCreature.ElementAtOrDefault(line) ?? string.Empty, rightCreature.ElementAtOrDefault(line) ?? string.Empty, line == 2 ? centerEffect : string.Empty);
+                            for (var line = 0; line < 7; line++)
+                                rows[13 + line] = Sides(leftCreature.ElementAtOrDefault(line) ?? string.Empty, rightCreature.ElementAtOrDefault(line) ?? string.Empty, line == 3 ? centerEffect : string.Empty);
 
-                            rows[15] = Sides(
-                                MiniHealth(leftHealth ?? left.Health, session.TournamentRules.StartingHealth),
-                                MiniHealth(rightHealth ?? right.Health, session.TournamentRules.StartingHealth),
-                                "HP");
-                            rows[16] = Sides(RosterLine(left), RosterLine(right), "TEAM");
-                            rows[17] = Sides(
-                                $"switches {left.SwitchesUsedInCurrentFight}/{session.TournamentRules.MaximumCreatureSwitchesPerFight}",
-                                $"switches {right.SwitchesUsedInCurrentFight}/{session.TournamentRules.MaximumCreatureSwitchesPerFight}",
-                                "TRAINER");
+                            rows[20] = Sides(MiniHealth(leftHealth ?? left.Health, session.TournamentRules.StartingHealth), MiniHealth(rightHealth ?? right.Health, session.TournamentRules.StartingHealth), "HP");
+                            rows[21] = Sides(RosterLine(left), RosterLine(right), "TEAM");
+                            rows[22] = Sides($"switches {left.SwitchesUsedInCurrentFight}/{session.TournamentRules.MaximumCreatureSwitchesPerFight}", $"switches {right.SwitchesUsedInCurrentFight}/{session.TournamentRules.MaximumCreatureSwitchesPerFight}", "TRAINER");
+                            rows[23] = Sides(string.IsNullOrWhiteSpace(leftStatement) ? left.TrainerGreeting : leftStatement, string.IsNullOrWhiteSpace(rightStatement) ? right.TrainerGreeting : rightStatement, "VOICE");
                         }
-                        rows[18] = Compact(body, interior);
-                        rows[19] = Compact(footer, interior);
-                        rows[20] = Compact(TimelineLine(0), interior);
-                        rows[21] = Compact(TimelineLine(1), interior);
-                        rows[height - 1] = "+" + new string('-', width - 2) + "+";
+                        rows[24] = Box(Compact(body, interior));
+                        rows[25] = Box(Compact(footer, interior));
+                        rows[26] = Box(Compact(TimelineLine(0), interior));
+                        rows[27] = Box(Compact(TimelineLine(1), interior));
+                        rows[28] = Box(Compact(TimelineLine(2), interior));
+                        for (var row = 29; row < height - 1; row++)
+                            rows[row] = Box(string.Empty);
+                        rows[height - 1] = "+" + new string(horizontal, width - 2) + "+";
                         return NormalizeFrame(string.Join(Environment.NewLine, rows), session.FrameWidth, session.FrameHeight);
                     }
 
@@ -515,6 +544,7 @@ namespace LocalGPT.Services
                             CreatureForm = Compact(item.CreatureForm, 48),
                             CreatureTrait = Compact(item.CreatureTrait, 48),
                             CreatureVoice = Compact(item.CreatureVoice, 72),
+                            TrainerGreeting = Compact(item.TrainerGreeting, 88),
                             TrainerRig = BuildTrainerRig(item.TrainerModelName),
                             Health = session.TournamentRules.StartingHealth
                         }).ToList();
@@ -592,10 +622,49 @@ namespace LocalGPT.Services
                             .ToList();
                         frames.AddRange(presentationFrames);
                         var pairingText = string.Join("  |  ", session.TournamentFighters.Select(item => item.CreatureName));
+                        var openingHud = Compact(string.Join(" <> ", new[] { activeLeft?.CreatureName, activeRight?.CreatureName }.Where(value => !string.IsNullOrWhiteSpace(value))), 42);
                         AddTimeline("READY", activeLeft, activeRight, $"Bracket ready; {session.TournamentRules.CreaturesPerTrainer} creature slots per trainer, {session.TournamentRules.MaximumCreatureSwitchesPerFight} trainer switches per fight.");
-                        frames.Add(MakeFrame($"ROUND {session.TournamentRound} // BRACKET ONLINE", activeLeft, activeRight, "Arena lights online...", pairingText));
-                        frames.Add(MakeFrame($"ROUND {session.TournamentRound} // CONTESTANTS", activeLeft, activeRight, "Persistent trainer and creature rigs are joint-anchored for every ASCII pose.", pairingText));
-                        frames.Add(MakeFrame($"ROUND {session.TournamentRound} // MATCH READY", activeLeft, activeRight, "The deterministic engine owns HP, damage, legal switches and advancement.", "Trainer actions, creature commands, roster rest and exact state are shown together."));
+                        frames.Add(MakeFrame(
+                            $"ROUND {session.TournamentRound} // ARENA WAKE",
+                            activeLeft,
+                            activeRight,
+                            "The terminal arena boots around this match's generated identities.",
+                            pairingText,
+                            "idle",
+                            "idle",
+                            centerEffect: "::READY::",
+                            hudMotif: openingHud,
+                            leftStatement: activeLeft?.TrainerGreeting ?? string.Empty,
+                            rightStatement: activeRight?.TrainerGreeting ?? string.Empty));
+                        frames.Add(MakeFrame(
+                            $"ROUND {session.TournamentRound} // TRAINER GREETING",
+                            activeLeft,
+                            activeRight,
+                            "Trainers enter with their own opening lines; creatures answer from their persistent rigs.",
+                            Compact(string.Join(" / ", new[] { activeLeft?.CreatureVoice, activeRight?.CreatureVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                            "command",
+                            "command",
+                            centerEffect: "HELLO",
+                            hudMotif: openingHud,
+                            leftStatement: activeLeft?.TrainerGreeting ?? string.Empty,
+                            rightStatement: activeRight?.TrainerGreeting ?? string.Empty));
+                        frames.Add(MakeFrame(
+                            $"ROUND {session.TournamentRound} // CREATURE SALUTE",
+                            activeLeft,
+                            activeRight,
+                            Compact(string.Join(" / ", new[] { activeLeft?.CreatureVoice, activeRight?.CreatureVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                            pairingText,
+                            "victory",
+                            "victory",
+                            centerEffect: "<^>",
+                            hudMotif: openingHud));
+                        frames.Add(MakeFrame(
+                            $"ROUND {session.TournamentRound} // MATCH READY",
+                            activeLeft,
+                            activeRight,
+                            "The deterministic engine owns HP, damage, legal switches and advancement.",
+                            "Trainer actions, creature commands, roster rest and exact state are shown together.",
+                            hudMotif: openingHud));
                         session.AnimationSubtitle = presentationFrames.Count > 0
                             ? "ASCII Team Artist reveal complete. Bracket initialized; LocalGPT still owns every tournament consequence."
                             : "Bracket initialized. The AI participants provide bounded commands and voice; LocalGPT owns every tournament consequence.";
@@ -607,14 +676,17 @@ namespace LocalGPT.Services
                     {
                         var champion = session.TournamentFighters.FirstOrDefault(item => string.Equals(item.FighterId, session.TournamentChampionFighterId, StringComparison.OrdinalIgnoreCase));
                         AddTimeline("COMPLETE", champion, champion, $"Champion {champion?.CreatureName ?? "unknown"} locked by deterministic bracket state.");
-                        frames.Add(MakeFrame("TOURNAMENT COMPLETE", champion, champion, "CEREMONIAL CHAMPION", champion?.CreatureName ?? "Champion", "victory", "victory"));
-                        frames.Add(MakeFrame("ARENA RESULT LOCKED", champion, champion, "All scheduled matches are resolved.", "[[TOURNAMENT_COMPLETE]]", "victory", "victory"));
+                        var championHud = Compact($"{champion?.CreatureName ?? "CHAMPION"} // CROWN", 42);
+                        frames.Add(MakeFrame("FINISHER // CHAMPION REVEAL", champion, champion, "CEREMONIAL CHAMPION", champion?.CreatureName ?? "Champion", "victory", "victory", centerEffect: "***", hudMotif: championHud, leftStatement: champion?.TrainerGreeting ?? string.Empty, rightStatement: champion?.CreatureVoice ?? string.Empty));
+                        frames.Add(MakeFrame("TOURNAMENT COMPLETE", champion, champion, champion?.CreatureVoice ?? "Arena signal complete.", "All scheduled matches are resolved.", "victory", "victory", centerEffect: "CROWN", hudMotif: championHud, leftStatement: champion?.TrainerGreeting ?? string.Empty, rightStatement: champion?.CreatureVoice ?? string.Empty));
+                        frames.Add(MakeFrame("ARENA RESULT LOCKED", champion, champion, "All scheduled matches are resolved.", "[[TOURNAMENT_COMPLETE]]", "victory", "victory", centerEffect: "LOCK", hudMotif: championHud));
                         session.AnimationSubtitle = $"Tournament complete. {champion?.CreatureName ?? "The remaining creature"} receives the imaginary ceremonial prize.";
                         summary = BuildTournamentSummary(session, session.AnimationSubtitle, false);
                     }
                     else
                     {
-                        if (session.TournamentExchange == 0)
+                        var openingExchange = session.TournamentExchange == 0;
+                        if (openingExchange)
                         {
                             activeLeft.SwitchesUsedInCurrentFight = 0;
                             activeRight.SwitchesUsedInCurrentFight = 0;
@@ -727,10 +799,50 @@ namespace LocalGPT.Services
                         var rightFlavor = ReadTaggedValue(rightCreature, "FLAVOR");
                         var leftVoice = ReadTaggedValue(leftCreature, "VOICE");
                         var rightVoice = ReadTaggedValue(rightCreature, "VOICE");
+                        var leftTrainerVoice = ReadTaggedValue(leftTrainer, "VOICE");
+                        var rightTrainerVoice = ReadTaggedValue(rightTrainer, "VOICE");
+                        var leftHud = ReadTaggedValue(leftTrainer, "HUD");
+                        var rightHud = ReadTaggedValue(rightTrainer, "HUD");
+                        var leftEffect = ReadTaggedValue(leftCreature, "EFFECT");
+                        var rightEffect = ReadTaggedValue(rightCreature, "EFFECT");
+                        var exchangeHud = Compact(string.Join(" <> ", new[] { leftHud, rightHud }.Where(value => !string.IsNullOrWhiteSpace(value))), 42);
+                        if (string.IsNullOrWhiteSpace(exchangeHud))
+                            exchangeHud = Compact($"{activeLeft.CreatureName} // {activeRight.CreatureName} // E{session.TournamentExchange}", 42);
                         var leftPose = leftMove switch { "GUARD" => "guard", "RECOVER" => "recover", "WAIT" => "idle", _ => "attack" };
                         var rightPose = rightMove switch { "GUARD" => "guard", "RECOVER" => "recover", "WAIT" => "idle", _ => "attack" };
                         var leftImpactPose = rightDamage > 0 ? "hit" : leftPose;
                         var rightImpactPose = leftDamage > 0 ? "hit" : rightPose;
+                        if (openingExchange)
+                        {
+                            frames.Add(MakeFrame(
+                                $"ROUND {session.TournamentRound} // MATCH GREETING",
+                                activeLeft,
+                                activeRight,
+                                Compact(string.Join(" / ", new[] { leftTrainerVoice, rightTrainerVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                                "Fresh trainer statements and a newly generated arena HUD open this legal match.",
+                                "command",
+                                "command",
+                                leftBefore,
+                                rightBefore,
+                                "HELLO",
+                                exchangeHud,
+                                string.IsNullOrWhiteSpace(leftTrainerVoice) ? activeLeft.TrainerGreeting : leftTrainerVoice,
+                                string.IsNullOrWhiteSpace(rightTrainerVoice) ? activeRight.TrainerGreeting : rightTrainerVoice));
+                            frames.Add(MakeFrame(
+                                "CREATURE GREETING // READY STANCE",
+                                activeLeft,
+                                activeRight,
+                                Compact(string.Join(" / ", new[] { leftVoice, rightVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                                Compact(string.Join("     ", new[] { leftEffect, rightEffect }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                                "victory",
+                                "victory",
+                                leftBefore,
+                                rightBefore,
+                                "<^>",
+                                exchangeHud,
+                                leftVoice,
+                                rightVoice));
+                        }
                         frames.Add(MakeFrame(
                             $"ROUND {session.TournamentRound} // TRAINER ACTION",
                             activeLeft,
@@ -741,29 +853,72 @@ namespace LocalGPT.Services
                             "command",
                             leftBefore,
                             rightBefore,
-                            "..."));
+                            "...",
+                            exchangeHud,
+                            leftTrainerVoice,
+                            rightTrainerVoice));
                         frames.Add(MakeFrame(
-                            "CREATURES MOVE",
+                            "CREATURES MOVE // WIND-UP",
                             activeLeft,
                             activeRight,
-                            Compact(string.Join(" / ", new[] { leftFlavor, rightFlavor }.Where(value => !string.IsNullOrWhiteSpace(value))), 140),
-                            "Joint-anchored ASCII actor rigs move; authoritative HP changes only in the engine-impact frame.",
+                            Compact(string.Join(" / ", new[] { leftFlavor, rightFlavor }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                            Compact(string.Join("     ", new[] { leftEffect, rightEffect }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
                             leftPose,
                             rightPose,
                             leftBefore,
                             rightBefore,
-                            leftMove == "ATTACK" || rightMove == "ATTACK" ? ">><<" : "<>"));
+                            leftMove == "ATTACK" || rightMove == "ATTACK" ? ">>...<<" : "<>...<>",
+                            exchangeHud,
+                            leftVoice,
+                            rightVoice));
+                        if (leftMove == "ATTACK")
+                        {
+                            frames.Add(MakeFrame(
+                                "ATTACK ANIMATION // LEFT BURST",
+                                activeLeft,
+                                activeRight,
+                                string.IsNullOrWhiteSpace(leftEffect) ? $"{activeLeft.CreatureName} surges forward." : leftEffect,
+                                leftVoice,
+                                "attack",
+                                rightMove == "GUARD" ? "guard" : "idle",
+                                leftBefore,
+                                rightBefore,
+                                ">>>>>",
+                                exchangeHud,
+                                leftTrainerVoice,
+                                rightTrainerVoice));
+                        }
+                        if (rightMove == "ATTACK")
+                        {
+                            frames.Add(MakeFrame(
+                                "ATTACK ANIMATION // RIGHT BURST",
+                                activeLeft,
+                                activeRight,
+                                string.IsNullOrWhiteSpace(rightEffect) ? $"{activeRight.CreatureName} surges forward." : rightEffect,
+                                rightVoice,
+                                leftMove == "GUARD" ? "guard" : "idle",
+                                "attack",
+                                leftBefore,
+                                rightBefore,
+                                "<<<<<",
+                                exchangeHud,
+                                leftTrainerVoice,
+                                rightTrainerVoice));
+                        }
                         frames.Add(MakeFrame(
-                            "ARENA CLASH",
+                            "ARENA CLASH // CONTACT",
                             activeLeft,
                             activeRight,
                             $"{leftMove}  <<< *** >>>  {rightMove}",
-                            Compact(string.Join(" / ", new[] { leftVoice, rightVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 140),
+                            Compact(string.Join(" / ", new[] { leftVoice, rightVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
                             leftPose,
                             rightPose,
                             leftBefore,
                             rightBefore,
-                            "***"));
+                            "***",
+                            exchangeHud,
+                            leftVoice,
+                            rightVoice));
                         frames.Add(MakeFrame(
                             "ENGINE IMPACT",
                             activeLeft,
@@ -774,7 +929,10 @@ namespace LocalGPT.Services
                             rightImpactPose,
                             activeLeft.Health,
                             activeRight.Health,
-                            "!!!"));
+                            "!!!",
+                            exchangeHud,
+                            leftTrainerVoice,
+                            rightTrainerVoice));
                         frames.Add(MakeFrame(
                             "RECOVERY / BENCH",
                             activeLeft,
@@ -785,7 +943,10 @@ namespace LocalGPT.Services
                             activeRight.Health <= 0 ? "hit" : "idle",
                             activeLeft.Health,
                             activeRight.Health,
-                            "::"));
+                            "::",
+                            exchangeHud,
+                            leftVoice,
+                            rightVoice));
 
                         var consequence = winner is null
                             ? $"Exchange resolved: {activeLeft.CreatureName} {activeLeft.Health} HP ({TeamHealth(activeLeft)} team); {activeRight.CreatureName} {activeRight.Health} HP ({TeamHealth(activeRight)} team)."
@@ -793,6 +954,38 @@ namespace LocalGPT.Services
 
                         if (winner is not null)
                         {
+                            var winnerIsLeft = ReferenceEquals(winner, activeLeft);
+                            var finisherEffect = winnerIsLeft ? leftEffect : rightEffect;
+                            var finisherCreatureVoice = winnerIsLeft ? leftVoice : rightVoice;
+                            var finisherTrainerVoice = winnerIsLeft ? leftTrainerVoice : rightTrainerVoice;
+                            frames.Add(MakeFrame(
+                                "FINISHER // CHARGE",
+                                activeLeft,
+                                activeRight,
+                                string.IsNullOrWhiteSpace(finisherEffect) ? $"{winner.CreatureName} gathers the final arena signal." : finisherEffect,
+                                finisherTrainerVoice,
+                                winnerIsLeft ? "attack" : "hit",
+                                winnerIsLeft ? "hit" : "attack",
+                                activeLeft.Health,
+                                activeRight.Health,
+                                winnerIsLeft ? ">>>>>*" : "*<<<<<",
+                                exchangeHud,
+                                leftTrainerVoice,
+                                rightTrainerVoice));
+                            frames.Add(MakeFrame(
+                                "FINISHER // VICTORY SIGNAL",
+                                activeLeft,
+                                activeRight,
+                                consequence,
+                                finisherCreatureVoice,
+                                winnerIsLeft ? "victory" : "hit",
+                                winnerIsLeft ? "hit" : "victory",
+                                activeLeft.Health,
+                                activeRight.Health,
+                                "***WIN***",
+                                exchangeHud,
+                                winnerIsLeft ? finisherTrainerVoice : leftTrainerVoice,
+                                winnerIsLeft ? rightTrainerVoice : finisherTrainerVoice));
                             session.TournamentExchange = 0;
                             AddTimeline("MATCH", winner, loser, consequence);
                             PrepareBracket();
@@ -807,8 +1000,11 @@ namespace LocalGPT.Services
                             winner is not null && ReferenceEquals(winner, activeRight) ? "victory" : activeRight.Health <= 0 ? "hit" : "idle",
                             activeLeft.Health,
                             activeRight.Health,
-                            winner is null ? "VS" : "WIN"));
-                        session.AnimationSubtitle = Compact(string.Join(" ", new[] { leftVoice, rightVoice, consequence }.Where(value => !string.IsNullOrWhiteSpace(value))), 360);
+                            winner is null ? "VS" : "WIN",
+                            exchangeHud,
+                            leftTrainerVoice,
+                            rightTrainerVoice));
+                        session.AnimationSubtitle = Compact(string.Join(" ", new[] { leftTrainerVoice, leftVoice, rightTrainerVoice, rightVoice, consequence }.Where(value => !string.IsNullOrWhiteSpace(value))), 360);
                         summary = BuildTournamentSummary(session, consequence, false);
                     }
 

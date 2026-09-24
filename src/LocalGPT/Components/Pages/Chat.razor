@@ -71,6 +71,7 @@
                       IconCssClass="oi oi-sparkles"
                       Click="ToggleAsciiFunModeAsync" />
         </div>
+        <ChatMicrophone Transcribed="StartSpeechCouncilAsync" SetupRequested="StartWhisperSetupAsync" Disabled="@IsLiveCouncilInteractionAvailable" />
         <UploadProcessingAdvisor ChatRequested="SubmitUploadRecommendationToChatAsync" CouncilRequested="SubmitUploadRecommendationToCouncilAsync" />
         <details class="chat-configuration-ribbon" data-testid="chat-configuration-ribbon">
             <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation." @onclick="OnChatConfigurationSummaryClickedAsync">
@@ -528,9 +529,9 @@
                      Visible="true"
                      VisibleChanged="OnGameConsoleVisibilityChangedAsync"
                      HeaderText="LocalGPT ASCII console"
-                     Width="min(1680px, 97vw)"
-                     Height="min(900px, 90vh)"
-                     MaxHeight="95vh"
+                     Width="min(1920px, 98vw)"
+                     Height="96dvh"
+                     MaxHeight="98dvh"
                      CloseOnOutsideClick="false">
                 <BodyContentTemplate>
                     <div class="chat-game-popup-body" aria-label="Optional ASCII game console">

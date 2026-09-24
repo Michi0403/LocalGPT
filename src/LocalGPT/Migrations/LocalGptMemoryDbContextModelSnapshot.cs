@@ -15,7 +15,7 @@ namespace LocalGPT.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.ApplicationLogEntry", b =>
                 {
@@ -2129,6 +2129,37 @@ namespace LocalGPT.Migrations
                     b.HasIndex("FunctionName").IsUnique();
                     b.HasIndex("PipelineKey", "IsEnabled");
                     b.ToTable("UserDxAiFunctionDefinitions", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.RuntimePluginDefinition", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<bool>("AvailableToAi").HasColumnType("INTEGER");
+                    b.Property<Guid?>("CompilerInstallationId").HasColumnType("TEXT");
+                    b.Property<string>("ContentHash").IsRequired().HasMaxLength(128).HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("EntryAssemblyName").IsRequired().HasMaxLength(260).HasColumnType("TEXT");
+                    b.Property<string>("EntryTypeName").IsRequired().HasMaxLength(500).HasColumnType("TEXT");
+                    b.Property<string>("FunctionName").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<bool>("IsReadOnly").HasColumnType("INTEGER");
+                    b.Property<int>("Kind").HasColumnType("INTEGER");
+                    b.Property<string>("LastBuildMessage").IsRequired().HasMaxLength(4000).HasColumnType("TEXT");
+                    b.Property<string>("LastBuildStatus").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+                    b.Property<DateTime?>("LastLoadedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<string>("PackagePayloadBase64").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("ParameterSchemaJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("Purpose").IsRequired().HasMaxLength(2000).HasColumnType("TEXT");
+                    b.Property<bool>("RequiresHumanConfirmation").HasColumnType("INTEGER");
+                    b.Property<string>("SafetyNotes").IsRequired().HasMaxLength(2000).HasColumnType("TEXT");
+                    b.Property<string>("SourceCode").IsRequired().HasColumnType("TEXT");
+                    b.Property<bool>("SupportsAutomaticInvocation").HasColumnType("INTEGER");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("FunctionName").IsUnique();
+                    b.HasIndex("IsEnabled", "AvailableToAi", "UpdatedAtUtc");
+                    b.ToTable("RuntimePluginDefinitions", (string)null);
                 });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.NativeCommandLogEntry", b =>

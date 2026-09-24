@@ -504,7 +504,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
                 if (existing is null)
                 {
                     existing = CreateTransientCompilerInstallation(candidate);
-                    existing.IsDefaultForLanguage = defaultLanguages.Add(existing.Language);
+                    existing.IsDefaultForLanguage = !request.AutoValidateDiscovered && defaultLanguages.Add(existing.Language);
                     db.ProjectCompilerInstallations.Add(existing);
                 }
                 else
@@ -525,7 +525,45 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
                 saved.Add(existing);
             }
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogInformation("Discovered and persisted {CompilerCount} knowledge-backed compiler/runtime executable candidate(s) on {Platform}.", saved.Count, toolchainDiscovery.CurrentPlatform);
+
+            if (request.AutoValidateDiscovered)
+            {
+                var validated = new List<ProjectCompilerInstallation>(saved.Count);
+                foreach (var compiler in saved)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
+                    {
+                        validated.Add(await ValidateCompilerInstallationAsync(compiler.Id, userConfirmed: true, cancellationToken).ConfigureAwait(false));
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        logger.LogWarning(exception, "Automatic validation could not complete for discovered toolchain {CompilerId}; executable path and process output were omitted from logs.", compiler.Id);
+                        validated.Add(compiler);
+                    }
+                }
+
+                foreach (var languageGroup in validated
+                    .Where(item => item.LastValidationSucceeded && !string.IsNullOrWhiteSpace(item.Language))
+                    .GroupBy(item => item.Language, StringComparer.OrdinalIgnoreCase))
+                {
+                    if (!defaultLanguages.Add(languageGroup.Key))
+                        continue;
+                    var selected = languageGroup.First();
+                    var tracked = saved.FirstOrDefault(item => item.Id == selected.Id);
+                    if (tracked is not null)
+                        tracked.IsDefaultForLanguage = true;
+                    selected.IsDefaultForLanguage = true;
+                }
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                saved = validated;
+            }
+
+            logger.LogInformation("Discovered and persisted {CompilerCount} knowledge-backed compiler/runtime executable candidate(s) on {Platform}; automatic validation={AutoValidated}.", saved.Count, toolchainDiscovery.CurrentPlatform, request.AutoValidateDiscovered);
             return saved;
         }
         catch (OperationCanceledException exception)
@@ -569,15 +607,6 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
                 {
                     var knowledge = await toolchainKnowledge.GetVersionKnowledgeAsync(compiler.KnowledgeProfileKey, compiler.Version, cancellationToken).ConfigureAwait(false);
                     compiler.VersionKnowledgeEntryId = knowledge.KnowledgeEntryId;
-                    if (!knowledge.HasKnowledge)
-                    {
-                        await toolchainKnowledge.RequestMissingVersionKnowledgeAsync(new ToolchainKnowledgeGapRequest
-                        {
-                            ProfileKey = compiler.KnowledgeProfileKey,
-                            Version = compiler.Version,
-                            Context = $"Detected locally on {toolchainDiscovery.CurrentPlatform}; executable path intentionally omitted."
-                        }, cancellationToken).ConfigureAwait(false);
-                    }
                 }
             }
             compiler.UpdatedAtUtc = DateTime.UtcNow;

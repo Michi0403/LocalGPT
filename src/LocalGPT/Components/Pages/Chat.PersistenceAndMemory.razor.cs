@@ -94,7 +94,11 @@ namespace LocalGPT.Components.Pages
         {
             if (ChatClientProvider?.SelectedSession is not null && DxAiChat is not null)
             {
-                var messages = ReuseContextWhenSwitching && canonicalConversationMessages.Count > 0
+                // A live/rejoined Council owns its message collection. Never substitute an older cross-provider
+                // canonical cache while that run is attached; doing so can visually erase the Council transcript
+                // immediately after the user sends another message.
+                var liveCouncilAttached = AttachedLiveCouncilRunId is not null || RejoinCouncilRunId is not null;
+                var messages = !liveCouncilAttached && ReuseContextWhenSwitching && canonicalConversationMessages.Count > 0
                     ? canonicalConversationMessages
                     : ChatClientProvider.SelectedSession.Messages;
                 DxAiChat.LoadMessages(messages);

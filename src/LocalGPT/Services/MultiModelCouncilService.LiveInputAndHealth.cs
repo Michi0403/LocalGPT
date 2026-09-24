@@ -238,16 +238,20 @@ namespace LocalGPT.Services
         /// Applies approved one run model exclusions as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
         /// <param name="selectedParticipants">Selected participants value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="team">Team whose explicit provider/model bindings must remain authoritative for this run.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
         /// <returns>The collection produced by the operation.</returns>
         private async Task<(List<string> Active, List<string> Excluded)> ApplyApprovedOneRunModelExclusionsAsync(
             List<string> selectedParticipants,
+            OrganicCouncilTeamDefinition team,
             CancellationToken cancellationToken)
         {
             var active = selectedParticipants.ToList();
             var excluded = new List<string>();
             try
             {
+                var configuredBindings = GetConfiguredTeamModelBindings(team);
+                var identity = new ProviderModelIdentity();
                 var snapshot = await humanCollaboration.GetSnapshotAsync(includeResolved: true, take: 200, cancellationToken).ConfigureAwait(false);
                 foreach (var modelName in selectedParticipants)
                 {
@@ -262,6 +266,16 @@ namespace LocalGPT.Services
                     var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(spec, cancellationToken: cancellationToken).ConfigureAwait(false);
                     if (!gate.IsAuthorized)
                         continue;
+
+                    if (configuredBindings.Any(binding => identity.AreEquivalentSelectionKeys(binding, modelName)))
+                    {
+                        logger.LogInformation(
+                            "Council model {ModelName} had an approved one-run health exclusion consumed, but team {TeamKey} explicitly requires that provider/model identity; the run keeps the model instead of invalidating its role assignment.",
+                            modelName,
+                            team.Key);
+                        continue;
+                    }
+
                     active.RemoveAll(model => string.Equals(model, modelName, StringComparison.OrdinalIgnoreCase));
                     excluded.Add(modelName);
                 }
@@ -271,6 +285,48 @@ namespace LocalGPT.Services
                 logger.LogWarning(ex, "Approved one-run model exclusions could not be applied. The selected Council models remain available.");
             }
             return (active, excluded);
+        }
+
+        /// <summary>Returns provider/model identities that the selected team explicitly requires for one of its configured roles or model-bound workflow steps.</summary>
+        private IReadOnlyList<string> GetConfiguredTeamModelBindings(OrganicCouncilTeamDefinition team)
+        {
+            try
+            {
+                var bindings = new List<string>();
+                foreach (var role in team.Roles.Where(role =>
+                             role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
+                             role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange))
+                {
+                    bindings.AddRange((role.AssignedModelKeys ?? []).Where(value => !string.IsNullOrWhiteSpace(value)));
+                }
+
+                foreach (var step in team.WorkflowSteps.Where(step => step.IsEnabled))
+                {
+                    if (string.Equals(step.ExecutionMode, "AssignedModelSingle", StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(step.AssignedModelName))
+                        bindings.Add(step.AssignedModelName);
+                    if (step.XFunctionsEnabled && step.XCanStartSingleModel && !string.IsNullOrWhiteSpace(step.XChildModelName))
+                        bindings.Add(step.XChildModelName);
+                    if (step.SummarizeRoleResults
+                        && step.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember
+                        && !string.IsNullOrWhiteSpace(step.RoleResultSynthesisModelName))
+                        bindings.Add(step.RoleResultSynthesisModelName);
+                }
+
+                return bindings
+                    .Select(value => value.Trim())
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception __serviceMethodException)
+            {
+                if (__serviceMethodException is OperationCanceledException)
+                    logger.LogDebug(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(GetConfiguredTeamModelBindings)} was canceled.");
+                else
+                    logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(GetConfiguredTeamModelBindings)} failed.");
+                throw;
+            }
         }
 
         /// <summary>

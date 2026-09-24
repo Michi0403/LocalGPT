@@ -1,19 +1,27 @@
 namespace LocalGPT.BusinessObjects
 {
-    /// <summary>
-    /// Carries the configurable python core settings used to control the associated application behavior without hard-coding policy in consumers.
-    /// </summary>
+    /// <summary>Configures the LocalGPT-managed Python and specialized local-AI runtime.</summary>
     public class PythonCoreOptions
     {
-        /// <summary>
-        /// Defines the python core constant used by <see cref="PythonCoreOptions"/> so callers and internal logic share the same stable value.
-        /// </summary>
         public const string PythonCore = "PythonCore";
-
-        /// <summary>
-        /// Gets or sets the python runtime value that forms part of the python core state consumed or produced by the surrounding workflow.
-        /// </summary>
-        /// <value>The python runtime value exposed by <see cref="PythonCoreOptions"/>.</value>
+        public string? PythonExecutable { get; set; }
         public string? PythonRuntime { get; set; }
+        public string? PythonHome { get; set; }
+        public string? VirtualEnvironmentPath { get; set; }
+        public string? ModelRoot { get; set; }
+        public string? ArtifactRoot { get; set; }
+        public string HuggingFaceTokenEnvironmentVariable { get; set; } = "HF_TOKEN";
+        public string DefaultDevice { get; set; } = "auto";
+        public string DefaultWhisperModel { get; set; } = "base";
+        public string DefaultSpeechLanguage { get; set; } = string.Empty;
+        public string DefaultSpeechTask { get; set; } = "transcribe";
+        public string DefaultSpeechInitialPrompt { get; set; } = string.Empty;
+        public int QueueCapacity { get; set; } = 64;
+        public int MaximumInputMegabytes { get; set; } = 512;
+        public long MaximumImagePixels { get; set; } = 100_000_000;
+        public int MaximumAudioSeconds { get; set; } = 7200;
+        public int MinimumAudioBytesPerSecond { get; set; } = 768;
+        public bool CacheModels { get; set; } = true;
+        public List<LocalAiPackageProfile> PackageProfiles { get; set; } = [];
     }
 }

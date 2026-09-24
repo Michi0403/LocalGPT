@@ -92,8 +92,8 @@ def main():
       ('exact run game lookup contract', 'GetActiveForCouncilRunAsync(' in interface and 'string gameKey' in interface),
       ('exact run game lookup implementation', 'NormalizeGameKey(gameKey)' in game_service and 'string.Equals(item.GameKey, normalizedGameKey' in game_service),
       ('bootstrap exact tournament lookup', 'GetActiveForCouncilRunAsync(request.RunId, gameKey' in bootstrap),
-      ('tournament high resolution bootstrap', 'FrameWidth = highResolutionTournament ? 144 : 80' in bootstrap and 'FrameHeight = highResolutionTournament ? 40 : 25' in bootstrap),
-      ('tournament high resolution renderer', 'Math.Min(160, Math.Max(96, session.FrameWidth))' in service and 'Math.Min(48, Math.Max(32, session.FrameHeight))' in service),
+      ('tournament high resolution bootstrap', 'FrameWidth = highResolutionTournament ? 168 : 80' in bootstrap and 'FrameHeight = highResolutionTournament ? 44 : 25' in bootstrap),
+      ('tournament high resolution renderer', 'Math.Min(180, Math.Max(112, session.FrameWidth))' in service and 'Math.Min(52, Math.Max(34, session.FrameHeight))' in service),
       ('bridge exact tournament lookup', 'GetActiveForCouncilRunAsync(result.RunId, "kernel-creature-tournament"' in bridge),
       ('pixel presentation selector', 'GameDisplayOptions' in console and 'new("Pixel", "Pixel screen")' in console),
       ('pixel canvas surface', 'data-game-pixel-screen' in console and '.chat-game-pixel-screen' in console_css),
@@ -102,7 +102,16 @@ def main():
       ('bounded rejoin attachment gate', 'WaitAsync(TimeSpan.FromSeconds(3), componentLifetimeCts.Token)' in live_council),
       ('same-run rejoin preserves attachment identity', 'Rejoining the run already projected by this circuit must not force DxAIChat to rebind' in live_council),
       ('follow-tail respects manual scroll', 'if (entry.enabled) scrollToTail(region)' in js),
-      ('popup header bounded scrolling', 'max-height: min(15rem, 34dvh);' in chat_css and 'scrollbar-gutter: stable;' in chat_css),
+      ('popup header is responsively bounded without crushing controls', 'grid-template-columns: minmax(12rem, max-content) minmax(0, 1fr);' in chat_css and 'max-height: min(12rem, 28dvh);' in chat_css and 'overflow-y: auto;' in chat_css),
+      ('active tournament match is projected into the session snapshot', 'TournamentCurrentFighterIds' in models and 'TournamentCurrentFighterIds' in read('src/LocalGPT/Services/CouncilGameSessionService.Snapshots.cs')),
+      ('active tournament pair limits live battle model calls', 'LimitKernelTournamentRoundParticipantsAsync' in bridge and 'TournamentCurrentFighterIds' in bridge),
+      ('live tournament pair uses benchmark-bounded parallel execution', tournament.count('ExecutionMode = "AllMembersParallel"') >= 3),
+      ('battle transcript is bounded instead of growing every exchange', 'latest bounded battle context plus the opening identities' in read('src/LocalGPT/Services/MultiModelCouncilService.WorkflowPrompting.cs') and '.TakeLast(8)' in read('src/LocalGPT/Services/MultiModelCouncilService.WorkflowPrompting.cs')),
+      ('per-exchange creative HUD output', 'HUD: <one new compact printable-ASCII arena HUD motif' in tournament and 'ReadTaggedValue(leftTrainer, "HUD")' in service),
+      ('per-exchange creative attack effect output', 'EFFECT: <one new compact printable-ASCII motion/effect motif' in tournament and 'ReadTaggedValue(leftCreature, "EFFECT")' in service),
+      ('greeting animation and trainer statements', 'TRAINER GREETING' in service and 'MATCH GREETING' in service and 'CREATURE GREETING // READY STANCE' in service and 'TrainerGreeting' in service),
+      ('attack animations', 'ATTACK ANIMATION // LEFT BURST' in service and 'ATTACK ANIMATION // RIGHT BURST' in service),
+      ('finisher animations', 'FINISHER // CHARGE' in service and 'FINISHER // VICTORY SIGNAL' in service),
     ]
     failed=[name for name,ok in checks if not ok]
     if failed: raise SystemExit(f"Kernel Creature Tournament audit failed: {len(failed)}/{len(checks)} checks failed: {', '.join(failed)}")

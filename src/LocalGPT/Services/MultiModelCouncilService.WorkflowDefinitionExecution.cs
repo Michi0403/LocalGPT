@@ -103,7 +103,12 @@ namespace LocalGPT.Services
                         definition.Role,
                         participants,
                         roleAssignments);
-                    var roleParticipants = roleAssignment.AiParticipants;
+                    var roleParticipants = await LimitKernelTournamentRoundParticipantsAsync(
+                        result,
+                        team,
+                        definition,
+                        roleAssignment.AiParticipants,
+                        cancellationToken).ConfigureAwait(false);
                     var visiblePreviousStep = BuildConfiguredWorkflowPreviousStep(
                         result,
                         definition,

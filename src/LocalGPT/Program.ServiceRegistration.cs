@@ -140,6 +140,11 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IArtifactBuildExecutor, ArtifactBuildExecutor>();
                 builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();
                 builder.Services.AddSingleton<IChatUploadWorkspaceService, ChatUploadWorkspaceService>();
+                builder.Services.AddSingleton<IPythonNetRuntimeCoordinator, PythonNetRuntimeCoordinator>();
+                builder.Services.AddSingleton<ILocalAiArtifactService, LocalAiArtifactService>();
+                builder.Services.AddScoped<ILocalAiRuntimeService, LocalAiRuntimeService>();
+                builder.Services.AddScoped<ILocalAiAcquisitionService, LocalAiAcquisitionService>();
+                builder.Services.AddScoped<IHuggingFaceModelCatalogService, HuggingFaceModelCatalogService>();
                 builder.Services.AddSingleton<IProjectLibraryInventoryService, ProjectLibraryInventoryService>();
                 builder.Services.AddSingleton<IBuildDebugInventoryService, BuildDebugInventoryService>();
                 builder.Services.AddSingleton<IHardwareInventoryService, HardwareInventoryService>();
@@ -174,6 +179,15 @@ namespace LocalGPT
                     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
                 builder.Services.AddHttpClient("LocalGPTProviderCatalog", client =>
                     client.Timeout = TimeSpan.FromSeconds(10))
+                    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = true });
+                builder.Services.AddHttpClient("LocalGPTHuggingFace", client =>
+                    client.Timeout = TimeSpan.FromSeconds(30))
+                    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = true });
+                builder.Services.AddHttpClient("LocalGPTLocalAiSources", client =>
+                    client.Timeout = TimeSpan.FromHours(12))
+                    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = true });
+                builder.Services.AddHttpClient("LocalGPTToolchainAcquisition", client =>
+                    client.Timeout = TimeSpan.FromHours(4))
                     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = true });
                 builder.Services.AddHttpClient("LocalGPTProviderRuntime", client =>
                     client.Timeout = TimeSpan.FromSeconds(30))
@@ -242,6 +256,10 @@ namespace LocalGPT
                 builder.Services.AddScoped<IProjectArchitectureService, ProjectArchitectureService>();
                 builder.Services.AddScoped<IToolchainKnowledgeService, ToolchainKnowledgeService>();
                 builder.Services.AddScoped<IToolchainDiscoveryService, ToolchainDiscoveryService>();
+                builder.Services.AddSingleton<IToolchainEnvironmentService, ToolchainEnvironmentService>();
+                builder.Services.AddHostedService<ToolchainEnvironmentInitializationHostedService>();
+                builder.Services.AddScoped<IToolchainExecutionProfileService, ToolchainExecutionProfileService>();
+                builder.Services.AddScoped<IToolchainAcquisitionService, ToolchainAcquisitionService>();
                 builder.Services.AddScoped<IProjectMaintenanceService, ProjectMaintenanceService>();
                 builder.Services.AddScoped<IFeaturePersistenceService, FeaturePersistenceService>();
                 builder.Services.AddSingleton<IEmbeddedHardwareCatalogService, EmbeddedHardwareCatalogService>();
@@ -280,6 +298,10 @@ namespace LocalGPT
                 builder.Services.AddScoped<ICouncilPreflightService, LocalGPT.Services.Council.CouncilPreflightService>();
                 builder.Services.AddScoped<IDebugArtifactInspectionService, DebugArtifactInspectionService>();
                 builder.Services.AddSingleton<IUserDxAiFunctionService, UserDxAiFunctionService>();
+                builder.Services.AddSingleton<LocalGPT.Runtime.Plugins.RuntimePluginDefinitionSupport>();
+                builder.Services.AddSingleton<LocalGPT.Runtime.Plugins.RuntimePluginExecutionHost>();
+                builder.Services.AddSingleton<IRuntimePluginService, RuntimePluginService>();
+                builder.Services.AddHostedService<RuntimePluginInitializationHostedService>();
                 builder.Services.AddSingleton<DxAiFunctionHandlerMapService>();
                 builder.Services.AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>();
                 builder.Services.AddScoped<HardwarePerformancePresetDxAiSupport>();

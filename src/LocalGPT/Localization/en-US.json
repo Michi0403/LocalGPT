@@ -2261,5 +2261,17 @@
   "Phrase.Show␠ASCII␠terminal": "Show ASCII terminal",
   "Text.Show␠ASCII␠terminal": "Show ASCII terminal",
   "Phrase.Hide␠ASCII␠terminal": "Hide ASCII terminal",
-  "Text.Hide␠ASCII␠terminal": "Hide ASCII terminal"
+  "Text.Hide␠ASCII␠terminal": "Hide ASCII terminal",
+  "Chat.Microphone.Model": "Whisper model",
+  "Chat.Microphone.Stop": "Stop and start Council",
+  "Chat.Microphone.Start": "Microphone",
+  "Chat.Microphone.Cancel": "Cancel recording",
+  "Chat.Microphone.Setup": "Ask Council to set up Whisper",
+  "Chat.Microphone.Missing": "Install a Whisper model with Council or on the Install page first.",
+  "Chat.Microphone.Recording": "Recording. Stop to transcribe and start Council with your current settings.",
+  "Chat.Microphone.Transcribing": "Whisper is transcribing…",
+  "Chat.Microphone.Empty": "No speech detected. Try again.",
+  "Chat.Microphone.Submitted": "Transcribed. Starting Council with your current settings.",
+  "Chat.Microphone.Cancelled": "Recording cancelled.",
+  "Chat.Microphone.Error": "Microphone or Whisper failed. Check browser microphone permission and the managed Python/Whisper setup."
 }

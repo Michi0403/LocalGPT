@@ -99,6 +99,32 @@ namespace LocalGPT.Services
                     _ => visibleSteps
                 };
 
+                if (string.Equals(team.Key, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
+                    && (string.Equals(definition.Key, "trainer-round-command", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(definition.Key, "fight-round", StringComparison.OrdinalIgnoreCase)))
+                {
+                    // The engine scoreboard already carries the full authoritative fight state. Sending the complete
+                    // growing Council transcript back to every tiny local model made later exchanges context-bound
+                    // rather than GPU-bound. Keep only the latest bounded battle context plus the opening identities.
+                    var tournamentSteps = visibleSteps
+                        .Where(step => string.Equals(step.WorkflowStepKey, "trainer-creature-selection", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(step.WorkflowStepKey, "creature-introduction", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(step.WorkflowStepKey, "arena-lineup-engine", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(step.WorkflowStepKey, "trainer-round-command", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(step.WorkflowStepKey, "fight-round", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(step.WorkflowStepKey, "arena-round-engine", StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    var identitySteps = tournamentSteps
+                        .Where(step => string.Equals(step.WorkflowStepKey, "trainer-creature-selection", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(step.WorkflowStepKey, "creature-introduction", StringComparison.OrdinalIgnoreCase))
+                        .Take(8);
+                    var recentBattleSteps = tournamentSteps
+                        .Where(step => !string.Equals(step.WorkflowStepKey, "trainer-creature-selection", StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(step.WorkflowStepKey, "creature-introduction", StringComparison.OrdinalIgnoreCase))
+                        .TakeLast(8);
+                    visibleSteps = identitySteps.Concat(recentBattleSteps).DistinctBy(step => step.SortOrder);
+                }
+
                 return councilText.MultiModelCouncilServiceBuildTranscript(visibleSteps.ToList(), logger);
             }
             catch (Exception ex)
@@ -379,14 +405,21 @@ namespace LocalGPT.Services
 
                 if (executionMode == "AssignedModelSingle")
                 {
-                    var assigned = participants.FirstOrDefault(model => string.Equals(model, definition.AssignedModelName, StringComparison.OrdinalIgnoreCase));
-                    if (assigned is null)
+                    var identity = new ProviderModelIdentity();
+                    var matches = participants
+                        .Where(model => identity.AreEquivalentSelectionKeys(definition.AssignedModelName, model))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    if (matches.Count != 1)
                     {
+                        var reason = matches.Count == 0
+                            ? "no equivalent provider/model identity is assigned to the role"
+                            : "multiple active participants match the saved provider/model identity";
                         throw new InvalidOperationException(
-                            $"Configured round '{definition.DisplayName}' requires provider-qualified model '{definition.AssignedModelName}', but that exact model is not assigned to role '{definition.Role}' in this run. LocalGPT will not substitute another model or host.");
+                            $"Configured round '{definition.DisplayName}' requires provider-qualified model '{definition.AssignedModelName}', but {reason} in this run. LocalGPT will not substitute another model or host.");
                     }
 
-                    return SelectHealthyParticipant(result, participants, assigned);
+                    return SelectHealthyParticipant(result, participants, matches[0]);
                 }
 
                 var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));

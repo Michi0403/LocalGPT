@@ -28,6 +28,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using ProjectConsoleIdentity.Extensions;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
@@ -102,7 +103,7 @@ namespace LocalGPT
         {
             try
             {
-                global::ProjectConsoleIdentity.ConsoleProductIdentity.WriteStartupHeader();
+                typeof(Program).Assembly.ToConsoleProductIdentity().WriteStartupHeader();
                 TryAppendBootstrapDiagnostic($"LocalGPT process starting. assembly={typeof(Program).Assembly.GetName().Version}; executable={Environment.ProcessPath ?? "unknown"}; base={AppContext.BaseDirectory}");
                 var app = BuildWebApp(args);
                 app.Run();

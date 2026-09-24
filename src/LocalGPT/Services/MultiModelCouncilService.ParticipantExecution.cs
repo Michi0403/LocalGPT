@@ -284,6 +284,14 @@ namespace LocalGPT.Services
                             // LocalGPT has finalized the participant. Give the synchronous service
                             // notification a short grace window and honor it instead of silently
                             // accepting the old answer.
+                            // OllamaThinkingChatClient absorbs the framework-level ReadLineAsync cancellation
+                            // so debugger-attached overnight Councils are not paused by a user-unhandled
+                            // TaskCanceledException. Re-surface the caller-owned cancellation here, in LocalGPT
+                            // user code, where the existing round-skip / run-stop / participant-timeout handlers
+                            // below can classify it correctly without losing timeout recovery semantics.
+                            if (streamCts.IsCancellationRequested && !liveInputSignal.Task.IsCompletedSuccessfully)
+                                participantCts.Token.ThrowIfCancellationRequested();
+
                             if (!liveInputSignal.Task.IsCompleted)
                             {
                                 await Task.WhenAny(

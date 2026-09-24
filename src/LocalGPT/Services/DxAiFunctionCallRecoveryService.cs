@@ -121,6 +121,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     {
     try
     {
+            if (!LooksLikeCompleteJsonCarrier(json))
+                return [];
+
             try
             {
                 using var document = JsonDocument.Parse(json);
@@ -140,6 +143,76 @@ public sealed class DxAiFunctionCallRecoveryService(
             logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionCallRecoveryService)}.{nameof(ParseCandidate)} was canceled.");
         else
             logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionCallRecoveryService)}.{nameof(ParseCandidate)} failed.");
+        throw;
+    }
+}
+
+    /// <summary>Rejects incomplete JSON-shaped model text before it reaches the throwing JSON parser.</summary>
+    private bool LooksLikeCompleteJsonCarrier(string value)
+    {
+    try
+    {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            var normalized = value.Trim();
+            if (normalized.Length < 2)
+                return false;
+            var opener = normalized[0];
+            var expectedCloser = opener switch
+            {
+                '{' => '}',
+                '[' => ']',
+                _ => '\0'
+            };
+            if (expectedCloser == '\0' || normalized[^1] != expectedCloser)
+                return false;
+
+            var braces = 0;
+            var brackets = 0;
+            var inString = false;
+            var escaped = false;
+            foreach (var character in normalized)
+            {
+                if (inString)
+                {
+                    if (escaped)
+                    {
+                        escaped = false;
+                        continue;
+                    }
+                    if (character == '\\')
+                    {
+                        escaped = true;
+                        continue;
+                    }
+                    if (character == '"')
+                        inString = false;
+                    continue;
+                }
+
+                if (character == '"')
+                {
+                    inString = true;
+                    continue;
+                }
+                if (character == '{') braces++;
+                else if (character == '}') braces--;
+                else if (character == '[') brackets++;
+                else if (character == ']') brackets--;
+                if (braces < 0 || brackets < 0)
+                    return false;
+            }
+
+            return !inString && !escaped && braces == 0 && brackets == 0;
+    
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionCallRecoveryService)}.{nameof(LooksLikeCompleteJsonCarrier)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionCallRecoveryService)}.{nameof(LooksLikeCompleteJsonCarrier)} failed.");
         throw;
     }
 }
@@ -240,10 +313,9 @@ public sealed class DxAiFunctionCallRecoveryService(
             var normalized = suppliedName.Trim();
             return registry.GetFunctions()
                 .Where(function => function.AvailableToAi && function.SupportsDirectInvocation)
-                .Where(function => !automaticInvocation ||
-                    (function.RequiresHumanConfirmation
-                        ? function.SupportsDeferredApprovalRequest
-                        : function.SupportsAutomaticInvocation && (function.IsReadOnly || function.IsCoordinationOnly)))
+                // Automatic model calls may target any directly invokable function. The registry is the
+                // authoritative user-policy/approval gate and converts consequential calls into visible
+                // Human Collaboration requests instead of silently removing them from the model surface.
                 .FirstOrDefault(function =>
                     function.Name.Equals(normalized, StringComparison.OrdinalIgnoreCase) ||
                     ToTransportName(function.Name).Equals(normalized, StringComparison.OrdinalIgnoreCase))

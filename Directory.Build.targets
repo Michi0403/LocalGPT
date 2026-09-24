@@ -189,6 +189,9 @@
     <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">true</RequireLocalGptDocumentationPdf>
     <LocalGptDocumentationPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' == 'true'">-RequirePdf</LocalGptDocumentationPdfArgument>
     <LocalGptPagesPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' != 'true'">-AllowMissingPdf</LocalGptPagesPdfArgument>
+    <LocalGptDocumentationPackagingToolRoot>$(MSBuildThisFileDirectory)src/LocalGPT.ReleasePackaging/bin/$(Configuration)/net10.0</LocalGptDocumentationPackagingToolRoot>
+    <LocalGptDocumentationPackagingTool Condition="'$(OS)' == 'Windows_NT'">$(LocalGptDocumentationPackagingToolRoot)/LocalGPT.ReleasePackaging.exe</LocalGptDocumentationPackagingTool>
+    <LocalGptDocumentationPackagingTool Condition="'$(OS)' != 'Windows_NT'">$(LocalGptDocumentationPackagingToolRoot)/LocalGPT.ReleasePackaging</LocalGptDocumentationPackagingTool>
   </PropertyGroup>
 
   <!--
@@ -202,8 +205,9 @@
     <Error Condition="!Exists('$(LocalGptDocumentationScript)')" Text="LocalGPT documentation build script is missing: $(LocalGptDocumentationScript)" />
     <Error Condition="!Exists('$(TargetPath)')" Text="LocalGPT documentation cannot be generated because the application assembly is missing: $(TargetPath)" />
     <Error Condition="!Exists('$(TargetDir)$(AssemblyName).xml')" Text="LocalGPT documentation cannot be generated because compiler XML is missing: $(TargetDir)$(AssemblyName).xml" />
+    <Error Condition="'$(RequireLocalGptDocumentationPdf)' == 'true' and !Exists('$(LocalGptDocumentationPackagingTool)')" Text="LocalGPT documentation requires the repository-owned PDF merge helper, but it was not built: $(LocalGptDocumentationPackagingTool)" />
     <Message Importance="High" Text="Generating LocalGPT $(Version) documentation into $(LocalGptDocumentationOutputRoot)" />
-    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptDocumentationScript)&quot; -RepositoryRoot &quot;$(LocalGptDocumentationRepositoryRoot)&quot; -AssemblyPath &quot;$(TargetPath)&quot; -XmlDocumentationPath &quot;$(TargetDir)$(AssemblyName).xml&quot; -Version &quot;$(Version)&quot; -OutputWebRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; $(LocalGptDocumentationPdfArgument)"
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptDocumentationScript)&quot; -RepositoryRoot &quot;$(LocalGptDocumentationRepositoryRoot)&quot; -AssemblyPath &quot;$(TargetPath)&quot; -XmlDocumentationPath &quot;$(TargetDir)$(AssemblyName).xml&quot; -Version &quot;$(Version)&quot; -OutputWebRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; -PackagingTool &quot;$(LocalGptDocumentationPackagingTool)&quot; $(LocalGptDocumentationPdfArgument)"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"

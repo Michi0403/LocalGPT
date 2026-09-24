@@ -765,6 +765,10 @@ public sealed class DiscoverProjectCompilersRequest
     /// <value>The save discovered value exposed by <see cref="DiscoverProjectCompilersRequest"/>.</value>
     public bool SaveDiscovered { get; set; } = true;
 
+    /// <summary>Gets or sets whether persisted discoveries are immediately validated with their bounded local version probe.</summary>
+    /// <value>The auto validate discovered value exposed by <see cref="DiscoverProjectCompilersRequest"/>.</value>
+    public bool AutoValidateDiscovered { get; set; } = true;
+
     /// <summary>Gets or sets whether the user explicitly approved bounded local path discovery and persistence.</summary>
     /// <value>The user confirmed value exposed by <see cref="DiscoverProjectCompilersRequest"/>.</value>
     public bool UserConfirmed { get; set; }

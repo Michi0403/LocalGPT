@@ -250,7 +250,16 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: .75rem;
+}
+.toolchain-card header > div,
+.toolchain-card h4,
+.toolchain-card small,
+.toolchain-card strong,
+.toolchain-card code {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 .toolchain-card h4 { margin: 0; }
 .toolchain-card code,
@@ -468,10 +477,13 @@
 .setup-log-card ::deep textarea,
 .setup-log-editor {
     min-height: 12rem;
-    resize: vertical;
     font-family: Consolas, "Cascadia Mono", monospace;
     font-size: .86rem;
     line-height: 1.45;
+}
+
+.setup-log-card ::deep textarea {
+    resize: vertical;
 }
 
 @media (min-width: 1180px) {
@@ -923,4 +935,120 @@
 
 @media (max-width: 720px) {
     .local-ollama-candidate { align-items: stretch; flex-direction: column; }
+}
+
+.local-ai-runtime-workbench details + details { margin-top: 1rem; }
+.local-ai-status-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: .65rem; margin: .8rem 0 1rem; }
+.local-ai-status-grid > span { display:flex; flex-direction:column; gap:.2rem; padding:.65rem .75rem; border:1px solid var(--localgpt-border-color, rgba(128,128,128,.35)); border-radius:.7rem; }
+.local-ai-profile-grid,.local-ai-model-grid,.local-ai-candidate-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:.8rem; margin-top:.8rem; }
+.local-ai-search-row { display:grid; grid-template-columns:minmax(220px,2fr) minmax(180px,1fr); gap:.8rem; align-items:end; margin:.75rem 0; }
+.local-ai-search-row > label { display:flex; flex-direction:column; gap:.35rem; }
+.local-ai-trust-toggle { grid-column:1 / -1; flex-direction:row !important; align-items:center; }
+.local-ai-warning { margin:.55rem 0; padding:.55rem .7rem; border-left:3px solid currentColor; opacity:.9; }
+@media (max-width: 780px) { .local-ai-search-row { grid-template-columns:1fr; } .local-ai-trust-toggle { grid-column:auto; } }
+
+.local-ai-runtime-help {
+    display: grid;
+    gap: .35rem;
+    margin: .6rem 0 .8rem;
+    padding: .75rem .9rem;
+    border: 1px solid var(--localgpt-border, rgba(127, 140, 170, .28));
+    border-radius: .7rem;
+    background: rgba(80, 100, 140, .08);
+}
+
+.local-ai-runtime-help span {
+    overflow-wrap: anywhere;
+}
+
+/* v4.8.0: Toolchains owns runtime acquisition, embedded-Python linking, and environment scopes. */
+.toolchain-card-muted {
+    opacity: .62;
+}
+
+.toolchain-environment-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: .7rem;
+    align-items: end;
+    margin: .7rem 0;
+}
+
+.toolchain-environment-editor-grid > label {
+    display: grid;
+    gap: .35rem;
+    min-width: 0;
+}
+
+.toolchain-environment-list {
+    display: grid;
+    gap: .35rem;
+    max-height: 28rem;
+    overflow: auto;
+    padding: .45rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .6rem;
+    background: color-mix(in srgb, var(--bs-secondary-bg) 62%, transparent);
+}
+
+.toolchain-environment-row {
+    display: grid;
+    grid-template-columns: minmax(0, .8fr) minmax(0, 1.5fr) minmax(0, .9fr);
+    gap: .6rem;
+    align-items: start;
+    padding: .45rem .55rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 65%, transparent);
+}
+
+.toolchain-environment-row > * {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.toolchain-environment-row:last-child {
+    border-bottom: 0;
+}
+
+.toolchain-environment-row code {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 1100px) {
+    .toolchain-environment-row {
+        grid-template-columns: minmax(0, .9fr) minmax(0, 1.4fr);
+    }
+
+    .toolchain-environment-row small {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 760px) {
+    .toolchain-environment-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .toolchain-environment-row small {
+        grid-column: auto;
+    }
+}
+
+.local-ai-runtime-policy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: .7rem;
+    align-items: end;
+    margin: .75rem 0;
+}
+
+.local-ai-runtime-policy-grid > label {
+    display: grid;
+    gap: .35rem;
+    min-width: 0;
+}
+
+.local-ai-runtime-policy-wide {
+    grid-column: 1 / -1;
 }

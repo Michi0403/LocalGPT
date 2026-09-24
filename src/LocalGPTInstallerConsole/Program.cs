@@ -2,6 +2,7 @@
 using LocalGPT.Helper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ProjectConsoleIdentity.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -130,7 +131,7 @@ internal static class Program
     /// </summary>
     private static readonly string[] RecommendedRepos =
     [
-        global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug,
+        typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug,
         "TelegramBots/Telegram.Bot",
         "Michi0403/TacosPortalOpen",
         "Michi0403/OpenMorph.NET",
@@ -170,7 +171,7 @@ internal static class Program
     {
         var launchedByDoubleClick = args.Length == 0 && Environment.UserInteractive;
 
-        global::ProjectConsoleIdentity.ConsoleProductIdentity.WriteStartupHeader();
+        typeof(Program).Assembly.ToConsoleProductIdentity().WriteStartupHeader();
         Console.WriteLine($"Your args to string {ArgsToString(args)}");
         var options = CliOptions.Parse(args);
         if(args.Length<=0)
@@ -341,7 +342,7 @@ internal static class Program
                         Directory.CreateDirectory(options.LearningBasePath);
                         var repos = options.ImportRecommended
                             ? RecommendedRepos.Concat(options.ExtraRepos).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
-                            : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug];
+                            : options.ExtraRepos.Count > 0 ? options.ExtraRepos.ToArray() : [typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug];
 
                         foreach (var repo in repos)
                         {
@@ -630,7 +631,7 @@ internal static class Program
             var zipPath = options.LocalGptZipPath ?? Path.Combine(Environment.CurrentDirectory, LocalGptZipName);
 
             await DownloadLatestReleaseAssetAsync(
-                global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug,
+                typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug,
                 zipPath,
                 logger,
                 options,
@@ -653,7 +654,7 @@ internal static class Program
             var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
 
             await DownloadLatestReleaseAssetAsync(
-                global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug,
+                typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug,
                 setupZipPath,
                 logger,
                 options,
@@ -2821,7 +2822,7 @@ internal sealed class CliOptions
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public static void PrintHelp(ILogger logger)
     {
-        var repositorySlug = global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug;
+        var repositorySlug = typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug;
         logger.LogInformation($"""
 LocalGPT setup helper
 

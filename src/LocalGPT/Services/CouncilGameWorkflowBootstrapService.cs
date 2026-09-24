@@ -68,8 +68,8 @@ public sealed class CouncilGameWorkflowBootstrapService(
                 ConversationId = request.ContinueConversationId,
                 ControlMode = CouncilGameControlMode.Shared,
                 AutoplayEnabled = false,
-                FrameWidth = highResolutionTournament ? 144 : 80,
-                FrameHeight = highResolutionTournament ? 40 : 25,
+                FrameWidth = highResolutionTournament ? 168 : 80,
+                FrameHeight = highResolutionTournament ? 44 : 25,
                 StartedBy = "LocalGPT Council workflow bootstrap"
             }, cancellationToken).ConfigureAwait(false);
 

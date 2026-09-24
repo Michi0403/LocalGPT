@@ -177,6 +177,8 @@ public sealed class CouncilKernelTournamentContestantSeed
     /// <summary>Gets or sets the bounded in-character voice line associated with this tournament creature.</summary>
     /// <value>The persisted bounded creature descriptor.</value>
     public string CreatureVoice { get; set; } = string.Empty;
+    /// <summary>Gets or sets the trainer's compact opening greeting authored during team selection.</summary>
+    public string TrainerGreeting { get; set; } = string.Empty;
 }
 
 /// <summary>Captures the latest bounded AI-authored trainer or creature evidence for one tournament exchange.</summary>
@@ -221,6 +223,8 @@ public sealed class CouncilKernelTournamentFighterState
     /// <summary>Gets or sets the bounded in-character voice line associated with this tournament creature.</summary>
     /// <value>The persisted bounded creature descriptor.</value>
     public string CreatureVoice { get; set; } = string.Empty;
+    /// <summary>Gets or sets the trainer's compact opening greeting retained for arena presentation.</summary>
+    public string TrainerGreeting { get; set; } = string.Empty;
     /// <summary>Gets or sets the trainer's persistent ASCII actor rig.</summary>
     public CouncilAsciiActorRig TrainerRig { get; set; } = new();
     /// <summary>Gets or sets the complete creature roster owned by this trainer for the current fight.</summary>
@@ -697,6 +701,8 @@ public sealed class CouncilGameSessionSnapshot
     public IReadOnlyList<CouncilKernelTournamentFighterState> TournamentFighters { get; set; } = [];
     /// <summary>Gets or sets the recent bounded trainer/creature team timeline shown by the ASCII game surface.</summary>
     public IReadOnlyList<CouncilKernelTournamentTimelineEntry> TournamentTimeline { get; set; } = [];
+    /// <summary>Gets the two engine-owned fighter identifiers that are allowed to act in the current tournament match.</summary>
+    public IReadOnlyList<string> TournamentCurrentFighterIds { get; set; } = [];
     /// <summary>Gets or sets the current 1-based tournament bracket round.</summary>
     public int TournamentRound { get; set; }
     /// <summary>Gets or sets the current 1-based exchange within the active match.</summary>

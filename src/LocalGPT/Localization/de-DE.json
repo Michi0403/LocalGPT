@@ -2261,5 +2261,17 @@
   "Phrase.Show␠ASCII␠terminal": "ASCII-Terminal anzeigen",
   "Text.Show␠ASCII␠terminal": "ASCII-Terminal anzeigen",
   "Phrase.Hide␠ASCII␠terminal": "ASCII-Terminal ausblenden",
-  "Text.Hide␠ASCII␠terminal": "ASCII-Terminal ausblenden"
+  "Text.Hide␠ASCII␠terminal": "ASCII-Terminal ausblenden",
+  "Chat.Microphone.Model": "Whisper-Modell",
+  "Chat.Microphone.Stop": "Stoppen und Rat starten",
+  "Chat.Microphone.Start": "Mikrofon",
+  "Chat.Microphone.Cancel": "Aufnahme abbrechen",
+  "Chat.Microphone.Setup": "Whisper mit dem Rat einrichten",
+  "Chat.Microphone.Missing": "Installiere zuerst ein Whisper-Modell mit dem Rat oder auf der Installationsseite.",
+  "Chat.Microphone.Recording": "Aufnahme läuft. Stoppen, um zu transkribieren und den Rat mit deinen aktuellen Einstellungen zu starten.",
+  "Chat.Microphone.Transcribing": "Whisper transkribiert…",
+  "Chat.Microphone.Empty": "Keine Sprache erkannt. Versuche es erneut.",
+  "Chat.Microphone.Submitted": "Transkribiert. Der Rat startet mit deinen aktuellen Einstellungen.",
+  "Chat.Microphone.Cancelled": "Aufnahme abgebrochen.",
+  "Chat.Microphone.Error": "Mikrofon oder Whisper fehlgeschlagen. Prüfe die Mikrofonberechtigung und die verwaltete Python-/Whisper-Einrichtung."
 }

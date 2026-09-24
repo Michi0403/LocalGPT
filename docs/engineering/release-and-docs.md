@@ -31,7 +31,7 @@ GitHub's official Pages and artifact actions may emit Node or dependency depreca
 
 ## PDF
 
-The preferred PDF route assembles the generated HTML pages and prints them with an installed Edge/Chrome/Chromium browser. A secondary DocFX PDF route may require Node. Both routes must produce a real, sufficiently sized document; a one-page fallback shell is rejected.
+The preferred PDF route prints generated HTML with an installed Edge/Chrome/Chromium-family browser in small durable 8-12 page parts and merges them with the repository-owned `LocalGPT.ReleasePackaging` build helper. Windows discovery covers normal machine/user installs and App Paths; macOS application-bundle discovery remains supported. A secondary DocFX PDF route may require Node, but chunked/low-memory builds refuse an unsafe monolithic fallback unless the existing explicit operator override is set. Every accepted route must produce a real, sufficiently sized document; a one-page fallback shell is rejected.
 
 ## Stop conditions
 

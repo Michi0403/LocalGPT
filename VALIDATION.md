@@ -1,18 +1,9 @@
-# LocalGPT 4.7.1 source validation
+# LocalGPT 4.8.2 source validation
 
-## Constraints
+LocalGPT 4.8.2 was validated as a source package only. The handoff environment did not run `dotnet`, MSBuild, NuGet restore, publish, installers, or GitHub access.
 
-- LocalGPT 4.7.0 is the immediate source baseline.
-- The supplied Windows build log exposed the system-variable-initialization blocker repaired in this release.
-- No GitHub/network repository content was used.
-- No `dotnet`, restore, NuGet, MSBuild, build, publish or installer command was invoked in this environment.
-- Validation is static/source-level and does not claim a compiled runtime result.
+The 4.8.2 source repair restores the intended bounded browser-PDF pipeline to ordinary IDE builds by making the repository-owned `LocalGPT.ReleasePackaging` merge helper a build-only dependency and passing it to `Build-Documentation.ps1`. Browser discovery is hardened for Windows while retaining the macOS/Linux paths, and adaptive browser parts are limited to 8/10/12 pages by default rather than 50-120 pages on larger hosts.
 
-## Verified source contracts
+The maintenance guards remain enabled and were not relaxed. Static source validation passed for architecture, service resilience, text-service ownership, current version metadata, maintained JSON/Python syntax, and the 4.8.2 release-specific documentation-rendering contract.
 
-- Version-slot policy and synchronized LocalGPT/WebView/installer source identities are 4.7.1.
-- `WorkspaceVisionOcrService` preserves the configured Ollama host normalization while constructing the `Uri` from a variable rather than embedding an initialization literal rejected by `Assert-SystemVariableInitialization.ps1`.
-- The system-variable initialization guard's regex/baseline logic reports zero new findings against the 4.7.1 source tree.
-- The 4.7.0 idle-invisible Chat drag/drop, repository recognition/delta learning, bounded OCR controller/DX functions, PublisherStudio format routing and controller Control/Cursor behavior remain present.
-- Application architecture, async-continuation, service-resilience, DevExpress UI and cross-platform audits pass.
-- Maintained JavaScript syntax, JSON/XML parsing, ZIP CRC/path safety, clean extraction and byte comparison are checked before delivery.
+See `VALIDATION-v4.8.2-source.md` for the detailed source-only validation boundary.

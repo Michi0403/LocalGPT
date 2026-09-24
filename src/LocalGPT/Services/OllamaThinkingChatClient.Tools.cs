@@ -75,11 +75,7 @@ public sealed partial class OllamaThinkingChatClient
         .GetFunctions()
         .Where(function => function.AvailableToAi &&
                            (automaticFunctionAllowList is null || automaticFunctionAllowList.Contains(function.Name)) &&
-                           function.SupportsDirectInvocation &&
-                           (function.RequiresHumanConfirmation
-                               ? function.SupportsDeferredApprovalRequest
-                               : function.SupportsAutomaticInvocation &&
-                                 (function.IsReadOnly || function.IsCoordinationOnly)))
+                           function.SupportsDirectInvocation)
         .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
         .ToList() ?? [];
     }

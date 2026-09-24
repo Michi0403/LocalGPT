@@ -261,11 +261,12 @@
     }
 
 
-    function measureFrame(screen) {
+    function measureFrame(screen, maximumColumns = Number.POSITIVE_INFINITY) {
         try {
             const text = String(screen.textContent || '').replace(/\r\n?/g, '\n');
             const lines = text.split('\n');
-            const columns = Math.max(1, ...lines.map(line => Array.from(line).length));
+            const rawColumns = Math.max(1, ...lines.map(line => Array.from(line).length));
+            const columns = Math.max(1, Math.min(rawColumns, maximumColumns));
             const rows = Math.max(1, lines.length);
             const computed = getComputedStyle(screen);
             const fontSize = Number.parseFloat(computed.fontSize) || 16;
@@ -276,22 +277,69 @@
             const glyphWidth = Math.max(1, context?.measureText('M').width || fontSize * .62);
             const paddingX = (Number.parseFloat(computed.paddingLeft) || 0) + (Number.parseFloat(computed.paddingRight) || 0);
             const paddingY = (Number.parseFloat(computed.paddingTop) || 0) + (Number.parseFloat(computed.paddingBottom) || 0);
-            return { width: columns * glyphWidth + paddingX, height: rows * lineHeight + paddingY };
+            return {
+                columns,
+                rows,
+                fontSize,
+                glyphRatio: glyphWidth / Math.max(1, fontSize),
+                lineHeightRatio: lineHeight / Math.max(1, fontSize),
+                paddingX,
+                paddingY
+            };
         } catch (error) {
             diagnostics.report('localgpt-game-console.measureFrame', error);
-            return { width: Math.max(1, screen.scrollWidth), height: Math.max(1, screen.scrollHeight) };
+            return { columns: 80, rows: 25, fontSize: 16, glyphRatio: .62, lineHeightRatio: 1.08, paddingX: 0, paddingY: 0 };
+        }
+    }
+
+    function resolveScaleSurface(state) {
+        try {
+            if (!state?.element) return null;
+            const gameViewport = state.element.querySelector('.chat-game-screen-viewport');
+            const gameScreen = gameViewport?.querySelector('.chat-game-screen');
+            if (gameViewport instanceof HTMLElement && gameScreen instanceof HTMLElement && !gameScreen.hidden)
+                return { viewport: gameViewport, screen: gameScreen, scrollback: false };
+
+            const conversationViewport = state.element.querySelector('.ascii-conversation-output');
+            const conversationScreen = conversationViewport?.querySelector('.chat-game-screen');
+            if (conversationViewport instanceof HTMLElement && conversationScreen instanceof HTMLElement)
+                return { viewport: conversationViewport, screen: conversationScreen, scrollback: true };
+
+            const operatorViewport = state.element.querySelector('.ascii-operator-output');
+            const operatorScreen = operatorViewport?.querySelector('.chat-game-screen');
+            if (operatorViewport instanceof HTMLElement && operatorScreen instanceof HTMLElement)
+                return { viewport: operatorViewport, screen: operatorScreen, scrollback: true };
+
+            return null;
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.resolveScaleSurface', error);
+            return null;
+        }
+    }
+
+    function setFittedFontSize(state, fontSize) {
+        try {
+            if (!state?.element) return;
+            const next = `${fontSize.toFixed(2)}px`;
+            if (state.lastFitFontSize === next) return;
+            state.lastFitFontSize = next;
+            state.element.style.setProperty('--localgpt-game-fit-font-size', next);
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.setFittedFontSize', error);
         }
     }
 
     function applyScale(state) {
         try {
             if (!state?.element) return;
-            const viewport = state.element.querySelector('.chat-game-screen-viewport');
+            const surface = resolveScaleSurface(state);
             const scaleMode = state.element.dataset.scaleMode || 'fit';
-            if (!(viewport instanceof HTMLElement)) return;
+            if (!surface) return;
+            const { viewport, screen, scrollback } = surface;
 
-            if (state.displayMode === 'pixel') {
+            if (state.displayMode === 'pixel' && !scrollback) {
                 state.element.style.removeProperty('--localgpt-game-fit-font-size');
+                state.lastFitFontSize = '';
                 const canvas = state.element.querySelector('[data-game-pixel-screen]');
                 if (!(canvas instanceof HTMLCanvasElement) || canvas.hidden || canvas.width <= 0 || canvas.height <= 0) return;
                 const availableWidth = Math.max(1, viewport.clientWidth - 12);
@@ -300,27 +348,31 @@
                 const heightScale = availableHeight / canvas.height;
                 const scale = scaleMode === 'native' ? 1 : scaleMode === 'width' ? widthScale : Math.min(widthScale, heightScale);
                 const boundedScale = Math.max(.15, Math.min(12, scale));
-                canvas.style.width = `${Math.max(1, Math.floor(canvas.width * boundedScale))}px`;
-                canvas.style.height = `${Math.max(1, Math.floor(canvas.height * boundedScale))}px`;
+                const nextWidth = `${Math.max(1, Math.floor(canvas.width * boundedScale))}px`;
+                const nextHeight = `${Math.max(1, Math.floor(canvas.height * boundedScale))}px`;
+                if (canvas.style.width !== nextWidth) canvas.style.width = nextWidth;
+                if (canvas.style.height !== nextHeight) canvas.style.height = nextHeight;
                 return;
             }
 
-            const screen = state.element.querySelector('.chat-game-screen-viewport .chat-game-screen');
             const scaledMode = scaleMode === 'fit' || scaleMode === 'width';
-            if (!(screen instanceof HTMLElement) || !scaledMode) {
+            if (!scaledMode) {
                 state.element.style.removeProperty('--localgpt-game-fit-font-size');
+                state.lastFitFontSize = '';
                 return;
             }
 
-            state.element.style.setProperty('--localgpt-game-fit-font-size', '16px');
-            const natural = measureFrame(screen);
             const availableWidth = Math.max(1, viewport.clientWidth - 12);
             const availableHeight = Math.max(1, viewport.clientHeight - 12);
-            const widthScale = availableWidth / Math.max(1, natural.width);
-            const heightScale = availableHeight / Math.max(1, natural.height);
-            const scale = scaleMode === 'width' ? widthScale : Math.min(widthScale, heightScale);
-            const fontSize = Math.max(5.5, Math.min(36, 16 * scale));
-            state.element.style.setProperty('--localgpt-game-fit-font-size', `${fontSize.toFixed(2)}px`);
+            // Scrollback surfaces deliberately fit a readable terminal line and keep vertical scrolling.
+            // A multi-megabyte Council transcript must never be shrunk to fit its complete history into one viewport.
+            const metrics = measureFrame(screen, scrollback ? 168 : Number.POSITIVE_INFINITY);
+            const widthFont = Math.max(1, (availableWidth - metrics.paddingX) / Math.max(.01, metrics.columns * metrics.glyphRatio));
+            const heightFont = Math.max(1, (availableHeight - metrics.paddingY) / Math.max(.01, metrics.rows * metrics.lineHeightRatio));
+            const requestedFont = scrollback || scaleMode === 'width' ? widthFont : Math.min(widthFont, heightFont);
+            const minimumFont = scrollback ? 8 : 5.5;
+            const fontSize = Math.max(minimumFont, Math.min(36, requestedFont));
+            setFittedFontSize(state, fontSize);
         } catch (error) {
             diagnostics.report('localgpt-game-console.applyScale', error);
         }
@@ -356,19 +408,19 @@
     function attachFollowTail(state) {
         try {
             state.followTailRegions ||= new Map();
+            for (const [region, entry] of state.followTailRegions) {
+                if (!(region instanceof HTMLElement) || !region.isConnected) {
+                    entry?.observer?.disconnect?.();
+                    state.followTailRegions.delete(region);
+                }
+            }
             state.element.querySelectorAll('.ascii-conversation-output, .ascii-operator-output').forEach(region => {
                 if (!(region instanceof HTMLElement) || state.followTailRegions.has(region)) return;
                 const entry = { enabled: true, observer: null };
                 region.addEventListener('scroll', () => { entry.enabled = isNearBottom(region); }, { signal: state.abort.signal, passive: true });
-                entry.observer = new MutationObserver(() => { if (entry.enabled) scrollToTail(region); });
-                entry.observer.observe(region, { childList: true, subtree: true, characterData: true });
                 state.followTailRegions.set(region, entry);
                 requestAnimationFrame(() => scrollToTail(region));
             });
-            if (!state.followTailRootObserver) {
-                state.followTailRootObserver = new MutationObserver(() => attachFollowTail(state));
-                state.followTailRootObserver.observe(state.element, { childList: true, subtree: true });
-            }
         } catch (error) {
             diagnostics.report('localgpt-game-console.attachFollowTail', error);
         }
@@ -691,7 +743,7 @@
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), gamepadNextRepeat:0, gamepadRepeatAction:'', keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, displayMode:String(element.dataset.displayMode || 'ascii').toLowerCase() === 'pixel' ? 'pixel' : 'ascii', currentFrameText:'', currentFrameColorMode:'TerminalDefault', currentFrameForeground:46, currentFrameBackground:0, currentFrameStyleRuns:[], pixelCanvas:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), followTailRootObserver:null, resizeObserver:null };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), gamepadNextRepeat:0, gamepadRepeatAction:'', keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, displayMode:String(element.dataset.displayMode || 'ascii').toLowerCase() === 'pixel' ? 'pixel' : 'ascii', currentFrameText:'', currentFrameColorMode:'TerminalDefault', currentFrameForeground:46, currentFrameBackground:0, currentFrameStyleRuns:[], pixelCanvas:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), resizeObserver:null, lastFitFontSize:'' };
                 states.set(id, state);
                 attachFollowTail(state);
                 updateDisplayMode(state, state.displayMode);
@@ -711,7 +763,6 @@
                 if (typeof ResizeObserver === 'function') {
                     state.resizeObserver = new ResizeObserver(() => requestScale(state));
                     state.resizeObserver.observe(element);
-                    if (element.parentElement instanceof HTMLElement) state.resizeObserver.observe(element.parentElement);
                 }
                 element.addEventListener('keydown', event => {
                     if (isInteractiveTarget(event.target)) return;
@@ -765,8 +816,6 @@
                 state.abort.abort();
                 for (const entry of state.followTailRegions?.values() || []) entry.observer?.disconnect();
                 state.followTailRegions?.clear();
-                state.followTailRootObserver?.disconnect();
-                state.followTailRootObserver = null;
                 state.resizeObserver?.disconnect();
                 state.resizeObserver = null;
                 if (state.frame) cancelAnimationFrame(state.frame);
@@ -774,6 +823,7 @@
                 cancelSequenceTimer(state);
                 cancelSequenceSubtitleTimer(state);
                 state.element.style.removeProperty('--localgpt-game-fit-font-size');
+                state.lastFitFontSize = '';
                 states.delete(id);
             } catch (error) { diagnostics.report('localgpt-game-console.detach', error); }
         },
@@ -903,7 +953,9 @@
                 if (!state) return;
                 attachFollowTail(state);
                 for (const [region, entry] of state.followTailRegions || []) {
-                    if (region instanceof HTMLElement && entry?.enabled) scrollToTail(region);
+                    if (region instanceof HTMLElement) {
+                        if (entry.enabled) scrollToTail(region);
+                    }
                 }
             } catch (error) { diagnostics.report('localgpt-game-console.followTail', error); }
         }

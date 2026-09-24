@@ -223,7 +223,7 @@ public sealed class DeleteToolchainInstallationFunction(IProjectMaintenanceServi
     }
 }
 
-/// <summary>Requests missing exact-version compiler/runtime knowledge from the local user.</summary>
+/// <summary>Requests one-click local trust approval for a detected compiler/runtime version when exact-version knowledge is absent.</summary>
 /// <param name="knowledge">Toolchain knowledge service dependency used by the request toolchain knowledge function workflow to provide the corresponding application capability.</param>
 /// <param name="json">Devexpress ai function json service dependency used by the request toolchain knowledge function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
@@ -235,8 +235,8 @@ public sealed class RequestToolchainKnowledgeFunction(IToolchainKnowledgeService
     /// <inheritdoc />
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "toolchain.knowledge.request", "POST", "/api/dxai/functions/toolchain.knowledge.request/invoke",
-        "Asks the local user for Markdown, Knowledge Database, or text context when an exact compiler/runtime version is missing from local knowledge.",
-        "profileKey and version are required; context is optional.", "Creates a non-blocking local Human Collaboration question and performs no online lookup.",
+        "Asks the local user to approve or decline a locally detected compiler/runtime version when exact-version knowledge is absent.",
+        "profileKey and version are required; context is optional.", "Creates a non-blocking one-click Human Collaboration approval and performs no online lookup.",
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, IsCoordinationOnly: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["profileKey","version"],"properties":{"profileKey":{"type":"string"},"version":{"type":"string"},"context":{"type":"string"}},"additionalProperties":false}""");
 

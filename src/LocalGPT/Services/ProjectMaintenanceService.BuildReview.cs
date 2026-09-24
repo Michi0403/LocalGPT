@@ -352,12 +352,15 @@ namespace LocalGPT.Services
         if (!File.Exists(executable)) throw new FileNotFoundException("The configured compiler executable does not exist.", executable);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+        var invocation = platform.PrepareToolchainProcessInvocation(executable, arguments);
+        var processFileName = invocation.ExecutablePath;
+        var processArguments = invocation.Arguments;
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = executable,
-                Arguments = arguments,
+                FileName = processFileName,
+                Arguments = processArguments,
                 WorkingDirectory = Directory.Exists(workingDirectory) ? workingDirectory! : Path.GetDirectoryName(executable) ?? LocalGptApplicationDataPaths.ResolveProcessWorkingDirectory(),
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

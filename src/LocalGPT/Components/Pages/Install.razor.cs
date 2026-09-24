@@ -61,6 +61,7 @@ namespace LocalGPT.Components.Pages
         new("tls", T("Install.Workbench.Nav.Certificate", "TLS certificate"), T("Install.Workbench.Nav.CertificateHelp", "Create and select the HTTPS certificate")),
         new("guide", T("Install.Workbench.Nav.Guide", "Setup guide"), T("Install.Workbench.Nav.GuideHelp", "First-run status and quick starts")),
         new("toolchains", T("Install.Workbench.Nav.Toolchains", "Toolchains"), T("Install.Workbench.Nav.ToolchainsHelp", "Compilers and runtime discovery")),
+        new("local-ai", T("Install.Workbench.Nav.LocalAi", "Local AI runtimes"), T("Install.Workbench.Nav.LocalAiHelp", "Direct model sources, Python capabilities, optional hubs"), LocalAiInstalledModels.Count.ToString(CultureInfo.InvariantCulture)),
         new("languages", T("Install.Workbench.Nav.Languages", "Languages"), T("Install.Workbench.Nav.LanguagesHelp", "Runtime language catalogs")),
         new("log", T("Install.Workbench.Nav.Log", "Setup log"), T("Install.Workbench.Nav.LogHelpShort", "Operational setup messages"))
     ];
@@ -207,7 +208,7 @@ namespace LocalGPT.Components.Pages
     /// <summary>Accepted filename extensions for LocalGPT localization-catalog imports.</summary>
     private List<string> LocalizationAllowedExtensions { get; } = [".json"];
     /// <summary>Gets whether a long-running setup action is active.</summary>
-    private bool HasActiveInstallOperation => IsDiscovering || IsConnectivityChecking || IsSaving || IsOllamaProcessBusy || IsOnboardingLoading || IsLocalizationImporting || IsToolchainBusy || IsSavingHostHardware || IsCertificateBusy;
+    private bool HasActiveInstallOperation => IsDiscovering || IsConnectivityChecking || IsSaving || IsOllamaProcessBusy || IsOnboardingLoading || IsLocalizationImporting || IsToolchainBusy || RuntimePluginBusy || ToolchainRuntimeBusy || LocalAiBusy || IsSavingHostHardware || IsCertificateBusy;
     /// <summary>Gets the human-visible operation text rendered beside the DevExpress wait indicator.</summary>
     private string CurrentInstallOperationText =>
         IsSaving ? "Saving provider and setup configuration…" :
@@ -217,6 +218,9 @@ namespace LocalGPT.Components.Pages
         IsOnboardingLoading ? "Loading setup assistant state…" :
         IsLocalizationImporting ? "Validating and importing the language catalog…" :
         IsToolchainBusy ? "Discovering or validating project toolchains…" :
+        RuntimePluginBusy ? "Saving, compiling, or loading runtime extensions…" :
+        ToolchainRuntimeBusy ? "Managing toolchain downloads or environment settings…" :
+        LocalAiBusy ? "Managing the local Python/model runtime…" :
         IsSavingHostHardware ? "Reading or saving physical-host hardware evidence…" :
         IsCertificateBusy ? "Creating or validating the TLS certificate…" : string.Empty;
     /// <summary>
@@ -239,6 +243,22 @@ namespace LocalGPT.Components.Pages
     /// Stores the internal toolchain search roots state used by <see cref="Install"/> while executing its surrounding workflow.
     /// </summary>
     private string ToolchainSearchRoots = string.Empty;
+    /// <summary>Stores the display name for an explicitly configured compiler/runtime.</summary>
+    private string ManualToolchainName = string.Empty;
+    /// <summary>Stores the language/capability family for an explicitly configured compiler/runtime.</summary>
+    private string ManualToolchainLanguage = string.Empty;
+    /// <summary>Stores the absolute executable path for an explicitly configured compiler/runtime.</summary>
+    private string ManualToolchainExecutablePath = string.Empty;
+    /// <summary>Stores the optional home path for an explicitly configured compiler/runtime.</summary>
+    private string ManualToolchainHomePath = string.Empty;
+    /// <summary>Stores the free-form toolchain kind for an explicitly configured compiler/runtime.</summary>
+    private string ManualToolchainKind = string.Empty;
+    /// <summary>Stores validation arguments used to probe an explicitly configured compiler/runtime.</summary>
+    private string ManualToolchainValidationArguments = "--version";
+    /// <summary>Stores an optional knowledge-profile key for an explicitly configured compiler/runtime.</summary>
+    private string ManualToolchainKnowledgeProfileKey = string.Empty;
+    /// <summary>Tracks whether an explicitly configured compiler/runtime becomes the default for its language.</summary>
+    private bool ManualToolchainDefault;
     /// <summary>
     /// Stores the internal toolchain status state used by <see cref="Install"/> while executing its surrounding workflow.
     /// </summary>
@@ -345,6 +365,7 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     protected override void OnInitialized()
     {
+        RuntimePluginDraft = NewPluginDraft();
         ApplyRequestedInstallSection();
         try
         {
@@ -397,6 +418,7 @@ namespace LocalGPT.Components.Pages
                 "tls-certificate" => "tls",
                 "setup-guide" => "guide",
                 "toolchains" => "toolchains",
+                "local-ai-runtime" => "local-ai",
                 "localization" => "languages",
                 "setup-log" => "log",
                 _ => ActiveInstallSection
@@ -620,6 +642,12 @@ namespace LocalGPT.Components.Pages
             await RefreshOnboardingAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             await RefreshCompilerInstallationsAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await RefreshRuntimePluginsAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await RefreshToolchainRuntimeManagementAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await RefreshLocalAiRuntimeAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             await RefreshOllamaProcessStatusAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
@@ -895,16 +923,63 @@ namespace LocalGPT.Components.Pages
             {
                 CustomSearchRootsText = ToolchainSearchRoots,
                 SaveDiscovered = true,
+                AutoValidateDiscovered = true,
                 UserConfirmed = true
             }).ConfigureAwait(false);
             CompilerInstallations = await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(false) /* renderer-affine discovery refresh */;
-            ToolchainStatus = $"Discovered {discovered.Count} candidate(s); {CompilerInstallations.Count} profile(s) are stored.";
+            var validatedCount = discovered.Count(item => item.LastValidationSucceeded);
+            ToolchainStatus = $"Discovered {discovered.Count} candidate(s), automatically validated {validatedCount}; {CompilerInstallations.Count} profile(s) are stored.";
             Notifier.ShowSuccess(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
         }
         catch (Exception exception)
         {
             Logger.LogError(exception, "Compiler discovery failed; search roots and executable paths were omitted from logs.");
             ToolchainStatus = T("Install.Toolchains.DiscoveryFailed", "Toolchain discovery failed. Review LocalGPT logs.");
+            Notifier.ShowError(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+        }
+        finally
+        {
+            IsToolchainBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+
+    /// <summary>Persists any user-selected executable as a compiler/runtime profile without requiring a built-in discovery profile.</summary>
+    /// <returns>A task that completes after the manually configured toolchain has been saved.</returns>
+    private async Task SaveManualToolchainAsync()
+    {
+        try
+        {
+            IsToolchainBusy = true;
+            var saved = await ProjectMaintenance.SaveCompilerInstallationAsync(new SaveProjectCompilerInstallationRequest
+            {
+                Name = ManualToolchainName,
+                Language = ManualToolchainLanguage,
+                ExecutablePath = ManualToolchainExecutablePath,
+                CompilerHomePath = ManualToolchainHomePath,
+                DiscoverySource = "Manual",
+                ToolchainKind = ManualToolchainKind,
+                ValidationArguments = ManualToolchainValidationArguments,
+                KnowledgeProfileKey = ManualToolchainKnowledgeProfileKey,
+                IsEnabled = true,
+                IsDefaultForLanguage = ManualToolchainDefault,
+                UserConfirmed = true
+            }).ConfigureAwait(false);
+            CompilerInstallations = await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(false);
+            ToolchainStatus = $"Saved manually configured toolchain {saved.Name}. Validate it before using it for builds or runtime extensions.";
+            Notifier.ShowSuccess(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+            ManualToolchainName = string.Empty;
+            ManualToolchainExecutablePath = string.Empty;
+            ManualToolchainHomePath = string.Empty;
+            ManualToolchainKind = string.Empty;
+            ManualToolchainKnowledgeProfileKey = string.Empty;
+            ManualToolchainDefault = false;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Saving a manually configured toolchain failed; executable path omitted from logs.");
+            ToolchainStatus = exception.Message;
             Notifier.ShowError(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
         }
         finally

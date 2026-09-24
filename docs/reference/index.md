@@ -1,6 +1,7 @@
 # Reference
 
 - [Capability map](capability-map.md)
+- [Local AI runtime: Python.NET, Hugging Face and specialized models](local-ai-runtime.md)
 - [Design evolution and provenance](design-evolution.md)
 - [Documentation migration map](documentation-migration.md)
 - [Complete API reference](../api/index.md)

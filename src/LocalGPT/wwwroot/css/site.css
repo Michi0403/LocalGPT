@@ -645,12 +645,27 @@ dxbl-adaptive-dropdown [role="listbox"] {
    dxbl-adaptive-dropdown. DevExpress emits these cells with z-index:0, which can place the real
    listbox under LocalGPT fixed workbench/game surfaces. Raise only cells that actually host a
    dropdown list; do not globally elevate modal/fullscreen popup cells. */
-dxbl-popup-root > dxbl-popup-cell:has(dxbl-dropdown-dialog[role="listbox"]),
-dxbl-popup-root > dxbl-popup-cell:has(.dxbl-edit-dropdown) {
+/* v4.7.3: dropdown portal cells may remain mounted after DevExpress closes an editor. Keep their
+   stacking context above LocalGPT modals, but never turn a hidden full-page popup cell into an
+   input shield. Only an actually visible dropdown may receive pointer/wheel events. */
+dxbl-popup-root > dxbl-popup-cell:has(> dxbl-dropdown) {
     z-index: 22040 !important;
+    pointer-events: none !important;
+}
+dxbl-popup-root > dxbl-popup-cell:has(> dxbl-dropdown:not(.dxbl-popup-hidden)) {
     pointer-events: auto !important;
 }
-dxbl-popup-root > dxbl-popup-cell:has(dxbl-dropdown-dialog[role="listbox"]) * {
+dxbl-popup-root > dxbl-popup-cell > dxbl-dropdown:not(.dxbl-popup-hidden),
+dxbl-popup-root > dxbl-popup-cell:has(> dxbl-dropdown:not(.dxbl-popup-hidden)) dxbl-dropdown-dialog[role="listbox"],
+dxbl-popup-root > dxbl-popup-cell:has(> dxbl-dropdown:not(.dxbl-popup-hidden)) .dxbl-edit-dropdown {
+    pointer-events: auto !important;
+}
+
+dxbl-popup-root > dxbl-popup-cell:has(> dxbl-dropdown:not(.dxbl-popup-hidden) dxbl-dropdown-dialog[role="listbox"]),
+dxbl-popup-root > dxbl-popup-cell:has(> dxbl-dropdown:not(.dxbl-popup-hidden) .dxbl-edit-dropdown) {
+    z-index: 22040 !important;
+}
+dxbl-popup-root > dxbl-popup-cell > dxbl-dropdown:not(.dxbl-popup-hidden) dxbl-dropdown-dialog[role="listbox"] * {
     pointer-events: auto;
 }
 dxbl-popup-root > dxbl-popup-cell dxbl-dropdown-dialog[role="listbox"] {

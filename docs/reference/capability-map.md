@@ -5,6 +5,7 @@
 | Chat | Provider-qualified single-model sessions | Protocol/formatter isolation |
 | AI Council | Teams, roles, runtime classes, workflows, human participation | Deterministic step state and bounded recovery |
 | Providers | Ollama, OpenAI-compatible, OpenAI, Azure OpenAI routes | Endpoint-qualified identity and scoped credentials |
+| Local AI runtime | Serialized Python.NET execution, Hugging Face snapshots, image/video/speech adapters | Specialized models are capability tools, not conversational-provider impersonators |
 | Benchmarking | Bounded tasks, peer/self review, presets | Recommendations require user application |
 | Projects | Versions, revisions, requirements, artifacts, topics, Game-project authoring profiles/builds | Database identity is separate from paths; runtime consumes compiled Project artifacts |
 | Workspaces | Root resolution, policies, toolchains, build evidence | Fresh assessment before execution |

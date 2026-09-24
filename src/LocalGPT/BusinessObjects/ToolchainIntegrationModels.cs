@@ -64,6 +64,9 @@ public sealed class ToolchainKnowledgeProfile
     /// <summary>Gets or sets executable file names or command aliases that may identify this toolchain.</summary>
     /// <value>The executable names value exposed by <see cref="ToolchainKnowledgeProfile"/>.</value>
     public List<string> ExecutableNames { get; set; } = [];
+    /// <summary>Gets or sets optional wildcard file-name patterns used for versioned or vendor-specific executable names.</summary>
+    /// <value>The executable patterns value exposed by <see cref="ToolchainKnowledgeProfile"/>.</value>
+    public List<string> ExecutablePatterns { get; set; } = [];
     /// <summary>Gets or sets environment variables whose values point at a toolchain home/root.</summary>
     /// <value>The environment root variables value exposed by <see cref="ToolchainKnowledgeProfile"/>.</value>
     public List<string> EnvironmentRootVariables { get; set; } = [];
@@ -92,7 +95,7 @@ public sealed class ToolchainKnowledgeProfile
     public string ValidationArguments { get; set; } = "--version";
     /// <summary>Gets or sets the database regex-pattern name used to extract a version token from probe output.</summary>
     /// <value>The version regex pattern name value exposed by <see cref="ToolchainKnowledgeProfile"/>.</value>
-    public string VersionRegexPatternName { get; set; } = "builtin.toolchain-version-token";
+    public string VersionRegexPatternName { get; set; } = "builtin.toolchain-version-token-v2";
     /// <summary>Gets or sets project marker file names that provide contextual evidence for this toolchain.</summary>
     /// <value>The project markers value exposed by <see cref="ToolchainKnowledgeProfile"/>.</value>
     public List<string> ProjectMarkers { get; set; } = [];
@@ -155,7 +158,7 @@ public sealed class ToolchainDiscoveryCandidate
     public string ValidationArguments { get; set; } = "--version";
     /// <summary>Gets or sets the version regex-pattern name supplied by knowledge.</summary>
     /// <value>The version regex pattern name value exposed by <see cref="ToolchainDiscoveryCandidate"/>.</value>
-    public string VersionRegexPatternName { get; set; } = "builtin.toolchain-version-token";
+    public string VersionRegexPatternName { get; set; } = "builtin.toolchain-version-token-v2";
     /// <summary>
     /// Gets or sets the stable knowledge entry identifier used to identify or correlate this toolchain discovery candidate instance with related application state.
     /// </summary>

@@ -18,7 +18,7 @@ function Read-OptionalText([string]$RelativePath) {
 
 $protocolProject = Read-OptionalText 'src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
 $appProject = Read-OptionalText 'src/LocalGPT/LocalGPT.csproj'
-$globalUsing = Read-OptionalText 'src/LocalGPT\GlobalUsings.OneWire.cs'
+$globalUsing = Read-OptionalText 'src/LocalGPT\GlobalImports.cs'
 $interfaces = Read-OptionalText 'src/LocalGPT\Interfaces\IOneWireServices.cs'
 $dispatcher = Read-OptionalText 'src/LocalGPT\Services\OneWire\OneWireExecutionServices.cs'
 $state = Read-OptionalText 'src/LocalGPT\Services\OneWire\OneWireStateServices.cs'

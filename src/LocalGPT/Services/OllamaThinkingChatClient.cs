@@ -325,19 +325,34 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                 await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
                 using var reader = new StreamReader(stream);
 
+                var streamReadCanceled = false;
                 while (true)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    string? line;
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        streamReadCanceled = true;
+                        break;
+                    }
+                    string? line = null;
                     try
                     {
                         line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                     }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        // StreamReader surfaces token cancellation from framework code as TaskCanceledException.
+                        // Keep that expected control-flow exception inside the provider adapter so Visual Studio
+                        // does not classify a normal Council timeout/round interruption as user-unhandled.
+                        // The caller still owns the same token and checks it immediately after enumeration.
+                        streamReadCanceled = true;
+                    }
                     catch (HttpIOException) when (cancellationToken.IsCancellationRequested)
                     {
-                        throw new OperationCanceledException("The Ollama streaming response ended while the LocalGPT operation was being cancelled.", cancellationToken);
+                        // Some transports report the same canceled read as an HTTP I/O abort instead.
+                        // Normalize it to the same clean iterator completion path.
+                        streamReadCanceled = true;
                     }
-                    if (line is null)
+                    if (streamReadCanceled || line is null)
                         break;
                     if (string.IsNullOrWhiteSpace(line))
                         continue;
@@ -425,6 +440,14 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                             presentationFlushClock.Restart();
                         }
                     }
+                }
+
+                if (streamReadCanceled)
+                {
+                    logger.LogDebug(
+                        "Ollama streaming read for model {Model} observed requested cancellation and returned control to the Council caller without leaking a framework TaskCanceledException.",
+                        model);
+                    yield break;
                 }
 
                 if (pendingThinkingPresentation.Length > 0)

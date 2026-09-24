@@ -452,7 +452,11 @@ namespace LocalGPT.Components.Pages
                 new List<AIChatUploadFileInfo>());
             PendingLiveCouncilUserMessages.Add(chatMessage);
             if (ChatClientProvider?.SelectedSession is not null)
+            {
                 ChatClientProvider.SelectedSession.Messages.Add(chatMessage);
+                canonicalConversationMessages.Clear();
+                canonicalConversationMessages.AddRange(ChatClientProvider.SelectedSession.Messages);
+            }
 
             // Keep the user message inside the authoritative Blazor/DevExpress message model. The old JavaScript
             // shadow bubble lived inside a renderer-owned message subtree and was repeatedly removed/re-added on
@@ -764,6 +768,12 @@ namespace LocalGPT.Components.Pages
                     }
                     councilSession.Messages.Insert(insertionIndex++, new BlazorChatMessage(ChatRole.User, additionalUserMessage, new List<AIChatUploadFileInfo>()));
                 }
+
+                // The Council session is authoritative while rejoined. Keep the reusable conversation cache in
+                // lock-step before DevExpress is rebound; otherwise a later human send can reload the stale cache
+                // and make the visible transcript disappear until a full page refresh/rejoin.
+                canonicalConversationMessages.Clear();
+                canonicalConversationMessages.AddRange(councilSession.Messages);
 
                 if (shouldReloadChatControl && ReferenceEquals(ChatClientProvider.SelectedSession, councilSession) && DxAiChat is not null)
                     DxAiChat.LoadMessages(councilSession.Messages);

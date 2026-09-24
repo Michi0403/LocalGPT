@@ -24,11 +24,11 @@ namespace LocalGPT.Services
     public sealed partial class CouncilRuntimeService
     {
         /// <summary>
-        /// Reconstructs a bounded DXAiChat prompt without recursively feeding complete prior Council transcripts back into later runs.
+        /// Reconstructs a bounded DXAiChat prompt while retaining recent user turns and compact assistant consensus context without recursively feeding complete Council transcripts back into later runs.
         /// </summary>
         /// <param name="messages">Current DXAiChat message history.</param>
         /// <param name="logger">Writes bounded prompt-reconstruction diagnostics.</param>
-        /// <returns>The compact Council prompt containing user turns and at most the latest cleaned assistant consensus.</returns>
+        /// <returns>The compact Council prompt containing recent user turns and recent cleaned assistant consensus context.</returns>
         public string BuildPrompt(IEnumerable<ChatMessage> messages, ILogger logger)
         {
             try
@@ -36,13 +36,19 @@ namespace LocalGPT.Services
                 var history = messages
                     .Where(message => message.Role != ChatRole.System && !string.IsNullOrWhiteSpace(message.Text))
                     .ToList();
-                var latestAssistantIndex = history.FindLastIndex(message => message.Role == ChatRole.Assistant);
+                const int maximumAssistantTurns = 4;
+                var retainedAssistantIndexes = history
+                    .Select((message, index) => new { message.Role, Index = index })
+                    .Where(item => item.Role == ChatRole.Assistant)
+                    .TakeLast(maximumAssistantTurns)
+                    .Select(item => item.Index)
+                    .ToHashSet();
                 var normalizedHistory = new List<(ChatRole Role, string Text)>();
                 var seenUserTurns = new HashSet<string>(StringComparer.Ordinal);
                 for (var index = 0; index < history.Count; index++)
                 {
                     var message = history[index];
-                    if (message.Role == ChatRole.Assistant && index != latestAssistantIndex)
+                    if (message.Role == ChatRole.Assistant && !retainedAssistantIndexes.Contains(index))
                         continue;
 
                     var normalized = NormalizeCouncilHistoryText(
@@ -56,7 +62,7 @@ namespace LocalGPT.Services
                     normalizedHistory.Add((message.Role, normalized));
                 }
 
-                const int maximumUserTurns = 12;
+                const int maximumUserTurns = 24;
                 var retainedUserTurns = normalizedHistory.Count(item => item.Role == ChatRole.User);
                 var usersToSkip = Math.Max(0, retainedUserTurns - maximumUserTurns);
                 var builder = new StringBuilder()

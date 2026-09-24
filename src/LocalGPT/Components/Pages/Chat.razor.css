@@ -1666,10 +1666,10 @@
 .chat-game-popup-body {
     box-sizing: border-box;
     width: 100%;
-    height: min(82dvh, 68rem);
+    height: 100%;
     min-width: 0;
     min-height: 0;
-    max-height: calc(95dvh - 5rem);
+    max-height: none;
     overflow: hidden;
     display: grid;
 }
@@ -1689,8 +1689,9 @@
 .chat-game-popup-body ::deep .ascii-operator-stage,
 .chat-game-popup-body ::deep .chat-game-console-placeholder {
     min-height: 0;
-    height: 100%;
-    max-height: 100%;
+    height: auto;
+    max-height: none;
+    align-self: stretch;
 }
 
 .chat-game-popup-body ::deep .chat-game-screen-viewport {
@@ -1708,7 +1709,7 @@
 
 @media (max-width: 680px) {
     .chat-primary-actions > * { flex: 1 1 12rem; }
-    .chat-game-popup-body { height: min(78dvh, 52rem); min-height: 0; max-height: calc(95dvh - 4.5rem); }
+    .chat-game-popup-body { height: 100%; min-height: 0; max-height: none; }
 }
 
 /* v40: expanded configuration surfaces are modal workspaces rather than short ribbon rows.
@@ -3232,15 +3233,32 @@
 }
 
 .chat-game-popup-body ::deep .chat-game-console-header {
-    max-height: min(15rem, 34dvh);
+    display: grid;
+    grid-template-columns: minmax(12rem, max-content) minmax(0, 1fr);
+    align-items: start;
+    align-content: start;
+    column-gap: .8rem;
+    row-gap: .45rem;
+    max-height: min(12rem, 28dvh);
     overflow-x: hidden;
     overflow-y: auto;
-    align-content: flex-start;
     scrollbar-gutter: stable;
+}
+
+.chat-game-popup-body ::deep .chat-game-console-header > div:first-child {
+    min-width: 12rem;
+    max-width: min(30rem, 32vw);
+}
+
+.chat-game-popup-body ::deep .chat-game-console-header > div:first-child strong,
+.chat-game-popup-body ::deep .chat-game-console-header > div:first-child small {
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .chat-game-popup-body ::deep .chat-game-console-actions {
     min-width: 0;
+    justify-content: flex-end;
 }
 
 .chat-game-popup-body ::deep .chat-game-screen,
@@ -3250,10 +3268,17 @@
 
 @media (max-width: 1100px) {
     .chat-game-popup-body ::deep .chat-game-console-header {
+        grid-template-columns: 1fr;
         align-items: flex-start;
+        max-height: min(15rem, 34dvh);
+    }
+
+    .chat-game-popup-body ::deep .chat-game-console-header > div:first-child {
+        max-width: 100%;
     }
 
     .chat-game-popup-body ::deep .chat-game-console-actions {
         width: 100%;
+        justify-content: flex-start;
     }
 }

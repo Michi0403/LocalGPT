@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>4.7.1</Version>
+    <Version>4.9.0</Version>
     <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
@@ -15,7 +15,7 @@
 	  <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
 	  <IsPackable>false</IsPackable>
 	  <CopySatelliteAssemblies>true</CopySatelliteAssemblies>
-	  <DevExpressVersion>25.2.9</DevExpressVersion>
+	  <DevExpressVersion>25.2.10</DevExpressVersion>
 	  <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
 	  <PublishTrimmed>false</PublishTrimmed>
 	  <PublishSingleFile>false</PublishSingleFile>
@@ -32,8 +32,16 @@
 	  </RuntimeIdentifiers>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\LocalGPT.PluginContracts\LocalGPT.PluginContracts.csproj" />
+  </ItemGroup>
   <ItemGroup Condition="'$(UseLocalWireProtocolProject)' == 'true'">
     <ProjectReference Include="..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj" GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(BuildLocalGptDocumentation)' != 'false'">
+    <!-- Build the repository-owned PDF merge helper as a build dependency only. It is not a runtime
+         assembly reference and is not copied into the LocalGPT application payload. -->
+    <ProjectReference Include="..\LocalGPT.ReleasePackaging\LocalGPT.ReleasePackaging.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />
   </ItemGroup>
   <ItemGroup Condition="'$(UseLocalWireProtocolProject)' != 'true'">
     <PackageReference Include="LocalGPT.WireProtocolVersion" Version="$(LocalGptWireProtocolVersion)" />
@@ -53,16 +61,19 @@
 		<Content Include="..\..\docs\reference\capability-map.md" Link="docs\reference\capability-map.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\toolchain-discovery.md" Link="docs\reference\toolchain-discovery.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\runtime-path-layout.md" Link="docs\reference\runtime-path-layout.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\reference\local-ai-runtime.md" Link="docs\reference\local-ai-runtime.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\ai-provider-installation.md" Link="docs\reference\ai-provider-installation.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\ascii-game-authoring.md" Link="docs\reference\ascii-game-authoring.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\canonical-repositories.md" Link="docs\reference\canonical-repositories.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\reference\design-evolution.md" Link="docs\reference\design-evolution.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\guide\embedded-and-games.md" Link="docs\guide\embedded-and-games.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\docs\COUNCIL_KNOWLEDGE_SEED.sql" Link="docs\COUNCIL_KNOWLEDGE_SEED.sql" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="Runtime\Python\localgpt_runtime_bridge.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<EmbeddedResource Include="..\..\docs\reference\ai-provider-installation.md" LogicalName="LocalGPT.Knowledge.ai-provider-installation.md" />
 		<EmbeddedResource Include="..\..\docs\reference\ascii-game-authoring.md" LogicalName="LocalGPT.Knowledge.ascii-game-authoring.md" />
 		<EmbeddedResource Include="..\..\docs\reference\toolchain-discovery.md" LogicalName="LocalGPT.Knowledge.toolchain-discovery.md" />
 		<EmbeddedResource Include="..\..\docs\reference\runtime-path-layout.md" LogicalName="LocalGPT.Knowledge.runtime-path-layout.md" />
+		<EmbeddedResource Include="..\..\docs\reference\local-ai-runtime.md" LogicalName="LocalGPT.Knowledge.local-ai-runtime.md" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -87,34 +98,35 @@
     <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="$(DevExpressVersion)" />
     <PackageReference Include="Markdig" Version="1.3.2" />
     <PackageReference Include="MessagePack" Version="3.1.8" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.11" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.12" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
 	    <PrivateAssets>all</PrivateAssets>
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
 	  <PackageReference Include="Microsoft.Extensions.AI" Version="10.9.0" />
 	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
 	  <PackageReference Include="OllamaSharp" Version="5.4.30" />
 	  <PackageReference Include="OpenAI" Version="2.12.0" />
+	  <PackageReference Include="pythonnet" Version="3.1.0" />
 	  <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
 	  <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
 	  <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="3.0.5" />
 	  <PackageReference Include="System.ClientModel" Version="1.15.0" />
 	  <!--<PackageReference Include="SourceGear.sqlite3" Version="3.50.4.5" />-->
-	  <PackageReference Include="System.CodeDom" Version="10.0.11" />
+	  <PackageReference Include="System.CodeDom" Version="10.0.12" />
 	  <PackageReference Include="Azure.AI.OpenAI" Version="2.5.0-beta.1" />
-	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Chat" Version="$(DevExpressVersion)"  />
+	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Chat" Version="$(DevExpressVersion)" />
 	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Common" Version="$(DevExpressVersion)" />
 	  <PackageReference Include="DevExpress.AIIntegration.OpenAI" Version="$(DevExpressVersion)" />
-	  <PackageReference Include="System.Composition" Version="10.0.11" />
-	  <PackageReference Include="System.Composition.Convention" Version="10.0.11" />
-	  <PackageReference Include="System.Composition.TypedParts" Version="10.0.11" />
-	  <PackageReference Include="System.Memory.Data" Version="10.0.11" />
-	  <PackageReference Include="System.Numerics.Tensors" Version="10.0.11" />
+	  <PackageReference Include="System.Composition" Version="10.0.12" />
+	  <PackageReference Include="System.Composition.Convention" Version="10.0.12" />
+	  <PackageReference Include="System.Composition.TypedParts" Version="10.0.12" />
+	  <PackageReference Include="System.Memory.Data" Version="10.0.12" />
+	  <PackageReference Include="System.Numerics.Tensors" Version="10.0.12" />
 	  <PackageReference Include="System.Reactive" Version="7.0.0" />
-	  <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.11" />
+	  <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.12" />
 	  <PackageReference Include="System.ServiceModel.Http" Version="10.0.652802" />
 	  <PackageReference Include="System.ServiceModel.NetTcp" Version="10.0.652802" />
 	  <PackageReference Include="System.ServiceModel.Primitives" Version="10.0.652802" />
@@ -1348,7 +1360,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Shared\ConsoleProductIdentity.cs" Link="ConsoleProductIdentity.cs" />
+    <Compile Include="..\Shared\BusinessObjects\ConsoleProductIdentity.cs" Link="BusinessObjects\ConsoleProductIdentity.cs" />
+    <Compile Include="..\Shared\Extensions\StringExtensions.cs" Link="Extensions\ProjectConsoleIdentityStringExtensions.cs" />
+    <Compile Include="..\Shared\Extensions\ConsoleProductIdentityExtensions.cs" Link="Extensions\ConsoleProductIdentityExtensions.cs" />
   </ItemGroup>
 
 </Project>

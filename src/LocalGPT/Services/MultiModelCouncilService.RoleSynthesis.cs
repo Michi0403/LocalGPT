@@ -112,8 +112,11 @@ namespace LocalGPT.Services
 
                 if (definition.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember)
                 {
-                    var exact = distinctParticipants.FirstOrDefault(model =>
-                        string.Equals(model, definition.RoleResultSynthesisModelName, StringComparison.OrdinalIgnoreCase));
+                    var identity = new ProviderModelIdentity();
+                    var exactMatches = distinctParticipants
+                        .Where(model => identity.AreEquivalentSelectionKeys(definition.RoleResultSynthesisModelName, model))
+                        .ToList();
+                    var exact = exactMatches.Count == 1 ? exactMatches[0] : null;
                     if (exact is not null)
                     {
                         var healthy = SelectHealthyParticipant(result, distinctParticipants, exact);

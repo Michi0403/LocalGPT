@@ -232,6 +232,15 @@ public sealed class ToolchainDiscoveryService(
                 if (File.Exists(candidate))
                     AddCandidate(profile, candidate, source, foundPaths, result);
             }
+            if (profile.ExecutablePatterns.Count == 0)
+                return;
+            foreach (var candidate in SafeGetFiles(directory))
+            {
+                if (result.Count >= maximumCandidates)
+                    return;
+                if (MatchesExecutableName(profile, Path.GetFileName(candidate)))
+                    AddCandidate(profile, candidate, source, foundPaths, result);
+            }
         }
         catch (Exception exception)
         {
@@ -259,7 +268,6 @@ public sealed class ToolchainDiscoveryService(
             AddDirectCandidates(profile, root, source, foundPaths, result, maximumCandidates);
             if (result.Count >= maximumCandidates || profile.MaximumSearchDepth <= 0)
                 return;
-            var names = profile.ExecutableNames.Where(item => !string.IsNullOrWhiteSpace(item)).ToHashSet(PathComparer());
             var pending = new Queue<(string Path, int Depth)>();
             pending.Enqueue((root, 0));
             var visited = 0;
@@ -270,7 +278,7 @@ public sealed class ToolchainDiscoveryService(
                 visited++;
                 foreach (var file in SafeGetFiles(current.Path))
                 {
-                    if (!names.Contains(Path.GetFileName(file)))
+                    if (!MatchesExecutableName(profile, Path.GetFileName(file)))
                         continue;
                     AddCandidate(profile, file, source, foundPaths, result);
                     if (result.Count >= maximumCandidates)
@@ -291,6 +299,36 @@ public sealed class ToolchainDiscoveryService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Toolchain root traversal failed for profile {ProfileKey}; paths were omitted from logs.", profile.Key);
+            throw;
+        }
+    }
+
+    /// <summary>Matches one file name against the exact names and optional wildcard patterns maintained by a toolchain profile.</summary>
+    /// <param name="profile">Knowledge-backed toolchain profile that owns the discovery rules.</param>
+    /// <param name="fileName">Candidate file name without its directory.</param>
+    /// <returns><see langword="true"/> when the candidate belongs to the profile.</returns>
+    private bool MatchesExecutableName(ToolchainKnowledgeProfile profile, string fileName)
+    {
+        try
+        {
+            if (profile.ExecutableNames.Any(name => string.Equals(name?.Trim(), fileName, platform.PathComparison)))
+                return true;
+            foreach (var pattern in profile.ExecutablePatterns.Where(item => !string.IsNullOrWhiteSpace(item)))
+            {
+                var regexPattern = "^" + Regex.Escape(pattern.Trim()).Replace("\\*", ".*").Replace("\\?", ".") + "$";
+                if (Regex.IsMatch(fileName, regexPattern, platform.PathComparison == StringComparison.OrdinalIgnoreCase ? RegexOptions.IgnoreCase : RegexOptions.None, TimeSpan.FromMilliseconds(100)))
+                    return true;
+            }
+            return false;
+        }
+        catch (RegexMatchTimeoutException exception)
+        {
+            logger.LogWarning(exception, "Timed out matching one executable pattern for toolchain profile {ProfileKey}; file name omitted from logs.", profile.Key);
+            return false;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Matching executable names for toolchain profile {ProfileKey} failed; file name omitted from logs.", profile.Key);
             throw;
         }
     }

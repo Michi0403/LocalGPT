@@ -5,6 +5,61 @@ namespace LocalGPT.Services
     /// <summary>Bridges bounded Council role output into the deterministic Kernel Creature Tournament game session.</summary>
     public sealed partial class MultiModelCouncilService
     {
+        /// <summary>
+        /// Narrows live battle turns to the two trainer/creature kernels that the deterministic engine says are in the current legal match.
+        /// Opening/selection steps still use the complete configured role pool, while a damaged or incomplete match projection safely falls back to that pool.
+        /// </summary>
+        private async Task<IReadOnlyList<string>> LimitKernelTournamentRoundParticipantsAsync(
+            MultiModelCouncilResult result,
+            OrganicCouncilTeamDefinition team,
+            CouncilWorkflowStepDefinition definition,
+            IReadOnlyList<string> roleParticipants,
+            CancellationToken cancellationToken)
+        {
+            if (!string.Equals(team.Key, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
+                || !(string.Equals(definition.Key, "trainer-round-command", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(definition.Key, "fight-round", StringComparison.OrdinalIgnoreCase))
+                || roleParticipants.Count <= 2)
+                return roleParticipants;
+
+            try
+            {
+                var game = await gameSessions.GetActiveForCouncilRunAsync(result.RunId, "kernel-creature-tournament", cancellationToken).ConfigureAwait(false);
+                if (game is null || game.TournamentCurrentFighterIds.Count != 2)
+                    return roleParticipants;
+
+                var activeFighters = game.TournamentFighters
+                    .Where(fighter => game.TournamentCurrentFighterIds.Contains(fighter.FighterId, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+                if (activeFighters.Count != 2)
+                    return roleParticipants;
+
+                var desiredModels = string.Equals(definition.Role, "Creature Trainer", StringComparison.OrdinalIgnoreCase)
+                    ? activeFighters.Select(fighter => fighter.TrainerModelName).ToList()
+                    : activeFighters.Select(fighter => fighter.CreatureModelName).ToList();
+                var identity = new ProviderModelIdentity();
+                var selected = roleParticipants
+                    .Where(participant => desiredModels.Any(model => identity.AreEquivalentSelectionKeys(model, participant)))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (selected.Count != desiredModels.Distinct(StringComparer.OrdinalIgnoreCase).Count())
+                    return roleParticipants;
+
+                logger.LogInformation(
+                    "Kernel Creature Tournament round {Round} limited role {Role} from {ConfiguredCount} configured member(s) to the {ActiveCount} current legal-match member(s).",
+                    Math.Max(1, game.TournamentRound),
+                    definition.Role,
+                    roleParticipants.Count,
+                    selected.Count);
+                return selected;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Kernel Creature Tournament active-pair optimization could not be resolved; the configured role pool will run unchanged.");
+                return roleParticipants;
+            }
+        }
+
         private async Task<MultiModelCouncilStep> RunKernelTournamentSystemStepAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -128,7 +183,8 @@ namespace LocalGPT.Services
                         CreatureStyle = ReadTag(trainerContent, "STYLE"),
                         CreatureForm = ReadTag(creatureContent, "FORM"),
                         CreatureTrait = ReadTag(creatureContent, "TRAIT"),
-                        CreatureVoice = ReadTag(creatureContent, "VOICE")
+                        CreatureVoice = ReadTag(creatureContent, "VOICE"),
+                        TrainerGreeting = ReadTag(trainerContent, "CHALLENGE")
                     });
                 }
 

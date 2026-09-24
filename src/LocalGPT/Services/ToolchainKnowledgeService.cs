@@ -54,7 +54,7 @@ public sealed class ToolchainKnowledgeService(
                         profile.DisplayName = string.IsNullOrWhiteSpace(profile.DisplayName) ? profile.Key : profile.DisplayName.Trim();
                         profile.Language = string.IsNullOrWhiteSpace(profile.Language) ? "Other" : profile.Language.Trim();
                         profile.ValidationArguments = string.IsNullOrWhiteSpace(profile.ValidationArguments) ? "--version" : profile.ValidationArguments.Trim();
-                        profile.VersionRegexPatternName = string.IsNullOrWhiteSpace(profile.VersionRegexPatternName) ? "builtin.toolchain-version-token" : profile.VersionRegexPatternName.Trim();
+                        profile.VersionRegexPatternName = string.IsNullOrWhiteSpace(profile.VersionRegexPatternName) ? "builtin.toolchain-version-token-v2" : profile.VersionRegexPatternName.Trim();
                         profile.MaximumSearchDepth = Math.Clamp(profile.MaximumSearchDepth, 0, 5);
                         profile.KnowledgeEntryId = entry.Id;
                         profiles.Add(profile);
@@ -122,9 +122,9 @@ public sealed class ToolchainKnowledgeService(
             var profile = await GetProfileAsync(profileKey, cancellationToken).ConfigureAwait(false);
             var patternName = profile?.VersionRegexPatternName;
             if (string.IsNullOrWhiteSpace(patternName))
-                patternName = "builtin.toolchain-version-token";
+                patternName = "builtin.toolchain-version-token-v2";
             var regex = await regexPatterns.GetRegexAsync(patternName).ConfigureAwait(false)
-                ?? await regexPatterns.GetRegexAsync("builtin.toolchain-version-token").ConfigureAwait(false);
+                ?? await regexPatterns.GetRegexAsync("builtin.toolchain-version-token-v2").ConfigureAwait(false);
             if (regex is null)
                 return string.Empty;
             var match = regex.Match(probeOutput ?? string.Empty);
@@ -196,8 +196,8 @@ public sealed class ToolchainKnowledgeService(
                 return existing;
 
             var profile = await GetProfileAsync(request.ProfileKey, cancellationToken).ConfigureAwait(false);
-            var title = $"Toolchain knowledge needed: {profile?.DisplayName ?? request.ProfileKey} {request.Version}";
-            var description = $"LocalGPT detected {profile?.DisplayName ?? request.ProfileKey} version {request.Version}, but the local Knowledge Database has no approved context for that exact version. Provide one of: a Markdown file, a Knowledge Database article, or a text blob describing the version, supported project/build context, validation notes, and important compatibility constraints. No online lookup is performed automatically. {Bound(request.Context, 800)}";
+            var title = $"Trust locally detected toolchain: {profile?.DisplayName ?? request.ProfileKey} {request.Version}";
+            var description = $"LocalGPT successfully identified {profile?.DisplayName ?? request.ProfileKey} version {request.Version} with its bounded local version probe. Approve if this locally detected version should be trusted for LocalGPT toolchain selection and version-specific assistance; decline if the result is unexpected. Writing technical documentation is not required. No online lookup is performed automatically. {Bound(request.Context, 800)}";
             var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(
                 new HumanApprovalRequestSpec(
                     $"toolchain-knowledge:{request.ProfileKey}:{request.Version}",
@@ -207,20 +207,19 @@ public sealed class ToolchainKnowledgeService(
                     "Low",
                     nameof(ToolchainKnowledgeService),
                     "CurrentUser",
-                    "Toolchain knowledge provider",
+                    "Toolchain version approver",
                     RequiredBeforeCompletion: false,
                     IsSensitive: false,
-                    RequestKind: "Guidance",
-                    SuggestedResponsesText: "Provide Markdown file\nCreate/edit Knowledge Database article\nPaste text blob\nSkip for now",
-                    ResponsePrompt: "Choose how to provide the missing toolchain-version knowledge, then attach or enter the requested content.",
-                    AllowFreeText: true,
+                    RequestKind: "Approval",
+                    ResponsePrompt: "Approve this locally detected version or decline it if the probe result is unexpected.",
+                    AllowFreeText: false,
                     QuestionScope: "Member",
                     GateMode: "None"),
                 directHumanConfirmation: false,
                 cancellationToken).ConfigureAwait(false);
             existing.HumanRequestId = gate.RequestId;
-            existing.Status = gate.IsAuthorized ? "KnowledgeRequestSatisfied" : "KnowledgeRequestedFromUser";
-            logger.LogInformation("Requested local knowledge for toolchain profile {ProfileKey} version {Version}; request {RequestId}.", request.ProfileKey, request.Version, gate.RequestId);
+            existing.Status = gate.IsAuthorized ? "VersionApprovedByUser" : gate.IsDeclined ? "VersionDeclinedByUser" : "VersionApprovalRequested";
+            logger.LogInformation("Requested one-click local approval for toolchain profile {ProfileKey} version {Version}; request {RequestId}.", request.ProfileKey, request.Version, gate.RequestId);
             return existing;
         }
         catch (OperationCanceledException exception)

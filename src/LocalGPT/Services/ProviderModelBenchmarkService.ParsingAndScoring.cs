@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Net;
-using System.Text;
 using System.Text.Json;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
@@ -31,27 +30,45 @@ namespace LocalGPT.Services
                 normalized = decoded;
             }
 
-            for (var start = normalized.IndexOf('{'); start >= 0; start = normalized.IndexOf('{', start + 1))
+            var searchOffset = 0;
+            while (searchOffset < normalized.Length)
             {
+                var start = normalized.IndexOf('{', searchOffset);
+                if (start < 0)
+                    break;
+
+                if (!LooksLikeJsonObjectStart(normalized, start))
+                {
+                    searchOffset = start + 1;
+                    continue;
+                }
+
+                if (!TryExtractBalancedJsonObject(normalized, start, out var candidate, out var nextOffset))
+                {
+                    searchOffset = start + 1;
+                    continue;
+                }
+
                 try
                 {
-                    var utf8 = Encoding.UTF8.GetBytes(normalized[start..]);
-                    var reader = new Utf8JsonReader(
-                        utf8,
-                        new JsonReaderOptions
+                    document = JsonDocument.Parse(
+                        candidate,
+                        new JsonDocumentOptions
                         {
                             CommentHandling = JsonCommentHandling.Skip,
                             AllowTrailingCommas = true
                         });
-                    if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
-                        continue;
-                    document = JsonDocument.ParseValue(ref reader);
-                    return true;
+                    return document.RootElement.ValueKind == JsonValueKind.Object;
                 }
                 catch (JsonException)
                 {
-                    // Malformed/truncated provider JSON is benchmark evidence. Try a later object once,
-                    // but never promote ordinary model formatting failure to an application Error log.
+                    // The benchmark output is untrusted model text. Only attempt parsing after a complete,
+                    // balanced JSON-shaped carrier was found so ordinary prose/code never creates a
+                    // JsonReaderException storm in the debugger. A malformed balanced candidate is skipped
+                    // as benchmark evidence and scanning resumes after that carrier.
+                    document?.Dispose();
+                    document = null;
+                    searchOffset = Math.Max(nextOffset, start + 1);
                 }
             }
             return false;
@@ -62,6 +79,99 @@ namespace LocalGPT.Services
             return false;
         }
     }
+
+    /// <summary>Checks whether an opening brace is plausibly the beginning of a JSON object rather than a brace in prose or source code.</summary>
+    private bool LooksLikeJsonObjectStart(string value, int start)
+    {
+    try
+    {
+            for (var index = start + 1; index < value.Length; index++)
+            {
+                var character = value[index];
+                if (char.IsWhiteSpace(character))
+                    continue;
+                return character is '"' or '}';
+            }
+            return false;
+    
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(LooksLikeJsonObjectStart)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(LooksLikeJsonObjectStart)} failed.");
+        throw;
+    }
+}
+
+    /// <summary>Extracts one complete brace-balanced JSON-shaped object without invoking the throwing JSON parser on incomplete model output.</summary>
+    private bool TryExtractBalancedJsonObject(string value, int start, out string candidate, out int nextOffset)
+    {
+    try
+    {
+            candidate = string.Empty;
+            nextOffset = Math.Min(value.Length, start + 1);
+            var depth = 0;
+            var inString = false;
+            var escaped = false;
+
+            for (var index = start; index < value.Length; index++)
+            {
+                var character = value[index];
+                if (inString)
+                {
+                    if (escaped)
+                    {
+                        escaped = false;
+                        continue;
+                    }
+                    if (character == '\\')
+                    {
+                        escaped = true;
+                        continue;
+                    }
+                    if (character == '"')
+                        inString = false;
+                    continue;
+                }
+
+                if (character == '"')
+                {
+                    inString = true;
+                    continue;
+                }
+                if (character == '{')
+                {
+                    depth++;
+                    continue;
+                }
+                if (character != '}')
+                    continue;
+
+                depth--;
+                if (depth < 0)
+                    return false;
+                if (depth != 0)
+                    continue;
+
+                nextOffset = index + 1;
+                candidate = value[start..nextOffset];
+                return true;
+            }
+
+            return false;
+    
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(TryExtractBalancedJsonObject)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(TryExtractBalancedJsonObject)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Parses the first complete JSON object for internal reviewer contracts that require structured data.</summary>
     /// <param name="value">Untrusted reviewer response text.</param>

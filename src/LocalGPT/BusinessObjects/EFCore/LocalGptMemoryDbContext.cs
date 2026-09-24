@@ -246,6 +246,10 @@ namespace LocalGPT.BusinessObjects.EFCore
         /// <value>The user DevExpress AI function definitions value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<UserDxAiFunctionDefinition> UserDxAiFunctionDefinitions => Set<UserDxAiFunctionDefinition>();
 
+        /// <summary>Gets the database set containing persisted runtime-extension definitions and executable payload metadata.</summary>
+        /// <value>The runtime plugin definitions exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<RuntimePluginDefinition> RuntimePluginDefinitions => Set<RuntimePluginDefinition>();
+
         /// <summary>
         /// Handles the model creating lifecycle or event notification for <see cref="LocalGptMemoryDbContext"/>, updating the state required by the surrounding workflow.
         /// </summary>
@@ -1016,6 +1020,26 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.PipelineKey).HasMaxLength(96).IsRequired();
                 entity.HasIndex(item => item.FunctionName).IsUnique();
                 entity.HasIndex(item => new { item.PipelineKey, item.IsEnabled });
+            });
+
+            modelBuilder.Entity<RuntimePluginDefinition>(entity =>
+            {
+                entity.ToTable("RuntimePluginDefinitions");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Name).HasMaxLength(200).IsRequired();
+                entity.Property(item => item.FunctionName).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.Purpose).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.SafetyNotes).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.ParameterSchemaJson).IsRequired();
+                entity.Property(item => item.SourceCode).IsRequired();
+                entity.Property(item => item.PackagePayloadBase64).IsRequired();
+                entity.Property(item => item.EntryAssemblyName).HasMaxLength(260).IsRequired();
+                entity.Property(item => item.EntryTypeName).HasMaxLength(500).IsRequired();
+                entity.Property(item => item.ContentHash).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.LastBuildStatus).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.LastBuildMessage).HasMaxLength(4000).IsRequired();
+                entity.HasIndex(item => item.FunctionName).IsUnique();
+                entity.HasIndex(item => new { item.IsEnabled, item.AvailableToAi, item.UpdatedAtUtc });
             });
 
             modelBuilder.Entity<NativeCommandLogEntry>(entity =>

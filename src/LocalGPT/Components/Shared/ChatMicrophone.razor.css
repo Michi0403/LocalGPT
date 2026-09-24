@@ -1,0 +1,7 @@
+.chat-microphone {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .5rem;
+    padding: .5rem 0;
+}

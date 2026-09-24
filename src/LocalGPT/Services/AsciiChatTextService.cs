@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -16,6 +17,21 @@ public sealed class AsciiChatTextService
 
     /// <summary>Stores the logger used to record bounded ASCII text-processing diagnostics without recording chat content.</summary>
     private readonly ILogger<AsciiChatTextService> logger;
+
+    /// <summary>Caches unchanged Council lane projections so one streamed token does not re-normalize every other active model lane.</summary>
+    private readonly ConcurrentDictionary<string, ParticipantProjectionCacheEntry> participantProjectionCache = new(StringComparer.Ordinal);
+
+    /// <summary>Maximum source characters retained from one still-streaming Council lane on the mirrored terminal surface.</summary>
+    private const int LiveParticipantTraceCharacters = 8192;
+
+    /// <summary>Maximum source characters retained from one completed Council trace on the mirrored terminal surface.</summary>
+    private const int CompletedParticipantTraceCharacters = 12288;
+
+    /// <summary>Maximum source characters retained from one participant final answer on the mirrored terminal surface.</summary>
+    private const int ParticipantFinalCharacters = 16384;
+
+    /// <summary>One content-free cache signature and its bounded terminal projection.</summary>
+    private sealed record ParticipantProjectionCacheEntry(string Signature, string Body);
 
     /// <summary>Matches one bounded fenced ASCII animation block inside canonical chat content.</summary>
     private readonly Regex AsciiSequenceBlockPattern = new(
@@ -446,8 +462,29 @@ public sealed class AsciiChatTextService
     {
         try
         {
-            var streamed = NormalizeMessageBody(activity.Content ?? string.Empty);
-            var final = NormalizeMessageBody(activity.FinalContent ?? string.Empty);
+            var signature = string.Join(
+                ':',
+                activity.StartedAtUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                activity.UpdatedAtUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                activity.IsRunning,
+                activity.Content?.Length ?? 0,
+                activity.FinalContent?.Length ?? 0);
+            if (participantProjectionCache.TryGetValue(activity.ActivityKey, out var cached)
+                && string.Equals(cached.Signature, signature, StringComparison.Ordinal))
+            {
+                return cached.Body;
+            }
+
+            var streamedSource = BoundParticipantSource(
+                activity.Content ?? string.Empty,
+                activity.IsRunning ? LiveParticipantTraceCharacters : CompletedParticipantTraceCharacters,
+                "streamed trace");
+            var finalSource = BoundParticipantSource(
+                activity.FinalContent ?? string.Empty,
+                ParticipantFinalCharacters,
+                "final answer");
+            var streamed = NormalizeMessageBody(streamedSource);
+            var final = NormalizeMessageBody(finalSource);
             var body = new StringBuilder();
 
             var phase = string.IsNullOrWhiteSpace(activity.Phase) ? "Council" : activity.Phase.Trim();
@@ -477,12 +514,41 @@ public sealed class AsciiChatTextService
                 body.AppendLine().Append("[STATUS] ").Append(activity.StatusMessage.Trim());
             }
 
-            return body.ToString().Trim();
+            var projection = body.ToString().Trim();
+            participantProjectionCache[activity.ActivityKey] = new ParticipantProjectionCacheEntry(signature, projection);
+            if (participantProjectionCache.Count > 512)
+                participantProjectionCache.Clear();
+            return projection;
         }
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Could not project Council participant {ActivityKey} into the ASCII transcript.", activity.ActivityKey);
             return string.Empty;
+        }
+    }
+
+    /// <summary>Bounds one mirrored participant payload while preserving both its opening context and newest streamed tail.</summary>
+    /// <param name="value">Provider-owned source text to mirror without mutating canonical Council state.</param>
+    /// <param name="maximumCharacters">Maximum source characters retained in the terminal projection.</param>
+    /// <param name="description">Human-readable payload name used only inside the visible truncation marker.</param>
+    /// <returns>The original value when already bounded, otherwise a head/tail projection with an explicit omission marker.</returns>
+    private string BoundParticipantSource(string value, int maximumCharacters, string description)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= maximumCharacters)
+                return value;
+
+            var marker = $"{Environment.NewLine}[... earlier {description} remains available in canonical Chat/Council history ...]{Environment.NewLine}";
+            var available = Math.Max(2, maximumCharacters - marker.Length);
+            var headLength = Math.Max(1, available / 4);
+            var tailLength = Math.Max(1, available - headLength);
+            return value[..headLength] + marker + value[^tailLength..];
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Could not bound one {Description} payload for the ASCII transcript mirror.", description);
+            return value;
         }
     }
 

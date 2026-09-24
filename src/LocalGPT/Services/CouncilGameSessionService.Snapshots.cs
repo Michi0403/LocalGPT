@@ -88,6 +88,9 @@ namespace LocalGPT.Services
         TournamentRuntimeClassKey = session.TournamentRuntimeClassKey,
         TournamentFighters = session.TournamentFighters.Select(CloneTournamentFighter).ToArray(),
         TournamentTimeline = session.TournamentTimeline.Select(CloneTournamentTimelineEntry).ToArray(),
+        TournamentCurrentFighterIds = session.TournamentMatchIndex + 1 < session.TournamentRoundFighterIds.Count
+            ? [session.TournamentRoundFighterIds[session.TournamentMatchIndex], session.TournamentRoundFighterIds[session.TournamentMatchIndex + 1]]
+            : [],
         TournamentRound = session.TournamentRound,
         TournamentExchange = session.TournamentExchange,
         TournamentChampion = session.TournamentFighters.FirstOrDefault(fighter => string.Equals(fighter.FighterId, session.TournamentChampionFighterId, StringComparison.OrdinalIgnoreCase))?.CreatureName ?? string.Empty,
@@ -147,6 +150,7 @@ namespace LocalGPT.Services
                 CreatureForm = source.CreatureForm,
                 CreatureTrait = source.CreatureTrait,
                 CreatureVoice = source.CreatureVoice,
+                TrainerGreeting = source.TrainerGreeting,
                 TrainerRig = CloneAsciiActorRig(source.TrainerRig),
                 CreatureRoster = source.CreatureRoster.Select(CloneTournamentCreature).ToList(),
                 ActiveCreatureId = source.ActiveCreatureId,

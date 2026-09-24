@@ -13,6 +13,8 @@ namespace LocalGPT.Logging
         /// Stores the options monitor dependency used by <see cref="FileLoggerProvider"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly IOptionsMonitor<FileLoggerCoreOptions> options;
+        /// <summary>Provider-owned shared sink so all logging categories serialize writes through one resilient queue and writer.</summary>
+        private readonly Lazy<FileLoggerSink> sink;
         /// <summary>
         /// Stores the internal disposed state used by <see cref="FileLoggerProvider"/> while executing its surrounding workflow.
         /// </summary>
@@ -27,6 +29,9 @@ namespace LocalGPT.Logging
         public FileLoggerProvider(IOptionsMonitor<FileLoggerCoreOptions> options)
         {
             this.options = options;
+            sink = new Lazy<FileLoggerSink>(
+                () => new FileLoggerSink(options.CurrentValue),
+                LazyThreadSafetyMode.ExecutionAndPublication);
         }
 
         /// <summary>
@@ -38,7 +43,7 @@ namespace LocalGPT.Logging
         {
             try
             {
-                return new FileLogger(categoryName, options);
+                return new FileLogger(categoryName, options, sink.Value);
             }
             catch (Exception exception)
             {
@@ -56,12 +61,8 @@ namespace LocalGPT.Logging
         {
             if (!disposed)
             {
-                if (disposing)
-                {
-
-                }
-
-
+                if (disposing && sink.IsValueCreated)
+                    sink.Value.Dispose();
                 disposed = true;
             }
         }

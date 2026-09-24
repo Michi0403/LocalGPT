@@ -314,6 +314,39 @@ internal readonly struct ProviderModelIdentity
         return null;
     }
 
+    /// <summary>Determines whether two saved/current model keys can safely identify the same concrete model selection.</summary>
+    /// <remarks>Provider-qualified keys keep host/provider boundaries intact. Legacy bare model names are accepted only as candidate matches; callers that resolve a set must still reject ambiguity.</remarks>
+    public bool AreEquivalentSelectionKeys(string? left, string? right)
+    {
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+            return false;
+        if (string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var leftQualified = TryParseSelectionKey(left, out var leftReference);
+        var rightQualified = TryParseSelectionKey(right, out var rightReference);
+        if (!leftQualified || !rightQualified)
+        {
+            var leftModel = leftQualified ? leftReference.ModelName : left;
+            var rightModel = rightQualified ? rightReference.ModelName : right;
+            return ModelNamesEquivalent(leftModel, rightModel);
+        }
+
+        if (ProviderKindsEquivalent(leftReference.ProviderKind, rightReference.ProviderKind)
+            && EndpointsEquivalent(leftReference.ProviderKind, leftReference.Endpoint, rightReference.Endpoint)
+            && ModelNamesEquivalent(leftReference.ModelName, rightReference.ModelName))
+            return true;
+
+        return (string.Equals(leftReference.ProviderKind, ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(rightReference.ProviderKind, ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                && IsOllamaOpenAiCompatibilityFacade(rightReference.Endpoint, leftReference.Endpoint)
+                && ModelNamesEquivalent(leftReference.ModelName, rightReference.ModelName))
+            || (string.Equals(rightReference.ProviderKind, ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(leftReference.ProviderKind, ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                && IsOllamaOpenAiCompatibilityFacade(leftReference.Endpoint, rightReference.Endpoint)
+                && ModelNamesEquivalent(leftReference.ModelName, rightReference.ModelName));
+    }
+
     /// <summary>
     /// Determines whether a current candidate represents the same persisted provider/model identity.
     /// </summary>

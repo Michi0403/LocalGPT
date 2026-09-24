@@ -1,4 +1,5 @@
 @inject IProjectIngestionService ProjectIngestion
+@inject IDxAiFunctionRegistry DxAiFunctionRegistry
 @inject IUploadProcessingRecommendationService Recommendations
 @inject LocalGptCatalogService Catalog
 @inject CouncilTextService CouncilText
@@ -121,10 +122,10 @@
                     <DxButton Text="Ask suggested Council team" Enabled="@CanUseSuggestedTeam" RenderStyle="ButtonRenderStyle.Secondary" Click="UseInCouncilAsync" />
                     <DxButton Text="Request independent Council review" Enabled="@CanRequestReview" RenderStyle="ButtonRenderStyle.Secondary" Click="RequestCouncilReviewAsync" />
                     <DxButton Text="Refresh recommendation" Enabled="@(!busy)" Click="RefreshRecommendationAsync" />
-                    <DxButton Text="Approve promotion" Enabled="@CanPromote" RenderStyle="ButtonRenderStyle.Success" Click="PromoteAsync" />
+                    <DxButton Text="Request promotion approval" Enabled="@CanPromote" RenderStyle="ButtonRenderStyle.Success" Click="PromoteAsync" />
                     <DxButton Text="Close" Enabled="@(!busy)" Click="CloseReviewAsync" />
                 </div>
-                <small class="upload-processing-review-boundary">Recommendation is advisory. Promotion remains blocked until deterministic checks, independent-review quorum, and this explicit user approval all pass.</small>
+                <small class="upload-processing-review-boundary">Recommendation is advisory. Promotion remains blocked until deterministic checks and independent-review quorum pass, then the exact promotion request is reviewed through the common Human Collaboration approval workflow.</small>
             </div>
         }
     </BodyContentTemplate>
@@ -312,14 +313,42 @@
             return;
         try
         {
-            SetBusy(true, "Promoting reviewed files…", "Only now are approved archives extracted into the promoted workspace. Hash/path/size boundaries remain authoritative.");
-            gate = await ProjectIngestion.PromoteAsync(gate.WorkspaceName, true).ConfigureAwait(false);
-            statusText = $"Workspace promoted to {gate.PromotedRoot}. Canonical project synchronization completed and source snapshot/delta Knowledge plus repository regex candidates were staged for review where repository evidence was detected.";
+            SetBusy(true, "Requesting promotion approval…", "The exact ZIP/project promotion is being sent to the common Human Collaboration approval workflow. No archive is extracted by this action.");
+            var parameters = System.Text.Json.JsonSerializer.SerializeToElement(new
+            {
+                workspaceName = gate.WorkspaceName
+            });
+            var result = await DxAiFunctionRegistry.InvokeAsync("project.ingestion.promote", new DxAiFunctionInvocationRequest
+            {
+                Parameters = parameters,
+                UserConfirmed = false,
+                AutomaticInvocation = true,
+                RequestedBy = "Local upload review"
+            }).ConfigureAwait(false);
+
+            if (result.Status.Equals("HumanApprovalPending", StringComparison.OrdinalIgnoreCase))
+            {
+                statusText = "Promotion approval requested. Review the exact request in the Human Collaboration Inbox; after approval the queued promotion can execute through the normal deferred-approval path.";
+                return;
+            }
+
+            if (!result.Succeeded)
+            {
+                statusText = string.IsNullOrWhiteSpace(result.Error)
+                    ? $"Promotion request was not accepted ({result.Status})."
+                    : result.Error;
+                return;
+            }
+
+            gate = await ProjectIngestion.GetAsync(gate.WorkspaceName).ConfigureAwait(false) ?? gate;
+            statusText = gate.Status.Equals("Promoted", StringComparison.OrdinalIgnoreCase)
+                ? $"Workspace promoted to {gate.PromotedRoot}. Canonical project synchronization completed and source snapshot/delta Knowledge plus repository regex candidates were staged for review where repository evidence was detected."
+                : "Promotion request completed through the approval workflow. Refresh this review if the promoted state is not visible yet.";
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "User-approved upload promotion failed for {WorkspaceName}.", gate.WorkspaceName);
-            statusText = $"Promotion was refused or failed: {ex.Message}";
+            Logger.LogError(ex, "Requesting upload promotion approval failed for {WorkspaceName}.", gate.WorkspaceName);
+            statusText = "Promotion approval could not be requested. Review LocalGPT logs.";
         }
         finally
         {

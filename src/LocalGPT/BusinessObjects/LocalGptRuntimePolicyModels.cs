@@ -973,6 +973,10 @@ public enum LocalGptRuntimePattern
     /// </summary>
     ToolchainVersionToken,
     /// <summary>
+    /// Selects the revised toolchain version token option that accepts common leading version markers such as Node.js <c>v</c>.
+    /// </summary>
+    ToolchainVersionTokenV2,
+    /// <summary>
     /// Selects the toolchain environment token option for <see cref="LocalGptRuntimePattern"/>, giving callers a named value for that supported mode or state.
     /// </summary>
     ToolchainEnvironmentToken,

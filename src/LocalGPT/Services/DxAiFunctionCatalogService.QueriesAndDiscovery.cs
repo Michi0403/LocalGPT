@@ -103,8 +103,9 @@ public sealed partial class DxAiFunctionCatalogService
                 ExposeToAiChat = function.AvailableToAi,
                 ExposeToOneWire = function.SupportsDirectInvocation,
                 AllowRemoteInvocation = function.SupportsDirectInvocation,
-                RequiresFrontendConfirmation = function.RequiresHumanConfirmation,
-                InteractionEditor = InferEditor(function.Name, function.ParameterSchemaJson, function.RequiresHumanConfirmation),
+                RequiresFrontendConfirmation = function.RequiresHumanConfirmation || (!function.IsReadOnly && !function.IsCoordinationOnly),
+                InteractionEditor = InferEditor(function.Name, function.ParameterSchemaJson,
+                    function.RequiresHumanConfirmation || (!function.IsReadOnly && !function.IsCoordinationOnly)),
                 IsSystemSeed = !string.Equals(function.Source, "UserDxFunction", StringComparison.OrdinalIgnoreCase)
             };
             entry.DescriptorHash = ComputeDescriptorHash(entry);

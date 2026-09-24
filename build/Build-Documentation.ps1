@@ -175,7 +175,11 @@ function Get-LocalGptDocumentationSystemMemoryBytes {
 
 $documentationSystemMemoryBytes = Get-LocalGptDocumentationSystemMemoryBytes
 $documentationSystemMemoryGiB = if ($documentationSystemMemoryBytes -gt 0) { [Math]::Round($documentationSystemMemoryBytes / 1GB, 1) } else { 0.0 }
-$browserPdfChunkPages = 100
+# Browser PDF parts stay deliberately small on every host. Larger RAM budgets are used for
+# DocFX/Node concurrency and heap headroom, not for giant browser print jobs. This keeps the
+# durable/restartable browser path consistent with the 8-page profile proven on constrained macOS
+# hardware while allowing only a modest increase on larger developer workstations.
+$browserPdfChunkPages = 8
 $browserJavaScriptHeapMb = 4096
 $documentationNodeHeapMb = 4096
 $docfxBuildMaxParallelism = 8
@@ -189,38 +193,38 @@ if ($documentationSystemMemoryBytes -gt 0) {
         $documentationLowMemoryMode = $true
     }
     elseif ($documentationSystemMemoryBytes -le 16GB) {
-        $browserPdfChunkPages = 16
+        $browserPdfChunkPages = 8
         $browserJavaScriptHeapMb = 1024
         $documentationNodeHeapMb = 1536
         $docfxBuildMaxParallelism = 2
         $documentationLowMemoryMode = $true
     }
     elseif ($documentationSystemMemoryBytes -le 24GB) {
-        $browserPdfChunkPages = 32
+        $browserPdfChunkPages = 10
         $browserJavaScriptHeapMb = 1536
         $documentationNodeHeapMb = 2048
         $docfxBuildMaxParallelism = 3
     }
     elseif ($documentationSystemMemoryBytes -le 32GB) {
-        $browserPdfChunkPages = 50
+        $browserPdfChunkPages = 10
         $browserJavaScriptHeapMb = 2048
         $documentationNodeHeapMb = 2048
         $docfxBuildMaxParallelism = 4
     }
     elseif ($documentationSystemMemoryBytes -le 48GB) {
-        $browserPdfChunkPages = 75
+        $browserPdfChunkPages = 12
         $browserJavaScriptHeapMb = 3072
         $documentationNodeHeapMb = 3072
         $docfxBuildMaxParallelism = 6
     }
     elseif ($documentationSystemMemoryBytes -le 96GB) {
-        $browserPdfChunkPages = 100
+        $browserPdfChunkPages = 12
         $browserJavaScriptHeapMb = 4096
         $documentationNodeHeapMb = 4096
         $docfxBuildMaxParallelism = 8
     }
     else {
-        $browserPdfChunkPages = 120
+        $browserPdfChunkPages = 12
         $browserJavaScriptHeapMb = 4096
         $documentationNodeHeapMb = 4096
         $docfxBuildMaxParallelism = 10
@@ -1002,17 +1006,48 @@ function Find-LocalGptDocumentationBrowser {
     }
 
     $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
-    if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $env:ProgramFiles "Microsoft/Edge/Application/msedge.exe"); Name = "Microsoft Edge" })
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $env:ProgramFiles "Google/Chrome/Application/chrome.exe"); Name = "Google Chrome" })
+    $programW6432 = [Environment]::GetEnvironmentVariable("ProgramW6432")
+    $windowsProgramRoots = [System.Collections.Generic.List[string]]::new()
+    foreach ($programRoot in @($env:ProgramFiles, $programFilesX86, $programW6432)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$programRoot) -and -not $windowsProgramRoots.Contains([string]$programRoot)) {
+            $windowsProgramRoots.Add([string]$programRoot)
+        }
     }
-    if (-not [string]::IsNullOrWhiteSpace($programFilesX86)) {
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $programFilesX86 "Microsoft/Edge/Application/msedge.exe"); Name = "Microsoft Edge" })
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $programFilesX86 "Google/Chrome/Application/chrome.exe"); Name = "Google Chrome" })
+    foreach ($programRoot in $windowsProgramRoots) {
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $programRoot "Microsoft/Edge/Application/msedge.exe"); Name = "Microsoft Edge" })
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $programRoot "Google/Chrome/Application/chrome.exe"); Name = "Google Chrome" })
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $programRoot "BraveSoftware/Brave-Browser/Application/brave.exe"); Name = "Brave" })
     }
     if (-not [string]::IsNullOrWhiteSpace($localApplicationData)) {
         $candidates.Add([pscustomobject]@{ Path = (Join-Path $localApplicationData "Microsoft/Edge/Application/msedge.exe"); Name = "Microsoft Edge" })
         $candidates.Add([pscustomobject]@{ Path = (Join-Path $localApplicationData "Google/Chrome/Application/chrome.exe"); Name = "Google Chrome" })
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $localApplicationData "BraveSoftware/Brave-Browser/Application/brave.exe"); Name = "Brave" })
+    }
+
+    # App Paths is authoritative for user/machine browser installs that do not live in the usual
+    # Program Files trees (including some managed Windows deployments). Keep this Windows-only so
+    # macOS/Linux hosts never depend on the Registry provider.
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) {
+        foreach ($browserExecutable in @('msedge.exe', 'chrome.exe', 'brave.exe')) {
+            foreach ($registryPath in @(
+                "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$browserExecutable",
+                "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$browserExecutable",
+                "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\$browserExecutable"
+            )) {
+                try {
+                    $registryKey = Get-Item -LiteralPath $registryPath -ErrorAction SilentlyContinue
+                    if ($null -eq $registryKey) { continue }
+                    $registryExecutable = [string]$registryKey.GetValue('')
+                    if ([string]::IsNullOrWhiteSpace($registryExecutable)) { continue }
+                    $browserName = if ($browserExecutable -eq 'msedge.exe') { 'Microsoft Edge' } elseif ($browserExecutable -eq 'chrome.exe') { 'Google Chrome' } else { 'Brave' }
+                    $candidates.Add([pscustomobject]@{ Path = $registryExecutable; Name = $browserName })
+                }
+                catch {
+                    # Browser discovery is best-effort. Access-restricted registry hives must not
+                    # block the normal filesystem/PATH/macOS application-bundle probes below.
+                }
+            }
+        }
     }
 
     if ([IO.Path]::DirectorySeparatorChar -ne '\') {
@@ -1027,11 +1062,12 @@ function Find-LocalGptDocumentationBrowser {
                 $candidates.Add([pscustomobject]@{ Path = (Join-Path $applicationRoot 'Google Chrome.app/Contents/MacOS/Google Chrome'); Name = 'Google Chrome' })
                 $candidates.Add([pscustomobject]@{ Path = (Join-Path $applicationRoot 'Microsoft Edge.app/Contents/MacOS/Microsoft Edge'); Name = 'Microsoft Edge' })
                 $candidates.Add([pscustomobject]@{ Path = (Join-Path $applicationRoot 'Chromium.app/Contents/MacOS/Chromium'); Name = 'Chromium' })
+                $candidates.Add([pscustomobject]@{ Path = (Join-Path $applicationRoot 'Brave Browser.app/Contents/MacOS/Brave Browser'); Name = 'Brave' })
             }
         }
     }
 
-    foreach ($commandName in @("msedge", "microsoft-edge", "microsoft-edge-stable", "chrome", "google-chrome", "google-chrome-stable", "chromium", "chromium-browser")) {
+    foreach ($commandName in @("msedge", "microsoft-edge", "microsoft-edge-stable", "chrome", "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "brave", "brave-browser")) {
         $command = Get-Command $commandName -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -ne $command) {
             $commandPath = if (-not [string]::IsNullOrWhiteSpace([string]$command.Source)) { [string]$command.Source } else { [string]$command.Path }
@@ -1376,6 +1412,70 @@ function Convert-LocalGptPrintDocumentAnchors {
         return 'href=' + $quote + '#' + $PageAnchor + '-' + $fragment + $quote
     }
     return [regex]::Replace($result, 'href\s*=\s*(?<quote>["''])(?<fragment>#[^"'']+)(?:\k<quote>)', $hrefEvaluator, [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+}
+
+function Repair-LocalGptMissingNamespaceBreadcrumbLinks {
+    param([Parameter(Mandatory)][string]$SiteRoot)
+
+    $apiSiteRoot = Join-Path $SiteRoot "api"
+    if (-not (Test-Path -LiteralPath $apiSiteRoot -PathType Container)) { return 0 }
+
+    $repairCount = 0
+    foreach ($file in @(Get-ChildItem -LiteralPath $apiSiteRoot -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue)) {
+        $html = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
+        $pageChanged = $false
+        $factsEvaluator = [Text.RegularExpressions.MatchEvaluator]{
+            param($factsMatch)
+
+            $factsHtml = $factsMatch.Value
+            $linkEvaluator = [Text.RegularExpressions.MatchEvaluator]{
+                param($linkMatch)
+
+                $href = [Net.WebUtility]::HtmlDecode($linkMatch.Groups['href'].Value)
+                $hrefPath = $href.Split('#')[0].Split('?')[0]
+                if ([string]::IsNullOrWhiteSpace($hrefPath) -or [Uri]::IsWellFormedUriString($hrefPath, [UriKind]::Absolute)) {
+                    return $linkMatch.Value
+                }
+
+                try {
+                    $decodedPath = [Uri]::UnescapeDataString($hrefPath).Replace('/', [IO.Path]::DirectorySeparatorChar)
+                    $targetPath = [IO.Path]::GetFullPath((Join-Path $file.DirectoryName $decodedPath))
+                }
+                catch {
+                    return $linkMatch.Value
+                }
+
+                if (Test-Path -LiteralPath $targetPath -PathType Leaf) { return $linkMatch.Value }
+
+                $script:localGptMissingNamespaceBreadcrumbRepairCount++
+                $script:localGptMissingNamespaceBreadcrumbPageChanged = $true
+                return $linkMatch.Groups['content'].Value
+            }
+
+            return [regex]::Replace(
+                $factsHtml,
+                '(?is)<a\b[^>]*\bhref=["''](?<href>[^"'']+\.html(?:[?#][^"'']*)?)["''][^>]*>(?<content>.*?)</a>',
+                $linkEvaluator)
+        }
+
+        $script:localGptMissingNamespaceBreadcrumbRepairCount = 0
+        $script:localGptMissingNamespaceBreadcrumbPageChanged = $false
+        $updated = [regex]::Replace(
+            $html,
+            '(?is)<dl>\s*<dt>Namespace</dt>\s*<dd>.*?</dd>\s*</dl>',
+            $factsEvaluator)
+        $fileRepairCount = [int]$script:localGptMissingNamespaceBreadcrumbRepairCount
+        $pageChanged = [bool]$script:localGptMissingNamespaceBreadcrumbPageChanged
+        Remove-Variable -Name localGptMissingNamespaceBreadcrumbRepairCount -Scope Script -ErrorAction SilentlyContinue
+        Remove-Variable -Name localGptMissingNamespaceBreadcrumbPageChanged -Scope Script -ErrorAction SilentlyContinue
+
+        if ($pageChanged -and $fileRepairCount -gt 0) {
+            Set-Content -LiteralPath $file.FullName -Value $updated -Encoding UTF8
+            $repairCount += $fileRepairCount
+        }
+    }
+
+    return $repairCount
 }
 
 function Update-LocalGptApiNavigation {
@@ -3244,6 +3344,10 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                     if ($apiNavigationGroupCount -eq 0) {
                         $warnings.Add("The DocFX site rendered successfully, but no API member-section navigation groups were discovered.")
                     }
+                    $namespaceBreadcrumbRepairCount = Repair-LocalGptMissingNamespaceBreadcrumbLinks -SiteRoot $siteRoot
+                    if ($namespaceBreadcrumbRepairCount -gt 0) {
+                        Write-Host "Repaired $namespaceBreadcrumbRepairCount generated namespace breadcrumb link(s) whose parent namespace has no DocFX page." -ForegroundColor DarkGreen
+                    }
                     $websiteThemeAssetCount = Install-LocalGptWebsiteThemeAssets -SiteRoot $siteRoot
                     if ($websiteThemeAssetCount -eq 0) {
                         $warnings.Add("The DocFX site rendered successfully, but the cache-busted LocalGPT website theme was not injected into any HTML page.")
@@ -3358,31 +3462,38 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
             Remove-Item -Force -ErrorAction SilentlyContinue
         Remove-LocalGptTemporaryPath -Path $printBookRoot
         $pdfSourcePageCount = @(Get-LocalGptPrintPageFiles -SiteRoot $siteRoot).Count
-        $requiresChunkedBrowserPdf = -not [string]::IsNullOrWhiteSpace($PackagingTool) -and $pdfSourcePageCount -gt $browserPdfChunkPages
+        $requiresChunkedBrowserPdf = $pdfSourcePageCount -gt $browserPdfChunkPages
 
-        # Prefer one browser-printed book while the API graph remains within a bounded source-page count.
-        # It uses the same rendered HTML as the working site, embeds shared fonts once, and permits compact
-        # print-only formatting. The DocFX PDF plug-in remains a compatibility fallback only for
-        # non-chunked, non-low-memory builds unless an operator explicitly accepts the monolithic risk.
+        # Prefer restartable browser-printed chunks for any substantial handbook. The repository-owned
+        # PDF merge helper combines the durable parts after each browser process has handled only a small
+        # page set. A one-book browser print remains available only for tiny documentation sets. The DocFX
+        # PDF plug-in is a compatibility fallback only when bounded chunking is not required or an operator
+        # explicitly accepts the monolithic risk.
         if ($pdfSourcePageCount -gt 0) {
             $browserResult = $null
             try {
                 $browser = Find-LocalGptDocumentationBrowser
                 if ($null -ne $browser) {
+                    Write-Host "Documentation browser resolved: $($browser.Name) at $($browser.Path)." -ForegroundColor DarkCyan
                     if ($requiresChunkedBrowserPdf) {
-                        Write-Host "Printing $pdfSourcePageCount DocFX HTML pages in adaptive chunks of up to $browserPdfChunkPages pages with $($browser.Name); LocalGPT.ReleasePackaging will merge the chunks without a commercial PDF dependency." -ForegroundColor Cyan
-                        $browserChunkCacheRoot = Join-Path $documentationCacheEntryRoot 'browser-pdf-chunks'
-                        $browserResult = Invoke-LocalGptChunkedBrowserPdf -BrowserPath $browser.Path -SiteRoot $siteRoot -PdfPath $pdfPath -WorkingRoot $printBookRoot -PackagingTool $PackagingTool -TotalPageCount $pdfSourcePageCount -ChunkPages $browserPdfChunkPages -ChunkCacheRoot $browserChunkCacheRoot -MinimumBytes $minimumCompletePdfBytes
-                        $pdfCandidateCount = if (Test-Path -LiteralPath $pdfPath -PathType Leaf) { 1 } else { 0 }
-                        if ($browserResult.Succeeded) {
-                            $pdfGenerated = Test-LocalGptCompletePdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
-                            if ($pdfGenerated) {
-                                $resolvedPdf = Get-Item -LiteralPath $pdfPath
-                                $pdfFileSize = $resolvedPdf.Length
-                                $pdfMode = "html-browser-chunked"
-                                $pdfAccessibilityMode = [string]$browserResult.AccessibilityMode
-                                $pdfRenderer = "$([string]$browser.Name) / adaptive chunks + PDFsharp merge"
-                                $pdfGeneratedSourcePath = "adaptive-browser-chunks"
+                        if ([string]::IsNullOrWhiteSpace($PackagingTool)) {
+                            $warnings.Add("The installed browser was found, but the repository-owned LocalGPT.ReleasePackaging merge helper was not supplied. Bounded browser chunks cannot be merged safely, so the build will not misreport this as a missing browser.")
+                        }
+                        else {
+                            Write-Host "Printing $pdfSourcePageCount DocFX HTML pages in adaptive chunks of up to $browserPdfChunkPages pages with $($browser.Name); LocalGPT.ReleasePackaging will merge the chunks without a commercial PDF dependency." -ForegroundColor Cyan
+                            $browserChunkCacheRoot = Join-Path $documentationCacheEntryRoot 'browser-pdf-chunks'
+                            $browserResult = Invoke-LocalGptChunkedBrowserPdf -BrowserPath $browser.Path -SiteRoot $siteRoot -PdfPath $pdfPath -WorkingRoot $printBookRoot -PackagingTool $PackagingTool -TotalPageCount $pdfSourcePageCount -ChunkPages $browserPdfChunkPages -ChunkCacheRoot $browserChunkCacheRoot -MinimumBytes $minimumCompletePdfBytes
+                            $pdfCandidateCount = if (Test-Path -LiteralPath $pdfPath -PathType Leaf) { 1 } else { 0 }
+                            if ($browserResult.Succeeded) {
+                                $pdfGenerated = Test-LocalGptCompletePdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
+                                if ($pdfGenerated) {
+                                    $resolvedPdf = Get-Item -LiteralPath $pdfPath
+                                    $pdfFileSize = $resolvedPdf.Length
+                                    $pdfMode = "html-browser-chunked"
+                                    $pdfAccessibilityMode = [string]$browserResult.AccessibilityMode
+                                    $pdfRenderer = "$([string]$browser.Name) / adaptive chunks + PDFsharp merge"
+                                    $pdfGeneratedSourcePath = "adaptive-browser-chunks"
+                                }
                             }
                         }
                     }
@@ -3414,7 +3525,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                     }
                 }
                 else {
-                    $warnings.Add("Microsoft Edge, Google Chrome, or Chromium was not found for compact HTML-to-PDF printing.")
+                    $warnings.Add("Microsoft Edge, Google Chrome, Chromium, or Brave was not found for compact HTML-to-PDF printing.")
                 }
             }
             catch {
@@ -3423,7 +3534,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         }
 
         if (-not $pdfGenerated -and (($requiresChunkedBrowserPdf -and -not $monolithicPdfFallbackOverride) -or -not $allowMonolithicPdfFallback)) {
-            $browserDiagnostics = @($warnings | Where-Object { $_ -match '(?i)browser|Edge|Chrome|Chromium' } | Select-Object -Last 8) -join ' | '
+            $browserDiagnostics = @($warnings | Where-Object { $_ -match '(?i)browser|Edge|Chrome|Chromium|Brave' } | Select-Object -Last 8) -join ' | '
             if ([string]::IsNullOrWhiteSpace($browserDiagnostics)) { $browserDiagnostics = 'No browser diagnostic was captured.' }
             throw "LocalGPT PDF rendering could not complete through the bounded browser path. The monolithic DocFX/Playwright fallback is disabled for chunked or low-memory documentation builds because it can exhaust memory and bypass durable chunk recovery. Set FUTURE2_DOCUMENTATION_ALLOW_MONOLITHIC_PDF_FALLBACK=1 only for an intentional operator override. Browser diagnostics: $browserDiagnostics"
         }
@@ -3458,7 +3569,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                     if (-not (Ensure-LocalGptDocfxToolForPdfFallback)) {
                         throw "DocFX PDF fallback is unavailable because no runnable DocFX command could be resolved."
                     }
-                    Write-Host "Browser printing was unavailable; generating the complete PDF with the DocFX PDF plug-in and Node.js $nodeVersionUsed. This can take several minutes for $pdfSourcePageCount pages; DocFX output is streamed live below." -ForegroundColor Cyan
+                    Write-Host "The bounded browser PDF path did not produce a complete document; generating the complete PDF with the DocFX PDF plug-in and Node.js $nodeVersionUsed. This can take several minutes for $pdfSourcePageCount pages; DocFX output is streamed live below." -ForegroundColor Cyan
                     $pdfResult = Invoke-LocalGptDocfx -Arguments @("pdf", $configPath, "--logLevel", "verbose")
                     $pdfCandidates = @(
                         Get-ChildItem -LiteralPath $siteRoot -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue |
