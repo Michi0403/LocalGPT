@@ -1052,3 +1052,102 @@
 .local-ai-runtime-policy-wide {
     grid-column: 1 / -1;
 }
+
+/* v4.9.3: the runtime-extension editor is a DevExpress-first IDE surface, not a raw form grid. */
+.runtime-plugin-editor-shell {
+    display: grid;
+    gap: .85rem;
+    min-width: 0;
+    width: 100%;
+    max-height: calc(94dvh - 6rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-right: .2rem;
+}
+
+.runtime-plugin-form {
+    min-width: 0;
+    width: 100%;
+}
+
+.runtime-plugin-editor-shell ::deep .dxbl-fl,
+.runtime-plugin-editor-shell ::deep .dxbl-fl-row,
+.runtime-plugin-editor-shell ::deep .dxbl-fl-item,
+.runtime-plugin-editor-shell ::deep .dxbl-editor,
+.runtime-plugin-editor-shell ::deep .dxbl-html-editor {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.runtime-plugin-editor-shell ::deep .dxbl-fl-item-caption,
+.runtime-plugin-editor-shell ::deep .dxbl-field-caption {
+    overflow-wrap: anywhere;
+}
+
+.runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor {
+    width: 100%;
+    min-height: 22rem;
+    border-radius: .65rem;
+    overflow: hidden;
+}
+
+.runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor .dxbl-html-editor-content,
+.runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor .ql-editor,
+.runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor pre,
+.runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor code {
+    font-family: var(--bs-font-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace);
+    tab-size: 4;
+}
+
+.runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor .ql-editor {
+    min-height: 19rem;
+    white-space: pre-wrap;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor pre {
+    margin: 0;
+    min-height: 18rem;
+    white-space: pre;
+    overflow: auto;
+}
+
+.runtime-plugin-editor-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    align-items: center;
+    padding: .65rem 0 .15rem;
+    background: color-mix(in srgb, var(--bs-body-bg) 94%, transparent);
+    backdrop-filter: blur(.35rem);
+}
+
+.runtime-plugin-editor-actions ::deep .dxbl-btn {
+    min-width: 9rem;
+}
+
+@media (max-width: 760px) {
+    .runtime-plugin-editor-shell {
+        gap: .65rem;
+    }
+
+    .runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor {
+        min-height: 28rem;
+    }
+
+    .runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor .ql-editor,
+    .runtime-plugin-editor-shell ::deep .runtime-plugin-source-editor pre {
+        min-height: 25rem;
+    }
+
+    .runtime-plugin-editor-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .runtime-plugin-editor-actions ::deep .dxbl-btn {
+        width: 100%;
+        min-width: 0;
+    }
+}

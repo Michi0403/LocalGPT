@@ -65,13 +65,23 @@ public sealed partial class DatabaseInitializationService
     {
     try
     {
-            var existing = await db.Prompts.Select(x => new { x.Key, x.Language }).ToListAsync(token).ConfigureAwait(false);
+            var existing = await db.Prompts.ToListAsync(token).ConfigureAwait(false);
             foreach (var item in catalog.Prompts)
             {
-                if (existing.Any(x =>
-                        string.Equals(x.Key, item.Key, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(x.Language, item.Language, StringComparison.OrdinalIgnoreCase)))
+                var persisted = existing.FirstOrDefault(x =>
+                    string.Equals(x.Key, item.Key, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(x.Language, item.Language, StringComparison.OrdinalIgnoreCase));
+                if (persisted is not null)
                 {
+                    var legacyDefault = catalog.LegacyPromptDefaults.FirstOrDefault(x =>
+                        string.Equals(x.Key, item.Key, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(x.Language, item.Language, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(x.Text, persisted.Text, StringComparison.Ordinal));
+                    if (legacyDefault is not null)
+                    {
+                        persisted.Text = item.Text;
+                        persisted.LastUpdated = DateTime.UtcNow;
+                    }
                     continue;
                 }
 

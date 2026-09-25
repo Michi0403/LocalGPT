@@ -1,7 +1,96 @@
 .chat-microphone {
-    display: flex;
+    position: absolute;
+    right: 9.1rem;
+    bottom: 1rem;
+    z-index: 8;
+    display: inline-flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: .5rem;
-    padding: .5rem 0;
+    gap: .35rem;
+    pointer-events: auto;
+}
+
+.chat-microphone ::deep .chat-microphone-trigger,
+.chat-microphone ::deep .chat-microphone-options-trigger {
+    min-width: 3.75rem;
+    width: 3.75rem;
+    height: 3.75rem;
+    padding: 0;
+    border-radius: .65rem;
+    box-shadow: var(--localgpt-shadow-soft, 0 .25rem .75rem rgba(0, 0, 0, .18));
+}
+
+.chat-microphone ::deep .chat-microphone-trigger {
+    color: var(--bs-body-color, CanvasText);
+    background: var(--localgpt-surface-raised-bg, var(--bs-body-bg, Canvas));
+    border-color: var(--localgpt-border-color, var(--bs-border-color));
+}
+
+.chat-microphone.is-recording ::deep .chat-microphone-trigger {
+    color: var(--bs-danger-text-emphasis, #fff);
+    border-color: var(--bs-danger, #dc3545);
+    background: color-mix(in srgb, var(--bs-danger, #dc3545) 24%, var(--bs-body-bg, Canvas));
+}
+
+.chat-microphone ::deep .chat-microphone-options-trigger {
+    min-width: 2.4rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    align-self: center;
+}
+
+.chat-microphone ::deep .localgpt-microphone-svg,
+.chat-microphone ::deep .localgpt-recording-stop-svg {
+    display: inline-block;
+    width: 1.45rem;
+    height: 1.45rem;
+    background: currentColor;
+}
+
+.chat-microphone ::deep .localgpt-microphone-svg {
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21H8v2h8v-2h-3v-3.08A7 7 0 0 0 19 11h-2Z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21H8v2h8v-2h-3v-3.08A7 7 0 0 0 19 11h-2Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.chat-microphone ::deep .localgpt-recording-stop-svg {
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='6' y='6' width='12' height='12' rx='1'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='6' y='6' width='12' height='12' rx='1'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.chat-microphone-popover {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + .55rem);
+    display: grid;
+    gap: .55rem;
+    width: min(26rem, calc(100vw - 2rem));
+    padding: .7rem;
+    border: 1px solid var(--localgpt-border-color, var(--bs-border-color));
+    border-radius: .65rem;
+    background: var(--localgpt-surface-raised-bg, var(--bs-body-bg, Canvas));
+    color: var(--bs-body-color, CanvasText);
+    box-shadow: var(--localgpt-shadow-medium, 0 .6rem 1.6rem rgba(0, 0, 0, .24));
+}
+
+.chat-microphone-popover > span {
+    overflow-wrap: anywhere;
+}
+
+.chat-microphone-popover ::deep .dxbl-text-edit,
+.chat-microphone-popover ::deep .dxbl-btn {
+    width: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 680px) {
+    .chat-microphone {
+        right: 8.15rem;
+        bottom: .85rem;
+    }
+
+    .chat-microphone ::deep .chat-microphone-trigger {
+        min-width: 3.5rem;
+        width: 3.5rem;
+        height: 3.5rem;
+    }
+
 }

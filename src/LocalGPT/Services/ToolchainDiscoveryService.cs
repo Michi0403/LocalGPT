@@ -346,6 +346,8 @@ public sealed class ToolchainDiscoveryService(
         try
         {
             var fullPath = Path.GetFullPath(candidatePath);
+            if (!IsRunnableCandidatePath(fullPath))
+                return;
             if (!foundPaths.Add(fullPath))
                 return;
             var home = InferHome(profile, fullPath);
@@ -368,6 +370,49 @@ public sealed class ToolchainDiscoveryService(
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             logger.LogDebug(exception, "Skipped one invalid toolchain candidate path; path content was omitted.");
+        }
+    }
+
+
+    /// <summary>Filters obvious library/data files and host-incompatible wrapper stubs before they enter validation or persistence.</summary>
+    /// <param name="candidatePath">Absolute candidate path selected by a knowledge profile.</param>
+    /// <returns><see langword="true"/> when the file is a plausible directly runnable toolchain executable on the current host.</returns>
+    private bool IsRunnableCandidatePath(string candidatePath)
+    {
+        try
+        {
+            var extension = Path.GetExtension(candidatePath);
+            if (extension.Equals(".dll", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".lib", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".pdb", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".so", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".dylib", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".a", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".json", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".config", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".txt", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (CurrentPlatform != ToolchainPlatformKind.Windows)
+                return true;
+
+            if (extension.Equals(".exe", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".com", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".bat", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (!string.IsNullOrWhiteSpace(extension))
+                return false;
+
+            using var stream = File.OpenRead(candidatePath);
+            Span<byte> signature = stackalloc byte[2];
+            return stream.Read(signature) == signature.Length && signature[0] == (byte)'M' && signature[1] == (byte)'Z';
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            logger.LogDebug(exception, "Skipped one non-runnable toolchain candidate; path content was omitted.");
+            return false;
         }
     }
 

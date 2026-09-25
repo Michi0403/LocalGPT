@@ -7,28 +7,55 @@
 @inject ILogger<ChatMicrophone> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
-<div @ref="element" class="chat-microphone" aria-busy="@busy">
-    <DxComboBox Data="@models" TextFieldName="ModelId" ValueFieldName="InstallationId" @bind-Value="installationId"
-                Enabled="@(!recording && !busy)" NullText="@T("Chat.Microphone.Model", "Whisper model")" />
-    <DxButton Text="@(recording ? T("Chat.Microphone.Stop", "Stop and start Council") : T("Chat.Microphone.Start", "Microphone"))"
-              IconCssClass="oi oi-microphone" Enabled="@(!busy && !Disabled)" Click="ToggleAsync" />
-    @if (recording || busy)
+<div @ref="element" class="chat-microphone @(recording ? "is-recording" : string.Empty)" aria-busy="@busy">
+    <DxButton CssClass="chat-microphone-trigger"
+              IconCssClass="@(recording ? "localgpt-recording-stop-svg" : "localgpt-microphone-svg")"
+              Enabled="@(!busy && !Disabled)"
+              title="@(recording ? T("Chat.Microphone.Stop", "Stop recording") : T("Chat.Microphone.Start", "Record microphone audio"))"
+              aria-label="@(recording ? T("Chat.Microphone.Stop", "Stop recording") : T("Chat.Microphone.Start", "Record microphone audio"))"
+              Click="ToggleAsync" />
+    @if (!recording && !busy && (models.Count == 0 || models.Count > 1))
     {
-        <DxButton Text="@T("Chat.Microphone.Cancel", "Cancel recording")" Click="CancelAsync" />
+        <DxButton CssClass="chat-microphone-options-trigger"
+                  IconCssClass="oi oi-cog"
+                  RenderStyle="ButtonRenderStyle.Secondary"
+                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                  title="@T("Chat.Microphone.Options", "Microphone and Whisper options")"
+                  aria-label="@T("Chat.Microphone.Options", "Microphone and Whisper options")"
+                  Click="ToggleOptions" />
     }
-    @if (models.Count == 0)
+    @if (recording || busy || optionsVisible)
     {
-        <DxButton Text="@T("Chat.Microphone.Setup", "Ask Council to set up Whisper")" Enabled="@(!busy && !Disabled)" Click="RequestSetupAsync" />
+        <div class="chat-microphone-popover" role="status" aria-live="polite">
+            @if (optionsVisible && models.Count > 1)
+            {
+                <DxComboBox Data="@models" TextFieldName="ModelId" ValueFieldName="InstallationId" @bind-Value="installationId"
+                            Enabled="@(!recording && !busy)" NullText="@T("Chat.Microphone.Model", "Whisper model")" />
+            }
+            @if (optionsVisible && models.Count == 0)
+            {
+                <span>@T("Chat.Microphone.Missing", "Whisper is optional. Record now to attach WAV audio, or ask Council to set up transcription.")</span>
+                <DxButton Text="@T("Chat.Microphone.Setup", "Ask Council to set up Whisper")" Enabled="@(!busy && !Disabled)" Click="RequestSetupAsync" />
+            }
+            @if (recording || busy)
+            {
+                <span>@status</span>
+            }
+            @if (recording && !busy)
+            {
+                <DxButton Text="@T("Chat.Microphone.Cancel", "Cancel recording")" RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" Click="CancelAsync" />
+            }
+        </div>
     }
-    <span role="status" aria-live="polite">@status</span>
+    <span class="visually-hidden" role="status" aria-live="polite">@status</span>
 </div>
 
 @code {
-    /// <summary>Gets or sets the callback that receives a completed Whisper transcript.</summary>
-    /// <value>A callback invoked only after a nonempty transcription succeeds.</value>
-    [Parameter] public EventCallback<string> Transcribed { get; set; }
+    /// <summary>Gets or sets the callback that receives every persisted microphone recording, with an optional Whisper transcript.</summary>
+    /// <value>A callback invoked after audio persistence succeeds, whether or not Whisper is installed.</value>
+    [Parameter] public EventCallback<LocalAiMicrophoneRecording> Recorded { get; set; }
     /// <summary>Gets or sets the callback that requests the preseeded Whisper setup Council.</summary>
-    /// <value>A callback invoked when no supported Whisper installation is available.</value>
+    /// <value>A callback invoked when the user explicitly asks LocalGPT to prepare Whisper.</value>
     [Parameter] public EventCallback SetupRequested { get; set; }
     /// <summary>Gets or sets whether microphone actions are disabled while another live Council interaction owns the chat flow.</summary>
     /// <value><see langword="true"/> when recording/setup actions must be unavailable; otherwise <see langword="false"/>.</value>
@@ -43,16 +70,16 @@
     private DotNetObjectReference<ChatMicrophone>? reference;
     /// <summary>Cancels component-owned operations when the component is disposed.</summary>
     private CancellationTokenSource lifetime = new();
-    /// <summary>Cancels only the active transcription without ending the component lifetime.</summary>
+    /// <summary>Cancels only the active recording persistence/transcription without ending the component lifetime.</summary>
     private CancellationTokenSource? transcription;
     /// <summary>Contains currently installed OpenAI Whisper speech-recognition models.</summary>
     private IReadOnlyList<LocalAiModelInstallation> models = [];
-    /// <summary>Stores the selected Whisper model installation identifier used for server-side transcription.</summary>
+    /// <summary>Stores the selected Whisper model installation identifier used for optional server-side transcription.</summary>
     private string installationId = string.Empty;
     /// <summary>Stores operator-visible recording/transcription status without transcript content.</summary>
     private string status = string.Empty;
     /// <summary>Tracks recording, server work and component disposal state.</summary>
-    private bool recording, busy, disposed;
+    private bool recording, busy, disposed, optionsVisible;
 
     /// <summary>Resolves one localized microphone label for the component using a stable fallback.</summary>
     /// <param name="key">Localization key to resolve.</param>
@@ -75,60 +102,99 @@
         if (!models.Any(model => model.InstallationId == installationId)) installationId = models.FirstOrDefault()?.InstallationId ?? string.Empty;
     }
 
-    /// <summary>Starts microphone capture or stops the current capture and submits it for transcription.</summary>
+    /// <summary>Starts browser microphone capture or stops the current capture and submits the WAV for persistence.</summary>
     /// <returns>A task representing the asynchronous browser capture transition.</returns>
     private async Task ToggleAsync()
     {
         if (busy || disposed) return;
         try
         {
-            if (recording) { await capture!.InvokeVoidAsync("stop").ConfigureAwait(false); return; }
-            RefreshModels();
-            if (string.IsNullOrWhiteSpace(installationId))
+            if (recording)
             {
-                status = T("Chat.Microphone.Missing", "Install a Whisper model with Council or on the Install page first.");
+                await capture!.InvokeVoidAsync("stop").ConfigureAwait(false);
                 return;
             }
+
+            RefreshModels();
+            optionsVisible = false;
             busy = true;
             var policy = await Runtime.GetRuntimeConfigurationAsync(lifetime.Token).ConfigureAwait(false);
-            module ??= await JS.InvokeAsync<IJSObjectReference>("import", lifetime.Token, "./js/localgpt-microphone.js?v=4.9.0").ConfigureAwait(false);
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", lifetime.Token, "./js/localgpt-microphone.js?v=4.9.3").ConfigureAwait(false);
             reference ??= DotNetObjectReference.Create(this);
             capture ??= await module.InvokeAsync<IJSObjectReference>("create", lifetime.Token, reference, element).ConfigureAwait(false);
             await capture.InvokeVoidAsync("start", lifetime.Token, policy.MaximumAudioSeconds).ConfigureAwait(false);
             recording = true;
-            status = T("Chat.Microphone.Recording", "Recording. Stop to transcribe and start Council with your current settings.");
+            status = string.IsNullOrWhiteSpace(installationId)
+                ? T("Chat.Microphone.Recording", "Recording. Stop to attach the WAV to Chat. Whisper can be added later.")
+                : T("Chat.Microphone.Recording", "Recording. Stop to attach the WAV, transcribe it, and start Council with your current settings.");
         }
         catch (OperationCanceledException) { }
         catch (JSDisconnectedException) { Logger.LogDebug("Microphone circuit disconnected."); }
         catch (Exception exception) { Fail(exception); }
-        finally { busy = false; }
+        finally
+        {
+            busy = false;
+            if (!disposed) await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
     }
 
-    /// <summary>Receives one bounded WAV stream from the browser, transcribes it and forwards the resulting text to Chat.</summary>
+    /// <summary>Receives one bounded WAV stream from the browser, always persists it, optionally transcribes it, and forwards the recording to Chat.</summary>
     /// <param name="audio">Browser-provided WAV stream reference.</param>
     /// <param name="length">Declared WAV byte length.</param>
-    /// <returns>A task representing transcription and callback delivery.</returns>
+    /// <returns>A task representing persistence, optional transcription, and callback delivery.</returns>
     [JSInvokable]
     public async Task RecordingReady(IJSStreamReference audio, long length)
     {
         recording = false;
-        if (disposed) { await audio.DisposeAsync().ConfigureAwait(false); return; }
+        if (disposed)
+        {
+            await audio.DisposeAsync().ConfigureAwait(false);
+            return;
+        }
+
         busy = true;
         transcription = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         try
         {
-            status = T("Chat.Microphone.Transcribing", "Whisper is transcribing…");
+            status = T("Chat.Microphone.Saving", "Saving microphone recording to Chat…");
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            var policy = await Runtime.GetRuntimeConfigurationAsync(transcription.Token).ConfigureAwait(false);
+            var maximumBytes = Math.Clamp((long)Math.Max(1, policy.MaximumInputMegabytes) * 1024L * 1024L, 1024L * 1024L, 2L * 1024L * 1024L * 1024L);
             await using (audio.ConfigureAwait(false))
             {
-                var stream = await audio.OpenReadStreamAsync(16 * 1024 * 1024, transcription.Token).ConfigureAwait(false);
+                var stream = await audio.OpenReadStreamAsync(maximumBytes, transcription.Token).ConfigureAwait(false);
                 await using var configuredStream = stream.ConfigureAwait(false);
-                var result = await Runtime.TranscribeMicrophoneAsync(stream, length, installationId, transcription.Token).ConfigureAwait(false);
+                var recordingResult = await Runtime.SaveMicrophoneRecordingAsync(stream, length, transcription.Token).ConfigureAwait(false);
                 transcription.Token.ThrowIfCancellationRequested();
-                if (!result.Succeeded) throw new InvalidOperationException("Whisper returned a failed transcription.");
-                if (string.IsNullOrWhiteSpace(result.Text)) { status = T("Chat.Microphone.Empty", "No speech detected. Try again."); return; }
-                status = T("Chat.Microphone.Submitted", "Transcribed. Starting Council with your current settings.");
-                await InvokeAsync(() => Transcribed.InvokeAsync(result.Text.Trim())).ConfigureAwait(false);
+
+                if (!string.IsNullOrWhiteSpace(installationId))
+                {
+                    status = T("Chat.Microphone.Transcribing", "Audio attached. Whisper is transcribing…");
+                    await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+                    try
+                    {
+                        var result = await Runtime.TranscribeWorkspaceAudioAsync(new LocalAiSpeechRecognitionRequest
+                        {
+                            ModelInstallationId = installationId,
+                            WorkspaceName = recordingResult.Workspace.WorkspaceName,
+                            RelativePath = recordingResult.RelativePath
+                        }, transcription.Token).ConfigureAwait(false);
+                        recordingResult.TranscriptionSucceeded = result.Succeeded && !string.IsNullOrWhiteSpace(result.Text);
+                        recordingResult.Transcript = recordingResult.TranscriptionSucceeded ? result.Text.Trim() : string.Empty;
+                        recordingResult.TranscriptionStatus = result.Message;
+                    }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        Logger.LogWarning("Whisper transcription failed with {ExceptionType} after microphone audio was already persisted; audio and transcript omitted.", exception.GetType().Name);
+                        recordingResult.TranscriptionSucceeded = false;
+                        recordingResult.TranscriptionStatus = T("Chat.Microphone.TranscriptionFailed", "The audio is attached, but Whisper transcription failed.");
+                    }
+                }
+
+                status = recordingResult.TranscriptionSucceeded
+                    ? T("Chat.Microphone.Submitted", "Audio attached and transcribed. Starting Council with your current settings.")
+                    : T("Chat.Microphone.Attached", "Audio attached to Chat.");
+                await InvokeAsync(() => Recorded.InvokeAsync(recordingResult)).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) { status = T("Chat.Microphone.Cancelled", "Recording cancelled."); }
@@ -136,12 +202,14 @@
         catch (Exception exception) { Fail(exception); }
         finally
         {
-            transcription?.Dispose(); transcription = null; busy = false;
+            transcription?.Dispose();
+            transcription = null;
+            busy = false;
             if (!disposed) await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 
-    /// <summary>Cancels active transcription and discards any current browser recording.</summary>
+    /// <summary>Cancels active persistence/transcription and discards any browser recording that has not yet been admitted.</summary>
     /// <returns>A task representing capture cancellation.</returns>
     private async Task CancelAsync()
     {
@@ -153,31 +221,49 @@
         status = T("Chat.Microphone.Cancelled", "Recording cancelled.");
     }
 
+    /// <summary>Toggles the compact Whisper/model options anchored above the composer microphone button.</summary>
+    private void ToggleOptions()
+    {
+        RefreshModels();
+        optionsVisible = !optionsVisible;
+    }
+
     /// <summary>Requests the parent Chat page to start the Whisper setup Council.</summary>
     /// <returns>A task representing the parent callback.</returns>
-    private Task RequestSetupAsync() => SetupRequested.InvokeAsync();
+    private async Task RequestSetupAsync()
+    {
+        optionsVisible = false;
+        await SetupRequested.InvokeAsync().ConfigureAwait(false);
+    }
 
     /// <summary>Logs a bounded microphone failure and replaces it with operator-facing recovery guidance.</summary>
     /// <param name="exception">Exception whose type is recorded while sensitive audio/transcript data remains omitted.</param>
     private void Fail(Exception exception)
     {
         Logger.LogError("Chat microphone failed with {ExceptionType}; audio and transcript omitted.", exception.GetType().Name);
-        status = T("Chat.Microphone.Error", "Microphone or Whisper failed. Check browser microphone permission and the managed Python/Whisper setup.");
+        status = T("Chat.Microphone.Error", "Microphone capture failed. Check browser microphone permission and LocalGPT logs.");
         recording = false;
     }
 
-    /// <summary>Stops capture, cancels transcription and releases JavaScript/.NET interop references.</summary>
+    /// <summary>Stops capture, cancels persistence/transcription and releases JavaScript/.NET interop references.</summary>
     /// <returns>A value task representing asynchronous component cleanup.</returns>
     public async ValueTask DisposeAsync()
     {
-        disposed = true; lifetime.Cancel(); transcription?.Cancel();
+        disposed = true;
+        lifetime.Cancel();
+        transcription?.Cancel();
         try
         {
-            if (capture is not null) { await capture.InvokeVoidAsync("dispose").ConfigureAwait(false); await capture.DisposeAsync().ConfigureAwait(false); }
+            if (capture is not null)
+            {
+                await capture.InvokeVoidAsync("dispose").ConfigureAwait(false);
+                await capture.DisposeAsync().ConfigureAwait(false);
+            }
             if (module is not null) await module.DisposeAsync().ConfigureAwait(false);
         }
         catch (JSDisconnectedException) { Logger.LogDebug("Microphone disposed after circuit disconnect."); }
         catch (Exception exception) { Logger.LogDebug("Microphone cleanup ended with {ExceptionType}.", exception.GetType().Name); }
-        reference?.Dispose(); lifetime.Dispose();
+        reference?.Dispose();
+        lifetime.Dispose();
     }
 }

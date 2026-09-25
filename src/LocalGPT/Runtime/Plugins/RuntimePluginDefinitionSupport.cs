@@ -1,5 +1,7 @@
 using LocalGPT.BusinessObjects;
+using System.Net;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Text;
 using System.Text.Json;
 
@@ -80,6 +82,33 @@ public sealed class RuntimePluginDefinitionSupport
         target.IsReadOnly = source.IsReadOnly;
         target.RequiresHumanConfirmation = source.RequiresHumanConfirmation;
         target.SupportsAutomaticInvocation = source.SupportsAutomaticInvocation;
+    }
+
+    /// <summary>Formats plain runtime-extension source as one HTML code block for the DevExpress HTML editor.</summary>
+    /// <param name="source">Plain C# or JavaScript source.</param>
+    /// <returns>HTML markup whose code text is safely encoded and whitespace-preserving.</returns>
+    public string ToEditorMarkup(string? source)
+    {
+        var encoded = WebUtility.HtmlEncode(source ?? string.Empty);
+        return $"<pre class=\"localgpt-runtime-source\"><code>{encoded}</code></pre>";
+    }
+
+    /// <summary>Extracts plain executable source from DevExpress HTML-editor markup without persisting formatting tags.</summary>
+    /// <param name="markup">HTML markup produced by the runtime-extension editor.</param>
+    /// <returns>Decoded plain source suitable for compilation or JavaScript execution.</returns>
+    public string FromEditorMarkup(string? markup)
+    {
+        if (string.IsNullOrWhiteSpace(markup))
+            return string.Empty;
+
+        var normalized = markup.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        normalized = Regex.Replace(normalized, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        normalized = Regex.Replace(normalized, @"</(?:p|div|pre|li|h[1-6])\s*>", "\n", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        normalized = Regex.Replace(normalized, @"<[^>]+>", string.Empty, RegexOptions.CultureInvariant);
+        normalized = WebUtility.HtmlDecode(normalized).Replace('\u00a0', ' ');
+        if (normalized.EndsWith('\n'))
+            normalized = normalized[..^1];
+        return normalized;
     }
 
     /// <summary>Bounds a persisted string without changing its semantic content.</summary>

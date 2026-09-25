@@ -65,15 +65,15 @@ namespace LocalGPT.Services
                 {
                 Key = "program-compiler-team",
                 DisplayName = "Program Compiler & Repository Curator",
-                Purpose = "Turns repository ZIPs, loose source trees or text/source blobs into a reviewable project revision, uses regex-backed structure evidence before changes, asks the human only for unresolved intent, and requests approved compiler/build actions through the normal Chat/ASCII review cards.",
+                Purpose = "Creates new programs from explicit user requirements or curates existing repository ZIPs/source trees into reviewable project revisions. It distinguishes greenfield authoring from repository maintenance before reading evidence, generates concrete files through the code-generation review workflow, and uses configured toolchains/build approvals instead of making the user repeat a clear request.",
                 AllMembersReadinessPreflightMode = CouncilAllMembersReadinessPreflightMode.Disabled,
                 Roles =
                 [
-                    new() { Role = "Repository intake and regex analyst", Expertise = "archive/source layout, file signatures, project metadata and bounded regex validation", Responsibility = "classify the supplied ZIP/text evidence, reconstruct the likely repository tree and maintain project/file regex evidence without inventing missing files" },
-                    new() { Role = "Program architect", Expertise = "project structure, build systems, dependency boundaries and low-context implementation planning", Responsibility = "turn the verified structure into the smallest buildable/reviewable revision plan and identify exact unresolved user choices" },
-                    new() { Role = "Compiler operator", Expertise = "toolchain discovery, workspace permissions, compiler selection, build/test diagnostics and platform constraints", Responsibility = "select the persisted project toolchain and request only the exact approved build/verification action" },
-                    new() { Role = "Source curator", Expertise = "independent code review, deletion/rejection of bad generated material, regression checks and source provenance", Responsibility = "approve only evidence-backed files and send unsafe or structurally wrong work back through another bounded review round" },
-                    new() { Role = "Human review coordinator", Expertise = "clear decisions, suggested responses and deferred approval boundaries", Responsibility = "surface the smallest concrete user choice as AI-proposed buttons/text instead of hiding consequential work in model prose", HumanParticipationMode = HumanParticipationMode.Optional }
+                    new() { Role = "Repository intake and regex analyst", Expertise = "intent classification, archive/source layout, file signatures, project metadata and bounded regex validation", Responsibility = "classify greenfield versus existing-project work first; inspect uploaded/project evidence only when it is relevant to the requested artifact, and never let unrelated large context replace implementation" },
+                    new() { Role = "Program architect", Expertise = "C#/.NET and multi-language project authoring, build systems, dependency boundaries and exact source planning", Responsibility = "turn the request and verified evidence into exact buildable files and invoke the review-backed generation workflow instead of returning a prose-only implementation" },
+                    new() { Role = "Compiler operator", Expertise = "toolchain discovery, workspace permissions, compiler selection, build/test diagnostics and platform constraints", Responsibility = "select the persisted validated project toolchain and request only the exact approved build/verification action" },
+                    new() { Role = "Source curator", Expertise = "independent code review, deletion/rejection of bad generated material, regression checks and source provenance", Responsibility = "approve only request-matching files, preserve good source, and send structurally wrong work back through another bounded review round" },
+                    new() { Role = "Human review coordinator", Expertise = "clear decisions, suggested responses, generated artifact handoff and deferred approval boundaries", Responsibility = "surface only real consequential approvals and return the generated/build artifact when available instead of asking the human to perform the AI's coding work", HumanParticipationMode = HumanParticipationMode.Optional }
                 ],
                 PreferredCapabilities =
                 [
@@ -98,6 +98,10 @@ namespace LocalGPT.Services
                     "localgpt.regex.get",
                     "localgpt.regex.test",
                     "localgpt.regex.upsert",
+                    "codegen.capabilities",
+                    "codegen.review.create",
+                    "codegen.review.get",
+                    "codegen.review.execute",
                     "council.artifact_workspaces",
                     "council.artifact_workspace_files",
                     "council.artifact_workspace_file.read",
@@ -106,41 +110,80 @@ namespace LocalGPT.Services
                 ],
                 WorkflowSteps =
                 [
-                    ResilientStep("compiler-intake", "Classify repository or source blob", 10, "Intake", "Repository intake and regex analyst", """
-Inspect the active upload workspace and selected project before proposing changes. If the input is a repository ZIP/tree, identify its root, project/solution/build files, source folders, toolchain declarations and version metadata. If the input is one or more text/source blobs, infer a candidate file tree only from syntax, names, declarations and cross-references that are actually present. Use bounded upload/project reads and existing regex evidence. Return a concrete manifest: source evidence -> proposed relative path -> confidence -> reason. Never write into the source upload and never assume a language/runtime that metadata contradicts.
+                    ResilientStep("compiler-intake", "Classify coding intent and relevant evidence", 10, "Intake", "Repository intake and regex analyst", """
+Classify the user's request BEFORE reading any workspace.
+
+If the user explicitly asks to create/code/build a new program, solution, script, library or addon from scratch, treat this as GREENFIELD AUTHORING. Do not inspect an old selected project or uploaded workspace merely because one exists. Use uploaded/project evidence only when the user identifies it as requirements/input/reference for the new artifact. Extract the requested language/framework/version, application kind, required behavior, requested build/test/package action and any explicit output name. When the user specifies .NET 10/C#, honor net10.0 directly. Choose conventional safe defaults for ordinary details instead of asking the user to repeat a clear request.
+
+If the user asks to modify, reconstruct, diagnose or compile an EXISTING project/repository, inspect its active upload workspace and selected project using bounded list/context/file reads. Identify root, project/solution/build files, source folders, toolchain declarations and version metadata. For text/source blobs, infer paths only from evidence actually present.
+
+Large relevant evidence is normal work, not a blocker: list first, read bounded/chunked slices, prioritize build/project files and files directly implicated by the task, and continue iteratively. Large unrelated uploads must not hijack a greenfield task. Return an intent manifest with Mode=Greenfield or ExistingProject plus exact requested deliverables and only the evidence actually needed.
 
 User request:
 {{UserPrompt}}
-""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, includePriorTranscript: false, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "project.maintenance.get", "project.workspace.files.list", "project.workspace.file.read", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
-                    ResilientStep("compiler-structure-review", "Regex structure review", 20, "Structure review", "Source curator", """
-Review the proposed repository/file manifest independently. Test useful structure/content regexes against the supplied evidence and reject files that are duplicates, generated noise, contradictory, path-unsafe or unsupported by the source. When the manifest is not good enough, state exactly what must change so the configured X/round continuation can repeat the analysis rather than accepting a weak tree. Preserve valid minority findings when evidence supports them.
+""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: false, enableRolePeerReview: true, summarizeRoleResults: true, includePriorTranscript: false),
+                    ResilientStep("compiler-structure-review", "Review target structure", 20, "Structure review", "Source curator", """
+Review the intent manifest independently.
+
+For Greenfield work, verify that the proposed solution/project/file shape directly satisfies the user's requested artifact without inventing dependencies or forcing repository intake. The absence of an existing workspace is expected and is not a reason to stop.
+
+For ExistingProject work, test useful structure/content regexes against bounded supplied evidence and reject duplicate, generated-noise, contradictory, path-unsafe or unsupported file mappings. When more evidence is genuinely required, name the smallest bounded file/slice needed; never demand that an entire huge context be loaded before useful work can continue.
+
+Return a corrected target manifest suitable for concrete source generation or maintenance planning.
 
 Candidate manifest:
 {{PreviousStep}}
 """, "AllMembersParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_file", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "project.maintenance.get"]),
-                    ResilientStep("compiler-plan", "Buildable revision plan", 30, "Planning", "Program architect", """
-Using only the curated manifest and current project-maintenance metadata, produce the smallest buildable revision plan. Preserve existing code style and project architecture. Identify exact relative paths to create/update/delete, project/version implications, expected toolchain, and verification command arguments already persisted for the workspace. If one consequential choice is genuinely ambiguous, invoke human.collaboration.request for that single decision with 2-4 short SuggestedResponsesText options and the narrowest honest gate; otherwise continue without asking the user to repeat known scope. The inline Chat/ASCII review card is the authoritative pause, not prose saying that you are waiting.
-""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.maintenance.get", "project.workspace.files.list", "project.workspace.file.read", "toolchain.knowledge.list", "toolchain.installation.list", "localgpt.regex.list", "localgpt.regex.test"]),
-                    ResilientStep("compiler-curate", "Curate candidate source", 40, "Curation", "Source curator", """
-Review the candidate implementation/reconstruction against the curated structure and current project files. Correct or reject material that is structurally wrong, duplicated, unsafe, style-breaking or unsupported. Bad generated files should be omitted/deleted from the candidate workspace rather than rationalized. Require another bounded round when Danger findings remain. Do not claim compilation from source inspection.
-""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["project.maintenance.get", "project.workspace.files.list", "project.workspace.file.read", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
-                    ResilientStep("compiler-toolchain", "Select compiler and build host", 50, "Toolchain", "Compiler operator", """
-Read the project's persisted version/workspace/compiler metadata and current toolchain inventory. Prefer an already validated compiler that matches repository metadata. If discovery or a build is required, request it through the registered consequential function so LocalGPT creates a human-review card with the exact operation instead of silently executing it. Report the first root diagnostic only; cascading diagnostics remain secondary.
-""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.maintenance.get", "project.workspace.environment.assess", "toolchain.knowledge.list", "toolchain.installation.list"]),
-                    ResilientStep("compiler-verification", "Compile, test and review evidence", 60, "Verification", "Compiler operator", """
-Use the exact selected revision and persisted build arguments. Request project.revision.build.verify only through the normal deferred human approval path. After build evidence exists, require source-hash stability and independent Council review before readiness. A timeout/provider failure must be recoverable by another configured role member; never convert cancellation into success.
-""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.maintenance.get", "project.revision.build.verify", "project.revision.council-review", "project.revision.ready.approve"]),
-                    ResilientStep("compiler-handoff", "Curated compiler handoff", 70, "Handoff", "Human review coordinator", """
-Summarize the reconstructed/updated project, exact version/revision, files accepted/rejected, regex evidence, compiler/build status and remaining decisions. If an approval/question is still pending, make that concrete through the collaboration request/function path so the same buttons are usable in normal Chat and the ASCII surface. Do not hide a failed member, failed build or unresolved Danger finding behind a consensus sentence.
-""", "LeaderSingle", canUseOrganicFunctions: true, producesFinalAnswer: true, allowedAutomaticFunctions: ["project.maintenance.get"])
+                    ResilientStep("compiler-plan", "Exact buildable source plan", 30, "Planning", "Program architect", """
+Turn the reviewed target manifest into an exact implementation plan that is immediately executable by LocalGPT's code-generation workflow.
+
+For Greenfield work, specify the exact relative files and full source/configuration needed for a minimal complete artifact. When .NET 10/C# is requested, include a net10.0 project/solution shape and ordinary SDK conventions. Do not answer with pseudocode, a tutorial, or a request to inspect unrelated workspaces. If the user requested compile/build, mark BuildAfterGeneration=true. If the user requested a ZIP/artifact, generation already produces a downloadable ZIP; do not ask the user to package it manually.
+
+For ExistingProject work, preserve current architecture/style and identify exact create/update/delete paths plus revision/toolchain implications. Ask through human.collaboration.request only when one consequential choice is genuinely unresolved; otherwise continue without asking for scope the user already supplied.
+
+Return the exact source/output plan, not a prose substitute for implementation.
+""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.maintenance.get", "project.workspace.files.list", "project.workspace.file.read", "toolchain.knowledge.list", "toolchain.installation.list", "codegen.capabilities"]),
+                    ResilientStep("compiler-generate", "Create reviewed source and request generation", 40, "Generation", "Program architect", """
+Materialize the requested code through LocalGPT's registered generation functions; do not merely describe what should be written.
+
+1. Use codegen.capabilities when you need to confirm the supported output shape.
+2. Call codegen.review.create with the exact proposed files (relativePath/content) and output target(s). For greenfield work projectId/projectRevisionId may be null. Put the user's requested framework/version in the reviewed project files themselves (for example TargetFramework net10.0). Include a concise currentProjectState/councilSummary/changeSummary/safetySummary, not an invented nested summaries object.
+3. Immediately call codegen.review.execute with the returned reviewId and exact reviewHash using its real nested request shape: {"reviewId":"...","request":{"expectedReviewHash":"...","buildAfterGeneration":true}} (set buildAfterGeneration false when no build/test was requested). Do not invent userConfirmed or userConfirmedBuild; the registry supplies trusted confirmation fields after approval. Use the normal approval path rather than telling the human to invoke the function manually.
+4. If execution returns HumanApprovalPending, treat that as successful routing of the requested action: preserve the pending review and let the normal Human Collaboration/heartbeat path resume it after the user's decision. Do not create a second review and do not ask the user to repeat the coding request.
+5. After execution completes, preserve its workspace name, build status and download URL as authoritative generated-artifact evidence.
+
+The job of this step is to create the source artifact, not to stop after planning it.
+""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["codegen.capabilities", "codegen.review.create", "codegen.review.get", "codegen.review.execute"]),
+                    ResilientStep("compiler-curate", "Curate generated or candidate source", 50, "Curation", "Source curator", """
+Review the actual generation/review result and candidate source against the user's request. For completed greenfield generation, inspect generated workspace files only as needed; correct/reject material that is structurally wrong, duplicated, unsafe, style-breaking or incomplete. For an approval-pending generation, report the exact pending review without pretending files already exist. For existing-project maintenance, continue bounded comparison against current project files. Large source is handled in relevant chunks; size alone is never a reason to stop doing the assigned review.
+
+Do not claim compilation from source inspection. Preserve a successful generation/build result instead of replacing it with speculative rework.
+""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["codegen.review.get", "council.artifact_workspaces", "council.artifact_workspace_files", "council.artifact_workspace_file.read", "project.maintenance.get", "project.workspace.files.list", "project.workspace.file.read", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
+                    ResilientStep("compiler-toolchain", "Select compiler and interpret build evidence", 60, "Toolchain", "Compiler operator", """
+Use the generation/build result first. For greenfield codegen.review.execute with BuildAfterGeneration=true, its bounded build status is the authoritative compiler attempt; do not redundantly route the task into an unrelated selected project. If a matching configured compiler/toolchain must be discovered or validated, use the persisted toolchain inventory and request only the exact consequential action through the normal approval path.
+
+For ExistingProject work, read persisted project/workspace/compiler metadata, prefer a validated compiler matching repository metadata, and use project build verification only against the intended tracked revision. Report the first root diagnostic; cascading diagnostics are secondary.
+""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["codegen.review.get", "project.maintenance.get", "project.workspace.environment.assess", "toolchain.knowledge.list", "toolchain.installation.list", "project.revision.build.verify"]),
+                    ResilientStep("compiler-verification", "Verify generated artifact or tracked revision", 70, "Verification", "Compiler operator", """
+Verify the artifact that the user actually requested.
+
+For greenfield generation, use codegen.review.get plus generated-workspace listing/reading to confirm required files and use the build evidence returned by codegen.review.execute. The generation service already produces a ZIP; use its DownloadUrl. Only call council.artifact_workspace_zip after later approved edits changed the generated workspace and the ZIP must be refreshed.
+
+For an existing tracked revision, request project.revision.build.verify through the normal deferred approval path and require source-hash stability plus independent review before readiness. A timeout/provider/model failure is recoverable evidence, never success. Large source/output remains bounded and chunked rather than becoming a reason to abandon verification.
+""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["codegen.review.get", "council.artifact_workspaces", "council.artifact_workspace_files", "council.artifact_workspace_file.read", "council.artifact_workspace_zip", "project.maintenance.get", "project.revision.build.verify", "project.revision.council-review", "project.revision.ready.approve"]),
+                    ResilientStep("compiler-handoff", "Generated program and compiler handoff", 80, "Handoff", "Human review coordinator", """
+Return the concrete result of the requested coding task: generated solution/project, important files, framework/toolchain, build status, and downloadable ZIP/artifact URL when generation completed. If generation/build approval is still pending, state the exact pending action and let the existing Human Collaboration card handle it; do not ask the user to type the request again or manually call a function. If a model/provider failed but another member completed the artifact, preserve both facts. Never turn a clear greenfield coding request back into a repository-search assignment.
+""", "LeaderSingle", canUseOrganicFunctions: true, producesFinalAnswer: true, allowedAutomaticFunctions: ["codegen.review.get", "project.maintenance.get", "council.artifact_workspaces", "council.artifact_workspace_files"])
                 ],
                 ArchitectureContracts =
                 [
                     .. DefaultArchitectureContracts(),
-                    "ZIP/text intake is evidence-first: uploaded archives/blobs are inspected through bounded workspace services; archive traversal, absolute paths and escaping links are never accepted.",
-                    "Repository reconstruction is two-stage: regex/source analysts propose a path manifest, independent curators verify it, and only approved candidate workspace changes progress to build verification.",
+                    "Intent precedes intake: explicit greenfield create/code/build requests do not inspect unrelated selected projects or uploads merely because those contexts exist.",
+                    "Greenfield coding is artifact-first: the Council creates exact reviewed files through codegen.review.create and routes codegen.review.execute immediately; prose-only implementation plans are incomplete when the user requested a concrete program.",
+                    "ZIP/text intake for existing-project work is evidence-first and bounded: uploaded archives/blobs are listed and read in relevant chunks; large relevant input is normal workload, while unrelated large input must not hijack the requested task.",
+                    "Repository reconstruction remains two-stage: analysts propose a path manifest, independent curators verify it, and only approved candidate workspace changes progress to build verification.",
                     "Low-parameter models receive narrow file slices, explicit tagged outputs and persisted regex/toolchain facts instead of an entire repository dump.",
-                    "Consequential writes/builds remain deferred-approval functions. AI-proposed suggested responses are presentation data, never implicit user consent.",
+                    "Consequential generation/writes/builds remain deferred-approval functions. AI-proposed suggested responses are presentation data, never implicit user consent.",
                     "Required role work uses RetrySameThenEligibleRolePool so a healthy configured member can replace a failed provider/model slot while the failed attempt remains visible evidence."
                 ]
                 };

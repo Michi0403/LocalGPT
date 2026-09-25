@@ -392,14 +392,14 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                     throw new InvalidOperationException("Approval requests require an explicit approve or decline decision.");
                 if (isApproval && !Enum.IsDefined(typeof(HumanApprovalReuseScope), submission.ReuseScope))
                     throw new InvalidOperationException("The selected approval reuse scope is invalid.");
-                if (isApproval && submission.Approved == false && string.IsNullOrWhiteSpace(submission.Reason))
-                    throw new InvalidOperationException("A decline reason is required so the LocalGPT team can adapt its next step.");
                 if (!isApproval && string.IsNullOrWhiteSpace(submission.Response))
                     throw new InvalidOperationException("Feedback and guidance requests require a response.");
 
                 var previousStatus = request.Status;
                 request.UserResponse = NormalizeMultiline(submission.Response, MaxTextLength);
                 request.DecisionReason = NormalizeMultiline(submission.Reason, 2000);
+                if (isApproval && submission.Approved == false && string.IsNullOrWhiteSpace(request.DecisionReason))
+                    request.DecisionReason = "Declined by local user.";
                 request.DecisionBy = Normalize(ambientContext.Current.ActorDisplayName, 120, "Human User");
                 request.DecisionByProfileId = ambientContext.Current.HumanProfileId ?? runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId);
                 request.DecidedAtUtc = DateTime.UtcNow;
@@ -429,7 +429,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                         ParameterFingerprint = request.ParameterFingerprint,
                         RequestKind = vocabulary.Get().HumanRequestGuidance,
                         Title = $"Declined action feedback: {request.Title}",
-                        Description = "The local human declined a guarded operation and supplied a reason so the team can adapt rather than retry the same action unchanged.",
+                        Description = "The local human declined a guarded operation. Any optional reason is preserved so the team can adapt rather than retry the same action unchanged.",
                         RiskLevel = "Low",
                         Status = vocabulary.Get().HumanStatusAnswered,
                         Source = "Human Collaboration Inbox",

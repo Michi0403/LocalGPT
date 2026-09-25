@@ -132,6 +132,29 @@ public sealed class LocalAiArtifactDescriptor
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>Describes one browser microphone recording after LocalGPT has persisted the audio independently from optional speech transcription.</summary>
+public sealed class LocalAiMicrophoneRecording
+{
+    /// <summary>Gets or sets the admitted chat-upload workspace that owns the original WAV evidence.</summary>
+    /// <value>The upload workspace containing the original browser-recorded WAV.</value>
+    public ChatUploadWorkspaceResult Workspace { get; set; } = new(string.Empty, string.Empty, string.Empty, string.Empty, DateTimeOffset.MinValue, [], [], string.Empty);
+    /// <summary>Gets or sets the published media artifact that keeps the recording downloadable from the chat history.</summary>
+    /// <value>The durable local media artifact exposed through the LocalGPT artifact route.</value>
+    public LocalAiArtifactDescriptor Artifact { get; set; } = new();
+    /// <summary>Gets or sets the workspace-relative WAV path used by optional speech recognition.</summary>
+    /// <value>The relative path to the persisted WAV inside its admitted upload workspace.</value>
+    public string RelativePath { get; set; } = string.Empty;
+    /// <summary>Gets or sets the optional Whisper transcript. An empty value means the audio remains attached without transcription.</summary>
+    /// <value>The optional recognized speech text.</value>
+    public string Transcript { get; set; } = string.Empty;
+    /// <summary>Gets or sets the optional transcription status shown to the local user without exposing recorded content to logs.</summary>
+    /// <value>The bounded operator-facing status for optional transcription.</value>
+    public string TranscriptionStatus { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether optional speech transcription completed successfully.</summary>
+    /// <value><see langword="true"/> when optional transcription produced usable text; otherwise <see langword="false"/>.</value>
+    public bool TranscriptionSucceeded { get; set; }
+}
+
 public sealed class LocalAiImageGenerationRequest
 {
     public string ModelInstallationId { get; set; } = string.Empty;

@@ -188,12 +188,12 @@
                     {
                         <label>
                             @(string.IsNullOrWhiteSpace(request.ResponsePrompt) ? "Response" : request.ResponsePrompt)
-                            <DxMemo @bind-Text="editor.Response" MaxLength="1000000" Rows="3" />
+                            <DxMemo @bind-Text="editor.Response" BindValueMode="BindValueMode.OnInput" MaxLength="1000000" Rows="3" />
                         </label>
                     }
                     <label>
                         Reason / team note
-                        <DxMemo @bind-Text="editor.Reason" MaxLength="2000" Rows="2" />
+                        <DxMemo @bind-Text="editor.Reason" BindValueMode="BindValueMode.OnInput" MaxLength="2000" Rows="2" />
                     </label>
                     @if (request.RequestKind == Vocabulary.Get().HumanRequestApproval)
                     {
@@ -210,13 +210,13 @@
                         </label>
                         <p class="human-inbox-note">Reuse always remains bound to the exact operation and parameter fingerprint. High-impact requests default to one use.</p>
                         <div class="human-decision-row">
-                            <DxButton CssClass="human-approve" Click="(() => ResolveAsync(request, true))">Approve and save</DxButton>
-                            <DxButton CssClass="human-decline" Click="(() => ResolveAsync(request, false))">Decline and save</DxButton>
+                            <DxButton CssClass="human-approve" Enabled="@(!isBusy)" Click="(() => ResolveAsync(request, true))">Approve and save</DxButton>
+                            <DxButton CssClass="human-decline" Enabled="@(!isBusy)" Click="(() => ResolveAsync(request, false))">Decline and save</DxButton>
                         </div>
                     }
                     else
                     {
-                        <DxButton CssClass="human-primary" Click="(() => ResolveAsync(request, null))">Send to team</DxButton>
+                        <DxButton CssClass="human-primary" Enabled="@(!isBusy)" Click="(() => ResolveAsync(request, null))">Send to team</DxButton>
                     }
                 </article>
             }
@@ -267,12 +267,12 @@
                         {
                             <label>
                                 @(string.IsNullOrWhiteSpace(request.ResponsePrompt) ? "Response" : request.ResponsePrompt)
-                                <DxMemo @bind-Text="editor.Response" MaxLength="1000000" Rows="3" />
+                                <DxMemo @bind-Text="editor.Response" BindValueMode="BindValueMode.OnInput" MaxLength="1000000" Rows="3" />
                             </label>
                         }
                         <label>
                             Reason / team note
-                            <DxMemo @bind-Text="editor.Reason" MaxLength="2000" Rows="2" />
+                            <DxMemo @bind-Text="editor.Reason" BindValueMode="BindValueMode.OnInput" MaxLength="2000" Rows="2" />
                         </label>
                         @if (request.RequestKind == Vocabulary.Get().HumanRequestApproval)
                         {
@@ -288,13 +288,13 @@
                                 <span>Consume the saved approval after one matching use</span>
                             </label>
                             <div class="human-decision-row">
-                                <DxButton CssClass="human-approve" Click="(() => ResolveAsync(request, true))">Save as approved</DxButton>
-                                <DxButton CssClass="human-decline" Click="(() => ResolveAsync(request, false))">Save as declined</DxButton>
+                                <DxButton CssClass="human-approve" Enabled="@(!isBusy)" Click="(() => ResolveAsync(request, true))">Save as approved</DxButton>
+                                <DxButton CssClass="human-decline" Enabled="@(!isBusy)" Click="(() => ResolveAsync(request, false))">Save as declined</DxButton>
                             </div>
                         }
                         else
                         {
-                            <DxButton CssClass="human-primary" Click="(() => ResolveAsync(request, null))">Save updated answer</DxButton>
+                            <DxButton CssClass="human-primary" Enabled="@(!isBusy)" Click="(() => ResolveAsync(request, null))">Save updated answer</DxButton>
                         }
                     </details>
                 }
@@ -677,6 +677,8 @@
             return;
         isBusy = true;
         statusText = string.Empty;
+        if (!isDisposed)
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         try
         {
             await action().ConfigureAwait(false);

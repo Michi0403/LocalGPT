@@ -26,6 +26,7 @@
 @inject IToolchainAcquisitionService ToolchainAcquisition
 @inject IToolchainExecutionProfileService ToolchainExecutionProfiles
 @inject IRuntimePluginService RuntimePlugins
+@inject LocalGPT.Runtime.Plugins.RuntimePluginDefinitionSupport RuntimePluginDefinitionSupport
 
 <PageTitle>AI Setup</PageTitle>
 
@@ -960,51 +961,121 @@
                 }
             </details>
 
-            <DxPopup @bind-Visible="RuntimePluginEditorVisible" HeaderText="Runtime extension editor" Width="min(1040px, 96vw)" MaxHeight="92vh" CloseOnOutsideClick="false">
-                <BodyContentTemplate>
-                    <div class="source-popup">
-                        <p class="execution-boundary">Executable extension content is persisted in the LocalGPT database. Saving changes does not execute them; Build / load is a separate explicit action. Compiled .NET plugins are trusted in-process code and are not a security boundary.</p>
-                        <div class="local-ai-runtime-grid">
-                            <label>Name<DxTextBox @bind-Text="RuntimePluginDraft.Name" /></label>
-                            <label>Function name<DxTextBox @bind-Text="RuntimePluginDraft.FunctionName" NullText="plugin.example" /></label>
-                            <label>Kind<DxComboBox Data="@RuntimePluginKinds" @bind-Value="RuntimePluginDraft.Kind" /></label>
-                            <label>Compiler/runtime<DxComboBox Data="@CompilerInstallations" TextFieldName="@nameof(ProjectCompilerInstallation.Name)" ValueFieldName="@nameof(ProjectCompilerInstallation.Id)" @bind-Value="RuntimePluginDraft.CompilerInstallationId" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" /></label>
-                            <label class="local-ai-runtime-policy-wide">Purpose<DxMemo @bind-Text="RuntimePluginDraft.Purpose" Rows="2" /></label>
-                            <label class="local-ai-runtime-policy-wide">Safety notes<DxMemo @bind-Text="RuntimePluginDraft.SafetyNotes" Rows="2" /></label>
-                            <label class="local-ai-runtime-policy-wide">Parameter JSON schema<DxMemo @bind-Text="RuntimePluginDraft.ParameterSchemaJson" Rows="4" /></label>
+            <DxPopup @bind-Visible="RuntimePluginEditorVisible"
+                     HeaderText="Runtime extension editor"
+                     Width="min(92rem, 97vw)"
+                     MaxHeight="94dvh"
+                     CloseOnOutsideClick="false">
+                <BodyContentTemplate Context="runtimePluginPopupContext">
+                    <div class="runtime-plugin-editor-shell">
+                        <div class="execution-boundary">Executable extension content is persisted in the LocalGPT database. Saving does not execute it. Build / load is a separate explicit action. Compiled .NET plugins are trusted in-process code and are not a security boundary.</div>
+                        <DxFormLayout CssClass="runtime-plugin-form">
+                            <DxFormLayoutItem Caption="Name" ColSpanMd="3">
+                                <DxTextBox @bind-Text="RuntimePluginDraft.Name" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Function name" ColSpanMd="3">
+                                <DxTextBox @bind-Text="RuntimePluginDraft.FunctionName" NullText="plugin.example" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Kind" ColSpanMd="3">
+                                <DxComboBox Data="@RuntimePluginKinds"
+                                            Value="@RuntimePluginDraft.Kind"
+                                            ValueChanged="@((RuntimePluginKind kind) => RuntimePluginKindChanged(kind))" />
+                            </DxFormLayoutItem>
                             @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript)
                             {
-                                <label class="local-ai-runtime-policy-wide">Script source
-                                    <DxMemo @bind-Text="RuntimePluginDraft.SourceCode" Rows="18" CssClass="source-editor" />
-                                </label>
-                                <details class="provider-install-guide local-ai-runtime-policy-wide">
-                                    <summary><strong>IDE helper</strong> · runtime contract and script entry-point hints</summary>
-                                    @if (RuntimePluginDraft.Kind == RuntimePluginKind.CSharpScript)
-                                    {
-                                        <p class="field-help">Write the body of <code>Task&lt;string&gt; ExecuteAsync(JsonElement parameters, CancellationToken cancellationToken)</code>. LocalGPT generates the contract wrapper, compiles it through the selected configured .NET SDK, and keeps <code>LocalGPT.PluginContracts</code> host-owned.</p>
-                                    }
-                                    else
-                                    {
-                                        <p class="field-help">The JavaScript file receives the validated parameters JSON on stdin and returns text or JSON on stdout. It runs through the selected configured Node-compatible executable without a command shell.</p>
-                                    }
-                                </details>
-                                <DxButton Text="Insert starter template" Enabled="@(!RuntimePluginBusy)" Click="InsertRuntimePluginTemplate" />
+                                <DxFormLayoutItem Caption="Compiler/runtime" ColSpanMd="3">
+                                    <DxComboBox Data="@RuntimePluginCompilerInstallations"
+                                                TextFieldName="@nameof(ProjectCompilerInstallation.Name)"
+                                                ValueFieldName="@nameof(ProjectCompilerInstallation.Id)"
+                                                @bind-Value="RuntimePluginDraft.CompilerInstallationId"
+                                                ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                                                NullText="Use validated default" />
+                                </DxFormLayoutItem>
+                            }
+                            <DxFormLayoutItem Caption="Purpose" ColSpanMd="6">
+                                <DxMemo @bind-Text="RuntimePluginDraft.Purpose" Rows="3" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Safety notes" ColSpanMd="6">
+                                <DxMemo @bind-Text="RuntimePluginDraft.SafetyNotes" Rows="3" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Parameter JSON Schema" ColSpanMd="12">
+                                <DxMemo @bind-Text="RuntimePluginDraft.ParameterSchemaJson" Rows="4" />
+                            </DxFormLayoutItem>
+
+                            @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript)
+                            {
+                                <DxFormLayoutItem Caption="Script source" ColSpanMd="12">
+                                    <DxHtmlEditor @bind-Markup="RuntimePluginSourceMarkup"
+                                                  BindMarkupMode="HtmlEditorBindMarkupMode.OnDelayedInput"
+                                                  InputDelay="120"
+                                                  CustomizeToolbar="CustomizeRuntimePluginEditorToolbar"
+                                                  Width="100%"
+                                                  Height="min(48dvh, 34rem)"
+                                                  CssClass="runtime-plugin-source-editor" />
+                                </DxFormLayoutItem>
+                                <DxFormLayoutGroup Caption="IDE helper · runtime contract and script entry-point hints" ColSpanMd="12">
+                                    <DxFormLayoutItem ColSpanMd="12">
+                                        @if (RuntimePluginDraft.Kind == RuntimePluginKind.CSharpScript)
+                                        {
+                                            <div class="field-help">Write the body of <code>Task&lt;string&gt; ExecuteAsync(JsonElement parameters, CancellationToken cancellationToken)</code>. LocalGPT generates the contract wrapper, compiles it through a validated configured .NET SDK, and keeps <code>LocalGPT.PluginContracts</code> host-owned.</div>
+                                        }
+                                        else
+                                        {
+                                            <div class="field-help">The JavaScript file receives validated parameters JSON on stdin and returns text or JSON on stdout. It runs through a validated configured Node-compatible runtime.</div>
+                                        }
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem ColSpanMd="12">
+                                        <DxButton Text="Insert starter template" Enabled="@(!RuntimePluginBusy)" Click="InsertRuntimePluginTemplate" />
+                                    </DxFormLayoutItem>
+                                </DxFormLayoutGroup>
                             }
                             else
                             {
-                                <label>Entry assembly<DxTextBox @bind-Text="RuntimePluginDraft.EntryAssemblyName" NullText="MyPlugin.dll" /></label>
-                                <label>Entry type<DxTextBox @bind-Text="RuntimePluginDraft.EntryTypeName" NullText="MyPlugin.EntryPoint" /></label>
-                                <label class="local-ai-runtime-policy-wide">Plugin ZIP as base64<DxMemo @bind-Text="RuntimePluginDraft.PackagePayloadBase64" Rows="8" NullText="Persisted package payload" /></label>
+                                <DxFormLayoutItem Caption="Entry assembly" ColSpanMd="6">
+                                    <DxTextBox @bind-Text="RuntimePluginDraft.EntryAssemblyName" NullText="MyPlugin.dll" />
+                                </DxFormLayoutItem>
+                                <DxFormLayoutItem Caption="Entry type" ColSpanMd="6">
+                                    <DxTextBox @bind-Text="RuntimePluginDraft.EntryTypeName" NullText="MyPlugin.EntryPoint" />
+                                </DxFormLayoutItem>
+                                <DxFormLayoutItem Caption="Plugin ZIP as base64" ColSpanMd="12">
+                                    <DxMemo @bind-Text="RuntimePluginDraft.PackagePayloadBase64" Rows="8" NullText="Persisted package payload" />
+                                </DxFormLayoutItem>
                             }
-                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.IsEnabled" /> Enabled</label>
-                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.AvailableToAi" /> Expose to AI</label>
-                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.IsReadOnly" /> Declares read-only behavior</label>
-                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.RequiresHumanConfirmation" /> Require human confirmation</label>
-                            <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="RuntimePluginDraft.SupportsAutomaticInvocation" /> Permit automatic invocation when policy allows</label>
-                        </div>
-                        <div class="toolchain-actions">
-                            <DxButton Text="Save definition" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!RuntimePluginBusy)" Click="SaveRuntimePluginAsync" />
-                            <DxButton Text="Close" Enabled="@(!RuntimePluginBusy)" Click="CloseRuntimePluginEditor" />
+
+                            <DxFormLayoutItem Caption="Enabled" ColSpanMd="3">
+                                <DxCheckBox @bind-Checked="RuntimePluginDraft.IsEnabled" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Expose to AI" ColSpanMd="3">
+                                <DxCheckBox @bind-Checked="RuntimePluginDraft.AvailableToAi" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Declares read-only behavior" ColSpanMd="3">
+                                <DxCheckBox @bind-Checked="RuntimePluginDraft.IsReadOnly" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Require human confirmation" ColSpanMd="3">
+                                <DxCheckBox @bind-Checked="RuntimePluginDraft.RequiresHumanConfirmation" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Permit automatic invocation when policy allows" ColSpanMd="12">
+                                <DxCheckBox @bind-Checked="RuntimePluginDraft.SupportsAutomaticInvocation" />
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+
+                        @if (!string.IsNullOrWhiteSpace(RuntimePluginStatus))
+                        {
+                            <div class="toolchain-validation-message">@RuntimePluginStatus</div>
+                        }
+
+                        <div class="toolchain-actions runtime-plugin-editor-actions">
+                            <DxButton Text="Save definition"
+                                      RenderStyle="ButtonRenderStyle.Secondary"
+                                      Enabled="@(!RuntimePluginBusy)"
+                                      Click="SaveRuntimePluginAsync" />
+                            <DxButton Text="Save + Build / load"
+                                      RenderStyle="ButtonRenderStyle.Primary"
+                                      Enabled="@(!RuntimePluginBusy && RuntimePluginDraft.IsEnabled)"
+                                      Click="SaveAndBuildRuntimePluginAsync" />
+                            <DxButton Text="Close"
+                                      Enabled="@(!RuntimePluginBusy)"
+                                      Click="CloseRuntimePluginEditor" />
                         </div>
                     </div>
                 </BodyContentTemplate>

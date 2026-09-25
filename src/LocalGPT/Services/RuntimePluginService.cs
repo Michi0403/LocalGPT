@@ -294,11 +294,33 @@ public sealed class RuntimePluginService(
         {
             ProjectCompilerInstallation? compiler = null;
             if (definition.CompilerInstallationId.HasValue)
-                compiler = await db.ProjectCompilerInstallations.AsNoTracking().SingleOrDefaultAsync(item => item.Id == definition.CompilerInstallationId && item.IsEnabled, cancellationToken).ConfigureAwait(false);
-            compiler ??= await db.ProjectCompilerInstallations.AsNoTracking().Where(item => item.IsEnabled && item.KnowledgeProfileKey == profileKey).OrderByDescending(item => item.LastValidationSucceeded).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
-            compiler ??= await db.ProjectCompilerInstallations.AsNoTracking().Where(item => item.IsEnabled && item.IsDefaultForLanguage && item.Language == language).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+            {
+                compiler = await db.ProjectCompilerInstallations.AsNoTracking()
+                    .SingleOrDefaultAsync(item => item.Id == definition.CompilerInstallationId && item.IsEnabled, cancellationToken)
+                    .ConfigureAwait(false);
+                if (compiler is not null
+                    && !compiler.KnowledgeProfileKey.Equals(profileKey, StringComparison.OrdinalIgnoreCase)
+                    && !compiler.Language.Equals(language, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"The selected toolchain is not compatible with this {language} runtime extension. Choose a matching validated compiler/runtime in Setup → Toolchains.");
+                }
+            }
+
+            compiler ??= await db.ProjectCompilerInstallations.AsNoTracking()
+                .Where(item => item.IsEnabled && item.KnowledgeProfileKey == profileKey)
+                .OrderByDescending(item => item.LastValidationSucceeded)
+                .ThenByDescending(item => item.IsDefaultForLanguage)
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            compiler ??= await db.ProjectCompilerInstallations.AsNoTracking()
+                .Where(item => item.IsEnabled && item.IsDefaultForLanguage && item.Language == language)
+                .OrderByDescending(item => item.LastValidationSucceeded)
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
             if (compiler is null)
                 throw new InvalidOperationException($"No enabled {language} toolchain is configured. Use Setup → Toolchains to discover or add one, then select it for this runtime extension.");
+            if (!compiler.LastValidationSucceeded)
+                throw new InvalidOperationException($"The selected {language} toolchain has not passed validation. Rediscover/validate it in Setup → Toolchains before building this runtime extension.");
             logger.LogDebug("Resolved configured {Language} toolchain {CompilerId} for runtime extension {PluginId}; executable path omitted from logs.", language, compiler.Id, definition.Id);
             return compiler;
         }

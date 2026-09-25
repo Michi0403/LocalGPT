@@ -851,7 +851,7 @@
     text-shadow: none !important;
 }
 .demo-chat ::deep .localgpt-prompt-suggestion * { color: inherit !important; -webkit-text-fill-color: currentColor !important; opacity: 1 !important; }
-#localgpt-chat-host { width: 100%; min-width: 0; max-width: 100%; }
+#localgpt-chat-host { position: relative; width: 100%; min-width: 0; max-width: 100%; }
 @media (min-width: 681px) {
     #localgpt-chat-host { max-height: calc(100dvh - 9rem); }
 }
@@ -3177,7 +3177,19 @@
 
 #localgpt-chat-host,
 .chat-session-active #localgpt-chat-host {
+    position: relative;
     flex-shrink: 0 !important;
+}
+
+/* v4.9.3: reserve a composer action slot for the DevExpress microphone control. */
+.demo-chat ::deep .localgpt-chat-textarea {
+    padding-right: 12.75rem !important;
+}
+
+@media (max-width: 680px) {
+    .demo-chat ::deep .localgpt-chat-textarea {
+        padding-right: 11.5rem !important;
+    }
 }
 
 /* 4.5.7: function approvals and AI-seeded guidance stay in the active Chat session instead of

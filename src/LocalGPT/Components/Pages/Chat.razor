@@ -71,7 +71,6 @@
                       IconCssClass="oi oi-sparkles"
                       Click="ToggleAsciiFunModeAsync" />
         </div>
-        <ChatMicrophone Transcribed="StartSpeechCouncilAsync" SetupRequested="StartWhisperSetupAsync" Disabled="@IsLiveCouncilInteractionAvailable" />
         <UploadProcessingAdvisor ChatRequested="SubmitUploadRecommendationToChatAsync" CouncilRequested="SubmitUploadRecommendationToCouncilAsync" />
         <details class="chat-configuration-ribbon" data-testid="chat-configuration-ribbon">
             <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation." @onclick="OnChatConfigurationSummaryClickedAsync">
@@ -567,6 +566,7 @@
             </div>
         }
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
+            <ChatMicrophone Recorded="HandleSpeechRecordingAsync" SetupRequested="StartWhisperSetupAsync" Disabled="@IsLiveCouncilInteractionAvailable" />
             <DxAIChat Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"
                       ResponseContentFormat="ResponseContentFormat.Markdown"

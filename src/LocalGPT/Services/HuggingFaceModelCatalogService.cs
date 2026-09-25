@@ -31,7 +31,7 @@ public sealed class HuggingFaceModelCatalogService(
                 if (!string.IsNullOrWhiteSpace(token))
                     message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             }
-            message.Headers.UserAgent.ParseAdd("LocalGPT/4.9.0");
+            message.Headers.UserAgent.ParseAdd("LocalGPT/4.9.3");
 
             var client = httpClientFactory.CreateClient("LocalGPTHuggingFace");
             using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);

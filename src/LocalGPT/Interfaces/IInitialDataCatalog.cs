@@ -27,6 +27,11 @@ public interface IInitialDataCatalog
     /// <value>The prompts value exposed by <see cref="IInitialDataCatalog"/>.</value>
     IReadOnlyList<PromptConfigDto> Prompts { get; }
     /// <summary>
+    /// Gets prior prompt seed defaults that are safe to upgrade when the persisted text still exactly matches an older shipped default.
+    /// </summary>
+    /// <value>The legacy prompt defaults used only to distinguish untouched shipped prompts from user-customized prompt text.</value>
+    IReadOnlyList<PromptConfigDto> LegacyPromptDefaults { get; }
+    /// <summary>
     /// Gets the variables collection maintained or exposed by this initial data instance for downstream processing.
     /// </summary>
     /// <value>The variables value exposed by <see cref="IInitialDataCatalog"/>.</value>

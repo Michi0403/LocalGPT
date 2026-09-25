@@ -33,6 +33,12 @@ public interface ILocalAiRuntimeService
     Task<LocalAiRuntimeJobResult> GenerateVideoAsync(LocalAiVideoGenerationRequest request, CancellationToken cancellationToken = default);
     Task<LocalAiRuntimeJobResult> GenerateVideoFromWorkspaceImageAsync(LocalAiImageToVideoRequest request, CancellationToken cancellationToken = default);
     Task<LocalAiRuntimeJobResult> TranscribeWorkspaceAudioAsync(LocalAiSpeechRecognitionRequest request, CancellationToken cancellationToken = default);
+    /// <summary>Persists one bounded browser microphone WAV as a chat-upload workspace and downloadable media artifact without requiring Whisper.</summary>
+    /// <param name="audio">Readable WAV stream admitted from the browser capture.</param>
+    /// <param name="length">Declared audio length used by upload admission.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop persistence.</param>
+    /// <returns>The persisted microphone recording and its downloadable artifact.</returns>
+    Task<LocalAiMicrophoneRecording> SaveMicrophoneRecordingAsync(Stream audio, long length, CancellationToken cancellationToken = default);
     /// <summary>Transcribes one bounded browser microphone WAV through the selected installed speech-recognition model.</summary>
     /// <param name="audio">Readable WAV stream admitted from the browser capture.</param>
     /// <param name="length">Declared audio length used by upload admission.</param>

@@ -267,6 +267,9 @@ namespace LocalGPT.Components.Pages
         if (!inlineRequestSubmissions.Add(request.Id))
             return;
 
+        if (!isDisposed)
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false) /* renderer dispatch */;
+
         try
         {
             var profile = collaborationSnapshot.Profile.Id == Guid.Empty
@@ -301,7 +304,7 @@ namespace LocalGPT.Components.Pages
             await InvokeAsync(() => Notifier.ShowInfo(
                 toastName,
                 resolved is null ? "The AI request was already resolved elsewhere." : $"Saved {resolved.Status} for {request.Title}.",
-                "AI request reviewed")).ConfigureAwait(false);
+                "AI request reviewed")).ConfigureAwait(false) /* renderer dispatch */;
         }
         catch (OperationCanceledException) when (componentLifetimeCts.IsCancellationRequested)
         {
@@ -310,13 +313,13 @@ namespace LocalGPT.Components.Pages
         catch (Exception ex)
         {
             Logger.LogError(ex, "Could not resolve inline AI/Council review request {RequestId} from Chat.", request.Id);
-            await InvokeAsync(() => Notifier.ShowError(toastName, "The AI request could not be saved. Review LocalGPT logs.", "AI request review")).ConfigureAwait(false);
+            await InvokeAsync(() => Notifier.ShowError(toastName, "The AI request could not be saved. Review LocalGPT logs.", "AI request review")).ConfigureAwait(false) /* renderer dispatch */;
         }
         finally
         {
             inlineRequestSubmissions.Remove(request.Id);
             if (!isDisposed)
-                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false) /* renderer dispatch */;
         }
     }
 

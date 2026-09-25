@@ -181,7 +181,8 @@
     top: 4.75rem;
     right: .65rem;
     bottom: .75rem;
-    z-index: 1060;
+    /* Keep persistent collaboration controls above ordinary page content but below modal/popup surfaces. */
+    z-index: 1040;
     width: min(34rem, calc(100vw - 5rem));
     display: flex;
     flex-direction: column;
