@@ -2,6 +2,10 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner WorkbenchHeader">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <header class="localgpt-workbench-header">
     <div class="localgpt-workbench-heading">
         @if (!string.IsNullOrWhiteSpace(Eyebrow))
@@ -21,6 +25,11 @@
         </div>
     }
 </header>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>

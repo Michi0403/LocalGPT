@@ -2,12 +2,21 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ConfigurationWorkbenchPanel">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 @if (IsActive)
 {
     <div class="configuration-workbench-panel" role="region" aria-label="@AriaLabel">
         @ChildContent
     </div>
 }
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -42,5 +51,21 @@
     /// Gets a value indicating whether active applies to the configuration workbench panel state.
     /// </summary>
     /// <value>The is active value exposed by <see cref="ConfigurationWorkbenchPanel"/>.</value>
-    private bool IsActive => string.Equals(SectionKey, ActiveKey, StringComparison.OrdinalIgnoreCase);
+    private bool IsActive => GetIsActiveForRender();
+
+
+    /// <summary>Computes IsActive for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetIsActiveForRender()
+    {
+        try
+        {
+            return string.Equals(SectionKey, ActiveKey, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ConfigurationWorkbenchPanel.IsActive failed.");
+            throw;
+        }
+    }
 }

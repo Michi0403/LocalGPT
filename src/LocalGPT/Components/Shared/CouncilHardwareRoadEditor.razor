@@ -1,6 +1,16 @@
 @inject ICouncilHardwareRoadConfigurationService RoadConfiguration
 
-<section class="council-road-editor" aria-label="Per-model CPU and GPU roads">
+@inject ILogger<CouncilHardwareRoadEditor> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner CouncilHardwareRoadEditor">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="council-road-editor" aria-label="Per-model CPU and GPU roads">
     <header class="council-road-editor-header">
         <div>
             <strong>Model hardware roads</strong>
@@ -93,9 +103,21 @@
             }
         </div>
     }
-</section>
+</div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
+    /// <summary>
+    /// Gets the hardware kinds collection maintained or exposed by this council hardware road editor instance for downstream processing.
+    /// </summary>
+    /// <value>The hardware kinds value exposed by <see cref="CouncilHardwareRoadEditor"/>.</value>
     private IReadOnlyList<OneWireHardwareKind> HardwareKinds { get; } = Enum.GetValues<OneWireHardwareKind>();
 
     /// <summary>
@@ -124,10 +146,19 @@
     /// </summary>
     protected override void OnParametersSet()
     {
+        try
+        {
         var synchronized = RoadConfiguration.Synchronize(ModelNames, Routes);
         if (SameRoutes(synchronized, Routes)) return;
         Routes.Clear();
         Routes.AddRange(synchronized);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.OnParametersSet failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -136,8 +167,18 @@
     /// <param name="left">One wire council model route dependency used by the council hardware road editor workflow to provide the corresponding application capability.</param>
     /// <param name="right">One wire council model route dependency used by the council hardware road editor workflow to provide the corresponding application capability.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    private bool SameRoutes(IReadOnlyList<OneWireCouncilModelRoute> left, IReadOnlyList<OneWireCouncilModelRoute> right) =>
-        left.Count == right.Count && left.Select(route => route.ModelName).SequenceEqual(right.Select(route => route.ModelName), StringComparer.OrdinalIgnoreCase);
+    private bool SameRoutes(IReadOnlyList<OneWireCouncilModelRoute> left, IReadOnlyList<OneWireCouncilModelRoute> right)
+    {
+        try
+        {
+            return left.Count == right.Count && left.Select(route => route.ModelName).SequenceEqual(right.Select(route => route.ModelName), StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.SameRoutes failed.");
+            throw;
+        }
+    }
 
 
     /// <summary>
@@ -147,9 +188,18 @@
     /// <returns>The string produced by the operation.</returns>
     private string GetRouteDisplayName(OneWireCouncilModelRoute route)
     {
+        try
+        {
         var model = string.IsNullOrWhiteSpace(route.ProviderModelName) ? route.ModelName : route.ProviderModelName;
         var provider = string.IsNullOrWhiteSpace(route.ProviderName) ? "AI provider" : route.ProviderName;
         return $"{model} — {provider}";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.GetRouteDisplayName failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -159,9 +209,18 @@
     /// <returns>The string produced by the operation.</returns>
     private string GetRouteEndpointLabel(OneWireCouncilModelRoute route)
     {
+        try
+        {
         if (string.IsNullOrWhiteSpace(route.ProviderEndpoint))
             return "Legacy/default provider route";
         return new ProviderModelIdentity().GetEndpointLabel(route.ProviderEndpoint);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.GetRouteEndpointLabel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -171,8 +230,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task NormalizeAndNotify(OneWireCouncilModelRoute route)
     {
+        try
+        {
         RoadConfiguration.Normalize(route);
         await Changed.InvokeAsync().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.NormalizeAndNotify failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -183,8 +251,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetEnabled(OneWireCouncilModelRoute route, bool value)
     {
+        try
+        {
         route.IsEnabled = value;
         return NormalizeAndNotify(route);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.SetEnabled failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -195,6 +272,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetHardwareKind(OneWireCouncilModelRoute route, OneWireHardwareKind kind)
     {
+        try
+        {
         var previousKind = route.HardwareKind;
         route.HardwareKind = kind;
         if (kind == OneWireHardwareKind.Cpu)
@@ -231,6 +310,13 @@
         }
 
         return NormalizeAndNotify(route);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.SetHardwareKind failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -242,8 +328,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetText(OneWireCouncilModelRoute route, string property, string value)
     {
+        try
+        {
         if (property == nameof(route.HardwareName)) route.HardwareName = value ?? string.Empty;
         return NormalizeAndNotify(route);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.SetText failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -255,6 +350,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetInt(OneWireCouncilModelRoute route, string property, int value)
     {
+        try
+        {
 switch (property)
         {
             case nameof(route.HardwareIndex): route.HardwareIndex = value; break;
@@ -265,6 +362,13 @@ switch (property)
             case nameof(route.MaxConcurrentModelsOnLane): route.MaxConcurrentModelsOnLane = value; break;
         }
         return NormalizeAndNotify(route);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.SetInt failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -276,8 +380,17 @@ switch (property)
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetNullableInt(OneWireCouncilModelRoute route, string property, int? value)
     {
+        try
+        {
         if (property == nameof(route.OllamaNumGpu)) route.OllamaNumGpu = value;
         return NormalizeAndNotify(route);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.SetNullableInt failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -288,10 +401,19 @@ switch (property)
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task ToggleOverride(OneWireCouncilModelRoute route, bool value)
     {
+        try
+        {
         route.LoadPercentOverride = value
             ? RoadConfiguration.NormalizeLoadPercent(ResourceLoadPercent)
             : null;
         return NormalizeAndNotify(route);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.ToggleOverride failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -302,7 +424,16 @@ switch (property)
     /// <returns>A task that completes after the route has been normalized and published.</returns>
     private Task SetLoadOverride(OneWireCouncilModelRoute route, int value)
     {
+        try
+        {
         route.LoadPercentOverride = RoadConfiguration.NormalizeLoadPercent(value);
         return NormalizeAndNotify(route);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilHardwareRoadEditor.SetLoadOverride failed.");
+            throw;
+        }
     }
 }

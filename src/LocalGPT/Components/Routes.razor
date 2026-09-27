@@ -4,6 +4,10 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner Routes">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <SafeErrorBoundary @key="NavigationManager.Uri" Area="Application routing" ToastName="ComponentSafetyToasts">
     <Router AppAssembly="typeof(Program).Assembly">
         <Found Context="routeData">
@@ -16,6 +20,11 @@
         </NotFound>
     </Router>
 </SafeErrorBoundary>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -70,12 +79,21 @@
     /// <param name="navigationKind">Navigation kind value supplied to the routes operation and used when producing its result.</param>
     private void RecordNavigation(string location, string navigationKind)
     {
+        try
+        {
         var route = new Uri(location).AbsolutePath;
         ComponentActivity.RecordNavigation(location);
         Logger.LogInformation(
             "LocalGPT navigated to {Route} through {NavigationKind} navigation.",
             route,
             navigationKind);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Routes.RecordNavigation failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -83,10 +101,19 @@
     /// </summary>
     public void Dispose()
     {
+        try
+        {
         if (isDisposed)
             return;
 
         isDisposed = true;
         NavigationManager.LocationChanged -= HandleLocationChanged;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Routes.Dispose failed.");
+            throw;
+        }
     }
 }

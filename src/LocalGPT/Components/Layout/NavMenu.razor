@@ -5,6 +5,10 @@
 @inject IComponentActivityService ComponentActivity
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner NavMenu">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <div data-testid="main-navigation">
     <ToastWrapper Name="LoginDisplayToasts" />
     <DxMenu Orientation="@Orientation.Vertical" CssClass="menu menu-item" ItemsStretched="true" SizeMode="SizeMode.Large" Title="Navigation">
@@ -26,6 +30,11 @@
         </Items>
     </DxMenu>
 </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -34,5 +43,16 @@
     /// <param name="key">Key value supplied to the nav menu operation and used when producing its result.</param>
     /// <param name="fallback">Fallback value supplied to the nav menu operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+    string T(string key, string fallback)
+    {
+        try
+        {
+            return Localization.Get(key, fallback: fallback);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method NavMenu.T failed.");
+            throw;
+        }
+    }
 }

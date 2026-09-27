@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/test-lab"
+@attribute [LocalGptUiLayoutSurface("page", "Test Lab", "/test-lab", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("workbench", "Test Lab · workbench", "/test-lab")]
 @using System.Net.Http.Json
 @using System.Text
 @using System.Text.Json
@@ -16,7 +18,13 @@
 @inject ICouncilTeamConfigurationService CouncilTeams
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner TestLab">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>Test Lab</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(TestLab)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 <main class="test-lab-page">
     <WorkbenchHeader Eyebrow='@Localization.Get("TestLab.Workbench.Eyebrow", fallback: "Diagnostics studio")'
                      Title='@Localization.Get("TestLab.Workbench.Title", fallback: "Test Lab")'
@@ -28,7 +36,11 @@
                                    ActiveKeyChanged="OnTestLabSectionChanged"
                                    AriaLabel="Test Lab sections" />
         <div class="test-lab-workbench-stage">
-    <section class="test-lab-grid">
+    <LocalGptFormLayoutSurface OwnerType="@typeof(TestLab)" SectionName="workbench" CanHide="true">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="test-lab-grid">
         <ConfigurationWorkbenchPanel SectionKey="frontend" ActiveKey="@ActiveTestLabSection" AriaLabel="Frontend API smoke tests">
         <article id="frontend-smoke" class="help-panel test-lab-panel frontend-api-smoke-panel">
             <h2>Frontend API Smoke</h2>
@@ -209,10 +221,17 @@
             }
         </article>
         </ConfigurationWorkbenchPanel>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</LocalGptFormLayoutSurface>
 
     <ConfigurationWorkbenchPanel SectionKey="route" ActiveKey="@ActiveTestLabSection" AriaLabel="Custom local route">
-    <section id="custom-route" class="help-panel help-wide test-lab-panel">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div id="custom-route" class="help-panel help-wide test-lab-panel">
         <h2>Custom Local Route</h2>
         <p>Allowed routes are constrained to local diagnostics and artifact paths.</p>
         <div class="test-lab-custom">
@@ -223,11 +242,17 @@
                       Enabled="@(!isBusy)"
                       Click="RunCustomRouteAsync" />
         </div>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     </ConfigurationWorkbenchPanel>
 
     <ConfigurationWorkbenchPanel SectionKey="workspace" ActiveKey="@ActiveTestLabSection" AriaLabel="Generated workspace">
-    <section id="generated-workspace" class="help-panel help-wide test-lab-panel">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div id="generated-workspace" class="help-panel help-wide test-lab-panel">
         <h2>Generated Workspace</h2>
         <p>Inspect and edit generated source before refreshing the zip. Starting programs or scripts stays a user-approved action.</p>
         <div class="test-lab-custom">
@@ -272,11 +297,17 @@
                 }
             </div>
         }
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     </ConfigurationWorkbenchPanel>
 
     <ConfigurationWorkbenchPanel SectionKey="result" ActiveKey="@ActiveTestLabSection" AriaLabel="Test result">
-    <section id="test-result" class="help-panel help-wide test-lab-panel test-result-panel">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div id="test-result" class="help-panel help-wide test-lab-panel test-result-panel">
         <h2>Result</h2>
         @if (!string.IsNullOrWhiteSpace(statusText))
         {
@@ -293,7 +324,10 @@
             </div>
         }
         <DxMemo Text="@resultText" ReadOnly="true" Rows="14" CssClass="test-lab-output" />
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     </ConfigurationWorkbenchPanel>
         </div>
     </div>
@@ -345,7 +379,18 @@
     </DxPopup>
 </main>
 
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
 @code {
+    /// <summary>
+    /// Gets the remote source kind options collection maintained or exposed by this test lab instance for downstream processing.
+    /// </summary>
+    /// <value>The remote source kind options value exposed by <see cref="TestLab"/>.</value>
     private IReadOnlyList<string> RemoteSourceKindOptions { get; } = ["Auto", "GitHub", "Web"];
 
     /// <summary>
@@ -358,14 +403,7 @@
     /// </summary>
     /// <value>The test lab sections value exposed by <see cref="TestLab"/>.</value>
     private IReadOnlyList<WorkbenchNavItem> TestLabSections =>
-    [
-        new("frontend", Localization.Get("TestLab.Workbench.Nav.Frontend", fallback: "Frontend smoke"), "Local API health and diagnostics"),
-        new("learnbase", Localization.Get("TestLab.Workbench.Nav.LearnBase", fallback: "Learn-Base"), "Bounded local source import"),
-        new("remote", Localization.Get("TestLab.Workbench.Nav.Remote", fallback: "Remote knowledge"), "Preview then approve remote knowledge"),
-        new("route", Localization.Get("TestLab.Workbench.Nav.Route", fallback: "Custom route"), "Allowed local diagnostic routes"),
-        new("workspace", Localization.Get("TestLab.Workbench.Nav.Workspace", fallback: "Workspace"), "Inspect generated source and ZIPs"),
-        new("result", Localization.Get("TestLab.Workbench.Nav.Result", fallback: "Result"), "Current operation output")
-    ];
+    GetTestLabSectionsForRender();
 
     /// <summary>
     /// Handles the test lab section changed lifecycle or event notification for <see cref="TestLab"/>, updating the state required by the surrounding workflow.
@@ -374,8 +412,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnTestLabSectionChanged(string key)
     {
+        try
+        {
         ActiveTestLabSection = key;
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.OnTestLabSectionChanged failed.");
+            throw;
+        }
     }
 
 
@@ -543,9 +590,7 @@
     /// Gets the source popup title value that forms part of the test lab state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The source popup title value exposed by <see cref="TestLab"/>.</value>
-    private string SourcePopupTitle => string.IsNullOrWhiteSpace(openSourceRelativePath)
-        ? "Generated Source"
-        : $"Generated Source - {openSourceRelativePath}";
+    private string SourcePopupTitle => GetSourcePopupTitleForRender();
 
     /// <summary>
     /// Stores the internal initial role catalog load started state used by <see cref="TestLab"/> while executing its surrounding workflow.
@@ -558,6 +603,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnInitializedAsync()
     {
+        try
+        {
         ApplyRequestedTestLabSection();
         selectedLearnBasePreset = Catalog.LearnBasePresets.First();
         selectedScanProfile = Catalog.LearnBaseScanProfiles.Skip(1).FirstOrDefault() ?? Catalog.LearnBaseScanProfiles.First();
@@ -567,6 +614,13 @@
         maxProjects = selectedLearnBasePreset.RecommendedMaxProjects;
         SelectAllLearnBaseExtensions();
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.OnInitializedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -576,6 +630,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
         if (firstRender && !initialRoleCatalogLoadStarted)
         {
             initialRoleCatalogLoadStarted = true;
@@ -583,6 +639,13 @@
         }
 
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.OnAfterRenderAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -678,8 +741,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task PreviewRemoteKnowledgeAsync()
     {
+        try
+        {
         remoteImportApproved = false;
         return RunRemoteKnowledgeAsync(previewOnly: true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.PreviewRemoteKnowledgeAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -688,12 +760,21 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task ImportRemoteKnowledgeAsync()
     {
+        try
+        {
         if (!remoteImportApproved || remoteImportResult is null)
         {
             statusText = "Inspect the source and approve its returned-file list before importing.";
             return Task.CompletedTask;
         }
         return RunRemoteKnowledgeAsync(previewOnly: false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.ImportRemoteKnowledgeAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -701,7 +782,11 @@
     /// </summary>
     /// <param name="previewOnly">Value indicating whether preview only should apply to this operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task RunRemoteKnowledgeAsync(bool previewOnly) => await RunUiActionAsync(async () =>
+    private async Task RunRemoteKnowledgeAsync(bool previewOnly)
+    {
+        try
+        {
+            await RunUiActionAsync(async () =>
     {
         statusText = previewOnly ? "Inspecting remote source and returned files..." : "Importing reviewed remote source...";
         remoteImportResult = await RemoteKnowledgeImporter.ImportAsync(new RemoteKnowledgeImportRequest
@@ -723,6 +808,13 @@
             ? $"Inspected {remoteImportResult.DownloadedFileCount} file(s); {remoteImportResult.MatchedFileCount} match the file policy."
             : $"Imported {remoteImportResult.ImportedKnowledgeCount} knowledge entry/entries from {remoteImportResult.MatchedFileCount} matched file(s).";
     }, previewOnly ? "PreviewRemoteKnowledge" : "ImportRemoteKnowledge").ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.RunRemoteKnowledgeAsync failed.");
+            throw;
+        }
+    }
 
 
     /// <summary>
@@ -730,8 +822,17 @@
     /// </summary>
     private void ResetRemoteApproval()
     {
+        try
+        {
         remoteImportApproved = false;
         remoteImportResult = null;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.ResetRemoteApproval failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -740,6 +841,8 @@
     /// <param name="key">Key value supplied to the test lab operation and used when producing its result.</param>
     private void SelectRemoteSourcePreset(string key)
     {
+        try
+        {
         (remoteSourceUrl, remoteSourceKind, remoteBranch, remoteRoleKeys, remoteTopics) = key switch
         {
             "lotgd" => ("https://github.com/lotgd/lotgd", "GitHub", "master", "Story Director; World Actor; NPC", "open-source text RPG architecture; runtime story events; houses and NPCs"),
@@ -748,13 +851,24 @@
             _ => ("https://github.com/id-Software/DOOM", "GitHub", "master", "Map Architect; ASCII Frame Renderer", "open-source DOOM source architecture; 2.5D rendering; room graph")
         };
         ResetRemoteApproval();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.SelectRemoteSourcePreset failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Performs run learn base import for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task RunLearnBaseImportAsync() => await RunUiActionAsync(async () =>
+    private async Task RunLearnBaseImportAsync()
+    {
+        try
+        {
+            await RunUiActionAsync(async () =>
     {
         statusText = "Importing the selected LearnBase source profile...";
         var result = await LearnBaseImporter.ImportAsync(new LearnBaseImportRequest
@@ -774,21 +888,48 @@
         resultText = JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true });
         statusText = $"Imported {result.ProjectCount} compact project/corpus summaries; {result.SavedKnowledgeCount} knowledge entries saved.";
     }, "RunLearnBaseImportAsync").ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.RunLearnBaseImportAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs select all learn base extensions for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
     /// </summary>
     private void SelectAllLearnBaseExtensions()
     {
+        try
+        {
         selectedLearnBaseExtensions.Clear();
         foreach (var extension in Catalog.LearnBaseKnownExtensions)
             selectedLearnBaseExtensions.Add(extension);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.SelectAllLearnBaseExtensions failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Performs clear learn base extensions for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
     /// </summary>
-    private void ClearLearnBaseExtensions() => selectedLearnBaseExtensions.Clear();
+    private void ClearLearnBaseExtensions()
+    {
+        try
+        {
+            selectedLearnBaseExtensions.Clear();
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.ClearLearnBaseExtensions failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs toggle learn base extension for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
@@ -797,10 +938,19 @@
     /// <param name="selected">Whether the file extension is selected.</param>
     private void ToggleLearnBaseExtension(string extension, bool selected)
     {
+        try
+        {
         if (selected)
             selectedLearnBaseExtensions.Add(extension);
         else
             selectedLearnBaseExtensions.Remove(extension);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method TestLab.ToggleLearnBaseExtension failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1221,4 +1371,44 @@
     }
 
  
+
+
+    /// <summary>Computes TestLabSections for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<WorkbenchNavItem> GetTestLabSectionsForRender()
+    {
+        try
+        {
+            return [
+        new("frontend", Localization.Get("TestLab.Workbench.Nav.Frontend", fallback: "Frontend smoke"), "Local API health and diagnostics"),
+        new("learnbase", Localization.Get("TestLab.Workbench.Nav.LearnBase", fallback: "Learn-Base"), "Bounded local source import"),
+        new("remote", Localization.Get("TestLab.Workbench.Nav.Remote", fallback: "Remote knowledge"), "Preview then approve remote knowledge"),
+        new("route", Localization.Get("TestLab.Workbench.Nav.Route", fallback: "Custom route"), "Allowed local diagnostic routes"),
+        new("workspace", Localization.Get("TestLab.Workbench.Nav.Workspace", fallback: "Workspace"), "Inspect generated source and ZIPs"),
+        new("result", Localization.Get("TestLab.Workbench.Nav.Result", fallback: "Result"), "Current operation output")
+    ];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property TestLab.TestLabSections failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SourcePopupTitle for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetSourcePopupTitleForRender()
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(openSourceRelativePath)
+        ? "Generated Source"
+        : $"Generated Source - {openSourceRelativePath}";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property TestLab.SourcePopupTitle failed.");
+            throw;
+        }
+    }
 }

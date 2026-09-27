@@ -4,6 +4,13 @@
 @inject IChatContentRenderer ChatContentRenderer
 @inject IProviderModelBenchmarkService BenchmarkService
 
+@inject ILogger<ProviderModelBenchmarkTaskEvidence> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ProviderModelBenchmarkTaskEvidence">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <div class="benchmark-task-evidence">
     <DxButton
             CssClass="benchmark-task-evidence-toggle"
@@ -16,16 +23,25 @@
     @if (evidenceExpanded)
     {
         <div class="benchmark-task-evidence-body">
-            <section>
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div>
                 <strong>Benchmark assignment</strong>
                 <pre class="benchmark-evidence-text">@Task.TaskPrompt</pre>
                 @if (Task.TaskPromptTruncated)
                 {
                     <small>The in-memory display is a bounded head/tail projection. The complete assignment can be loaded from the durable task archive below.</small>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-            <section>
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div>
                 <strong>Actual provider stream / exposed model thinking</strong>
                 @if (string.IsNullOrEmpty(Task.ProviderTrace))
                 {
@@ -39,9 +55,15 @@
                         <small>The in-memory display is a bounded head/tail projection so long runs cannot flood the Blazor render tree. The complete captured stream is stored separately when the durable artifact is available.</small>
                     }
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-            <section>
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div>
                 <strong>Measured final task result</strong>
                 @if (string.IsNullOrWhiteSpace(Task.ResponseText))
                 {
@@ -55,7 +77,10 @@
                         <small>The in-memory final-answer display is a bounded head/tail projection. The complete scored answer can be loaded from the durable task archive below.</small>
                     }
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
             @if (!string.IsNullOrWhiteSpace(Task.Error))
             {
@@ -64,7 +89,10 @@
 
             @if (!string.IsNullOrWhiteSpace(Task.EvidenceArtifactId))
             {
-                <section class="benchmark-durable-evidence">
+                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="benchmark-durable-evidence">
                     <strong>Durable full-fidelity task evidence</strong>
                     @if (fullEvidence is null)
                     {
@@ -95,7 +123,10 @@
                             <pre class="benchmark-evidence-text benchmark-evidence-full">@fullEvidence.ResponseText</pre>
                         </details>
                     }
-                </section>
+                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             }
             else
             {
@@ -104,6 +135,11 @@
         </div>
     }
 </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -134,18 +170,24 @@
     /// </summary>
     /// <param name="value">Value value supplied to the provider model benchmark task evidence operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string FormatTimestamp(DateTimeOffset value) =>
-        value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz");
+    private string FormatTimestamp(DateTimeOffset value)
+    {
+        try
+        {
+            return value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkTaskEvidence.FormatTimestamp failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Gets the status summary value that forms part of the provider model benchmark task evidence state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The status summary value exposed by <see cref="ProviderModelBenchmarkTaskEvidence"/>.</value>
-    string StatusSummary => Task.Succeeded
-        ? $"quality {Task.QualityScore:0.00} · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)"
-        : string.IsNullOrWhiteSpace(Task.Error)
-            ? $"not contract-compliant · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)"
-            : $"failed · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)";
+    string StatusSummary => GetStatusSummaryForRender();
 
     /// <summary>
     /// Loads full evidence for <see cref="ProviderModelBenchmarkTaskEvidence"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark task evidence workflow.
@@ -153,6 +195,7 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadFullEvidenceAsync()
     {
+        Logger.LogDebug("Component method ProviderModelBenchmarkTaskEvidence.LoadFullEvidenceAsync completed.");
         if (isLoadingFullEvidence || string.IsNullOrWhiteSpace(Task.EvidenceArtifactId))
             return;
         isLoadingFullEvidence = true;
@@ -180,5 +223,26 @@
             fullEvidenceError = nextError;
             isLoadingFullEvidence = false;
         }).ConfigureAwait(false);
+    
+    }
+
+
+    /// <summary>Computes StatusSummary for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetStatusSummaryForRender()
+    {
+        try
+        {
+            return Task.Succeeded
+        ? $"quality {Task.QualityScore:0.00} · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)"
+        : string.IsNullOrWhiteSpace(Task.Error)
+            ? $"not contract-compliant · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)"
+            : $"failed · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkTaskEvidence.StatusSummary failed.");
+            throw;
+        }
     }
 }

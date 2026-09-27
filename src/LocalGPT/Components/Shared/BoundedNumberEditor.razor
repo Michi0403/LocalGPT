@@ -1,5 +1,12 @@
 @using System.Globalization
 
+@inject ILogger<BoundedNumberEditor> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner BoundedNumberEditor">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <div class="bounded-number-editor @CssClass">
     <label for="@InputId">@Label</label>
     <div class="bounded-number-control">
@@ -19,6 +26,11 @@
         </div>
     </div>
 </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -78,7 +90,16 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task OnNumberChangedAsync(int value)
     {
+        try
+        {
         await SetValueAsync(value).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method BoundedNumberEditor.OnNumberChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -88,6 +109,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SetValueAsync(int value)
     {
+        try
+        {
         var normalizedStep = Math.Max(1, Step);
         var normalized = Math.Clamp(value, Min, Max);
         if (normalizedStep > 1)
@@ -99,5 +122,12 @@
 
         Value = normalized;
         await InvokeAsync(() => ValueChanged.InvokeAsync(normalized)).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method BoundedNumberEditor.SetValueAsync failed.");
+            throw;
+        }
     }
 }

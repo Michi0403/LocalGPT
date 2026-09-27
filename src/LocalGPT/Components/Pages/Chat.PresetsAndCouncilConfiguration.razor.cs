@@ -80,8 +80,18 @@ namespace LocalGPT.Components.Pages
     /// Refreshes hardware performance presets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task RefreshHardwarePerformancePresetsAsync() =>
-        LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token);
+    private Task RefreshHardwarePerformancePresetsAsync()
+    {
+        try
+        {
+            return LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.RefreshHardwarePerformancePresetsAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Handles the hardware performance preset changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
@@ -170,8 +180,18 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="preset">Service-backed preset selected by the user, or <see langword="null"/> when no preset is selected.</param>
     /// <returns>A task that completes after the shared hardware-preset application path has finished.</returns>
-    private Task OnQuickHardwarePerformancePresetChangedAsync(HardwarePerformancePreset? preset) =>
-        OnHardwarePerformancePresetChangedAsync(new ChangeEventArgs { Value = preset?.Id.ToString() ?? string.Empty });
+    private Task OnQuickHardwarePerformancePresetChangedAsync(HardwarePerformancePreset? preset)
+    {
+        try
+        {
+            return OnHardwarePerformancePresetChangedAsync(new ChangeEventArgs { Value = preset?.Id.ToString() ?? string.Empty });
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.OnQuickHardwarePerformancePresetChangedAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Persists hardware performance preset for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
@@ -179,6 +199,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveHardwarePerformancePresetAsync()
     {
+        try
+        {
         await RunUiActionAsync(async () =>
         {
             isHardwarePerformancePresetBusy = true;
@@ -210,6 +232,13 @@ namespace LocalGPT.Components.Pages
                 isHardwarePerformancePresetBusy = false;
             }
         }, "Save hardware performance preset").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.SaveHardwarePerformancePresetAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -218,6 +247,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DeleteHardwarePerformancePresetAsync()
     {
+        try
+        {
         if (SelectedHardwarePerformancePreset is null)
             return;
         await RunUiActionAsync(async () =>
@@ -239,6 +270,13 @@ namespace LocalGPT.Components.Pages
                 isHardwarePerformancePresetBusy = false;
             }
         }, "Delete hardware performance preset").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.DeleteHardwarePerformancePresetAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -365,13 +403,25 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="preset">Service-backed Council model preset selected by the user, or <see langword="null"/> when no preset is selected.</param>
     /// <returns>A task that completes after the shared model-preset application path has finished.</returns>
-    private Task OnQuickModelPresetChangedAsync(CouncilModelPreset? preset) =>
-        OnModelPresetChangedAsync(new ChangeEventArgs { Value = preset?.Id.ToString() ?? string.Empty });
+    private Task OnQuickModelPresetChangedAsync(CouncilModelPreset? preset)
+    {
+        try
+        {
+            return OnModelPresetChangedAsync(new ChangeEventArgs { Value = preset?.Id.ToString() ?? string.Empty });
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.OnQuickModelPresetChangedAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Applies the built-in low-latency ASCII gameplay preset without changing the selected Council team or hardware-performance profile.</summary>
     /// <returns>A task that completes after the normal shared preset application path has run.</returns>
     private async Task ApplyReactiveAsciiGameplayPresetAsync()
     {
+        try
+        {
         var preset = ModelPresets.FirstOrDefault(item => string.Equals(item.Name, "Reactive ASCII Gameplay", StringComparison.OrdinalIgnoreCase));
         if (preset is null)
         {
@@ -381,6 +431,13 @@ namespace LocalGPT.Components.Pages
         }
 
         await OnQuickModelPresetChangedAsync(preset).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.ApplyReactiveAsciiGameplayPresetAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -389,6 +446,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="preset">Preset value supplied to the chat operation and used when producing its result.</param>
     private void ApplyModelPreset(CouncilModelPreset preset)
     {
+        try
+        {
         SelectedModelPreset = preset;
         ModelPresetName = preset.Name;
         SelectedCouncilModelNames = NormalizeProviderSelectionKeys(
@@ -415,6 +474,13 @@ namespace LocalGPT.Components.Pages
             OllamaAccelerationMode = Catalog.OllamaModeAutoGpu;
 
         SavePreparationConfiguration();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.ApplyModelPreset failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -423,6 +489,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveModelPresetAsync()
     {
+        try
+        {
         await RunUiActionAsync(async () =>
         {
             isModelPresetBusy = true;
@@ -456,6 +524,13 @@ namespace LocalGPT.Components.Pages
                 isModelPresetBusy = false;
             }
         }, "Save model preset").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.SaveModelPresetAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -464,6 +539,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ArchiveModelPresetAsync()
     {
+        try
+        {
         if (SelectedModelPreset is null)
             return;
         await RunUiActionAsync(async () =>
@@ -482,6 +559,13 @@ namespace LocalGPT.Components.Pages
                 isModelPresetBusy = false;
             }
         }, "Archive model preset").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.ArchiveModelPresetAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -489,6 +573,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void SavePreparationConfiguration()
     {
+        try
+        {
         if (DiagnosticCouncilModelNames.Count > 0)
             return;
 
@@ -510,6 +596,13 @@ namespace LocalGPT.Components.Pages
             ModelPresetId = SelectedModelPreset?.Id,
             HardwarePerformancePresetId = SelectedHardwarePerformancePreset?.Id
         });
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.SavePreparationConfiguration failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -518,6 +611,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
     private void ApplyPreparationConfiguration(CouncilPreparationConfiguration configuration)
     {
+        try
+        {
         SelectedModelPreset = configuration.ModelPresetId is Guid modelPresetId
             ? ModelPresets.FirstOrDefault(item => item.Id == modelPresetId)
             : null;
@@ -557,12 +652,21 @@ namespace LocalGPT.Components.Pages
         }
 
         modelStatus = "Restored the last Council preparation settings for this LocalGPT process.";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.ApplyPreparationConfiguration failed.");
+            throw;
+        }
     }
 
     /// <summary>Restores the detailed and compact Chat configuration selectors from the authoritative configuration captured by a live Council session.</summary>
     /// <param name="snapshot">Running Council configuration snapshot being rejoined by this browser circuit.</param>
     private void ApplyRejoinedCouncilPreparationSnapshot(CouncilRunConfigurationSnapshot snapshot)
     {
+        try
+        {
         var preparation = new CouncilPreparationConfiguration(
             snapshot.Participants,
             snapshot.ModelRoutes,
@@ -584,6 +688,13 @@ namespace LocalGPT.Components.Pages
 
         ApplyPreparationConfiguration(preparation);
         modelStatus = $"Restored the configuration captured by running Council {ShortCouncilRunId(snapshot.RunId)} for this Chat circuit.";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.ApplyRejoinedCouncilPreparationSnapshot failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -591,8 +702,11 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    private bool UpdateActiveCouncilConfiguration(Guid runId) =>
-        CouncilRunConfigurations.Update(
+    private bool UpdateActiveCouncilConfiguration(Guid runId)
+    {
+        try
+        {
+            return CouncilRunConfigurations.Update(
             runId,
             ActiveCouncilModelRoutes,
             ActiveCouncilResourceLoadPercent,
@@ -602,6 +716,13 @@ namespace LocalGPT.Components.Pages
             ActiveCouncilAllowParallelHardwareRoads,
             ActiveCouncilMaxParallelModels,
             ActiveCouncilModelTimeoutSeconds);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.UpdateActiveCouncilConfiguration failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Handles the council max output tokens changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
@@ -610,6 +731,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilMaxOutputTokensChangedAsync(int value)
     {
+        try
+        {
         value = Math.Clamp(value, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
@@ -628,6 +751,13 @@ namespace LocalGPT.Components.Pages
         }
 
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.OnCouncilMaxOutputTokensChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -637,6 +767,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilMaxContextTokensChangedAsync(int value)
     {
+        try
+        {
         value = Math.Clamp(value, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
@@ -654,6 +786,13 @@ namespace LocalGPT.Components.Pages
         }
 
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.OnCouncilMaxContextTokensChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -662,10 +801,19 @@ namespace LocalGPT.Components.Pages
     /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
     private void OnLimitedGpuLayersChanged(int value)
     {
+        try
+        {
         LimitedGpuLayers = Math.Clamp(value, 1, 99);
         SelectedModelPreset = null;
         SavePreparationConfiguration();
         modelStatus = $"Limited GPU mode will use {LimitedGpuLayers} Ollama GPU layer(s).";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.OnLimitedGpuLayersChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -674,10 +822,19 @@ namespace LocalGPT.Components.Pages
     /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
     private void OnCouncilCritiqueRoundsChanged(int value)
     {
+        try
+        {
         CouncilCritiqueRounds = Math.Clamp(value, 0, 3);
         SelectedModelPreset = null;
         SavePreparationConfiguration();
         modelStatus = $"Future Council runs will use {CouncilCritiqueRounds} peer review round(s).";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PresetsAndCouncilConfiguration.OnCouncilCritiqueRoundsChanged failed.");
+            throw;
+        }
     }
     }
 }

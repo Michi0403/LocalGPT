@@ -65,25 +65,58 @@ namespace LocalGPT.Components.Pages
     /// Starts Ollama for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task StartOllamaAsync() => RunOllamaProcessActionAsync(
+    private Task StartOllamaAsync()
+    {
+        try
+        {
+            return RunOllamaProcessActionAsync(
         cancellationToken => OllamaProcesses.StartAsync(cancellationToken),
         "Start Ollama");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.StartOllamaAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Stops Ollama for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task StopOllamaAsync() => RunOllamaProcessActionAsync(
+    private Task StopOllamaAsync()
+    {
+        try
+        {
+            return RunOllamaProcessActionAsync(
         cancellationToken => OllamaProcesses.StopAsync(cancellationToken),
         "Stop Ollama");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.StopOllamaAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs restart Ollama for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task RestartOllamaAsync() => RunOllamaProcessActionAsync(
+    private Task RestartOllamaAsync()
+    {
+        try
+        {
+            return RunOllamaProcessActionAsync(
         cancellationToken => OllamaProcesses.RestartAsync(cancellationToken),
         "Restart Ollama");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.RestartOllamaAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs run Ollama process action for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
@@ -255,6 +288,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The provider model reference produced by the operation.</returns>
     private ProviderModelReference ToProviderModel(LocalAiHostDiscoveryResult host, LocalAiModelInfo model)
     {
+        try
+        {
         var isOllama = host.Provider.Equals("Ollama", StringComparison.OrdinalIgnoreCase);
         var identity = new ProviderModelIdentity();
         var endpoint = isOllama
@@ -276,6 +311,13 @@ namespace LocalGPT.Components.Pages
             SupportsBenchmark = host.IsReachable,
             Details = host.Status
         };
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.ToProviderModel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -285,9 +327,18 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnInstallBenchmarkAppliedAsync(ProviderModelBenchmarkAppliedEvent applied)
     {
+        try
+        {
         ConnectivityStatus = $"Benchmark recommendation applied for {applied.Model.SelectionKey} as preset {applied.Preset.Name}. Save provider settings separately only when you changed the active setup model.";
         Notifier.ShowSuccess(toastName, ConnectivityStatus, "Benchmark settings applied");
         return InvokeAsync(StateHasChanged);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.OnInstallBenchmarkAppliedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -363,6 +414,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void AddOpenAiCompatibleHost()
     {
+        try
+        {
         Model.ChatGPTLocalCores ??= new List<ChatGPTLocalCoreOptions>();
         Model.ChatGPTLocalCores.Add(new ChatGPTLocalCoreOptions
         {
@@ -371,6 +424,13 @@ namespace LocalGPT.Components.Pages
             ModelName = string.Empty,
             AutoStartServer = false
         });
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.AddOpenAiCompatibleHost failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -638,9 +698,18 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string GetEndpointHostLabel(string? endpoint)
     {
+        try
+        {
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
             return string.IsNullOrWhiteSpace(endpoint) ? "unknown" : "invalid-endpoint";
         return $"{uri.Host}:{uri.Port}";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.GetEndpointHostLabel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -732,8 +801,17 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RemoveOpenAiCompatibleHostAsync(ChatGPTLocalCoreOptions host)
     {
+        try
+        {
         Model.ChatGPTLocalCores?.Remove(host);
         await Save().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.RemoveOpenAiCompatibleHostAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -896,9 +974,19 @@ namespace LocalGPT.Components.Pages
     /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
     private string NormalizeProviderEndpoint(string? endpoint)
-        => string.IsNullOrWhiteSpace(endpoint)
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(endpoint)
             ? string.Empty
             : new ProviderModelIdentity().NormalizeEndpoint(endpoint);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.NormalizeProviderEndpoint failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs test open AI for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
@@ -966,8 +1054,8 @@ namespace LocalGPT.Components.Pages
             await Writer.SaveAsync(root).ConfigureAwait(false);
             persistedSuccessfully = true;
 
-            await Append("Saved durable provider and network endpoint settings. A changed network listener becomes active after restart.").ConfigureAwait(false);
-            Notifier.ShowSuccess(toastName, "Provider/network settings saved. Restart LocalGPT to apply listener changes.", "Saved");
+            await Append("Saved durable provider, network endpoint and MCP gateway settings. Changed listener bindings become active after restart.").ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, "Provider/network/MCP settings saved. Restart LocalGPT to apply listener changes.", "Saved");
         }
         catch (Exception ex)
         {
@@ -993,6 +1081,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="root">Root value supplied to the install operation and used when producing its result.</param>
     private void ApplyModelsToConfiguration(LocalGPT.BusinessObjects.ConfigurationRoot root)
     {
+        try
+        {
         root.AICore ??= new AICoreOptions();
         ProviderConfigurationRegistry.ApplyDetachedDraft(
             root.AICore,
@@ -1011,6 +1101,15 @@ namespace LocalGPT.Components.Pages
             CertificatePath = NetworkModel.CertificatePath?.Trim() ?? string.Empty,
             CertificatePassword = NetworkModel.CertificatePassword ?? string.Empty
         };
+        McpGatewayModel = NormalizeMcpGatewayDraft(McpGatewayModel);
+        root.LocalGPT.McpGateway = CloneMcpGatewayOptions(McpGatewayModel);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ProvidersAndSave.ApplyModelsToConfiguration failed.");
+            throw;
+        }
     }
 
     /// <summary>

@@ -49,10 +49,10 @@ namespace LocalGPT.Components.Pages
     /// <value>The chat configuration sections value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<WorkbenchNavItem> ChatConfigurationSections =>
     [
-        new("provider", Localization.Get("Chat.Configuration.Provider", fallback: "Provider"), "Configured AI sessions and per-model properties.", ModelsList.Count.ToString()),
-        new("council", Localization.Get("Chat.Configuration.Council", fallback: "AI Council"), "Council members, hosts, hardware roads, presets and team workflow.", CouncilEditorModelNames.Count.ToString()),
-        new("memory", Localization.Get("Chat.Configuration.MemoryProjects", fallback: "Memory & projects"), "Saved conversations, project and release context.", SavedConversations.Count.ToString()),
-        new("architecture", Localization.Get("Chat.Configuration.Architecture", fallback: "Architecture"), "Optional implementation decisions for the next Council answer.")
+        new("provider", Localization.Get("Chat.Configuration.Provider", fallback: "Provider"), Localization.GetText("Configured AI sessions and per-model properties."), ModelsList.Count.ToString()),
+        new("council", Localization.Get("Chat.Configuration.Council", fallback: "AI Council"), Localization.GetText("Council members, hosts, hardware roads, presets and team workflow."), CouncilEditorModelNames.Count.ToString()),
+        new("memory", Localization.Get("Chat.Configuration.MemoryProjects", fallback: "Memory & projects"), Localization.GetText("Saved conversations, project and release context."), SavedConversations.Count.ToString()),
+        new("architecture", Localization.Get("Chat.Configuration.Architecture", fallback: "Architecture"), Localization.GetText("Optional implementation decisions for the next Council answer."))
     ];
 
     /// <summary>Gets provider choices for the DevExpress chat provider selector.</summary>
@@ -131,8 +131,17 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnChatConfigurationSectionChangedAsync(string key)
     {
+        try
+        {
         ActiveChatConfigurationSection = key;
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.OnChatConfigurationSectionChangedAsync failed.");
+            throw;
+        }
     }
 
     /*in razor can render as html..  AllowedFileExtensions="@Catalog.AllowedUploadExtensions"
@@ -516,7 +525,18 @@ namespace LocalGPT.Components.Pages
     /// <param name="key">Key value supplied to the chat operation and used when producing its result.</param>
     /// <param name="fallback">Fallback value supplied to the chat operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string L(string key, string fallback) => Localization.Get(key, fallback: fallback);
+    private string L(string key, string fallback)
+    {
+        try
+        {
+            return Localization.Get(key, fallback: fallback);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.L failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the diagnostic council model names collection maintained or exposed by this chat instance for downstream processing.
@@ -940,8 +960,17 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string LiveCouncilTranscript(Guid runId, string fallbackContent)
     {
+        try
+        {
         var latestTranscript = CouncilLiveSessions.GetTranscriptForDisplay(runId);
         return string.IsNullOrWhiteSpace(latestTranscript) ? fallbackContent : latestTranscript;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncilTranscript failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1099,23 +1128,50 @@ namespace LocalGPT.Components.Pages
     /// <summary>Receives authoritative game availability from the mounted shared ASCII terminal.</summary>
     private Task OnAsciiGameAvailabilityChangedAsync(bool available)
     {
+        try
+        {
         asciiGameAvailable = available;
         return InvokeAsync(StateHasChanged);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.OnAsciiGameAvailabilityChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Toggles contextual ASCII creativity for subsequent chat/model turns without opening or closing the terminal.</summary>
     /// <returns>A task that completes after the updated fun-mode state is rendered.</returns>
     private Task ToggleAsciiFunModeAsync()
     {
+        try
+        {
         AsciiFunModeEnabled = !AsciiFunModeEnabled;
         return InvokeAsync(StateHasChanged);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.ToggleAsciiFunModeAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Toggles the shared ASCII terminal while preserving the canonical DXAiChat conversation as the single source of truth.</summary>
     /// <returns>A task that completes after the newest chat snapshot has been mirrored when opening the terminal.</returns>
     private async Task ToggleGameConsoleAsync()
     {
+        try
+        {
         await OnGameConsoleVisibilityChangedAsync(!showGameConsole).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.ToggleGameConsoleAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Synchronizes the DevExpress popup visibility with the circuit-scoped ASCII experience state.</summary>
@@ -1123,6 +1179,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes after an opening surface has refreshed its replayable transcript.</returns>
     private async Task OnGameConsoleVisibilityChangedAsync(bool visible)
     {
+        try
+        {
         var opening = visible && !showGameConsole;
         showGameConsole = visible;
         if (opening)
@@ -1137,6 +1195,13 @@ namespace LocalGPT.Components.Pages
         await RefreshAsciiConversationMirrorAsync().ConfigureAwait(false);
         StartAsciiConversationMirrorLoop();
         await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.OnGameConsoleVisibilityChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1144,15 +1209,26 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void CloseGameConsole()
     {
+        try
+        {
         showGameConsole = false;
         UpdateAsciiExperienceState();
         _ = InvokeAsync(StateHasChanged);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CloseGameConsole failed.");
+            throw;
+        }
     }
 
     /// <summary>Publishes an OPEN ASCII surface before a Council team marked as presentation-required can start provider work.</summary>
     /// <returns><c>true</c> when this call changed the popup from closed to open.</returns>
     private bool EnsureRequiredAsciiSurfaceState()
     {
+        try
+        {
         var selectedTeam = CouncilTeams.FirstOrDefault(team =>
             string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase));
         if (!AsciiText.RequiresAsciiSurface(selectedTeam))
@@ -1165,17 +1241,33 @@ namespace LocalGPT.Components.Pages
         UpdateAsciiExperienceState();
         StartAsciiConversationMirrorLoop();
         return opened;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.EnsureRequiredAsciiSurfaceState failed.");
+            throw;
+        }
     }
 
     /// <summary>Opens and refreshes the required ASCII surface after a renderer-affine Council team selection.</summary>
     /// <returns>A task that completes after the surface state and mirrored transcript are ready for rendering.</returns>
     private async Task EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync()
     {
+        try
+        {
         if (!EnsureRequiredAsciiSurfaceState())
             return;
 
         await RefreshAsciiConversationMirrorAsync().ConfigureAwait(false);
         await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Publishes the current ASCII terminal/fun-mode state to circuit-scoped provider and Council prompt builders.</summary>
@@ -1194,6 +1286,8 @@ namespace LocalGPT.Components.Pages
     /// <summary>Starts one bounded, supervised mirror loop that refreshes the ASCII transcript only while the terminal is open.</summary>
     private void StartAsciiConversationMirrorLoop()
     {
+        try
+        {
         if (Interlocked.CompareExchange(ref asciiMirrorLoopRunning, 1, 0) != 0)
             return;
 
@@ -1202,6 +1296,13 @@ namespace LocalGPT.Components.Pages
             "ASCII chat transcript mirror",
             RunAsciiConversationMirrorLoopAsync,
             componentLifetimeCts.Token);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.StartAsciiConversationMirrorLoop failed.");
+            throw;
+        }
     }
 
     /// <summary>Refreshes the replayable ASCII transcript at a low bounded cadence without creating a second conversation store.</summary>
@@ -1449,6 +1550,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadCouncilTeamsAsync(CancellationToken cancellationToken = default)
     {
+        try
+        {
         var teams = await CouncilTeamConfigurations
             .GetTeamsAsync(includeDisabled: false, cancellationToken)
             .ConfigureAwait(false);
@@ -1466,6 +1569,13 @@ namespace LocalGPT.Components.Pages
             RefreshPromptSuggestions();
         }).ConfigureAwait(false);
         await InvokeAsync(EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LoadCouncilTeamsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1475,6 +1585,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes after the current team list and team-filtered prompt suggestions have been synchronized.</returns>
     private async Task RefreshCouncilTeamItemsAsync(CancellationToken cancellationToken = default)
     {
+        try
+        {
         var selectedKey = string.Empty;
         await InvokeAsync(() => selectedKey = SelectedCouncilTeamKey).ConfigureAwait(false);
         var teams = await CouncilTeamConfigurations
@@ -1493,18 +1605,34 @@ namespace LocalGPT.Components.Pages
             RefreshPromptSuggestions();
         }).ConfigureAwait(false);
         await InvokeAsync(EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.RefreshCouncilTeamItemsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Applies a user-selected Council team and refreshes its connected pre-prompts.</summary>
     /// <param name="args">Select change event containing the requested team key.</param>
     private async Task OnCouncilTeamChanged(ChangeEventArgs args)
     {
+        try
+        {
         var requested = Convert.ToString(args.Value)?.Trim();
         if (!string.IsNullOrWhiteSpace(requested) && CouncilTeams.Any(team => string.Equals(team.Key, requested, StringComparison.OrdinalIgnoreCase)))
             SelectedCouncilTeamKey = requested;
         RefreshPromptSuggestions();
         SavePreparationConfiguration();
         await EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.OnCouncilTeamChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1514,13 +1642,24 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes after prompt suggestions and preparation state have been synchronized.</returns>
     private async Task OnQuickCouncilTeamChangedAsync(OrganicCouncilTeamDefinition? team)
     {
+        try
+        {
         await OnCouncilTeamChanged(new ChangeEventArgs { Value = team?.Key ?? string.Empty }).ConfigureAwait(false);
         await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.OnQuickCouncilTeamChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Filters the DevExpress prompt suggestions to generic prompts plus prompts connected to the selected team.</summary>
     private void RefreshPromptSuggestions()
     {
+        try
+        {
         // Normal quick prompts remain available for every model/session. Team filtering only
         // controls the additional direct Council starters, so selecting a development team
         // never removes the familiar DxAIChat suggestions.
@@ -1529,6 +1668,13 @@ namespace LocalGPT.Components.Pages
             .OrderByDescending(item => item.StartsCouncilDirectly)
             .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.RefreshPromptSuggestions failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1537,6 +1683,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadDatabaseBackedDefaultsAsync()
     {
+        try
+        {
         await MigrateCouncilDefaultsAsync().ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultMaxOutputTokens,
@@ -1564,6 +1712,13 @@ namespace LocalGPT.Components.Pages
             value => OllamaEndpoint = string.IsNullOrWhiteSpace(value)
                 ? Catalog.DefaultOllamaEndpoint
                 : value.Trim()).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LoadDatabaseBackedDefaultsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>

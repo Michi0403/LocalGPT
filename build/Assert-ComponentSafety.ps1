@@ -52,13 +52,18 @@ Get-ChildItem -Path $componentRoot -Recurse -Filter '*.razor' -File |
                 }
             }
             if ($matches.Count -eq 0) {
-                $errors.Add("$($_.FullName): missing top-level component safety directive '$directive'.")
+                $relative = $_.FullName.Substring($RepositoryRoot.Length).TrimStart([char[]]@([char]'\', [char]'/')).Replace('\','/')
+                $errors.Add("${relative}(1,1): error RAZORLOG0001: missing top-level component safety directive '$directive'.`n  Architectural choices: restore the required top-level safety injection in the directive block; keep component-local logging/notification/activity ownership and do not replace it with a global-only shortcut.")
             }
             elseif ($matches.Count -gt 1) {
-                $errors.Add("$($_.FullName): duplicate component safety directive '$directive'.")
+                $relative = $_.FullName.Substring($RepositoryRoot.Length).TrimStart([char[]]@([char]'\', [char]'/')).Replace('\','/')
+                $lineNumber = $matches[0] + 1
+                $errors.Add("${relative}(${lineNumber},1): error RAZORLOG0001: duplicate component safety directive '$directive'.`n  Architectural choices: keep exactly one top-level injection and remove only the duplicate declaration; do not remove the underlying safety service.")
             }
             elseif ($matches[0] -ge $boundaryLine) {
-                $errors.Add("$($_.FullName): component safety directive '$directive' must stay in the top directive/using section.")
+                $relative = $_.FullName.Substring($RepositoryRoot.Length).TrimStart([char[]]@([char]'\', [char]'/')).Replace('\','/')
+                $lineNumber = $matches[0] + 1
+                $errors.Add("${relative}(${lineNumber},1): error RAZORLOG0001: component safety directive '$directive' must stay in the top directive/using section.`n  Architectural choices: move the existing directive into the top directive block without changing the component lifecycle or replacing the service.")
             }
         }
 
@@ -87,11 +92,21 @@ if (-not ($appContent.IndexOf('<ToastWrapper Name="ComponentSafetyToasts"', [Sys
     exit 1
 }
 
-$program = Join-Path $RepositoryRoot 'src/LocalGPT/Program.cs'
-$programContent = Get-Content -LiteralPath $program -Raw
-if ($programContent.IndexOf('AddSingleton<IComponentActivityService, ComponentActivityService>()', [System.StringComparison]::Ordinal) -lt 0) {
-    Write-Error 'Program.cs must retain the bounded component activity service registration.'
+$serviceRegistration = Join-Path $RepositoryRoot 'src/LocalGPT/Program.ServiceRegistration.cs'
+if (-not (Test-Path -LiteralPath $serviceRegistration)) {
+    Write-Error 'src/LocalGPT/Program.ServiceRegistration.cs(1,1): error RAZORLOG0010: component activity service registration source is missing. Architectural choices: restore the existing service-registration partial; do not move the bounded activity service into ad-hoc component construction.'
     exit 1
+}
+$serviceRegistrationContent = Get-Content -LiteralPath $serviceRegistration -Raw
+foreach ($requiredFragment in @(
+    'AddSingleton<ComponentActivityService>()',
+    'AddSingleton<IComponentActivityService>(services =>',
+    'GetRequiredService<ComponentActivityService>()',
+    'AddSingleton<IServiceActivityService>(services =>')) {
+    if ($serviceRegistrationContent.IndexOf($requiredFragment, [System.StringComparison]::Ordinal) -lt 0) {
+        Write-Error "src/LocalGPT/Program.ServiceRegistration.cs(1,1): error RAZORLOG0010: bounded component activity registration is incomplete; missing '$requiredFragment'. Architectural choices: keep one singleton ComponentActivityService and map both activity interfaces back to that same instance. Do not weaken the component safety guard or create per-component activity stores."
+        exit 1
+    }
 }
 
 $bootstrap = Join-Path $RepositoryRoot 'src/LocalGPT/Services/AiContextBootstrapService.cs'

@@ -236,7 +236,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                using var document = JsonDocument.Parse(raw);
+                using var document = JsonDocument.Parse(EscapeUnescapedJsonControlCharacters(raw));
                 using var stream = new MemoryStream();
                 using (var writer = new Utf8JsonWriter(
                     stream,
@@ -302,6 +302,73 @@ namespace LocalGPT.Services
             {
                 serviceLogger.LogError(exception, "Formatting provider/tool JSON for the user-visible code surface failed; payload content was omitted from diagnostics.");
                 return raw;
+            }
+        }
+
+        /// <summary>Escapes raw control characters that providers occasionally place inside JSON string tokens.</summary>
+        private string EscapeUnescapedJsonControlCharacters(string raw)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(raw))
+                    return raw;
+
+                var builder = new StringBuilder(raw.Length + 16);
+                var inString = false;
+                var escaped = false;
+                foreach (var character in raw)
+                {
+                    if (!inString)
+                    {
+                        builder.Append(character);
+                        if (character == '"')
+                            inString = true;
+                        continue;
+                    }
+
+                    if (escaped)
+                    {
+                        builder.Append(character);
+                        escaped = false;
+                        continue;
+                    }
+
+                    if (character == '\\')
+                    {
+                        builder.Append(character);
+                        escaped = true;
+                        continue;
+                    }
+
+                    if (character == '"')
+                    {
+                        builder.Append(character);
+                        inString = false;
+                        continue;
+                    }
+
+                    switch (character)
+                    {
+                        case '\n': builder.Append("\\n"); break;
+                        case '\r': builder.Append("\\r"); break;
+                        case '\t': builder.Append("\\t"); break;
+                        case '\b': builder.Append("\\b"); break;
+                        case '\f': builder.Append("\\f"); break;
+                        default:
+                            if (character < 0x20)
+                                builder.Append("\\u").Append(((int)character).ToString("x4"));
+                            else
+                                builder.Append(character);
+                            break;
+                    }
+                }
+
+                return builder.ToString();
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Escaping provider/tool JSON control characters failed.");
+                throw;
             }
         }
 

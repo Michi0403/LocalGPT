@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/project-maintenance"
+@attribute [LocalGptUiLayoutSurface("page", "Project Maintenance", "/project-maintenance", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("editor", "Project Maintenance · editor", "/project-maintenance")]
 @using LocalGPT.Services.Localization
 @inject ILocalGptProjectService Projects
 @inject IProjectMaintenanceService Maintenance
@@ -9,7 +11,14 @@
 @inject INotificationService Notifier
 @inject CouncilTextService CouncilText
 
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ProjectMaintenance">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>@T("ProjectMaintenance.Title", "Project maintenance")</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(ProjectMaintenance)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <main class="maintenance-page">
     <ToastWrapper Name="ProjectMaintenanceToasts" />
@@ -21,7 +30,11 @@
         <DxButton Text='@T("Common.Refresh", "Refresh")' Enabled="@(!busy)" Click="LoadAsync" />
     </header>
 
-    <section class="maintenance-grid">
+    <LocalGptFormLayoutSurface OwnerType="@typeof(ProjectMaintenance)" SectionName="editor" CanHide="true">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="maintenance-grid">
         <article class="maintenance-card">
             <h2>@T("ProjectMaintenance.Project", "Project and solution")</h2>
             <label>
@@ -259,7 +272,11 @@
                 <DxButton Text='@T("ProjectMaintenance.SaveCouncilReview", "Save council review")' Enabled="@(!busy)" Click="SaveCouncilReviewAsync" />
             }
         </article>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</LocalGptFormLayoutSurface>
 
     <LocalPathExplorer Visible="@pathExplorerVisible"
                        VisibleChanged="OnPathExplorerVisibleChanged"
@@ -270,51 +287,70 @@
                        Title="@PathExplorerTitle" />
 </main>
 
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
 @code {
     /// <summary>
     /// Defines the toast name constant used by <see cref="ProjectMaintenance"/> so callers and internal logic share the same stable value.
     /// </summary>
     const string ToastName = "ProjectMaintenanceToasts";
 
-    /// <summary>Gets project choices for the DevExpress maintenance selector.</summary>
+    /// <summary>
+    /// Gets the project selection options collection maintained or exposed by this project maintenance instance for downstream processing.
+    /// </summary>
+    /// <value>The project selection options value exposed by <see cref="ProjectMaintenance"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> ProjectSelectionOptions =>
-        [new(string.Empty, T("ProjectMaintenance.SelectProject", "Select a project")),
-         .. projectSummaries.Select(project => new LocalGptSelectionOption<string>(project.Id.ToString(), project.DisplayName))];
+        GetProjectSelectionOptionsForRender();
 
-    /// <summary>Gets revision choices for the selected project.</summary>
+    /// <summary>
+    /// Gets the revision selection options collection maintained or exposed by this project maintenance instance for downstream processing.
+    /// </summary>
+    /// <value>The revision selection options value exposed by <see cref="ProjectMaintenance"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> RevisionSelectionOptions =>
-        [new(string.Empty, T("ProjectMaintenance.SelectRevision", "Select a revision")),
-         .. (selectedProject?.Revisions.Select(revision => new LocalGptSelectionOption<string>(revision.Id.ToString(), $"{revision.BranchName}/{revision.RevisionName} {(revision.ReadyForTesting ? "✓" : string.Empty)}".TrimEnd()))
-             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+        GetRevisionSelectionOptionsForRender();
 
-    /// <summary>Gets tracked file choices for the selected revision.</summary>
+    /// <summary>
+    /// Gets the tracked file selection options collection maintained or exposed by this project maintenance instance for downstream processing.
+    /// </summary>
+    /// <value>The tracked file selection options value exposed by <see cref="ProjectMaintenance"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> TrackedFileSelectionOptions =>
-        [new(string.Empty, T("ProjectMaintenance.SelectTrackedFile", "Select a tracked file")),
-         .. trackedFiles.Select(file => new LocalGptSelectionOption<string>(file.Id.ToString(), file.ProjectRelativePath))];
+        GetTrackedFileSelectionOptionsForRender();
 
-    /// <summary>Gets supported workspace scope values with localized labels.</summary>
+    /// <summary>
+    /// Gets the workspace scope options collection maintained or exposed by this project maintenance instance for downstream processing.
+    /// </summary>
+    /// <value>The workspace scope options value exposed by <see cref="ProjectMaintenance"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> WorkspaceScopeOptions =>
-    [
-        new("Project", T("ProjectMaintenance.ScopeProject", "Selected project")),
-        new("ProjectType", T("ProjectMaintenance.ScopeProjectType", "Project type regex")),
-        new("Global", T("ProjectMaintenance.ScopeGlobal", "Global"))
-    ];
+    GetWorkspaceScopeOptionsForRender();
 
-    /// <summary>Gets supported local workspace environment kinds.</summary>
+    /// <summary>
+    /// Stores the internal environment kind options state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string[] EnvironmentKindOptions = ["LocalHost", "PythonNet", "PlatformIO", "ArduinoCLI", "Custom"];
 
-    /// <summary>Gets enabled compiler choices for an optional workspace preference.</summary>
+    /// <summary>
+    /// Gets the preferred compiler options collection maintained or exposed by this project maintenance instance for downstream processing.
+    /// </summary>
+    /// <value>The preferred compiler options value exposed by <see cref="ProjectMaintenance"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<Guid?>> PreferredCompilerOptions =>
-        [new(null, T("Common.None", "None")),
-         .. compilers.Where(item => item.IsEnabled).Select(compiler => new LocalGptSelectionOption<Guid?>(compiler.Id, $"{compiler.Language} · {compiler.Name}"))];
+        GetPreferredCompilerOptionsForRender();
 
-    /// <summary>Gets supported compiler language categories.</summary>
+    /// <summary>
+    /// Stores the internal compiler language options state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string[] CompilerLanguageOptions = ["DotNet", "Java", "Python", "Cpp", "Embedded", "PowerShell"];
 
-    /// <summary>Gets enabled compilers for build verification.</summary>
+    /// <summary>
+    /// Gets the compiler selection options collection maintained or exposed by this project maintenance instance for downstream processing.
+    /// </summary>
+    /// <value>The compiler selection options value exposed by <see cref="ProjectMaintenance"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> CompilerSelectionOptions =>
-        [new(string.Empty, T("ProjectMaintenance.SelectCompiler", "Select a compiler")),
-         .. compilers.Where(item => item.IsEnabled).Select(compiler => new LocalGptSelectionOption<string>(compiler.Id.ToString(), $"{compiler.Language} · {compiler.Name}"))];
+        GetCompilerSelectionOptionsForRender();
     /// <summary>
     /// Stores the in-memory project summaries collection maintained internally by <see cref="ProjectMaintenance"/> for its current workflow state.
     /// </summary>
@@ -432,40 +468,28 @@
     /// Gets a value indicating whether verify build applies to the project maintenance state.
     /// </summary>
     /// <value>The can verify build value exposed by <see cref="ProjectMaintenance"/>.</value>
-    bool CanVerifyBuild => !busy && selectedProjectId is not null && selectedRevisionId is not null && selectedCompilerId is not null;
+    bool CanVerifyBuild => GetCanVerifyBuildForRender();
 
     /// <summary>
     /// Gets the active path explorer path used by this project maintenance instance to locate the associated file-system resource.
     /// </summary>
     /// <value>The active path explorer path value exposed by <see cref="ProjectMaintenance"/>.</value>
-    string ActivePathExplorerPath => pathExplorerTarget switch
-    {
-        "RevisionSource" => revisionWorkspaceEdit.SourceRootPath,
-        "RevisionSolution" => revisionWorkspaceEdit.SolutionPath,
-        "EnvironmentRoot" => workspaceEdit.EnvironmentRootPath,
-        _ => workspaceEdit.RootPath
-    };
+    string ActivePathExplorerPath => GetActivePathExplorerPathForRender();
     /// <summary>
     /// Gets the path explorer selection mode used by this project maintenance instance to locate the associated file-system resource.
     /// </summary>
     /// <value>The path explorer selection mode value exposed by <see cref="ProjectMaintenance"/>.</value>
-    string PathExplorerSelectionMode => pathExplorerTarget == "RevisionSolution" ? "File" : "Directory";
+    string PathExplorerSelectionMode => GetPathExplorerSelectionModeForRender();
     /// <summary>
     /// Gets a value indicating whether path explorer includes files applies to the project maintenance state.
     /// </summary>
     /// <value>The path explorer includes files value exposed by <see cref="ProjectMaintenance"/>.</value>
-    bool PathExplorerIncludesFiles => pathExplorerTarget == "RevisionSolution";
+    bool PathExplorerIncludesFiles => GetPathExplorerIncludesFilesForRender();
     /// <summary>
     /// Gets the path explorer title used by this project maintenance instance to locate the associated file-system resource.
     /// </summary>
     /// <value>The path explorer title value exposed by <see cref="ProjectMaintenance"/>.</value>
-    string PathExplorerTitle => pathExplorerTarget switch
-    {
-        "RevisionSource" => "Choose revision source folder",
-        "RevisionSolution" => "Choose revision solution/project file",
-        "EnvironmentRoot" => "Choose local environment folder",
-        _ => "Choose project workspace folder"
-    };
+    string PathExplorerTitle => GetPathExplorerTitleForRender();
 
     /// <summary>
     /// Opens path explorer for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
@@ -473,8 +497,17 @@
     /// <param name="target">Target value supplied to the project maintenance operation and used when producing its result.</param>
     void OpenPathExplorer(string target)
     {
+        try
+        {
         pathExplorerTarget = target;
         pathExplorerVisible = true;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.OpenPathExplorer failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -484,8 +517,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     Task OnPathExplorerVisibleChanged(bool visible)
     {
+        try
+        {
         pathExplorerVisible = visible;
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.OnPathExplorerVisibleChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -495,6 +537,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     Task ApplyPathSelectionAsync(string path)
     {
+        try
+        {
         switch (pathExplorerTarget)
         {
             case "RevisionSource": revisionWorkspaceEdit.SourceRootPath = path; break;
@@ -504,6 +548,13 @@
         }
         pathExplorerVisible = false;
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.ApplyPathSelectionAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -512,16 +563,29 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnInitializedAsync()
     {
+        try
+        {
         workspaceEdit = RequestFactory.CreateWorkspaceRootRequest();
         compilerEdit = RequestFactory.CreateCompilerInstallationRequest();
         return LoadAsync();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.OnInitializedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Performs load for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    async Task LoadAsync() => await RunAsync(async () =>
+    async Task LoadAsync()
+    {
+        try
+        {
+            await RunAsync(async () =>
     {
         projectSummaries = (await Projects.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
         workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList();
@@ -532,6 +596,13 @@
             trackedFiles = (await Maintenance.GetTrackedFilesAsync(id, selectedRevisionId).ConfigureAwait(false)).ToList();
         }
     }, T("ProjectMaintenance.LoadFailed", "Could not load project maintenance settings.")).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.LoadAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs select project for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
@@ -539,6 +610,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SelectProjectAsync()
     {
+        try
+        {
         if (selectedProjectId is null) { selectedProject = null; selectedRevisionId = null; return; }
         await RunAsync(async () =>
         {
@@ -551,6 +624,13 @@
             selectedTrackedFileId = null;
             selectedTrackedFile = null;
         }, T("ProjectMaintenance.SelectFailed", "Could not select the project.")).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.SelectProjectAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -558,6 +638,8 @@
     /// </summary>
     void SelectRevision()
     {
+        try
+        {
         var revision = selectedRevisionId is Guid id ? selectedProject?.Revisions.FirstOrDefault(item => item.Id == id) : null;
         revisionWorkspaceEdit = revision is null
             ? new RegisterRevisionWorkspaceRequest()
@@ -566,6 +648,13 @@
                 SourceRootPath = string.IsNullOrWhiteSpace(revision.SourceRootPath) ? selectedProject?.Project.RootPath ?? string.Empty : revision.SourceRootPath,
                 SolutionPath = string.IsNullOrWhiteSpace(revision.SolutionPath) ? selectedProject?.Project.SolutionPath ?? string.Empty : revision.SolutionPath
             };
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.SelectRevision failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -574,6 +663,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveRevisionWorkspaceAsync()
     {
+        try
+        {
         if (selectedProjectId is not Guid projectId || selectedRevisionId is not Guid revisionId) return;
         await RunAsync(async () =>
         {
@@ -587,6 +678,13 @@
             }
             finally { revisionWorkspaceEdit.UserConfirmed = false; }
         }, T("ProjectMaintenance.RevisionWorkspaceSaveFailed", "Could not save the revision workspace.")).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.SaveRevisionWorkspaceAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -595,6 +693,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task RefreshTrackedFilesAsync()
     {
+        try
+        {
         if (selectedProjectId is not Guid projectId) { trackedFiles = []; return; }
         await RunAsync(async () =>
         {
@@ -602,6 +702,13 @@
             selectedTrackedFileId = null;
             selectedTrackedFile = null;
         }, T("ProjectMaintenance.FileMetadataLoadFailed", "Could not load tracked file metadata.")).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.RefreshTrackedFilesAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -610,6 +717,8 @@
     /// <param name="workspace">Workspace value supplied to the project maintenance operation and used when producing its result.</param>
     void EditWorkspace(ProjectWorkspaceRoot workspace)
     {
+        try
+        {
         workspaceEdit = new SaveProjectWorkspaceRootRequest
         {
             Id = workspace.Id,
@@ -631,6 +740,13 @@
             IsDefault = workspace.IsDefault,
             IsEnabled = workspace.IsEnabled
         };
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.EditWorkspace failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -638,79 +754,156 @@
     /// </summary>
     /// <param name="workspaceId">Identifier of the workspace to use for this operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    async Task AssessWorkspaceAsync(Guid workspaceId) => await RunAsync(async () =>
+    async Task AssessWorkspaceAsync(Guid workspaceId)
+    {
+        try
+        {
+            await RunAsync(async () =>
     {
         var assessment = await Maintenance.AssessWorkspacePermissionsAsync(workspaceId, userConfirmedWriteProbe: true).ConfigureAwait(false);
         workspaceAssessments[workspaceId] = assessment;
         workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList();
         Notifier.ShowSuccess(ToastName, $"Workspace assessment: {assessment.Status}", T("Common.Completed", "Completed"));
     }, T("ProjectMaintenance.WorkspaceAssessmentFailed", "Workspace permission assessment failed.")).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.AssessWorkspaceAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs permission boolean for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
     /// </summary>
     /// <param name="value">Value indicating whether value should apply to this operation.</param>
     /// <returns>The string produced by the operation.</returns>
-    static string PermissionBoolean(bool value) => value ? "✓" : "—";
+    string PermissionBoolean(bool value)
+    {
+        try
+        {
+            return value ? "✓" : "—";
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.PermissionBoolean failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Performs permission icon for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
     /// </summary>
     /// <param name="status">Status value supplied to the project maintenance operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    static string PermissionIcon(string status) => status switch
+    string PermissionIcon(string status)
+    {
+        try
+        {
+            return status switch
     {
         "Approved" => "✓",
         "Danger" => "⛔",
         "Warning" => "⚠",
         _ => "○"
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.PermissionIcon failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Persists workspace for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    async Task SaveWorkspaceAsync() => await RunAsync(async () =>
+    async Task SaveWorkspaceAsync()
+    {
+        try
+        {
+            await RunAsync(async () =>
     {
         workspaceEdit.ProjectId = workspaceEdit.ScopeKind == "Project" ? selectedProjectId : null;
         workspaceEdit.UserConfirmed = true;
         try { await Maintenance.SaveWorkspaceRootAsync(workspaceEdit).ConfigureAwait(false); workspaceEdit = RequestFactory.CreateWorkspaceRootRequest(); workspaceEdit.ProjectId = selectedProjectId; workspaceRoots = (await Maintenance.GetWorkspaceRootsAsync(selectedProjectId).ConfigureAwait(false)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.WorkspaceSaved", "Workspace root saved."), T("Common.Saved", "Saved")); }
         finally { workspaceEdit.UserConfirmed = false; }
     }, T("ProjectMaintenance.WorkspaceSaveFailed", "Could not save the workspace root.")).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.SaveWorkspaceAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Discovers compilers for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    async Task DiscoverCompilersAsync() => await RunAsync(async () =>
+    async Task DiscoverCompilersAsync()
+    {
+        try
+        {
+            await RunAsync(async () =>
     {
         var request = new DiscoverProjectCompilersRequest { UserConfirmed = true, SaveDiscovered = true, CustomSearchRootsText = customCompilerRoots };
         await Maintenance.DiscoverCompilerInstallationsAsync(request).ConfigureAwait(false);
         compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
         Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerDiscoveryComplete", "Compiler discovery completed."), T("Common.Completed", "Completed"));
     }, T("ProjectMaintenance.CompilerDiscoveryFailed", "Compiler discovery failed.")).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.DiscoverCompilersAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Persists compiler for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    async Task SaveCompilerAsync() => await RunAsync(async () =>
+    async Task SaveCompilerAsync()
+    {
+        try
+        {
+            await RunAsync(async () =>
     {
         compilerEdit.UserConfirmed = true;
         try { await Maintenance.SaveCompilerInstallationAsync(compilerEdit).ConfigureAwait(false); compilerEdit = RequestFactory.CreateCompilerInstallationRequest(); compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList(); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerSaved", "Compiler installation saved."), T("Common.Saved", "Saved")); }
         finally { compilerEdit.UserConfirmed = false; }
     }, T("ProjectMaintenance.CompilerSaveFailed", "Could not save the compiler installation.")).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.SaveCompilerAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Validates compiler for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
     /// </summary>
     /// <param name="id">Identifier of the resource to use for this operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    async Task ValidateCompilerAsync(Guid id) => await RunAsync(async () =>
+    async Task ValidateCompilerAsync(Guid id)
+    {
+        try
+        {
+            await RunAsync(async () =>
     {
         await Maintenance.ValidateCompilerInstallationAsync(id, true).ConfigureAwait(false);
         compilers = (await Maintenance.GetCompilerInstallationsAsync().ConfigureAwait(false)).ToList();
         Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerValidated", "Compiler validation completed."), T("Common.Completed", "Completed"));
     }, T("ProjectMaintenance.CompilerValidationFailed", "Compiler validation failed.")).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.ValidateCompilerAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs scan project for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
@@ -718,6 +911,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task ScanProjectAsync()
     {
+        try
+        {
         if (selectedProjectId is null) return;
         await RunAsync(async () =>
         {
@@ -726,6 +921,13 @@
             trackedFiles = (await Maintenance.GetTrackedFilesAsync(selectedProjectId.Value, selectedRevisionId).ConfigureAwait(false)).ToList();
             Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.ProjectScanned", "Project files and solution metadata were scanned."), T("Common.Completed", "Completed"));
         }, T("ProjectMaintenance.ProjectScanFailed", "Project scanning failed.")).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.ScanProjectAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -733,6 +935,8 @@
     /// </summary>
     void SelectTrackedFile()
     {
+        try
+        {
         selectedTrackedFile = selectedTrackedFileId is Guid id ? trackedFiles.FirstOrDefault(item => item.Id == id) : null;
         filePatternEdit = selectedTrackedFile is null
             ? new SaveTrackedFilePatternRequest()
@@ -742,6 +946,13 @@
                 StructureRegex = selectedTrackedFile.StructureRegex,
                 ContentFormatRegex = selectedTrackedFile.ContentFormatRegex
             };
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.SelectTrackedFile failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -750,6 +961,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveFilePatternsAsync()
     {
+        try
+        {
         if (selectedTrackedFileId is not Guid id) return;
         await RunAsync(async () =>
         {
@@ -764,6 +977,13 @@
             }
             finally { filePatternEdit.UserConfirmed = false; }
         }, T("ProjectMaintenance.FilePatternsSaveFailed", "Could not save the tracked file patterns.")).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.SaveFilePatternsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -772,6 +992,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunBuildVerificationAsync()
     {
+        try
+        {
         if (selectedProjectId is null || selectedRevisionId is null || selectedCompilerId is null) return;
         await RunAsync(async () =>
         {
@@ -781,6 +1003,13 @@
             try { await Maintenance.RunBuildVerificationAsync(selectedProjectId.Value, buildEdit).ConfigureAwait(false); selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false); Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.BuildCompleted", "Build verification completed."), T("Common.Completed", "Completed")); }
             finally { buildEdit.UserConfirmed = false; }
         }, T("ProjectMaintenance.BuildFailed", "Build verification failed.")).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.RunBuildVerificationAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -789,8 +1018,17 @@
     /// <param name="verification">Verification value supplied to the project maintenance operation and used when producing its result.</param>
     void SelectVerificationForReview(ProjectBuildVerification verification)
     {
+        try
+        {
         reviewVerificationId = verification.Id;
         councilReviewEdit = new RecordCouncilBuildReviewRequest { Summary = verification.CouncilReviewSummary, CompileErrorsAbsent = verification.CouncilReviewSucceeded };
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.SelectVerificationForReview failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -799,6 +1037,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveCouncilReviewAsync()
     {
+        try
+        {
         if (reviewVerificationId is not Guid id) return;
         await RunAsync(async () =>
         {
@@ -806,6 +1046,13 @@
             try { await Maintenance.RecordCouncilBuildReviewAsync(id, councilReviewEdit).ConfigureAwait(false); if (selectedProjectId is Guid projectId) selectedProject = await Projects.GetProjectAsync(projectId).ConfigureAwait(false); reviewVerificationId = null; Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CouncilReviewSaved", "Council build review saved."), T("Common.Saved", "Saved")); }
             finally { councilReviewEdit.UserConfirmed = false; }
         }, T("ProjectMaintenance.CouncilReviewFailed", "Could not save the council review.")).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.SaveCouncilReviewAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -815,6 +1062,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task ApproveReadyAsync(ProjectBuildVerification verification)
     {
+        try
+        {
         if (selectedProjectId is null) return;
         await RunAsync(async () =>
         {
@@ -822,6 +1071,13 @@
             selectedProject = await Projects.GetProjectAsync(selectedProjectId.Value).ConfigureAwait(false);
             Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.RevisionReady", "Revision approved and snapshotted for testing."), T("Common.Completed", "Completed"));
         }, T("ProjectMaintenance.ReadyApprovalFailed", "Could not approve the revision for testing.")).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.ApproveReadyAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -845,5 +1101,204 @@
     /// <param name="key">Key value supplied to the project maintenance operation and used when producing its result.</param>
     /// <param name="fallback">Fallback value supplied to the project maintenance operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+    string T(string key, string fallback)
+    {
+        try
+        {
+            return Localization.Get(key, fallback: fallback);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProjectMaintenance.T failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes ProjectSelectionOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetProjectSelectionOptionsForRender()
+    {
+        try
+        {
+            return [new(string.Empty, T("ProjectMaintenance.SelectProject", "Select a project")),
+         .. projectSummaries.Select(project => new LocalGptSelectionOption<string>(project.Id.ToString(), project.DisplayName))];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.ProjectSelectionOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes RevisionSelectionOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetRevisionSelectionOptionsForRender()
+    {
+        try
+        {
+            return [new(string.Empty, T("ProjectMaintenance.SelectRevision", "Select a revision")),
+         .. (selectedProject?.Revisions.Select(revision => new LocalGptSelectionOption<string>(revision.Id.ToString(), $"{revision.BranchName}/{revision.RevisionName} {(revision.ReadyForTesting ? "✓" : string.Empty)}".TrimEnd()))
+             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.RevisionSelectionOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes TrackedFileSelectionOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetTrackedFileSelectionOptionsForRender()
+    {
+        try
+        {
+            return [new(string.Empty, T("ProjectMaintenance.SelectTrackedFile", "Select a tracked file")),
+         .. trackedFiles.Select(file => new LocalGptSelectionOption<string>(file.Id.ToString(), file.ProjectRelativePath))];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.TrackedFileSelectionOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes WorkspaceScopeOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetWorkspaceScopeOptionsForRender()
+    {
+        try
+        {
+            return [
+        new("Project", T("ProjectMaintenance.ScopeProject", "Selected project")),
+        new("ProjectType", T("ProjectMaintenance.ScopeProjectType", "Project type regex")),
+        new("Global", T("ProjectMaintenance.ScopeGlobal", "Global"))
+    ];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.WorkspaceScopeOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes PreferredCompilerOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<Guid?>> GetPreferredCompilerOptionsForRender()
+    {
+        try
+        {
+            return [new(null, T("Common.None", "None")),
+         .. compilers.Where(item => item.IsEnabled).Select(compiler => new LocalGptSelectionOption<Guid?>(compiler.Id, $"{compiler.Language} · {compiler.Name}"))];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.PreferredCompilerOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CompilerSelectionOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetCompilerSelectionOptionsForRender()
+    {
+        try
+        {
+            return [new(string.Empty, T("ProjectMaintenance.SelectCompiler", "Select a compiler")),
+         .. compilers.Where(item => item.IsEnabled).Select(compiler => new LocalGptSelectionOption<string>(compiler.Id.ToString(), $"{compiler.Language} · {compiler.Name}"))];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.CompilerSelectionOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CanVerifyBuild for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanVerifyBuildForRender()
+    {
+        try
+        {
+            return !busy && selectedProjectId is not null && selectedRevisionId is not null && selectedCompilerId is not null;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.CanVerifyBuild failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ActivePathExplorerPath for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetActivePathExplorerPathForRender()
+    {
+        try
+        {
+            return pathExplorerTarget switch
+    {
+        "RevisionSource" => revisionWorkspaceEdit.SourceRootPath,
+        "RevisionSolution" => revisionWorkspaceEdit.SolutionPath,
+        "EnvironmentRoot" => workspaceEdit.EnvironmentRootPath,
+        _ => workspaceEdit.RootPath
+    };
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.ActivePathExplorerPath failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes PathExplorerSelectionMode for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetPathExplorerSelectionModeForRender()
+    {
+        try
+        {
+            return pathExplorerTarget == "RevisionSolution" ? "File" : "Directory";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.PathExplorerSelectionMode failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes PathExplorerIncludesFiles for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetPathExplorerIncludesFilesForRender()
+    {
+        try
+        {
+            return pathExplorerTarget == "RevisionSolution";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.PathExplorerIncludesFiles failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes PathExplorerTitle for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetPathExplorerTitleForRender()
+    {
+        try
+        {
+            return pathExplorerTarget switch
+    {
+        "RevisionSource" => "Choose revision source folder",
+        "RevisionSolution" => "Choose revision solution/project file",
+        "EnvironmentRoot" => "Choose local environment folder",
+        _ => "Choose project workspace folder"
+    };
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProjectMaintenance.PathExplorerTitle failed.");
+            throw;
+        }
+    }
 }

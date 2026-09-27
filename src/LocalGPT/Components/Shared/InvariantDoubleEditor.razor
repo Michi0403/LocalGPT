@@ -1,5 +1,12 @@
 @using System.Globalization
 
+@inject ILogger<InvariantDoubleEditor> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner InvariantDoubleEditor">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <DxSpinEdit Value="@Value"
             ValueChanged="@((double? value) => OnValueChangedAsync(value))"
             MinValue="@Min"
@@ -9,31 +16,72 @@
             CssClass="localgpt-editor localgpt-invariant-number">
     <DxNumericMaskProperties Culture="@CultureInfo.InvariantCulture" />
 </DxSpinEdit>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>Numeric value edited with invariant decimal notation.</summary>
+    /// <value>The value value exposed by <see cref="InvariantDoubleEditor"/>.</value>
     [Parameter] public double? Value { get; set; }
 
     /// <summary>Raises when the numeric value changes.</summary>
+    /// <value>The value changed value exposed by <see cref="InvariantDoubleEditor"/>.</value>
     [Parameter] public EventCallback<double?> ValueChanged { get; set; }
 
     /// <summary>Smallest accepted value.</summary>
+    /// <value>The min value exposed by <see cref="InvariantDoubleEditor"/>.</value>
     [Parameter] public double Min { get; set; } = 0d;
 
     /// <summary>Largest accepted value.</summary>
+    /// <value>The max value exposed by <see cref="InvariantDoubleEditor"/>.</value>
     [Parameter] public double Max { get; set; } = 1_000_000d;
 
     /// <summary>Spin-button increment.</summary>
+    /// <value>The step value exposed by <see cref="InvariantDoubleEditor"/>.</value>
     [Parameter] public double Step { get; set; } = 1d;
 
     /// <summary>Maximum displayed fractional digits.</summary>
+    /// <value>The decimal places value exposed by <see cref="InvariantDoubleEditor"/>.</value>
     [Parameter] public int DecimalPlaces { get; set; } = 2;
 
     /// <summary>Invariant numeric mask used by the DevExpress Spin Edit.</summary>
-    private string NumericMask => DecimalPlaces <= 0
-        ? "0"
-        : $"0.{new string('#', Math.Clamp(DecimalPlaces, 1, 8))}";
+    /// <value>The numeric mask value exposed by <see cref="InvariantDoubleEditor"/>.</value>
+    private string NumericMask => GetNumericMaskForRender();
 
     /// <summary>Forwards a DevExpress Spin Edit value change to the caller.</summary>
-    private Task OnValueChangedAsync(double? value) => ValueChanged.InvokeAsync(value);
+    /// <param name="value">Value value supplied to the invariant double editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private Task OnValueChangedAsync(double? value)
+    {
+        try
+        {
+            return ValueChanged.InvokeAsync(value);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InvariantDoubleEditor.OnValueChangedAsync failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes NumericMask for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetNumericMaskForRender()
+    {
+        try
+        {
+            return DecimalPlaces <= 0
+        ? "0"
+        : $"0.{new string('#', Math.Clamp(DecimalPlaces, 1, 8))}";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property InvariantDoubleEditor.NumericMask failed.");
+            throw;
+        }
+    }
 }

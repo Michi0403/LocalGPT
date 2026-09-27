@@ -9,6 +9,7 @@ $unsupportedPathRelativePattern = '\[(?:System\.)?IO\.Path\]::GetRelativePath\s*
 $unsupportedArgumentListPattern = '\.ArgumentList(?:\.|\s*=)'
 $unsupportedKillTreePattern = '\.Kill\(\s*\$true\s*\)'
 $readOnlyPlatformVariableAssignmentPattern = '(?i)\$(?:IsWindows|IsLinux|IsMacOS|IsCoreCLR)\s*='
+$wrappedConvertFromJsonPattern = '@\(\s*ConvertFrom-Json\b'
 $failures = [System.Collections.Generic.List[string]]::new()
 
 function Get-RepositoryRelativePath {
@@ -122,6 +123,42 @@ foreach ($file in $scriptFiles) {
             $relative = Get-RepositoryRelativePath -Path $file.FullName
             $failures.Add("${relative}:$line $($compatibilityPattern.Message)")
         }
+    }
+
+    foreach ($match in [regex]::Matches($content, $wrappedConvertFromJsonPattern)) {
+        $line = [regex]::Matches($content.Substring(0, $match.Index), "`r`n|`r|`n").Count + 1
+        $relative = Get-RepositoryRelativePath -Path $file.FullName
+        $failures.Add("${relative}:$line wraps ConvertFrom-Json in an array subexpression. Windows PowerShell 5.1 can preserve a JSON array as one returned object, producing a nested collection shape. Assign ConvertFrom-Json to a variable first, then iterate/materialize that parsed value explicitly.")
+    }
+
+    $countLookaheadLines = $content -split "`r`n|`r|`n"
+    for ($candidateIndex = 0; $candidateIndex -lt $countLookaheadLines.Length; $candidateIndex++) {
+        $assignmentMatch = [regex]::Match($countLookaheadLines[$candidateIndex], '^\s*\$(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*@\(')
+        if (-not $assignmentMatch.Success) { continue }
+        $variableName = $assignmentMatch.Groups['name'].Value
+        $windowEnd = [Math]::Min($countLookaheadLines.Length - 1, $candidateIndex + 17)
+        $window = ($countLookaheadLines[$candidateIndex..$windowEnd] -join "`n")
+        if ($window -notmatch ('\$' + [regex]::Escape($variableName) + '\.Count\b')) { continue }
+
+        $directFilteredArrayPipeline = [regex]::IsMatch(
+            $countLookaheadLines[$candidateIndex],
+            '^\s*\$[A-Za-z_][A-Za-z0-9_]*\s*=\s*@\([^)]*\)\s*\|\s*Where-Object')
+        if (-not $directFilteredArrayPipeline) {
+            $sawNestedArrayExpression = $false
+            for ($lookaheadIndex = $candidateIndex + 1; $lookaheadIndex -le $windowEnd; $lookaheadIndex++) {
+                $lookaheadLine = $countLookaheadLines[$lookaheadIndex]
+                if ($lookaheadLine -match '^\s*@\(') { $sawNestedArrayExpression = $true }
+                if ($lookaheadLine -match '^\s*\)\s*\|\s*Where-Object') {
+                    $directFilteredArrayPipeline = -not $sawNestedArrayExpression
+                    break
+                }
+            }
+        }
+        if (-not $directFilteredArrayPipeline) { continue }
+
+        $relative = Get-RepositoryRelativePath -Path $file.FullName
+        $countExpression = '$' + $variableName + '.Count'
+        $failures.Add("${relative}:$($candidateIndex + 1) pipes an array expression through Where-Object and later relies on $countExpression without materializing the pipeline result. Architectural choice: wrap the whole filtered pipeline in outer @(...), or use an explicit generic collection, so Windows PowerShell 5.1 + StrictMode has stable zero/one/many-result collection semantics.")
     }
 
     $sourceLines = $content -split "`r`n|`r|`n"

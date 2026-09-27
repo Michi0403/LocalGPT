@@ -52,11 +52,26 @@ public sealed class LocalAiRuntimeStatus
     public int InstalledModelCount { get; set; }
 }
 
+/// <summary>Defines supported Hugging Face metadata ordering modes.</summary>
+public enum HuggingFaceModelSort
+{
+    /// <summary>Orders models by download count.</summary>
+    Downloads,
+    /// <summary>Orders models by Hugging Face likes.</summary>
+    Likes,
+    /// <summary>Orders models by most recent metadata modification.</summary>
+    Recent,
+    /// <summary>Ranks recently modified models by likes within the configured recent window.</summary>
+    RecentLiked
+}
+
 public sealed class HuggingFaceModelSearchRequest
 {
     public string Query { get; set; } = string.Empty;
     public LocalAiCapability Capability { get; set; } = LocalAiCapability.Unknown;
     public int Limit { get; set; } = 20;
+    public HuggingFaceModelSort Sort { get; set; } = HuggingFaceModelSort.Downloads;
+    public int RecentWindowDays { get; set; } = 30;
 }
 
 public sealed class HuggingFaceModelSearchResult
@@ -144,7 +159,7 @@ public sealed class LocalAiMicrophoneRecording
     /// <summary>Gets or sets the workspace-relative WAV path used by optional speech recognition.</summary>
     /// <value>The relative path to the persisted WAV inside its admitted upload workspace.</value>
     public string RelativePath { get; set; } = string.Empty;
-    /// <summary>Gets or sets the optional Whisper transcript. An empty value means the audio remains attached without transcription.</summary>
+    /// <summary>Gets or sets the optional speech-to-text transcript. An empty value means the audio remains attached without transcription.</summary>
     /// <value>The optional recognized speech text.</value>
     public string Transcript { get; set; } = string.Empty;
     /// <summary>Gets or sets the optional transcription status shown to the local user without exposing recorded content to logs.</summary>

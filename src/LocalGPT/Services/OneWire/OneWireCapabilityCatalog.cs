@@ -451,6 +451,18 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
         new() { Key = "learning", DisplayName = "Learning Round", Description = "Studies bounded user uploads, user-written context, memory and existing knowledge across any subject, then stores source-backed reusable learning evidence with optional validated regex patterns.", SourcePeerId = "localgpt", Organs = ["brain"], CapabilityKeys = ["localgpt.learning.snapshot", "localgpt.learning.maintain", "localgpt.regex.list", "localgpt.regex.test", "localgpt.regex.upsert"], UiActivationKeys = ["localgpt.learning.round"], IsOnline = true, IsEnabled = true },
         new()
         {
+            Key = "speech-to-text",
+            DisplayName = "Speech to Text",
+            Description = "Transcribes or translates admitted microphone and workspace audio with any installed SpeechRecognition model, preferring managed Python/OpenAI Whisper while allowing compatible Hugging Face ASR, and can hand reviewed transcript text to an advertised PublisherStudio document workflow.",
+            SourcePeerId = "localgpt",
+            Organs = ["brain", "hands"],
+            CapabilityKeys = ["localai.audio.transcribe.workspace", "publisher.website.content.request", "organic.plugin.invoke", "organic.plugin.work.read"],
+            UiActivationKeys = [],
+            IsOnline = true,
+            IsEnabled = true
+        },
+        new()
+        {
             Key = "embedded",
             DisplayName = "Embedded wiring and firmware",
             Description = "Plans bounded ESP32/Arduino pins, buses, telemetry contracts, firmware artifacts and PublisherStudio wiring handoffs without forcing one physical protocol.",

@@ -56,8 +56,9 @@ function Assert-Profile(
         Assert-Property $properties 'PublishReadyToRun' 'false' $RelativePath
     }
 
-    $declaredOutput = @('PublishDir', 'PublishUrl') |
-        Where-Object { $properties.ContainsKey($_) }
+    $declaredOutput = @(
+        @('PublishDir', 'PublishUrl') | Where-Object { $properties.ContainsKey($_) }
+    )
     if ($declaredOutput.Count -eq 0) {
         Fail "$RelativePath must define PublishDir or PublishUrl so release scripts can consume the profile-owned output."
     }

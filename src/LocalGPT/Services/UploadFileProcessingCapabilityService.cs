@@ -10,6 +10,7 @@ public sealed class UploadFileProcessingCapabilityService(
     IOneWirePeerRegistry peers,
     IOneWireConnectionRegistry connections,
     LocalGptCatalogService catalog,
+    ILocalAiRuntimeService localAiRuntime,
     ILogger<UploadFileProcessingCapabilityService> logger) : IUploadFileProcessingCapabilityService
 {
     // Compatibility fallbacks are used only with older PublisherStudio peers that advertise the capability key
@@ -22,7 +23,12 @@ public sealed class UploadFileProcessingCapabilityService(
     private readonly HashSet<string> publisherMediaCompatibilityExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".mp4", ".m4v", ".webm", ".ogv", ".ogg", ".mov", ".mkv", ".avi", ".mxf", ".mts", ".m2ts", ".vob",
-        ".mp3", ".m4a", ".aac", ".wav", ".flac", ".oga"
+        ".mp3", ".m4a", ".aac", ".wav", ".flac", ".oga", ".opus"
+    };
+
+    private readonly HashSet<string> localSpeechExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".oga", ".opus", ".webm", ".mp4", ".m4v", ".mov", ".mkv"
     };
 
     private readonly HashSet<string> localImageExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -80,6 +86,8 @@ public sealed class UploadFileProcessingCapabilityService(
                 return Available(file, "LocalGPT", "localgpt.native.archive", "LocalGPT can inspect this bounded ZIP/source archive directly.");
             if (localImageExtensions.Contains(extension))
                 return Available(file, "LocalGPT", "localgpt.vision.ocr", "LocalGPT can inspect the image directly and can use the local vision OCR workflow when an OCR model is available.");
+            if (localSpeechExtensions.Contains(extension) && localAiRuntime.GetInstalledModels().Any(model => model.Capabilities.Contains(LocalAiCapability.SpeechRecognition)))
+                return Available(file, "LocalGPT", "localai.audio.transcribe.workspace", "An installed LocalGPT speech-recognition model can transcribe this admitted audio/media file locally; managed Python/OpenAI Whisper is preferred when available, while compatible Hugging Face ASR models are also supported.");
 
             var publisherRoute = ReadPublisherFormatRoute(extension, publisherFormatCapabilities, publisherMediaRuntimeAvailable);
             if (publisherRoute is not null)

@@ -59,6 +59,9 @@ namespace LocalGPT
             {
                 var port = requestedPort > 0 ? requestedPort : GetFreePort(logger);
                 var remote = ResolveRemoteWebEndpoint(args, builder.Configuration, builder.Environment.ContentRootPath, builder.Environment.ApplicationName, logger);
+                var mcp = ResolveMcpGatewayOptions(builder.Configuration, builder.Environment.ContentRootPath, logger);
+                ValidateMcpPortContract(mcp, remote);
+                PrepareMcpListenerForStartup(mcp, port, logger);
 
                 builder.WebHost.ConfigureKestrel(options =>
                 {
@@ -66,6 +69,7 @@ namespace LocalGPT
                     options.Limits.MaxRequestBodySize = null;
                     options.Limits.MaxRequestBufferSize = null;
                     options.Listen(IPAddress.Loopback, port);
+                    ConfigureMcpListener(options, mcp);
 
                     if (remote is null)
                         return;

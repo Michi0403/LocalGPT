@@ -1,17 +1,28 @@
 @rendermode InteractiveServer
 @page "/"
+@attribute [LocalGptUiLayoutSurface("page", "Home", "/", CanHide = false)]
 @inject NavigationUrlService NavigationUrls
 @inject IFirstRunOnboardingService Onboarding
 @inject ILogger<Index> Logger
 @inject IComponentActivityService ComponentActivity
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
+@inject INotificationService Notifier
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner Index">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>@T("Welcome")</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(Index)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <div class="main-content">
     @if (_onboarding is { IsCompleted: false })
     {
-        <section class="first-run-onboarding" aria-labelledby="first-run-title">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="first-run-onboarding" aria-labelledby="first-run-title">
             <header>
                 <div>
                     <span class="first-run-kicker">LOCALGPT @_onboarding.Version · @L("Home.FirstRun.Kicker", "FIRST START")</span>
@@ -50,7 +61,10 @@
             }
 
             <div class="first-run-section-grid">
-                <section>
+                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div>
                     <h2>@L("Home.FirstRun.InstallerProfiles", "Installer profiles")</h2>
                     @foreach (var profile in _onboarding.InstallerProfiles)
                     {
@@ -68,8 +82,14 @@
                             }
                         </details>
                     }
-                </section>
-                <section>
+                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div>
                     <h2>@L("Home.FirstRun.CouncilQuickStarts", "Council quick starts")</h2>
                     <div class="first-run-quickstarts">
                         @foreach (var quickStart in _onboarding.QuickStarts)
@@ -81,9 +101,15 @@
                             </a>
                         }
                     </div>
-                </section>
+                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             </div>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     }
     else if (_onboardingBusy)
     {
@@ -136,6 +162,13 @@
     </DxGridLayout>
 </div>
 
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
 @code {
     /// <summary>
     /// Stores the internal onboarding state used by <see cref="Index"/> while executing its surrounding workflow.
@@ -147,14 +180,36 @@
     /// </summary>
     /// <param name="source">Source value supplied to the index operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string T(string source) => Localization.GetText(source);
+    private string T(string source)
+    {
+        try
+        {
+            return Localization.GetText(source);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Index.T failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Performs l for <see cref="Index"/>, keeping the operation consistent with the state and invariants of the surrounding index workflow.
     /// </summary>
     /// <param name="key">Key value supplied to the index operation and used when producing its result.</param>
     /// <param name="fallback">Fallback value supplied to the index operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string L(string key, string fallback) => Localization.Get(key, fallback: fallback);
+    private string L(string key, string fallback)
+    {
+        try
+        {
+            return Localization.Get(key, fallback: fallback);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Index.L failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Stores the internal onboarding busy state used by <see cref="Index"/> while executing its surrounding workflow.
     /// </summary>

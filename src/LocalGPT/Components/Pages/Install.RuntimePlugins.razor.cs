@@ -43,6 +43,8 @@ public partial class Install
     /// <param name="toolbar">DevExpress HTML-editor toolbar to customize before initialization.</param>
     private void CustomizeRuntimePluginEditorToolbar(IToolbar toolbar)
     {
+        try
+        {
         ArgumentNullException.ThrowIfNull(toolbar);
         toolbar.Groups.Clear();
         toolbar.Groups.Add(HtmlEditorToolbarGroupNames.UndoRedo);
@@ -50,6 +52,13 @@ public partial class Install
         var insertGroup = toolbar.Groups[HtmlEditorToolbarGroupNames.InsertElement];
         insertGroup.Items.Clear();
         insertGroup.Items.Add(HtmlEditorToolbarItemNames.InsertCodeBlock);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.CustomizeRuntimePluginEditorToolbar failed.");
+            throw;
+        }
     }
 
     /// <summary>Loads persisted runtime extensions for the Setup workbench.</summary>
@@ -76,52 +85,117 @@ public partial class Install
     /// <summary>Starts a new runtime extension draft.</summary>
     private void NewRuntimePlugin()
     {
+        try
+        {
         RuntimePluginDraft = NewPluginDraft();
         SyncRuntimePluginEditorFromDraft();
         RuntimePluginEditorVisible = true;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.NewRuntimePlugin failed.");
+            throw;
+        }
     }
 
     /// <summary>Copies a persisted runtime extension into the editor.</summary>
     /// <param name="plugin">Persisted plugin selected by the user.</param>
     private void EditRuntimePlugin(RuntimePluginDefinition plugin)
     {
+        try
+        {
         RuntimePluginDraft = ClonePlugin(plugin);
         SyncRuntimePluginEditorFromDraft();
         RuntimePluginEditorVisible = true;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.EditRuntimePlugin failed.");
+            throw;
+        }
     }
 
     /// <summary>Closes the runtime extension editor without execution.</summary>
-    private void CloseRuntimePluginEditor() => RuntimePluginEditorVisible = false;
+    private void CloseRuntimePluginEditor()
+    {
+        try
+        {
+            RuntimePluginEditorVisible = false;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.CloseRuntimePluginEditor failed.");
+            throw;
+        }
+    }
 
     /// <summary>Synchronizes the plain executable source into the DevExpress HTML editor as one encoded code block.</summary>
     private void SyncRuntimePluginEditorFromDraft()
     {
+        try
+        {
         RuntimePluginSourceMarkup = RuntimePluginDefinitionSupport.ToEditorMarkup(RuntimePluginDraft.SourceCode);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.SyncRuntimePluginEditorFromDraft failed.");
+            throw;
+        }
     }
 
     /// <summary>Synchronizes the DevExpress HTML editor back into plain source before persistence or compilation.</summary>
     private void SyncRuntimePluginDraftFromEditor()
     {
+        try
+        {
         if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript)
             RuntimePluginDraft.SourceCode = RuntimePluginDefinitionSupport.FromEditorMarkup(RuntimePluginSourceMarkup);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.SyncRuntimePluginDraftFromEditor failed.");
+            throw;
+        }
     }
 
     /// <summary>Inserts the repository-owned starter template for the selected runtime kind.</summary>
     private void InsertRuntimePluginTemplate()
     {
+        try
+        {
         RuntimePluginDraft.SourceCode = RuntimePlugins.GetTemplate(RuntimePluginDraft.Kind);
         SyncRuntimePluginEditorFromDraft();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.InsertRuntimePluginTemplate failed.");
+            throw;
+        }
     }
 
     /// <summary>Updates the selected runtime kind and resets an incompatible compiler selection without discarding source text.</summary>
     /// <param name="kind">New runtime-extension kind selected by the local user.</param>
     private void RuntimePluginKindChanged(RuntimePluginKind kind)
     {
+        try
+        {
         SyncRuntimePluginDraftFromEditor();
         RuntimePluginDraft.Kind = kind;
         if (RuntimePluginCompilerInstallations.All(item => item.Id != RuntimePluginDraft.CompilerInstallationId))
             RuntimePluginDraft.CompilerInstallationId = RuntimePluginCompilerInstallations.FirstOrDefault()?.Id;
         SyncRuntimePluginEditorFromDraft();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.RuntimePluginKindChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>Persists the current runtime extension definition after explicit local action.</summary>
@@ -241,7 +315,11 @@ public partial class Install
 
     /// <summary>Creates the default persisted runtime-extension draft and prefers a validated .NET SDK when available.</summary>
     /// <returns>A detached runtime-extension definition ready for editor binding.</returns>
-    private RuntimePluginDefinition NewPluginDraft() => new()
+    private RuntimePluginDefinition NewPluginDraft()
+    {
+        try
+        {
+            return new()
     {
         Name = "New runtime extension",
         FunctionName = "plugin.example",
@@ -254,11 +332,22 @@ public partial class Install
         AvailableToAi = true,
         IsEnabled = true
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.NewPluginDraft failed.");
+            throw;
+        }
+    }
 
     /// <summary>Creates a detached editor copy of one persisted runtime-extension definition.</summary>
     /// <param name="source">Persisted definition to copy without attaching it to the editor state.</param>
     /// <returns>A detached editable definition.</returns>
-    private RuntimePluginDefinition ClonePlugin(RuntimePluginDefinition source) => new()
+    private RuntimePluginDefinition ClonePlugin(RuntimePluginDefinition source)
+    {
+        try
+        {
+            return new()
     {
         Id = source.Id,
         Name = source.Name,
@@ -284,4 +373,11 @@ public partial class Install
         CreatedAtUtc = source.CreatedAtUtc,
         UpdatedAtUtc = source.UpdatedAtUtc
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.ClonePlugin failed.");
+            throw;
+        }
+    }
 }

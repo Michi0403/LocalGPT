@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/onewire-security"
+@attribute [LocalGptUiLayoutSurface("page", "1-Wire Security", "/onewire-security", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("workbench", "1-Wire Security · workbench", "/onewire-security")]
 @using System.Text.Json
 @inject IOneWireRuntimeSecurityService Security
 @inject IOneWireCapabilityCatalog CapabilityCatalog
@@ -13,7 +15,13 @@
 @inject ISupervisedTaskRunner TaskRunner
 @implements IDisposable
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner OneWireSecurity">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>1-Wire Security</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(OneWireSecurity)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 <ToastWrapper Name="OneWireSecurityToasts" />
 
 <main class="onewire-security-page">
@@ -25,7 +33,8 @@
         </Actions>
     </WorkbenchHeader>
 
-    <div class="onewire-workbench-layout">
+    <LocalGptFormLayoutSurface OwnerType="@typeof(OneWireSecurity)" SectionName="workbench" CanHide="true">
+<div class="onewire-workbench-layout">
         <ConfigurationWorkbenchNav Items="@OneWireSections"
                                    ActiveKey="@ActiveOneWireSection"
                                    ActiveKeyChanged="OnOneWireSectionChangedAsync"
@@ -33,7 +42,10 @@
 
         <div class="onewire-workbench-stage">
             <ConfigurationWorkbenchPanel SectionKey="identity" ActiveKey="@ActiveOneWireSection" AriaLabel="Runtime identity">
-                <section class="onewire-security-card">
+                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="onewire-security-card">
                     <div class="onewire-security-section-heading">
                         <div>
                             <span class="onewire-security-kicker">IDENTITY</span>
@@ -57,11 +69,17 @@
                     {
                         <p class="onewire-security-error">@_status.Warning</p>
                     }
-                </section>
+                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             </ConfigurationWorkbenchPanel>
 
             <ConfigurationWorkbenchPanel SectionKey="protocol" ActiveKey="@ActiveOneWireSection" AriaLabel="Active 1-Wire protocol surface">
-                <section class="onewire-security-card onewire-protocol-card">
+                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="onewire-security-card onewire-protocol-card">
                     <div class="onewire-security-section-heading">
                         <div>
                             <span class="onewire-security-kicker">PROTOCOL</span>
@@ -119,12 +137,18 @@
                         </details>
                     }
                     <p class="onewire-ocr-status"><strong>OCR check:</strong> @OcrCapabilityStatus</p>
-                </section>
+                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             </ConfigurationWorkbenchPanel>
 
             <ConfigurationWorkbenchPanel SectionKey="pairing" ActiveKey="@ActiveOneWireSection" AriaLabel="Pairing and trust establishment">
                 <div class="onewire-panel-stack">
-                    <section class="onewire-security-card">
+                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="onewire-security-card">
                         <div class="onewire-security-section-heading">
                             <div>
                                 <span class="onewire-security-kicker">PAIRING</span>
@@ -157,9 +181,15 @@
                                 </article>
                             </div>
                         }
-                    </section>
+                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-                    <section class="onewire-security-card">
+                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="onewire-security-card">
                         <div class="onewire-security-section-heading">
                             <div>
                                 <span class="onewire-security-kicker">REMOTE TRUST</span>
@@ -176,12 +206,18 @@
                         </div>
                         <DxButton Text="Verify MFA and trust peer" Click="EstablishTrustAsync" RenderStyle="ButtonRenderStyle.Primary" />
                         <p>Trust is reciprocal. Repeat the process in the remote application with LocalGPT's public ticket. Private material never crosses the wire.</p>
-                    </section>
+                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                 </div>
             </ConfigurationWorkbenchPanel>
 
             <ConfigurationWorkbenchPanel SectionKey="peers" ActiveKey="@ActiveOneWireSection" AriaLabel="Trusted peers">
-                <section class="onewire-security-card">
+                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext006">
+        <div class="onewire-security-card">
                     <div class="onewire-security-section-heading">
                         <div>
                             <span class="onewire-security-kicker">TRUST STORE</span>
@@ -211,11 +247,22 @@
                             </div>
                         }
                     }
-                </section>
+                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             </ConfigurationWorkbenchPanel>
         </div>
     </div>
+</LocalGptFormLayoutSurface>
 </main>
+
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -236,12 +283,7 @@
     /// </summary>
     /// <value>The one wire sections value exposed by <see cref="OneWireSecurity"/>.</value>
     private IReadOnlyList<WorkbenchNavItem> OneWireSections =>
-    [
-        new("identity", "Identity", "Create, rotate and inspect the local runtime identity.", _status.HasSecret ? "ready" : "new"),
-        new("protocol", "Protocol surface", "Browse LocalGPT and peer methods without crowding the trust controls.", _localCapabilities.Count.ToString()),
-        new("pairing", "Pairing & trust", "Generate QR material and establish encrypted remote trust."),
-        new("peers", "Trusted peers", "Review and revoke stored peer trust.", _trustedPeers.Count.ToString())
-    ];
+    GetOneWireSectionsForRender();
     /// <summary>
     /// Stores the internal status state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
     /// </summary>
@@ -302,6 +344,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnOneWireSectionChangedAsync(string key)
     {
+        try
+        {
         ActiveOneWireSection = key;
         if (string.Equals(key, "pairing", StringComparison.OrdinalIgnoreCase) &&
             (!string.IsNullOrWhiteSpace(_pairingTicketJson) || !string.IsNullOrWhiteSpace(_otpUri)))
@@ -310,6 +354,13 @@
         }
 
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.OnOneWireSectionChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -318,8 +369,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OpenIdentitySectionAsync()
     {
+        try
+        {
         ActiveOneWireSection = "identity";
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.OpenIdentitySectionAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -327,7 +387,16 @@
     /// </summary>
     protected override void OnInitialized()
     {
+        try
+        {
         ComponentActivity.RecordInformation(nameof(OneWireSecurity), nameof(OnInitialized), "The 1-Wire Security page rendered its interactive shell; runtime state will load after the first render.");
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.OnInitialized failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -464,6 +533,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
+        try
+        {
         var state = await LoadSecurityStateAsync(cancellationToken).ConfigureAwait(false);
         await InvokeAsync(() =>
         {
@@ -473,23 +544,45 @@
             _advertisedPeers = state.AdvertisedPeers;
             StateHasChanged();
         }).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.RefreshAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Performs create for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task CreateAsync() => await RunAsync(async cancellationToken =>
+    private async Task CreateAsync()
+    {
+        try
+        {
+            await RunAsync(async cancellationToken =>
     {
         await Security.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
         Notifier.ShowSuccess("OneWireSecurityToasts", "Runtime 1-Wire identity created.", "1-Wire Security");
     }, "CreateIdentity", "Could not create the runtime 1-Wire identity.").ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.CreateAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Creates pairing material for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task CreatePairingMaterialAsync() => await RunAsync(async cancellationToken =>
+    private async Task CreatePairingMaterialAsync()
+    {
+        try
+        {
+            await RunAsync(async cancellationToken =>
     {
         await Security.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
         _otpUri = await Security.GetOtpAuthUriAsync(cancellationToken).ConfigureAwait(false);
@@ -499,12 +592,23 @@
         _renderQr = true;
         Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator enrollment and public pairing material created.", "1-Wire Security");
     }, "CreatePairingMaterial", "Could not create 1-Wire pairing material.").ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.CreatePairingMaterialAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs regenerate for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task RegenerateAsync() => await RunAsync(async cancellationToken =>
+    private async Task RegenerateAsync()
+    {
+        try
+        {
+            await RunAsync(async cancellationToken =>
     {
         if (!_allowReset)
             return;
@@ -512,12 +616,23 @@
         ClearMaterial();
         Notifier.ShowWarning("OneWireSecurityToasts", "The LocalGPT runtime identity was regenerated. Previous encrypted trust is invalid.", "1-Wire trust reset");
     }, "RegenerateIdentity", "Could not regenerate the runtime 1-Wire identity.").ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.RegenerateAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs delete for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task DeleteAsync() => await RunAsync(async cancellationToken =>
+    private async Task DeleteAsync()
+    {
+        try
+        {
+            await RunAsync(async cancellationToken =>
     {
         if (!_allowReset)
             return;
@@ -525,12 +640,23 @@
         ClearMaterial();
         Notifier.ShowWarning("OneWireSecurityToasts", "The LocalGPT runtime identity and local trust bindings were deleted.", "1-Wire trust reset");
     }, "DeleteIdentity", "Could not delete the runtime 1-Wire identity.").ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.DeleteAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs establish trust for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task EstablishTrustAsync() => await RunAsync(async cancellationToken =>
+    private async Task EstablishTrustAsync()
+    {
+        try
+        {
+            await RunAsync(async cancellationToken =>
     {
         var ticket = JsonSerializer.Deserialize<OneWirePairingTicket>(_remoteTicketJson, JsonOptions)
             ?? throw new InvalidDataException("The remote pairing ticket is empty or invalid.");
@@ -548,17 +674,35 @@
         _mfaCode = string.Empty;
         Notifier.ShowSuccess("OneWireSecurityToasts", $"Trusted {ticket.DisplayName} for the selected validity period.", "1-Wire trust");
     }, "EstablishTrust", "Could not establish trust for the remote 1-Wire peer.").ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.EstablishTrustAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs revoke for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
     /// </summary>
     /// <param name="peerId">Identifier of the peer to use for this operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task RevokeAsync(string peerId) => await RunAsync(async cancellationToken =>
+    private async Task RevokeAsync(string peerId)
+    {
+        try
+        {
+            await RunAsync(async cancellationToken =>
     {
         await Security.RevokeTrustAsync(peerId, cancellationToken).ConfigureAwait(false);
         Notifier.ShowWarning("OneWireSecurityToasts", $"Trust for {peerId} was revoked.", "1-Wire trust");
     }, "RevokeTrust", "Could not revoke the selected 1-Wire trust binding.").ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.RevokeAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs run for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
@@ -620,10 +764,19 @@
     /// </summary>
     private void ClearMaterial()
     {
+        try
+        {
         _otpUri = string.Empty;
         _pairingTicketJson = string.Empty;
         _allowReset = false;
         _renderQr = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.ClearMaterial failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -631,10 +784,40 @@
     /// </summary>
     public void Dispose()
     {
+        try
+        {
         if (isDisposed)
             return;
         isDisposed = true;
         lifetimeCts.Cancel();
         lifetimeCts.Dispose();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OneWireSecurity.Dispose failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes OneWireSections for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<WorkbenchNavItem> GetOneWireSectionsForRender()
+    {
+        try
+        {
+            return [
+        new("identity", "Identity", "Create, rotate and inspect the local runtime identity.", _status.HasSecret ? "ready" : "new"),
+        new("protocol", "Protocol surface", "Browse LocalGPT and peer methods without crowding the trust controls.", _localCapabilities.Count.ToString()),
+        new("pairing", "Pairing & trust", "Generate QR material and establish encrypted remote trust."),
+        new("peers", "Trusted peers", "Review and revoke stored peer trust.", _trustedPeers.Count.ToString())
+    ];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property OneWireSecurity.OneWireSections failed.");
+            throw;
+        }
     }
 }

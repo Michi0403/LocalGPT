@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/projects"
+@attribute [LocalGptUiLayoutSurface("page", "Projects", "/projects", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("editor", "Projects · editor", "/projects")]
 @inject ILocalGptProjectService ProjectService
 @inject IProjectArchitectureService ProjectArchitecture
 @inject IGameProjectService GameProjects
@@ -9,12 +11,21 @@
 @inject IComponentActivityService ComponentActivity
 @inject CouncilTextService CouncilText
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner Projects">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>Projects</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(Projects)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <main class="projects-page">
     <ToastWrapper Name="@toastName" />
 
-    <section class="projects-header">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="projects-header">
         <div class="projects-heading">
             <span class="projects-heading-icon" aria-hidden="true"></span>
             <div>
@@ -27,9 +38,15 @@
                   RenderStyleMode="ButtonRenderStyleMode.Outline"
                   Enabled="@(!isBusy)"
                   Click="LoadProjectsAsync" />
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-    <section class="projects-layout">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="projects-layout">
         <aside class="project-list">
             <DxButton Text="New Project"
                       RenderStyle="ButtonRenderStyle.Primary"
@@ -55,7 +72,11 @@
             }
         </aside>
 
-        <section class="project-editor">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Projects)" SectionName="editor" CanHide="true">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="project-editor">
             <h2>@(ProjectEdit.Id is null ? "New project" : "Edit project")</h2>
 
             <label>
@@ -504,9 +525,23 @@
                     </ul>
                 }
             }
-        </section>
-    </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</LocalGptFormLayoutSurface>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 </main>
+
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -515,14 +550,18 @@
     const string toastName = "ProjectToasts";
 
 
-    /// <summary>Gets the supported project-owned game runtime profiles.</summary>
+    /// <summary>
+    /// Stores the in-memory game runtime profile options collection maintained internally by <see cref="Projects"/> for its current workflow state.
+    /// </summary>
     readonly IReadOnlyList<LocalGptSelectionOption<CouncilGameRuntimeProfile>> GameRuntimeProfileOptions =
     [
         new(CouncilGameRuntimeProfile.Corridor, "Corridor simulation"),
         new(CouncilGameRuntimeProfile.Story, "Story / choice simulation")
     ];
 
-    /// <summary>Gets the supported default game control modes.</summary>
+    /// <summary>
+    /// Stores the in-memory game control mode options collection maintained internally by <see cref="Projects"/> for its current workflow state.
+    /// </summary>
     readonly IReadOnlyList<LocalGptSelectionOption<CouncilGameControlMode>> GameControlModeOptions =
     [
         new(CouncilGameControlMode.Human, "Human"),
@@ -530,14 +569,18 @@
         new(CouncilGameControlMode.Ai, "AI")
     ];
 
-    /// <summary>Gets the supported game director modes.</summary>
+    /// <summary>
+    /// Stores the in-memory game director mode options collection maintained internally by <see cref="Projects"/> for its current workflow state.
+    /// </summary>
     readonly IReadOnlyList<LocalGptSelectionOption<CouncilGameDirectorMode>> GameDirectorModeOptions =
     [
         new(CouncilGameDirectorMode.Deterministic, "Deterministic"),
         new(CouncilGameDirectorMode.CouncilModelPreferred, "Council model preferred")
     ];
 
-    /// <summary>Gets the supported project game ASCII color modes.</summary>
+    /// <summary>
+    /// Stores the in-memory ascii color mode options collection maintained internally by <see cref="Projects"/> for its current workflow state.
+    /// </summary>
     readonly IReadOnlyList<LocalGptSelectionOption<CouncilAsciiColorMode>> AsciiColorModeOptions =
     [
         new(CouncilAsciiColorMode.TerminalDefault, "Terminal default (LocalGPT black/green)"),
@@ -546,22 +589,23 @@
     ];
 
     /// <summary>Gets revision-parent choices including the explicit no-parent state.</summary>
+    /// <value>The revision parent options value exposed by <see cref="Projects"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> RevisionParentOptions =>
-        [new(string.Empty, "No parent"),
-         .. (SelectedProject?.Revisions.Select(revision => new LocalGptSelectionOption<string>(revision.Id.ToString(), $"{revision.BranchName}/{revision.RevisionName}"))
-             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+        GetRevisionParentOptionsForRender();
 
-    /// <summary>Gets requirement choices for capability links.</summary>
+    /// <summary>
+    /// Gets the requirement link options collection maintained or exposed by this projects instance for downstream processing.
+    /// </summary>
+    /// <value>The requirement link options value exposed by <see cref="Projects"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> RequirementLinkOptions =>
-        [new(string.Empty, "Choose requirement"),
-         .. (SelectedProject?.Requirements.Select(requirement => new LocalGptSelectionOption<string>(requirement.Id.ToString(), requirement.Name))
-             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+        GetRequirementLinkOptionsForRender();
 
-    /// <summary>Gets requirement choices for project-linked artifacts.</summary>
+    /// <summary>
+    /// Gets the artifact requirement options collection maintained or exposed by this projects instance for downstream processing.
+    /// </summary>
+    /// <value>The artifact requirement options value exposed by <see cref="Projects"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> ArtifactRequirementOptions =>
-        [new(string.Empty, "No requirement"),
-         .. (SelectedProject?.Requirements.Select(requirement => new LocalGptSelectionOption<string>(requirement.Id.ToString(), requirement.Name))
-             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+        GetArtifactRequirementOptionsForRender();
 
     /// <summary>
     /// Gets or sets the project summaries collection maintained or exposed by this projects instance for downstream processing.
@@ -688,8 +732,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         ResetRequestEditors();
         await LoadProjectsAsync().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.OnInitializedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -698,6 +751,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task LoadProjectsAsync()
     {
+        try
+        {
         await RunUiActionAsync(async () =>
         {
             ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(false)).ToList();
@@ -705,6 +760,13 @@
             if (SelectedProject is not null)
                 SelectedProject = await ProjectService.GetProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
         }, "Load projects").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.LoadProjectsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -712,8 +774,17 @@
     /// </summary>
     void NewProject()
     {
+        try
+        {
         SelectedProject = null;
         ResetRequestEditors();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.NewProject failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -722,6 +793,8 @@
     /// <param name="versionPath">Version path value supplied to the projects operation and used when producing its result.</param>
     void ResetRequestEditors(string versionPath = "")
     {
+        try
+        {
         ProjectEdit = RequestFactory.CreateProjectRequest();
         TopicEdit = RequestFactory.CreateTopicRequest();
         VersionEdit = RequestFactory.CreateVersionRequest(versionPath);
@@ -732,6 +805,13 @@
         GameProfileEdit = RequestFactory.CreateGameProjectProfileRequest();
         CurrentGameBuild = null;
         CurrentGameProfile = null;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.ResetRequestEditors failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -741,6 +821,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SelectProjectAsync(Guid projectId)
     {
+        try
+        {
         await RunUiActionAsync(async () =>
         {
             SelectedProject = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
@@ -818,6 +900,13 @@
                 GameProfileEdit.ScenarioPrompt = definition.ScenarioPrompt;
             }
         }, "Select project").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.SelectProjectAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -826,6 +915,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveProjectAsync()
     {
+        try
+        {
         await RunUiActionAsync(async () =>
         {
             ProjectEdit.UserConfirmed = true;
@@ -840,12 +931,21 @@
                 ProjectEdit.UserConfirmed = false;
             }
         }, "Save project").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.SaveProjectAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Saves the selected Game project's editable project-owned authoring profile without producing a runtime build.</summary>
     /// <returns>A task that completes when the authoring profile has been persisted.</returns>
     async Task SaveGameProjectProfileAsync()
     {
+        try
+        {
         if (SelectedProject is null || !SelectedProject.Project.IsGameProject)
             return;
 
@@ -862,12 +962,21 @@
                 GameProfileEdit.UserConfirmed = false;
             }
         }, "Save game project design").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.SaveGameProjectProfileAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Builds the selected Game project into its approved project-owned runtime definition.</summary>
     /// <returns>A task that completes when the game build has been persisted.</returns>
     async Task BuildGameProjectAsync()
     {
+        try
+        {
         if (SelectedProject is null || !SelectedProject.Project.IsGameProject)
             return;
 
@@ -879,6 +988,13 @@
             await RefreshSelectedProjectAsync(SelectedProject.Project.Id).ConfigureAwait(false);
             Notifier.ShowSuccess(toastName, "Saved Game design compiled into the project runtime-definition artifact.", "Game project built");
         }, "Build game project").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.BuildGameProjectAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -887,6 +1003,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task AddTopicAsync()
     {
+        try
+        {
         if (SelectedProject is null)
             return;
 
@@ -905,6 +1023,13 @@
                 TopicEdit.UserConfirmed = false;
             }
         }, "Add topic").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.AddTopicAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -913,6 +1038,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task AddVersionAsync()
     {
+        try
+        {
         if (SelectedProject is null)
             return;
 
@@ -931,6 +1058,13 @@
                 VersionEdit.UserConfirmed = false;
             }
         }, "Add version").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.AddVersionAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -939,6 +1073,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveRevisionAsync()
     {
+        try
+        {
         if (SelectedProject is null)
             return;
         await RunUiActionAsync(async () =>
@@ -956,6 +1092,13 @@
                 RevisionEdit.UserConfirmed = false;
             }
         }, "Save project revision").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.SaveRevisionAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -964,6 +1107,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveRequirementAsync()
     {
+        try
+        {
         if (SelectedProject is null)
             return;
         await RunUiActionAsync(async () =>
@@ -982,6 +1127,13 @@
                 RequirementEdit.UserConfirmed = false;
             }
         }, "Save project requirement").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.SaveRequirementAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -990,6 +1142,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveRequirementLinkAsync()
     {
+        try
+        {
         if (SelectedProject is null)
             return;
         await RunUiActionAsync(async () =>
@@ -1007,6 +1161,13 @@
                 RequirementLinkEdit.UserConfirmed = false;
             }
         }, "Save requirement link").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.SaveRequirementLinkAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1015,6 +1176,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveArtifactAsync()
     {
+        try
+        {
         if (SelectedProject is null)
             return;
         await RunUiActionAsync(async () =>
@@ -1033,6 +1196,13 @@
                 ArtifactEdit.UserConfirmed = false;
             }
         }, "Save project artifact").ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.SaveArtifactAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1042,6 +1212,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task RefreshSelectedProjectAsync(Guid projectId)
     {
+        try
+        {
         ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(false)).ToList();
         SelectedProject = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
         if (SelectedProject is not null)
@@ -1060,6 +1232,13 @@
             ProjectEdit.Status = project.Status;
             ProjectEdit.RecommendGit = project.RecommendGit;
             ProjectEdit.IsArchived = project.IsArchived;
+        }
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.RefreshSelectedProjectAsync failed.");
+            throw;
         }
     }
 
@@ -1095,6 +1274,58 @@
         {
             isBusy = false;
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+
+    /// <summary>Computes RevisionParentOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetRevisionParentOptionsForRender()
+    {
+        try
+        {
+            return [new(string.Empty, "No parent"),
+         .. (SelectedProject?.Revisions.Select(revision => new LocalGptSelectionOption<string>(revision.Id.ToString(), $"{revision.BranchName}/{revision.RevisionName}"))
+             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property Projects.RevisionParentOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes RequirementLinkOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetRequirementLinkOptionsForRender()
+    {
+        try
+        {
+            return [new(string.Empty, "Choose requirement"),
+         .. (SelectedProject?.Requirements.Select(requirement => new LocalGptSelectionOption<string>(requirement.Id.ToString(), requirement.Name))
+             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property Projects.RequirementLinkOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ArtifactRequirementOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetArtifactRequirementOptionsForRender()
+    {
+        try
+        {
+            return [new(string.Empty, "No requirement"),
+         .. (SelectedProject?.Requirements.Select(requirement => new LocalGptSelectionOption<string>(requirement.Id.ToString(), requirement.Name))
+             ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property Projects.ArtifactRequirementOptions failed.");
+            throw;
         }
     }
 }

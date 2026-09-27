@@ -6,6 +6,10 @@
 @inject IComponentActivityService ComponentActivity
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ThemeSwitcherContainer">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <div class="themeswitcher-container shadow @StateCssClass">
     <ToastWrapper Name="@toastName" />
     @if (IsLoaded)
@@ -18,7 +22,10 @@
             <DxButton CssClass="localgpt-native-button" Click="CloseAsync">@T("Done")</DxButton>
         </div>
         <div class="blazor-themes blazor-scroll-view">
-            <section class="theme-layer-section" aria-label="@(T("Base theme"))">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="theme-layer-section" aria-label="@(T("Base theme"))">
                 <div class="theme-layer-heading">
                     <strong>@T("Base Theme")</strong>
                     <small>@T("Sets the visual foundation for pages, navigation, native surfaces and syntax highlighting.")</small>
@@ -35,9 +42,15 @@
                         }
                     }
                 </div>
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-            <section class="theme-layer-section" aria-label="@(T("Style layer"))">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="theme-layer-section" aria-label="@(T("Style layer"))">
                 <div class="theme-layer-heading">
                     <strong>@T("Style Layer")</strong>
                     <small>@T("Blends with, overrides or extends the Base Theme across DevExpress editors, grids, chat controls and buttons.")</small>
@@ -54,9 +67,15 @@
                         }
                     }
                 </div>
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-            <section class="theme-route-section" aria-label="@(T("Theme Fusion route"))">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="theme-route-section" aria-label="@(T("Theme Fusion route"))">
                 <div class="theme-layer-heading theme-route-heading">
                     <strong>@T("Fusion Route")</strong>
                     <small>@T("The result can depend on selection order. This is the stored path that produced the current mix.")</small>
@@ -104,10 +123,18 @@
                         <small>@T("Keeps the current Base Theme and Style Layer, removes earlier swaps, then reloads the page cleanly.")</small>
                     </div>
                 </div>
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         </div>
     }
 </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -162,20 +189,13 @@
     /// Gets the state CSS class value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The state CSS class value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
-    string StateCssClass => IsLoaded
-        ? Shown ? "themeswitcher-container-shown" : "themeswitcher-container-hidden"
-        : string.Empty;
+    string StateCssClass => GetStateCssClassForRender();
 
     /// <summary>
     /// Gets the used themes collection maintained or exposed by this theme switcher container instance for downstream processing.
     /// </summary>
     /// <value>The used themes value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
-    IEnumerable<Theme> UsedThemes => Themes.FusionRoute
-        .Select(step => Themes.FindThemeByName(step.ThemeName))
-        .Where(theme => theme is not null)
-        .Cast<Theme>()
-        .GroupBy(theme => theme.Name, StringComparer.OrdinalIgnoreCase)
-        .Select(group => group.First());
+    IEnumerable<Theme> UsedThemes => GetUsedThemesForRender();
 
     /// <summary>
     /// Gets or sets a value indicating whether loaded applies to the theme switcher container state.
@@ -210,49 +230,96 @@
     /// </summary>
     /// <param name="theme">Theme value supplied to the theme switcher container operation and used when producing its result.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    bool IsShellThemeActive(Theme theme) =>
-        string.Equals(ShellThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
+    bool IsShellThemeActive(Theme theme)
+    {
+        try
+        {
+            return string.Equals(ShellThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ThemeSwitcherContainer.IsShellThemeActive failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Determines whether component theme active for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
     /// </summary>
     /// <param name="theme">Theme value supplied to the theme switcher container operation and used when producing its result.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    bool IsComponentThemeActive(Theme theme) =>
-        string.Equals(ComponentThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
+    bool IsComponentThemeActive(Theme theme)
+    {
+        try
+        {
+            return string.Equals(ComponentThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ThemeSwitcherContainer.IsComponentThemeActive failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs t for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
     /// </summary>
     /// <param name="source">Source value supplied to the theme switcher container operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    string T(string source) => Localization.GetText(source);
+    string T(string source)
+    {
+        try
+        {
+            return Localization.GetText(source);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ThemeSwitcherContainer.T failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Gets the theme route summary value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The theme route summary value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
-    string ThemeRouteSummary => string.Format(
-        System.Globalization.CultureInfo.CurrentUICulture,
-        T("{0} route steps · {1} themes used"),
-        Themes.FusionRoute.Count,
-        UsedThemes.Count());
+    string ThemeRouteSummary => GetThemeRouteSummaryForRender();
 
     /// <summary>
     /// Retrieves target title for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
     /// </summary>
     /// <param name="target">Target value supplied to the theme switcher container operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    string GetTargetTitle(ThemeApplicationTarget target) =>
-        T(target == ThemeApplicationTarget.Shell ? "Base" : "Style");
+    string GetTargetTitle(ThemeApplicationTarget target)
+    {
+        try
+        {
+            return T(target == ThemeApplicationTarget.Shell ? "Base" : "Style");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ThemeSwitcherContainer.GetTargetTitle failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Retrieves target CSS class for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
     /// </summary>
     /// <param name="target">Target value supplied to the theme switcher container operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    string GetTargetCssClass(ThemeApplicationTarget target) =>
-        target == ThemeApplicationTarget.Shell ? "theme-route-target-base" : "theme-route-target-style";
+    string GetTargetCssClass(ThemeApplicationTarget target)
+    {
+        try
+        {
+            return target == ThemeApplicationTarget.Shell ? "theme-route-target-base" : "theme-route-target-style";
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ThemeSwitcherContainer.GetTargetCssClass failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs theme switcher item click for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
@@ -352,7 +419,18 @@
     /// Performs close for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    Task CloseAsync() => ToggleThemeSwitcherPanel(false);
+    Task CloseAsync()
+    {
+        try
+        {
+            return ToggleThemeSwitcherPanel(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ThemeSwitcherContainer.CloseAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs toggle theme switcher panel for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
@@ -421,6 +499,63 @@
             Logger.LogError(ex, "Theme state restoration failed; persisted theme details were omitted from logs.");
             ComponentActivity.RecordFailure(nameof(ThemeSwitcherContainer), "RestoreThemeState", ex);
             Notifier.ShowWarning(toastName, "The saved theme state could not be restored. LocalGPT kept the current themes.", "Theme warning");
+        }
+    }
+
+
+    /// <summary>Computes StateCssClass for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetStateCssClassForRender()
+    {
+        try
+        {
+            return IsLoaded
+        ? Shown ? "themeswitcher-container-shown" : "themeswitcher-container-hidden"
+        : string.Empty;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ThemeSwitcherContainer.StateCssClass failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes UsedThemes for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IEnumerable<Theme> GetUsedThemesForRender()
+    {
+        try
+        {
+            return Themes.FusionRoute
+        .Select(step => Themes.FindThemeByName(step.ThemeName))
+        .Where(theme => theme is not null)
+        .Cast<Theme>()
+        .GroupBy(theme => theme.Name, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.First());
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ThemeSwitcherContainer.UsedThemes failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ThemeRouteSummary for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetThemeRouteSummaryForRender()
+    {
+        try
+        {
+            return string.Format(
+        System.Globalization.CultureInfo.CurrentUICulture,
+        T("{0} route steps · {1} themes used"),
+        Themes.FusionRoute.Count,
+        UsedThemes.Count());
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ThemeSwitcherContainer.ThemeRouteSummary failed.");
+            throw;
         }
     }
 }

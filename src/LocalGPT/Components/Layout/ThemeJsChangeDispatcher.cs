@@ -494,10 +494,10 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     /// Releases resources owned by <see cref="ThemeJsChangeDispatcher"/> and leaves the theme JavaScript change dispatcher workflow in a safely disposed state.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (_disposed)
-            return;
+            return ValueTask.CompletedTask;
 
         _disposed = true;
         try
@@ -505,30 +505,11 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             if (ReferenceEquals(Themes.ThemeChangeRequestDispatcher, this))
                 Themes.ThemeChangeRequestDispatcher = null;
 
-            if (_module is not null)
-            {
-                try
-                {
-                    if (!_module.IsDisposed())
-                        await _module.DisposeAsync().ConfigureAwait(false);
-                }
-                catch (JSDisconnectedException)
-                {
-                    Logger.LogDebug("Theme JavaScript module disposal ended after browser disconnect.");
-                }
-                catch (OperationCanceledException)
-                {
-                    Logger.LogDebug("Theme JavaScript module disposal was canceled during component teardown.");
-                }
-                catch (ObjectDisposedException)
-                {
-                    Logger.LogDebug("Theme JavaScript module was already disposed during component teardown.");
-                }
-                finally
-                {
-                    _module = null;
-                }
-            }
+            // ES-module imports are browser-owned and cached. Calling IJSObjectReference.DisposeAsync here can
+            // race the InteractiveServer circuit teardown and produces a JSDisconnectedException as a first-chance
+            // exception in the debugger. Release the managed reference only; navigation/circuit disposal releases
+            // the browser-side proxy without another interop call.
+            _module = null;
         }
         catch (Exception ex)
         {
@@ -539,6 +520,8 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         {
             GC.SuppressFinalize(this);
         }
+
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>

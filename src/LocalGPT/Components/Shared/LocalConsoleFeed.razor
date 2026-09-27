@@ -2,7 +2,18 @@
 @inject ILogger<LocalConsoleFeed> Logger
 @implements IDisposable
 
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner LocalConsoleFeed">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <pre class="@CssClass" aria-live="@AriaLive">@displayText</pre>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>Gets or sets the maximum number of bounded LocalGPT console lines rendered by this isolated feed.</summary>
@@ -34,6 +45,7 @@
     /// <summary>Subscribes this isolated feed to the shared LocalGPT console without forcing the parent panel to rerender.</summary>
     protected override void OnInitialized()
     {
+        Logger.LogDebug("Component method LocalConsoleFeed.OnInitialized completed.");
         try
         {
             displayText = Console.GetRecentDisplayText(Math.Max(1, MaxLines));
@@ -44,11 +56,13 @@
             Console.Changed -= OnConsoleChanged;
             throw new InvalidOperationException("Initializing the isolated LocalGPT console feed failed.", exception);
         }
+    
     }
 
     /// <summary>Refreshes the bounded snapshot when the caller changes the requested line count.</summary>
     protected override void OnParametersSet()
     {
+        Logger.LogDebug("Component method LocalConsoleFeed.OnParametersSet completed.");
         try
         {
             displayText = Console.GetRecentDisplayText(Math.Max(1, MaxLines));
@@ -57,6 +71,7 @@
         {
             throw new InvalidOperationException("Refreshing the isolated LocalGPT console feed parameters failed.", exception);
         }
+    
     }
 
     /// <summary>Coalesces high-frequency terminal progress events into one bounded renderer worker.</summary>
@@ -123,6 +138,7 @@
     /// <summary>Unsubscribes the isolated feed and cancels any delayed renderer refresh.</summary>
     public void Dispose()
     {
+        Logger.LogDebug("Component method LocalConsoleFeed.Dispose completed.");
         try
         {
             if (disposed)
@@ -137,5 +153,6 @@
         {
             // Disposal is idempotent even if the browser circuit tears down concurrently.
         }
+    
     }
 }

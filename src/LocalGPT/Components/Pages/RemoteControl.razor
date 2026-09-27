@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/remote-control"
+@attribute [LocalGptUiLayoutSurface("page", "Remote Control", "/remote-control", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("workbench", "Remote Control · workbench", "/remote-control")]
 @namespace LocalGPT.Components.Pages
 @inject IRemoteControlConnectorService Connectors
 @inject IRemoteControlPipelineService Pipelines
@@ -9,7 +11,14 @@
 @inject ILogger<RemoteControl> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner RemoteControl">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>@T("RemoteControl.Title", "Remote Control Integration Fabric")</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(RemoteControl)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 <ToastWrapper Name="RemoteControlToasts" />
 
 <div class="remote-control-page">
@@ -34,7 +43,8 @@
         <div class="remote-control-status">@Status</div>
     }
 
-    <div class="remote-control-workbench-layout">
+    <LocalGptFormLayoutSurface OwnerType="@typeof(RemoteControl)" SectionName="workbench" CanHide="true">
+<div class="remote-control-workbench-layout">
         <ConfigurationWorkbenchNav Items="@RemoteControlSections"
                                    ActiveKey="@ActiveRemoteControlSection"
                                    ActiveKeyChanged="OnRemoteControlSectionChanged"
@@ -77,7 +87,10 @@
                     <label class="check"><DxCheckBox @bind-Checked="ConnectorEdit.NetworkEnabled" /> @T("RemoteControl.NetworkEnabled", "Allow outbound network access")</label>
                     <label class="wide">@T("RemoteControl.UrlTemplate", "URL template")<DxTextBox @bind-Text="ConnectorEdit.UrlTemplate" NullText="https://example.org/api?city={{var:CITY}}" /></label>
 
-                    <section class="wide remote-control-guided" aria-label='@T("RemoteControl.AllowedHosts", "Allowed hosts")'>
+                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="wide remote-control-guided" aria-label='@T("RemoteControl.AllowedHosts", "Allowed hosts")'>
                         <div class="remote-control-guided-heading">
                             <div>
                                 <strong>@T("RemoteControl.AllowedHosts", "Allowed hosts")</strong>
@@ -100,9 +113,15 @@
                                 <DxButton CssClass="localgpt-native-button danger compact" Click="() => RemoveAllowedHost(rowIndex)">@T("RemoteControl.RemoveHost", "Remove")</DxButton>
                             </div>
                         }
-                    </section>
+                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-                    <section class="wide remote-control-guided" aria-label='@T("RemoteControl.Headers", "Request headers")'>
+                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="wide remote-control-guided" aria-label='@T("RemoteControl.Headers", "Request headers")'>
                         <div class="remote-control-guided-heading">
                             <div>
                                 <strong>@T("RemoteControl.Headers", "Request headers")</strong>
@@ -135,7 +154,10 @@
                                 <DxButton CssClass="localgpt-native-button danger compact" Click="() => RemoveHeader(rowIndex)">@T("RemoteControl.RemoveHeader", "Remove")</DxButton>
                             </div>
                         }
-                    </section>
+                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
                     <label class="wide">@T("RemoteControl.RequestBody", "Request body template")<DxMemo @bind-Text="ConnectorEdit.RequestBodyTemplate" Rows="3" /></label>
                     <label>@T("RemoteControl.RequestContentType", "Request content type")<DxTextBox @bind-Text="ConnectorEdit.RequestContentType" /></label>
@@ -262,7 +284,10 @@
             </ConfigurationWorkbenchPanel>
 
             <ConfigurationWorkbenchPanel SectionKey="history" ActiveKey="@ActiveRemoteControlSection" AriaLabel="Remote Control execution history">
-    <section class="remote-control-panel remote-control-history">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="remote-control-panel remote-control-history">
         <div class="remote-control-panel-heading">
             <div><h2>@T("RemoteControl.History", "Execution history")</h2><small>@T("RemoteControl.History.Help", "Bounded audit metadata only; full remote payloads are not persisted here.")</small></div>
             <DxButton CssClass="localgpt-native-button" Click="ReloadAsync">@T("Common.Refresh", "Refresh")</DxButton>
@@ -278,11 +303,17 @@
                 </tbody>
             </table>
         </div>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             </ConfigurationWorkbenchPanel>
 
             <ConfigurationWorkbenchPanel SectionKey="templates" ActiveKey="@ActiveRemoteControlSection" AriaLabel="Remote Control template language">
-    <section class="remote-control-panel remote-control-help">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="remote-control-panel remote-control-help">
         <h2>@T("RemoteControl.TemplateLanguage", "Template language")</h2>
         <code>{{payload}}</code>
         <code>{{payload.current.temperature}}</code>
@@ -291,9 +322,18 @@
         <code>{{var:MY_API_KEY}}</code>
         <code>{{text:payload.description}}</code>
         <p>@T("RemoteControl.TemplateLanguage.Help", "Use payload values, previous step results and LocalGPT system variables. Prefix a token with text: when it must be JSON-string escaped inside an argument template.")</p>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             </ConfigurationWorkbenchPanel>
         </div>
     </div>
+</LocalGptFormLayoutSurface>
+</div>
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 </div>
 

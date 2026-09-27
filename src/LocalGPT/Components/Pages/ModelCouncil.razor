@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/model-council"
+@attribute [LocalGptUiLayoutSurface("page", "Model Council", "/model-council", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("editor", "Model Council · editor", "/model-council")]
 @inject CouncilTextService CouncilText
 @inject IMultiModelCouncilService CouncilService
 @inject IChatMemoryService ChatMemory
@@ -11,12 +13,21 @@
 @inject IComponentActivityService ComponentActivity
 @inject IChatContentRenderer ChatContentRenderer
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ModelCouncil">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>AI Council</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(ModelCouncil)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <main class="council-page">
     <ToastWrapper Name="@toastName" />
 
-    <section class="council-header">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="council-header">
         <div>
             <h1>AI Council</h1>
             <p>Combine local and cloud models from different providers while keeping every participant bound to its provider endpoint.</p>
@@ -26,9 +37,16 @@
                   RenderStyleMode="ButtonRenderStyleMode.Outline"
                   Enabled="@(!isBusy)"
                   Click="LoadCandidatesAsync" />
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-    <section class="council-layout">
+    <LocalGptFormLayoutSurface OwnerType="@typeof(ModelCouncil)" SectionName="editor" CanHide="true">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="council-layout">
         <div class="council-controls">
             <div class="control-group">
                 <div class="control-title">Council Models</div>
@@ -253,11 +271,18 @@
                 }
             </div>
         </div>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</LocalGptFormLayoutSurface>
 
     @if (LastResult is not null)
     {
-        <section class="result-meta">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="result-meta">
             <div>
                 <strong>Participants</strong>
                 <span>@CouncilText.FormatJoinedList(LastResult.ModelNames, " + ")</span>
@@ -304,9 +329,15 @@
                     <span>@continuedFrom</span>
                 </div>
             }
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-        <section class="result-meta">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="result-meta">
             @foreach (var model in LastResult.ModelNames)
             {
                 <div>
@@ -318,21 +349,33 @@
                               Click="@(() => ExcludeModel(model))" />
                 </div>
             }
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
         @if (LastResult.Warnings.Count > 0)
         {
-            <section class="warning-panel">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext006">
+        <div class="warning-panel">
                 @foreach (var warning in LastResult.Warnings)
                 {
                     <p>@warning</p>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
 
         @if (LastResult.UserPoll is not null)
         {
-            <section class="poll-panel">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext007">
+        <div class="poll-panel">
                 <h2>User Decision Poll</h2>
                 <p>@LastResult.UserPoll.Reason</p>
                 <strong>@LastResult.UserPoll.Question</strong>
@@ -355,12 +398,18 @@
                               Enabled="@(!string.IsNullOrWhiteSpace(CustomPollFeedback))"
                               Click="ApplyCustomPollFeedback" />
                 </div>
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
 
         @if (LastResult.ChangeReview is not null)
         {
-            <section class="final-panel change-review-panel">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext008">
+        <div class="final-panel change-review-panel">
                 <h2>Change Review Heartbeat</h2>
                 <p>
                     The council prepared an exact, database-backed proposal. Review the goal, current project state,
@@ -446,12 +495,18 @@
                         }
                     </div>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
 
         @if (LastResult.Artifacts.Count > 0)
         {
-            <section class="final-panel">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext009">
+        <div class="final-panel">
                 <h2>Downloadable Examples</h2>
                 @foreach (var artifact in LastResult.Artifacts)
                 {
@@ -466,23 +521,41 @@
                         </dl>
                     </div>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
 
-        <section class="final-panel">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext010">
+        <div class="final-panel">
             <h2>Original Prompt</h2>
             <details class="council-prompt" open>
                 <summary>Prompt sent to the AI Council</summary>
                 <pre>@CouncilText.DecodeHumanVisibleText(CouncilText.TrimForDisplay(LastResult.Prompt, 12000, Logger))</pre>
             </details>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-        <section class="final-panel">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext011">
+        <div class="final-panel">
             <h2>Consensus Answer</h2>
             <div class="markdown-output">@((MarkupString)ChatContentRenderer.Render(LastResult.FinalAnswer))</div>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-        <section class="transcript-panel">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext012">
+        <div class="transcript-panel">
             <h2>Conversation And Visible Thought Process</h2>
             @foreach (var step in LastResult.Steps.OrderBy(step => step.SortOrder))
             {
@@ -511,6 +584,15 @@
                     <div class="markdown-output">@((MarkupString)ChatContentRenderer.Render(step.VisibleContent))</div>
                 </article>
             }
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     }
 </main>
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+

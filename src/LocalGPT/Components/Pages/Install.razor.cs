@@ -58,11 +58,13 @@ namespace LocalGPT.Components.Pages
     [
         new("providers", T("Install.Workbench.Nav.Providers", "AI providers"), T("Install.Workbench.Nav.ProvidersHelp", "Hosts, models and provider connection settings"), ConfiguredProviderHosts.Count.ToString(CultureInfo.InvariantCulture)),
         new("remote", T("Install.Workbench.Nav.RemoteEndpoint", "Remote endpoint"), T("Install.Workbench.Nav.RemoteEndpointHelp", "LAN / VPN / smartphone listener")),
+        new("mcp", Localization.GetText("MCP gateway"), Localization.GetText("AI-facing tools, resources, prompts, ports and data-domain policy")),
         new("tls", T("Install.Workbench.Nav.Certificate", "TLS certificate"), T("Install.Workbench.Nav.CertificateHelp", "Create and select the HTTPS certificate")),
         new("guide", T("Install.Workbench.Nav.Guide", "Setup guide"), T("Install.Workbench.Nav.GuideHelp", "First-run status and quick starts")),
         new("toolchains", T("Install.Workbench.Nav.Toolchains", "Toolchains"), T("Install.Workbench.Nav.ToolchainsHelp", "Compilers and runtime discovery")),
         new("local-ai", T("Install.Workbench.Nav.LocalAi", "Local AI runtimes"), T("Install.Workbench.Nav.LocalAiHelp", "Direct model sources, Python capabilities, optional hubs"), LocalAiInstalledModels.Count.ToString(CultureInfo.InvariantCulture)),
         new("languages", T("Install.Workbench.Nav.Languages", "Languages"), T("Install.Workbench.Nav.LanguagesHelp", "Runtime language catalogs")),
+        new("layout", Localization.GetText("Layout Studio"), Localization.GetText("Page and editor FormLayout orchestration")),
         new("log", T("Install.Workbench.Nav.Log", "Setup log"), T("Install.Workbench.Nav.LogHelpShort", "Operational setup messages"))
     ];
 
@@ -73,18 +75,36 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnInstallSectionChanged(string key)
     {
+        try
+        {
         InstallSectionUserSelected = true;
         ActiveInstallSection = key;
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.OnInstallSectionChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>Opens the service-backed setup assistant where provider installation, start, model and endpoint actions are confirmation-gated.</summary>
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OpenGuidedRuntimeSetup()
     {
+        try
+        {
         InstallSectionUserSelected = true;
         ActiveInstallSection = "guide";
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.OpenGuidedRuntimeSetup failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -336,7 +356,18 @@ namespace LocalGPT.Components.Pages
     /// <param name="key">Key value supplied to the install operation and used when producing its result.</param>
     /// <param name="fallback">Fallback value supplied to the install operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+    private string T(string key, string fallback)
+    {
+        try
+        {
+            return Localization.Get(key, fallback: fallback);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.T failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Gets the last checked label value that forms part of the install state consumed or produced by the surrounding workflow.
@@ -387,6 +418,7 @@ namespace LocalGPT.Components.Pages
             DatabaseLoggerModel = LoggingModel.DatabaseCore ?? new DatabaseLoggerCoreOptions { CoreLogLevel = CoreLogLevel.Warning };
             LoggingModel.DatabaseCore = DatabaseLoggerModel;
             NetworkModel = Opts.CurrentValue.LocalGPT?.RemoteEndpoint ?? new RemoteWebEndpointOptions();
+            McpGatewayModel = CloneMcpGatewayOptions(Opts.CurrentValue.LocalGPT?.McpGateway);
             CertificateRequest = NetworkCertificates.CreateDefaultRequest();
             if (!string.IsNullOrWhiteSpace(NetworkModel.CertificatePath))
             {
@@ -415,11 +447,13 @@ namespace LocalGPT.Components.Pages
             {
                 "provider-studio" => "providers",
                 "network-endpoint" => "remote",
+                "mcp" or "mcp-gateway" => "mcp",
                 "tls-certificate" => "tls",
                 "setup-guide" => "guide",
                 "toolchains" => "toolchains",
                 "local-ai-runtime" => "local-ai",
                 "localization" => "languages",
+                "layout" or "layout-studio" => "layout",
                 "setup-log" => "log",
                 _ => ActiveInstallSection
             };
@@ -436,6 +470,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<ConfiguredProviderHostView> BuildConfiguredProviderHosts()
     {
+        try
+        {
         var result = new List<ConfiguredProviderHostView>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -472,6 +508,13 @@ namespace LocalGPT.Components.Pages
             result.Add(new ConfiguredProviderHostView("azure-openai", "Azure OpenAI", azure.Endpoint ?? string.Empty, azure.DeploymentName ?? string.Empty, "Cloud provider", true, null, null));
 
         return result;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.BuildConfiguredProviderHosts failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -616,6 +659,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
         if (firstRender && !initialSetupRefreshStarted)
         {
             initialSetupRefreshStarted = true;
@@ -626,6 +671,13 @@ namespace LocalGPT.Components.Pages
         }
 
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.OnAfterRenderAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1159,19 +1211,50 @@ namespace LocalGPT.Components.Pages
     /// <summary>Activates the selected imported culture and reloads Install through the localization controller.</summary>
     private void ActivateSelectedCulture()
     {
+        try
+        {
         var route = $"/api/localization/select?culture={Uri.EscapeDataString(LocalizationCulture)}&returnUrl={Uri.EscapeDataString("/install")}";
         Nav.NavigateTo(route, forceLoad: true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.ActivateSelectedCulture failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Opens documentation for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
     /// </summary>
-    private void OpenDocumentation() => NavigateToRoute("/help");
+    private void OpenDocumentation()
+    {
+        try
+        {
+            NavigateToRoute("/help");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.OpenDocumentation failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens council teams for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
     /// </summary>
-    private void OpenCouncilTeams() => NavigateToRoute("/council-teams");
+    private void OpenCouncilTeams()
+    {
+        try
+        {
+            NavigateToRoute("/council-teams");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.OpenCouncilTeams failed.");
+            throw;
+        }
+    }
 
     /// <summary>Opens one direct Council starter through a fresh full Chat navigation.</summary>
     /// <param name="quickStart">Selected maintained quick-start descriptor.</param>

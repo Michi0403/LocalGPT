@@ -321,6 +321,14 @@ public sealed partial class LocalAiRuntimeService(
                 var create = await RunProcessAsync(pythonExecutable, ["-m", "venv", environmentPath], Path.GetDirectoryName(environmentPath), TimeSpan.FromMinutes(5), cancellationToken).ConfigureAwait(false);
                 EnsureProcessSuccess(create, "Python virtual-environment creation");
             }
+            var environmentPython = RequireExistingFile(ResolveEnvironmentPython(environmentPath), "Managed environment Python executable");
+            var packaging = await RunProcessAsync(
+                environmentPython,
+                ["-m", "pip", "install", "--disable-pip-version-check", "--upgrade", "pip", "setuptools", "wheel"],
+                environmentPath,
+                TimeSpan.FromMinutes(10),
+                cancellationToken).ConfigureAwait(false);
+            EnsureProcessSuccess(packaging, "Managed Python packaging-tool bootstrap");
             var profile = GetPackageProfiles().FirstOrDefault(item => item.Key.Equals("core", StringComparison.OrdinalIgnoreCase))
                 ?? throw new InvalidOperationException("The PythonCore package profile is missing the required 'core' profile.");
             await InstallPackagesAsync(profile, cancellationToken).ConfigureAwait(false);
@@ -537,7 +545,10 @@ public sealed partial class LocalAiRuntimeService(
             await EnsureRuntimePolicyLoadedAsync(cancellationToken).ConfigureAwait(false);
             RequireConfirmation(userConfirmed, "installing OpenAI Whisper from reviewed GitHub source and downloading its selected model weights");
             if (python.IsInitialized)
-                throw new InvalidOperationException("The embedded Python runtime is already initialized. Restart LocalGPT before installing Python packages or a new Whisper source build.");
+            {
+                runtimePolicyRestartRequired = true;
+                logger.LogInformation("OpenAI Whisper installation is continuing through the isolated managed-environment Python process after Python.NET initialization; LocalGPT restart will be required before the embedded runtime can use the changed packages.");
+            }
             var sourceRoot = LocalGptApplicationDataPaths.ResolveUserPath("LocalAiRuntime", "Sources");
             var fullSourcePath = Path.GetFullPath(sourceArchivePath ?? string.Empty);
             if (!File.Exists(fullSourcePath) || !platform.IsSameOrDescendantPath(sourceRoot, fullSourcePath) || !Path.GetExtension(fullSourcePath).Equals(".zip", StringComparison.OrdinalIgnoreCase))
@@ -1108,7 +1119,10 @@ public sealed partial class LocalAiRuntimeService(
     try
     {
             if (python.IsInitialized)
-                throw new InvalidOperationException("The embedded Python runtime is already initialized. Restart LocalGPT before changing packages in its managed environment so loaded Python/native modules are not mutated underneath active jobs.");
+            {
+                runtimePolicyRestartRequired = true;
+                logger.LogInformation("Python package profile {ProfileKey} is being installed through the isolated managed-environment process after Python.NET initialization; restart is required before the embedded runtime can use the changed package set.", profile.Key);
+            }
             if (profile.Packages.Count == 0)
                 throw new InvalidOperationException($"Python package profile '{profile.Key}' contains no packages.");
             var environmentPath = ResolveEnvironmentPath(CurrentConfig());

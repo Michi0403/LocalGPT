@@ -100,6 +100,7 @@
   </Target>
 
   <PropertyGroup>
+    <ComponentSafetyScript>$(MSBuildThisFileDirectory)build/Assert-ComponentSafety.ps1</ComponentSafetyScript>
     <MethodDiagnosticsPolicyScript>$(MSBuildThisFileDirectory)build/Assert-MethodDiagnostics.ps1</MethodDiagnosticsPolicyScript>
     <ApplicationStaticPolicyScript>$(MSBuildThisFileDirectory)build/Assert-ApplicationStaticPolicy.ps1</ApplicationStaticPolicyScript>
     <TextServiceOwnershipScript>$(MSBuildThisFileDirectory)build/Assert-TextServiceOwnership.ps1</TextServiceOwnershipScript>
@@ -107,6 +108,13 @@
     <SystemVariableInitializationScript>$(MSBuildThisFileDirectory)build/Assert-SystemVariableInitialization.ps1</SystemVariableInitializationScript>
     <EfModelSnapshotConsistencyScript>$(MSBuildThisFileDirectory)build/Assert-EfModelSnapshotConsistency.ps1</EfModelSnapshotConsistencyScript>
   </PropertyGroup>
+
+  <Target Name="AssertLocalGptComponentSafety"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptRazorMaintenanceArchitecture"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipComponentSafetyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(ComponentSafetyScript)')" Text="Component safety policy script is missing: $(ComponentSafetyScript)" />
+    <Exec Condition="Exists('$(ComponentSafetyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(ComponentSafetyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
 
   <Target Name="AssertLocalGptMethodDiagnosticsPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptAsyncContinuationPolicy"
@@ -261,6 +269,9 @@
 
   <PropertyGroup>
     <DevExpressBlazorControlsScript>$(MSBuildThisFileDirectory)build/Assert-DevExpressBlazorControls.ps1</DevExpressBlazorControlsScript>
+    <FormLayoutOwnershipScript>$(MSBuildThisFileDirectory)build/Assert-FormLayoutOwnership.ps1</FormLayoutOwnershipScript>
+    <DevExpressComponentRetentionScript>$(MSBuildThisFileDirectory)build/Assert-DevExpressComponentRetention.ps1</DevExpressComponentRetentionScript>
+    <RazorMaintenanceArchitectureScript>$(MSBuildThisFileDirectory)build/Assert-RazorMaintenanceArchitecture.ps1</RazorMaintenanceArchitectureScript>
   </PropertyGroup>
 
   <Target Name="AssertLocalGptDevExpressBlazorControls"
@@ -270,4 +281,40 @@
     <Error Condition="!Exists('$(DevExpressBlazorControlsScript)')" Text="DevExpress Blazor control guard script is missing: $(DevExpressBlazorControlsScript)" />
     <Exec Condition="Exists('$(DevExpressBlazorControlsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(DevExpressBlazorControlsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
+
+  <Target Name="AssertLocalGptDevExpressComponentRetention"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptDevExpressBlazorControls"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipDevExpressComponentRetentionGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(DevExpressComponentRetentionScript)')" Text="DevExpress component retention guard script is missing: $(DevExpressComponentRetentionScript)" />
+    <Exec Condition="Exists('$(DevExpressComponentRetentionScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(DevExpressComponentRetentionScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptRazorMaintenanceArchitecture"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptDevExpressComponentRetention"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipRazorMaintenanceArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(RazorMaintenanceArchitectureScript)')" Text="Razor maintenance architecture guard script is missing: $(RazorMaintenanceArchitectureScript)" />
+    <Exec Condition="Exists('$(RazorMaintenanceArchitectureScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RazorMaintenanceArchitectureScript)&quot; -Product localgpt" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptFormLayoutOwnership"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptRazorComponentAttributeExpressions"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipFormLayoutOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(FormLayoutOwnershipScript)')" Text="Form-layout ownership guard script is missing: $(FormLayoutOwnershipScript)" />
+    <Exec Condition="Exists('$(FormLayoutOwnershipScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(FormLayoutOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <PropertyGroup>
+    <RazorComponentAttributeExpressionsScript>$(MSBuildThisFileDirectory)build/Assert-RazorComponentAttributeExpressions.ps1</RazorComponentAttributeExpressionsScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptRazorComponentAttributeExpressions"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptComponentSafety"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipRazorComponentAttributeExpressionsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(RazorComponentAttributeExpressionsScript)')" Text="Razor component-attribute guard script is missing: $(RazorComponentAttributeExpressionsScript)" />
+    <Exec Condition="Exists('$(RazorComponentAttributeExpressionsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RazorComponentAttributeExpressionsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
 </Project>

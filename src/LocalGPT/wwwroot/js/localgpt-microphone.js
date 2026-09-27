@@ -1,9 +1,15 @@
 // javascript-diagnostics: guarded
 // Component-owned capture. PCM WAV avoids browser-specific compressed-audio decoder dependencies.
-export async function create(owner, element) {
+// Capture instances stay inside this ES module. .NET only carries an opaque id, avoiding
+// JS object-reference marshalling differences across InteractiveServer circuits.
+const captures = new Map();
+let nextCaptureId = 1;
+
+export function create(owner, element) {
     let stream, context, source, processor, observer;
     let samples = [], frames = 0, active = false, disposed = false;
     const maximumBytes = 16 * 1024 * 1024;
+    const captureId = `microphone-${nextCaptureId++}`;
     const release = async () => {
         active = false;
         if (processor) { processor.onaudioprocess = null; processor.disconnect(); processor = null; }
@@ -34,20 +40,21 @@ export async function create(owner, element) {
         await owner.invokeMethodAsync("RecordingReady", DotNet.createJSStreamReference(bytes), bytes.length);
     };
     const stopOnNavigation = () => { void finish(false); };
-    window.addEventListener("pagehide", stopOnNavigation);
-    observer = new MutationObserver(() => { if (!element.isConnected) void api.dispose(); });
-    observer.observe(document.body, { childList: true, subtree: true });
     const api = {
         async start(maximumSeconds) {
             if (active || disposed) return;
             try {
+                if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone capture is not supported by this browser or origin.");
                 stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 if (disposed) { await release(); return; }
-                context = new AudioContext();
+                const AudioContextType = globalThis.AudioContext || globalThis.webkitAudioContext;
+                if (!AudioContextType) throw new Error("Web Audio is not supported by this browser.");
+                context = new AudioContextType();
                 await context.resume();
                 source = context.createMediaStreamSource(stream);
                 processor = context.createScriptProcessor(4096, 1, 1);
-                const limit = Math.min(Math.floor((maximumBytes - 44) / 2), Math.floor(context.sampleRate * maximumSeconds));
+                const seconds = Number.isFinite(Number(maximumSeconds)) ? Math.max(1, Number(maximumSeconds)) : 60;
+                const limit = Math.min(Math.floor((maximumBytes - 44) / 2), Math.floor(context.sampleRate * seconds));
                 samples = []; frames = 0; active = true;
                 processor.onaudioprocess = event => {
                     if (!active) return;
@@ -65,9 +72,30 @@ export async function create(owner, element) {
         async stop() { await finish(true); },
         async cancel() { await finish(false); },
         async dispose() {
+            if (disposed) return;
             disposed = true; observer?.disconnect(); window.removeEventListener("pagehide", stopOnNavigation);
             samples = []; frames = 0; await release();
         }
     };
-    return DotNet.createJSObjectReference(api);
+    window.addEventListener("pagehide", stopOnNavigation);
+    observer = new MutationObserver(() => { if (!element.isConnected) void dispose(captureId); });
+    observer.observe(document.body, { childList: true, subtree: true });
+    captures.set(captureId, api);
+    return captureId;
+}
+
+function requireCapture(captureId) {
+    const capture = captures.get(captureId);
+    if (!capture) throw new Error(`Microphone capture '${captureId}' is unavailable.`);
+    return capture;
+}
+
+export async function start(captureId, maximumSeconds) { await requireCapture(captureId).start(maximumSeconds); }
+export async function stop(captureId) { await requireCapture(captureId).stop(); }
+export async function cancel(captureId) { await requireCapture(captureId).cancel(); }
+export async function dispose(captureId) {
+    const capture = captures.get(captureId);
+    if (!capture) return;
+    captures.delete(captureId);
+    await capture.dispose();
 }

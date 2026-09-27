@@ -16,7 +16,16 @@
 @inject ILogger<ChatGameConsole> Logger
 @implements IAsyncDisposable
 
-<section id="@elementId"
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ChatGameConsole">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div id="@elementId"
          class="chat-game-console @(operatorMode ? "chat-game-console-operator" : conversationMode ? "chat-game-console-conversation" : snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
          tabindex="0"
          data-localgpt-game-console
@@ -160,7 +169,10 @@
         <div class="ascii-conversation-stage">
             @if (HasGameInteractionRequest)
             {
-                <section class="chat-game-control-card chat-game-hotseat-card chat-game-ai-request-card ascii-conversation-request" aria-label="AI request awaiting review">
+                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="chat-game-control-card chat-game-hotseat-card chat-game-ai-request-card ascii-conversation-request" aria-label="AI request awaiting review">
                     <div class="chat-game-hotseat-heading">
                         <strong>@gameInteractionRequest!.Title</strong>
                         <span>@gameInteractionRequest.RequestedRole · @gameInteractionRequest.RequestedBy</span>
@@ -198,17 +210,26 @@
                         </form>
                     }
                     <small>This function/review request belongs to the active Council session and remains usable in ASCII Chat mode even when no game is running.</small>
-                </section>
+                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             }
             @if (asciiSequenceFrames.Count > 1)
             {
-                <section class="ascii-sequence-player" aria-label="ASCII animation from the latest chat message">
+                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="ascii-sequence-player" aria-label="ASCII animation from the latest chat message">
                     <header>
                         <strong>ASCII SEQUENCE</strong>
                         <small>@asciiSequenceFrames.Count frames · pauses with the page/window</small>
                     </header>
                     <pre class="chat-game-screen ascii-sequence-screen" data-ascii-sequence-screen>@asciiSequenceFrames[0]</pre>
-                </section>
+                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             }
             <div class="ascii-conversation-output" role="log" aria-live="polite" aria-label="ASCII rendering of the current chat conversation">
                 <pre class="chat-game-screen">@asciiConversationText</pre>
@@ -230,7 +251,10 @@
 │  No deterministic game is required for this AI review/function request.     │
 │  Use the same durable Chat approval below; completed work returns to Chat.   │
 └───────────────────────────────────────────────────────────────────────────────┘</pre>
-                    <section class="chat-game-control-card chat-game-hotseat-card chat-game-ai-request-card council-work-request" aria-label="Non-game Council request awaiting review">
+                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="chat-game-control-card chat-game-hotseat-card chat-game-ai-request-card council-work-request" aria-label="Non-game Council request awaiting review">
                         <div class="chat-game-hotseat-heading">
                             <strong>@gameInteractionRequest!.Title</strong>
                             <span>@gameInteractionRequest.RequestedRole · @gameInteractionRequest.RequestedBy</span>
@@ -268,7 +292,10 @@
                             </form>
                         }
                         <small>Game controls are reused as a bounded non-game work console; this does not create or mutate a game session.</small>
-                    </section>
+                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                 </div>
             </div>
         }
@@ -432,10 +459,21 @@
             <span>Renderer: @snapshot.FrameRenderer</span>
         </footer>
     }
-</section>
+</div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>One display/value pair used by the DevExpress selectors inside the shared ASCII wall.</summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="ChatGameConsole"/>.</typeparam>
+    /// <param name="Value">Value value supplied to the chat game console operation and used when producing its result.</param>
+    /// <param name="Label">Label value supplied to the chat game console operation and used when producing its result.</param>
     private sealed record AsciiSelectOption<T>(T Value, string Label);
 
     /// <summary>Maintained fullscreen scaling choices preserving the labels of the previous native selector.</summary>
@@ -636,112 +674,100 @@
     /// Gets a value indicating whether show control guide applies to the chat game console state.
     /// </summary>
     /// <value>The show control guide value exposed by <see cref="ChatGameConsole"/>.</value>
-    private bool HasHotSeatRequest => hotSeatRequest is not null;
+    private bool HasHotSeatRequest => GetHasHotSeatRequestForRender();
     /// <summary>Gets whether an AI/Council human request can be answered directly on the active ASCII game surface.</summary>
     /// <value><c>true</c> when a non-role Human Collaboration request is projected into the game.</value>
-    private bool HasGameInteractionRequest => gameInteractionRequest is not null;
+    private bool HasGameInteractionRequest => GetHasGameInteractionRequestForRender();
     /// <summary>Gets whether the projected game request requires an explicit approve/decline choice.</summary>
     /// <value><c>true</c> when the current projected request uses the approval contract.</value>
-    private bool IsApprovalGameInteraction => gameInteractionRequest is not null
-        && string.Equals(gameInteractionRequest.RequestKind, Vocabulary.Get().HumanRequestApproval, StringComparison.Ordinal);
+    private bool IsApprovalGameInteraction => GetIsApprovalGameInteractionForRender();
     /// <summary>Gets whether this game surface belongs to the Council hot-seat workflow rather than the standalone deterministic corridor.</summary>
     /// <value><c>true</c> when the current game is attached to the configured Council hot-seat workflow.</value>
-    private bool IsCouncilHotSeatGame => CouncilRunId.HasValue
-        && (HasHotSeatRequest
-            || string.Equals(snapshot?.TeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(SuggestedTeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase));
+    private bool IsCouncilHotSeatGame => GetIsCouncilHotSeatGameForRender();
     /// <summary>Gets whether a completed standalone ASCII corridor can be restarted without replacing the owning chat.</summary>
     /// <value><c>true</c> when the completed corridor is standalone and restartable.</value>
-    private bool CanRestartCorridor => snapshot is { GameKey: "ascii-doom" }
-        && !string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase)
-        && !IsCouncilHotSeatGame;
-    /// <summary>Gets the current fullscreen scaling item for the DevExpress selector.</summary>
+    private bool CanRestartCorridor => GetCanRestartCorridorForRender();
+    /// <summary>
+    /// Gets the selected fullscreen scale option value that forms part of the chat game console state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected fullscreen scale option value exposed by <see cref="ChatGameConsole"/>.</value>
     private AsciiSelectOption<string> SelectedFullscreenScaleOption =>
-        FullscreenScaleOptions.FirstOrDefault(option => string.Equals(option.Value, fullscreenScaleMode, StringComparison.OrdinalIgnoreCase))
-        ?? FullscreenScaleOptions[0];
+        GetSelectedFullscreenScaleOptionForRender();
 
-    /// <summary>Gets the current deterministic-frame presentation item.</summary>
+    /// <summary>
+    /// Gets the selected game display option value that forms part of the chat game console state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected game display option value exposed by <see cref="ChatGameConsole"/>.</value>
     private AsciiSelectOption<string> SelectedGameDisplayOption =>
-        GameDisplayOptions.FirstOrDefault(option => string.Equals(option.Value, gameDisplayMode, StringComparison.OrdinalIgnoreCase))
-        ?? GameDisplayOptions[0];
+        GetSelectedGameDisplayOptionForRender();
 
-    /// <summary>Gets the current game-control item for the DevExpress selector.</summary>
+    /// <summary>
+    /// Gets the selected control mode option value that forms part of the chat game console state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected control mode option value exposed by <see cref="ChatGameConsole"/>.</value>
     private AsciiSelectOption<CouncilGameControlMode> SelectedControlModeOption =>
-        ControlModeOptions.FirstOrDefault(option => option.Value == snapshot?.ControlMode)
-        ?? ControlModeOptions[1];
+        GetSelectedControlModeOptionForRender();
 
-    /// <summary>Gets the current autoplay delay item for the DevExpress selector.</summary>
+    /// <summary>
+    /// Gets the selected autoplay delay option value that forms part of the chat game console state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected autoplay delay option value exposed by <see cref="ChatGameConsole"/>.</value>
     private AsciiSelectOption<int> SelectedAutoplayDelayOption =>
-        AutoplayDelayOptions.FirstOrDefault(option => option.Value == snapshot?.AutoplayDelayMilliseconds)
-        ?? AutoplayDelayOptions[2];
+        GetSelectedAutoplayDelayOptionForRender();
 
     /// <summary>Gets the selected host-resolved shell descriptor for the DevExpress operator selector.</summary>
+    /// <value>The selected operator shell value exposed by <see cref="ChatGameConsole"/>.</value>
     private LocalConsoleShellDescriptor? SelectedOperatorShell =>
-        availableShells.FirstOrDefault(option => option.Shell == operatorShell);
+        GetSelectedOperatorShellForRender();
 
     /// <summary>Gets whether the active game should expose its human control guide.</summary>
     /// <value><c>true</c> when controls or in-game collaboration input are currently relevant.</value>
-    private bool CanShowControlGuide => snapshot is not null
-        && (HasHotSeatRequest
-            || HasGameInteractionRequest
-            || CanRestartCorridor
-            || (snapshot.LegalActions.Count > 0 && snapshot.ControlMode != CouncilGameControlMode.Ai));
+    private bool CanShowControlGuide => GetCanShowControlGuideForRender();
     /// <summary>Gets whether the active game should currently expose its human control guide.</summary>
-    private bool ShowControlGuide => showControls && CanShowControlGuide;
+    /// <value>The show control guide value exposed by <see cref="ChatGameConsole"/>.</value>
+    private bool ShowControlGuide => GetShowControlGuideForRender();
     /// <summary>Gets whether the active deterministic frame is the high-resolution Kernel Creature Tournament surface.</summary>
-    private bool IsKernelTournament => string.Equals(snapshot?.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase);
+    /// <value>The is kernel tournament value exposed by <see cref="ChatGameConsole"/>.</value>
+    private bool IsKernelTournament => GetIsKernelTournamentForRender();
     /// <summary>
     /// Gets a value indicating whether submit human control applies to the chat game console state.
     /// </summary>
     /// <value>The can submit human control value exposed by <see cref="ChatGameConsole"/>.</value>
-    private bool CanSubmitHumanControl => HasHotSeatRequest
-        ? !hotSeatSubmitting
-        : snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai } && !inputInFlight;
+    private bool CanSubmitHumanControl => GetCanSubmitHumanControlForRender();
     /// <summary>
     /// Gets the input busy state value that forms part of the chat game console state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The input busy state value exposed by <see cref="ChatGameConsole"/>.</value>
-    private string InputBusyState => inputInFlight || hotSeatSubmitting || gameInteractionSubmitting ? "true" : "false";
+    private string InputBusyState => GetInputBusyStateForRender();
     /// <summary>
     /// Gets the console text value that forms part of the chat game console state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The console text value exposed by <see cref="ChatGameConsole"/>.</value>
-    private string ConsoleText => Console.GetRecentDisplayText(160);
+    private string ConsoleText => GetConsoleTextForRender();
     /// <summary>Gets the bounded command transcript or the Matrix-style idle frame shown when no operator output exists yet.</summary>
     /// <value>Visible operator transcript text that never opens or embeds an external terminal window.</value>
-    private string OperatorConsoleText => consoleOutput.Count > 0 ? Console.GetRecentDisplayText(240) : "┌─ LOCALGPT MATRIX OPERATOR ───────────────────────────────────────────────────┐" + Environment.NewLine + "│ Embedded shell/process control ready. No external terminal window is opened. │" + Environment.NewLine + "│ :help lists app + shell commands; chat, Council and games stay in this wall.  │" + Environment.NewLine + "└──────────────────────────────────────────────────────────────────────────────┘";
+    private string OperatorConsoleText => GetOperatorConsoleTextForRender();
     /// <summary>Gets the header status that identifies whether the ASCII wall currently belongs to the game or operator control plane.</summary>
     /// <value>A compact status line describing the selected shell, active jobs, or current game turn.</value>
-    private string OperatorHeaderText => operatorMode
-        ? $"Embedded {OperatorShellLabel} · {ActiveJobText} · game state preserved behind this wall"
-        : snapshot is null ? (consoleOutput.Count > 0 ? "Live bounded LocalGPT terminal output. Operator mode can take interactive control." : "Start a directly playable runtime-class game or open the operator layer.") : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}";
+    private string OperatorHeaderText => GetOperatorHeaderTextForRender();
     /// <summary>Gets the concise host-shell token rendered beside the Matrix operator command row.</summary>
     /// <value>The selected shell label, using <c>pwsh</c> for the PowerShell backend.</value>
-    private string OperatorShellLabel => operatorShell == LocalConsoleShellKind.PowerShell ? "pwsh" : operatorShell.ToString().ToLowerInvariant();
+    private string OperatorShellLabel => GetOperatorShellLabelForRender();
     /// <summary>Gets the ARIA busy-state text for an operator submission that is currently being queued.</summary>
     /// <value><c>true</c> while submission is in progress; otherwise <c>false</c>.</value>
-    private string OperatorBusyState => operatorSubmitting ? "true" : "false";
+    private string OperatorBusyState => GetOperatorBusyStateForRender();
     /// <summary>Gets the visible count of service-owned shell jobs without disclosing any submitted command text.</summary>
     /// <value>A bounded human-readable active-job count for the operator status strip.</value>
-    private string ActiveJobText => $"{Console.GetActiveOperations().Count} active job(s)";
+    private string ActiveJobText => GetActiveJobTextForRender();
     /// <summary>Chooses the Matrix-style heading that tells the user which shared ASCII plane currently owns the surface: replayable chat, an interactive game, or operator control.</summary>
     /// <value>A compact Matrix-style title for chat, game, or operator mode.</value>
-    private string AsciiSurfaceTitle => operatorMode
-        ? "LOCALGPT // MATRIX OPERATOR"
-        : conversationMode
-            ? "LOCALGPT // ASCII CHAT"
-            : snapshot?.DisplayName ?? "LOCALGPT // ASCII GAME";
+    private string AsciiSurfaceTitle => GetAsciiSurfaceTitleForRender();
     /// <summary>Gets the status line shown below the current ASCII presentation title.</summary>
     /// <value>A concise explanation of the shared chat/game/operator state.</value>
-    private string AsciiSurfaceSubtitle => operatorMode
-        ? OperatorHeaderText
-        : conversationMode
-            ? $"{ConversationMessages.Count} shared chat message(s) · function/thinking traces included · {(FunModeEnabled ? "fun mode on" : "fun mode off")}"
-            : snapshot is null
-                ? "No game is running; CHAT returns to the replayable conversation."
-                : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}";
+    private string AsciiSurfaceSubtitle => GetAsciiSurfaceSubtitleForRender();
 
     /// <summary>Gets a compact live workflow hint while the tournament engine is waiting for AI-authored lineup/bracket evidence.</summary>
+    /// <value>The game preparation status value exposed by <see cref="ChatGameConsole"/>.</value>
     private string GamePreparationStatus
     {
         get
@@ -759,20 +785,32 @@
     }
 
     /// <summary>Reports game availability only when the state actually changes.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ReportGameAvailabilityAsync()
     {
+        try
+        {
         var available = snapshot is not null && string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase);
         if (lastReportedGameAvailability == available)
             return;
         lastReportedGameAvailability = available;
         if (GameAvailabilityChanged.HasDelegate)
             await GameAvailabilityChanged.InvokeAsync(available).ConfigureAwait(true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ReportGameAvailabilityAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Resolves the running game owned by this chat conversation or active Council run without cross-attaching an unrelated session.</summary>
     /// <returns>The correlated running game, or <c>null</c> when this surface has no owned game.</returns>
     private async Task<CouncilGameSessionSnapshot?> ResolveActiveGameAsync()
     {
+        try
+        {
         if (ConversationId is Guid conversationId)
         {
             var conversationGame = await Games.GetActiveAsync(conversationId).ConfigureAwait(true);
@@ -792,6 +830,13 @@
         return ConversationId is null && CouncilRunId is null
             ? await Games.GetActiveAsync(null).ConfigureAwait(true)
             : null;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ResolveActiveGameAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Determines whether a game snapshot belongs to the conversation or Council run projected by this terminal.</summary>
@@ -799,11 +844,20 @@
     /// <returns><c>true</c> when the candidate belongs to the current terminal context.</returns>
     private bool MatchesCurrentGameContext(CouncilGameSessionSnapshot candidate)
     {
+        try
+        {
         if (ConversationId is Guid conversationId && candidate.ConversationId == conversationId)
             return true;
         if (CouncilRunId is Guid councilRunId && candidate.CouncilRunId == councilRunId)
             return true;
         return ConversationId is null && CouncilRunId is null;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.MatchesCurrentGameContext failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -812,6 +866,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         Games.Changed += OnGameChanged;
         HumanCollaboration.Changed += OnHumanCollaborationChanged;
         Console.Changed += OnConsoleChanged;
@@ -823,6 +879,13 @@
         await ReportGameAvailabilityAsync().ConfigureAwait(true);
         await RefreshHotSeatRequestAsync().ConfigureAwait(true);
         lastHumanRequestProjectionRunId = CouncilRunId;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.OnInitializedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -831,6 +894,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnParametersSetAsync()
     {
+        try
+        {
         if (snapshot is null || !MatchesCurrentGameContext(snapshot))
             snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);
         await ReportGameAvailabilityAsync().ConfigureAwait(true);
@@ -845,13 +910,29 @@
             lastHumanRequestProjectionRunId = CouncilRunId;
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
         }
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.OnParametersSetAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Rebuilds the canonical ASCII conversation projection only when the Chat plane is actually visible.</summary>
     private void RefreshConversationProjection()
     {
+        try
+        {
         asciiConversationText = AsciiText.BuildConversationTranscript(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName);
         asciiSequenceFrames = AsciiText.ExtractSequenceFrames(ConversationMessages, CouncilParticipantActivities);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.RefreshConversationProjection failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -986,6 +1067,8 @@
     /// <summary>Clears browser-side presentation caches after a transient circuit/interop failure so a later render can safely reattach.</summary>
     private void ResetJavaScriptAttachmentState()
     {
+        try
+        {
         attached = false;
         lastJsInputEnabled = null;
         lastJsScaleMode = null;
@@ -993,28 +1076,53 @@
         lastJsFramePresentationSignature = string.Empty;
         lastJsSequenceSignature = string.Empty;
         lastJsLayoutSignature = string.Empty;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ResetJavaScriptAttachmentState failed.");
+            throw;
+        }
     }
 
     /// <summary>Shows the canonical replayable chat transcript on the shared ASCII surface.</summary>
     /// <returns>A task that completes after the renderer switches back to chat presentation.</returns>
     private Task ShowConversationModeAsync()
     {
+        try
+        {
         operatorMode = false;
         operatorReturnsToGame = false;
         conversationMode = true;
         RefreshConversationProjection();
         lastJsLayoutSignature = string.Empty;
         return InvokeAsync(StateHasChanged);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ShowConversationModeAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Shows the active ASCII game without discarding the underlying chat transcript.</summary>
     /// <returns>A task that completes after the renderer switches to the game presentation.</returns>
     private Task ShowGameModeAsync()
     {
+        try
+        {
         operatorMode = false;
         operatorReturnsToGame = false;
         conversationMode = false;
         return InvokeAsync(StateHasChanged);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ShowGameModeAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Toggles the embedded operator layer while keeping game and running-process state alive behind the shared ASCII wall.</summary>
@@ -1214,12 +1322,34 @@
     /// Starts doom for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartDoomAsync() => await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(true);
+    private async Task StartDoomAsync()
+    {
+        try
+        {
+            await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(true);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.StartDoomAsync failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Starts dragon for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartDragonAsync() => await StartAsync("green-dragon", "green-dragon-runtime-story").ConfigureAwait(true);
+    private async Task StartDragonAsync()
+    {
+        try
+        {
+            await StartAsync("green-dragon", "green-dragon-runtime-story").ConfigureAwait(true);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.StartDragonAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs start for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
@@ -1271,7 +1401,11 @@
 
     /// <summary>Restarts the completed ASCII corridor with the exact same deterministic map seed.</summary>
     /// <returns>A task that completes when the replay session has started.</returns>
-    private Task RestartSameMapAsync() => snapshot is null
+    private Task RestartSameMapAsync()
+    {
+        try
+        {
+            return snapshot is null
         ? Task.CompletedTask
         : StartAsync(
             "ascii-doom",
@@ -1281,20 +1415,40 @@
             snapshot.CampaignRuntimeClassKey,
             snapshot.CurrentLevel,
             snapshot.AutoAdvanceLevels);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.RestartSameMapAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Starts a newly seeded corridor while preserving the current chat and selected team.</summary>
     /// <returns>A task that completes when the newly seeded corridor has started.</returns>
-    private Task StartFreshMapAsync() => StartAsync(
+    private Task StartFreshMapAsync()
+    {
+        try
+        {
+            return StartAsync(
         "ascii-doom",
         snapshot?.TeamKey ?? "ascii-doom-council-adventure",
         campaignRuntimeClassKey: snapshot?.CampaignRuntimeClassKey ?? string.Empty,
         startingLevel: snapshot?.CurrentLevel,
         autoAdvanceLevels: snapshot?.AutoAdvanceLevels);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.StartFreshMapAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Starts a new corridor whose stable layout is derived from the supplied scenario text.</summary>
     /// <returns>A task that completes when the scenario-derived corridor has started.</returns>
     private async Task StartScenarioAsync()
     {
+        try
+        {
         var scenario = CouncilText.TrimForPrompt(scenarioPrompt, 240, Logger, collapseWhitespace: true);
         await StartAsync(
             "ascii-doom",
@@ -1304,6 +1458,13 @@
             startingLevel: snapshot?.CurrentLevel,
             autoAdvanceLevels: snapshot?.AutoAdvanceLevels).ConfigureAwait(true);
         scenarioPrompt = string.Empty;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.StartScenarioAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1313,6 +1474,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ChangeControlModeAsync(AsciiSelectOption<CouncilGameControlMode>? option)
     {
+        try
+        {
         if (snapshot is null || option is null) return;
         var mode = option.Value;
         snapshot = await Games.SetControlModeAsync(
@@ -1320,6 +1483,13 @@
             mode,
             mode == CouncilGameControlMode.Ai,
             snapshot.AutoplayDelayMilliseconds).ConfigureAwait(true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ChangeControlModeAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1329,27 +1499,57 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ChangeAutoplayDelayAsync(AsciiSelectOption<int>? option)
     {
+        try
+        {
         if (snapshot is null || option is null) return;
         snapshot = await Games.SetControlModeAsync(
             snapshot.Id,
             snapshot.ControlMode,
             snapshot.ControlMode == CouncilGameControlMode.Ai,
             option.Value).ConfigureAwait(true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ChangeAutoplayDelayAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Performs toggle controls for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
-    private void ToggleControls() => showControls = !showControls;
+    private void ToggleControls()
+    {
+        try
+        {
+            showControls = !showControls;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ToggleControls failed.");
+            throw;
+        }
+    }
 
     /// <summary>Changes only the deterministic frame presentation; game mechanics, controls and session identity remain unchanged.</summary>
     /// <param name="option">Selected ASCII or pixel presentation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ChangeGameDisplayModeAsync(AsciiSelectOption<string>? option)
     {
+        try
+        {
         gameDisplayMode = string.Equals(option?.Value, "Pixel", StringComparison.OrdinalIgnoreCase) ? "Pixel" : "Ascii";
         lastJsLayoutSignature = string.Empty;
         await JS.InvokeVoidAsync("localGptGameConsole.setDisplayMode", elementId, gameDisplayMode).ConfigureAwait(false);
         lastJsDisplayMode = gameDisplayMode;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ChangeGameDisplayModeAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1359,20 +1559,39 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ChangeFullscreenScaleModeAsync(AsciiSelectOption<string>? option)
     {
+        try
+        {
         var requestedMode = option?.Value;
         fullscreenScaleMode = string.Equals(requestedMode, "Native", StringComparison.OrdinalIgnoreCase)
             ? "Native"
             : string.Equals(requestedMode, "Width", StringComparison.OrdinalIgnoreCase) ? "Width" : "Fit";
         await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true);
         lastJsScaleMode = fullscreenScaleMode;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ChangeFullscreenScaleModeAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Performs fullscreen for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task FullscreenAsync() =>
-        await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId).ConfigureAwait(true);
+    private async Task FullscreenAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId).ConfigureAwait(true);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.FullscreenAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs close for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
@@ -1380,15 +1599,26 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CloseAsync()
     {
+        try
+        {
         await JS.InvokeVoidAsync("localGptGameConsole.exitFullscreen", elementId).ConfigureAwait(true);
         if (CloseRequested.HasDelegate)
             await InvokeAsync(() => CloseRequested.InvokeAsync()).ConfigureAwait(true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.CloseAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Ends only the active ASCII game while preserving the chat, Council/provider sessions and reusable terminal surface.</summary>
     /// <returns>A task that completes after the authoritative game session has ended.</returns>
     private async Task EndGameAsync()
     {
+        try
+        {
         if (snapshot is null)
             return;
         snapshot = await Games.EndAsync(snapshot.Id, "Human User").ConfigureAwait(true);
@@ -1396,6 +1626,13 @@
         conversationMode = true;
         operatorMode = false;
         await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.EndGameAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1406,6 +1643,8 @@
     [JSInvokable]
     public Task SubmitControlFromJs(string action)
     {
+        try
+        {
         if (HasHotSeatRequest)
         {
             var command = action switch
@@ -1421,6 +1660,13 @@
             return string.IsNullOrWhiteSpace(command) ? Task.CompletedTask : SubmitHotSeatResponseAsync(command);
         }
         return SendControlAsync(action);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.SubmitControlFromJs failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1538,10 +1784,19 @@
     /// <returns>A task that completes when the EMOTE response has been submitted.</returns>
     private Task SubmitHotSeatTextAsync()
     {
+        try
+        {
         var text = CouncilText.TrimForPrompt(hotSeatText, 80, Logger, collapseWhitespace: true);
         if (string.IsNullOrWhiteSpace(text))
             return Task.CompletedTask;
         return SubmitHotSeatResponseAsync($"EMOTE {text}");
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.SubmitHotSeatTextAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Submits one projected AI/Council request response without leaving the active ASCII game.</summary>
@@ -1605,6 +1860,8 @@
     /// <param name="approvalRequestId">Approval request whose deferred function calls may execute.</param>
     private void QueueApprovedGameInteractionExecution(Guid approvalRequestId)
     {
+        try
+        {
         TaskRunner.Run(
             nameof(ChatGameConsole),
             "ExecuteApprovedAsciiDeferredCalls",
@@ -1628,16 +1885,35 @@
                 }).ConfigureAwait(false);
             },
             consoleRenderCancellation.Token);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.QueueApprovedGameInteractionExecution failed.");
+            throw;
+        }
     }
 
     /// <summary>Submits the free-text response currently entered for the projected in-game AI/Council request.</summary>
     /// <returns>A task that completes when the current in-game response has been submitted.</returns>
-    private Task SubmitGameInteractionTextAsync() =>
-        SubmitGameInteractionAsync(null, gameInteractionText, string.Empty);
+    private Task SubmitGameInteractionTextAsync()
+    {
+        try
+        {
+            return SubmitGameInteractionAsync(null, gameInteractionText, string.Empty);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.SubmitGameInteractionTextAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Reacts to Human Collaboration updates without polling the database from the renderer.</summary>
     private void OnHumanCollaborationChanged()
     {
+        try
+        {
         if (disposed)
             return;
         _ = InvokeAsync(async () =>
@@ -1645,6 +1921,13 @@
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
             StateHasChanged();
         });
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.OnHumanCollaborationChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1653,6 +1936,8 @@
     /// <param name="sessionId">Identifier of the session to use for this operation.</param>
     private void OnGameChanged(Guid sessionId)
     {
+        try
+        {
         if (snapshot is not null && snapshot.Id != sessionId && CouncilRunId is null && ConversationId is null)
             return;
         _ = InvokeAsync(async () =>
@@ -1673,6 +1958,13 @@
                 conversationMode = false;
             StateHasChanged();
         });
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.OnGameChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1680,11 +1972,20 @@
     /// </summary>
     private void OnConsoleChanged()
     {
+        try
+        {
         if (disposed)
             return;
         Interlocked.Exchange(ref consoleRenderPending, 1);
         if (Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
             _ = RefreshConsoleRenderAsync();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.OnConsoleChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>Coalesces high-frequency process progress into a bounded chat-console renderer cadence.</summary>
@@ -1771,6 +2072,380 @@
             reference = null;
             consoleRenderCancellation.Dispose();
             GC.SuppressFinalize(this);
+        }
+    }
+
+
+    /// <summary>Computes HasHotSeatRequest for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetHasHotSeatRequestForRender()
+    {
+        try
+        {
+            return hotSeatRequest is not null;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.HasHotSeatRequest failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes HasGameInteractionRequest for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetHasGameInteractionRequestForRender()
+    {
+        try
+        {
+            return gameInteractionRequest is not null;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.HasGameInteractionRequest failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes IsApprovalGameInteraction for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetIsApprovalGameInteractionForRender()
+    {
+        try
+        {
+            return gameInteractionRequest is not null
+        && string.Equals(gameInteractionRequest.RequestKind, Vocabulary.Get().HumanRequestApproval, StringComparison.Ordinal);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.IsApprovalGameInteraction failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes IsCouncilHotSeatGame for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetIsCouncilHotSeatGameForRender()
+    {
+        try
+        {
+            return CouncilRunId.HasValue
+        && (HasHotSeatRequest
+            || string.Equals(snapshot?.TeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(SuggestedTeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.IsCouncilHotSeatGame failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CanRestartCorridor for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanRestartCorridorForRender()
+    {
+        try
+        {
+            return snapshot is { GameKey: "ascii-doom" }
+        && !string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase)
+        && !IsCouncilHotSeatGame;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.CanRestartCorridor failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SelectedFullscreenScaleOption for the render path with component-local diagnostics.</summary>
+    /// <returns>The ascii select option string produced by the operation.</returns>
+    private AsciiSelectOption<string> GetSelectedFullscreenScaleOptionForRender()
+    {
+        try
+        {
+            return FullscreenScaleOptions.FirstOrDefault(option => string.Equals(option.Value, fullscreenScaleMode, StringComparison.OrdinalIgnoreCase))
+        ?? FullscreenScaleOptions[0];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.SelectedFullscreenScaleOption failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SelectedGameDisplayOption for the render path with component-local diagnostics.</summary>
+    /// <returns>The ascii select option string produced by the operation.</returns>
+    private AsciiSelectOption<string> GetSelectedGameDisplayOptionForRender()
+    {
+        try
+        {
+            return GameDisplayOptions.FirstOrDefault(option => string.Equals(option.Value, gameDisplayMode, StringComparison.OrdinalIgnoreCase))
+        ?? GameDisplayOptions[0];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.SelectedGameDisplayOption failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SelectedControlModeOption for the render path with component-local diagnostics.</summary>
+    /// <returns>The ascii select option council game control mode produced by the operation.</returns>
+    private AsciiSelectOption<CouncilGameControlMode> GetSelectedControlModeOptionForRender()
+    {
+        try
+        {
+            return ControlModeOptions.FirstOrDefault(option => option.Value == snapshot?.ControlMode)
+        ?? ControlModeOptions[1];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.SelectedControlModeOption failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SelectedAutoplayDelayOption for the render path with component-local diagnostics.</summary>
+    /// <returns>The ascii select option int produced by the operation.</returns>
+    private AsciiSelectOption<int> GetSelectedAutoplayDelayOptionForRender()
+    {
+        try
+        {
+            return AutoplayDelayOptions.FirstOrDefault(option => option.Value == snapshot?.AutoplayDelayMilliseconds)
+        ?? AutoplayDelayOptions[2];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.SelectedAutoplayDelayOption failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SelectedOperatorShell for the render path with component-local diagnostics.</summary>
+    /// <returns>The local console shell descriptor produced by the operation.</returns>
+    private LocalConsoleShellDescriptor? GetSelectedOperatorShellForRender()
+    {
+        try
+        {
+            return availableShells.FirstOrDefault(option => option.Shell == operatorShell);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.SelectedOperatorShell failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CanShowControlGuide for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanShowControlGuideForRender()
+    {
+        try
+        {
+            return snapshot is not null
+        && (HasHotSeatRequest
+            || HasGameInteractionRequest
+            || CanRestartCorridor
+            || (snapshot.LegalActions.Count > 0 && snapshot.ControlMode != CouncilGameControlMode.Ai));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.CanShowControlGuide failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ShowControlGuide for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetShowControlGuideForRender()
+    {
+        try
+        {
+            return showControls && CanShowControlGuide;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.ShowControlGuide failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes IsKernelTournament for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetIsKernelTournamentForRender()
+    {
+        try
+        {
+            return string.Equals(snapshot?.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.IsKernelTournament failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CanSubmitHumanControl for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanSubmitHumanControlForRender()
+    {
+        try
+        {
+            return HasHotSeatRequest
+        ? !hotSeatSubmitting
+        : snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai } && !inputInFlight;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.CanSubmitHumanControl failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes InputBusyState for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetInputBusyStateForRender()
+    {
+        try
+        {
+            return inputInFlight || hotSeatSubmitting || gameInteractionSubmitting ? "true" : "false";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.InputBusyState failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ConsoleText for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetConsoleTextForRender()
+    {
+        try
+        {
+            return Console.GetRecentDisplayText(160);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.ConsoleText failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes OperatorConsoleText for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetOperatorConsoleTextForRender()
+    {
+        try
+        {
+            return consoleOutput.Count > 0 ? Console.GetRecentDisplayText(240) : "┌─ LOCALGPT MATRIX OPERATOR ───────────────────────────────────────────────────┐" + Environment.NewLine + "│ Embedded shell/process control ready. No external terminal window is opened. │" + Environment.NewLine + "│ :help lists app + shell commands; chat, Council and games stay in this wall.  │" + Environment.NewLine + "└──────────────────────────────────────────────────────────────────────────────┘";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.OperatorConsoleText failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes OperatorHeaderText for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetOperatorHeaderTextForRender()
+    {
+        try
+        {
+            return operatorMode
+        ? $"Embedded {OperatorShellLabel} · {ActiveJobText} · game state preserved behind this wall"
+        : snapshot is null ? (consoleOutput.Count > 0 ? "Live bounded LocalGPT terminal output. Operator mode can take interactive control." : "Start a directly playable runtime-class game or open the operator layer.") : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.OperatorHeaderText failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes OperatorShellLabel for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetOperatorShellLabelForRender()
+    {
+        try
+        {
+            return operatorShell == LocalConsoleShellKind.PowerShell ? "pwsh" : operatorShell.ToString().ToLowerInvariant();
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.OperatorShellLabel failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes OperatorBusyState for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetOperatorBusyStateForRender()
+    {
+        try
+        {
+            return operatorSubmitting ? "true" : "false";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.OperatorBusyState failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ActiveJobText for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetActiveJobTextForRender()
+    {
+        try
+        {
+            return $"{Console.GetActiveOperations().Count} active job(s)";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.ActiveJobText failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes AsciiSurfaceTitle for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetAsciiSurfaceTitleForRender()
+    {
+        try
+        {
+            return operatorMode
+        ? "LOCALGPT // MATRIX OPERATOR"
+        : conversationMode
+            ? "LOCALGPT // ASCII CHAT"
+            : snapshot?.DisplayName ?? "LOCALGPT // ASCII GAME";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.AsciiSurfaceTitle failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes AsciiSurfaceSubtitle for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetAsciiSurfaceSubtitleForRender()
+    {
+        try
+        {
+            return operatorMode
+        ? OperatorHeaderText
+        : conversationMode
+            ? $"{ConversationMessages.Count} shared chat message(s) · function/thinking traces included · {(FunModeEnabled ? "fun mode on" : "fun mode off")}"
+            : snapshot is null
+                ? "No game is running; CHAT returns to the replayable conversation."
+                : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.AsciiSurfaceSubtitle failed.");
+            throw;
         }
     }
 }

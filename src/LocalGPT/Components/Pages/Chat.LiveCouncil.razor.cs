@@ -71,19 +71,50 @@ namespace LocalGPT.Components.Pages
     /// <summary>Returns whether one inline request represents a confirmation-gated operation.</summary>
     /// <param name="request">Collaboration request being classified for inline chat presentation.</param>
     /// <returns><see langword="true"/> when the request is an approval/decline operation; otherwise <see langword="false"/>.</returns>
-    private bool IsInlineApprovalRequest(HumanCollaborationRequest request) =>
-        string.Equals(request.RequestKind, Vocabulary.Get().HumanRequestApproval, StringComparison.Ordinal);
+    private bool IsInlineApprovalRequest(HumanCollaborationRequest request)
+    {
+        try
+        {
+            return string.Equals(request.RequestKind, Vocabulary.Get().HumanRequestApproval, StringComparison.Ordinal);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.IsInlineApprovalRequest failed.");
+            throw;
+        }
+    }
 
     /// <summary>Reads the current inline response draft while preserving an AI-supplied prefill until the user edits it.</summary>
     /// <param name="request">Collaboration request whose response draft is being read.</param>
     /// <returns>The current user-edited draft or the request prefill when no edit exists yet.</returns>
-    private string GetInlineRequestText(HumanCollaborationRequest request) =>
-        inlineRequestDrafts.TryGetValue(request.Id, out var value) ? value : request.PrefillText;
+    private string GetInlineRequestText(HumanCollaborationRequest request)
+    {
+        try
+        {
+            return inlineRequestDrafts.TryGetValue(request.Id, out var value) ? value : request.PrefillText;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.GetInlineRequestText failed.");
+            throw;
+        }
+    }
 
     /// <summary>Updates a response draft for one inline review card.</summary>
     /// <param name="requestId">Stable request identifier for the inline collaboration card.</param>
     /// <param name="value">Current response text entered by the user.</param>
-    private void SetInlineRequestText(Guid requestId, string value) => inlineRequestDrafts[requestId] = value ?? string.Empty;
+    private void SetInlineRequestText(Guid requestId, string value)
+    {
+        try
+        {
+            inlineRequestDrafts[requestId] = value ?? string.Empty;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.SetInlineRequestText failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Refreshes human collaboration for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
@@ -125,8 +156,17 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
     private void OnActiveCouncilRunChanged(ChangeEventArgs args)
     {
+        try
+        {
         SelectedCouncilRunId = Guid.TryParse(args.Value?.ToString(), out var runId) ? runId : null;
         LoadCouncilRunConfiguration(SelectedCouncilRunId);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.OnActiveCouncilRunChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -136,6 +176,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnBenchmarkStartedAsync(Guid runId)
     {
+        try
+        {
         SelectedCouncilRunId = runId;
         RejoinCouncilRunId = runId;
         AttachedLiveCouncilRunId = null;
@@ -150,6 +192,13 @@ namespace LocalGPT.Components.Pages
         var isRunning = CouncilLiveSessions.GetSummary(runId)?.IsRunning == true;
         await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", isRunning).AsTask()).ConfigureAwait(false);
         await InvokeAsync(() => Notifier.ShowSuccess(toastName, $"Benchmark Council {ShortCouncilRunId(runId)} is now visible in Chat.", "Benchmark joined")).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.OnBenchmarkStartedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -159,9 +208,18 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task JoinCouncilSessionAsync(Guid runId)
     {
+        try
+        {
         SelectedCouncilRunId = runId;
         await RejoinSelectedCouncilSessionAsync().ConfigureAwait(false);
         await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").AsTask()).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.JoinCouncilSessionAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -170,6 +228,7 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RejoinSelectedCouncilSessionAsync()
     {
+        Logger.LogDebug("Component method Chat.LiveCouncil.RejoinSelectedCouncilSessionAsync completed.");
         var runId = SelectedCouncilRunId;
         if (runId is not Guid selectedRunId || CouncilLiveSessions.GetSummary(selectedRunId)?.IsRunning != true)
         {
@@ -214,6 +273,7 @@ namespace LocalGPT.Components.Pages
         }
         await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", true).AsTask()).ConfigureAwait(false);
         await InvokeAsync(() => Notifier.ShowSuccess(toastName, $"Rejoined Council {ShortCouncilRunId(selectedRunId)} with live stop, message and transcript controls.", "Council rejoined")).ConfigureAwait(false);
+    
     }
 
     /// <summary>
@@ -327,6 +387,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="approvalRequestId">Approval request whose deferred calls may now run.</param>
     private void QueueInlineApprovedExecution(Guid approvalRequestId)
     {
+        try
+        {
         TaskRunner.Run(
             nameof(Chat),
             "ExecuteInlineApprovedDeferredCalls",
@@ -352,6 +414,13 @@ namespace LocalGPT.Components.Pages
                 await RefreshHumanCollaborationAsync().ConfigureAwait(false);
             },
             componentLifetimeCts.Token);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.QueueInlineApprovedExecution failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -503,7 +572,16 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string BuildLiveCouncilUserDisplayContent(string content, IEnumerable<string> fileNames)
     {
+        try
+        {
         return CouncilText.BuildAttachmentPresentation(content, fileNames);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.BuildLiveCouncilUserDisplayContent failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -542,6 +620,7 @@ namespace LocalGPT.Components.Pages
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     private void OnCouncilLiveSessionChanged(Guid runId)
     {
+        Logger.LogDebug("Component method Chat.LiveCouncil.OnCouncilLiveSessionChanged completed.");
         if (isDisposed)
             return;
 
@@ -588,6 +667,7 @@ namespace LocalGPT.Components.Pages
         {
             Interlocked.Exchange(ref liveCouncilRefreshScheduled, 0);
         }
+    
     }
 
     /// <summary>
@@ -595,6 +675,7 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void ScheduleLiveCouncilListRefresh()
     {
+        Logger.LogDebug("Component method Chat.LiveCouncil.ScheduleLiveCouncilListRefresh completed.");
         if (isDisposed || Interlocked.Exchange(ref liveCouncilListRefreshScheduled, 1) != 0)
             return;
 
@@ -629,6 +710,7 @@ namespace LocalGPT.Components.Pages
         {
             Interlocked.Exchange(ref liveCouncilListRefreshScheduled, 0);
         }
+    
     }
 
     /// <summary>Attaches the current browser circuit to server-owned Council state without copying the live transcript into DevExpress while the run is active.</summary>
@@ -840,6 +922,7 @@ namespace LocalGPT.Components.Pages
     [JSInvokable]
     public async Task<bool> StopActiveCouncilRunAsync()
     {
+        Logger.LogDebug("Component method Chat.LiveCouncil.StopActiveCouncilRunAsync completed.");
         var activeRunId = ResolveRunningCouncilRunId();
         if (activeRunId is not Guid runId)
             return false;
@@ -859,6 +942,7 @@ namespace LocalGPT.Components.Pages
             // The cancellation already reached the Council runtime; the browser circuit closed before UI acknowledgement.
         }
         return true;
+    
     }
 
     /// <summary>
@@ -867,6 +951,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The GUID produced by the operation.</returns>
     private Guid? ResolveRunningCouncilRunId()
     {
+        try
+        {
         Guid?[] candidates = [AttachedLiveCouncilRunId, RejoinCouncilRunId];
         foreach (var candidate in candidates)
         {
@@ -875,6 +961,13 @@ namespace LocalGPT.Components.Pages
         }
 
         return null;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.ResolveRunningCouncilRunId failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -883,6 +976,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task StopSelectedCouncilSessionAsync()
     {
+        try
+        {
         if (await StopActiveCouncilRunAsync().ConfigureAwait(false))
         {
             Notifier.ShowSuccess(toastName, "The selected Council run received an explicit stop request.", "Council stopped");
@@ -892,6 +987,13 @@ namespace LocalGPT.Components.Pages
         {
             Notifier.ShowError(toastName, "No running Council session was available to stop.", "Stop Council");
         }
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.StopSelectedCouncilSessionAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -900,6 +1002,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task SkipCurrentCouncilRoundAsync()
     {
+        try
+        {
         var runId = SelectedCouncilRunId
             ?? ActiveCouncilRun?.RunId
             ?? AttachedLiveCouncilRunId;
@@ -920,6 +1024,13 @@ namespace LocalGPT.Components.Pages
         }
 
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.SkipCurrentCouncilRoundAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -929,10 +1040,19 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string LiveCouncilRunningTitle(CouncilLiveSessionSummary session)
     {
+        try
+        {
         return CouncilText.FormatLiveCouncilRunningTitle(
             L("Chat.LiveCouncil.Running", "Council {id} is still running. Waiting for the next streamed update…"),
             ShortCouncilRunId(session.RunId),
             Logger);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.LiveCouncilRunningTitle failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -942,6 +1062,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string LiveCouncilRunningDetail(CouncilLiveSessionSummary session)
     {
+        try
+        {
         var elapsed = DateTime.UtcNow - session.StartedAtUtc;
         if (elapsed < TimeSpan.Zero)
             elapsed = TimeSpan.Zero;
@@ -956,6 +1078,13 @@ namespace LocalGPT.Components.Pages
             elapsedText,
             status,
             Logger);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.LiveCouncilRunningDetail failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -963,7 +1092,18 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string ShortCouncilRunId(Guid runId) => runId.ToString("N")[..8];
+    private string ShortCouncilRunId(Guid runId)
+    {
+        try
+        {
+            return runId.ToString("N")[..8];
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.ShortCouncilRunId failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Resolves live council message for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
@@ -972,12 +1112,21 @@ namespace LocalGPT.Components.Pages
     /// <returns>The council live session summary produced by the operation.</returns>
     private CouncilLiveSessionSummary? ResolveLiveCouncilMessage(string? content)
     {
+        try
+        {
         if (string.IsNullOrWhiteSpace(content))
             return null;
 
         return CouncilText.TryExtractMarkedGuid(content, LiveCouncilMessageMarkerPrefix, out var runId)
             ? CouncilLiveSessions.GetSummary(runId)
             : null;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.ResolveLiveCouncilMessage failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -985,6 +1134,7 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void OnHumanCollaborationChanged()
     {
+        Logger.LogDebug("Component method Chat.LiveCouncil.OnHumanCollaborationChanged completed.");
         if (isDisposed)
             return;
 
@@ -1000,6 +1150,7 @@ namespace LocalGPT.Components.Pages
         {
             // A collaboration event raced with circuit disposal.
         }
+    
     }
 
     /// <summary>

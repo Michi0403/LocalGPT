@@ -1,0 +1,309 @@
+@attribute [LocalGptUiLayoutSurface("editor", "Layout Studio · editor", "/install#layout", CanHide = false)]
+@inject ILocalGptUiLayoutService UiLayouts
+@inject ILogger<LayoutStudio> Logger
+@inject INotificationService Notifier
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
+
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner LayoutStudio">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+<LocalGptFormLayoutSurface OwnerType="@typeof(LayoutStudio)" SectionName="editor" CanHide="false">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="layout-studio" aria-labelledby="layout-studio-heading">
+    <header class="layout-studio-heading">
+        <div>
+            <span class="install-region-kicker">@Localization.GetText("UI orchestration")</span>
+            <h3 id="layout-studio-heading">@Localization.GetText("Layout Studio")</h3>
+            <p>@Localization.GetText("Page and editor surfaces are keyed by assembly + Razor component + section. Source defaults preserve the component content; saved JSON can select a DevExpress FormLayout, GridLayout, StackLayout, Tabs, Splitter, Carousel, or a neutral content envelope.")</p>
+        </div>
+        <DxButton Text='@Localization.GetText("Reload catalog")' RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!busy)" Click="ReloadAsync" />
+    </header>
+
+    <DxFormLayout CssClass="layout-studio-form">
+        <DxFormLayoutGroup Caption='@Localization.GetText("Surface selection")' ColSpanMd="12">
+            <DxFormLayoutItem Caption='@Localization.GetText("Page / section")' ColSpanMd="12">
+                <DxComboBox Data="@surfaces"
+                            Value="@selected"
+                            TextFieldName="@nameof(LocalGptUiLayoutSurface.DisplayName)"
+                            ValueChanged="@((LocalGptUiLayoutSurface value) => SelectSurface(value))"
+                            NullText='@Localization.GetText("Select a registered layout surface")' />
+            </DxFormLayoutItem>
+            @if (draft is not null)
+            {
+                <DxFormLayoutItem Caption='@Localization.GetText("Component")' ColSpanMd="6"><DxTextBox Text="@draft.ComponentName" ReadOnly="true" /></DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Section")' ColSpanMd="3"><DxTextBox Text="@draft.SectionName" ReadOnly="true" /></DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Route")' ColSpanMd="3"><DxTextBox Text="@draft.Route" ReadOnly="true" /></DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Persistence key")' ColSpanMd="12"><DxTextBox Text="@draft.Key" ReadOnly="true" /></DxFormLayoutItem>
+            }
+        </DxFormLayoutGroup>
+
+        @if (draft is not null)
+        {
+            <DxFormLayoutGroup Caption='@Localization.GetText("Responsive layout envelope")' ColSpanMd="6">
+                <DxFormLayoutItem Caption='@Localization.GetText("Display name")' ColSpanMd="12"><DxTextBox @bind-Text="draft.DisplayName" /></DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Visible")' ColSpanMd="4">
+                    <DxCheckBox @bind-Checked="draft.Visible" Text='@Localization.GetText("Render this section")' Enabled="@draft.CanHide" />
+                    @if (!draft.CanHide)
+                    {
+                        <small class="field-help">@Localization.GetText("Recovery-safe source surface: visibility is locked on.")</small>
+                    }
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Order metadata")' ColSpanMd="4">
+                    <DxSpinEdit @bind-Value="draft.Order" Min="-10000" Max="10000" />
+                    <small class="field-help">@Localization.GetText("Stored for orchestration and future sibling reordering; the current source order stays authoritative until a container explicitly opts into reordering.")</small>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Medium span")' ColSpanMd="4"><DxSpinEdit @bind-Value="draft.ColSpanMd" Min="1" Max="12" /></DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("DevExpress layout")' ColSpanMd="6">
+                    <DxComboBox Data="@layoutTypeOptions" @bind-Value="draft.LayoutType" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Orientation")' ColSpanMd="3">
+                    <DxComboBox Data="@orientationOptions" @bind-Value="draft.Orientation" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Stack length")' ColSpanMd="3"><DxTextBox @bind-Text="draft.StackLength" NullText="1fr" /></DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Legacy inner layout")' ColSpanMd="6">
+                    <DxComboBox Data="@innerLayoutOptions" @bind-Value="draft.InnerLayout" />
+                    <small class="field-help">@Localization.GetText("Retained for 5.0.2 FormLayout + StackLayout overrides; new surfaces should use the DevExpress layout selector above.")</small>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Extra CSS class")' ColSpanMd="12"><DxTextBox @bind-Text="draft.CssClass" NullText='@Localization.GetText("Optional class owned by your theme/layout layer")' /></DxFormLayoutItem>
+                <DxFormLayoutItem ColSpanMd="12">
+                    <DxButton Text='@Localization.GetText("Save layout")' RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!busy)" Click="SaveAsync" />
+                    <DxButton Text='@Localization.GetText("Reset to source defaults")' RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!busy)" Click="ResetAsync" />
+                </DxFormLayoutItem>
+            </DxFormLayoutGroup>
+
+            <DxFormLayoutGroup Caption='@Localization.GetText("Optical preview")' ColSpanMd="6">
+                <DxFormLayoutItem ColSpanMd="12">
+                    <div class="layout-studio-preview-grid" aria-label='@Localization.GetText("12-column DevExpress form layout preview")'>
+                        <DxFormLayout CssClass="layout-studio-preview-form">
+                            <DxFormLayoutItem ColSpanMd="@Math.Clamp(draft.ColSpanMd, 1, 12)">
+                                <ChildContent Context="previewContext">
+                                    <div class="layout-studio-preview-surface">
+                                        <strong>@draft.DisplayName</strong>
+                                        <span>@draft.LayoutType · @draft.Orientation · span @Math.Clamp(draft.ColSpanMd, 1, 12)/12</span>
+                                        <small>@(draft.Visible ? "visible" : "hidden when the consuming section allows hiding")</small>
+                                    </div>
+                                </ChildContent>
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </div>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Storage")' ColSpanMd="12"><DxTextBox Text="@storagePath" ReadOnly="true" /></DxFormLayoutItem>
+            </DxFormLayoutGroup>
+        }
+    </DxFormLayout>
+
+    @if (!string.IsNullOrWhiteSpace(status))
+    {
+        <div class="layout-studio-status" role="status">@status</div>
+    }
+</div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
+@code {
+    /// <summary>
+    /// Stores the in-memory surfaces collection maintained internally by <see cref="LayoutStudio"/> for its current workflow state.
+    /// </summary>
+    private IReadOnlyList<LocalGptUiLayoutSurface> surfaces = [];
+    /// <summary>
+    /// Stores the internal selected state used by <see cref="LayoutStudio"/> while executing its surrounding workflow.
+    /// </summary>
+    private LocalGptUiLayoutSurface? selected;
+    /// <summary>
+    /// Stores the internal draft state used by <see cref="LayoutStudio"/> while executing its surrounding workflow.
+    /// </summary>
+    private LocalGptUiLayoutSurface? draft;
+    /// <summary>
+    /// Stores the internal busy state used by <see cref="LayoutStudio"/> while executing its surrounding workflow.
+    /// </summary>
+    private bool busy;
+    /// <summary>
+    /// Stores the internal status state used by <see cref="LayoutStudio"/> while executing its surrounding workflow.
+    /// </summary>
+    private string status = string.Empty;
+    /// <summary>
+    /// Stores the internal storage path state used by <see cref="LayoutStudio"/> while executing its surrounding workflow.
+    /// </summary>
+    private string storagePath = string.Empty;
+    /// <summary>
+    /// Stores the in-memory layout type options collection maintained internally by <see cref="LayoutStudio"/> for its current workflow state.
+    /// </summary>
+    private readonly IReadOnlyList<string> layoutTypeOptions = ["FormLayout", "GridLayout", "StackLayout", "Tabs", "Splitter", "Carousel", "Content"];
+    /// <summary>
+    /// Stores the in-memory orientation options collection maintained internally by <see cref="LayoutStudio"/> for its current workflow state.
+    /// </summary>
+    private readonly IReadOnlyList<string> orientationOptions = ["Vertical", "Horizontal"];
+    /// <summary>
+    /// Stores the in-memory inner layout options collection maintained internally by <see cref="LayoutStudio"/> for its current workflow state.
+    /// </summary>
+    private readonly IReadOnlyList<string> innerLayoutOptions = ["Content", "StackVertical", "StackHorizontal"];
+
+    /// <summary>Loads the source-declared and persisted layout catalog when the studio becomes interactive.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+        await ReloadAsync().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LayoutStudio.OnInitializedAsync failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Performs reload for <see cref="LayoutStudio"/>, keeping the operation consistent with the state and invariants of the surrounding layout studio workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private async Task ReloadAsync()
+    {
+        busy = true;
+        try
+        {
+            surfaces = await UiLayouts.GetAllAsync().ConfigureAwait(false);
+            storagePath = UiLayouts.GetStoragePath();
+            if (selected is not null)
+                selected = surfaces.FirstOrDefault(item => string.Equals(item.Key, selected.Key, StringComparison.OrdinalIgnoreCase));
+            selected ??= surfaces.FirstOrDefault();
+            draft = selected is null ? null : Clone(selected);
+            status = $"{surfaces.Count} layout surface(s) available.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Layout Studio could not load the UI layout catalog.");
+            status = "Layout Studio could not load the layout catalog. See local application logs for details.";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>
+    /// Performs select surface for <see cref="LayoutStudio"/>, keeping the operation consistent with the state and invariants of the surrounding layout studio workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the layout studio operation and used when producing its result.</param>
+    private void SelectSurface(LocalGptUiLayoutSurface value)
+    {
+        try
+        {
+        selected = value;
+        draft = Clone(value);
+        status = string.Empty;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LayoutStudio.SelectSurface failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Performs save for <see cref="LayoutStudio"/>, keeping the operation consistent with the state and invariants of the surrounding layout studio workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private async Task SaveAsync()
+    {
+        if (draft is null)
+            return;
+        busy = true;
+        try
+        {
+            selected = await UiLayouts.SaveAsync(draft).ConfigureAwait(false);
+            Notifier.ShowSuccess("InstallToasts", "The UI layout override was saved.", "Layout Studio");
+            await ReloadAsync().ConfigureAwait(false);
+            status = "Saved. Open or re-render the target page to apply the persisted envelope.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Layout Studio could not save layout {LayoutKey}.", draft.Key);
+            Notifier.ShowError("InstallToasts", "The UI layout override could not be saved.", "Layout Studio");
+            status = "Save failed. See local application logs for details.";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>
+    /// Performs reset for <see cref="LayoutStudio"/>, keeping the operation consistent with the state and invariants of the surrounding layout studio workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private async Task ResetAsync()
+    {
+        if (draft is null)
+            return;
+        busy = true;
+        try
+        {
+            await UiLayouts.ResetAsync(draft.Key).ConfigureAwait(false);
+            Notifier.ShowSuccess("InstallToasts", "The UI layout was reset to its source defaults.", "Layout Studio");
+            selected = null;
+            await ReloadAsync().ConfigureAwait(false);
+            status = "Source defaults restored.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Layout Studio could not reset layout {LayoutKey}.", draft.Key);
+            Notifier.ShowError("InstallToasts", "The UI layout override could not be reset.", "Layout Studio");
+            status = "Reset failed. See local application logs for details.";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>
+    /// Performs clone for <see cref="LayoutStudio"/>, keeping the operation consistent with the state and invariants of the surrounding layout studio workflow.
+    /// </summary>
+    /// <param name="source">Source value supplied to the layout studio operation and used when producing its result.</param>
+    /// <returns>The local GPT UI layout surface produced by the operation.</returns>
+    private LocalGptUiLayoutSurface Clone(LocalGptUiLayoutSurface source)
+    {
+        try
+        {
+            return new()
+    {
+        Key = source.Key,
+        AssemblyName = source.AssemblyName,
+        ComponentName = source.ComponentName,
+        SectionName = source.SectionName,
+        DisplayName = source.DisplayName,
+        Route = source.Route,
+        CanHide = source.CanHide,
+        Visible = source.Visible,
+        Order = source.Order,
+        ColSpanMd = source.ColSpanMd,
+        LayoutType = source.LayoutType,
+        InnerLayout = source.InnerLayout,
+        Orientation = source.Orientation,
+        StackLength = source.StackLength,
+        CssClass = source.CssClass,
+        UpdatedAtUtc = source.UpdatedAtUtc
+    };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LayoutStudio.Clone failed.");
+            throw;
+        }
+    }
+}

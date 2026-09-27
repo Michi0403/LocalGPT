@@ -34,6 +34,8 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         /// Stores the project maintenance service dependency used by <see cref="CodeGenerationWorkflowService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly IProjectMaintenanceService projectMaintenance;
+        /// <summary>Stores the database-first project architecture service used to bind greenfield Python generation to a durable project/revision.</summary>
+        private readonly IProjectArchitectureService projectArchitecture;
         /// <summary>
         /// Stores the regex pattern service dependency used by <see cref="CodeGenerationWorkflowService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
@@ -50,6 +52,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         /// <param name="councilArtifacts">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="artifactBuildExecutor">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="projectMaintenance">Injected dependency used by the CodeGenerationWorkflowService.</param>
+        /// <param name="projectArchitecture">Injected project architecture service used for database-first greenfield projects.</param>
         /// <param name="regexPatterns">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="platform">Injected platform runtime service providing cross-platform filesystem semantics.</param>
         /// <param name="logger">Injected dependency used by the CodeGenerationWorkflowService.</param>
@@ -58,6 +61,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             ICouncilArtifactService councilArtifacts,
             IArtifactBuildExecutor artifactBuildExecutor,
             IProjectMaintenanceService projectMaintenance,
+            IProjectArchitectureService projectArchitecture,
             IRegexPatternService regexPatterns,
             IPlatformRuntimeService platform,
             ILogger<CodeGenerationWorkflowService> logger)
@@ -66,6 +70,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             this.councilArtifacts = councilArtifacts;
             this.artifactBuildExecutor = artifactBuildExecutor;
             this.projectMaintenance = projectMaintenance;
+            this.projectArchitecture = projectArchitecture;
             this.regexPatterns = regexPatterns;
             this.platform = platform;
             this.logger = logger;
@@ -108,6 +113,25 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             request.CodeDomTypes ??= [];
             request.Outputs ??= [];
             await EnrichOutputIntentAsync(request).ConfigureAwait(false);
+
+            var containsPythonSource = request.Files.Any(file =>
+                file.RelativePath.EndsWith(".py", StringComparison.OrdinalIgnoreCase));
+            if (containsPythonSource && request.ProjectId is null && request.CouncilRunId is Guid pythonCouncilRunId)
+            {
+                var ensured = await projectArchitecture.EnsureCouncilRunProjectAsync(
+                    pythonCouncilRunId,
+                    request.Title,
+                    string.IsNullOrWhiteSpace(request.Goal) ? request.ChangeSummary : request.Goal,
+                    cancellationToken).ConfigureAwait(false);
+                request.ProjectId = ensured.Project.Id;
+                request.ProjectRevisionId = ensured.Revision.Id;
+                logger.LogInformation(
+                    "Bound greenfield Python code-generation review to database project {ProjectId} revision {RevisionId} for council run {CouncilRunId}.",
+                    ensured.Project.Id,
+                    ensured.Revision.Id,
+                    pythonCouncilRunId);
+            }
+
             ValidateReviewRequest(request);
             var payload = new CodeGenerationReviewPayload
             {

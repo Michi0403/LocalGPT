@@ -19,19 +19,13 @@ namespace LocalGPT.Components.Pages
             .FirstOrDefault(item => item.Key.Equals("openai-whisper", StringComparison.OrdinalIgnoreCase))?.Variants
             .Select(item => item.Key)
             .ToList() ?? ["tiny", "base", "small", "medium", "large-v3", "turbo"];
-        private IReadOnlyList<LocalAiCapability> LocalAiCapabilityOptions { get; } =
-        [
-            LocalAiCapability.Unknown,
-            LocalAiCapability.ImageGeneration,
-            LocalAiCapability.ImageEditing,
-            LocalAiCapability.TextToVideo,
-            LocalAiCapability.ImageToVideo,
-            LocalAiCapability.SpeechRecognition
-        ];
+        private IReadOnlyList<LocalAiCapability> LocalAiCapabilityOptions { get; } = Enum.GetValues<LocalAiCapability>();
         private LocalAiCapability LocalAiSearchCapability = LocalAiCapability.Unknown;
         private LocalAiCapability LocalAiManualCapability = LocalAiCapability.Unknown;
         private string LocalAiSearchQuery = string.Empty;
         private string LocalAiStatusText = string.Empty;
+        private HuggingFaceModelSort LocalAiSearchSort = HuggingFaceModelSort.Downloads;
+        private IReadOnlyList<HuggingFaceModelSort> LocalAiSearchSortOptions { get; } = Enum.GetValues<HuggingFaceModelSort>();
         private bool LocalAiBusy;
         private bool LocalAiTrustRemoteCode;
 
@@ -289,7 +283,8 @@ namespace LocalGPT.Components.Pages
                 {
                     Query = LocalAiSearchQuery,
                     Capability = LocalAiSearchCapability,
-                    Limit = 24
+                    Limit = 24,
+                    Sort = LocalAiSearchSort
                 }).ConfigureAwait(false);
                 LocalAiStatusText = $"Found {LocalAiSearchResults.Count} compatible model metadata result(s). Search does not download or execute repository code.";
             }
@@ -297,6 +292,36 @@ namespace LocalGPT.Components.Pages
             {
                 Logger.LogError("Hugging Face model metadata search failed with {ExceptionType}; exception text, query and credentials were omitted from logs.", exception.GetType().Name);
                 LocalAiStatusText = "Hugging Face model search failed. Review LocalGPT logs.";
+            }
+            finally
+            {
+                LocalAiBusy = false;
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            }
+        }
+
+
+        private async Task LoadRecentLikedHuggingFaceAsync()
+        {
+            try
+            {
+                LocalAiBusy = true;
+                LocalAiSearchSort = HuggingFaceModelSort.RecentLiked;
+                LocalAiStatusText = "Loading recently updated, highly liked Hugging Face models in the selected capability category...";
+                LocalAiSearchResults = await HuggingFaceCatalog.SearchAsync(new HuggingFaceModelSearchRequest
+                {
+                    Query = LocalAiSearchQuery,
+                    Capability = LocalAiSearchCapability,
+                    Limit = 24,
+                    Sort = HuggingFaceModelSort.RecentLiked,
+                    RecentWindowDays = 30
+                }).ConfigureAwait(false);
+                LocalAiStatusText = $"Loaded {LocalAiSearchResults.Count} recent/liked model result(s) for the selected category.";
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError("Loading recent liked Hugging Face models failed with {ExceptionType}; query, credentials and model identities were omitted from logs.", exception.GetType().Name);
+                LocalAiStatusText = "Hugging Face recent/liked model lookup failed. Review LocalGPT logs.";
             }
             finally
             {
@@ -361,8 +386,18 @@ namespace LocalGPT.Components.Pages
             }
         }
 
-        private bool CanInstallLocalAiModel(HuggingFaceModelSearchResult model) =>
-            LocalAiManualCapability != LocalAiCapability.Unknown || model.Capabilities.Any(value => LocalAiCapabilityOptions.Contains(value) && value != LocalAiCapability.Unknown);
+        private bool CanInstallLocalAiModel(HuggingFaceModelSearchResult model)
+        {
+            try
+            {
+                return LocalAiManualCapability != LocalAiCapability.Unknown || model.Capabilities.Any(value => LocalAiCapabilityOptions.Contains(value) && value != LocalAiCapability.Unknown);
+            }
+            catch (Exception __componentMethodException)
+            {
+                Logger.LogError(__componentMethodException, "Component method Install.LocalAiRuntime.CanInstallLocalAiModel failed.");
+                throw;
+            }
+        }
 
     }
 }

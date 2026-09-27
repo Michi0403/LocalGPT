@@ -95,8 +95,8 @@ namespace LocalGPT.Services
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsReusableDecision(HumanCollaborationRequest request)
     {
-    try
-    {
+        try
+        {
             if (request.Status == vocabulary.Get().HumanStatusPending)
                 return true;
             if (request.Status != vocabulary.Get().HumanStatusApproved &&
@@ -113,17 +113,56 @@ namespace LocalGPT.Services
                     !request.ConsumeApproval || request.ConsumedAtUtc is null,
                 _ => request.ConsumedAtUtc is null
             };
-    
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(HumanCollaborationService)}.{nameof(IsReusableDecision)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(HumanCollaborationService)}.{nameof(IsReusableDecision)} failed.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
+
+    /// <summary>
+    /// Determines whether a saved decision can authorize the current request without creating another approval card.
+    /// Session and persistent approval scopes deliberately cover later parameter sets for the same operation key;
+    /// pending, non-approval, and exact-once decisions remain bound to the original request fingerprint/correlation.
+    /// </summary>
+    private bool IsReusableDecisionForRequest(
+        HumanCollaborationRequest saved,
+        string requestKind,
+        string parameterFingerprint,
+        string correlationId)
     {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(HumanCollaborationService)}.{nameof(IsReusableDecision)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(HumanCollaborationService)}.{nameof(IsReusableDecision)} failed.");
-        throw;
+        try
+        {
+            if (!IsReusableDecision(saved))
+                return false;
+
+            var exactRequest = string.IsNullOrWhiteSpace(parameterFingerprint)
+                ? string.Equals(saved.CorrelationId, correlationId, StringComparison.Ordinal)
+                : string.Equals(saved.ParameterFingerprint, parameterFingerprint, StringComparison.Ordinal);
+
+            if (saved.Status == vocabulary.Get().HumanStatusPending ||
+                requestKind != vocabulary.Get().HumanRequestApproval ||
+                saved.ApprovalReuseScope == HumanApprovalReuseScope.ExactRequestOnce)
+            {
+                return exactRequest;
+            }
+
+            return saved.ApprovalReuseScope is HumanApprovalReuseScope.CurrentApplicationSession
+                or HumanApprovalReuseScope.PersistentUntilChanged;
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(HumanCollaborationService)}.{nameof(IsReusableDecisionForRequest)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(HumanCollaborationService)}.{nameof(IsReusableDecisionForRequest)} failed.");
+            throw;
+        }
     }
-}
 
     /// <summary>
     /// Retrieves default reuse scope as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.

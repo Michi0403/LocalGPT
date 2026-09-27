@@ -2,11 +2,17 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ConfigurationWorkbenchNav">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <nav class="configuration-workbench-nav" aria-label="@AriaLabel">
     @foreach (var item in Items)
     {
         var active = string.Equals(item.Key, ActiveKey, StringComparison.OrdinalIgnoreCase);
         <DxButton
+                RenderStyle="ButtonRenderStyle.Secondary"
+                RenderStyleMode="ButtonRenderStyleMode.Text"
                 CssClass="@(active ? "configuration-workbench-nav-item active" : "configuration-workbench-nav-item")"
                 aria-current="@(active ? "page" : null)"
                 Click="@(() => SelectAsync(item.Key))">
@@ -22,6 +28,11 @@
         </DxButton>
     }
 </nav>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>

@@ -9,6 +9,11 @@
 @implements IAsyncDisposable
 
 @* The upload advisor intentionally has no idle page chrome. The browser creates the PublisherStudio-style drop overlay only while external files are dragged over /chat. *@
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner UploadProcessingAdvisor">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <DxPopup Visible="@reviewVisible"
          VisibleChanged="OnReviewVisibilityChangedAsync"
          HeaderText="Review upload recommendation"
@@ -130,33 +135,103 @@
         }
     </BodyContentTemplate>
 </DxPopup>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
+    /// <summary>
+    /// Stores the internal user goal state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private string userGoal = string.Empty;
+    /// <summary>
+    /// Stores the internal drop bridge reference state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private DotNetObjectReference<UploadProcessingAdvisor>? dropBridgeReference;
+    /// <summary>
+    /// Stores the internal drop bridge registered state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private bool dropBridgeRegistered;
+    /// <summary>
+    /// Stores the internal disposed state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private bool disposed;
+    /// <summary>
+    /// Stores the internal status text state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private string statusText = string.Empty;
+    /// <summary>
+    /// Stores the internal busy text state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private string busyText = string.Empty;
+    /// <summary>
+    /// Stores the internal busy detail state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private string busyDetail = string.Empty;
+    /// <summary>
+    /// Stores the internal busy state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private bool busy;
+    /// <summary>
+    /// Stores the internal review visible state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private bool reviewVisible;
+    /// <summary>
+    /// Stores the internal gate state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private ProjectIngestionGateRecord? gate;
+    /// <summary>
+    /// Stores the internal recommendation state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
+    /// </summary>
     private UploadProcessingRecommendation? recommendation;
 
+    /// <summary>
+    /// Gets or sets the chat requested value that forms part of the upload processing advisor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The chat requested value exposed by <see cref="UploadProcessingAdvisor"/>.</value>
     [Parameter] public EventCallback<UploadProcessingRecommendation> ChatRequested { get; set; }
+    /// <summary>
+    /// Gets or sets the council requested value that forms part of the upload processing advisor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The council requested value exposed by <see cref="UploadProcessingAdvisor"/>.</value>
     [Parameter] public EventCallback<UploadProcessingRecommendation> CouncilRequested { get; set; }
 
-    private int ApprovedReviewCount => gate?.Reviews.Where(item => item.Approved).Select(item => item.ReviewerIdentity).Distinct(StringComparer.OrdinalIgnoreCase).Count() ?? 0;
-    private bool CanUseRecommendation => !busy && recommendation is not null && !string.IsNullOrWhiteSpace(recommendation.SuggestedPrompt);
-    private bool CanUseSuggestedTeam => CanUseRecommendation && !string.IsNullOrWhiteSpace(recommendation?.SuggestedTeamKey);
-    private bool CanRequestReview => CanUseRecommendation && gate?.DeterministicChecksPassed == true && gate.Status == "AwaitingIndependentReview";
-    private bool CanPromote => !busy && gate?.Status == "AwaitingUserApproval" && gate.DeterministicChecksPassed && ApprovedReviewCount >= Math.Max(1, gate.RequiredIndependentApprovals);
-    private string RepositorySummary => recommendation is null
-        ? string.Empty
-        : JoinOrFallback(recommendation.Repositories.Select(repository => $"{repository.Name}{(string.IsNullOrWhiteSpace(repository.Version) ? string.Empty : $" {repository.Version}")}{(repository.GitMetadataDetected ? " · Git" : string.Empty)}"), "No repository identity detected");
+    /// <summary>
+    /// Gets the approved review count that quantifies the associated upload processing advisor data.
+    /// </summary>
+    /// <value>The approved review count value exposed by <see cref="UploadProcessingAdvisor"/>.</value>
+    private int ApprovedReviewCount => GetApprovedReviewCountForRender();
+    /// <summary>
+    /// Gets a value indicating whether use recommendation applies to the upload processing advisor state.
+    /// </summary>
+    /// <value>The can use recommendation value exposed by <see cref="UploadProcessingAdvisor"/>.</value>
+    private bool CanUseRecommendation => GetCanUseRecommendationForRender();
+    /// <summary>
+    /// Gets a value indicating whether use suggested team applies to the upload processing advisor state.
+    /// </summary>
+    /// <value>The can use suggested team value exposed by <see cref="UploadProcessingAdvisor"/>.</value>
+    private bool CanUseSuggestedTeam => GetCanUseSuggestedTeamForRender();
+    /// <summary>
+    /// Gets a value indicating whether request review applies to the upload processing advisor state.
+    /// </summary>
+    /// <value>The can request review value exposed by <see cref="UploadProcessingAdvisor"/>.</value>
+    private bool CanRequestReview => GetCanRequestReviewForRender();
+    /// <summary>
+    /// Gets a value indicating whether promote applies to the upload processing advisor state.
+    /// </summary>
+    /// <value>The can promote value exposed by <see cref="UploadProcessingAdvisor"/>.</value>
+    private bool CanPromote => GetCanPromoteForRender();
+    /// <summary>
+    /// Gets the repository summary value that forms part of the upload processing advisor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The repository summary value exposed by <see cref="UploadProcessingAdvisor"/>.</value>
+    private string RepositorySummary => GetRepositorySummaryForRender();
 
     /// <summary>Connects this invisible advisor to the browser-owned drag/drop landing surface after InteractiveServer attaches.</summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         try
@@ -194,6 +269,9 @@
     }
 
     /// <summary>Continues deterministic inspection and recommendation after the browser streamed a dropped batch into quarantine.</summary>
+    /// <param name="workspaceName">Workspace name value supplied to the upload processing advisor operation and used when producing its result.</param>
+    /// <param name="fileCount">File count value supplied to the upload processing advisor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     [JSInvokable]
     public async Task ExternalWorkspaceDropAcceptedAsync(string workspaceName, int fileCount)
     {
@@ -233,6 +311,8 @@
     }
 
     /// <summary>Surfaces a bounded browser/server drop failure without adding permanent upload chrome to Chat.</summary>
+    /// <param name="message">Message value supplied to the upload processing advisor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     [JSInvokable]
     public async Task ExternalWorkspaceDropFailedAsync(string message)
     {
@@ -251,6 +331,10 @@
         }
     }
 
+    /// <summary>
+    /// Refreshes recommendation for <see cref="UploadProcessingAdvisor"/>, keeping the operation consistent with the state and invariants of the surrounding upload processing advisor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshRecommendationAsync()
     {
         if (gate is null)
@@ -273,6 +357,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs use in chat for <see cref="UploadProcessingAdvisor"/>, keeping the operation consistent with the state and invariants of the surrounding upload processing advisor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task UseInChatAsync()
     {
         if (recommendation is null)
@@ -281,6 +369,10 @@
         catch (Exception ex) { Logger.LogError(ex, "Sending upload recommendation to Chat failed; prompt text was omitted from diagnostics."); statusText = "The recommended prompt could not be sent to Chat."; }
     }
 
+    /// <summary>
+    /// Performs use in council for <see cref="UploadProcessingAdvisor"/>, keeping the operation consistent with the state and invariants of the surrounding upload processing advisor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task UseInCouncilAsync()
     {
         if (recommendation is null)
@@ -289,6 +381,10 @@
         catch (Exception ex) { Logger.LogError(ex, "Sending upload recommendation to Council failed; prompt text was omitted from diagnostics."); statusText = "The recommendation could not be sent to the suggested Council team."; }
     }
 
+    /// <summary>
+    /// Performs request council review for <see cref="UploadProcessingAdvisor"/>, keeping the operation consistent with the state and invariants of the surrounding upload processing advisor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RequestCouncilReviewAsync()
     {
         if (recommendation is null || gate is null)
@@ -307,6 +403,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs promote for <see cref="UploadProcessingAdvisor"/>, keeping the operation consistent with the state and invariants of the surrounding upload processing advisor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PromoteAsync()
     {
         if (gate is null || !CanPromote)
@@ -356,28 +456,95 @@
         }
     }
 
-    private Task CloseReviewAsync() => OnReviewVisibilityChangedAsync(false);
-
-    private Task OnReviewVisibilityChangedAsync(bool visible)
+    /// <summary>
+    /// Closes review for <see cref="UploadProcessingAdvisor"/>, keeping the operation consistent with the state and invariants of the surrounding upload processing advisor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private Task CloseReviewAsync()
     {
-        reviewVisible = visible;
-        return Task.CompletedTask;
+        try
+        {
+            return OnReviewVisibilityChangedAsync(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method UploadProcessingAdvisor.CloseReviewAsync failed.");
+            throw;
+        }
     }
 
+    /// <summary>
+    /// Handles the review visibility changed async lifecycle or event notification for <see cref="UploadProcessingAdvisor"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="visible">Value indicating whether visible should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private Task OnReviewVisibilityChangedAsync(bool visible)
+    {
+        try
+        {
+        reviewVisible = visible;
+        return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method UploadProcessingAdvisor.OnReviewVisibilityChangedAsync failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Sets busy for <see cref="UploadProcessingAdvisor"/>, keeping the operation consistent with the state and invariants of the surrounding upload processing advisor workflow.
+    /// </summary>
+    /// <param name="value">Value indicating whether value should apply to this operation.</param>
+    /// <param name="text">Text value supplied to the upload processing advisor operation and used when producing its result.</param>
+    /// <param name="detail">Detail value supplied to the upload processing advisor operation and used when producing its result.</param>
     private void SetBusy(bool value, string text, string detail)
     {
+        try
+        {
         busy = value;
         busyText = text;
         busyDetail = detail;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method UploadProcessingAdvisor.SetBusy failed.");
+            throw;
+        }
     }
 
+    /// <summary>
+    /// Performs join or fallback for <see cref="UploadProcessingAdvisor"/>, keeping the operation consistent with the state and invariants of the surrounding upload processing advisor workflow.
+    /// </summary>
+    /// <param name="values">String dependency used by the upload processing advisor workflow to provide the corresponding application capability.</param>
+    /// <param name="fallback">Fallback value supplied to the upload processing advisor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string JoinOrFallback(IEnumerable<string> values, string fallback)
     {
+        try
+        {
         return CouncilText.FormatDistinctJoinedListOrFallback(values, " · ", fallback);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method UploadProcessingAdvisor.JoinOrFallback failed.");
+            throw;
+        }
     }
 
+    /// <summary>
+    /// Performs clone recommendation for <see cref="UploadProcessingAdvisor"/>, keeping the operation consistent with the state and invariants of the surrounding upload processing advisor workflow.
+    /// </summary>
+    /// <param name="source">Source value supplied to the upload processing advisor operation and used when producing its result.</param>
+    /// <param name="prompt">Prompt value supplied to the upload processing advisor operation and used when producing its result.</param>
+    /// <returns>The upload processing recommendation produced by the operation.</returns>
     private UploadProcessingRecommendation CloneRecommendation(UploadProcessingRecommendation source, string prompt)
     {
+        try
+        {
         return new UploadProcessingRecommendation
         {
             WorkspaceName = source.WorkspaceName,
@@ -417,8 +584,16 @@
             KnowledgeReferences = source.KnowledgeReferences.ToList(),
             AlternativeActions = source.AlternativeActions.ToList()
         };
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method UploadProcessingAdvisor.CloneRecommendation failed.");
+            throw;
+        }
     }
     /// <summary>Detaches the browser drag/drop handlers and releases the JS callback reference owned by this advisor.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async ValueTask DisposeAsync()
     {
         try
@@ -454,4 +629,97 @@
         }
     }
 
+
+
+    /// <summary>Computes ApprovedReviewCount for the render path with component-local diagnostics.</summary>
+    /// <returns>The int produced by the operation.</returns>
+    private int GetApprovedReviewCountForRender()
+    {
+        try
+        {
+            return gate?.Reviews.Where(item => item.Approved).Select(item => item.ReviewerIdentity).Distinct(StringComparer.OrdinalIgnoreCase).Count() ?? 0;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property UploadProcessingAdvisor.ApprovedReviewCount failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CanUseRecommendation for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanUseRecommendationForRender()
+    {
+        try
+        {
+            return !busy && recommendation is not null && !string.IsNullOrWhiteSpace(recommendation.SuggestedPrompt);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property UploadProcessingAdvisor.CanUseRecommendation failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CanUseSuggestedTeam for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanUseSuggestedTeamForRender()
+    {
+        try
+        {
+            return CanUseRecommendation && !string.IsNullOrWhiteSpace(recommendation?.SuggestedTeamKey);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property UploadProcessingAdvisor.CanUseSuggestedTeam failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CanRequestReview for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanRequestReviewForRender()
+    {
+        try
+        {
+            return CanUseRecommendation && gate?.DeterministicChecksPassed == true && gate.Status == "AwaitingIndependentReview";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property UploadProcessingAdvisor.CanRequestReview failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CanPromote for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanPromoteForRender()
+    {
+        try
+        {
+            return !busy && gate?.Status == "AwaitingUserApproval" && gate.DeterministicChecksPassed && ApprovedReviewCount >= Math.Max(1, gate.RequiredIndependentApprovals);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property UploadProcessingAdvisor.CanPromote failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes RepositorySummary for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetRepositorySummaryForRender()
+    {
+        try
+        {
+            return recommendation is null
+        ? string.Empty
+        : JoinOrFallback(recommendation.Repositories.Select(repository => $"{repository.Name}{(string.IsNullOrWhiteSpace(repository.Version) ? string.Empty : $" {repository.Version}")}{(repository.GitMetadataDetected ? " · Git" : string.Empty)}"), "No repository identity detected");
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property UploadProcessingAdvisor.RepositorySummary failed.");
+            throw;
+        }
+    }
 }

@@ -12,6 +12,25 @@ function Read-StrictUtf8([string]$Path) {
     catch { Fail "Catalog is not valid UTF-8: $Path. $($_.Exception.Message)" }
 }
 
+
+function Get-LineNumberForText([string]$Raw, [string]$Needle) {
+    $index = $Raw.IndexOf($Needle, [System.StringComparison]::Ordinal)
+    if ($index -lt 0) { return 1 }
+    return ([regex]::Matches($Raw.Substring(0, $index), "`n").Count + 1)
+}
+
+function Write-LocalizationError([string]$Path, [int]$Line, [string]$Code, [string]$Message, [string]$Choices) {
+    $relative = $Path
+    try {
+        $repoRoot = Split-Path -Parent $PSScriptRoot
+        if ($Path.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $relative = $Path.Substring($repoRoot.Length).TrimStart([char[]]@([char]'\', [char]'/')).Replace('\','/')
+        }
+    } catch { }
+    Write-Output ("{0}({1},1): error {2}: {3}" -f $relative, $Line, $Code, $Message)
+    Write-Output ("  Architectural choices: {0}" -f $Choices)
+}
+
 function Expand-SpaceMarkers([string]$Template) {
     $spaceMarker = [string][char]0x2420
     return $Template.Replace('<SP>', $spaceMarker)
@@ -35,7 +54,11 @@ function Read-Catalog([string]$Path) {
         try { $decoded = ConvertFrom-Json -InputObject ('"' + $match.Groups[1].Value + '"') }
         catch { Fail "Catalog key JSON could not be decoded in $Path. $($_.Exception.Message)" }
         $key = [string]$decoded
-        if ($seen.ContainsKey($key)) { Fail "Catalog contains case-insensitive duplicate keys '$($seen[$key])' and '$key': $Path" }
+        if ($seen.ContainsKey($key)) {
+            $line = Get-LineNumberForText $raw $match.Value
+            Write-LocalizationError $Path $line 'L10N0001' "Catalog contains case-insensitive duplicate keys '$($seen[$key])' and '$key'." "Choose one canonical source-text casing, update callers to that casing, and keep one catalog key across every culture. Do not retain case-only aliases because runtime dictionaries are case-insensitive."
+            Fail "Catalog contains case-insensitive duplicate keys '$($seen[$key])' and '$key': $Path"
+        }
         $seen[$key] = $key
         $keys.Add($key)
     }
@@ -58,6 +81,65 @@ $englishKeys = $englishResult.Keys
 $germanKeys = $germanResult.Keys
 if ($englishKeys.Count -lt 1700) { Fail "English catalog coverage unexpectedly dropped to $($englishKeys.Count) entries." }
 if (($englishKeys -join "`n") -cne ($germanKeys -join "`n")) { Fail 'English and German catalog keys differ.' }
+
+
+# Keep every maintained culture in exact key parity. A translation may fall back to English, but the
+# key itself must exist so language switching never removes labels, forms, controls, or important values.
+foreach ($catalogFile in @(Get-ChildItem -LiteralPath $localization -File -Filter '*.json' | Sort-Object Name)) {
+    if ($catalogFile.FullName -eq $englishPath -or $catalogFile.FullName -eq $germanPath) { continue }
+    $catalogResult = Read-Catalog $catalogFile.FullName
+    if (($englishKeys -join "`n") -cne ($catalogResult.Keys -join "`n")) {
+        Fail "Localization catalog keys differ from en-US: $($catalogFile.Name)"
+    }
+}
+
+
+# Literal localization call coverage: a developer/AI must not wrap a new visible string in LT/GetText
+# and forget to add it to the catalogs. The source location is emitted before the build stops.
+$englishValues = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::Ordinal)
+foreach ($property in $english.PSObject.Properties) { [void]$englishValues.Add([string]$property.Value) }
+$applicationSource = Join-Path $root 'src\LocalGPT'
+$literalPatterns = @(
+    [regex]'\bLT\(\s*"((?:\\.|[^"\\])*)"\s*\)',
+    [regex]'\.GetText\(\s*"((?:\\.|[^"\\])*)"'
+)
+foreach ($sourceFile in @(Get-ChildItem -LiteralPath $applicationSource -Recurse -File | Where-Object { $_.Extension -in @('.razor', '.cs') -and $_.FullName -notmatch '[\\/](?:bin|obj|wwwroot[\\/]help-docs)[\\/]' } | Sort-Object FullName)) {
+    $sourceRaw = Read-StrictUtf8 $sourceFile.FullName
+    foreach ($pattern in $literalPatterns) {
+        foreach ($match in $pattern.Matches($sourceRaw)) {
+            try { $literal = [string](ConvertFrom-Json -InputObject ('"' + $match.Groups[1].Value + '"')) }
+            catch { continue }
+            if ([string]::IsNullOrWhiteSpace($literal) -or $englishValues.Contains($literal)) { continue }
+            $line = ([regex]::Matches($sourceRaw.Substring(0, $match.Index), "`n").Count + 1)
+            Write-LocalizationError $sourceFile.FullName $line 'L10N0003' "Localized source text is not present in en-US.json: '$literal'." "Add one canonical English catalog entry for this exact source text and add the same key to every maintained culture. Provide a real German translation unless the text is intentionally language-neutral and reviewed into the baseline. Do not remove LT/GetText or hard-code the English string to bypass localization."
+            Fail "Localized source text is missing from en-US.json: '$literal' in $($sourceFile.FullName):$line"
+        }
+    }
+}
+
+# Preserve a reviewed baseline of language-neutral English/German values. Any new key that simply
+# copies English into the German catalog fails the build. This converts localization maintenance from
+# a best-effort convention into an explicit source contract while allowing the legacy baseline to shrink.
+$identicalBaselinePath = Join-Path $PSScriptRoot 'localization-identical-german-baseline.json'
+if (-not (Test-Path -LiteralPath $identicalBaselinePath -PathType Leaf)) { Fail "Missing reviewed German identical-text baseline: $identicalBaselinePath" }
+try { $identicalBaseline = ConvertFrom-Json -InputObject (Read-StrictUtf8 $identicalBaselinePath) }
+catch { Fail "German identical-text baseline is not valid JSON. $($_.Exception.Message)" }
+$allowedIdentical = @{}
+foreach ($key in @($identicalBaseline)) {
+    $normalizedKey = [string]$key
+    if (-not [string]::IsNullOrWhiteSpace($normalizedKey)) { $allowedIdentical[$normalizedKey] = $true }
+}
+foreach ($key in $englishKeys) {
+    $englishValue = [string]$english.PSObject.Properties[$key].Value
+    $germanValue = [string]$german.PSObject.Properties[$key].Value
+    if (-not [string]::IsNullOrWhiteSpace($englishValue) -and $englishValue -ceq $germanValue -and -not $allowedIdentical.ContainsKey($key)) {
+        $germanRaw = Read-StrictUtf8 $germanPath
+        $keyToken = '"' + $key.Replace('"', '\"') + '"'
+        $line = Get-LineNumberForText $germanRaw $keyToken
+        Write-LocalizationError $germanPath $line 'L10N0002' "German localization is missing for newly introduced or regressed UI text: $key = '$englishValue'." "Either provide a real German translation in de-DE.json, or, only when the spelling is intentionally language-neutral (for example a product/protocol name), add the key to build/localization-identical-german-baseline.json after explicit review. Never invent a fake translation merely to satisfy the guard."
+        Fail "German localization is missing for newly introduced or regressed UI text: $key = '$englishValue'. Translate it or explicitly review it into the language-neutral baseline."
+    }
+}
 
 # The 2.6.1 source-text expansion briefly created case-only Archive Preset keys. Keep the semantic
 # SourceText key and reject the obsolete Text key explicitly so overlays cannot silently reintroduce it.

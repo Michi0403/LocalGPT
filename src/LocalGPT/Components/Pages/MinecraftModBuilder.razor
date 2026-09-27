@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/minecraft-mod-builder"
+@attribute [LocalGptUiLayoutSurface("page", "Minecraft Mod Builder", "/minecraft-mod-builder", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("request-editor", "Minecraft Mod Builder · request editor", "/minecraft-mod-builder")]
 @inject CouncilTextService CouncilText
 @inject MinecraftProjectService MinecraftProject
 @inject LocalGptCatalogService Catalog
@@ -12,7 +14,13 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner MinecraftModBuilder">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>Minecraft Mod Builder</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(MinecraftModBuilder)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <div class="minecraft-builder-page-scroll-owner">
     <div class="mod-builder">
@@ -35,7 +43,11 @@
             </Actions>
         </WorkbenchHeader>
 
-        <section class="builder-panel builder-request-panel" aria-labelledby="minecraft-build-request-heading">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(MinecraftModBuilder)" SectionName="request-editor" CanHide="true">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="builder-panel builder-request-panel" aria-labelledby="minecraft-build-request-heading">
             <header class="builder-section-heading">
                 <div>
                     <span class="builder-section-kicker">Project definition</span>
@@ -123,11 +135,18 @@
                           Click="LoadLivingCitiesPrompt"
                           Enabled="@(!isBusy)" />
             </div>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</LocalGptFormLayoutSurface>
 
     @if (workspace is not null)
     {
-        <section class="builder-panel">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="builder-panel">
             <h2>Workspace</h2>
             <dl class="workspace-details">
                 <dt>Root</dt>
@@ -161,20 +180,32 @@
                           Click="RunCommandAsync"
                           Enabled="@(!isBusy)" />
             </div>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     }
 
     @if (!string.IsNullOrWhiteSpace(aiPlan))
     {
-        <section class="builder-panel">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="builder-panel">
             <h2>AI Plan</h2>
             <div class="markdown-output">@((MarkupString)Markdig.Markdown.ToHtml(aiPlan).Trim())</div>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     }
 
     @if (lastCouncilResult is not null)
     {
-        <section class="builder-panel">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="builder-panel">
             <h2>AI Council Log</h2>
             <dl class="workspace-details">
                 <dt>Models</dt>
@@ -184,12 +215,18 @@
                 <dt>Memory</dt>
                 <dd>@lastCouncilResult.MemoryConversationId</dd>
             </dl>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     }
 
     @if (lastCommandResult is not null)
     {
-        <section class="builder-panel">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext006">
+        <div class="builder-panel">
             <h2>Command Result</h2>
             <div class="result-summary">
                 Exit code @lastCommandResult.ExitCode in @lastCommandResult.Duration.TotalSeconds.ToString("0.0")s
@@ -215,13 +252,31 @@
             {
                 <pre class="error-output">@lastCommandResult.StandardError</pre>
             }
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     }
     </div>
 </div>
 
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
 @code {
+    /// <summary>
+    /// Gets the minecraft loader options collection maintained or exposed by this minecraft mod instance for downstream processing.
+    /// </summary>
+    /// <value>The minecraft loader options value exposed by <see cref="MinecraftModBuilder"/>.</value>
     private IReadOnlyList<string> MinecraftLoaderOptions { get; } = ["Fabric Mod", "NeoForge Mod", "Paper Plugin", "Datapack", "Bedrock Add-on"];
+    /// <summary>
+    /// Gets the minecraft ide options collection maintained or exposed by this minecraft mod instance for downstream processing.
+    /// </summary>
+    /// <value>The minecraft ide options value exposed by <see cref="MinecraftModBuilder"/>.</value>
     private IReadOnlyList<string> MinecraftIdeOptions { get; } = ["Eclipse", "IntelliJ IDEA", "Visual Studio Code"];
 
     /// <summary>
@@ -297,7 +352,7 @@
     /// Gets a value indicating whether datapack applies to the minecraft mod state.
     /// </summary>
     /// <value>The is datapack value exposed by <see cref="MinecraftModBuilder"/>.</value>
-    bool IsDatapack => string.Equals(request.Loader, "Datapack", StringComparison.OrdinalIgnoreCase);
+    bool IsDatapack => GetIsDatapackForRender();
 
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="MinecraftModBuilder"/>, updating the state required by the surrounding workflow.
@@ -305,8 +360,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnInitializedAsync()
     {
+        try
+        {
         request.Description = Catalog.LivingCitiesPrompt;
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method MinecraftModBuilder.OnInitializedAsync failed.");
+            throw;
+        }
     }
 
 
@@ -642,9 +706,19 @@
     /// Parses council models for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
     /// </summary>
     /// <returns>The collection produced by the operation.</returns>
-    IEnumerable<string> ParseCouncilModels() =>
-        CouncilText.ParseModelNames(councilModels, Logger)
+    IEnumerable<string> ParseCouncilModels()
+    {
+        try
+        {
+            return CouncilText.ParseModelNames(councilModels, Logger)
             .Where(model => !string.IsNullOrWhiteSpace(model));
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method MinecraftModBuilder.ParseCouncilModels failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Loads living cities prompt for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
@@ -701,6 +775,22 @@
         finally
         {
             isBusy = false;
+        }
+    }
+
+
+    /// <summary>Computes IsDatapack for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetIsDatapackForRender()
+    {
+        try
+        {
+            return string.Equals(request.Loader, "Datapack", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property MinecraftModBuilder.IsDatapack failed.");
+            throw;
         }
     }
 }

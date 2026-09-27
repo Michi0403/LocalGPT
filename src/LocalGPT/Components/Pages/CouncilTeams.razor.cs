@@ -158,48 +158,108 @@ namespace LocalGPT.Components.Pages
         .ToList();
 
     /// <summary>Gets the fixed invocation count when the role's minimum and maximum match.</summary>
-    private int? ExactRoleInvocationCount(OrganicCouncilRoleDefinition role) =>
-        role.MinimumAiParticipants == role.MaximumAiParticipants ? role.MinimumAiParticipants : null;
+    private int? ExactRoleInvocationCount(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.MinimumAiParticipants == role.MaximumAiParticipants ? role.MinimumAiParticipants : null;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.ExactRoleInvocationCount failed.");
+            throw;
+        }
+    }
 
     /// <summary>Gets provider-qualified model choices for an assigned workflow step.</summary>
-    private IReadOnlyList<LocalGptSelectionOption<string>> WorkflowAssignedModelOptions(CouncilWorkflowStepDefinition step) =>
-        WorkflowModelOptions(step, step.AssignedModelName, "Select provider / host / model");
+    private IReadOnlyList<LocalGptSelectionOption<string>> WorkflowAssignedModelOptions(CouncilWorkflowStepDefinition step)
+    {
+        try
+        {
+            return WorkflowModelOptions(step, step.AssignedModelName, "Select provider / host / model");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.WorkflowAssignedModelOptions failed.");
+            throw;
+        }
+    }
 
     /// <summary>Gets provider-qualified model choices for role-result synthesis.</summary>
-    private IReadOnlyList<LocalGptSelectionOption<string>> RoleResultSynthesisModelOptions(CouncilWorkflowStepDefinition step) =>
-        WorkflowModelOptions(step, step.RoleResultSynthesisModelName, "Choose one exact role member");
+    private IReadOnlyList<LocalGptSelectionOption<string>> RoleResultSynthesisModelOptions(CouncilWorkflowStepDefinition step)
+    {
+        try
+        {
+            return WorkflowModelOptions(step, step.RoleResultSynthesisModelName, "Choose one exact role member");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.RoleResultSynthesisModelOptions failed.");
+            throw;
+        }
+    }
 
     /// <summary>Builds a provider-qualified workflow-model choice list while preserving unavailable saved bindings.</summary>
     private IReadOnlyList<LocalGptSelectionOption<string>> WorkflowModelOptions(CouncilWorkflowStepDefinition step, string? selectedValue, string emptyLabel)
     {
+        try
+        {
         var options = new List<LocalGptSelectionOption<string>> { new(string.Empty, emptyLabel) };
         if (!string.IsNullOrWhiteSpace(selectedValue) && !IsWorkflowModelAvailable(selectedValue))
             options.Add(new(selectedValue, $"Saved but unavailable · {selectedValue}"));
         options.AddRange(WorkflowModelCandidates(step)
             .Select(candidate => new LocalGptSelectionOption<string>(candidate.SelectionKey, $"{candidate.Provider} · {candidate.ModelName} · {candidate.Endpoint}")));
         return options;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.WorkflowModelOptions failed.");
+            throw;
+        }
     }
 
     /// <summary>Gets legal revisit targets up to and including the current workflow step.</summary>
-    private IReadOnlyList<LocalGptSelectionOption<string>> XRevisitTargetOptions(int stepIndex) =>
-        [new(string.Empty, "Require the AI to name a target"),
+    private IReadOnlyList<LocalGptSelectionOption<string>> XRevisitTargetOptions(int stepIndex)
+    {
+        try
+        {
+            return [new(string.Empty, "Require the AI to name a target"),
          .. _editor.WorkflowSteps.Take(stepIndex + 1)
              .Select(step => new LocalGptSelectionOption<string>(step.Key, $"{step.DisplayName} · {step.Key}"))];
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.XRevisitTargetOptions failed.");
+            throw;
+        }
+    }
 
     /// <summary>Gets child-Council choices while preserving a saved unavailable team key.</summary>
     private IReadOnlyList<LocalGptSelectionOption<string>> XChildCouncilTeamOptions(CouncilWorkflowStepDefinition step)
     {
+        try
+        {
         var options = new List<LocalGptSelectionOption<string>> { new(string.Empty, "Require teamKey in the X call") };
         if (!string.IsNullOrWhiteSpace(step.XChildCouncilTeamKey) && !_teams.Any(team => team.Key.Equals(step.XChildCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
             options.Add(new(step.XChildCouncilTeamKey, $"Saved but unavailable · {step.XChildCouncilTeamKey}"));
         options.AddRange(_teams.Where(team => team.IsEnabled)
             .Select(team => new LocalGptSelectionOption<string>(team.Key, $"{team.DisplayName} · {team.Key}")));
         return options;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.XChildCouncilTeamOptions failed.");
+            throw;
+        }
     }
 
     /// <summary>Gets single-model X child choices while preserving a saved unavailable provider binding.</summary>
     private IReadOnlyList<LocalGptSelectionOption<string>> XChildModelOptions(CouncilWorkflowStepDefinition step)
     {
+        try
+        {
         var options = new List<LocalGptSelectionOption<string>> { new(string.Empty, "Use the current Council leader") };
         if (!string.IsNullOrWhiteSpace(step.XChildModelName) && !IsWorkflowModelAvailable(step.XChildModelName))
             options.Add(new(step.XChildModelName, $"Saved but unavailable · {step.XChildModelName}"));
@@ -209,6 +269,13 @@ namespace LocalGPT.Components.Pages
             .ThenBy(model => model.ModelName)
             .Select(candidate => new LocalGptSelectionOption<string>(candidate.SelectionKey, $"{candidate.Provider} · {candidate.ModelName} · {candidate.Endpoint}")));
         return options;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.XChildModelOptions failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -332,7 +399,18 @@ namespace LocalGPT.Components.Pages
     /// Handles the initialized async lifecycle or event notification for <see cref="CouncilTeams"/>, updating the state required by the surrounding workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    protected override Task OnInitializedAsync() => ReloadAsync();
+    protected override Task OnInitializedAsync()
+    {
+        try
+        {
+            return ReloadAsync();
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.OnInitializedAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs reload for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
@@ -458,11 +536,20 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ToggleDxFunctionPickerAsync()
     {
+        try
+        {
         _dxFunctionPickerExpanded = !_dxFunctionPickerExpanded;
         if (!_dxFunctionPickerExpanded || _dxFunctionsLoaded || _dxFunctionsLoading)
             return;
 
         await LoadDxFunctionCatalogAsync().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.ToggleDxFunctionPickerAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -510,10 +597,19 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void OnTeamChanged(ChangeEventArgs args)
     {
+        try
+        {
         var key = args.Value?.ToString() ?? string.Empty;
         var team = _teams.FirstOrDefault(item => item.Key == key);
         if (team is not null)
             SelectTeam(team);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.OnTeamChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -522,6 +618,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="team">Team value supplied to the council teams operation and used when producing its result.</param>
     private void SelectTeam(OrganicCouncilTeamDefinition team)
     {
+        try
+        {
         _selectedKey = team.Key;
         _editor = Clone(team);
         NormalizeEditorOrdering();
@@ -530,6 +628,13 @@ namespace LocalGPT.Components.Pages
         _allowedFunctionsJson = Serialize(team.AllowedAutomaticFunctions);
         _contractsJson = Serialize(team.ArchitectureContracts);
         _confirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.SelectTeam failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -537,6 +642,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void CreateTeam()
     {
+        try
+        {
         _selectedKey = string.Empty;
         _editor = new OrganicCouncilTeamDefinition
         {
@@ -569,6 +676,13 @@ namespace LocalGPT.Components.Pages
         _confirmed = false;
         _status = "Created an unsaved custom structure. Rename its key before saving if needed.";
         _hasError = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.CreateTeam failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -576,6 +690,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void DuplicateTeam()
     {
+        try
+        {
         var source = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
         if (source is null)
         {
@@ -599,6 +715,13 @@ namespace LocalGPT.Components.Pages
         _confirmed = false;
         _status = $"Duplicated '{source.DisplayName}' as an unsaved literal workflow. Change the key if it already exists.";
         _hasError = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.DuplicateTeam failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -606,6 +729,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void EnsureWorkflowRolesDefinedForEditableCopy()
     {
+        try
+        {
         foreach (var step in _editor.WorkflowSteps.Where(step => step.IsEnabled && !string.IsNullOrWhiteSpace(step.Role)))
         {
             if (_editor.Roles.Any(role => string.Equals(role.Role, step.Role, StringComparison.OrdinalIgnoreCase)))
@@ -621,12 +746,23 @@ namespace LocalGPT.Components.Pages
                 HumanParticipationMode = HumanParticipationMode.None
             });
         }
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.EnsureWorkflowRolesDefinedForEditableCopy failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Adds role for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
-    private void AddRole() => _editor.Roles.Add(new OrganicCouncilRoleDefinition
+    private void AddRole()
+    {
+        try
+        {
+            _editor.Roles.Add(new OrganicCouncilRoleDefinition
     {
         Role = $"Role {_editor.Roles.Count + 1}",
         Expertise = string.Empty,
@@ -636,6 +772,13 @@ namespace LocalGPT.Components.Pages
         MaximumAiParticipants = 1,
         HumanParticipationMode = HumanParticipationMode.None
     });
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.AddRole failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Removes role for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
@@ -643,8 +786,17 @@ namespace LocalGPT.Components.Pages
     /// <param name="index">Index value supplied to the council teams operation and used when producing its result.</param>
     private void RemoveRole(int index)
     {
+        try
+        {
         if (index >= 0 && index < _editor.Roles.Count)
             _editor.Roles.RemoveAt(index);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.RemoveRole failed.");
+            throw;
+        }
     }
 
     /// <summary>Applies one convenience X-Round policy without hiding any of the explicit per-step controls below it.</summary>
@@ -652,6 +804,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="preset">Preset value supplied to the council teams operation and used when producing its result.</param>
     private void ApplyXRoundPreset(CouncilWorkflowStepDefinition step, CouncilXRoundPreset preset)
     {
+        try
+        {
         ArgumentNullException.ThrowIfNull(step);
         step.UseBuiltInBehavior = false;
         step.XFunctionsEnabled = preset != CouncilXRoundPreset.Disabled;
@@ -667,6 +821,13 @@ namespace LocalGPT.Components.Pages
         _status = preset == CouncilXRoundPreset.Disabled
             ? $"Cleared X-Round authority from '{step.DisplayName}'."
             : $"Applied the {preset} X-Round starting point to '{step.DisplayName}'. Review the explicit switches before saving.";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.ApplyXRoundPreset failed.");
+            throw;
+        }
     }
 
     /// <summary>Lists the convenience starting points for configurable X-Round step policies.</summary>
@@ -699,10 +860,19 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void AddWorkflowStep()
     {
+        try
+        {
         foreach (var existing in _editor.WorkflowSteps)
             existing.UseBuiltInBehavior = false;
         _editor.WorkflowSteps.Add(CreateWorkflowStep(_editor.WorkflowSteps.Count));
         NormalizeEditorOrdering();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.AddWorkflowStep failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -710,7 +880,11 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="index">Index value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The council workflow step definition produced by the operation.</returns>
-    private CouncilWorkflowStepDefinition CreateWorkflowStep(int index) => new()
+    private CouncilWorkflowStepDefinition CreateWorkflowStep(int index)
+    {
+        try
+        {
+            return new()
     {
         Key = $"round-{index + 1}",
         DisplayName = $"Round {index + 1}",
@@ -733,6 +907,13 @@ namespace LocalGPT.Components.Pages
         XMaximumChildCouncilDepth = 1,
         PromptTemplate = "Contribute to {{TeamName}} as {{Role}}. Address the original request, consider the prior transcript, and state disagreements or missing information plainly.\n\nUser request:\n{{UserPrompt}}\n\nPrior transcript:\n{{Transcript}}"
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.CreateWorkflowStep failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Removes workflow step for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
@@ -740,11 +921,20 @@ namespace LocalGPT.Components.Pages
     /// <param name="index">Index value supplied to the council teams operation and used when producing its result.</param>
     private void RemoveWorkflowStep(int index)
     {
+        try
+        {
         if (index < 0 || index >= _editor.WorkflowSteps.Count)
             return;
         _editor.WorkflowSteps.RemoveAt(index);
         MarkWorkflowCustom();
         NormalizeEditorOrdering();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.RemoveWorkflowStep failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -754,12 +944,21 @@ namespace LocalGPT.Components.Pages
     /// <param name="direction">Direction value supplied to the council teams operation and used when producing its result.</param>
     private void MoveWorkflowStep(int index, int direction)
     {
+        try
+        {
         var target = index + direction;
         if (index < 0 || index >= _editor.WorkflowSteps.Count || target < 0 || target >= _editor.WorkflowSteps.Count)
             return;
         (_editor.WorkflowSteps[index], _editor.WorkflowSteps[target]) = (_editor.WorkflowSteps[target], _editor.WorkflowSteps[index]);
         MarkWorkflowCustom();
         NormalizeEditorOrdering();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.MoveWorkflowStep failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -767,8 +966,17 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void MarkWorkflowCustom()
     {
+        try
+        {
         foreach (var step in _editor.WorkflowSteps)
             step.UseBuiltInBehavior = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.MarkWorkflowCustom failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -776,6 +984,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void NormalizeEditorOrdering()
     {
+        try
+        {
         foreach (var role in _editor.Roles)
         {
             role.MinimumAiParticipants = Math.Max(1, role.MinimumAiParticipants);
@@ -844,6 +1054,13 @@ namespace LocalGPT.Components.Pages
             step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
             step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);
         }
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.NormalizeEditorOrdering failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -851,8 +1068,17 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void RefreshAdvancedJson()
     {
+        try
+        {
         _rolesJson = Serialize(_editor.Roles);
         _workflowJson = Serialize(_editor.WorkflowSteps);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.RefreshAdvancedJson failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -860,6 +1086,7 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void ApplyAdvancedJson()
     {
+        Logger.LogDebug("Component method CouncilTeams.ApplyAdvancedJson completed.");
         try
         {
             _editor.Roles = Deserialize<List<OrganicCouncilRoleDefinition>>(_rolesJson);
@@ -876,6 +1103,7 @@ namespace LocalGPT.Components.Pages
             _hasError = true;
             Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council JSON rejected");
         }
+    
     }
 }
 }

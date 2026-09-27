@@ -9,6 +9,10 @@
 @inject IComponentActivityService ComponentActivity
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner MainLayout">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <div class="page" data-testid="main-layout">
     <Drawer DrawerHeader="drawerHeader"
             DrawerFooter="drawerFooter"
@@ -40,9 +44,10 @@
                                     Value="@CurrentCulture"
                                     ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
                                     TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
-                                    ValueChanged="@((string value) => OnCultureChanged(value))"
-                                    aria-label="@LanguageLabel"
-                                    CssClass="localgpt-language-select" />
+                                    ValueChanged="@((string culture) => OnCultureChanged(culture))"
+                                    InputId="localgpt-language-select"
+                                    CssClass="localgpt-language-select"
+                                    ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Never" />
                     </div>
                 </div>
                 <SafeErrorBoundary @key="NavigationManager.Uri" Area="MainLayout" ToastName="ComponentSafetyToasts">
@@ -64,6 +69,11 @@
         }
     </aside>
 </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -78,27 +88,42 @@
     /// </summary>
     /// <value>The is chat page value exposed by <see cref="MainLayout"/>.</value>
     private bool IsChatPage =>
-        string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/Chat", StringComparison.OrdinalIgnoreCase);
+        GetIsChatPageForRender();
 
     /// <summary>
     /// Gets a value indicating whether install page applies to the main layout state.
     /// </summary>
     /// <value>The is install page value exposed by <see cref="MainLayout"/>.</value>
     private bool IsInstallPage =>
-        string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/install", StringComparison.OrdinalIgnoreCase);
+        GetIsInstallPageForRender();
 
-    private IReadOnlyList<LocalGptSelectionOption<string>> LanguageOptions => Localization.GetAvailableCultures()
-        .Select(culture => new LocalGptSelectionOption<string>(culture, CultureLabel(culture)))
-        .ToArray();
+    /// <summary>
+    /// Gets the language options collection maintained or exposed by this main layout instance for downstream processing.
+    /// </summary>
+    /// <value>The language options value exposed by <see cref="MainLayout"/>.</value>
+    private IReadOnlyList<LocalGptSelectionOption<string>> LanguageOptions => GetLanguageOptionsForRender();
 
+    /// <summary>
+    /// Handles the culture changed lifecycle or event notification for <see cref="MainLayout"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="culture">Culture value supplied to the main layout operation and used when producing its result.</param>
     private void OnCultureChanged(string? culture)
     {
+        try
+        {
         if (string.IsNullOrWhiteSpace(culture) || string.Equals(culture, CurrentCulture, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
         NavigationManager.NavigateTo(Localization.BuildCultureSelectionUrl(NavigationManager.Uri, culture), forceLoad: true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method MainLayout.OnCultureChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -106,7 +131,16 @@
     /// </summary>
     protected override void OnInitialized()
     {
+        try
+        {
         NavigationManager.LocationChanged += OnLocationChanged;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method MainLayout.OnInitialized failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -114,13 +148,34 @@
     /// </summary>
     /// <param name="sender">Sender value supplied to the main layout operation and used when producing its result.</param>
     /// <param name="args">Args value supplied to the main layout operation and used when producing its result.</param>
-    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args) =>
-        _ = InvokeAsync(StateHasChanged);
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args)
+    {
+        try
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method MainLayout.OnLocationChanged failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Releases resources owned by <see cref="MainLayout"/> and leaves the main layout workflow in a safely disposed state.
     /// </summary>
-    public void Dispose() => NavigationManager.LocationChanged -= OnLocationChanged;
+    public void Dispose()
+    {
+        try
+        {
+            NavigationManager.LocationChanged -= OnLocationChanged;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method MainLayout.Dispose failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Handles the parameters set lifecycle or event notification for <see cref="MainLayout"/>, updating the state required by the surrounding workflow.
@@ -144,18 +199,19 @@
     /// Gets the current culture value that forms part of the main layout state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The current culture value exposed by <see cref="MainLayout"/>.</value>
-    private string CurrentCulture => Localization.ResolveAvailableCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
+    private string CurrentCulture => GetCurrentCultureForRender();
     /// <summary>
     /// Gets the language label value that forms part of the main layout state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The language label value exposed by <see cref="MainLayout"/>.</value>
-    private string LanguageLabel => Localization.GetText("Language");
+    private string LanguageLabel => GetLanguageLabelForRender();
 
     /// <summary>Creates a native-language label for one culture option.</summary>
     /// <param name="culture">Culture value supplied to the main layout operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
     private string CultureLabel(string culture)
     {
+        Logger.LogDebug("Component method MainLayout.CultureLabel completed.");
         try
         {
             var info = System.Globalization.CultureInfo.GetCultureInfo(culture);
@@ -165,27 +221,135 @@
         {
             return culture;
         }
+    
     }
 
     /// <summary>
     /// Gets the drawer header value that forms part of the main layout state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The drawer header value exposed by <see cref="MainLayout"/>.</value>
-    private RenderFragment drawerHeader => @<div class="navigation-drawer-header">
-        <img class="logo" src="images/TacosLogos.svg" alt="LocalGPT logo" />
-        <NavLink data-enhance-nav="false" href="@NavigationUrls.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
-            <DxButton RenderStyle="@ButtonRenderStyle.Light" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav localgpt-navigation-button" IconCssClass="@(ToggledSidebar ? "icon icon-close" : "icon icon-menu")"></DxButton>
-        </NavLink>
-    </div>;
+    private RenderFragment drawerHeader => GetdrawerHeaderForRender();
 
     /// <summary>
     /// Gets the drawer footer value that forms part of the main layout state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The drawer footer value exposed by <see cref="MainLayout"/>.</value>
-    private RenderFragment drawerFooter => @<div>
+    private RenderFragment drawerFooter => GetdrawerFooterForRender();
+
+
+    /// <summary>Computes IsChatPage for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetIsChatPageForRender()
+    {
+        try
+        {
+            return string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/Chat", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.IsChatPage failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes IsInstallPage for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetIsInstallPageForRender()
+    {
+        try
+        {
+            return string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/install", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.IsInstallPage failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes LanguageOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetLanguageOptionsForRender()
+    {
+        try
+        {
+            return Localization.GetAvailableCultures()
+        .Select(culture => new LocalGptSelectionOption<string>(culture, CultureLabel(culture)))
+        .ToArray();
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.LanguageOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CurrentCulture for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetCurrentCultureForRender()
+    {
+        try
+        {
+            return Localization.ResolveAvailableCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.CurrentCulture failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes LanguageLabel for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetLanguageLabelForRender()
+    {
+        try
+        {
+            return Localization.GetText("Language");
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.LanguageLabel failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes drawerHeader for the render path with component-local diagnostics.</summary>
+    /// <returns>The render fragment produced by the operation.</returns>
+    private RenderFragment GetdrawerHeaderForRender()
+    {
+        try
+        {
+            return @<div class="navigation-drawer-header">
+        <img class="logo" src="images/TacosLogos.svg" alt="LocalGPT logo" />
+        <NavLink data-enhance-nav="false" href="@NavigationUrls.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
+            <DxButton RenderStyle="@ButtonRenderStyle.Light" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav localgpt-navigation-button" IconCssClass="@(ToggledSidebar ? "icon icon-close" : "icon icon-menu")"></DxButton>
+        </NavLink>
+    </div>;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.drawerHeader failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes drawerFooter for the render path with component-local diagnostics.</summary>
+    /// <returns>The render fragment produced by the operation.</returns>
+    private RenderFragment GetdrawerFooterForRender()
+    {
+        try
+        {
+            return @<div>
     <NavLink href="https://github.com/Michi0403/LocalGPT" class="button-link">
             <DxButton Text="Github" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="footer-button localgpt-navigation-button" RenderStyle="@ButtonRenderStyle.Light" IconCssClass="icon docs-icon"></DxButton>
         </NavLink>
-    </div>
-    ;
+    </div>;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.drawerFooter failed.");
+            throw;
+        }
+    }
 }

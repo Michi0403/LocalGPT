@@ -4,36 +4,68 @@
 @inject ILogger<OperationalActivityFeed> Logger
 @implements IDisposable
 
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner OperationalActivityFeed">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <pre class="localgpt-operational-feed @CssClass"
      style="min-height: calc(@Rows * 1.45em + 1.5rem);"
      aria-live="polite"
      aria-atomic="false">@displayText</pre>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>Optional route-local status text prepended to the shared operational feeds.</summary>
+    /// <value>The local text value exposed by <see cref="OperationalActivityFeed"/>.</value>
     [Parameter] public string LocalText { get; set; } = string.Empty;
 
     /// <summary>Maximum recent shared-console entries included in the bounded display.</summary>
+    /// <value>The max console lines value exposed by <see cref="OperationalActivityFeed"/>.</value>
     [Parameter] public int MaxConsoleLines { get; set; } = 120;
 
     /// <summary>Maximum recent application-activity entries included in the bounded display.</summary>
+    /// <value>The max activity entries value exposed by <see cref="OperationalActivityFeed"/>.</value>
     [Parameter] public int MaxActivityEntries { get; set; } = 30;
 
     /// <summary>Approximate visible row count for the ASCII terminal surface.</summary>
+    /// <value>The rows value exposed by <see cref="OperationalActivityFeed"/>.</value>
     [Parameter] public int Rows { get; set; } = 14;
 
     /// <summary>CSS class applied to the ASCII terminal surface.</summary>
+    /// <value>The CSS class value exposed by <see cref="OperationalActivityFeed"/>.</value>
     [Parameter] public string CssClass { get; set; } = "localgpt-operational-feed";
 
+    /// <summary>
+    /// Stores the internal display text state used by <see cref="OperationalActivityFeed"/> while executing its surrounding workflow.
+    /// </summary>
     private string displayText = string.Empty;
+    /// <summary>
+    /// Stores the internal render pending state used by <see cref="OperationalActivityFeed"/> while executing its surrounding workflow.
+    /// </summary>
     private int renderPending;
+    /// <summary>
+    /// Stores the internal render worker running state used by <see cref="OperationalActivityFeed"/> while executing its surrounding workflow.
+    /// </summary>
     private int renderWorkerRunning;
+    /// <summary>
+    /// Stores the cancellation source used by <see cref="OperationalActivityFeed"/> to stop its current background or asynchronous operation.
+    /// </summary>
     private readonly CancellationTokenSource renderCancellation = new();
+    /// <summary>
+    /// Stores the internal disposed state used by <see cref="OperationalActivityFeed"/> while executing its surrounding workflow.
+    /// </summary>
     private bool disposed;
 
     /// <summary>Subscribes to both bounded operational sources.</summary>
     protected override void OnInitialized()
     {
+        Logger.LogDebug("Component method OperationalActivityFeed.OnInitialized completed.");
         try
         {
             RefreshSnapshot();
@@ -46,6 +78,7 @@
             Activity.Changed -= OnSourceChanged;
             throw new InvalidOperationException("Initializing the combined LocalGPT operational feed failed.", exception);
         }
+    
     }
 
     /// <summary>Refreshes route-local text passed by the parent.</summary>
@@ -80,6 +113,7 @@
     }
 
     /// <summary>Refreshes at most four times per second while command output is arriving.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshRenderAsync()
     {
         try
@@ -121,12 +155,22 @@
     /// <summary>Loads one bounded snapshot from service-owned formatters.</summary>
     private void RefreshSnapshot()
     {
+        try
+        {
         displayText = Feed.BuildDisplayText(LocalText, Math.Max(1, MaxConsoleLines), Math.Max(1, MaxActivityEntries));
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method OperationalActivityFeed.RefreshSnapshot failed.");
+            throw;
+        }
     }
 
     /// <summary>Unsubscribes the shared operational sources when the interactive circuit disposes this child.</summary>
     public void Dispose()
     {
+        Logger.LogDebug("Component method OperationalActivityFeed.Dispose completed.");
         try
         {
             if (disposed)
@@ -141,5 +185,6 @@
         catch (ObjectDisposedException)
         {
         }
+    
     }
 }

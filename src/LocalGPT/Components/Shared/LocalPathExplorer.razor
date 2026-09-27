@@ -1,5 +1,12 @@
 @inject ILocalPathExplorerService PathExplorer
 
+@inject ILogger<LocalPathExplorer> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner LocalPathExplorer">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <DxPopup Visible="@Visible"
          VisibleChanged="OnVisibleChanged"
          HeaderText="@Title"
@@ -63,6 +70,11 @@
         </div>
     </BodyContentTemplate>
 </DxPopup>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -117,17 +129,26 @@
     /// Gets a value indicating whether go up applies to the local path explorer state.
     /// </summary>
     /// <value>The can go up value exposed by <see cref="LocalPathExplorer"/>.</value>
-    private bool CanGoUp => !string.IsNullOrWhiteSpace(current.ParentPath);
+    private bool CanGoUp => GetCanGoUpForRender();
 
     /// <summary>
     /// Handles the parameters set lifecycle or event notification for <see cref="LocalPathExplorer"/>, updating the state required by the surrounding workflow.
     /// </summary>
     protected override void OnParametersSet()
     {
+        try
+        {
         if (!Visible || loaded)
             return;
         loaded = true;
         Browse(string.IsNullOrWhiteSpace(SelectedPath) ? string.Empty : SelectedPath);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.OnParametersSet failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -137,9 +158,18 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnVisibleChanged(bool visible)
     {
+        try
+        {
         if (!visible)
             loaded = false;
         return VisibleChanged.InvokeAsync(visible);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.OnVisibleChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -148,6 +178,8 @@
     /// <param name="path">Path value supplied to the local path explorer operation and used when producing its result.</param>
     private void Browse(string path)
     {
+        try
+        {
         current = PathExplorer.Browse(new LocalPathBrowseRequest
         {
             Path = path,
@@ -155,6 +187,13 @@
             MaxEntries = 500
         });
         pathInput = current.CurrentPath;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.Browse failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -164,20 +203,51 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task BrowseAsync(string path)
     {
+        try
+        {
         Browse(path);
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.BrowseAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Performs browse typed for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task BrowseTypedAsync() => BrowseAsync(pathInput);
+    private Task BrowseTypedAsync()
+    {
+        try
+        {
+            return BrowseAsync(pathInput);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.BrowseTypedAsync failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Performs go up for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task GoUpAsync() => BrowseAsync(current.ParentPath);
+    private Task GoUpAsync()
+    {
+        try
+        {
+            return BrowseAsync(current.ParentPath);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.GoUpAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs select current for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
@@ -185,9 +255,18 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectCurrentAsync()
     {
+        try
+        {
         if (!current.Exists || !current.IsDirectory)
             return;
         await SelectAsync(current.CurrentPath).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.SelectCurrentAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -197,9 +276,18 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectAsync(string path)
     {
+        try
+        {
         loaded = false;
         await SelectedPathChanged.InvokeAsync(path).ConfigureAwait(false);
         await VisibleChanged.InvokeAsync(false).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.SelectAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -207,10 +295,20 @@
     /// </summary>
     /// <param name="entry">Entry value supplied to the local path explorer operation and used when producing its result.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    private bool CanSelect(LocalPathEntry entry) =>
-        SelectionMode.Equals("File", StringComparison.OrdinalIgnoreCase)
+    private bool CanSelect(LocalPathEntry entry)
+    {
+        try
+        {
+            return SelectionMode.Equals("File", StringComparison.OrdinalIgnoreCase)
             ? entry.EntryKind.Equals("File", StringComparison.OrdinalIgnoreCase)
             : entry.EntryKind.Equals("Directory", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.CanSelect failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Handles the path key down lifecycle or event notification for <see cref="LocalPathExplorer"/>, updating the state required by the surrounding workflow.
@@ -219,8 +317,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnPathKeyDown(KeyboardEventArgs args)
     {
+        try
+        {
         if (args.Key == "Enter")
             await BrowseTypedAsync().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.OnPathKeyDown failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -230,8 +337,33 @@
     /// <returns>The string produced by the operation.</returns>
     private string ShortRoot(string root)
     {
+        try
+        {
         var trimmed = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var name = Path.GetFileName(trimmed);
         return string.IsNullOrWhiteSpace(name) ? root : name;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method LocalPathExplorer.ShortRoot failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes CanGoUp for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanGoUpForRender()
+    {
+        try
+        {
+            return !string.IsNullOrWhiteSpace(current.ParentPath);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalPathExplorer.CanGoUp failed.");
+            throw;
+        }
     }
 }

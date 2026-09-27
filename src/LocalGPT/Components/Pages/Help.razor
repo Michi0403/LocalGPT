@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/help"
+@attribute [LocalGptUiLayoutSurface("page", "Help / Documentation", "/help", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("content", "Help · documentation panels", "/help")]
 @inject ICustomVersion Version
 @inject IDocumentationCatalogService Documentation
 @inject ILogger<Help> Logger
@@ -8,10 +10,19 @@
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 @inject IDocumentationViewerService Viewer
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner Help">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>Documentation</PageTitle>
 
+<LocalGptFormLayoutSurface OwnerType="@typeof(Help)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
+
 <main class="help-page">
-    <section class="help-hero">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="help-hero">
         <div>
             <p class="help-kicker">LocalGPT @Version.Version</p>
             <h1>Documentation</h1>
@@ -32,9 +43,16 @@
             <DxButton CssClass="btn btn-outline-secondary" Click="OpenBuildStatus">Build status JSON</DxButton>
             <DxButton CssClass="btn btn-outline-secondary" Click="OpenXmlComments">Browse XML comments</DxButton>
         </div>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-    <section class="help-grid">
+    <LocalGptFormLayoutSurface OwnerType="@typeof(Help)" SectionName="content" CanHide="true">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="help-grid">
         <article class="help-panel">
             <h2>Chat and AI Council</h2>
             <p>Provider selection, Council teams, model routes, human participation, memory and responsive configuration surfaces.</p>
@@ -65,15 +83,32 @@
             <p>Public services, controllers, business contracts and runtime capabilities generated from XML documentation.</p>
             <DxButton Click="OpenApiReference">Open API reference</DxButton>
         </article>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</LocalGptFormLayoutSurface>
 
-    <section class="help-panel help-wide">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="help-panel help-wide">
         <h2>Build behavior</h2>
         <p>Normal Windows builds restore the repository-local DocFX tool, generate the complete modern HTML site and XML-backed API reference, and require one versioned PDF containing the same root table of contents. PDF generation requires Node.js 20 or later. Set <code>BuildLocalGptDocumentation=false</code> or <code>RequireLocalGptDocumentationPdf=false</code> only for an explicit infrastructure diagnosis.</p>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 </main>
 
 <DocumentationViewerHost />
+
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -102,52 +137,162 @@
     /// <summary>
     /// Opens HTML documentation for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenHtmlDocumentation() => OpenDocumentation(documentationStatus.HtmlUrl, "LocalGPT HTML documentation", documentationStatus.HtmlAvailable);
+    private void OpenHtmlDocumentation()
+    {
+        try
+        {
+            OpenDocumentation(documentationStatus.HtmlUrl, "LocalGPT HTML documentation", documentationStatus.HtmlAvailable);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenHtmlDocumentation failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens PDF documentation for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenPdfDocumentation() => OpenDocumentation(documentationStatus.PdfUrl, "LocalGPT PDF documentation", documentationStatus.PdfAvailable);
+    private void OpenPdfDocumentation()
+    {
+        try
+        {
+            OpenDocumentation(documentationStatus.PdfUrl, "LocalGPT PDF documentation", documentationStatus.PdfAvailable);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenPdfDocumentation failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens build status for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenBuildStatus() => OpenDocumentation("/api/documentation/status", "LocalGPT documentation build status");
+    private void OpenBuildStatus()
+    {
+        try
+        {
+            OpenDocumentation("/api/documentation/status", "LocalGPT documentation build status");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenBuildStatus failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens XML comments for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenXmlComments() => OpenDocumentation("/api/documentation/comments?limit=100", "LocalGPT XML documentation comments");
+    private void OpenXmlComments()
+    {
+        try
+        {
+            OpenDocumentation("/api/documentation/comments?limit=100", "LocalGPT XML documentation comments");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenXmlComments failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens chat and council for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenChatAndCouncil() => OpenDocumentation("/help-docs/guide/chat-and-council.html", "Chat and AI Council");
+    private void OpenChatAndCouncil()
+    {
+        try
+        {
+            OpenDocumentation("/help-docs/guide/chat-and-council.html", "Chat and AI Council");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenChatAndCouncil failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens embedded firmware for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenEmbeddedFirmware() => OpenDocumentation("/help-docs/guide/embedded-and-games.html", "Embedded firmware");
+    private void OpenEmbeddedFirmware()
+    {
+        try
+        {
+            OpenDocumentation("/help-docs/guide/embedded-and-games.html", "Embedded firmware");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenEmbeddedFirmware failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens workspaces for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenWorkspaces() => OpenDocumentation("/help-docs/guide/projects-and-workspaces.html", "Workspaces");
+    private void OpenWorkspaces()
+    {
+        try
+        {
+            OpenDocumentation("/help-docs/guide/projects-and-workspaces.html", "Workspaces");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenWorkspaces failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens game director for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenGameDirector() => OpenDocumentation("/help-docs/guide/embedded-and-games.html", "GameDirector runtime");
+    private void OpenGameDirector()
+    {
+        try
+        {
+            OpenDocumentation("/help-docs/guide/embedded-and-games.html", "GameDirector runtime");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenGameDirector failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens security for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenSecurity() => OpenDocumentation("/help-docs/architecture/onewire-security.html", "Security");
+    private void OpenSecurity()
+    {
+        try
+        {
+            OpenDocumentation("/help-docs/architecture/onewire-security.html", "Security");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenSecurity failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens API reference for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
     /// </summary>
-    private void OpenApiReference() => OpenDocumentation("/help-docs/api/index.html", "LocalGPT API reference");
+    private void OpenApiReference()
+    {
+        try
+        {
+            OpenDocumentation("/help-docs/api/index.html", "LocalGPT API reference");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Help.OpenApiReference failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Opens documentation for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.

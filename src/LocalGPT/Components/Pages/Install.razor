@@ -1,5 +1,16 @@
 @rendermode InteractiveServer
 @page "/install"
+@attribute [LocalGptUiLayoutSurface("page", "Install / Setup", "/install", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("providers", "Install · AI providers", "/install#providers")]
+@attribute [LocalGptUiLayoutSurface("remote", "Install · Remote endpoint", "/install#remote")]
+@attribute [LocalGptUiLayoutSurface("mcp", "Install · MCP gateway", "/install#mcp")]
+@attribute [LocalGptUiLayoutSurface("tls", "Install · TLS certificate", "/install#tls")]
+@attribute [LocalGptUiLayoutSurface("guide", "Install · Setup guide", "/install#guide")]
+@attribute [LocalGptUiLayoutSurface("toolchains", "Install · Toolchains", "/install#toolchains")]
+@attribute [LocalGptUiLayoutSurface("local-ai", "Install · Local AI runtimes", "/install#local-ai")]
+@attribute [LocalGptUiLayoutSurface("languages", "Install · Languages", "/install#languages")]
+@attribute [LocalGptUiLayoutSurface("layout", "Install · Layout Studio", "/install#layout", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("log", "Install · Setup log", "/install#log")]
 @using LocalGPT.BusinessObjects.Enums
 @inject CouncilTextService CouncilText
 @inject IOptionsMonitor<LocalGPT.BusinessObjects.ConfigurationRoot> Opts
@@ -27,8 +38,15 @@
 @inject IToolchainExecutionProfileService ToolchainExecutionProfiles
 @inject IRuntimePluginService RuntimePlugins
 @inject LocalGPT.Runtime.Plugins.RuntimePluginDefinitionSupport RuntimePluginDefinitionSupport
+@inject LocalGPT.Mcp.LocalGptMcpConfigurationPolicy McpGatewayPolicy
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner Install">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>AI Setup</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <span id="install-scroll-top" class="install-scroll-anchor" aria-hidden="true"></span>
 <div class="main-container install-page-scroll-owner">
@@ -80,7 +98,11 @@
                                        AriaLabel="Setup sections" />
             <div class="install-workbench-stage">
         <ConfigurationWorkbenchPanel SectionKey="providers" ActiveKey="@ActiveInstallSection" AriaLabel="AI providers">
-        <section id="provider-studio" class="install-workbench-region install-provider-studio" aria-labelledby="provider-studio-heading">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="providers" CanHide="true">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div id="provider-studio" class="install-workbench-region install-provider-studio" aria-labelledby="provider-studio-heading">
             <header class="install-region-heading">
                 <div>
                     <span class="install-region-kicker">@T("Install.Workbench.ProviderKicker", "Provider workbench")</span>
@@ -89,7 +111,10 @@
                 </div>
             </header>
 
-        <section class="provider-install-guide" aria-labelledby="provider-install-guide-heading">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="provider-install-guide" aria-labelledby="provider-install-guide-heading">
             <header class="provider-install-guide-heading">
                 <div>
                     <span class="install-region-kicker">@T("Install.ProviderInstall.Kicker", "Local runtime installation")</span>
@@ -137,7 +162,10 @@
                 </article>
             </div>
             <p class="provider-install-guide-note">@T("Install.ProviderInstall.SecurityNote", "Security note: review vendor installer scripts before running them. Manual snippets and download links are user-driven. Guided install/start/model actions execute only after explicit confirmation through LocalGPT's bounded console and never silently elevate privileges.")</p>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
         <div class="@ConnectivityAlertCss" role="status">
             <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
@@ -208,7 +236,10 @@
 
         @if (!HasLocalLoopbackOllamaBinding)
         {
-            <section class="local-ollama-candidate" aria-label="This computer's Ollama host">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="local-ollama-candidate" aria-label="This computer's Ollama host">
                 <div>
                     <strong>This computer's Ollama</strong>
                     <code>http://127.0.0.1:11434</code>
@@ -219,10 +250,16 @@
                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                           Enabled="@(!IsSaving)"
                           Click="RegisterLocalOllamaHostAsync" />
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
 
-        <section class="configured-provider-catalog" aria-label="Configured AI providers" data-testid="configured-provider-catalog">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="configured-provider-catalog" aria-label="Configured AI providers" data-testid="configured-provider-catalog">
             <header>
                 <div>
                     <strong>Configured AI hosts</strong>
@@ -313,7 +350,10 @@
                     }
                 </div>
             }
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
         @if (DiscoveredHosts.Count > 0)
         {
@@ -530,11 +570,20 @@
 
             </DxFormLayoutTabPages>
         </DxFormLayout>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        
+        </LocalGptFormLayoutSurface>
         </ConfigurationWorkbenchPanel>
 
         <ConfigurationWorkbenchPanel SectionKey="remote" ActiveKey="@ActiveInstallSection" AriaLabel="Remote endpoint">
-        <section id="network-endpoint" class="installer-workbench-card install-workbench-region" aria-labelledby="network-endpoint-heading">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="remote" CanHide="true">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext006">
+        <div id="network-endpoint" class="installer-workbench-card install-workbench-region" aria-labelledby="network-endpoint-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="network-endpoint-heading">Remote web endpoint (LAN / VPN / smartphone)</h3>
@@ -557,18 +606,250 @@
                     <p class="field-help">Leave empty for HTTP. Select or create a PFX below for HTTPS.</p>
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption="PFX password">
-                    <DxTextBox @bind-Text="NetworkModel.CertificatePassword" />
+                    <DxTextBox @bind-Text="NetworkModel.CertificatePassword" Password="true" />
                     <p class="field-help">For reusable deployments prefer LOCALGPT_NETWORK_CERTIFICATE_PASSWORD instead of persisting a production password.</p>
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption="Effective after restart">
                     <div class="installer-status-line"><code>@NetworkEndpointPreview</code></div>
                 </DxFormLayoutItem>
             </DxFormLayout>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        
+        </LocalGptFormLayoutSurface>
+        </ConfigurationWorkbenchPanel>
+
+        <ConfigurationWorkbenchPanel SectionKey="mcp" ActiveKey="@ActiveInstallSection" AriaLabel="MCP gateway">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="mcp" CanHide="true">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext007">
+        <div id="mcp-gateway" class="installer-workbench-card install-workbench-region mcp-gateway-card" aria-labelledby="mcp-gateway-heading">
+            <div class="installer-card-heading">
+                <div>
+                    <span class="install-region-kicker">Model Context Protocol</span>
+                    <h3 id="mcp-gateway-heading">MCP gateway &amp; data-domain firewall</h3>
+                    <p class="field-help">Expose LocalGPT's services as a deliberately filtered AI gateway. Listener admission, tool discovery and data domains are separate layers so enabling MCP never means looping the complete LocalGPT database or web surface through to a client.</p>
+                </div>
+                <div class="top-container">
+                    <DxButton Text="Save MCP gateway settings" IconCssClass="save" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!IsSaving)" Click="Save" />
+                </div>
+            </div>
+
+            <div class="mcp-endpoint-dashboard">
+                <div class="mcp-endpoint-tile"><span>Local app</span><strong>TCP @LocalGPT.Program.Port</strong><small>Chat, Install and API remain independent.</small></div>
+                <div class="mcp-endpoint-tile"><span>OneWire</span><strong>TCP @LocalGPT.Program.OneWirePort / UDP @LocalGPT.Program.OneWireDiscoveryPort</strong><small>Organic peer transport is not MCP.</small></div>
+                <div class="mcp-endpoint-tile"><span>Dedicated MCP</span><strong>TCP @McpGatewayModel.Port</strong><code>@McpGatewayEndpointPreview</code></div>
+                <div class="mcp-endpoint-tile"><span>Primary-loopback MCP</span><strong>@(McpGatewayModel.ExposeOnPrimaryEndpoint ? "enabled" : "disabled")</strong><code>@McpPrimaryEndpointPreview</code></div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(McpPortContractWarning))
+            {
+                <p class="local-ai-warning"><strong>Port conflict:</strong> @McpPortContractWarning</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(McpAdmissionWarning))
+            {
+                <p class="local-ai-warning"><strong>Remote admission:</strong> @McpAdmissionWarning</p>
+            }
+
+            <DxAccordion CssClass="mcp-gateway-accordion">
+                <Items>
+                    <DxAccordionItem Text="1 · Transport, listener and protocol">
+                        <ContentTemplate Context="mcpTransportAccordionContext">
+                            <p class="field-help mcp-section-help">Choose where MCP exists before choosing what it can see. The dedicated listener is the safest gateway shape because non-MCP routes never reach normal LocalGPT endpoint dispatch.</p>
+                            <DxFormLayout CssClass="mcp-form-layout">
+                                <DxFormLayoutGroup Caption="Gateway endpoints" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Enable MCP gateway" ColSpanMd="6">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.Enabled" Text="Serve the configured MCP endpoint after restart" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Dedicated listener" ColSpanMd="6">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.DedicatedListenerEnabled" Text="Create an MCP-only Kestrel TCP listener" />
+                                        <p class="field-help">Recommended: other routes on this listener return 404.</p>
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Also on primary loopback" ColSpanMd="6">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.ExposeOnPrimaryEndpoint" Text="Expose the MCP path on 127.0.0.1:5000 too" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Bind address" ColSpanMd="3">
+                                        <DxTextBox @bind-Text="McpGatewayModel.Address" NullText="127.0.0.1" />
+                                        <p class="field-help">Keep loopback for your own AI. Bind an interface only for intentional remote delivery.</p>
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Dedicated TCP port" ColSpanMd="3">
+                                        <DxSpinEdit @bind-Value="McpGatewayModel.Port" Min="1" Max="65535" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="MCP path" ColSpanMd="6">
+                                        <DxTextBox @bind-Text="McpGatewayModel.Path" NullText="/mcp" />
+                                        <p class="field-help">Custom values remain under the reserved <code>/mcp</code> namespace.</p>
+                                    </DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                                <DxFormLayoutGroup Caption="Protocol compatibility" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Modern protocol" ColSpanMd="6">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.EnableModernProtocol" Text="Serve stateless modern MCP requests" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Modern version" ColSpanMd="6">
+                                        <DxTextBox @bind-Text="McpGatewayModel.ProtocolVersion" NullText="2026-07-28" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Legacy compatibility" ColSpanMd="6">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.EnableLegacyProtocol" Text="Accept initialize-handshake MCP clients" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Legacy version" ColSpanMd="6">
+                                        <DxTextBox @bind-Text="McpGatewayModel.LegacyProtocolVersion" NullText="2025-11-25" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Modern routing headers" ColSpanMd="6">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.RequireModernRoutingHeaders" Text="Require protocol / method / name header agreement" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Approval round trip" ColSpanMd="6">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.EnableApprovalMultiRoundTrip" Text="Return input_required for elicitation-capable clients" />
+                                        <p class="field-help">The Human Collaboration decision remains authoritative.</p>
+                                    </DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                                <DxFormLayoutGroup Caption="Limits, cache and TLS" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Cache TTL (ms)" ColSpanMd="3">
+                                        <DxSpinEdit @bind-Value="McpGatewayModel.CacheTtlMs" Min="0" Max="86400000" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Cache scope" ColSpanMd="3">
+                                        <DxComboBox Data="@McpCacheScopes" @bind-Value="McpGatewayModel.CacheScope" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Maximum request bytes" ColSpanMd="6">
+                                        <DxSpinEdit @bind-Value="McpGatewayModel.MaxRequestBodyBytes" Min="1024" Max="67108864" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="PFX certificate path" ColSpanMd="8">
+                                        <DxTextBox @bind-Text="McpGatewayModel.CertificatePath" NullText="Leave empty for HTTP / reverse-proxy TLS" />
+                                        <p class="field-help">Environment override: <code>LOCALGPT_MCP_CERTIFICATE</code>.</p>
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="PFX password" ColSpanMd="4">
+                                        <DxTextBox @bind-Text="McpGatewayModel.CertificatePassword" Password="true" NullText="Stored secret or environment override" />
+                                        <p class="field-help">Prefer <code>LOCALGPT_MCP_CERTIFICATE_PASSWORD</code> for reusable deployments.</p>
+                                    </DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                            </DxFormLayout>
+                        </ContentTemplate>
+                    </DxAccordionItem>
+
+                    <DxAccordionItem Text="2 · Client admission and credentials">
+                        <ContentTemplate Context="mcpAdmissionAccordionContext">
+                            <p class="field-help mcp-section-help">Remote access has three independent gates: remote admission, an API key, and narrow Host/Origin allow-lists. Native MCP clients usually do not send an Origin header.</p>
+                            <DxFormLayout CssClass="mcp-form-layout">
+                                <DxFormLayoutGroup Caption="Authentication" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Remote clients" ColSpanMd="4">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.AllowRemoteClients" Text="Permit non-loopback clients" />
+                                        <p class="field-help">Remote mode forces API-key authentication when settings are saved.</p>
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Require API key" ColSpanMd="4">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.RequireApiKey" Text="Require the configured MCP API key" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Bearer alias" ColSpanMd="4">
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.AcceptBearerToken" Text="Also accept Authorization: Bearer" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="API key header" ColSpanMd="4">
+                                        <DxTextBox @bind-Text="McpGatewayModel.ApiKeyHeader" NullText="X-LocalGPT-MCP-Key" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="API key / token" ColSpanMd="8">
+                                        <DxTextBox @bind-Text="McpGatewayModel.ApiKey" Password="@(!McpApiKeyVisible)" NullText="Leave empty when LOCALGPT_MCP_API_KEY is supplied" />
+                                        <div class="mcp-secret-actions">
+                                            <DxButton Text="Generate 256-bit key" IconCssClass="oi oi-key" RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" Click="GenerateMcpApiKey" />
+                                            <DxButton Text="@(McpApiKeyVisible ? "Hide key" : "Show key")" IconCssClass="oi oi-eye" RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" Click="ToggleMcpApiKeyVisibility" />
+                                        </div>
+                                        <p class="field-help">Generate a strong key locally or use <code>LOCALGPT_MCP_API_KEY</code> for reusable deployments. Save persists the current draft; generating alone does not.</p>
+                                    </DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                                <DxFormLayoutGroup Caption="Request admission" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Allowed HTTP Hosts" ColSpanMd="6">
+                                        <DxMemo @bind-Text="McpGatewayModel.AllowedHosts" Rows="4" NullText="localhost;127.0.0.1;[::1]" />
+                                        <p class="field-help">Semicolon, comma or newline separated. Keep this narrow when binding beyond loopback.</p>
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Allowed browser Origins" ColSpanMd="6">
+                                        <DxMemo @bind-Text="McpGatewayModel.AllowedOrigins" Rows="4" NullText="https://trusted-client.example" />
+                                        <p class="field-help">Empty rejects cross-origin browser requests without blocking normal native MCP clients.</p>
+                                    </DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                            </DxFormLayout>
+                        </ContentTemplate>
+                    </DxAccordionItem>
+
+                    <DxAccordionItem Text="3 · MCP primitives and DXFunction gateway">
+                        <ContentTemplate Context="mcpPrimitivesAccordionContext">
+                            <p class="field-help mcp-section-help">Discovery is a separate boundary from execution. You can expose protocol primitives while withholding mutating, approval-gated or unrelated DXFunctions.</p>
+                            <DxFormLayout CssClass="mcp-form-layout">
+                                <DxFormLayoutGroup Caption="Protocol primitives" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Tools" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeTools" Text="Expose MCP tools" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Resources" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeResources" Text="Expose MCP resources" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Prompts" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposePrompts" Text="Expose MCP prompts" /></DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                                <DxFormLayoutGroup Caption="DXFunction bridge" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Read-only" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeReadOnlyFunctions" Text="Bridge read-only DXFunctions" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Mutating" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeMutatingFunctions" Text="Bridge mutating DXFunctions" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Confirmation-gated" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeConfirmationRequiredFunctions" Text="Advertise gated functions" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Automatic invocation" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.AllowAutomaticFunctionInvocation" Text="Allow where LocalGPT policy permits" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Tool include prefixes" ColSpanMd="6">
+                                        <DxMemo @bind-Text="McpGatewayModel.ToolIncludePrefixes" Rows="4" NullText="project.;knowledge.;artifact." />
+                                        <p class="field-help">Optional allow-list. Empty means all functions surviving the switches above.</p>
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Tool exclude prefixes" ColSpanMd="6">
+                                        <DxMemo @bind-Text="McpGatewayModel.ToolExcludePrefixes" Rows="4" NullText="console.;process." />
+                                        <p class="field-help">Applied after the include list.</p>
+                                    </DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                            </DxFormLayout>
+                            <p class="mcp-policy-callout"><strong>Approval boundary:</strong> MCP never manufactures <code>UserConfirmed=true</code>. Existing LocalGPT Human Collaboration decisions and exact-action reuse rules stay authoritative.</p>
+                        </ContentTemplate>
+                    </DxAccordionItem>
+
+                    <DxAccordionItem Text="4 · LocalGPT data domains">
+                        <ContentTemplate Context="mcpDomainsAccordionContext">
+                            <p class="field-help mcp-section-help">Start with metadata. Content, secrets, absolute paths and mutation lanes are separate opt-ins so a client receives only the domain slice it actually needs.</p>
+                            <DxFormLayout CssClass="mcp-form-layout">
+                                <DxFormLayoutGroup Caption="Projects and knowledge" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Projects" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeProjects" Text="Projects and revisions" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Knowledge" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeKnowledge" Text="Council knowledge metadata" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Knowledge content" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeKnowledgeContent" Text="Full knowledge content" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Regex" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeRegex" Text="Regex knowledge" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Archived" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.IncludeArchivedProjects" Text="Include archived projects / knowledge" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Allowed project GUIDs" ColSpanMd="12">
+                                        <DxMemo @bind-Text="McpGatewayModel.AllowedProjectIds" Rows="4" NullText="One project GUID per line; empty permits all otherwise enabled projects" />
+                                    </DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                                <DxFormLayoutGroup Caption="Artifacts and toolchains" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Toolchains" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeToolchains" Text="Toolchain inventory" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Artifacts" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeArtifacts" Text="Project artifact metadata" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Artifact values" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeArtifactValues" Text="Artifact values / content" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Sensitive artifacts" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeSensitiveArtifacts" Text="Sensitive artifact values" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Environment" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeToolchainEnvironmentVariables" Text="Toolchain environment variables" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Download URLs" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ReturnDownloadUrls" Text="Return artifact/download URLs" /></DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                                <DxFormLayoutGroup Caption="Operational surfaces and result bounds" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Council" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeCouncil" Text="Council functions" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Runtime policy" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeRuntimePolicy" Text="Runtime-policy functions" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Diagnostics" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeDiagnostics" Text="Diagnostic functions" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="System paths" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeSystemPaths" Text="Absolute system paths" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Maximum list records" ColSpanMd="4"><DxSpinEdit @bind-Value="McpGatewayModel.MaxListItems" Min="1" Max="10000" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Maximum result characters" ColSpanMd="4"><DxSpinEdit @bind-Value="McpGatewayModel.MaxResultCharacters" Min="1024" Max="8000000" /></DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                            </DxFormLayout>
+                            <p class="local-ai-warning"><strong>Gateway rule:</strong> enabling MCP does not expose every LocalGPT row. Keep system paths, environment variables, sensitive values and mutating functions disabled unless the client genuinely needs them.</p>
+                        </ContentTemplate>
+                    </DxAccordionItem>
+                </Items>
+            </DxAccordion>
+
+            <div class="mcp-save-footer">
+                <div><strong>Deployment note</strong><small>Listener address, port, TLS and path changes require restart. A restart is also the safest boundary after policy changes.</small></div>
+                <DxButton Text="Save MCP gateway settings" IconCssClass="save" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!IsSaving)" Click="Save" />
+            </div>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        
+        </LocalGptFormLayoutSurface>
         </ConfigurationWorkbenchPanel>
 
         <ConfigurationWorkbenchPanel SectionKey="tls" ActiveKey="@ActiveInstallSection" AriaLabel="TLS certificate">
-        <section id="tls-certificate" class="installer-workbench-card install-workbench-region" aria-labelledby="certificate-heading">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="tls" CanHide="true">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext008">
+        <div id="tls-certificate" class="installer-workbench-card install-workbench-region" aria-labelledby="certificate-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="certificate-heading">Create TLS certificate</h3>
@@ -596,7 +877,7 @@
                     <DxTextBox @bind-Text="CertificateRequest.OutputPath" />
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption="PFX password">
-                    <DxTextBox @bind-Text="CertificateRequest.Password" />
+                    <DxTextBox @bind-Text="CertificateRequest.Password" Password="true" />
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption="Certificate store">
                     <DxCheckBox @bind-Checked="CertificateRequest.InstallToStore" Text="Install the generated certificate into a Windows/.NET certificate store" />
@@ -627,11 +908,20 @@
                     </DxFormLayoutItem>
                 }
             </DxFormLayout>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        
+        </LocalGptFormLayoutSurface>
         </ConfigurationWorkbenchPanel>
 
         <ConfigurationWorkbenchPanel SectionKey="guide" ActiveKey="@ActiveInstallSection" AriaLabel="Setup guide">
-        <section id="setup-guide" class="installer-workbench-card install-workbench-region" aria-labelledby="onboarding-heading">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="guide" CanHide="true">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext009">
+        <div id="setup-guide" class="installer-workbench-card install-workbench-region" aria-labelledby="onboarding-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="onboarding-heading">@T("Install.Onboarding.Title", "Setup guide, benchmark council and quick starts")</h3>
@@ -688,11 +978,20 @@
                     <DxButton Text='@T("Install.Onboarding.MarkReviewed", "I reviewed this setup guide")' RenderStyle="ButtonRenderStyle.Success" Enabled="@(!IsOnboardingLoading)" Click="CompleteOnboardingAsync" />
                 }
             }
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        
+        </LocalGptFormLayoutSurface>
         </ConfigurationWorkbenchPanel>
 
         <ConfigurationWorkbenchPanel SectionKey="toolchains" ActiveKey="@ActiveInstallSection" AriaLabel="Toolchains">
-        <section id="toolchains" class="installer-workbench-card install-workbench-region" aria-labelledby="toolchain-heading">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="toolchains" CanHide="true">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext010">
+        <div id="toolchains" class="installer-workbench-card install-workbench-region" aria-labelledby="toolchain-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="toolchain-heading">@T("Install.Toolchains.Title", "Compilers and runtime toolchains")</h3>
@@ -1080,11 +1379,20 @@
                     </div>
                 </BodyContentTemplate>
             </DxPopup>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        
+        </LocalGptFormLayoutSurface>
         </ConfigurationWorkbenchPanel>
 
         <ConfigurationWorkbenchPanel SectionKey="local-ai" ActiveKey="@ActiveInstallSection" AriaLabel="Local AI runtimes">
-        <section id="local-ai-runtime" class="installer-workbench-card install-workbench-region local-ai-runtime-workbench" aria-labelledby="local-ai-runtime-heading">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="local-ai" CanHide="true">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext011">
+        <div id="local-ai-runtime" class="installer-workbench-card install-workbench-region local-ai-runtime-workbench" aria-labelledby="local-ai-runtime-heading">
             <div class="installer-card-heading">
                 <div>
                     <span class="install-region-kicker">Specialized model runtime</span>
@@ -1122,13 +1430,13 @@
             @if (LocalAiRuntimePolicy is not null)
             {
                 <details class="provider-install-guide" open>
-                    <summary><strong>Python / Whisper execution policy</strong> · user- and AI-team configurable</summary>
+                    <summary><strong>Speech-to-text execution policy</strong> · provider-neutral, with managed Python/Whisper preferred</summary>
                     <p class="field-help">These values are persisted in LocalGPT configuration and are also exposed through approval-aware DXFunctions and controller endpoints. They control the bounded Python job lane; arbitrary Python source is still not accepted. Queue-capacity changes after Python.NET has initialized require a restart.</p>
                     <div class="local-ai-runtime-policy-grid">
                         <label>Default device
                             <DxComboBox Data="@LocalAiDeviceOptions" @bind-Value="LocalAiRuntimePolicy.DefaultDevice" />
                         </label>
-                        <label>Default Whisper model
+                        <label>Preferred managed Whisper model
                             <DxComboBox Data="@LocalAiWhisperVariantOptions" @bind-Value="LocalAiRuntimePolicy.DefaultWhisperModel" />
                         </label>
                         <label>Speech task
@@ -1153,7 +1461,7 @@
                             <DxMemo @bind-Text="LocalAiRuntimePolicy.DefaultSpeechInitialPrompt" Rows="3" NullText="Optional transcription vocabulary/context hint" />
                         </label>
                         <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="LocalAiRuntimePolicy.CacheModels" /> Cache loaded specialized models between jobs</label>
-                        <DxButton Text="Save Python / Whisper policy" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="SaveLocalAiRuntimePolicyAsync" />
+                        <DxButton Text="Save speech-to-text policy" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="SaveLocalAiRuntimePolicyAsync" />
                     </div>
                     @if (LocalAiRuntimePolicy.RestartRequired)
                     {
@@ -1164,7 +1472,7 @@
 
             <details class="provider-install-guide" open>
                 <summary><strong>1 · Known direct model sources</strong> · GitHub/upstream first, Python runtime execution</summary>
-                <p class="field-help">This is LocalGPT's primary local-AI acquisition path. Sources are pre-seeded in a reviewed catalog and downloaded directly over HTTPS without Git/GitHub CLI or a model-hub client. Python discovery/linking lives in Toolchains. OpenAI Whisper can be installed as a real executable speech model in this release; other projects remain source-download-only until their bounded adapters exist.</p>
+                <p class="field-help">This is LocalGPT's primary reviewed direct-acquisition path. Sources are pre-seeded and downloaded directly over HTTPS without Git/GitHub CLI or requiring a model-hub client. Python discovery/linking lives in Toolchains. Managed Python/OpenAI Whisper remains the preferred local speech-to-text path; compatible Hugging Face models that advertise SpeechRecognition can be used through the generic ASR adapter as well.</p>
                 <div class="local-ai-model-grid">
                     @foreach (var source in LocalAiKnownModels)
                     {
@@ -1195,7 +1503,7 @@
 
             <details class="provider-install-guide" open>
                 <summary><strong>2 · Python capability packages</strong> · isolated profiles, no global package pollution</summary>
-                <p class="field-help">The core profile supplies the Python.NET bridge only. PyTorch stays separate so CUDA, ROCm, Apple/MPS or other vendor-specific installs are never silently replaced by a generic wheel. OpenAI Whisper dependencies also avoid installing PyTorch. Model-hub clients are optional profiles. Install or change packages before probing/running the embedded interpreter; after Python.NET initializes, LocalGPT requires a restart before mutating that environment.</p>
+                <p class="field-help">The core profile keeps the managed environment minimal. PyTorch stays separate so CUDA, ROCm, Apple/MPS or other vendor-specific installs are never silently replaced by a generic wheel. OpenAI Whisper dependencies also avoid replacing PyTorch. Package/profile and Whisper installs run in the isolated environment process even after Python.NET was probed; when that happens LocalGPT marks a restart as required before the embedded runtime uses the changed packages.</p>
                 <div class="local-ai-profile-grid">
                     @foreach (var profile in LocalAiPackageProfiles)
                     {
@@ -1223,11 +1531,15 @@
                     <label>Search capability filter
                         <DxComboBox Data="@LocalAiCapabilityOptions" @bind-Value="LocalAiSearchCapability" />
                     </label>
+                    <label>Sort
+                        <DxComboBox Data="@LocalAiSearchSortOptions" @bind-Value="LocalAiSearchSort" />
+                    </label>
                     <label>Explicit install capability
                         <DxComboBox Data="@LocalAiCapabilityOptions" @bind-Value="LocalAiManualCapability" />
                     </label>
                     <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="LocalAiTrustRemoteCode" /> Allow <code>trust_remote_code</code> for the model I explicitly install</label>
                     <DxButton Text="Search Hugging Face" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="SearchHuggingFaceAsync" />
+                    <DxButton Text="Recent liked in category" RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!LocalAiBusy)" Click="LoadRecentLikedHuggingFaceAsync" />
                 </div>
                 @if (LocalAiSearchResults.Count > 0)
                 {
@@ -1237,7 +1549,7 @@
                             <article class="toolchain-card">
                                 <header><div><h4>@model.ModelId</h4><small>@(string.IsNullOrWhiteSpace(model.PipelineTag) ? model.LibraryName : model.PipelineTag)</small></div></header>
                                 <small>Capabilities: @LocalAiRuntime.FormatCapabilities(model.Capabilities)</small>
-                                <small>@model.Downloads downloads · @model.Likes likes@(model.IsGated ? " · gated" : string.Empty)@(model.IsPrivate ? " · private" : string.Empty)</small>
+                                <small>@model.Downloads downloads · @model.Likes likes@(model.LastModifiedUtc is null ? string.Empty : $" · updated {model.LastModifiedUtc:yyyy-MM-dd}")@(model.IsGated ? " · gated" : string.Empty)@(model.IsPrivate ? " · private" : string.Empty)</small>
                                 <DxButton Text="Install snapshot" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy && CanInstallLocalAiModel(model))" Click="@(() => InstallHuggingFaceModelAsync(model))" />
                             </article>
                         }
@@ -1272,11 +1584,20 @@
                 }
                 <p class="field-help">Installed image/video/speech models become discoverable through <code>localai.*</code> DXFunctions. Image/video generation is approval-gated; workspace audio transcription is read-only and its private runtime copy is deleted after every job.</p>
             </details>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        
+        </LocalGptFormLayoutSurface>
         </ConfigurationWorkbenchPanel>
 
         <ConfigurationWorkbenchPanel SectionKey="languages" ActiveKey="@ActiveInstallSection" AriaLabel="Languages">
-        <section id="localization" class="installer-workbench-card install-workbench-region" aria-labelledby="localization-heading">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="languages" CanHide="true">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext012">
+        <div id="localization" class="installer-workbench-card install-workbench-region" aria-labelledby="localization-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="localization-heading">@T("Install.Localization.Title", "Languages and localization catalogs")</h3>
@@ -1322,11 +1643,26 @@
                 </div>
             }
             <p class="field-help">@T("Install.Localization.FormatHelp", "Catalog format: a flat JSON object. User catalogs are stored under the current user's LocalGPT application-data directory and survive rebuilds.") <code>{ "Nav.Home": "Accueil", "Nav.Chat": "Discussion IA" }</code></p>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        
+        </LocalGptFormLayoutSurface>
+        </ConfigurationWorkbenchPanel>
+
+        <ConfigurationWorkbenchPanel SectionKey="layout" ActiveKey="@ActiveInstallSection" AriaLabel="Layout Studio">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="layout" CanHide="false">
+            <LayoutStudio />
+        </LocalGptFormLayoutSurface>
         </ConfigurationWorkbenchPanel>
 
         <ConfigurationWorkbenchPanel SectionKey="log" ActiveKey="@ActiveInstallSection" AriaLabel="Setup activity">
-        <section id="setup-log" class="installer-workbench-card install-workbench-region setup-log-card" aria-labelledby="setup-log-heading">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="log" CanHide="true">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext013">
+        <div id="setup-log" class="installer-workbench-card install-workbench-region setup-log-card" aria-labelledby="setup-log-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="setup-log-heading">@T("Install.Workbench.LogTitle", "Setup activity")</h3>
@@ -1334,10 +1670,21 @@
                 </div>
             </div>
             <OperationalActivityFeed LocalText="@_log" Rows="16" CssClass="setup-log-editor" MaxConsoleLines="220" />
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        
+        </LocalGptFormLayoutSurface>
         </ConfigurationWorkbenchPanel>
             </div>
         </div>
     </div>
     <span id="install-scroll-bottom" class="install-scroll-anchor" aria-hidden="true"></span>
 </div>
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+

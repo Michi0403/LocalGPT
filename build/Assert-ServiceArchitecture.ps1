@@ -69,6 +69,44 @@ foreach ($token in @(
     }
 }
 
+
+$registryPath = Join-Path $sourceRoot 'Services/DxAiFunctionRegistry.cs'
+$registryText = Get-Content -LiteralPath $registryPath -Raw
+foreach ($forbidden in @(
+    'IServiceProvider serviceProvider',
+    'serviceProvider.GetServices<IDxAiFunctionHandler>()',
+    'Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>>')) {
+    if ($registryText.IndexOf($forbidden, [StringComparison]::Ordinal) -ge 0) {
+        $errors.Add("src/LocalGPT/Services/DxAiFunctionRegistry.cs(1,1): error DI0007: Scoped DXFunction registry must not capture IServiceProvider or defer handler resolution through a provider-backed Lazy. Architectural choices: construct the registry first, resolve handlers synchronously from the same active scope through InitializeHandlers, and keep IDxAiFunctionRegistry excluded from DispatchProxy because the registry already owns method-local diagnostics.")
+    }
+}
+foreach ($required in @(
+    'internal void InitializeHandlers(Func<IEnumerable<IDxAiFunctionHandler>> handlerFactory)',
+    'handlerInitializationInProgress',
+    'handlersInitialized',
+    'handlerMapService.Build(handlerFactory())')) {
+    if ($registryText.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("src/LocalGPT/Services/DxAiFunctionRegistry.cs(1,1): error DI0008: Scoped DXFunction same-scope initialization contract is missing '$required'. Architectural choices: preserve the re-entrant initialization protocol so handlers can depend on the registry without a deferred IServiceProvider capture or a new child scope.")
+    }
+}
+
+$diagnosticsRegistrationPath = Join-Path $sourceRoot 'Services/ServiceMethodDiagnosticsRegistration.cs'
+$diagnosticsRegistrationText = Get-Content -LiteralPath $diagnosticsRegistrationPath -Raw
+if ($diagnosticsRegistrationText.IndexOf('serviceType == typeof(IDxAiFunctionRegistry)', [StringComparison]::Ordinal) -lt 0) {
+    $errors.Add("src/LocalGPT/Services/ServiceMethodDiagnosticsRegistration.cs(1,1): error DI0009: IDxAiFunctionRegistry must remain outside DispatchProxy decoration. Architectural choices: retain the registry's explicit method-local diagnostics and preserve its scoped graph identity; do not reintroduce a proxy around the cycle-breaking registry factory.")
+}
+
+$registrationPath = Join-Path $sourceRoot 'Program.ServiceRegistration.cs'
+$registrationText = Get-Content -LiteralPath $registrationPath -Raw
+foreach ($required in @(
+    'AddScoped<DxAiFunctionRegistry>()',
+    'AddScoped<IDxAiFunctionRegistry>(provider =>',
+    'registry.InitializeHandlers(() => provider.GetServices<IDxAiFunctionHandler>())')) {
+    if ($registrationText.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("src/LocalGPT/Program.ServiceRegistration.cs(1,1): error DI0010: DXFunction registry DI wiring is missing '$required'. Architectural choices: keep one same-scope registry instance, initialize its handlers synchronously while the provider is alive, and never cache the provider for later use.")
+    }
+}
+
 $themeDispatcherPath = Join-Path $sourceRoot 'Components/Layout/ThemeJsChangeDispatcher.cs'
 $themeDispatcher = Get-Content -LiteralPath $themeDispatcherPath -Raw
 $setThemeCount = ([regex]::Matches($themeDispatcher, '\.SetTheme\(')).Count

@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Interfaces;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -10,7 +11,6 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Maintains the authoritative directory of DevExpress AI function entries used for discovery, validation, and runtime lookup.
 /// </summary>
-/// <param name="serviceProvider">Service provider dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="humanCollaboration">Human collaboration service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="deferredInvocations">Deferred devexpress ai invocation service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="ambientContext">Ambient local gpt context dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
@@ -20,8 +20,9 @@ namespace LocalGPT.Services;
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="userFunctions">User devexpress ai function service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="runtimePlugins">Runtime plugin service dependency used to expose persisted runtime-extension functions through the central DevExpress AI function registry.</param>
+/// <param name="databaseInitialization">Database initialization dependency used to read persisted function policy without creating a registry/catalog dependency cycle.</param>
+/// <param name="dbContextFactory">Database context factory used to read persisted function policy without resolving the catalog service from the scoped service provider.</param>
 public sealed class DxAiFunctionRegistry(
-    IServiceProvider serviceProvider,
     IHumanCollaborationService humanCollaboration,
     IDeferredDxAiInvocationService deferredInvocations,
     IAmbientLocalGptContext ambientContext,
@@ -30,18 +31,68 @@ public sealed class DxAiFunctionRegistry(
     DxAiFunctionHandlerMapService handlerMapService,
     IUserDxAiFunctionService userFunctions,
     IRuntimePluginService runtimePlugins,
+    IDatabaseInitializationService databaseInitialization,
+    IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ILogger<DxAiFunctionRegistry> logger) : IDxAiFunctionRegistry
 {
-    // Resolve handlers only after the scoped registry has been constructed. One handler intentionally
-    // references this registry to publish the complete function directory; eager IEnumerable resolution
-    // would therefore create a constructor cycle during service-provider validation.
+    // The registry intentionally does not capture IServiceProvider. Program.ServiceRegistration constructs
+    // the scoped registry first, marks handler initialization as active, and only then resolves the handler
+    // collection. If a handler dependency asks for IDxAiFunctionRegistry during that graph construction,
+    // the same already-created registry instance is returned without recursively rebuilding the handler map.
+    // This preserves one Blazor/circuit scope while eliminating deferred access to disposed scope providers.
     /// <summary>
-    /// Gets the handlers by name collection maintained or exposed by this DevExpress AI function instance for downstream processing.
+    /// Stores the scoped handler directory after same-scope dependency resolution has completed.
     /// </summary>
-    /// <value>The handlers by name value exposed by <see cref="DxAiFunctionRegistry"/>.</value>
-    private readonly Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>> handlersByName = new(
-        () => handlerMapService.Build(serviceProvider.GetServices<IDxAiFunctionHandler>()),
-        System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
+    private IReadOnlyDictionary<string, IDxAiFunctionHandler> handlersByName = new Dictionary<string, IDxAiFunctionHandler>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Tracks whether the scoped handler directory has completed initialization.</summary>
+    private bool handlersInitialized;
+
+    /// <summary>Tracks re-entrant registry resolution while the handler graph is being constructed.</summary>
+    private bool handlerInitializationInProgress;
+
+    /// <summary>
+    /// Initializes the scoped DXAIFunction handler directory without retaining the dependency-injection provider.
+    /// </summary>
+    /// <param name="handlerFactory">Factory that resolves handlers synchronously from the currently active scope.</param>
+    internal void InitializeHandlers(Func<IEnumerable<IDxAiFunctionHandler>> handlerFactory)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(handlerFactory);
+            if (handlersInitialized || handlerInitializationInProgress)
+                return;
+
+            handlerInitializationInProgress = true;
+            handlersByName = handlerMapService.Build(handlerFactory());
+            handlersInitialized = true;
+            logger.LogDebug("Initialized the scoped DXAIFunction handler directory with {HandlerCount} handlers without retaining IServiceProvider.", handlersByName.Count);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Initializing the scoped DXAIFunction handler directory failed.");
+            throw;
+        }
+        finally
+        {
+            handlerInitializationInProgress = false;
+        }
+    }
+
+    /// <summary>Ensures the scoped handler graph completed initialization before registry use.</summary>
+    private void EnsureHandlersInitialized()
+    {
+        try
+        {
+            if (!handlersInitialized)
+                throw new InvalidOperationException("The scoped DXAIFunction registry was used before its handler graph completed initialization.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "DXAIFunction registry handler initialization state is invalid.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Retrieves functions in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
@@ -51,7 +102,8 @@ public sealed class DxAiFunctionRegistry(
     {
     try
     {
-            var functions = handlersByName.Value.Values
+            EnsureHandlersInitialized();
+            var functions = handlersByName.Values
                 .Select(handler => handler.Descriptor)
                 .Concat(userFunctions.GetDescriptors())
                 .Concat(runtimePlugins.GetDescriptors())
@@ -99,7 +151,8 @@ public sealed class DxAiFunctionRegistry(
             ["RequestedBy"] = string.IsNullOrWhiteSpace(request.RequestedBy) ? "CurrentUser" : request.RequestedBy
         });
 
-        handlersByName.Value.TryGetValue(functionName, out var handler);
+        EnsureHandlersInitialized();
+        handlersByName.TryGetValue(functionName, out var handler);
         DxaichatFunctionInfo descriptor;
         var runtimeSource = handler is not null ? "Handler" : string.Empty;
         if (handler is not null)
@@ -139,9 +192,18 @@ public sealed class DxAiFunctionRegistry(
         DxAiFunctionCatalogEntry? catalogPolicy = null;
         try
         {
-            var catalog = serviceProvider.GetService<IDxAiFunctionCatalogService>();
-            if (catalog is not null)
-                catalogPolicy = await catalog.GetByFunctionNameAsync(functionName, cancellationToken).ConfigureAwait(false);
+            await databaseInitialization.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
+            var catalogPayloads = await db.SystemVariables
+                .AsNoTracking()
+                .Where(item => item.DataType == nameof(DxAiFunctionCatalogEntry))
+                .Select(item => item.ValueString)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            catalogPolicy = catalogPayloads
+                .Select(DeserializeCatalogPolicy)
+                .FirstOrDefault(item => item is not null && string.Equals(item.FunctionName, functionName, StringComparison.OrdinalIgnoreCase));
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -432,6 +494,28 @@ public sealed class DxAiFunctionRegistry(
         throw;
     }
 }
+
+    /// <summary>Deserializes one persisted DXAIFunction catalog payload without resolving the catalog service that depends on this registry.</summary>
+    /// <param name="payload">Persisted catalog JSON payload.</param>
+    /// <returns>The parsed policy entry when the payload is valid; otherwise <see langword="null"/>.</returns>
+    private DxAiFunctionCatalogEntry? DeserializeCatalogPolicy(string payload)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(payload))
+                return null;
+
+            return JsonSerializer.Deserialize<DxAiFunctionCatalogEntry>(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Ignored an invalid persisted DXAIFunction catalog payload while resolving invocation policy.");
+            return null;
+        }
+    }
 
     /// <summary>Validates the registered JSON-schema subset needed by LocalGPT function descriptors before an approval request can be created.</summary>
     /// <param name="descriptor">Authoritative function descriptor.</param>
@@ -781,10 +865,12 @@ public sealed class GetCodeGenerationReviewFunction(
 /// </summary>
 /// <param name="json">Devexpress ai function json service dependency used by the create code generation review function workflow to provide the corresponding application capability.</param>
 /// <param name="workflow">Code generation workflow service dependency used by the create code generation review function workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Ambient Council invocation context used to bind greenfield generation to the active database-backed Council project and revision.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CreateCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
+    IAmbientLocalGptContext ambientContext,
     ILogger<CreateCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -962,6 +1048,8 @@ public sealed class CreateCodeGenerationReviewFunction(
             if (!binding.Succeeded)
                 return json.InvalidParameters(binding.Error);
             var parameters = binding.Value;
+            if (parameters.CouncilRunId is null && ambientContext.Current.CouncilRunId is Guid activeCouncilRunId)
+                parameters.CouncilRunId = activeCouncilRunId;
             var review = await workflow.CreateReviewAsync(parameters, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("DXAIFunction created review {ReviewId} with hash prefix {HashPrefix}.", review.Id, review.ReviewHash[..Math.Min(12, review.ReviewHash.Length)]);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = review.Status, Value = review };

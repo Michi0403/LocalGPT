@@ -204,17 +204,14 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                 var normalizedOperationKey = Normalize(request.OperationKey, 180);
                 var normalizedCorrelationId = Normalize(request.CorrelationId, 180);
                 var normalizedFingerprint = Normalize(request.ParameterFingerprint, 128);
-                var candidateQuery = db.HumanCollaborationRequests
-                    .Where(item => item.OperationKey == normalizedOperationKey && item.RequestKind == requestKind);
-                candidateQuery = string.IsNullOrWhiteSpace(normalizedFingerprint)
-                    ? candidateQuery.Where(item => item.CorrelationId == normalizedCorrelationId)
-                    : candidateQuery.Where(item => item.ParameterFingerprint == normalizedFingerprint);
-                var candidates = await candidateQuery
+                var candidates = await db.HumanCollaborationRequests
+                    .Where(item => item.OperationKey == normalizedOperationKey && item.RequestKind == requestKind)
                     .OrderByDescending(item => item.UpdatedAtUtc)
-                    .Take(24)
+                    .Take(64)
                     .ToListAsync(cancellationToken)
                     .ConfigureAwait(false);
-                var existing = candidates.FirstOrDefault(IsReusableDecision);
+                var existing = candidates.FirstOrDefault(item =>
+                    IsReusableDecisionForRequest(item, requestKind, normalizedFingerprint, normalizedCorrelationId));
 
                 if (existing is not null)
                 {

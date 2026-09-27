@@ -10,7 +10,7 @@ namespace LocalGPT.Components.Pages;
 public partial class Chat
 {
     /// <summary>Handles one persisted microphone recording, keeps its WAV attached to the visible chat, and starts the selected Council only when a transcript is available.</summary>
-    /// <param name="recording">Persisted microphone recording with optional Whisper transcript.</param>
+    /// <param name="recording">Persisted microphone recording with optional speech-to-text transcript.</param>
     /// <returns>A task that completes after attachment presentation and optional Council submission.</returns>
     private async Task HandleSpeechRecordingAsync(LocalAiMicrophoneRecording recording)
     {
@@ -26,7 +26,7 @@ public partial class Chat
                 await InvokeAsync(() =>
                 {
                     modelStatus = string.IsNullOrWhiteSpace(recording.TranscriptionStatus)
-                        ? L("Chat.Microphone.Attached", "Microphone audio is attached. Install/select Whisper when you want automatic transcription.")
+                        ? L("Chat.Microphone.Attached", "Microphone audio is attached. Install/select a speech-to-text model when you want automatic transcription.")
                         : recording.TranscriptionStatus;
                     Notifier.ShowInfo(toastName, modelStatus, L("Chat.Microphone.Start", "Microphone"));
                     StateHasChanged();
@@ -70,7 +70,7 @@ public partial class Chat
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Starting Council from a Whisper transcript failed with {ExceptionType}; transcript omitted.", ex.GetType().Name);
+            Logger.LogError(ex, "Starting Council from a speech-to-text transcript failed with {ExceptionType}; transcript omitted.", ex.GetType().Name);
             return false;
         }
     }
@@ -80,6 +80,8 @@ public partial class Chat
     /// <returns>A task that completes after the DevExpress chat surface is refreshed.</returns>
     private async Task AppendMicrophoneAttachmentAsync(LocalAiMicrophoneRecording recording)
     {
+        try
+        {
         if (ChatClientProvider?.SelectedSession is null)
             throw new InvalidOperationException("A chat session is required before a microphone recording can be attached.");
 
@@ -99,20 +101,27 @@ public partial class Chat
             LoadSelectedSessionMessages();
             StateHasChanged();
         }).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.Speech.AppendMicrophoneAttachmentAsync failed.");
+            throw;
+        }
     }
 
-    /// <summary>Starts the explicit Whisper setup team through the existing Council starter route.</summary>
+    /// <summary>Starts the explicit speech-to-text setup team through the existing Council starter route.</summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartWhisperSetupAsync()
+    private async Task StartSpeechToTextSetupAsync()
     {
         try
         {
             var setupPrompt = await PromptConfigService.GetPromptAsync("WhisperSetupCouncilPrompt").ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(setupPrompt))
-                throw new InvalidOperationException("The persisted Whisper setup prompt is unavailable.");
+                throw new InvalidOperationException("The persisted speech-to-text setup prompt is unavailable.");
 
-            var title = L("Chat.Microphone.Setup", "Ask Council to set up Whisper");
-            var description = L("Chat.Microphone.Missing", "Install a Whisper model with Council or on the Install page first.");
+            var title = L("Chat.Microphone.Setup", "Ask Council to set up speech to text");
+            var description = L("Chat.Microphone.Missing", "Install a speech-recognition model with Council or on the Install page first.");
             var suggestionKey = "whisper-setup";
             string[] teamKeys = ["whisper-assistant"];
             var starter = new PromptSuggestion(
@@ -126,7 +135,7 @@ public partial class Chat
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Starting the Whisper setup Council failed with {ExceptionType}.", ex.GetType().Name);
+            Logger.LogError(ex, "Starting the speech-to-text setup Council failed with {ExceptionType}.", ex.GetType().Name);
         }
     }
 }

@@ -1,5 +1,10 @@
 @rendermode InteractiveServer
 @page "/chat"
+@attribute [LocalGptUiLayoutSurface("page", "Local Chat", "/chat", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("quick-council", "Chat · Quick Council", "/chat", 12, "Content", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("ascii-console-body", "Chat · ASCII console body", "/chat", 12, "Content", CanHide = false, DefaultLayoutType = "Content")]
+@attribute [LocalGptUiLayoutSurface("function-call-info", "Chat · AI tool calls", "/chat", 12, "Content", CanHide = true, DefaultLayoutType = "StackLayout")]
+@attribute [LocalGptUiLayoutSurface("message-content", "Chat · message content", "/chat", 12, "Content", CanHide = false, DefaultLayoutType = "Content")]
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
 @using System.Text.Json
@@ -44,7 +49,13 @@
 @inject ISupervisedTaskRunner TaskRunner
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner Chat">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>@L("Home.LocalChat.Title", "Local Chat")</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(Chat)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <div class="main-container @(IsLiveCouncilInteractionAvailable ? "chat-session-active" : string.Empty)" data-testid="chat-page">
     @if (ChatClientProvider is not null)
@@ -64,7 +75,7 @@
                       IconCssClass="oi oi-monitor"
                       Title="@AsciiTerminalButtonTitle"
                       Click="ToggleGameConsoleAsync" />
-            <DxButton Text="@(AsciiFunModeEnabled ? "Contextual ASCII fun: ON" : "Contextual ASCII fun: OFF")"
+            <DxButton Text="@(Localization.GetText(AsciiFunModeEnabled ? "Contextual ASCII fun: ON" : "Contextual ASCII fun: OFF"))"
                       CssClass="@AsciiFunButtonCssClass"
                       RenderStyle="@(AsciiFunModeEnabled ? ButtonRenderStyle.Primary : ButtonRenderStyle.Secondary)"
                       RenderStyleMode="@(AsciiFunModeEnabled ? ButtonRenderStyleMode.Contained : ButtonRenderStyleMode.Outline)"
@@ -245,7 +256,10 @@
                 </div>
                 @if (UnavailableCouncilSelections.Count > 0)
                 {
-                    <section class="council-unavailable-routes" role="alert" aria-live="polite" data-testid="council-unavailable-routes">
+                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="council-unavailable-routes" role="alert" aria-live="polite" data-testid="council-unavailable-routes">
                         <header>
                             <div>
                                 <strong>@L("Chat.Council.UnavailableRoutes.Title", "Unavailable selected Council routes")</strong>
@@ -265,12 +279,18 @@
                                 </article>
                             }
                         </div>
-                    </section>
+                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                 }
                 <div class="council-provider-hosts" data-testid="council-provider-hosts">
                     @foreach (var host in CouncilProviderHosts)
                     {
-                        <section class="council-provider-host" @key="host.Key">
+                        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="council-provider-host" @key="host.Key">
                             <header>
                                 <div>
                                     <strong>@host.ProviderName</strong>
@@ -293,7 +313,10 @@
                                                         BenchmarkStarted="OnBenchmarkStartedAsync" />
                                 }
                             </div>
-                        </section>
+                        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                     }
                 </div>
                 <ProviderModelBenchmarkCouncilPanel Models="SelectedCouncilProviderModels"
@@ -378,7 +401,10 @@
         </div>
         @if (CouncilStarterSuggestions.Count > 0)
         {
-            <section class="council-direct-starters" aria-label="Direct Council starter prompts">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="council-direct-starters" aria-label="Direct Council starter prompts">
                 <header>
                     <strong>Direct Council starters</strong>
                     <small>These prompts switch to AI Council, start a fresh Council chat and submit the selected pre-prompt automatically.</small>
@@ -394,7 +420,10 @@
                         </DxButton>
                     }
                 </div>
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
         </details>
                         </ConfigurationWorkbenchPanel>
@@ -533,6 +562,7 @@
                      MaxHeight="98dvh"
                      CloseOnOutsideClick="false">
                 <BodyContentTemplate>
+                    <LocalGptFormLayoutSurface OwnerType="@typeof(Chat)" SectionName="ascii-console-body" CanHide="false" CssClass="chat-ascii-layout-surface">
                     <div class="chat-game-popup-body" aria-label="Optional ASCII game console">
                         <ChatGameConsole ConversationId="@ActiveConversationId"
                                          CouncilRunId="@(AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? SelectedCouncilRunId)"
@@ -551,6 +581,7 @@
                                          GameAvailabilityChanged="OnAsciiGameAvailabilityChangedAsync"
                                          CloseRequested="CloseGameConsole" />
                     </div>
+                    </LocalGptFormLayoutSurface>
                 </BodyContentTemplate>
             </DxPopup>
         }
@@ -566,7 +597,6 @@
             </div>
         }
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
-            <ChatMicrophone Recorded="HandleSpeechRecordingAsync" SetupRequested="StartWhisperSetupAsync" Disabled="@IsLiveCouncilInteractionAvailable" />
             <DxAIChat Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"
                       ResponseContentFormat="ResponseContentFormat.Markdown"
@@ -583,7 +613,59 @@
                                                   PromptMessage="@suggestion.PromptMessage" />
                     }
                 </PromptSuggestions>
+                <FunctionCallInfoContentTemplate Context="functionMessage">
+                    @if (functionMessage.FunctionCalls.Count > 0)
+                    {
+                        <LocalGptFormLayoutSurface OwnerType="@typeof(Chat)" SectionName="function-call-info" CanHide="true" CssClass="chat-function-layout-surface">
+                        <div class="localgpt-function-call-list" data-testid="chat-function-call-info">
+                            @foreach (var functionCall in functionMessage.FunctionCalls)
+                            {
+                                <details class="localgpt-function-call-info">
+                                    <summary>
+                                        <span class="localgpt-function-call-state" aria-hidden="true"></span>
+                                        <strong>@functionCall.Request.Name</strong>
+                                        <small>AI tool call</small>
+                                    </summary>
+                                    @if (functionCall.Request.Arguments is { Count: > 0 } functionArguments)
+                                    {
+                                        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="localgpt-function-call-section" aria-label="Function arguments">
+                                            <strong>Arguments</strong>
+                                            <dl>
+                                                @foreach (var argument in functionArguments)
+                                                {
+                                                    <dt>@argument.Key</dt>
+                                                    <dd><code>@argument.Value</code></dd>
+                                                }
+                                            </dl>
+                                        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+                                    }
+                                    @if (functionCall.Result?.Result is not null)
+                                    {
+                                        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext006">
+        <div class="localgpt-function-call-section" aria-label="Function result">
+                                            <strong>Result</strong>
+                                            <pre><code>@functionCall.Result.Result</code></pre>
+                                        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+                                    }
+                                </details>
+                            }
+                        </div>
+                        </LocalGptFormLayoutSurface>
+                    }
+                </FunctionCallInfoContentTemplate>
                 <MessageContentTemplate Context="messageContext">
+                    <LocalGptFormLayoutSurface OwnerType="@typeof(Chat)" SectionName="message-content" CanHide="false" CssClass="chat-message-layout-surface">
                     @{
                         var liveCouncilMessage = ResolveLiveCouncilMessage(messageContext.Content);
                     }
@@ -597,7 +679,10 @@
                             var participantActivities = LiveCouncilParticipantActivities(liveCouncilMessage.RunId);
                             @if (participantActivities.Count > 0)
                             {
-                                <section class="localgpt-live-participant-board" aria-label="Live parallel Council activity">
+                                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext007">
+        <div class="localgpt-live-participant-board" aria-label="Live parallel Council activity">
                                     <header>
                                         <strong>Live Council lanes</strong>
                                         <small>Each AI host/model updates independently; the final transcript remains ordered.</small>
@@ -645,12 +730,18 @@
                                             {
                                                 @if (!string.IsNullOrWhiteSpace(activity.FinalContent))
                                                 {
-                                                    <section class="localgpt-live-participant-final" aria-label="Completed Council member answer">
+                                                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext008">
+        <div class="localgpt-live-participant-final" aria-label="Completed Council member answer">
                                                         <strong>Completed answer</strong>
                                                         <div data-localgpt-details-host>
                                                             @(new MarkupString(ChatContentRenderer.Render(activity.FinalContent)))
                                                         </div>
-                                                    </section>
+                                                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                                                 }
                                                 @if (!string.IsNullOrWhiteSpace(activity.Content))
                                                 {
@@ -664,7 +755,10 @@
                                             }
                                         </details>
                                     }
-                                </section>
+                                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                             }
                             <div class="localgpt-message-utility-row localgpt-live-update-footer">
                                 <span class="localgpt-rejoined-live-status" role="status" aria-live="polite">
@@ -687,6 +781,7 @@
                             </div>
                         }
                     </div>
+                    </LocalGptFormLayoutSurface>
                 </MessageContentTemplate>
                 <AIChatSettings>
                     <DxAIChatFileUploadSettings
@@ -698,7 +793,10 @@
         </div>
         @if (InlineChatRequests.Count > 0)
         {
-            <section class="chat-inline-ai-requests" aria-label="AI requests awaiting your review" data-testid="chat-inline-ai-requests">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext009">
+        <div class="chat-inline-ai-requests" aria-label="AI requests awaiting your review" data-testid="chat-inline-ai-requests">
                 <header>
                     <div>
                         <strong>AI requests for this session</strong>
@@ -750,32 +848,40 @@
                         }
                     </article>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
         @* Quick selectors stay outside the DevExpress chat host. One normal-flow DevExpress form row
            sits directly below Chat and above Running session tools; no composer geometry is changed. *@
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Chat)" SectionName="quick-council" CanHide="false" CssClass="chat-quick-layout-surface">
         <div class="w-100" data-testid="chat-quick-configuration-bar" aria-label="Quick Council configuration">
+
             <DxFormLayout>
-                <DxFormLayoutItem Caption="Team" ColSpanMd="4">
+                <DxFormLayoutItem Caption='@Localization.GetText("Team")' ColSpanMd="3">
                     <DxComboBox Data="@CouncilTeams"
                                 Value="@SelectedQuickCouncilTeam"
                                 TextFieldName="@nameof(OrganicCouncilTeamDefinition.DisplayName)"
                                 ValueChanged="@((OrganicCouncilTeamDefinition team) => OnQuickCouncilTeamChangedAsync(team))"
-                                NullText="Council team" />
+                                NullText='@Localization.GetText("Council team")' />
                 </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="Models" ColSpanMd="4">
+                <DxFormLayoutItem Caption='@Localization.GetText("Models")' ColSpanMd="3">
                     <DxComboBox Data="@ModelPresets"
                                 Value="@SelectedQuickModelPreset"
                                 TextFieldName="@nameof(CouncilModelPreset.Name)"
                                 ValueChanged="@((CouncilModelPreset preset) => OnQuickModelPresetChangedAsync(preset))"
-                                NullText="Model preset" />
+                                NullText='@Localization.GetText("Model preset")' />
                 </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="Performance" ColSpanMd="4">
+                <DxFormLayoutItem Caption='@Localization.GetText("Performance")' ColSpanMd="3">
                     <DxComboBox Data="@HardwarePerformancePresetItems"
                                 Value="@SelectedQuickHardwarePerformancePreset"
                                 TextFieldName="@nameof(HardwarePerformancePreset.Name)"
                                 ValueChanged="@((HardwarePerformancePreset preset) => OnQuickHardwarePerformancePresetChangedAsync(preset))"
-                                NullText="Performance preset" />
+                                NullText='@Localization.GetText("Performance preset")' />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption='@Localization.GetText("Voice")' ColSpanMd="3">
+                    <ChatMicrophone Recorded="HandleSpeechRecordingAsync" SetupRequested="StartSpeechToTextSetupAsync" />
                 </DxFormLayoutItem>
             </DxFormLayout>
             @if (string.Equals(SelectedCouncilTeamKey, "ascii-hot-seat-showcase", StringComparison.OrdinalIgnoreCase))
@@ -786,9 +892,10 @@
                 </div>
             }
         </div>
+        </LocalGptFormLayoutSurface>
         <details class="chat-session-tools-ribbon" data-testid="chat-session-tools-ribbon">
             <summary>
-                <span>Running session tools</span>
+                <span>@Localization.GetText("Running session tools")</span>
                 <small>@(ActiveCouncilRun is not null
                     ? $"Round {ActiveCouncilRun.CurrentRound} · {ActiveCouncilRun.Phase}"
                     : ActiveLiveCouncilSession is not null
@@ -910,3 +1017,9 @@
         <div class="title-content-text">@L("Home.LocalChat.SetupHelp", "Welcome to your Local Chat, go to the Setup Page to Setup the AI Chat Clients")</div>
     }
 </div>
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+

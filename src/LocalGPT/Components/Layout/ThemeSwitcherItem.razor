@@ -2,12 +2,21 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ThemeSwitcherItem">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <a class="themeswitcher-item list-group-item list-group-item-action @Theme?.GetCssClass(IsActive) @Theme?.IconCssClass"
    aria-current="@(IsActive ? "true" : null)"
    @onclick:preventDefault
    @onclick="Anchor_Click">
     <span>@Theme?.Title</span>
 </a>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 @code {
     /// <summary>
     /// Gets or sets the theme value that forms part of the theme switcher item state consumed or produced by the surrounding workflow.

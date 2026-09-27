@@ -1,3 +1,10 @@
+@inject ILogger<OperationStatusStrip> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner OperationStatusStrip">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <div class="localgpt-operation-status @(Busy ? "is-busy" : "is-idle")" role="status" aria-live="polite">
     <DxWaitIndicator Visible="@Busy" AnimationType="WaitIndicatorAnimationType.Spin" CssClass="localgpt-operation-spinner" />
     <div class="localgpt-operation-copy">
@@ -11,14 +18,22 @@
         }
     </div>
 </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>Whether the associated operation is still running.</summary>
+    /// <value>The busy value exposed by <see cref="OperationStatusStrip"/>.</value>
     [Parameter] public bool Busy { get; set; }
 
     /// <summary>Primary user-visible operation status.</summary>
+    /// <value>The text value exposed by <see cref="OperationStatusStrip"/>.</value>
     [Parameter] public string Text { get; set; } = string.Empty;
 
     /// <summary>Optional supporting status or location hint.</summary>
+    /// <value>The detail value exposed by <see cref="OperationStatusStrip"/>.</value>
     [Parameter] public string Detail { get; set; } = string.Empty;
 }

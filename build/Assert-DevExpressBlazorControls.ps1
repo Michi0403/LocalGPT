@@ -67,6 +67,7 @@ if ($violations.Count -gt 0) {
     foreach ($violation in $violations) {
         # MSBuild/Visual Studio recognizes file(line,column): error CODE: message.
         Write-Output ("{0}({1},{2}): error LGDX0001: Native/legacy Razor interactive control is forbidden. Use {3}. Source: {4}" -f $violation.File, $violation.Line, $violation.Column, $violation.Replacement, $violation.Source)
+        Write-Output "  Architectural choices: keep the DevExpress-first control model; bind a DevExpress component to typed state/handlers, or add a narrowly documented circuit-independent exception only when the control must operate while no InteractiveServer circuit exists. Do not replace maintained DevExpress controls with HTML as a parser/lifecycle workaround."
     }
     throw "DevExpress Blazor control validation failed with $($violations.Count) violation(s). Ordinary interactive Razor controls must use DevExpress Blazor components first."
 }
@@ -94,6 +95,7 @@ foreach ($file in $files) {
 if ($templateViolations.Count -gt 0) {
     foreach ($violation in $templateViolations) {
         Write-Output ("{0}({1},1): error LGDX0002: DxGridLayoutItem content must be wrapped in its DevExpress <Template> child; implicit ChildContent fails at render time. Source: {2}" -f $violation.File, $violation.Line, $violation.Source)
+        Write-Output "  Architectural choices: keep DxGridLayoutItem and place the existing content inside its explicit <Template>; if layout semantics differ, choose the matching DevExpress layout component. Do not flatten the layout to raw HTML to bypass the component contract."
     }
     throw "DevExpress Blazor template validation failed with $($templateViolations.Count) invalid DxGridLayoutItem template(s)."
 }

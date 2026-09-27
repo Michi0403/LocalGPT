@@ -7,7 +7,15 @@
 @inject ILogger<UserDxFunctionEditor> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
-<section class="localgpt-surface user-dxfunction-editor" aria-label='@T("UserDx.Editor.Aria", "User DXFunction editor")'>
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner UserDxFunctionEditor">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="localgpt-surface user-dxfunction-editor" aria-label='@T("UserDx.Editor.Aria", "User DXFunction editor")'>
     <header class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
         <div>
             <h2>@(string.IsNullOrWhiteSpace(FunctionName) ? T("UserDx.Editor.CreateTitle", "Create user DXFunction") : T("UserDx.Editor.EditTitle", "Edit user DXFunction"))</h2>
@@ -116,22 +124,36 @@
             <DxButton CssClass="btn btn-outline-danger" Click="DeleteAsync" Enabled="@(!_busy)">@T("UserDx.Editor.Delete", "Delete user function")</DxButton>
         }
     </footer>
-</section>
+</div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
+    /// <summary>
+    /// Gets the mode options collection maintained or exposed by this user DevExpress function editor instance for downstream processing.
+    /// </summary>
+    /// <value>The mode options value exposed by <see cref="UserDxFunctionEditor"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> ModeOptions =>
-    [
-        new("Source", T("UserDx.Editor.ModeSource", "JSON / OData source")),
-        new("Pipeline", T("UserDx.Editor.ModePipeline", "Advanced Remote Control pipeline"))
-    ];
+    GetModeOptionsForRender();
 
+    /// <summary>
+    /// Gets the source type options collection maintained or exposed by this user DevExpress function editor instance for downstream processing.
+    /// </summary>
+    /// <value>The source type options value exposed by <see cref="UserDxFunctionEditor"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> SourceTypeOptions =>
-    [
-        new("Json", T("UserDx.Editor.SourceJson", "JSON / REST")),
-        new("OData", T("UserDx.Editor.SourceOData", "OData"))
-    ];
+    GetSourceTypeOptionsForRender();
 
-    private IEnumerable<RemoteControlPipelineDefinition> AvailablePipelines => _pipelines.Where(item => !UserFunctions.IsGeneratedSourceKey(item.Key));
+    /// <summary>
+    /// Gets the available pipelines collection maintained or exposed by this user DevExpress function editor instance for downstream processing.
+    /// </summary>
+    /// <value>The available pipelines value exposed by <see cref="UserDxFunctionEditor"/>.</value>
+    private IEnumerable<RemoteControlPipelineDefinition> AvailablePipelines => GetAvailablePipelinesForRender();
 
     /// <summary>
     /// Gets or sets the function name value that forms part of the user DevExpress function editor state consumed or produced by the surrounding workflow.
@@ -335,7 +357,18 @@
     /// Determines whether cel for <see cref="UserDxFunctionEditor"/>, keeping the operation consistent with the state and invariants of the surrounding user DevExpress function editor workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task CancelAsync() => Closed.InvokeAsync();
+    private Task CancelAsync()
+    {
+        try
+        {
+            return Closed.InvokeAsync();
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method UserDxFunctionEditor.CancelAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs t for <see cref="UserDxFunctionEditor"/>, keeping the operation consistent with the state and invariants of the surrounding user DevExpress function editor workflow.
@@ -343,13 +376,26 @@
     /// <param name="key">Key value supplied to the user DevExpress function editor operation and used when producing its result.</param>
     /// <param name="fallback">Fallback value supplied to the user DevExpress function editor operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+    private string T(string key, string fallback)
+    {
+        try
+        {
+            return Localization.Get(key, fallback: fallback);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method UserDxFunctionEditor.T failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs reset new for <see cref="UserDxFunctionEditor"/>, keeping the operation consistent with the state and invariants of the surrounding user DevExpress function editor workflow.
     /// </summary>
     private void ResetNew()
     {
+        try
+        {
         _edit.Id = null;
         _edit.FunctionName = "user.";
         _edit.DisplayName = string.Empty;
@@ -371,6 +417,13 @@
         _maxPayloadBytes = int.MaxValue;
         _allowInsecureHttp = false;
         _originalGeneratedSourceKey = string.Empty;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method UserDxFunctionEditor.ResetNew failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -379,6 +432,8 @@
     /// <param name="item">Item value supplied to the user DevExpress function editor operation and used when producing its result.</param>
     private void CopyFrom(UserDxAiFunctionDefinition item)
     {
+        try
+        {
         _edit.Id = item.Id;
         _edit.FunctionName = item.FunctionName;
         _edit.DisplayName = item.DisplayName;
@@ -392,6 +447,13 @@
         _edit.RequiresHumanConfirmation = item.RequiresHumanConfirmation;
         _edit.SupportsAutomaticInvocation = item.SupportsAutomaticInvocation;
         _edit.UserConfirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method UserDxFunctionEditor.CopyFrom failed.");
+            throw;
+        }
     }
     /// <summary>Loads the generated connector/pipeline adapter when an existing user function is source-backed.</summary>
     /// <param name="item">Item value supplied to the user DevExpress function editor operation and used when producing its result.</param>
@@ -509,4 +571,56 @@
     }
 
 
+
+
+    /// <summary>Computes ModeOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetModeOptionsForRender()
+    {
+        try
+        {
+            return [
+        new("Source", T("UserDx.Editor.ModeSource", "JSON / OData source")),
+        new("Pipeline", T("UserDx.Editor.ModePipeline", "Advanced Remote Control pipeline"))
+    ];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property UserDxFunctionEditor.ModeOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SourceTypeOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetSourceTypeOptionsForRender()
+    {
+        try
+        {
+            return [
+        new("Json", T("UserDx.Editor.SourceJson", "JSON / REST")),
+        new("OData", T("UserDx.Editor.SourceOData", "OData"))
+    ];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property UserDxFunctionEditor.SourceTypeOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes AvailablePipelines for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IEnumerable<RemoteControlPipelineDefinition> GetAvailablePipelinesForRender()
+    {
+        try
+        {
+            return _pipelines.Where(item => !UserFunctions.IsGeneratedSourceKey(item.Key));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property UserDxFunctionEditor.AvailablePipelines failed.");
+            throw;
+        }
+    }
 }

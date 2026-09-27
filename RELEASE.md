@@ -1,9 +1,11 @@
-# LocalGPT 4.9.3
+# LocalGPT 5.1.5
 
-LocalGPT 4.9.3 is a narrow compile-repair release on top of 4.9.2.
+LocalGPT 5.1.5 addresses the post-build startup failure reported against 5.1.4 and adds the same bounded DevExpress popup behavior now used by the PublisherStudio repair.
 
-It exposes `LegacyPromptDefaults` through `IInitialDataCatalog`, matching the existing `InitialDataCatalog` implementation used by deterministic prompt-seed upgrades, and fixes the microphone-to-Council renderer dispatch so the boolean result of `StartCouncilPromptAsync` is captured explicitly instead of being lost through Blazor's non-generic `InvokeAsync` overload.
+The optional dedicated MCP listener is preflighted before Kestrel receives it. If Windows refuses a loopback-only MCP port, LocalGPT keeps the primary loopback host alive and exposes MCP on its configured path through that endpoint instead. Remote-capable MCP configurations are not silently weakened; an unavailable dedicated socket disables MCP for that run rather than taking down the application. The primary LocalGPT app/installer endpoint remains unchanged.
 
-No runtime-plugin, microphone recording, approval, Council orchestration, toolchain, persistence-schema, or packaging architecture was otherwise changed.
+DevExpress modal dialogs are also viewport-bounded, with oversized popup bodies scrolling internally rather than bleeding beyond their visible modal surface. Dropdown/listbox portals are intentionally excluded.
 
-This is a source-only handoff. No .NET/MSBuild/NuGet build, restore, publish, native packaging, signing, notarization or installer execution was performed in the handoff environment. See `CHANGELOG-v4.9.3-CATALOG-SPEECH-COMPILE-REPAIR.md` and `VALIDATION-v4.9.3-source.md`.
+The version advances from 5.1.4 to 5.1.5. InteractiveServer directives and the existing DevExpress/Razor ownership model are unchanged. No .NET build/publish and no GitHub/online access were used for this source-only handoff.
+
+See `CHANGELOG-v5.1.5-STARTUP-POPUP-VIEWPORT-RESILIENCE.md` and `VALIDATION-v5.1.5-source.md`.

@@ -3,12 +3,21 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ToastWrapper">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <DxToastProvider Name="@Name"
 AnimationType="@AnimationType"
 HorizontalAlignment="@HorizontalAlignment"
 VerticalAlignment="@VerticalAlignment"
 ThemeMode="@ThemeMode"
                  DisplayTime="@DisplayTime" ShowCloseButton="@ShowCloseButton" SizeMode="@SizeMode" ShowIcon="@ShowIcon" Width="100%" />
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
                  
 @code {
     /// <summary>

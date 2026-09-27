@@ -4,7 +4,16 @@
 @inject ILogger<ProviderRuntimeManagementPanel> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
-<section class="provider-runtime-workbench" aria-label="Provider runtime and model storage management">
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ProviderRuntimeManagementPanel">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="provider-runtime-workbench" aria-label="Provider runtime and model storage management">
     <header class="provider-runtime-heading">
         <div>
             <h4>@T("Provider runtime, storage & model cleanup")</h4>
@@ -357,7 +366,15 @@
                        SelectionMode="Directory"
                        IncludeFiles="false"
                        Title="@T("Choose Ollama model storage directory")" />
-</section>
+</div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>Identifies the local Ollama or LM Studio bootstrap profile whose storage, runtime, and model lifecycle state is displayed by this workbench.</summary>
@@ -395,10 +412,19 @@
     /// <returns>A task that completes after the new provider state is rendered.</returns>
     protected override async Task OnParametersSetAsync()
     {
+        try
+        {
         if (string.IsNullOrWhiteSpace(Profile.Key) || Profile.Key.Equals(loadedProfileKey, StringComparison.OrdinalIgnoreCase))
             return;
         loadedProfileKey = Profile.Key;
         await RefreshAsync().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.OnParametersSetAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Refreshes downloaded/loaded models, disk state, and persisted runtime settings.</summary>
@@ -436,17 +462,28 @@
     /// <returns>A task that completes after persistence.</returns>
     private async Task SaveTokenDefaultsAsync()
     {
+        try
+        {
         if (management is null)
             return;
         await RunAsync(
             T("LocalGPT token defaults saved."),
             () => RuntimeManagement.SaveLocalGptTokenDefaultsAsync(management.DefaultMaxOutputTokens, management.DefaultContextTokens)).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.SaveTokenDefaultsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Persists reviewed Ollama storage, bind, context, concurrency, queue, keep-alive, and cloud policy while leaving the running process unchanged.</summary>
     /// <returns>A task that completes after persistence.</returns>
     private async Task SaveOllamaSettingsAsync()
     {
+        try
+        {
         if (management is null)
             return;
         await RunAsync(T("Ollama runtime settings saved. Restart Ollama to apply launch-environment changes."), async () =>
@@ -454,6 +491,13 @@
             await RuntimeManagement.SaveOllamaRuntimeOptionsAsync(management.Ollama).ConfigureAwait(false);
             UpdateSelectedProfileEndpoint(management.Ollama.BindAddress, management.Ollama.Port, openAiCompatible: false);
         }).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.SaveOllamaSettingsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Persists reviewed Ollama runtime settings, synchronizes the local provider endpoint, and restarts the LocalGPT-managed Ollama process so launch environment changes take effect.</summary>
@@ -486,6 +530,8 @@
     /// <returns>A task that completes after persistence.</returns>
     private async Task SaveLmStudioSettingsAsync()
     {
+        try
+        {
         if (management is null)
             return;
         await RunAsync(T("LM Studio runtime defaults saved."), async () =>
@@ -493,6 +539,13 @@
             await RuntimeManagement.SaveLmStudioRuntimeOptionsAsync(management.LmStudio).ConfigureAwait(false);
             UpdateSelectedProfileEndpoint(management.LmStudio.BindAddress, management.LmStudio.Port, openAiCompatible: true);
         }).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.SaveLmStudioSettingsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Saves LM Studio defaults and restarts its documented local HTTP server.</summary>
@@ -526,9 +579,18 @@
     /// <returns>A task that completes after provider unload and refresh.</returns>
     private async Task UnloadModelAsync(ProviderManagedModelInfo model)
     {
+        try
+        {
         await RunModelActionAsync(
             () => RuntimeManagement.UnloadModelAsync(Profile, model.ModelId, userConfirmed: true),
             refreshParent: false).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.UnloadModelAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Permanently deletes one Ollama model after the destructive-action acknowledgement is selected.</summary>
@@ -536,12 +598,21 @@
     /// <returns>A task that completes after permanent removal and inventory refresh.</returns>
     private async Task DeleteModelAsync(ProviderManagedModelInfo model)
     {
+        try
+        {
         if (!permanentDeleteConfirmed)
             return;
         await RunModelActionAsync(
             () => RuntimeManagement.DeleteModelAsync(Profile, model.ModelId, userConfirmed: true),
             refreshParent: true).ConfigureAwait(false);
         await InvokeAsync(() => permanentDeleteConfirmed = false).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.DeleteModelAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Estimates LM Studio memory requirements without loading the selected model.</summary>
@@ -549,12 +620,21 @@
     /// <returns>A task that completes after the estimate appears in the workbench.</returns>
     private async Task EstimateLmStudioModelAsync(ProviderManagedModelInfo model)
     {
+        try
+        {
         if (management is null)
             return;
         await RunModelActionAsync(
             () => RuntimeManagement.EstimateLmStudioModelAsync(Profile, model.ModelId, management.LmStudio),
             refreshAfter: false,
             refreshParent: false).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.EstimateLmStudioModelAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Loads one LM Studio model with the reviewed context, GPU, and TTL defaults.</summary>
@@ -562,11 +642,20 @@
     /// <returns>A task that completes after loading and inventory refresh.</returns>
     private async Task LoadLmStudioModelAsync(ProviderManagedModelInfo model)
     {
+        try
+        {
         if (management is null)
             return;
         await RunModelActionAsync(
             () => RuntimeManagement.LoadLmStudioModelAsync(Profile, model.ModelId, management.LmStudio, userConfirmed: true),
             refreshParent: false).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.LoadLmStudioModelAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Executes a provider model action while preserving bounded output and refresh semantics.</summary>
@@ -635,38 +724,93 @@
 
     /// <summary>Shows the reusable DevExpress host-path browser for Ollama model storage selection.</summary>
     /// <returns>A completed task after UI state changes.</returns>
-    private Task ShowModelDirectoryPickerAsync() => InvokeAsync(() => pathPickerVisible = true);
+    private Task ShowModelDirectoryPickerAsync()
+    {
+        try
+        {
+            return InvokeAsync(() => pathPickerVisible = true);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.ShowModelDirectoryPickerAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Synchronizes the reusable host-path explorer visibility state after the user opens or dismisses the Ollama model-directory chooser.</summary>
     /// <param name="visible">New popup visibility.</param>
     /// <returns>A task that completes after UI state changes.</returns>
-    private Task OnPathPickerVisibleChangedAsync(bool visible) => InvokeAsync(() => pathPickerVisible = visible);
+    private Task OnPathPickerVisibleChangedAsync(bool visible)
+    {
+        try
+        {
+            return InvokeAsync(() => pathPickerVisible = visible);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.OnPathPickerVisibleChangedAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Applies a path selected through the read-only host-path explorer to the detached Ollama settings.</summary>
     /// <param name="path">Selected host directory.</param>
     /// <returns>A task that completes after UI state changes.</returns>
-    private Task OnModelDirectorySelectedAsync(string path) => InvokeAsync(() =>
+    private Task OnModelDirectorySelectedAsync(string path)
+    {
+        try
+        {
+            return InvokeAsync(() =>
     {
         selectedPath = path;
         pathPickerVisible = false;
         if (management is not null && management.IsOllama)
             management.Ollama.ModelDirectory = path;
     });
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.OnModelDirectorySelectedAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Updates the operation-interlock flag through the Blazor renderer dispatcher so DevExpress action controls remain consistent during asynchronous work.</summary>
     /// <param name="value">New busy state.</param>
     /// <returns>A task that completes after UI state changes.</returns>
-    private Task SetBusyAsync(bool value) => InvokeAsync(() => busy = value);
+    private Task SetBusyAsync(bool value)
+    {
+        try
+        {
+            return InvokeAsync(() => busy = value);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.SetBusyAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Publishes one bounded provider-management outcome through the Blazor renderer dispatcher and records whether the message represents an error.</summary>
     /// <param name="text">Status text.</param>
     /// <param name="isError">Whether the status represents a failure.</param>
     /// <returns>A task that completes after UI state changes.</returns>
-    private Task SetStatusAsync(string text, bool isError) => InvokeAsync(() =>
+    private Task SetStatusAsync(string text, bool isError)
+    {
+        try
+        {
+            return InvokeAsync(() =>
     {
         statusText = text;
         statusIsError = isError;
     });
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.SetStatusAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Updates the selected local bootstrap profile immediately after a reviewed runtime port change so refresh/actions target the new endpoint.</summary>
     /// <param name="bindAddress">Reviewed provider bind address.</param>
@@ -674,8 +818,17 @@
     /// <param name="openAiCompatible">Whether the endpoint requires the OpenAI-compatible <c>/v1</c> suffix.</param>
     private void UpdateSelectedProfileEndpoint(string bindAddress, int port, bool openAiCompatible)
     {
+        try
+        {
         var host = bindAddress.Equals("0.0.0.0", StringComparison.OrdinalIgnoreCase) ? "127.0.0.1" : bindAddress;
         Profile.Endpoint = $"http://{host}:{port}{(openAiCompatible ? "/v1" : string.Empty)}";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.UpdateSelectedProfileEndpoint failed.");
+            throw;
+        }
     }
 
     /// <summary>Returns whether a bind address intentionally exposes a provider beyond local loopback.</summary>
@@ -683,9 +836,18 @@
     /// <returns><see langword="true"/> when the address is not a recognized loopback value.</returns>
     private bool IsNetworkExposed(string bindAddress)
     {
+        try
+        {
         var value = bindAddress?.Trim() ?? string.Empty;
         return !(value.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
             || value.Equals("localhost", StringComparison.OrdinalIgnoreCase));
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.IsNetworkExposed failed.");
+            throw;
+        }
     }
 
     /// <summary>Formats a nullable byte value for compact DevExpress-grid display.</summary>
@@ -693,6 +855,8 @@
     /// <returns>A compact binary-size label.</returns>
     private string FormatBytes(long? bytes)
     {
+        try
+        {
         if (!bytes.HasValue || bytes.Value < 0)
             return "—";
         var value = (double)bytes.Value;
@@ -704,10 +868,28 @@
             index++;
         }
         return $"{value:0.##} {units[index]}";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.FormatBytes failed.");
+            throw;
+        }
     }
 
     /// <summary>Returns one localized provider-management string.</summary>
     /// <param name="source">English source text used as the localization lookup value.</param>
     /// <returns>The localized string or source fallback.</returns>
-    private string T(string source) => Localization.GetText(source);
+    private string T(string source)
+    {
+        try
+        {
+            return Localization.GetText(source);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderRuntimeManagementPanel.T failed.");
+            throw;
+        }
+    }
 }

@@ -44,7 +44,7 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
             }
 
             logger.LogInformation(
-                "Enabled bounded method-level diagnostics for {ServiceDescriptorCount} scoped/transient LocalGPT interface service registration(s); singleton, disposable, high-frequency and ThemeService registrations were excluded.",
+                "Enabled bounded method-level diagnostics for {ServiceDescriptorCount} scoped/transient LocalGPT interface service registration(s); singleton, disposable, scoped-graph registry, high-frequency and ThemeService registrations were excluded.",
                 decorated);
         }
         catch (Exception exception)
@@ -76,7 +76,8 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
                 return false;
             if (serviceType == typeof(IServiceActivityService) ||
                 serviceType == typeof(IComponentActivityService) ||
-                serviceType == typeof(IDxAiFunctionHandler))
+                serviceType == typeof(IDxAiFunctionHandler) ||
+                serviceType == typeof(IDxAiFunctionRegistry))
             {
                 return false;
             }

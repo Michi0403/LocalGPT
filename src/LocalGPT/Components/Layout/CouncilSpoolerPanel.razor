@@ -5,6 +5,12 @@
 @inject ILocalGptVocabularyService Vocabulary
 @inject ILogger<CouncilSpoolerPanel> Logger
 
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner CouncilSpoolerPanel">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <DxButton data-localgpt-command="open-spooler"
         CssClass="council-spooler-launcher" Click="Toggle" title="Rejoin a running or recent AI Council session">
     <span>Council spooler</span>
@@ -31,7 +37,10 @@
         }
         else
         {
-            <section class="council-spooler-summary">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="council-spooler-summary">
                 <strong>@Selected.Status · @Selected.CouncilTeamKey</strong>
                 <span>@CouncilText.FormatInlineNameList(Selected.ModelNames)</span>
                 <p>@CouncilText.DecodeHumanVisibleText(Selected.Prompt)</p>
@@ -39,7 +48,10 @@
                 {
                     <a class="council-spooler-rejoin-link" href="@BuildRejoinHref(Selected.RunId)" data-enhance-nav="false">Open or rejoin this live Council in Chat</a>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             <div class="council-spooler-steps">
                 @foreach (var step in Selected.Steps.OrderBy(item => item.SortOrder))
                 {
@@ -58,6 +70,11 @@
         }
     </aside>
 }
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -76,38 +93,65 @@
     /// Gets the running count that quantifies the associated council spooler panel data.
     /// </summary>
     /// <value>The running count value exposed by <see cref="CouncilSpoolerPanel"/>.</value>
-    private int RunningCount => _runs.Count(item => item.Status == Vocabulary.Get().CouncilSpoolerRunning);
+    private int RunningCount => GetRunningCountForRender();
     /// <summary>
     /// Gets the selected value that forms part of the council spooler panel state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The selected value exposed by <see cref="CouncilSpoolerPanel"/>.</value>
-    private CouncilSpoolerSnapshot? Selected => _selectedRunId is Guid id ? _runs.FirstOrDefault(item => item.RunId == id) : _runs.FirstOrDefault();
+    private CouncilSpoolerSnapshot? Selected => GetSelectedForRender();
     /// <summary>
     /// Gets the selected value value that forms part of the council spooler panel state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The selected value value exposed by <see cref="CouncilSpoolerPanel"/>.</value>
-    private string SelectedValue => (_selectedRunId ?? _runs.FirstOrDefault()?.RunId)?.ToString() ?? string.Empty;
+    private string SelectedValue => GetSelectedValueForRender();
 
     /// <summary>
     /// Handles the initialized lifecycle or event notification for <see cref="CouncilSpoolerPanel"/>, updating the state required by the surrounding workflow.
     /// </summary>
     protected override void OnInitialized()
     {
+        try
+        {
         Spooler.Changed += OnSpoolerChanged;
         Refresh();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilSpoolerPanel.OnInitialized failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Performs toggle for <see cref="CouncilSpoolerPanel"/>, keeping the operation consistent with the state and invariants of the surrounding council spooler panel workflow.
     /// </summary>
-    private void Toggle() { _open = !_open; if (_open) Refresh(); }
+    private void Toggle() {
+        try
+        { _open = !_open; if (_open) Refresh(); 
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilSpoolerPanel.Toggle failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Performs refresh for <see cref="CouncilSpoolerPanel"/>, keeping the operation consistent with the state and invariants of the surrounding council spooler panel workflow.
     /// </summary>
     private void Refresh()
     {
+        try
+        {
         _runs = Spooler.GetSnapshots(includeCompleted: true, take: 30).ToList();
         if (_selectedRunId is null || _runs.All(item => item.RunId != _selectedRunId)) _selectedRunId = _runs.FirstOrDefault()?.RunId;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilSpoolerPanel.Refresh failed.");
+            throw;
+        }
     }
     /// <summary>
     /// Performs select run for <see cref="CouncilSpoolerPanel"/>, keeping the operation consistent with the state and invariants of the surrounding council spooler panel workflow.
@@ -115,25 +159,111 @@
     /// <param name="run">Selected Council run checkpoint.</param>
     private void SelectRun(CouncilSpoolerSnapshot? run)
     {
+        try
+        {
         _selectedRunId = run?.RunId;
         Refresh();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilSpoolerPanel.SelectRun failed.");
+            throw;
+        }
     }
     /// <summary>
     /// Builds rejoin href for <see cref="CouncilSpoolerPanel"/>, keeping the operation consistent with the state and invariants of the surrounding council spooler panel workflow.
     /// </summary>
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string BuildRejoinHref(Guid runId) => $"/Chat?rejoinCouncilRunId={Uri.EscapeDataString(runId.ToString())}";
+    private string BuildRejoinHref(Guid runId)
+    {
+        try
+        {
+            return $"/Chat?rejoinCouncilRunId={Uri.EscapeDataString(runId.ToString())}";
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilSpoolerPanel.BuildRejoinHref failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Handles the spooler changed lifecycle or event notification for <see cref="CouncilSpoolerPanel"/>, updating the state required by the surrounding workflow.
     /// </summary>
     private void OnSpoolerChanged()
     {
+        try
+        {
         _ = InvokeAsync(() => { Refresh(); StateHasChanged(); });
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilSpoolerPanel.OnSpoolerChanged failed.");
+            throw;
+        }
     }
     /// <summary>
     /// Releases resources owned by <see cref="CouncilSpoolerPanel"/> and leaves the council spooler panel workflow in a safely disposed state.
     /// </summary>
-    public void Dispose() => Spooler.Changed -= OnSpoolerChanged;
+    public void Dispose()
+    {
+        try
+        {
+            Spooler.Changed -= OnSpoolerChanged;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilSpoolerPanel.Dispose failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes RunningCount for the render path with component-local diagnostics.</summary>
+    /// <returns>The int produced by the operation.</returns>
+    private int GetRunningCountForRender()
+    {
+        try
+        {
+            return _runs.Count(item => item.Status == Vocabulary.Get().CouncilSpoolerRunning);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property CouncilSpoolerPanel.RunningCount failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes Selected for the render path with component-local diagnostics.</summary>
+    /// <returns>The council spooler snapshot produced by the operation.</returns>
+    private CouncilSpoolerSnapshot? GetSelectedForRender()
+    {
+        try
+        {
+            return _selectedRunId is Guid id ? _runs.FirstOrDefault(item => item.RunId == id) : _runs.FirstOrDefault();
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property CouncilSpoolerPanel.Selected failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SelectedValue for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetSelectedValueForRender()
+    {
+        try
+        {
+            return (_selectedRunId ?? _runs.FirstOrDefault()?.RunId)?.ToString() ?? string.Empty;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property CouncilSpoolerPanel.SelectedValue failed.");
+            throw;
+        }
+    }
 }

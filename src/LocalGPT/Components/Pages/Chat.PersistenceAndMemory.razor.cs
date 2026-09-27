@@ -45,9 +45,18 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshModelPresetsAfterBenchmarkAsync(CouncilModelPreset appliedPreset)
     {
+        try
+        {
         ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(false)).ToList();
         SelectedModelPreset = ModelPresets.FirstOrDefault(item => item.Id == appliedPreset.Id) ?? appliedPreset;
         ModelPresetName = SelectedModelPreset.Name;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.RefreshModelPresetsAfterBenchmarkAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -345,6 +354,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<BlazorChatMessage>> CaptureCurrentMessagesAsync()
     {
+        try
+        {
         if (isDisposed)
             return [];
 
@@ -360,6 +371,13 @@ namespace LocalGPT.Components.Pages
         }).ConfigureAwait(false);
 
         return captured;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.CaptureCurrentMessagesAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -368,6 +386,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="captured">Captured value supplied to the chat operation and used when producing its result.</param>
     private void MergeAuthoritativeLiveCouncilMessage(List<BlazorChatMessage> captured)
     {
+        try
+        {
         if (AttachedLiveCouncilRunId is not Guid runId || ChatClientProvider?.SelectedSession is null)
             return;
 
@@ -394,6 +414,13 @@ namespace LocalGPT.Components.Pages
             {
                 captured.Add(pending);
             }
+        }
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.MergeAuthoritativeLiveCouncilMessage failed.");
+            throw;
         }
     }
 
@@ -531,6 +558,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadChatProjectsAsync(CancellationToken cancellationToken = default)
     {
+        try
+        {
         Guid? selectedProjectId = null;
         await InvokeAsync(() => selectedProjectId = SessionContext.ProjectId).ConfigureAwait(false);
         var projects = (await ProjectService
@@ -544,6 +573,13 @@ namespace LocalGPT.Components.Pages
             ChatProjects = projects;
             SelectedChatProjectDetails = selectedDetails;
         }).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.LoadChatProjectsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -554,10 +590,19 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadSelectedChatProjectDetailsAsync(Guid? projectId, CancellationToken cancellationToken = default)
     {
+        try
+        {
         var selectedDetails = projectId is Guid id
             ? await ProjectService.GetProjectAsync(id, cancellationToken).ConfigureAwait(false)
             : null;
         await InvokeAsync(() => SelectedChatProjectDetails = selectedDetails).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.LoadSelectedChatProjectDetailsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -567,6 +612,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnChatProjectChangedAsync(ChangeEventArgs args)
     {
+        try
+        {
         if (!Guid.TryParse(Convert.ToString(args.Value, CultureInfo.InvariantCulture), out var projectId))
         {
             SessionContext.SetProject(null, null);
@@ -586,6 +633,13 @@ namespace LocalGPT.Components.Pages
 
         if (ActiveConversationId is not null)
             await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.OnChatProjectChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -595,6 +649,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnChatProjectVersionChangedAsync(ChangeEventArgs args)
     {
+        try
+        {
         if (SessionContext.ProjectId is not Guid projectId || SelectedChatProjectDetails is null)
             return;
 
@@ -614,13 +670,30 @@ namespace LocalGPT.Components.Pages
 
         if (ActiveConversationId is not null)
             await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.OnChatProjectVersionChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Refreshes feedback targets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
-    private void RefreshFeedbackTargets() =>
-        RefreshFeedbackTargets(DxAiChat?.SaveMessages().ToList() ?? []);
+    private void RefreshFeedbackTargets()
+    {
+        try
+        {
+            RefreshFeedbackTargets(DxAiChat?.SaveMessages().ToList() ?? []);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.RefreshFeedbackTargets failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Refreshes feedback targets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
@@ -628,6 +701,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="messages">Blazor chat message dependency used by the chat workflow to provide the corresponding application capability.</param>
     private void RefreshFeedbackTargets(IReadOnlyList<BlazorChatMessage> messages)
     {
+        try
+        {
         FeedbackTargets = messages
             .Select((message, sortOrder) => new { message, sortOrder })
             .Where(item => item.message.Role == ChatMessageRole.Assistant && !string.IsNullOrWhiteSpace(item.message.Content))
@@ -647,6 +722,13 @@ namespace LocalGPT.Components.Pages
             SelectedFeedbackSortOrder = FeedbackTargets[^1].SortOrder;
 
         LoadFeedbackEditor();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.RefreshFeedbackTargets failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -722,6 +804,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RecordSelectedFeedbackAsync(bool? isPositive)
     {
+        try
+        {
         if (SelectedFeedbackSortOrder is not int sortOrder)
             return;
 
@@ -751,6 +835,13 @@ namespace LocalGPT.Components.Pages
             false => "Not-helpful rating saved locally.",
             _ => "Rating cleared; comment retained if supplied."
         };
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.RecordSelectedFeedbackAsync failed.");
+            throw;
+        }
     }
 
 
@@ -805,6 +896,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void StartAutoSaveLoop()
     {
+        try
+        {
         if (autoSaveStarted || !interactiveAttached || !chatControlInitialized || isDisposed)
             return;
 
@@ -814,6 +907,13 @@ namespace LocalGPT.Components.Pages
             "AutoSaveLoop",
             AutoSaveLoopAsync,
             componentLifetimeCts.Token);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.PersistenceAndMemory.StartAutoSaveLoop failed.");
+            throw;
+        }
     }
 
     /// <summary>

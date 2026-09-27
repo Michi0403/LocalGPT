@@ -1,5 +1,12 @@
 @using LocalGPT.BusinessObjects
 
+@inject ILogger<ProviderModelBenchmarkReportAuditSummary> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ProviderModelBenchmarkReportAuditSummary">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <div class="benchmark-audit-summary" role="group" aria-label="Deterministic benchmark audit summary">
     <strong>Deterministic measurement evidence</strong>
     <div class="benchmark-audit-summary-grid">
@@ -33,6 +40,11 @@
     }
     <small>Provider measurements, this machine-derived identity set and captured task evidence are primary audit data. Council reviewer prose is secondary interpretation and cannot override these counts or identities.</small>
 </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -49,29 +61,99 @@
     /// Gets the coverage value that forms part of the provider model benchmark report audit summary state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The coverage value exposed by <see cref="ProviderModelBenchmarkReportAuditSummary"/>.</value>
-    private ProviderModelBenchmarkCoverageSnapshot Coverage => coverage ??= new ProviderModelBenchmarkCoverageSnapshot(Report);
+    private ProviderModelBenchmarkCoverageSnapshot Coverage => GetCoverageForRender();
 
     /// <summary>
     /// Handles the parameters set lifecycle or event notification for <see cref="ProviderModelBenchmarkReportAuditSummary"/>, updating the state required by the surrounding workflow.
     /// </summary>
     protected override void OnParametersSet()
     {
+        try
+        {
         coverage = new ProviderModelBenchmarkCoverageSnapshot(Report);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkReportAuditSummary.OnParametersSet failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Gets the measured tasks value that forms part of the provider model benchmark report audit summary state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The measured tasks value exposed by <see cref="ProviderModelBenchmarkReportAuditSummary"/>.</value>
-    private int MeasuredTasks => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count));
+    private int MeasuredTasks => GetMeasuredTasksForRender();
     /// <summary>
     /// Gets the successful tasks value that forms part of the provider model benchmark report audit summary state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The successful tasks value exposed by <see cref="ProviderModelBenchmarkReportAuditSummary"/>.</value>
-    private int SuccessfulTasks => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count(task => task.Succeeded)));
+    private int SuccessfulTasks => GetSuccessfulTasksForRender();
     /// <summary>
     /// Gets the provider calls value that forms part of the provider model benchmark report audit summary state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The provider calls value exposed by <see cref="ProviderModelBenchmarkReportAuditSummary"/>.</value>
-    private int ProviderCalls => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Sum(task => task.AttemptCount)));
+    private int ProviderCalls => GetProviderCallsForRender();
+
+
+    /// <summary>Computes Coverage for the render path with component-local diagnostics.</summary>
+    /// <returns>The provider model benchmark coverage snapshot produced by the operation.</returns>
+    private ProviderModelBenchmarkCoverageSnapshot GetCoverageForRender()
+    {
+        try
+        {
+            return coverage ??= new ProviderModelBenchmarkCoverageSnapshot(Report);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkReportAuditSummary.Coverage failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes MeasuredTasks for the render path with component-local diagnostics.</summary>
+    /// <returns>The int produced by the operation.</returns>
+    private int GetMeasuredTasksForRender()
+    {
+        try
+        {
+            return Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkReportAuditSummary.MeasuredTasks failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SuccessfulTasks for the render path with component-local diagnostics.</summary>
+    /// <returns>The int produced by the operation.</returns>
+    private int GetSuccessfulTasksForRender()
+    {
+        try
+        {
+            return Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count(task => task.Succeeded)));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkReportAuditSummary.SuccessfulTasks failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ProviderCalls for the render path with component-local diagnostics.</summary>
+    /// <returns>The int produced by the operation.</returns>
+    private int GetProviderCallsForRender()
+    {
+        try
+        {
+            return Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Sum(task => task.AttemptCount)));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkReportAuditSummary.ProviderCalls failed.");
+            throw;
+        }
+    }
 }

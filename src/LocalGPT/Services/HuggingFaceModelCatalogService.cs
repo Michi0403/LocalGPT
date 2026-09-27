@@ -22,7 +22,14 @@ public sealed class HuggingFaceModelCatalogService(
             if (query.Length > 300)
                 throw new ArgumentException("Hugging Face search query cannot exceed 300 characters.", nameof(request));
             var limit = Math.Clamp(request.Limit, 1, 50);
-            var route = $"https://huggingface.co/api/models?search={Uri.EscapeDataString(query)}&limit={limit}&sort=downloads&direction=-1&full=true";
+            var apiLimit = request.Sort == HuggingFaceModelSort.RecentLiked ? 50 : limit;
+            var apiSort = request.Sort switch
+            {
+                HuggingFaceModelSort.Likes => "likes",
+                HuggingFaceModelSort.Recent or HuggingFaceModelSort.RecentLiked => "lastModified",
+                _ => "downloads"
+            };
+            var route = $"https://huggingface.co/api/models?search={Uri.EscapeDataString(query)}&limit={apiLimit}&sort={apiSort}&direction=-1&full=true";
             using var message = new HttpRequestMessage(HttpMethod.Get, route);
             var tokenName = options.CurrentValue.PythonCore?.HuggingFaceTokenEnvironmentVariable;
             if (!string.IsNullOrWhiteSpace(tokenName))
@@ -31,7 +38,7 @@ public sealed class HuggingFaceModelCatalogService(
                 if (!string.IsNullOrWhiteSpace(token))
                     message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             }
-            message.Headers.UserAgent.ParseAdd("LocalGPT/4.9.3");
+            message.Headers.UserAgent.ParseAdd("LocalGPT/4.9.4");
 
             var client = httpClientFactory.CreateClient("LocalGPTHuggingFace");
             using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
@@ -70,8 +77,24 @@ public sealed class HuggingFaceModelCatalogService(
                     Capabilities = capabilities
                 });
             }
-            logger.LogInformation("Hugging Face metadata search returned {Count} compatible result(s); query text and credentials were omitted from logs.", results.Count);
-            return results;
+            IEnumerable<HuggingFaceModelSearchResult> ordered = results;
+            if (request.Sort == HuggingFaceModelSort.RecentLiked)
+            {
+                var cutoff = DateTime.UtcNow.AddDays(-Math.Clamp(request.RecentWindowDays, 1, 365));
+                var recent = results.Where(item => item.LastModifiedUtc is not null && item.LastModifiedUtc >= cutoff).ToList();
+                if (recent.Count > 0)
+                    ordered = recent.OrderByDescending(item => item.Likes).ThenByDescending(item => item.LastModifiedUtc);
+                else
+                    ordered = results.OrderByDescending(item => item.LastModifiedUtc).ThenByDescending(item => item.Likes);
+            }
+            else if (request.Sort == HuggingFaceModelSort.Likes)
+                ordered = results.OrderByDescending(item => item.Likes).ThenByDescending(item => item.Downloads);
+            else if (request.Sort == HuggingFaceModelSort.Recent)
+                ordered = results.OrderByDescending(item => item.LastModifiedUtc);
+
+            var bounded = ordered.Take(limit).ToList();
+            logger.LogInformation("Hugging Face metadata search returned {Count} compatible result(s) with sort {Sort}; query text and credentials were omitted from logs.", bounded.Count, request.Sort);
+            return bounded;
     
     }
     catch (Exception __serviceMethodException)
@@ -106,6 +129,8 @@ public sealed class HuggingFaceModelCatalogService(
                 result.Add(LocalAiCapability.AudioGeneration);
             if (evidence.Contains("image-text-to-text") || evidence.Contains("visual-question-answering") || evidence.Contains("vision-language"))
                 result.Add(LocalAiCapability.ImageUnderstanding);
+            if (evidence.Contains("video-text-to-text") || evidence.Contains("video-classification") || evidence.Contains("video-understanding") || evidence.Contains("video-language"))
+                result.Add(LocalAiCapability.VideoUnderstanding);
             if (evidence.Contains("feature-extraction") || evidence.Contains("sentence-transformers") || evidence.Contains("embedding"))
                 result.Add(LocalAiCapability.Embeddings);
             return result.OrderBy(value => value).ToList();

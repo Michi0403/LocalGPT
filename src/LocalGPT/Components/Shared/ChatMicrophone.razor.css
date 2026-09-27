@@ -1,49 +1,48 @@
 .chat-microphone {
-    position: absolute;
-    right: 9.1rem;
-    bottom: 1rem;
-    z-index: 8;
+    position: relative;
+    z-index: 12;
     display: inline-flex;
     align-items: center;
-    gap: .35rem;
+    gap: .4rem;
+    min-height: 2.75rem;
     pointer-events: auto;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .chat-microphone ::deep .chat-microphone-trigger,
 .chat-microphone ::deep .chat-microphone-options-trigger {
-    min-width: 3.75rem;
-    width: 3.75rem;
-    height: 3.75rem;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
     padding: 0;
     border-radius: .65rem;
     box-shadow: var(--localgpt-shadow-soft, 0 .25rem .75rem rgba(0, 0, 0, .18));
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .chat-microphone ::deep .chat-microphone-trigger {
-    color: var(--bs-body-color, CanvasText);
-    background: var(--localgpt-surface-raised-bg, var(--bs-body-bg, Canvas));
-    border-color: var(--localgpt-border-color, var(--bs-border-color));
-}
-
-.chat-microphone.is-recording ::deep .chat-microphone-trigger {
-    color: var(--bs-danger-text-emphasis, #fff);
-    border-color: var(--bs-danger, #dc3545);
-    background: color-mix(in srgb, var(--bs-danger, #dc3545) 24%, var(--bs-body-bg, Canvas));
+    min-width: 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
 }
 
 .chat-microphone ::deep .chat-microphone-options-trigger {
     min-width: 2.4rem;
     width: 2.4rem;
     height: 2.4rem;
-    align-self: center;
 }
 
 .chat-microphone ::deep .localgpt-microphone-svg,
 .chat-microphone ::deep .localgpt-recording-stop-svg {
-    display: inline-block;
-    width: 1.45rem;
-    height: 1.45rem;
+    display: inline-block !important;
+    width: 1.35rem;
+    height: 1.35rem;
+    flex: 0 0 1.35rem;
     background: currentColor;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .chat-microphone ::deep .localgpt-microphone-svg {
@@ -56,24 +55,33 @@
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='6' y='6' width='12' height='12' rx='1'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
+.chat-microphone-install-link {
+    display: inline-flex;
+    justify-content: center;
+    padding: .55rem .7rem;
+    border: 1px solid var(--localgpt-border-color, var(--bs-border-color));
+    border-radius: .5rem;
+    text-decoration: none;
+}
+
 .chat-microphone-popover {
     position: absolute;
     right: 0;
     bottom: calc(100% + .55rem);
+    z-index: 30;
     display: grid;
     gap: .55rem;
-    width: min(26rem, calc(100vw - 2rem));
-    padding: .7rem;
+    width: min(29rem, calc(100vw - 2rem));
+    padding: .8rem;
     border: 1px solid var(--localgpt-border-color, var(--bs-border-color));
-    border-radius: .65rem;
+    border-radius: .75rem;
     background: var(--localgpt-surface-raised-bg, var(--bs-body-bg, Canvas));
     color: var(--bs-body-color, CanvasText);
     box-shadow: var(--localgpt-shadow-medium, 0 .6rem 1.6rem rgba(0, 0, 0, .24));
 }
 
-.chat-microphone-popover > span {
-    overflow-wrap: anywhere;
-}
+.chat-microphone-popover > span,
+.chat-microphone-popover > small { overflow-wrap: anywhere; }
 
 .chat-microphone-popover ::deep .dxbl-text-edit,
 .chat-microphone-popover ::deep .dxbl-btn {
@@ -81,16 +89,13 @@
     min-width: 0;
 }
 
+.chat-microphone-option-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .45rem;
+}
+
 @media (max-width: 680px) {
-    .chat-microphone {
-        right: 8.15rem;
-        bottom: .85rem;
-    }
-
-    .chat-microphone ::deep .chat-microphone-trigger {
-        min-width: 3.5rem;
-        width: 3.5rem;
-        height: 3.5rem;
-    }
-
+    .chat-microphone { width: 100%; }
+    .chat-microphone-option-actions { grid-template-columns: 1fr; }
 }

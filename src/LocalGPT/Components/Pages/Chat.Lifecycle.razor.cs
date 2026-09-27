@@ -147,6 +147,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void ScheduleChatRuntimeActivation()
     {
+        try
+        {
         if (chatRuntimeActivationScheduled || chatRuntimeStarted || isDisposed || !interactiveAttached || !chatControlInitialized || !initialStateReady)
             return;
 
@@ -164,6 +166,13 @@ namespace LocalGPT.Components.Pages
                 await InvokeAsync(TryStartChatRuntimeAsync).ConfigureAwait(false);
             },
             componentLifetimeCts.Token);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.Lifecycle.ScheduleChatRuntimeActivation failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -391,11 +400,20 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string ProviderOptionLabel(ChatClientSession session)
     {
+        try
+        {
         var provider = string.IsNullOrWhiteSpace(session.Provider) ? session.Name : session.Provider;
         var model = string.IsNullOrWhiteSpace(session.ModelName) ? session.Name : session.ModelName;
         return string.IsNullOrWhiteSpace(session.Endpoint)
             ? $"{model} — {provider}"
             : $"{model} — {provider} — {session.Endpoint}";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.Lifecycle.ProviderOptionLabel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -470,6 +488,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnChatConfigurationSummaryClickedAsync()
     {
+        try
+        {
         chatConfigurationOpen = !chatConfigurationOpen;
         if (chatConfigurationOpen && !isDisposed)
         {
@@ -490,6 +510,13 @@ namespace LocalGPT.Components.Pages
         }
 
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.Lifecycle.OnChatConfigurationSummaryClickedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -569,7 +596,16 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshOllamaModelsAsync()
     {
+        try
+        {
         await DiscoverAndApplyOllamaModelsAsync(showToast: true, componentLifetimeCts.Token).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.Lifecycle.RefreshOllamaModelsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -579,7 +615,16 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshOllamaModelsAsync(bool showToast)
     {
+        try
+        {
         await DiscoverAndApplyOllamaModelsAsync(showToast, componentLifetimeCts.Token).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.Lifecycle.RefreshOllamaModelsAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -723,6 +768,8 @@ namespace LocalGPT.Components.Pages
     /// <summary>Queues a renderer-affine retry for the route-requested Council starter.</summary>
     private void ScheduleDirectCouncilStarterDispatch()
     {
+        try
+        {
         if (!AutoStartCouncilStarter || directCouncilStarterDispatched || directCouncilStarterDispatching ||
             string.IsNullOrWhiteSpace(RequestedCouncilStarterKey) || isDisposed || directCouncilStarterDispatchAttempts >= 12)
             return;
@@ -740,6 +787,13 @@ namespace LocalGPT.Components.Pages
                 await InvokeAsync(AutoStartRequestedCouncilPromptAsync).ConfigureAwait(false);
             },
             componentLifetimeCts.Token);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.Lifecycle.ScheduleDirectCouncilStarterDispatch failed.");
+            throw;
+        }
     }
 
     /// <summary>Finds and starts the direct Council prompt requested by the installer or home-page route.</summary>
@@ -790,6 +844,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task whose result is true when the browser accepted and submitted the prompt.</returns>
     private async Task<bool> StartCouncilPromptAsync(PromptSuggestion starter, bool startFresh)
     {
+        try
+        {
         ArgumentNullException.ThrowIfNull(starter);
         if (ChatClientProvider is null || DxAiChat is null || !chatRuntimeStarted)
         {
@@ -867,6 +923,13 @@ namespace LocalGPT.Components.Pages
             Notifier.ShowWarning(toastName, modelStatus, "Council starter prepared");
         }
         return false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.Lifecycle.StartCouncilPromptAsync failed.");
+            throw;
+        }
     }
 
     }

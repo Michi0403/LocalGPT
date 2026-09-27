@@ -451,7 +451,18 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Performs join running council for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
     /// </summary>
-    private void JoinRunningCouncil() => Navigation.NavigateTo("/Chat?joinCouncil=active", forceLoad: true);
+    private void JoinRunningCouncil()
+    {
+        try
+        {
+            Navigation.NavigateTo("/Chat?joinCouncil=active", forceLoad: true);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ModelCouncil.JoinRunningCouncil failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs toggle model for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.

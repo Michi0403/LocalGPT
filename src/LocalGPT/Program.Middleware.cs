@@ -79,6 +79,7 @@ namespace LocalGPT
                     CultureInfo.CurrentUICulture = uiCulture;
                     await next(context).ConfigureAwait(false);
                 });
+                MapMcpGateway(app, logger);
                 app.UseStaticFiles();
                 app.UseRouting();
                 if (!app.Environment.IsDevelopment())
@@ -163,6 +164,9 @@ namespace LocalGPT
                     Port = port,
                     OneWirePort,
                     OneWireDiscoveryPort,
+                    McpEnabled,
+                    McpPort,
+                    McpPath,
                     Version = semanticVersion,
                     ExecutablePath = Environment.ProcessPath ?? string.Empty,
                     StartedAtUtc = DateTimeOffset.UtcNow

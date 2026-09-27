@@ -38,7 +38,9 @@ def forbid(text: str, needle: str, label: str) -> None:
         failures.append(f"forbidden {label} remains: {needle}")
 
 require(PROGRAM, "AddScoped<ICodeGenerationWorkflowService, CodeGenerationWorkflowService>()", "workflow DI registration")
-require(PROGRAM, "AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>()", "DXFunction registry DI registration")
+require(PROGRAM, "AddScoped<DxAiFunctionRegistry>()", "concrete DXFunction registry scoped registration")
+require(PROGRAM, "AddScoped<IDxAiFunctionRegistry>(provider =>", "DXFunction registry cycle-safe interface registration")
+require(PROGRAM, "registry.InitializeHandlers(() => provider.GetServices<IDxAiFunctionHandler>())", "same-scope DXFunction handler initialization")
 require(PROGRAM, "typeof(IDxAiFunctionHandler).IsAssignableFrom(type.AsType())", "DXFunction handler discovery")
 require(PROGRAM, "AddScoped(typeof(IDxAiFunctionHandler), handlerType)", "DXFunction handler scoped registration")
 require(CODEGEN_CONTROLLER, "using LocalGPT.Services;", "code-generation controller service namespace import")

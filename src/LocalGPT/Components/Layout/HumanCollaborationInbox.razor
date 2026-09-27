@@ -13,6 +13,10 @@
 @inject IComponentActivityService ComponentActivity
 @inject ISupervisedTaskRunner TaskRunner
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner HumanCollaborationInbox">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <ToastWrapper Name="HumanCollaborationToasts" />
 
 @if (!isOpen && approvalBarVisible && PendingRequests.Count > 0)
@@ -66,7 +70,10 @@
 
         @if (recentDeferredResults.Count > 0)
         {
-            <section class="human-inbox-section human-deferred-results">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="human-inbox-section human-deferred-results">
                 <h3>Approved action execution results</h3>
                 @foreach (var result in recentDeferredResults)
                 {
@@ -82,10 +89,16 @@
                         }
                     </article>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
 
-        <section class="human-inbox-section">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="human-inbox-section">
             <h3>Take Part</h3>
             <label class="human-inbox-check">
                 <DxCheckBox @bind-Checked="profile.IsEnabled" @bind-Checked:after="MarkProfileDirty" />
@@ -109,11 +122,17 @@
             </label>
             <DxButton CssClass="human-primary" Click="SaveProfileAsync">Save participant profile</DxButton>
             <p class="human-inbox-note">Participation is peer input, not automatic truth and not security approval.</p>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
         @if (snapshot.ActiveRuns.Count > 0)
         {
-            <section class="human-inbox-section">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="human-inbox-section">
                 <h3>Active council runs</h3>
                 @foreach (var run in snapshot.ActiveRuns)
                 {
@@ -135,10 +154,16 @@
                         <DxButton CssClass="human-primary" Click="(() => SubmitContributionAsync(run.RunId))">Add to next heartbeat</DxButton>
                     </article>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
 
-        <section class="human-inbox-section">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="human-inbox-section">
             <h3>Open requests (@PendingCount)</h3>
             @if (PendingRequests.Count == 0)
             {
@@ -220,11 +245,17 @@
                     }
                 </article>
             }
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
         @if (snapshot.Contributions.Count > 0)
         {
-            <section class="human-inbox-section">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext006">
+        <div class="human-inbox-section">
                 <h3>Your council contributions</h3>
                 @foreach (var contribution in snapshot.Contributions.Take(12))
                 {
@@ -237,12 +268,18 @@
                         }
                     </details>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
 
         @if (ResolvedRequests.Count > 0)
         {
-            <section class="human-inbox-section">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext007">
+        <div class="human-inbox-section">
                 <h3>Saved decisions</h3>
                 <p class="human-inbox-note">Saved decisions can be corrected later. Saving an edited approval clears its consumed timestamp and applies the new policy to the next exact matching call.</p>
                 @foreach (var request in ResolvedRequests.Take(20))
@@ -298,12 +335,24 @@
                         }
                     </details>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
     </aside>
 }
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
+    /// <summary>
+    /// Gets the approval reuse scope options collection maintained or exposed by this human collaboration inbox instance for downstream processing.
+    /// </summary>
+    /// <value>The approval reuse scope options value exposed by <see cref="HumanCollaborationInbox"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<HumanApprovalReuseScope>> ApprovalReuseScopeOptions { get; } =
     [
         new(HumanApprovalReuseScope.ExactRequestOnce, "Exact request once"),
@@ -311,11 +360,46 @@
         new(HumanApprovalReuseScope.PersistentUntilChanged, "Persistent until changed")
     ];
 
+    /// <summary>
+    /// Stores the in-memory contribution drafts collection maintained internally by <see cref="HumanCollaborationInbox"/> for its current workflow state.
+    /// </summary>
     private readonly Dictionary<Guid, string> contributionDrafts = [];
 
-    private string GetContributionDraft(Guid runId) => contributionDrafts.TryGetValue(runId, out var value) ? value : string.Empty;
+    /// <summary>
+    /// Retrieves contribution draft for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetContributionDraft(Guid runId)
+    {
+        try
+        {
+            return contributionDrafts.TryGetValue(runId, out var value) ? value : string.Empty;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.GetContributionDraft failed.");
+            throw;
+        }
+    }
 
-    private void SetContributionDraft(Guid runId, string value) => contributionDrafts[runId] = value;
+    /// <summary>
+    /// Sets contribution draft for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="value">Value value supplied to the human collaboration inbox operation and used when producing its result.</param>
+    private void SetContributionDraft(Guid runId, string value)
+    {
+        try
+        {
+            contributionDrafts[runId] = value;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.SetContributionDraft failed.");
+            throw;
+        }
+    }
 
 
     /// <summary>
@@ -323,38 +407,71 @@
     /// </summary>
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string GetGateLabel(HumanCollaborationRequest request) => request.GateMode switch
+    private string GetGateLabel(HumanCollaborationRequest request)
+    {
+        try
+        {
+            return request.GateMode switch
     {
         "NextPhase" => "blocks next phase",
         "NextRound" => "blocks next round",
         "Completion" => "blocks completion",
         _ => "non-blocking"
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.GetGateLabel failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Retrieves gate description for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
     /// </summary>
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string GetGateDescription(HumanCollaborationRequest request) => request.GateMode switch
+    private string GetGateDescription(HumanCollaborationRequest request)
+    {
+        try
+        {
+            return request.GateMode switch
     {
         "NextPhase" => "The Council may finish the current phase, then waits for all applicable open questions before starting the next phase.",
         "NextRound" => "The Council may continue the current round, then waits before starting the next round.",
         "Completion" => "Independent work may continue, but the Council cannot complete until this question is answered.",
         _ => "Advisory context. The Council continues and consumes the answer at the next heartbeat."
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.GetGateDescription failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Retrieves scope label for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
     /// </summary>
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string GetScopeLabel(HumanCollaborationRequest request) => request.QuestionScope switch
+    private string GetScopeLabel(HumanCollaborationRequest request)
+    {
+        try
+        {
+            return request.QuestionScope switch
     {
         "Consensus" => "Council consensus question",
         "SelectedMembers" => "Question shared by selected Council members",
         _ => "Question from one Council member"
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.GetScopeLabel failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Stores the internal snapshot state used by <see cref="HumanCollaborationInbox"/> while executing its surrounding workflow.
@@ -409,30 +526,35 @@
     /// Gets the pending requests collection maintained or exposed by this human collaboration inbox instance for downstream processing.
     /// </summary>
     /// <value>The pending requests value exposed by <see cref="HumanCollaborationInbox"/>.</value>
-    private IReadOnlyList<HumanCollaborationRequest> PendingRequests => snapshot.Requests
-        .Where(item => item.Status == Vocabulary.Get().HumanStatusPending && !IsAsciiGameRoleRequest(item))
-        .ToList();
+    private IReadOnlyList<HumanCollaborationRequest> PendingRequests => GetPendingRequestsForRender();
     /// <summary>
     /// Gets the resolved requests collection maintained or exposed by this human collaboration inbox instance for downstream processing.
     /// </summary>
     /// <value>The resolved requests value exposed by <see cref="HumanCollaborationInbox"/>.</value>
-    private IReadOnlyList<HumanCollaborationRequest> ResolvedRequests => snapshot.Requests
-        .Where(item => item.Status != Vocabulary.Get().HumanStatusPending && !IsAsciiGameRoleRequest(item))
-        .OrderByDescending(item => item.UpdatedAtUtc)
-        .ToList();
+    private IReadOnlyList<HumanCollaborationRequest> ResolvedRequests => GetResolvedRequestsForRender();
     /// <summary>
     /// Gets the pending count that quantifies the associated human collaboration inbox data.
     /// </summary>
     /// <value>The pending count value exposed by <see cref="HumanCollaborationInbox"/>.</value>
-    private int PendingCount => PendingRequests.Count;
+    private int PendingCount => GetPendingCountForRender();
 
     /// <summary>Returns whether an active Council-owned ASCII game surface owns this configured human-role request.</summary>
     /// <param name="request">Human Collaboration request being considered for inbox projection.</param>
     /// <returns><c>true</c> when an active game surface owns the Council role response.</returns>
-    private bool IsAsciiGameRoleRequest(HumanCollaborationRequest request) =>
-        request.CouncilRunId is Guid runId
+    private bool IsAsciiGameRoleRequest(HumanCollaborationRequest request)
+    {
+        try
+        {
+            return request.CouncilRunId is Guid runId
         && asciiGameCouncilRunIds.Contains(runId)
         && AsciiText.IsCouncilRoleResponseRequest(request);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.IsAsciiGameRoleRequest failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="HumanCollaborationInbox"/>, updating the state required by the surrounding workflow.
@@ -440,9 +562,18 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         Collaboration.Changed += OnCollaborationChanged;
         Games.Changed += OnGameChanged;
         await RefreshAsync().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.OnInitializedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -450,10 +581,19 @@
     /// </summary>
     private void TogglePanel()
     {
+        try
+        {
         isOpen = !isOpen;
         if (isOpen)
             approvalBarVisible = true;
         ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), "Toggle", isOpen ? "The collaboration inbox opened." : "The collaboration inbox closed.");
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.TogglePanel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -461,9 +601,18 @@
     /// </summary>
     private void OpenApprovalPanel()
     {
+        try
+        {
         approvalBarVisible = true;
         isOpen = true;
         ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), "OpenApprovalBar", "The pending approval work bar opened the collaboration inbox.");
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.OpenApprovalPanel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -471,8 +620,17 @@
     /// </summary>
     private void HideApprovalBar()
     {
+        try
+        {
         approvalBarVisible = false;
         ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), "HideApprovalBar", "The pending approval work bar was hidden; the Human team launcher remains available.");
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.HideApprovalBar failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -545,6 +703,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveProfileAsync()
     {
+        try
+        {
         await RunHumanUiOperationAsync("SaveProfile", async () =>
         {
             using var scope = HumanAmbientContext.PushHumanInteraction(
@@ -556,6 +716,13 @@
             statusText = profile.IsEnabled ? "Human council participation is enabled." : "Human council participation is disabled.";
             Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Participant profile");
         }).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.SaveProfileAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -565,6 +732,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SubmitContributionAsync(Guid runId)
     {
+        try
+        {
         var content = GetContributionDraft(runId);
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -584,6 +753,13 @@
             statusText = "Your contribution will enter the next council heartbeat without stopping the current work.";
             Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Council contribution queued");
         }).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.SubmitContributionAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -594,6 +770,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ResolveAsync(HumanCollaborationRequest request, bool? approved)
     {
+        try
+        {
         var editor = GetEditor(request);
         await RunHumanUiOperationAsync("ResolveRequest", async () =>
         {
@@ -620,6 +798,13 @@
             }
             Notifier.ShowInfo("HumanCollaborationToasts", statusText, "Human decision saved");
         }).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.ResolveAsync failed.");
+            throw;
+        }
     }
 
 
@@ -629,6 +814,7 @@
     /// <param name="approvalRequestId">Identifier of the saved human approval whose deferred operations should execute.</param>
     private void QueueDeferredApprovedExecution(Guid approvalRequestId)
     {
+        Logger.LogDebug("Component method HumanCollaborationInbox.QueueDeferredApprovedExecution completed.");
         TaskRunner.Run(
             nameof(HumanCollaborationInbox),
             "ExecuteApprovedDeferredCalls",
@@ -663,6 +849,7 @@
                 }
             },
             CancellationToken.None);
+    
     }
 
     /// <summary>
@@ -709,6 +896,7 @@
     /// <returns>The deferred result view produced by the operation.</returns>
     private DeferredResultView ToDeferredResultView(DeferredDxAiExecutionOutcome outcome)
     {
+        Logger.LogDebug("Component method HumanCollaborationInbox.ToDeferredResultView completed.");
         var summary = outcome.Status;
         var downloadUrl = string.Empty;
         try
@@ -735,6 +923,7 @@
         }
 
         return new DeferredResultView(outcome.FunctionName, outcome.ResultStatus, summary, downloadUrl);
+    
     }
 
     /// <summary>
@@ -753,12 +942,21 @@
     /// <returns>The human collaboration request editor produced by the operation.</returns>
     private HumanCollaborationRequestEditor GetEditor(HumanCollaborationRequest request)
     {
+        try
+        {
         if (!editors.TryGetValue(request.Id, out var editor))
         {
             editor = CreateEditor(request);
             editors[request.Id] = editor;
         }
         return editor;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.GetEditor failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -766,23 +964,56 @@
     /// </summary>
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <returns>The human collaboration request editor produced by the operation.</returns>
-    private HumanCollaborationRequestEditor CreateEditor(HumanCollaborationRequest request) => new(
+    private HumanCollaborationRequestEditor CreateEditor(HumanCollaborationRequest request)
+    {
+        try
+        {
+            return new(
         request.Status == Vocabulary.Get().HumanStatusPending ? request.PrefillText : request.UserResponse,
         request.DecisionReason,
         request.ApprovalReuseScope,
         request.ConsumeApproval);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.CreateEditor failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs mark profile dirty for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
     /// </summary>
-    private void MarkProfileDirty() => profileDirty = true;
+    private void MarkProfileDirty()
+    {
+        try
+        {
+            profileDirty = true;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.MarkProfileDirty failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs fingerprint prefix for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
     /// </summary>
     /// <param name="value">Value value supplied to the human collaboration inbox operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string FingerprintPrefix(string value) => value[..Math.Min(12, value.Length)];
+    private string FingerprintPrefix(string value)
+    {
+        try
+        {
+            return value[..Math.Min(12, value.Length)];
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.FingerprintPrefix failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Retrieves request CSS class for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
     /// </summary>
@@ -790,6 +1021,8 @@
     /// <returns>The string produced by the operation.</returns>
     private string GetRequestCssClass(HumanCollaborationRequest request)
     {
+        try
+        {
         var risk = string.IsNullOrWhiteSpace(request.RiskLevel)
             ? "medium"
             : new string(request.RiskLevel
@@ -797,12 +1030,20 @@
                 .Select(char.ToLowerInvariant)
                 .ToArray());
         return $"human-request-card risk-{(string.IsNullOrWhiteSpace(risk) ? "medium" : risk)}";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.GetRequestCssClass failed.");
+            throw;
+        }
     }
 
     /// <summary>Refreshes request ownership when an ASCII game starts, ends, or changes Council association.</summary>
     /// <param name="sessionId">Identifier of the game session whose state changed.</param>
     private void OnGameChanged(Guid sessionId)
     {
+        Logger.LogDebug("Component method HumanCollaborationInbox.OnGameChanged completed.");
         if (isDisposed)
             return;
 
@@ -818,6 +1059,7 @@
         {
             // A final game event raced with circuit disposal.
         }
+    
     }
 
     /// <summary>
@@ -825,6 +1067,7 @@
     /// </summary>
     private void OnCollaborationChanged()
     {
+        Logger.LogDebug("Component method HumanCollaborationInbox.OnCollaborationChanged completed.");
         if (isDisposed)
             return;
 
@@ -840,6 +1083,7 @@
         {
             // A final service event raced with circuit disposal.
         }
+    
     }
 
     /// <summary>
@@ -847,6 +1091,8 @@
     /// </summary>
     public void Dispose()
     {
+        try
+        {
         if (isDisposed)
             return;
 
@@ -856,6 +1102,64 @@
         lifetimeCts.Cancel();
         lifetimeCts.Dispose();
         GC.SuppressFinalize(this);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method HumanCollaborationInbox.Dispose failed.");
+            throw;
+        }
     }
 
+
+
+    /// <summary>Computes PendingRequests for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<HumanCollaborationRequest> GetPendingRequestsForRender()
+    {
+        try
+        {
+            return snapshot.Requests
+        .Where(item => item.Status == Vocabulary.Get().HumanStatusPending && !IsAsciiGameRoleRequest(item))
+        .ToList();
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property HumanCollaborationInbox.PendingRequests failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ResolvedRequests for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<HumanCollaborationRequest> GetResolvedRequestsForRender()
+    {
+        try
+        {
+            return snapshot.Requests
+        .Where(item => item.Status != Vocabulary.Get().HumanStatusPending && !IsAsciiGameRoleRequest(item))
+        .OrderByDescending(item => item.UpdatedAtUtc)
+        .ToList();
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property HumanCollaborationInbox.ResolvedRequests failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes PendingCount for the render path with component-local diagnostics.</summary>
+    /// <returns>The int produced by the operation.</returns>
+    private int GetPendingCountForRender()
+    {
+        try
+        {
+            return PendingRequests.Count;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property HumanCollaborationInbox.PendingCount failed.");
+            throw;
+        }
+    }
 }

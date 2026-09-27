@@ -349,13 +349,46 @@ public partial class RemoteControl : ComponentBase
     }
 
     /// <summary>Applies an <c>Accept: application/json</c> row to the guided Remote Control connector header editor.</summary>
-    private void AddAcceptJsonHeader() => UpsertHeader("Accept", "application/json");
+    private void AddAcceptJsonHeader()
+    {
+        try
+        {
+            UpsertHeader("Accept", "application/json");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method RemoteControl.AddAcceptJsonHeader failed.");
+            throw;
+        }
+    }
 
     /// <summary>Adds the bearer-token Authorization header preset using a LocalGPT template variable.</summary>
-    private void AddBearerHeader() => UpsertHeader("Authorization", "Bearer {{var:API_TOKEN}}");
+    private void AddBearerHeader()
+    {
+        try
+        {
+            UpsertHeader("Authorization", "Bearer {{var:API_TOKEN}}");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method RemoteControl.AddBearerHeader failed.");
+            throw;
+        }
+    }
 
     /// <summary>Adds the API-key header preset using a LocalGPT template variable.</summary>
-    private void AddApiKeyHeader() => UpsertHeader("X-API-Key", "{{var:API_KEY}}");
+    private void AddApiKeyHeader()
+    {
+        try
+        {
+            UpsertHeader("X-API-Key", "{{var:API_KEY}}");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method RemoteControl.AddApiKeyHeader failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Persists connector for <see cref="RemoteControl"/>, keeping the operation consistent with the state and invariants of the surrounding remote control workflow.

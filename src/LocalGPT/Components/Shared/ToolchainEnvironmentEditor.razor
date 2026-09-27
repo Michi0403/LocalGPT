@@ -3,6 +3,11 @@
 @inject ILogger<ToolchainEnvironmentEditor> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ToolchainEnvironmentEditor">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <details class="toolchain-environment-editor">
     <summary>@T("Toolchain.Environment.Title", "Environment variables") (@_variables.Count)</summary>
     <p class="field-help">@T("Toolchain.Environment.Help", "Stored as structured rows in the UI/API and serialized only inside the owning service for process execution. PATH itself is discovered, not copied into this list.")</p>
@@ -28,6 +33,11 @@
         <small class="@(_error ? "text-danger" : "text-success")">@_status</small>
     }
 </details>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -63,6 +73,8 @@
     /// </summary>
     protected override void OnParametersSet()
     {
+        try
+        {
         _variables = Compiler.EnvironmentVariables.Select(item => new ToolchainEnvironmentVariableSetting
         {
             Name = item.Name,
@@ -70,6 +82,13 @@
             Source = item.Source,
             IsEnabled = item.IsEnabled
         }).ToList();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ToolchainEnvironmentEditor.OnParametersSet failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -78,12 +97,34 @@
     /// <param name="key">Key value supplied to the toolchain environment editor operation and used when producing its result.</param>
     /// <param name="fallback">Fallback value supplied to the toolchain environment editor operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+    private string T(string key, string fallback)
+    {
+        try
+        {
+            return Localization.Get(key, fallback: fallback);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ToolchainEnvironmentEditor.T failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs add for <see cref="ToolchainEnvironmentEditor"/>, keeping the operation consistent with the state and invariants of the surrounding toolchain environment editor workflow.
     /// </summary>
-    private void Add() => _variables.Add(new ToolchainEnvironmentVariableSetting { Source = "User", IsEnabled = true });
+    private void Add()
+    {
+        try
+        {
+            _variables.Add(new ToolchainEnvironmentVariableSetting { Source = "User", IsEnabled = true });
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ToolchainEnvironmentEditor.Add failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs remove for <see cref="ToolchainEnvironmentEditor"/>, keeping the operation consistent with the state and invariants of the surrounding toolchain environment editor workflow.
@@ -91,8 +132,17 @@
     /// <param name="index">Index value supplied to the toolchain environment editor operation and used when producing its result.</param>
     private void Remove(int index)
     {
+        try
+        {
         if (index >= 0 && index < _variables.Count)
             _variables.RemoveAt(index);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ToolchainEnvironmentEditor.Remove failed.");
+            throw;
+        }
     }
 
     /// <summary>

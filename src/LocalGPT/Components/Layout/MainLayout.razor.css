@@ -169,9 +169,9 @@
     }
 }
 
-.language-switcher { margin-left: auto; display: inline-flex; align-items: center; max-width: min(22rem, 45vw); }
-.language-switcher select { min-height: 2.5rem; max-width: 100%; border: 1px solid var(--bs-border-color); border-radius: .45rem; color: var(--bs-body-color); background: var(--bs-body-bg); padding: .35rem 2rem .35rem .65rem; font-weight: 650; }
-.language-switcher select:focus { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
+.language-switcher { margin-left: auto; display: inline-flex; align-items: center; width: min(22rem, 45vw); max-width: min(22rem, 45vw); }
+.language-switcher ::deep .localgpt-language-select { width: 100%; min-width: 12rem; max-width: 100%; font-weight: 650; }
+.language-switcher ::deep .localgpt-language-select .dxbl-edit-input { min-height: 2.5rem; color: var(--bs-body-color); }
 
 
 /* final15: collaboration and Council tools live in a dedicated edge rail. The rail itself
@@ -304,4 +304,33 @@
     .localgpt-page-scroll-assist {
         align-self: end;
     }
+}
+
+/* 5.0.3: one reliable route scrollbar. Earlier Chat viewport locks could let a growing
+   DXAiChat exceed 100dvh while every ancestor still had overflow:hidden. The drawer content
+   is now the scroll owner for Chat and normal routes, so streamed messages cannot become unreachable. */
+::deep .navigation-drawer > .dxbl-drawer-content,
+::deep .chat-navigation-drawer > .dxbl-drawer-content {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100dvh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+}
+
+#current-main-window.chat-main-window {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+#current-main-window.chat-main-window ::deep .main-container {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
 }

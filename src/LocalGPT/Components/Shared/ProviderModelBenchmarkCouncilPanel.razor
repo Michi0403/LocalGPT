@@ -6,7 +6,16 @@
 @inject ILogger<ProviderModelBenchmarkCouncilPanel> Logger
 @inject IProviderModelReviewerPolicyService ReviewerPolicy
 
-<section class="benchmark-council-panel" aria-labelledby="@HeadingId">
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ProviderModelBenchmarkCouncilPanel">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="benchmark-council-panel" aria-labelledby="@HeadingId">
     <header>
         <div>
             <strong id="@HeadingId">Benchmark Council</strong>
@@ -126,9 +135,21 @@
     }
 
     <ProviderModelBenchmarkEvidenceHistory />
-</section>
+</div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
+    /// <summary>
+    /// Gets the benchmark profile mode options collection maintained or exposed by this provider model benchmark council panel instance for downstream processing.
+    /// </summary>
+    /// <value>The benchmark profile mode options value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<ProviderModelBenchmarkProfileMode>> BenchmarkProfileModeOptions { get; } =
     [
         new(ProviderModelBenchmarkProfileMode.EvenlySpaced, "Evenly spaced to maximum"),
@@ -241,22 +262,21 @@
     /// Gets the benchmark chat URL that identifies the network or application endpoint associated with this provider model benchmark council panel state.
     /// </summary>
     /// <value>The benchmark chat URL value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
-    string BenchmarkChatUrl => activeRunId is Guid runId
-        ? $"/Chat?rejoinCouncilRunId={runId:D}"
-        : "/Chat";
+    string BenchmarkChatUrl => GetBenchmarkChatUrlForRender();
 
     /// <summary>
     /// Gets a value indicating whether apply applies to the provider model benchmark council panel state.
     /// </summary>
     /// <value>The can apply value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
-    bool CanApply => report?.Targets.Any(target => string.IsNullOrWhiteSpace(target.Error)
-        && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName)) == true;
+    bool CanApply => GetCanApplyForRender();
 
     /// <summary>
     /// Handles the parameters set lifecycle or event notification for <see cref="ProviderModelBenchmarkCouncilPanel"/>, updating the state required by the surrounding workflow.
     /// </summary>
     protected override void OnParametersSet()
     {
+        try
+        {
         var nextSignature = CouncilText.ProviderModelBenchmarkCouncilSignature(Models, Logger);
         if (nextSignature.Equals(modelSignature, StringComparison.Ordinal))
             return;
@@ -283,6 +303,13 @@
         }
 
         modelSignature = nextSignature;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkCouncilPanel.OnParametersSet failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -399,7 +426,7 @@
     /// Gets the selected reviewer count that quantifies the associated provider model benchmark council panel data.
     /// </summary>
     /// <value>The selected reviewer count value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
-    int SelectedReviewerCount => reviewerSelectionKeys.Count;
+    int SelectedReviewerCount => GetSelectedReviewerCountForRender();
 
     /// <summary>
     /// Performs toggle reviewer for <see cref="ProviderModelBenchmarkCouncilPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark council panel workflow.
@@ -408,10 +435,19 @@
     /// <param name="selected">Whether the reviewer is selected.</param>
     void ToggleReviewer(string selectionKey, bool selected)
     {
+        try
+        {
         if (selected)
             reviewerSelectionKeys.Add(selectionKey);
         else
             reviewerSelectionKeys.Remove(selectionKey);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkCouncilPanel.ToggleReviewer failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -421,9 +457,18 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     Task OnMaximumContextChanged(int value)
     {
+        try
+        {
         maximumContext = value;
         minimumContext = Math.Min(minimumContext, maximumContext);
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkCouncilPanel.OnMaximumContextChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -433,9 +478,18 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     Task OnMaximumOutputChanged(int value)
     {
+        try
+        {
         maximumOutput = value;
         minimumOutput = Math.Min(minimumOutput, maximumOutput);
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkCouncilPanel.OnMaximumOutputChanged failed.");
+            throw;
+        }
     }
 
 
@@ -443,14 +497,83 @@
     /// <summary>
     /// Determines whether cel for <see cref="ProviderModelBenchmarkCouncilPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark council panel workflow.
     /// </summary>
-    void Cancel() => benchmarkCts?.Cancel();
+    void Cancel()
+    {
+        try
+        {
+            benchmarkCts?.Cancel();
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkCouncilPanel.Cancel failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Releases resources owned by <see cref="ProviderModelBenchmarkCouncilPanel"/> and leaves the provider model benchmark council panel workflow in a safely disposed state.
     /// </summary>
     public void Dispose()
     {
+        try
+        {
         benchmarkCts?.Cancel();
         benchmarkCts?.Dispose();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkCouncilPanel.Dispose failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes BenchmarkChatUrl for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetBenchmarkChatUrlForRender()
+    {
+        try
+        {
+            return activeRunId is Guid runId
+        ? $"/Chat?rejoinCouncilRunId={runId:D}"
+        : "/Chat";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkCouncilPanel.BenchmarkChatUrl failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CanApply for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetCanApplyForRender()
+    {
+        try
+        {
+            return report?.Targets.Any(target => string.IsNullOrWhiteSpace(target.Error)
+        && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName)) == true;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkCouncilPanel.CanApply failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SelectedReviewerCount for the render path with component-local diagnostics.</summary>
+    /// <returns>The int produced by the operation.</returns>
+    private int GetSelectedReviewerCountForRender()
+    {
+        try
+        {
+            return reviewerSelectionKeys.Count;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkCouncilPanel.SelectedReviewerCount failed.");
+            throw;
+        }
     }
 }

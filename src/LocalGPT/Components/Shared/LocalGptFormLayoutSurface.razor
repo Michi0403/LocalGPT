@@ -1,0 +1,320 @@
+@inject ILocalGptUiLayoutService UiLayouts
+@inject ILogger<LocalGptFormLayoutSurface> Logger
+
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner LocalGptFormLayoutSurface">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+@if (layout is null || layout.Visible || !EffectiveCanHide)
+{
+    @switch (EffectiveLayoutType)
+    {
+        case "Content":
+            <div class="@SurfaceCssClass">@ChildContent</div>
+            break;
+        case "GridLayout":
+            <DxGridLayout CssClass="@SurfaceCssClass" ColumnSpacing="0" RowSpacing="0">
+                <Rows><DxGridLayoutRow Areas="content" /></Rows>
+                <Columns><DxGridLayoutColumn Width="1fr" /></Columns>
+                <Items><DxGridLayoutItem Area="content"><Template>@ChildContent</Template></DxGridLayoutItem></Items>
+            </DxGridLayout>
+            break;
+        case "StackLayout":
+            <DxStackLayout Orientation="@EffectiveOrientation" CssClass="@SurfaceCssClass">
+                <Items>
+                    <DxStackLayoutItem Length="@EffectiveStackLength">
+                        <Template>@ChildContent</Template>
+                    </DxStackLayoutItem>
+                </Items>
+            </DxStackLayout>
+            break;
+        case "Tabs":
+            <DxTabs CssClass="@SurfaceCssClass">
+                <DxTabPage Text="@EffectiveDisplayName">@ChildContent</DxTabPage>
+            </DxTabs>
+            break;
+        case "Splitter":
+            <DxSplitter Orientation="@EffectiveOrientation" Width="100%" CssClass="@SurfaceCssClass">
+                <Panes><DxSplitterPane>@ChildContent</DxSplitterPane></Panes>
+            </DxSplitter>
+            break;
+        case "Carousel":
+            <DxCarousel Width="100%" CssClass="@CarouselCssClass">
+                <Items><DxCarouselItem>@ChildContent</DxCarouselItem></Items>
+            </DxCarousel>
+            break;
+        default:
+            <DxFormLayout CssClass="@SurfaceCssClass">
+                <DxFormLayoutItem ColSpanMd="@EffectiveColSpanMd">
+                    <ChildContent Context="layoutItemContext">
+                        @if (UseLegacyVerticalStack)
+                        {
+                            <DxStackLayout Orientation="Orientation.Vertical" CssClass="localgpt-layout-inner-stack">
+                                <Items><DxStackLayoutItem Length="@EffectiveStackLength"><Template>@ChildContent</Template></DxStackLayoutItem></Items>
+                            </DxStackLayout>
+                        }
+                        else if (UseLegacyHorizontalStack)
+                        {
+                            <DxStackLayout Orientation="Orientation.Horizontal" CssClass="localgpt-layout-inner-stack">
+                                <Items><DxStackLayoutItem Length="@EffectiveStackLength"><Template>@ChildContent</Template></DxStackLayoutItem></Items>
+                            </DxStackLayout>
+                        }
+                        else
+                        {
+                            @ChildContent
+                        }
+                    </ChildContent>
+                </DxFormLayoutItem>
+            </DxFormLayout>
+            break;
+    }
+}
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
+@code {
+    /// <summary>
+    /// Stores the internal layout state used by <see cref="LocalGptFormLayoutSurface"/> while executing its surrounding workflow.
+    /// </summary>
+    private LocalGptUiLayoutSurface? layout;
+
+    /// <summary>Gets or sets the Razor component type that owns this layout surface.</summary>
+    /// <value>The owner type value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    [Parameter, EditorRequired] public Type OwnerType { get; set; } = typeof(LocalGptFormLayoutSurface);
+    /// <summary>Gets or sets the stable section name within the owning component.</summary>
+    /// <value>The section name value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    [Parameter, EditorRequired] public string SectionName { get; set; } = "page";
+    /// <summary>
+    /// Gets or sets the child content value that forms part of the local GPT form layout surface state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The child content value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = default!;
+    /// <summary>Gets or sets whether a persisted visibility override may suppress this surface.</summary>
+    /// <value>The can hide value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    [Parameter] public bool CanHide { get; set; } = true;
+    /// <summary>Gets or sets an additional CSS class preserved alongside the layout wrapper.</summary>
+    /// <value>The CSS class value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether effective can hide applies to the local GPT form layout surface state.
+    /// </summary>
+    /// <value>The effective can hide value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private bool EffectiveCanHide => GetEffectiveCanHideForRender();
+    /// <summary>
+    /// Gets the effective col span md value that forms part of the local GPT form layout surface state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The effective col span md value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private int EffectiveColSpanMd => GetEffectiveColSpanMdForRender();
+    /// <summary>
+    /// Gets the effective stack length that quantifies the associated local GPT form layout surface data.
+    /// </summary>
+    /// <value>The effective stack length value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private string EffectiveStackLength => GetEffectiveStackLengthForRender();
+    /// <summary>
+    /// Gets the effective layout type value that forms part of the local GPT form layout surface state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The effective layout type value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private string EffectiveLayoutType => GetEffectiveLayoutTypeForRender();
+    /// <summary>
+    /// Gets the effective display name value that forms part of the local GPT form layout surface state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The effective display name value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private string EffectiveDisplayName => GetEffectiveDisplayNameForRender();
+    /// <summary>
+    /// Gets the effective orientation value that forms part of the local GPT form layout surface state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The effective orientation value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private Orientation EffectiveOrientation => GetEffectiveOrientationForRender();
+    /// <summary>
+    /// Gets a value indicating whether legacy vertical stack applies to the local GPT form layout surface state.
+    /// </summary>
+    /// <value>The use legacy vertical stack value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private bool UseLegacyVerticalStack => GetUseLegacyVerticalStackForRender();
+    /// <summary>
+    /// Gets a value indicating whether legacy horizontal stack applies to the local GPT form layout surface state.
+    /// </summary>
+    /// <value>The use legacy horizontal stack value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private bool UseLegacyHorizontalStack => GetUseLegacyHorizontalStackForRender();
+    /// <summary>Gets the combined DevExpress carousel surface CSS class without Razor mixed-content attribute syntax.</summary>
+    /// <value>The carousel CSS class value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private string CarouselCssClass => GetCarouselCssClassForRender();
+    /// <summary>
+    /// Gets the surface CSS class value that forms part of the local GPT form layout surface state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The surface CSS class value exposed by <see cref="LocalGptFormLayoutSurface"/>.</value>
+    private string SurfaceCssClass => GetSurfaceCssClassForRender();
+
+    /// <summary>Loads the persisted operator layout for this owning component section without changing its declared content structure.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            layout = await UiLayouts.ResolveAsync(OwnerType, SectionName).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Falling back to the declared layout for {ComponentType} section {SectionName}.", OwnerType.FullName, SectionName);
+            layout = null;
+        }
+    }
+
+
+    /// <summary>Computes EffectiveCanHide for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetEffectiveCanHideForRender()
+    {
+        try
+        {
+            return CanHide && (layout?.CanHide ?? true);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.EffectiveCanHide failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes EffectiveColSpanMd for the render path with component-local diagnostics.</summary>
+    /// <returns>The int produced by the operation.</returns>
+    private int GetEffectiveColSpanMdForRender()
+    {
+        try
+        {
+            return Math.Clamp(layout?.ColSpanMd ?? 12, 1, 12);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.EffectiveColSpanMd failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes EffectiveStackLength for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetEffectiveStackLengthForRender()
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(layout?.StackLength) ? "1fr" : layout!.StackLength;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.EffectiveStackLength failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes EffectiveLayoutType for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetEffectiveLayoutTypeForRender()
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(layout?.LayoutType) ? "FormLayout" : layout!.LayoutType;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.EffectiveLayoutType failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes EffectiveDisplayName for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetEffectiveDisplayNameForRender()
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(layout?.DisplayName) ? SectionName : layout!.DisplayName;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.EffectiveDisplayName failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes EffectiveOrientation for the render path with component-local diagnostics.</summary>
+    /// <returns>The orientation produced by the operation.</returns>
+    private Orientation GetEffectiveOrientationForRender()
+    {
+        try
+        {
+            return string.Equals(layout?.Orientation, "Horizontal", StringComparison.OrdinalIgnoreCase) ? Orientation.Horizontal : Orientation.Vertical;
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.EffectiveOrientation failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes UseLegacyVerticalStack for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetUseLegacyVerticalStackForRender()
+    {
+        try
+        {
+            return string.Equals(layout?.InnerLayout, "StackVertical", StringComparison.Ordinal);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.UseLegacyVerticalStack failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes UseLegacyHorizontalStack for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetUseLegacyHorizontalStackForRender()
+    {
+        try
+        {
+            return string.Equals(layout?.InnerLayout, "StackHorizontal", StringComparison.Ordinal);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.UseLegacyHorizontalStack failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CarouselCssClass for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetCarouselCssClassForRender()
+    {
+        try
+        {
+            return $"{SurfaceCssClass} localgpt-layout-carousel".Trim();
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.CarouselCssClass failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SurfaceCssClass for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetSurfaceCssClassForRender()
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(layout?.CssClass)
+        ? $"localgpt-form-layout-surface localgpt-layout-{EffectiveLayoutType.ToLowerInvariant()} {CssClass}".Trim()
+        : $"localgpt-form-layout-surface localgpt-layout-{EffectiveLayoutType.ToLowerInvariant()} {CssClass} {layout!.CssClass}".Trim();
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property LocalGptFormLayoutSurface.SurfaceCssClass failed.");
+            throw;
+        }
+    }
+}

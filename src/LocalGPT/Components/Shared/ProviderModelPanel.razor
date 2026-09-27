@@ -6,6 +6,12 @@
 @inject ILogger<ProviderModelPanel> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ProviderModelPanel">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <article class="provider-model-panel @(Selected ? "is-selected" : string.Empty) @(IsUnavailable ? "is-unavailable" : string.Empty)" aria-labelledby="@HeadingId">
     <header class="provider-model-heading">
         @if (ShowSelection)
@@ -105,7 +111,10 @@
 
     @if (showBenchmark)
     {
-        <section id="@BenchmarkId"
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div id="@BenchmarkId"
                  class="provider-model-benchmark"
                  aria-label="@($"Benchmark configuration for {Model.DisplayName}")">
             <div class="benchmark-config-grid">
@@ -171,11 +180,23 @@
                     }
                 </div>
             }
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     }
 </article>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
+    /// <summary>
+    /// Gets the benchmark profile mode options collection maintained or exposed by this provider model panel instance for downstream processing.
+    /// </summary>
+    /// <value>The benchmark profile mode options value exposed by <see cref="ProviderModelPanel"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<ProviderModelBenchmarkProfileMode>> BenchmarkProfileModeOptions { get; } =
     [
         new(ProviderModelBenchmarkProfileMode.EvenlySpaced, "Evenly spaced to maximum"),
@@ -187,14 +208,23 @@
     /// </summary>
     /// <param name="source">Source value supplied to the provider model panel operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    string T(string source) => Localization.GetText(source);
+    string T(string source)
+    {
+        try
+        {
+            return Localization.GetText(source);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelPanel.T failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Gets a value indicating whether unavailable applies to the provider model panel state.
     /// </summary>
     /// <value>The is unavailable value exposed by <see cref="ProviderModelPanel"/>.</value>
-    bool IsUnavailable => Model.IsConfigured && !Model.IsReachable
-        && (Model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
-            || Model.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase));
+    bool IsUnavailable => GetIsUnavailableForRender();
 
     /// <summary>
     /// Gets or sets the model value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
@@ -337,41 +367,37 @@
     /// Gets the benchmark chat URL that identifies the network or application endpoint associated with this provider model panel state.
     /// </summary>
     /// <value>The benchmark chat URL value exposed by <see cref="ProviderModelPanel"/>.</value>
-    string BenchmarkChatUrl => activeRunId is Guid runId
-        ? $"/Chat?rejoinCouncilRunId={runId:D}"
-        : "/Chat";
+    string BenchmarkChatUrl => GetBenchmarkChatUrlForRender();
     /// <summary>
     /// Gets the stable heading identifier used to identify or correlate this provider model panel instance with related application state.
     /// </summary>
     /// <value>The heading identifier value exposed by <see cref="ProviderModelPanel"/>.</value>
-    string HeadingId => $"provider-model-{instanceId}";
+    string HeadingId => GetHeadingIdForRender();
     /// <summary>
     /// Gets the stable selection identifier used to identify or correlate this provider model panel instance with related application state.
     /// </summary>
     /// <value>The selection identifier value exposed by <see cref="ProviderModelPanel"/>.</value>
-    string SelectionId => $"provider-model-select-{instanceId}";
+    string SelectionId => GetSelectionIdForRender();
     /// <summary>
     /// Gets the stable properties identifier used to identify or correlate this provider model panel instance with related application state.
     /// </summary>
     /// <value>The properties identifier value exposed by <see cref="ProviderModelPanel"/>.</value>
-    string PropertiesId => $"provider-model-properties-{instanceId}";
+    string PropertiesId => GetPropertiesIdForRender();
     /// <summary>
     /// Gets the stable benchmark identifier used to identify or correlate this provider model panel instance with related application state.
     /// </summary>
     /// <value>The benchmark identifier value exposed by <see cref="ProviderModelPanel"/>.</value>
-    string BenchmarkId => $"provider-model-benchmark-{instanceId}";
+    string BenchmarkId => GetBenchmarkIdForRender();
     /// <summary>
     /// Gets the successful target value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The successful target value exposed by <see cref="ProviderModelPanel"/>.</value>
-    ProviderModelBenchmarkTargetResult? SuccessfulTarget => report?.Targets.FirstOrDefault(target =>
-        target.Model.SelectionKey.Equals(Model.SelectionKey, StringComparison.OrdinalIgnoreCase)
-        && string.IsNullOrWhiteSpace(target.Error));
+    ProviderModelBenchmarkTargetResult? SuccessfulTarget => GetSuccessfulTargetForRender();
     /// <summary>
     /// Gets the reviewer summary value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The reviewer summary value exposed by <see cref="ProviderModelPanel"/>.</value>
-    string ReviewerSummary => CouncilText.ProviderModelReviewerSummary(Model, CouncilModels, Logger);
+    string ReviewerSummary => GetReviewerSummaryForRender();
 
     /// <summary>
     /// Handles the selection changed async lifecycle or event notification for <see cref="ProviderModelPanel"/>, updating the state required by the surrounding workflow.
@@ -380,22 +406,64 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task OnSelectionChangedAsync(bool selected)
     {
+        try
+        {
         await SelectedChanged.InvokeAsync(selected).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelPanel.OnSelectionChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Performs activate for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    Task ActivateAsync() => Activated.InvokeAsync(Model);
+    Task ActivateAsync()
+    {
+        try
+        {
+            return Activated.InvokeAsync(Model);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelPanel.ActivateAsync failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Performs toggle properties for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
     /// </summary>
-    void ToggleProperties() => showProperties = !showProperties;
+    void ToggleProperties()
+    {
+        try
+        {
+            showProperties = !showProperties;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelPanel.ToggleProperties failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Performs toggle benchmark for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
     /// </summary>
-    void ToggleBenchmark() => showBenchmark = !showBenchmark;
+    void ToggleBenchmark()
+    {
+        try
+        {
+            showBenchmark = !showBenchmark;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelPanel.ToggleBenchmark failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs run benchmark for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
@@ -511,9 +579,18 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     Task OnMaximumContextChanged(int value)
     {
+        try
+        {
         maximumContext = value;
         minimumContext = Math.Min(minimumContext, maximumContext);
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelPanel.OnMaximumContextChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -523,22 +600,178 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     Task OnMaximumOutputChanged(int value)
     {
+        try
+        {
         maximumOutput = value;
         minimumOutput = Math.Min(minimumOutput, maximumOutput);
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelPanel.OnMaximumOutputChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Determines whether cel benchmark for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
     /// </summary>
-    void CancelBenchmark() => benchmarkCts?.Cancel();
+    void CancelBenchmark()
+    {
+        try
+        {
+            benchmarkCts?.Cancel();
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelPanel.CancelBenchmark failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Releases resources owned by <see cref="ProviderModelPanel"/> and leaves the provider model panel workflow in a safely disposed state.
     /// </summary>
     public void Dispose()
     {
+        try
+        {
         benchmarkCts?.Cancel();
         benchmarkCts?.Dispose();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelPanel.Dispose failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes IsUnavailable for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetIsUnavailableForRender()
+    {
+        try
+        {
+            return Model.IsConfigured && !Model.IsReachable
+        && (Model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+            || Model.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelPanel.IsUnavailable failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes BenchmarkChatUrl for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetBenchmarkChatUrlForRender()
+    {
+        try
+        {
+            return activeRunId is Guid runId
+        ? $"/Chat?rejoinCouncilRunId={runId:D}"
+        : "/Chat";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelPanel.BenchmarkChatUrl failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes HeadingId for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetHeadingIdForRender()
+    {
+        try
+        {
+            return $"provider-model-{instanceId}";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelPanel.HeadingId failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SelectionId for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetSelectionIdForRender()
+    {
+        try
+        {
+            return $"provider-model-select-{instanceId}";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelPanel.SelectionId failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes PropertiesId for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetPropertiesIdForRender()
+    {
+        try
+        {
+            return $"provider-model-properties-{instanceId}";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelPanel.PropertiesId failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes BenchmarkId for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetBenchmarkIdForRender()
+    {
+        try
+        {
+            return $"provider-model-benchmark-{instanceId}";
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelPanel.BenchmarkId failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SuccessfulTarget for the render path with component-local diagnostics.</summary>
+    /// <returns>The provider model benchmark target result produced by the operation.</returns>
+    private ProviderModelBenchmarkTargetResult? GetSuccessfulTargetForRender()
+    {
+        try
+        {
+            return report?.Targets.FirstOrDefault(target =>
+        target.Model.SelectionKey.Equals(Model.SelectionKey, StringComparison.OrdinalIgnoreCase)
+        && string.IsNullOrWhiteSpace(target.Error));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelPanel.SuccessfulTarget failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ReviewerSummary for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetReviewerSummaryForRender()
+    {
+        try
+        {
+            return CouncilText.ProviderModelReviewerSummary(Model, CouncilModels, Logger);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelPanel.ReviewerSummary failed.");
+            throw;
+        }
     }
 }

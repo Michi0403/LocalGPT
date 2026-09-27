@@ -6,7 +6,16 @@
 @inject ILogger<InitialSetupAssistantPanel> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
-<section class="initial-setup-assistant" aria-label="AI-guided initial setup assistant">
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner InitialSetupAssistantPanel">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="initial-setup-assistant" aria-label="AI-guided initial setup assistant">
     <header class="initial-setup-heading">
         <div>
             <strong>AI-guided local runtime setup</strong>
@@ -365,19 +374,49 @@
             </article>
         </div>
     }
-</section>
+</div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>Returns one setup-assistant string through the maintained LocalGPT localization catalog.</summary>
     /// <param name="source">English source text used as the exact localization-catalog lookup value.</param>
     /// <returns>The localized setup-assistant text, or the maintained fallback when no culture-specific value exists.</returns>
-    private string T(string source) => Localization.GetText(source);
+    private string T(string source)
+    {
+        try
+        {
+            return Localization.GetText(source);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.T failed.");
+            throw;
+        }
+    }
 
     /// <summary>Formats one localized setup-assistant sentence using the current UI culture.</summary>
     /// <param name="source">English source text used as the exact localization-catalog lookup value.</param>
     /// <param name="args">Values inserted into the localized format string.</param>
     /// <returns>The localized and culture-formatted setup-assistant sentence.</returns>
-    private string TF(string source, params object?[] args) => string.Format(CultureInfo.CurrentUICulture, T(source), args);
+    private string TF(string source, params object?[] args)
+    {
+        try
+        {
+            return string.Format(CultureInfo.CurrentUICulture, T(source), args);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.TF failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Stores the internal snapshot state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
@@ -440,8 +479,10 @@
     /// </summary>
     private bool busy;
     /// <summary>Accepted MIME types for the DevExpress HWiNFO file picker.</summary>
+    /// <value>The hw info accepted types value exposed by <see cref="InitialSetupAssistantPanel"/>.</value>
     private List<string> HwInfoAcceptedTypes { get; } = ["text/plain"];
     /// <summary>Accepted file extensions for the DevExpress HWiNFO file picker.</summary>
+    /// <value>The hw info allowed extensions value exposed by <see cref="InitialSetupAssistantPanel"/>.</value>
     private List<string> HwInfoAllowedExtensions { get; } = [".txt"];
     /// <summary>Tracks nested long-running setup operations so inner refreshes do not hide an outer progress indicator.</summary>
     private int busyDepth;
@@ -455,24 +496,30 @@
     /// Gets the selected provider value that forms part of the initial setup assistant panel state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The selected provider value exposed by <see cref="InitialSetupAssistantPanel"/>.</value>
-    private AiProviderBootstrapProfile? SelectedProvider => snapshot?.ProviderProfiles.FirstOrDefault(item => item.Key.Equals(selectedProviderKey, StringComparison.OrdinalIgnoreCase));
+    private AiProviderBootstrapProfile? SelectedProvider => GetSelectedProviderForRender();
     /// <summary>Provides a stable primitive-value list for the provider selector so selection never depends on object identity or mutable provider profile instances.</summary>
     /// <value>The ordered provider choices exposed to the setup provider selector.</value>
-    private IReadOnlyList<LocalGptSelectionOption<string>> ProviderProfileOptions => snapshot?.ProviderProfiles
-        .OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
-        .Select(item => new LocalGptSelectionOption<string>(item.Key, item.DisplayName))
-        .ToList() ?? [];
+    private IReadOnlyList<LocalGptSelectionOption<string>> ProviderProfileOptions => GetProviderProfileOptionsForRender();
     /// <summary>Reports whether the selected setup profile resolves to LocalGPT's Ollama provider path.</summary>
     /// <value><see langword="true"/> when the selected profile represents Ollama; otherwise <see langword="false"/>.</value>
-    private bool IsSelectedOllama => SelectedProvider is { } profile
-        && IsOllamaProfileForRender(profile);
+    private bool IsSelectedOllama => GetIsSelectedOllamaForRender();
 
     /// <summary>Classifies an Ollama profile locally for render-time checks so frequent UI refreshes do not invoke a decorated service method.</summary>
     /// <param name="profile">Provider bootstrap profile being classified for the setup UI.</param>
     /// <returns><see langword="true"/> when the profile uses LocalGPT's maintained Ollama provider identity; otherwise <see langword="false"/>.</returns>
     private bool IsOllamaProfileForRender(AiProviderBootstrapProfile profile)
-        => profile.ProviderKind.Equals("Ollama", StringComparison.OrdinalIgnoreCase)
+    {
+        try
+        {
+            return profile.ProviderKind.Equals("Ollama", StringComparison.OrdinalIgnoreCase)
             || CouncilText.StartsWithText(profile.Key, "ollama-", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.IsOllamaProfileForRender failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="InitialSetupAssistantPanel"/>, updating the state required by the surrounding workflow.
@@ -480,8 +527,17 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         benchmarkTeamName = T("Hardware-curated initial benchmark");
         await RefreshAsync().ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.OnInitializedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -594,6 +650,8 @@
     /// </summary>
     private void AddHardware()
     {
+        try
+        {
         hardware.Add(new InitialSetupHardwareDevice
         {
             Endpoint = hardwareEndpoint,
@@ -602,13 +660,31 @@
             Source = "Manual",
             Selected = true
         });
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.AddHardware failed.");
+            throw;
+        }
     }
 
     /// <summary>
     /// Removes hardware for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <param name="device">Initial setup hardware device dependency used by the initial setup assistant panel workflow to provide the corresponding application capability.</param>
-    private void RemoveHardware(InitialSetupHardwareDevice device) => hardware.Remove(device);
+    private void RemoveHardware(InitialSetupHardwareDevice device)
+    {
+        try
+        {
+            hardware.Remove(device);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.RemoveHardware failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs detect local hardware for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
@@ -711,10 +787,19 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ProviderSelectionChangedAsync(string value)
     {
+        try
+        {
         selectedProviderKey = value?.Trim() ?? string.Empty;
         await InvokeAsync(() => providerCatalogChoices.Clear()).ConfigureAwait(false);
         await RebuildModelChoicesAsync().ConfigureAwait(false);
         await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.ProviderSelectionChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Searches the selected provider's official model catalog only after this explicit button action.</summary>
@@ -777,17 +862,50 @@
     /// Performs detect provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task DetectProviderAsync() => await RunProviderActionAsync(T("Provider detection"), key => Providers.DetectAsync(key)).ConfigureAwait(false);
+    private async Task DetectProviderAsync()
+    {
+        try
+        {
+            await RunProviderActionAsync(T("Provider detection"), key => Providers.DetectAsync(key)).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.DetectProviderAsync failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Lists provider models for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task ListProviderModelsAsync() => await RunProviderActionAsync(T("Provider model listing"), key => Providers.ListModelsAsync(key)).ConfigureAwait(false);
+    private async Task ListProviderModelsAsync()
+    {
+        try
+        {
+            await RunProviderActionAsync(T("Provider model listing"), key => Providers.ListModelsAsync(key)).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.ListProviderModelsAsync failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Performs install provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task InstallProviderAsync() => await RunProviderActionAsync(T("Provider installation"), key => Providers.InstallAsync(key, true)).ConfigureAwait(false);
+    private async Task InstallProviderAsync()
+    {
+        try
+        {
+            await RunProviderActionAsync(T("Provider installation"), key => Providers.InstallAsync(key, true)).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.InstallProviderAsync failed.");
+            throw;
+        }
+    }
     /// <summary>Runs the explicit guided Ollama path: install only when missing, start only when stopped, then register the loopback endpoint.</summary>
     /// <returns>A task that completes after the guided setup action has refreshed provider/model state.</returns>
     private async Task GuidedOllamaSetupAsync()
@@ -922,15 +1040,48 @@
 
     /// <summary>Starts Ollama through the existing process lifecycle service, never through a bounded foreground <c>ollama serve</c> command.</summary>
     /// <returns>A task that completes after the explicit lifecycle action and setup refresh.</returns>
-    private Task StartOllamaAsync() => RunOllamaProcessActionAsync(T("Ollama startup"), cancellationToken => OllamaProcesses.StartAsync(cancellationToken));
+    private Task StartOllamaAsync()
+    {
+        try
+        {
+            return RunOllamaProcessActionAsync(T("Ollama startup"), cancellationToken => OllamaProcesses.StartAsync(cancellationToken));
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.StartOllamaAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Stops Ollama through the existing process lifecycle service.</summary>
     /// <returns>A task that completes after the explicit lifecycle action and setup refresh.</returns>
-    private Task StopOllamaAsync() => RunOllamaProcessActionAsync(T("Ollama stop"), cancellationToken => OllamaProcesses.StopAsync(cancellationToken));
+    private Task StopOllamaAsync()
+    {
+        try
+        {
+            return RunOllamaProcessActionAsync(T("Ollama stop"), cancellationToken => OllamaProcesses.StopAsync(cancellationToken));
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.StopOllamaAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Restarts Ollama through the existing process lifecycle service.</summary>
     /// <returns>A task that completes after the explicit lifecycle action and setup refresh.</returns>
-    private Task RestartOllamaAsync() => RunOllamaProcessActionAsync(T("Ollama restart"), cancellationToken => OllamaProcesses.RestartAsync(cancellationToken));
+    private Task RestartOllamaAsync()
+    {
+        try
+        {
+            return RunOllamaProcessActionAsync(T("Ollama restart"), cancellationToken => OllamaProcesses.RestartAsync(cancellationToken));
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.RestartOllamaAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Runs one explicit Ollama lifecycle action and then refreshes provider/model discovery.</summary>
     /// <param name="label">Human-readable status label for the lifecycle operation.</param>
@@ -963,7 +1114,18 @@
     /// Starts provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartProviderAsync() => await RunProviderActionAsync(T("Provider startup"), key => Providers.StartAsync(key, true)).ConfigureAwait(false);
+    private async Task StartProviderAsync()
+    {
+        try
+        {
+            await RunProviderActionAsync(T("Provider startup"), key => Providers.StartAsync(key, true)).ConfigureAwait(false);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.StartProviderAsync failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Performs configure provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
@@ -1007,16 +1169,29 @@
     }
 
     /// <summary>Finds the selected-provider model choice associated with one attributed CanIRun.ai recommendation.</summary>
+    /// <param name="recommendation">Recommendation value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <returns>The initial setup model choice produced by the operation.</returns>
     private InitialSetupModelChoice? FindRecommendationChoice(CanIRunModelRecommendation recommendation)
     {
+        try
+        {
         if (recommendation is null)
             return null;
         return modelChoices.FirstOrDefault(choice =>
             choice.IsHardwareRecommended
             && choice.RecommendationId.Equals(recommendation.ModelId, StringComparison.OrdinalIgnoreCase));
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.FindRecommendationChoice failed.");
+            throw;
+        }
     }
 
     /// <summary>Runs the familiar CanIRun.ai resolve-and-install action directly from the hardware-fit result card.</summary>
+    /// <param name="recommendation">Recommendation value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ResolveAndInstallRecommendationAsync(CanIRunModelRecommendation recommendation)
     {
         if (recommendation is null || SelectedProvider is null)
@@ -1061,15 +1236,39 @@
     }
 
     /// <summary>Formats one numeric evidence value with stable invariant decimal notation.</summary>
+    /// <param name="value">Value value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FormatInvariant(double value)
-        => value.ToString("0.##", CultureInfo.InvariantCulture);
+    {
+        try
+        {
+            return value.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.FormatInvariant failed.");
+            throw;
+        }
+    }
 
     /// <summary>Normalizes detected memory capacities to stable reviewable increments instead of exposing raw byte-to-GiB noise.</summary>
+    /// <param name="value">Value value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <param name="step">Step value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <returns>The double produced by the operation.</returns>
     private double? NormalizeHardwareCapacity(double? value, double step)
     {
+        try
+        {
         if (value is null || value <= 0d || step <= 0d)
             return value;
         return Math.Round(value.Value / step, MidpointRounding.AwayFromZero) * step;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.NormalizeHardwareCapacity failed.");
+            throw;
+        }
     }
 
     /// <summary>Installs an explicitly entered first-model identifier without requiring CanIRun.ai recommendations.</summary>
@@ -1199,7 +1398,18 @@
     /// <summary>Runs the selected provider's explicit install/pull operation for an installed model so the provider can check and refresh its local copy.</summary>
     /// <param name="choice">Installed provider model to check/refresh.</param>
     /// <returns>A task that completes after the provider action and setup refresh.</returns>
-    private Task CheckUpdateModelAsync(InitialSetupModelChoice choice) => InstallModelAsync(choice);
+    private Task CheckUpdateModelAsync(InitialSetupModelChoice choice)
+    {
+        try
+        {
+            return InstallModelAsync(choice);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.CheckUpdateModelAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Installs one provider-safe model choice exposed by provider inventory or hardware-aware discovery.</summary>
     /// <param name="choice">Provider model choice whose validated provider identifier should be installed.</param>
@@ -1233,8 +1443,17 @@
     /// <param name="enabled">Whether the DevExpress checkbox is enabled.</param>
     private void ToggleModel(string selectionKey, bool enabled)
     {
+        try
+        {
         if (enabled) selectedModels.Add(selectionKey); else selectedModels.Remove(selectionKey);
         if (!selectedModels.Contains(selectionKey)) preferredCuratorModels.Remove(selectionKey);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.ToggleModel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1244,8 +1463,17 @@
     /// <param name="enabled">Whether the DevExpress checkbox is enabled.</param>
     private void TogglePreferredModel(string selectionKey, bool enabled)
     {
+        try
+        {
         if (enabled) { selectedModels.Add(selectionKey); preferredCuratorModels.Add(selectionKey); }
         else preferredCuratorModels.Remove(selectionKey);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.TogglePreferredModel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1277,7 +1505,11 @@
     /// <param name="area">Stable setup-area key used to position the waiting indicator beside the active interaction.</param>
     /// <param name="message">User-visible operation text shown while the action is running.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task SetBusyAsync(bool value, string area = "global", string? message = null) => InvokeAsync(() =>
+    private Task SetBusyAsync(bool value, string area = "global", string? message = null)
+    {
+        try
+        {
+            return InvokeAsync(() =>
     {
         if (value)
         {
@@ -1299,15 +1531,96 @@
             busyText = string.Empty;
         }
     });
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.SetBusyAsync failed.");
+            throw;
+        }
+    }
 
     /// <summary>Returns whether the active long-running operation belongs to one setup area.</summary>
-    private bool BusyFor(string area) => busy && string.Equals(busyArea, area, StringComparison.Ordinal);
+    /// <param name="area">Area value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool BusyFor(string area)
+    {
+        try
+        {
+            return busy && string.Equals(busyArea, area, StringComparison.Ordinal);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.BusyFor failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Sets status for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
     /// </summary>
     /// <param name="value">Value value supplied to the initial setup assistant panel operation and used when producing its result.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task SetStatusAsync(string value) => InvokeAsync(() => statusText = value);
+    private Task SetStatusAsync(string value)
+    {
+        try
+        {
+            return InvokeAsync(() => statusText = value);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method InitialSetupAssistantPanel.SetStatusAsync failed.");
+            throw;
+        }
+    }
 
 
+
+
+    /// <summary>Computes SelectedProvider for the render path with component-local diagnostics.</summary>
+    /// <returns>The AI provider bootstrap profile produced by the operation.</returns>
+    private AiProviderBootstrapProfile? GetSelectedProviderForRender()
+    {
+        try
+        {
+            return snapshot?.ProviderProfiles.FirstOrDefault(item => item.Key.Equals(selectedProviderKey, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property InitialSetupAssistantPanel.SelectedProvider failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes ProviderProfileOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetProviderProfileOptionsForRender()
+    {
+        try
+        {
+            return snapshot?.ProviderProfiles
+        .OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
+        .Select(item => new LocalGptSelectionOption<string>(item.Key, item.DisplayName))
+        .ToList() ?? [];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property InitialSetupAssistantPanel.ProviderProfileOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes IsSelectedOllama for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetIsSelectedOllamaForRender()
+    {
+        try
+        {
+            return SelectedProvider is { } profile
+        && IsOllamaProfileForRender(profile);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property InitialSetupAssistantPanel.IsSelectedOllama failed.");
+            throw;
+        }
+    }
 }

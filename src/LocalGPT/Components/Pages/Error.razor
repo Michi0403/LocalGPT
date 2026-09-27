@@ -4,6 +4,10 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner Error">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>Error</PageTitle>
 
 <h1 class="text-danger">Error.</h1>
@@ -26,6 +30,11 @@
     For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
     and restarting the app.
 </p>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code{
     /// <summary>
@@ -44,16 +53,41 @@
     /// Gets a value indicating whether show request identifier applies to the error state.
     /// </summary>
     /// <value>The show request identifier value exposed by <see cref="Error"/>.</value>
-    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+    private bool ShowRequestId => GetShowRequestIdForRender();
 
     /// <summary>
     /// Handles the initialized lifecycle or event notification for <see cref="Error"/>, updating the state required by the surrounding workflow.
     /// </summary>
     protected override void OnInitialized()
     {
+        try
+        {
         RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
         Logger.LogError("The LocalGPT error page was displayed for request {RequestId}.", RequestId ?? "unknown");
         ComponentActivity.RecordWarning(nameof(Error), "ErrorPage", "The application error page was displayed.");
         Notifier.ShowError("ComponentSafetyToasts", "LocalGPT encountered an application error. Review local application logs for details.", "Application error");
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Error.OnInitialized failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes ShowRequestId for the render path with component-local diagnostics.</summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+    private bool GetShowRequestIdForRender()
+    {
+        try
+        {
+            return !string.IsNullOrEmpty(RequestId);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property Error.ShowRequestId failed.");
+            throw;
+        }
     }
 }

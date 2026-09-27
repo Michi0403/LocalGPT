@@ -13,6 +13,9 @@ public sealed class LocalGptHostOptions
     /// </summary>
     /// <value>The remote endpoint value exposed by <see cref="LocalGptHostOptions"/>.</value>
     public RemoteWebEndpointOptions RemoteEndpoint { get; set; } = new();
+    /// <summary>Gets or sets the isolated Model Context Protocol gateway configuration.</summary>
+    /// <value>The MCP gateway configuration exposed by the LocalGPT host.</value>
+    public McpGatewayOptions McpGateway { get; set; } = new();
 }
 
 /// <summary>Optional second Kestrel endpoint for LAN/VPN/browser access. The historical loopback endpoint remains authoritative.</summary>

@@ -291,12 +291,34 @@ def main():
     if args.mode in {'methods','all'}: checks['methods']=method_audit(app,args.product)
     if args.mode in {'runtime','all'}: checks['runtime']=runtime_value_audit(app,args.product)
     if args.mode=='structure': checks['structure']=structure_audit(app)
-    failures=[f'{k}: {v}' for k,vals in checks.items() for v in vals]
-    if args.json: print(json.dumps({'product':args.product,'checks':checks,'failureCount':len(failures)},indent=2))
+    failures=[(k,v) for k,vals in checks.items() for v in vals]
+    if args.json:
+        print(json.dumps({'product':args.product,'checks':checks,'failureCount':len(failures)},indent=2))
     else:
         if failures:
             print('Architecture policy audit failed:')
-            for f in failures: print(f'  - {f}')
-        else: print('Architecture policy audit passed: application statics, operational diagnostics, and C# structure comply with the maintained boundaries.')
+            source_prefix = 'src/LocalGPT/' if args.product == 'localgpt' else 'src/PublisherStudio.Web/'
+            choices = {
+                'static': 'Move reusable behavior/state into an injected service/interface or an owned instance member; keep static only for approved framework entry points, extension methods, constants, or other explicitly reviewed boundaries. Do not disable the guard or delete the feature.',
+                'methods': 'Preserve the operational method and add its method-local diagnostic boundary: structured ILogger plus try/catch; iterator/yield methods use logged try/finally without catch. Keep cancellation and existing behavior intact.',
+                'runtime': 'Move runtime policy/value state into the maintained serializable configuration/BusinessObject and injected policy/data service; compile Regex through the approved service. Do not replace configurable state with a hidden static literal.',
+                'structure': 'Repair the C# structure at the reported source location while preserving the existing feature and ownership boundaries; do not comment out or delete the affected implementation merely to satisfy the audit.',
+            }
+            code_map = {'static':'ARCH0001','methods':'ARCH0002','runtime':'ARCH0003','structure':'ARCH0004'}
+            for check, failure in failures:
+                match = re.match(r'^(?P<file>[^:]+):(?P<line>\d+)(?::|\s)(?P<message>.*)$', failure)
+                if match:
+                    rel = match.group('file')
+                    line = int(match.group('line'))
+                    message = match.group('message').strip()
+                else:
+                    parts = failure.split(':', 1)
+                    rel = parts[0].strip()
+                    line = 1
+                    message = parts[1].strip() if len(parts) > 1 else failure
+                print(f'{source_prefix}{rel}({line},1): error {code_map.get(check, "ARCH0000")}: {message}')
+                print(f'  Architectural choices: {choices.get(check, "Preserve the maintained architecture and fix the reported source location rather than bypassing the guard.")}')
+        else:
+            print('Architecture policy audit passed: application statics, operational diagnostics, and C# structure comply with the maintained boundaries.')
     return 1 if failures else 0
 if __name__=='__main__': raise SystemExit(main())

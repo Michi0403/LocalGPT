@@ -86,3 +86,22 @@
         flex: 0 0 min(15rem, 72vw);
     }
 }
+
+/* 5.0.3: workbench selection keeps LocalGPT text contrast instead of inheriting the
+   DevExpress contained/selected foreground from the independently selected component theme. */
+.configuration-workbench-nav ::deep .configuration-workbench-nav-item,
+.configuration-workbench-nav ::deep .configuration-workbench-nav-item:hover,
+.configuration-workbench-nav ::deep .configuration-workbench-nav-item:focus-visible,
+.configuration-workbench-nav ::deep .configuration-workbench-nav-item.active {
+    --dxbl-btn-color: var(--bs-body-color, #20242a);
+    --dxbl-btn-hover-color: var(--bs-body-color, #20242a);
+    --dxbl-btn-active-color: var(--bs-body-color, #20242a);
+    color: var(--bs-body-color, #20242a) !important;
+    -webkit-text-fill-color: var(--bs-body-color, #20242a) !important;
+}
+
+.configuration-workbench-nav ::deep .configuration-workbench-nav-item *,
+.configuration-workbench-nav ::deep .configuration-workbench-nav-item.active * {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+}

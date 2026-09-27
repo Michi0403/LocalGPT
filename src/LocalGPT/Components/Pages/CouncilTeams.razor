@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/council-teams"
+@attribute [LocalGptUiLayoutSurface("page", "Council Teams", "/council-teams", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("editor", "Council Teams · editor", "/council-teams")]
 @inject ICouncilTeamConfigurationService TeamConfigurations
 @inject IMultiModelCouncilService CouncilService
 @inject ICouncilRuntimeClassService RuntimeClasses
@@ -9,7 +11,13 @@
 @inject IComponentActivityService ComponentActivity
 @inject INotificationService Notifier
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner CouncilTeams">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>AI Council Teams</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(CouncilTeams)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <main class="council-team-page localgpt-surface">
     <header class="council-team-header">
@@ -25,7 +33,10 @@
         <div class="alert @(_hasError ? "alert-danger" : "alert-info")" role="status">@_status</div>
     }
 
-    <section class="council-team-grid">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="council-team-grid">
         <aside class="council-team-list">
             <label>
                 <span>Team</span>
@@ -61,7 +72,11 @@
             </div>
         </aside>
 
-        <section class="council-team-editor">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(CouncilTeams)" SectionName="editor" CanHide="true">
+<DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="council-team-editor">
             <div class="council-structure-mode @(UsesDefaultWorkflow(_editor) ? "default-mode" : "custom-mode")">
                 <strong>@WorkflowLabel(_editor)</strong>
                 <span>Untouched supplied teams use the established LocalGPT orchestration. Saving any edit creates a user-owned literal workflow; duplicating keeps the supplied default untouched.</span>
@@ -164,7 +179,10 @@
                 }
             </details>
 
-            <section class="council-structure-section">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="council-structure-section">
                 <header>
                     <div>
                         <h2>Roles</h2>
@@ -351,7 +369,10 @@
                                     <div class="council-runtime-field-list">
                                         @foreach (var field in runtimeClass.Fields)
                                         {
-                                            <section class="council-runtime-field-card">
+                                            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="council-runtime-field-card">
                                                 <header>
                                                     <strong>@field.DisplayName</strong>
                                                     <small>@field.Name</small>
@@ -365,7 +386,10 @@
                                                     <div><dt>Keyboard</dt><dd>@(string.IsNullOrWhiteSpace(field.KeyboardKey) ? "—" : field.KeyboardKey)</dd></div>
                                                     <div><dt>Gamepad</dt><dd>@(string.IsNullOrWhiteSpace(field.GamepadButton) ? "—" : field.GamepadButton)</dd></div>
                                                 </dl>
-                                            </section>
+                                            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                                         }
                                     </div>
                                 </article>
@@ -376,9 +400,15 @@
                     </article>
                 }
 
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
-            <section id="x-functions-automation" class="council-structure-section">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext006">
+        <div id="x-functions-automation" class="council-structure-section">
                 <header>
                     <div>
                         <h2>Rounds, workflow &amp; automated X Functions</h2>
@@ -592,7 +622,10 @@
                         </details>
                     </article>
                 }
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
             <details class="council-advanced-section">
                 <summary>Advanced prompt compatibility and JSON import/export</summary>
@@ -618,6 +651,19 @@
                 <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_confirmed" @bind-Checked:after="ReviewConfirmationChanged" CssClass="localgpt-check" /><span>I reviewed this social structure and its prompts</span></label>
                 <DxButton CssClass="btn btn-primary" Click="SaveAsync" Enabled="@(!(_busy || _editor.IsDeleted))">Save reviewed team</DxButton>
             </div>
-        </section>
-    </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</LocalGptFormLayoutSurface>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 </main>
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+

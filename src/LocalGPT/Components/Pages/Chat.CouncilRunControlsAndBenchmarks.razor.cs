@@ -45,6 +45,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnHardwareRoadsChanged()
     {
+        try
+        {
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
             if (UpdateActiveCouncilConfiguration(runId))
@@ -64,6 +66,13 @@ namespace LocalGPT.Components.Pages
         SavePreparationConfiguration();
         modelStatus = $"Custom hardware roads active at {CouncilResourceLoadPercent}% session load for future Council runs.";
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.OnHardwareRoadsChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>Updates the Council provider timeout without changing other saved or running sessions.</summary>
@@ -71,6 +80,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilModelTimeoutChangedAsync(int value)
     {
+        try
+        {
         value = Math.Clamp(value, 30, 1800);
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
@@ -92,6 +103,13 @@ namespace LocalGPT.Components.Pages
         SavePreparationConfiguration();
         modelStatus = $"Future Council runs will use a {value}s model response timeout.";
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.OnCouncilModelTimeoutChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>Updates the visible per-host Council concurrency ceiling while keeping per-road lane limits independently configurable.</summary>
@@ -99,6 +117,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilMaxParallelModelsChangedAsync(int value)
     {
+        try
+        {
         value = Math.Max(1, value);
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
@@ -120,6 +140,13 @@ namespace LocalGPT.Components.Pages
         SavePreparationConfiguration();
         modelStatus = $"Future Council runs may use up to {value} parallel request(s) per AI host in hardware-road mode; per-model lane limits still apply.";
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.OnCouncilMaxParallelModelsChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -169,6 +196,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilResourceLoadChanged(int value)
     {
+        try
+        {
         value = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100);
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
@@ -186,6 +215,13 @@ namespace LocalGPT.Components.Pages
         }
 
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.OnCouncilResourceLoadChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -194,6 +230,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="snapshot">Snapshot value supplied to the chat operation and used when producing its result.</param>
     private void ApplyCouncilRunConfigurationSnapshot(CouncilRunConfigurationSnapshot snapshot)
     {
+        try
+        {
         ActiveCouncilConfigurationRunId = snapshot.RunId;
         ActiveCouncilConfigurationRevision = snapshot.Revision;
         ActiveCouncilConfigurationParticipants = snapshot.Participants.ToList();
@@ -205,6 +243,13 @@ namespace LocalGPT.Components.Pages
         ActiveCouncilAllowParallelHardwareRoads = snapshot.AllowParallelHardwareRoads;
         ActiveCouncilMaxParallelModels = Math.Max(1, snapshot.MaxParallelModels);
         ActiveCouncilModelTimeoutSeconds = Math.Clamp(snapshot.ModelTimeoutSeconds, 30, 1800);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.ApplyCouncilRunConfigurationSnapshot failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -213,6 +258,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     private void LoadCouncilRunConfiguration(Guid? runId)
     {
+        try
+        {
         if (runId is not Guid activeRunId)
         {
             ActiveCouncilConfigurationRunId = null;
@@ -256,6 +303,13 @@ namespace LocalGPT.Components.Pages
         }
 
         ApplyCouncilRunConfigurationSnapshot(snapshot);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.LoadCouncilRunConfiguration failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -264,6 +318,7 @@ namespace LocalGPT.Components.Pages
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     private void OnCouncilRunConfigurationChanged(Guid runId)
     {
+        Logger.LogDebug("Component method Chat.CouncilRunControlsAndBenchmarks.OnCouncilRunConfigurationChanged completed.");
         if (isDisposed || SelectedCouncilRunId != runId)
             return;
 
@@ -282,6 +337,7 @@ namespace LocalGPT.Components.Pages
         catch (ObjectDisposedException) when (isDisposed)
         {
         }
+    
     }
 
 
@@ -328,6 +384,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The collection produced by the operation.</returns>
     private List<OneWireCouncilModelRoute> CreateProviderQualifiedCouncilRoutes()
     {
+        try
+        {
         var routes = CouncilModelRoutes.Select(CloneRoute).ToList();
         foreach (var route in routes)
         {
@@ -344,6 +402,13 @@ namespace LocalGPT.Components.Pages
                 route.OllamaNumGpu = null;
         }
         return routes;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.CreateProviderQualifiedCouncilRoutes failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -351,7 +416,11 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="route">Route value supplied to the chat operation and used when producing its result.</param>
     /// <returns>The one wire council model route produced by the operation.</returns>
-    private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
+    private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route)
+    {
+        try
+        {
+            return new()
     {
         ModelName = route.ModelName,
         ProviderKind = route.ProviderKind,
@@ -374,6 +443,13 @@ namespace LocalGPT.Components.Pages
         IsEnabled = route.IsEnabled,
         MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.CloneRoute failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Sets council host selection for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
@@ -539,6 +615,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The collection produced by the operation.</returns>
     private List<string> NormalizeProviderSelectionKeys(IEnumerable<string> values)
     {
+        try
+        {
         var normalized = new List<string>();
         var identity = new ProviderModelIdentity();
         foreach (var raw in values.Where(value => !string.IsNullOrWhiteSpace(value)))
@@ -550,6 +628,13 @@ namespace LocalGPT.Components.Pages
                 normalized.Add(resolved);
         }
         return normalized;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.NormalizeProviderSelectionKeys failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -559,6 +644,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectProviderModelFromPanelAsync(ProviderModelReference model)
     {
+        try
+        {
         if (ChatClientProvider is null)
             return;
         var session = ModelsList.FirstOrDefault(item =>
@@ -570,6 +657,13 @@ namespace LocalGPT.Components.Pages
         }
         await OnModelChanged(session).ConfigureAwait(false);
         modelStatus = $"Using {model.SelectionKey} in Chat.";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.SelectProviderModelFromPanelAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -579,8 +673,17 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnBenchmarkPerformancePresetSavedAsync(HardwarePerformancePreset preset)
     {
+        try
+        {
         await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
         modelStatus = $"Benchmark saved hardware performance preset '{preset.Name}'. Select it in Hardware spooler to apply it without changing Council membership.";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.OnBenchmarkPerformancePresetSavedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -590,6 +693,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnChatBenchmarkAppliedAsync(ProviderModelBenchmarkAppliedEvent applied)
     {
+        try
+        {
         if (!SelectedCouncilModelNames.Contains(applied.Model.SelectionKey, StringComparer.OrdinalIgnoreCase))
             SelectedCouncilModelNames.Add(applied.Model.SelectionKey);
         CouncilModelRoutes.RemoveAll(route =>
@@ -598,6 +703,13 @@ namespace LocalGPT.Components.Pages
         await RefreshModelPresetsAfterBenchmarkAsync(applied.Preset).ConfigureAwait(false);
         SavePreparationConfiguration();
         modelStatus = $"Applied benchmark recommendation for {applied.Model.SelectionKey} as preset {applied.Preset.Name}.";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.OnChatBenchmarkAppliedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -607,6 +719,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnChatBenchmarkCouncilAppliedAsync(ProviderModelBenchmarkBatchAppliedEvent applied)
     {
+        try
+        {
         foreach (var model in applied.Models)
         {
             if (!SelectedCouncilModelNames.Contains(model.SelectionKey, StringComparer.OrdinalIgnoreCase))
@@ -621,6 +735,13 @@ namespace LocalGPT.Components.Pages
         await RefreshModelPresetsAfterBenchmarkAsync(applied.Preset).ConfigureAwait(false);
         SavePreparationConfiguration();
         modelStatus = $"Applied {applied.Routes.Count} provider-qualified Benchmark Council recommendation(s) as preset {applied.Preset.Name}.";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.CouncilRunControlsAndBenchmarks.OnChatBenchmarkCouncilAppliedAsync failed.");
+            throw;
+        }
     }
     }
 }

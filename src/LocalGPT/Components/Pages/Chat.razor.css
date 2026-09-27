@@ -3178,18 +3178,14 @@
 #localgpt-chat-host,
 .chat-session-active #localgpt-chat-host {
     position: relative;
+    isolation: isolate;
     flex-shrink: 0 !important;
 }
 
-/* v4.9.3: reserve a composer action slot for the DevExpress microphone control. */
-.demo-chat ::deep .localgpt-chat-textarea {
-    padding-right: 12.75rem !important;
-}
-
-@media (max-width: 680px) {
-    .demo-chat ::deep .localgpt-chat-textarea {
-        padding-right: 11.5rem !important;
-    }
+#localgpt-chat-host > .demo-chat,
+#localgpt-chat-host .demo-chat {
+    position: relative;
+    z-index: 1;
 }
 
 /* 4.5.7: function approvals and AI-seeded guidance stay in the active Chat session instead of
@@ -3293,4 +3289,89 @@
         width: 100%;
         justify-content: flex-start;
     }
+}
+
+
+/* v5.0.0: DevExpress FunctionCallInfoContentTemplate presentation.
+   The tool details stay compact by default and expand without replacing the normal message bubble. */
+/* v5.0.1: FunctionCallInfoContentTemplate receives the owning BlazorChatMessage.
+   Keep one normal-flow wrapper and render each AIChatFunctionCall from message.FunctionCalls. */
+.localgpt-function-call-list {
+    display: grid;
+    gap: .45rem;
+    margin-top: .55rem;
+}
+
+.localgpt-function-call-info {
+    margin-top: 0;
+    border: 1px solid color-mix(in srgb, var(--bs-info, #0dcaf0) 38%, var(--bs-border-color));
+    border-radius: .65rem;
+    background: color-mix(in srgb, var(--bs-body-bg) 94%, var(--bs-info, #0dcaf0) 6%);
+    overflow: hidden;
+}
+
+.localgpt-function-call-info > summary {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .55rem .7rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.localgpt-function-call-info > summary::-webkit-details-marker { display: none; }
+.localgpt-function-call-info > summary small { margin-left: auto; opacity: .72; }
+.localgpt-function-call-state {
+    width: .65rem;
+    height: .65rem;
+    border-radius: 50%;
+    background: var(--bs-info, #0dcaf0);
+    box-shadow: 0 0 0 .18rem color-mix(in srgb, var(--bs-info, #0dcaf0) 18%, transparent);
+}
+
+.localgpt-function-call-section {
+    display: grid;
+    gap: .35rem;
+    padding: .6rem .75rem .75rem;
+    border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 74%, transparent);
+}
+
+.localgpt-function-call-section dl {
+    display: grid;
+    grid-template-columns: minmax(7rem, 13rem) minmax(0, 1fr);
+    gap: .3rem .65rem;
+    margin: 0;
+}
+
+.localgpt-function-call-section dt,
+.localgpt-function-call-section dd { margin: 0; min-width: 0; }
+.localgpt-function-call-section dd { overflow-wrap: anywhere; }
+.localgpt-function-call-section pre {
+    max-height: 18rem;
+    margin: 0;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* 5.0.3: streamed chat growth must remain reachable through the MainLayout drawer scrollbar. */
+#localgpt-chat-host,
+.chat-session-active #localgpt-chat-host {
+    flex: 1 1 auto !important;
+    min-height: min(28rem, 62dvh) !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+#localgpt-chat-host ::deep .dxbl-chatui-root,
+#localgpt-chat-host ::deep .dxbl-chatui {
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+.chat-function-layout-surface,
+.chat-message-layout-surface,
+.chat-ascii-layout-surface {
+    width: 100%;
+    min-width: 0;
 }

@@ -2,15 +2,25 @@
 @inject IDocumentationViewerService Viewer
 @inject ILogger<DocumentationViewerHost> Logger
 
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner DocumentationViewerHost">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 @if (Viewer.State.IsOpen)
 {
-    <dialog open
-            class="localgpt-documentation-native-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="localgpt-documentation-viewer-title"
-            Click="Close">
-        <section class="localgpt-documentation-dialog" @onclick:stopPropagation="true">
+    <DxPopup Visible="true"
+             VisibleChanged="OnDocumentationPopupVisibilityChanged"
+             HeaderText="@Viewer.State.Title"
+             Width="min(1280px, 96vw)"
+             MaxHeight="94vh"
+             CloseOnOutsideClick="true">
+        <BodyContentTemplate Context="documentationPopupContext">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="localgpt-documentation-dialog" @onclick:stopPropagation="true">
             <header>
                 <h2 id="localgpt-documentation-viewer-title">@Viewer.State.Title</h2>
                 <div>
@@ -22,9 +32,18 @@
                     src="@Viewer.State.Url"
                     title="@Viewer.State.Title"
                     loading="eager"></iframe>
-        </section>
-    </dialog>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+        </BodyContentTemplate>
+    </DxPopup>
 }
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -47,7 +66,16 @@
     /// </summary>
     private void OnViewerStateChanged()
     {
+        try
+        {
         _ = RefreshViewerAsync();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method DocumentationViewerHost.OnViewerStateChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -85,13 +113,51 @@
     /// Closes from browser for <see cref="DocumentationViewerHost"/>, keeping the operation consistent with the state and invariants of the surrounding documentation viewer host workflow.
     /// </summary>
     [Microsoft.JSInterop.JSInvokable]
-    public void CloseFromBrowser() => Close();
+    public void CloseFromBrowser()
+    {
+        try
+        {
+            Close();
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method DocumentationViewerHost.CloseFromBrowser failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Releases resources owned by <see cref="DocumentationViewerHost"/> and leaves the documentation viewer host workflow in a safely disposed state.
     /// </summary>
     public void Dispose()
     {
+        try
+        {
         Viewer.StateChanged -= OnViewerStateChanged;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method DocumentationViewerHost.Dispose failed.");
+            throw;
+        }
     }
+    /// <summary>
+    /// Handles the documentation popup visibility changed lifecycle or event notification for <see cref="DocumentationViewerHost"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="visible">Value indicating whether visible should apply to this operation.</param>
+    private void OnDocumentationPopupVisibilityChanged(bool visible)
+    {
+        try
+        {
+            if (!visible)
+                Close();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Applying the LocalGPT documentation popup visibility change failed.");
+            throw;
+        }
+    }
+
 }

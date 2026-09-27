@@ -115,9 +115,9 @@ public sealed class HuggingFaceModelSearchFunction(IHuggingFaceModelCatalogServi
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localai.huggingface.search", "POST", "/api/dxai/functions/localai.huggingface.search/invoke",
         "Searches Hugging Face model metadata for specialized image, video, speech, audio, vision or embedding models without downloading or executing repository code.",
-        "query optional; capability optional enum value; limit 1-50.", "Network metadata lookup only. Search does not clone repositories or execute remote code.",
+        "query optional; capability optional enum value; limit 1-50; sort supports Downloads, Likes, Recent, or RecentLiked; recentWindowDays controls the RecentLiked window.", "Network metadata lookup only. Search does not clone repositories or execute remote code.",
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
-        ParameterSchemaJson: """{"type":"object","properties":{"query":{"type":"string","maxLength":300},"capability":{"type":"integer","minimum":0,"maximum":10},"limit":{"type":"integer","minimum":1,"maximum":50}},"additionalProperties":false}""", IsCoordinationOnly: true);
+        ParameterSchemaJson: """{"type":"object","properties":{"query":{"type":"string","maxLength":300},"capability":{"type":"integer","minimum":0,"maximum":10},"limit":{"type":"integer","minimum":1,"maximum":50},"sort":{"type":"integer","minimum":0,"maximum":3},"recentWindowDays":{"type":"integer","minimum":1,"maximum":365}},"additionalProperties":false}""", IsCoordinationOnly: true);
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {

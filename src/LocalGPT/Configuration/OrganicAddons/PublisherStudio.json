@@ -15,6 +15,7 @@
     "publisher.openscad.generate",
     "publisher.media.convert",
     "publisher.publication.manage",
+    "publisher.website.content.request",
     "publisher.streaming.manage",
     "publisher.automation.run",
     "publisher.code.inspect",

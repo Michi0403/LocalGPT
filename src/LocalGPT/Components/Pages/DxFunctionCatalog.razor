@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/dx-functions"
+@attribute [LocalGptUiLayoutSurface("page", "DX Functions & 1-Wire", "/dx-functions", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("workbench", "DX Functions · workbench", "/dx-functions")]
 @inject IDxAiFunctionCatalogService Catalog
 @inject ILocalGptVocabularyService Vocabulary
 @inject ILogger<DxFunctionCatalog> Logger
@@ -7,7 +9,13 @@
 @inject INotificationService Notifier
 @inject CouncilTextService CouncilText
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner DxFunctionCatalog">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>DX Functions &amp; 1-Wire</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(DxFunctionCatalog)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <main class="dx-catalog-page localgpt-surface">
     <div class="dx-catalog-workbench">
@@ -41,7 +49,8 @@
             <div class="alert @(_hasError ? "alert-danger" : "alert-info") dx-catalog-status" role="status" aria-live="polite">@_status</div>
         }
 
-        <div class="dx-catalog-workbench-layout @(!_interactiveAttached || _busy ? "is-loading" : string.Empty)" aria-busy="@(!_interactiveAttached || _busy)">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(DxFunctionCatalog)" SectionName="workbench" CanHide="true">
+<div class="dx-catalog-workbench-layout @(!_interactiveAttached || _busy ? "is-loading" : string.Empty)" aria-busy="@(!_interactiveAttached || _busy)">
             <ConfigurationWorkbenchNav Items="@DxFunctionSections"
                                        ActiveKey="@_activeSection"
                                        ActiveKeyChanged="OnDxFunctionSectionChanged"
@@ -49,15 +58,24 @@
             <div class="dx-catalog-workbench-stage">
                 @if (!_interactiveAttached)
                 {
-                    <section class="dx-catalog-loading-panel" role="status">
+                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="dx-catalog-loading-panel" role="status">
                         <strong>Connecting InteractiveServer DX Functions…</strong>
                         <p>The catalog and editor controls become active after the Blazor circuit attaches. A loading page no longer presents controls that look clickable before events can be handled.</p>
-                    </section>
+                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                 }
                 else
                 {
                     <ConfigurationWorkbenchPanel SectionKey="catalog" ActiveKey="@_activeSection" AriaLabel="DX Function catalog">
-    <section class="dx-catalog-toolbar">
+    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="dx-catalog-toolbar">
         <label>
             <span>Search</span>
             <DxTextBox @bind-Text="_filter" BindValueMode="BindValueMode.OnInput" CssClass="localgpt-editor" NullText="Function, service, route or purpose" />
@@ -84,11 +102,17 @@
             <DxCheckBox @bind-Checked="_groupCardsByNamespace" CssClass="localgpt-check" Enabled="@(_viewMode == "Cards")" />
             <span>Group cards by namespace</span>
         </label>
-    </section>
+    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
 
     @if (_viewMode == "Grid")
     {
-        <section class="dx-catalog-mass-grid" aria-busy="@_busy">
+        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext004">
+        <div class="dx-catalog-mass-grid" aria-busy="@_busy">
             <DxGrid Data="@FilteredEntriesList"
                     KeyFieldName="@nameof(DxAiFunctionCatalogEntry.CatalogKey)"
                     PageSize="25"
@@ -142,13 +166,19 @@
                     </DxGridDataColumn>
                 </Columns>
             </DxGrid>
-        </section>
+        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
     }
     else
     {
         @foreach (var group in CardGroups)
         {
-            <section class="dx-catalog-namespace-group">
+            <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext005">
+        <div class="dx-catalog-namespace-group">
                 @if (_groupCardsByNamespace)
                 {
                     <h2>@group.Key</h2>
@@ -203,13 +233,19 @@
                         </article>
                     }
                 </div>
-            </section>
+            </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
         }
     }
                     </ConfigurationWorkbenchPanel>
 
                     <ConfigurationWorkbenchPanel SectionKey="user-functions" ActiveKey="@_activeSection" AriaLabel="User AI functions">
-                        <section class="dx-user-function-stage">
+                        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext006">
+        <div class="dx-user-function-stage">
                             <header class="dx-stage-heading">
                                 <div>
                                     <span class="dx-stage-kicker">User-owned function studio</span>
@@ -244,11 +280,17 @@
                                     <span>@UserFunctionCount user-owned AI function(s) are currently registered.</span>
                                 </div>
                             }
-                        </section>
+                        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                     </ConfigurationWorkbenchPanel>
 
                     <ConfigurationWorkbenchPanel SectionKey="x-functions" ActiveKey="@_activeSection" AriaLabel="X Functions and automation">
-                        <section class="dx-x-function-stage">
+                        <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext007">
+        <div class="dx-x-function-stage">
                             <header class="dx-stage-heading">
                                 <div>
                                     <span class="dx-stage-kicker">Council workflow automation</span>
@@ -257,22 +299,41 @@
                                 </div>
                             </header>
                             <a class="btn btn-primary align-self-start" href="/council-teams#x-functions-automation">Open X Functions &amp; automation</a>
-                        </section>
+                        </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                     </ConfigurationWorkbenchPanel>
                 }
             </div>
         </div>
+</LocalGptFormLayoutSurface>
     </div>
 </main>
 
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
 @code {
+    /// <summary>
+    /// Gets the kind filter options collection maintained or exposed by this DevExpress function instance for downstream processing.
+    /// </summary>
+    /// <value>The kind filter options value exposed by <see cref="DxFunctionCatalog"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> KindFilterOptions =>
-    [
-        new(string.Empty, "All"),
-        new(Vocabulary.Get().CatalogDxFunction, "DX functions"),
-        new(Vocabulary.Get().CatalogPublicServiceMethod, "Public service methods")
-    ];
+    GetKindFilterOptionsForRender();
+    /// <summary>
+    /// Gets the view mode options collection maintained or exposed by this DevExpress function instance for downstream processing.
+    /// </summary>
+    /// <value>The view mode options value exposed by <see cref="DxFunctionCatalog"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> ViewModeOptions { get; } = [new("Cards", "Cards"), new("Grid", "Mass-edit DXGrid")];
+    /// <summary>
+    /// Gets the interaction editor options collection maintained or exposed by this DevExpress function instance for downstream processing.
+    /// </summary>
+    /// <value>The interaction editor options value exposed by <see cref="DxFunctionCatalog"/>.</value>
     private IReadOnlyList<OneWireInteractionEditor> InteractionEditorOptions { get; } = Enum.GetValues<OneWireInteractionEditor>();
 
     /// <summary>
@@ -335,46 +396,30 @@
     /// <summary>Gets the workbench sections shown by the responsive DX Function navigation rail.</summary>
     /// <value>The catalog, user-function and X-Function workbench sections.</value>
     private IReadOnlyList<WorkbenchNavItem> DxFunctionSections =>
-    [
-        new("catalog", "Catalog & exposure", "Browse and mass-edit runtime DXFunction/service policy", _entries.Count.ToString()),
-        new("user-functions", "User AI functions", "Create JSON/OData sources or advanced pipelines", UserFunctionCount.ToString()),
-        new("x-functions", "X Functions & automation", "Open maintained Council X-Round workflow controls")
-    ];
+    GetDxFunctionSectionsForRender();
 
     /// <summary>Counts user-owned catalog rows for the User AI functions workbench badge.</summary>
     /// <value>The count of catalog rows owned by user DXFunctions.</value>
-    private int UserFunctionCount => _entries.Count(entry => entry.Source == "UserDxFunction");
+    private int UserFunctionCount => GetUserFunctionCountForRender();
 
     /// <summary>
     /// Gets the filtered entries collection maintained or exposed by this DevExpress function instance for downstream processing.
     /// </summary>
     /// <value>The filtered entries value exposed by <see cref="DxFunctionCatalog"/>.</value>
-    private IEnumerable<DxAiFunctionCatalogEntry> FilteredEntries => _entries
-        .Where(entry => string.IsNullOrWhiteSpace(_kindFilter) || entry.Kind == _kindFilter)
-        .Where(entry => !_onlyExposed || entry.ExposeToOneWire)
-        .Where(entry => string.IsNullOrWhiteSpace(_filter) ||
-            CouncilText.ContainsText(entry.DisplayName, _filter) ||
-            CouncilText.ContainsText(entry.FunctionName, _filter) ||
-            CouncilText.ContainsText(entry.Purpose, _filter) ||
-            CouncilText.ContainsText(entry.Route, _filter))
-        .OrderBy(entry => FunctionNamespace(entry), StringComparer.OrdinalIgnoreCase)
-        .ThenBy(entry => entry.Kind)
-        .ThenBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase);
+    private IEnumerable<DxAiFunctionCatalogEntry> FilteredEntries => GetFilteredEntriesForRender();
 
     /// <summary>
     /// Gets the filtered entries list collection maintained or exposed by this DevExpress function instance for downstream processing.
     /// </summary>
     /// <value>The filtered entries list value exposed by <see cref="DxFunctionCatalog"/>.</value>
-    private IReadOnlyList<DxAiFunctionCatalogEntry> FilteredEntriesList => FilteredEntries.ToList();
+    private IReadOnlyList<DxAiFunctionCatalogEntry> FilteredEntriesList => GetFilteredEntriesListForRender();
 
     /// <summary>
     /// Gets the card groups collection maintained or exposed by this DevExpress function instance for downstream processing.
     /// </summary>
     /// <value>The card groups value exposed by <see cref="DxFunctionCatalog"/>.</value>
     private IEnumerable<IGrouping<string, DxAiFunctionCatalogEntry>> CardGroups =>
-        FilteredEntries.GroupBy(
-            entry => _groupCardsByNamespace ? FunctionNamespace(entry) : "All functions",
-            StringComparer.OrdinalIgnoreCase);
+        GetCardGroupsForRender();
 
     /// <summary>Attaches the DX Function workbench to its InteractiveServer circuit before beginning the potentially large catalog load.</summary>
     /// <param name="firstRender">Indicates whether this is the first interactive render.</param>
@@ -616,7 +661,16 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task HandleUserFunctionsChangedAsync()
     {
+        try
+        {
         await ReloadAsync().ConfigureAwait(true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method DxFunctionCatalog.HandleUserFunctionsChangedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -625,10 +679,19 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private Task CloseUserEditorAsync()
     {
+        try
+        {
         _showUserEditor = false;
         _userEditorFunctionName = string.Empty;
         _userEditorInitialMode = "Pipeline";
         return Task.CompletedTask;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method DxFunctionCatalog.CloseUserEditorAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -637,8 +700,17 @@
     /// <param name="entry">Entry value supplied to the DevExpress function operation and used when producing its result.</param>
     private void MarkGridEntryDirty(DxAiFunctionCatalogEntry entry)
     {
+        try
+        {
         if (!string.IsNullOrWhiteSpace(entry.CatalogKey))
             _dirtyGridCatalogKeys.Add(entry.CatalogKey);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method DxFunctionCatalog.MarkGridEntryDirty failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -648,9 +720,18 @@
     /// <returns>The string produced by the operation.</returns>
     private string FunctionNamespace(DxAiFunctionCatalogEntry entry)
     {
+        try
+        {
         var name = entry.FunctionName?.Trim() ?? string.Empty;
         var separator = name.LastIndexOf('.');
         return separator > 0 ? name[..separator] : entry.Kind;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method DxFunctionCatalog.FunctionNamespace failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -658,7 +739,11 @@
     /// </summary>
     /// <param name="entry">Entry value supplied to the DevExpress function operation and used when producing its result.</param>
     /// <returns>The DevExpress AI function catalog entry produced by the operation.</returns>
-    private DxAiFunctionCatalogEntry Clone(DxAiFunctionCatalogEntry entry) => new()
+    private DxAiFunctionCatalogEntry Clone(DxAiFunctionCatalogEntry entry)
+    {
+        try
+        {
+            return new()
     {
         CatalogKey = entry.CatalogKey,
         Kind = entry.Kind,
@@ -688,4 +773,122 @@
         UpdatedAtUtc = entry.UpdatedAtUtc,
         UpdatedBy = entry.UpdatedBy
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method DxFunctionCatalog.Clone failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes KindFilterOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetKindFilterOptionsForRender()
+    {
+        try
+        {
+            return [
+        new(string.Empty, "All"),
+        new(Vocabulary.Get().CatalogDxFunction, "DX functions"),
+        new(Vocabulary.Get().CatalogPublicServiceMethod, "Public service methods")
+    ];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property DxFunctionCatalog.KindFilterOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes DxFunctionSections for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<WorkbenchNavItem> GetDxFunctionSectionsForRender()
+    {
+        try
+        {
+            return [
+        new("catalog", "Catalog & exposure", "Browse and mass-edit runtime DXFunction/service policy", _entries.Count.ToString()),
+        new("user-functions", "User AI functions", "Create JSON/OData sources or advanced pipelines", UserFunctionCount.ToString()),
+        new("x-functions", "X Functions & automation", "Open maintained Council X-Round workflow controls")
+    ];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property DxFunctionCatalog.DxFunctionSections failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes UserFunctionCount for the render path with component-local diagnostics.</summary>
+    /// <returns>The int produced by the operation.</returns>
+    private int GetUserFunctionCountForRender()
+    {
+        try
+        {
+            return _entries.Count(entry => entry.Source == "UserDxFunction");
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property DxFunctionCatalog.UserFunctionCount failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes FilteredEntries for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IEnumerable<DxAiFunctionCatalogEntry> GetFilteredEntriesForRender()
+    {
+        try
+        {
+            return _entries
+        .Where(entry => string.IsNullOrWhiteSpace(_kindFilter) || entry.Kind == _kindFilter)
+        .Where(entry => !_onlyExposed || entry.ExposeToOneWire)
+        .Where(entry => string.IsNullOrWhiteSpace(_filter) ||
+            CouncilText.ContainsText(entry.DisplayName, _filter) ||
+            CouncilText.ContainsText(entry.FunctionName, _filter) ||
+            CouncilText.ContainsText(entry.Purpose, _filter) ||
+            CouncilText.ContainsText(entry.Route, _filter))
+        .OrderBy(entry => FunctionNamespace(entry), StringComparer.OrdinalIgnoreCase)
+        .ThenBy(entry => entry.Kind)
+        .ThenBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property DxFunctionCatalog.FilteredEntries failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes FilteredEntriesList for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<DxAiFunctionCatalogEntry> GetFilteredEntriesListForRender()
+    {
+        try
+        {
+            return FilteredEntries.ToList();
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property DxFunctionCatalog.FilteredEntriesList failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes CardGroups for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IEnumerable<IGrouping<string, DxAiFunctionCatalogEntry>> GetCardGroupsForRender()
+    {
+        try
+        {
+            return FilteredEntries.GroupBy(
+            entry => _groupCardsByNamespace ? FunctionNamespace(entry) : "All functions",
+            StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property DxFunctionCatalog.CardGroups failed.");
+            throw;
+        }
+    }
 }

@@ -1,5 +1,7 @@
 @rendermode InteractiveServer
 @page "/database"
+@attribute [LocalGptUiLayoutSurface("page", "SQLite Database", "/database", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("workbench", "Database · workbench", "/database")]
 @inject CouncilRuntimeService CouncilRuntime
 @inject CouncilTextService CouncilText
 @inject LocalGptCatalogService Catalog
@@ -17,7 +19,13 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner Database">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <PageTitle>SQLite Database</PageTitle>
+
+<LocalGptFormLayoutSurface OwnerType="@typeof(Database)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
 <main class="database-page localgpt-surface">
     <ToastWrapper Name="@toastName" />
@@ -40,14 +48,18 @@
             <div class="alert alert-info database-status" role="status" aria-live="polite">@statusText</div>
         }
 
-        <div class="database-workbench-layout" aria-busy="@isBusy">
+        <LocalGptFormLayoutSurface OwnerType="@typeof(Database)" SectionName="workbench" CanHide="true">
+<div class="database-workbench-layout" aria-busy="@isBusy">
             <ConfigurationWorkbenchNav Items="@DatabaseSections"
                                        ActiveKey="@ActiveDatabaseSection"
                                        ActiveKeyChanged="OnDatabaseSectionChanged"
                                        AriaLabel="SQLite Database sections" />
             <div class="database-workbench-stage">
                 <ConfigurationWorkbenchPanel SectionKey="knowledge" ActiveKey="@ActiveDatabaseSection" AriaLabel="Council knowledge and relationships">
-                    <section class="knowledge-panel">
+                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="knowledge-panel">
         <div class="panel-heading">
             <div>
                 <h2>Council Knowledge</h2>
@@ -373,11 +385,17 @@
                 </div>
             </div>
         </div>
-                    </section>
+                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                 </ConfigurationWorkbenchPanel>
 
                 <ConfigurationWorkbenchPanel SectionKey="tables" ActiveKey="@ActiveDatabaseSection" AriaLabel="Live SQLite tables">
-                    <section class="table-panel">
+                    <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext003">
+        <div class="table-panel">
         <div class="panel-heading">
             <div>
                 <h2>Live SQLite Tables</h2>
@@ -514,12 +532,23 @@
                 </div>
             </div>
         }
-                    </section>
+                    </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
                 </ConfigurationWorkbenchPanel>
             </div>
         </div>
+</LocalGptFormLayoutSurface>
     </div>
 </main>
+
+</LocalGptFormLayoutSurface>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -631,7 +660,7 @@
     /// Gets the knowledge review summary value that forms part of the database state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The knowledge review summary value exposed by <see cref="Database"/>.</value>
-    string KnowledgeReviewSummary => CouncilRuntime.BuildKnowledgeReviewSummary(KnowledgeEntries,Logger);
+    string KnowledgeReviewSummary => GetKnowledgeReviewSummaryForRender();
 
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="Database"/>, updating the state required by the surrounding workflow.
@@ -1231,11 +1260,20 @@
     /// <returns>The string produced by the operation.</returns>
     string GetEditorKind(SqliteColumnSummary column, string? value)
     {
+        try
+        {
         if (SessionEditorKinds.TryGetValue(column.Name, out var sessionKind) && !sessionKind.Equals("Automatic", StringComparison.OrdinalIgnoreCase))
             return sessionKind;
         if (EditorOverrides.TryGetValue(column.Name, out var persisted) && !persisted.EditorKind.Equals("Automatic", StringComparison.OrdinalIgnoreCase))
             return persisted.EditorKind;
         return EditorPreferences.InferEditorKind(column, value);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Database.GetEditorKind failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1245,7 +1283,16 @@
     /// <param name="kind">Kind value supplied to the database operation and used when producing its result.</param>
     void SetEditorKind(SqliteColumnSummary column, string kind)
     {
+        try
+        {
         SessionEditorKinds[column.Name] = string.IsNullOrWhiteSpace(kind) ? "Automatic" : kind;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Database.SetEditorKind failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1255,6 +1302,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveEditorPreferenceAsync(SqliteColumnSummary column)
     {
+        try
+        {
         if (CurrentTable is null)
             return;
         var kind = SessionEditorKinds.TryGetValue(column.Name, out var selected) ? selected : "Automatic";
@@ -1274,6 +1323,13 @@
         EditorOverrides[column.Name] = saved;
         statusText = $"Remembered {kind} editor for {CurrentTable.TableName}.{column.Name}.";
         Notifier.ShowSuccess(toastName, statusText, "Editor preference saved");
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Database.SaveEditorPreferenceAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1283,18 +1339,91 @@
     /// <returns>The string produced by the operation.</returns>
     string ToDateTimeLocalValue(string? value)
     {
+        try
+        {
         return DateTimeOffset.TryParse(value, out var parsed)
             ? parsed.ToLocalTime().ToString("yyyy-MM-ddTHH:mm")
             : string.Empty;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Database.ToDateTimeLocalValue failed.");
+            throw;
+        }
     }
 
-    private decimal? ParseNullableDecimal(string? value) => decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
+    /// <summary>
+    /// Parses nullable decimal for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the database operation and used when producing its result.</param>
+    /// <returns>The decimal produced by the operation.</returns>
+    private decimal? ParseNullableDecimal(string? value)
+    {
+        try
+        {
+            return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Database.ParseNullableDecimal failed.");
+            throw;
+        }
+    }
 
-    private string FormatNullableDecimal(decimal? value) => value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+    /// <summary>
+    /// Performs format nullable decimal for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the database operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
+    private string FormatNullableDecimal(decimal? value)
+    {
+        try
+        {
+            return value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Database.FormatNullableDecimal failed.");
+            throw;
+        }
+    }
 
-    private DateTime? ParseNullableDateTime(string? value) => DateTimeOffset.TryParse(value, out var parsed) ? parsed.LocalDateTime : null;
+    /// <summary>
+    /// Parses nullable date time for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the database operation and used when producing its result.</param>
+    /// <returns>The date time produced by the operation.</returns>
+    private DateTime? ParseNullableDateTime(string? value)
+    {
+        try
+        {
+            return DateTimeOffset.TryParse(value, out var parsed) ? parsed.LocalDateTime : null;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Database.ParseNullableDateTime failed.");
+            throw;
+        }
+    }
 
-    private string FormatNullableDateTime(DateTime? value) => value?.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
+    /// <summary>
+    /// Performs format nullable date time for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the database operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
+    private string FormatNullableDateTime(DateTime? value)
+    {
+        try
+        {
+            return value?.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Database.FormatNullableDateTime failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Persists knowledge rating for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
@@ -1302,6 +1431,8 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveKnowledgeRatingAsync()
     {
+        try
+        {
         if (SelectedKnowledgeEntry is null)
             return;
         KnowledgeRatingEdit.KnowledgeEntryId = SelectedKnowledgeEntry.Id;
@@ -1311,6 +1442,13 @@
         KnowledgeEdit.ReviewStatus = KnowledgeRatingEdit.ApprovedForCouncilUse ? "Current" : "NeedsUserReview";
         statusText = "Human knowledge rating saved.";
         Notifier.ShowSuccess(toastName, statusText, "Knowledge rated");
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Database.SaveKnowledgeRatingAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -1348,6 +1486,22 @@
         {
             isBusy = false;
             await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine completion refresh */;
+        }
+    }
+
+
+    /// <summary>Computes KnowledgeReviewSummary for the render path with component-local diagnostics.</summary>
+    /// <returns>The string produced by the operation.</returns>
+    private string GetKnowledgeReviewSummaryForRender()
+    {
+        try
+        {
+            return CouncilRuntime.BuildKnowledgeReviewSummary(KnowledgeEntries,Logger);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property Database.KnowledgeReviewSummary failed.");
+            throw;
         }
     }
 }

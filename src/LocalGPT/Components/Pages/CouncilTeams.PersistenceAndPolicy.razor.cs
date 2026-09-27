@@ -185,6 +185,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void ToggleTeamAutomaticFunction(string functionName, ChangeEventArgs args)
     {
+        try
+        {
         _editor.AllowedAutomaticFunctions ??= [];
         var enabled = args.Value is bool value && value;
         _editor.AllowedAutomaticFunctions.RemoveAll(item => string.Equals(item, functionName, StringComparison.OrdinalIgnoreCase));
@@ -196,6 +198,13 @@ namespace LocalGPT.Components.Pages
             .ToList();
         _allowedFunctionsJson = Serialize(_editor.AllowedAutomaticFunctions);
         _confirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.ToggleTeamAutomaticFunction failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -205,6 +214,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void SetAutomaticFunctionPolicy(CouncilWorkflowStepDefinition step, ChangeEventArgs args)
     {
+        try
+        {
         ArgumentNullException.ThrowIfNull(step);
         if (!Enum.TryParse<CouncilAutomaticFunctionPolicyMode>(args.Value?.ToString(), ignoreCase: true, out var policy) ||
             policy == CouncilAutomaticFunctionPolicyMode.Legacy)
@@ -215,6 +226,13 @@ namespace LocalGPT.Components.Pages
         step.CanUseOrganicFunctions = policy != CouncilAutomaticFunctionPolicyMode.Disabled;
         step.UseBuiltInBehavior = false;
         _confirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.SetAutomaticFunctionPolicy failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -224,8 +242,17 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void SetStepAutomaticFunctions(CouncilWorkflowStepDefinition step, ChangeEventArgs args)
     {
+        try
+        {
         step.AllowedAutomaticFunctions = CouncilText.ParseUserEditableNameList(args.Value?.ToString());
         _confirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.SetStepAutomaticFunctions failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -233,10 +260,19 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private void ReviewConfirmationChanged()
     {
+        try
+        {
         _status = _confirmed
             ? "Review confirmed. The Save reviewed team button is ready."
             : "Review confirmation cleared.";
         _hasError = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.ReviewConfirmationChanged failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -246,6 +282,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void TogglePreferredCapability(string functionName, ChangeEventArgs args)
     {
+        try
+        {
         _editor.PreferredCapabilities ??= [];
         var enabled = args.Value is bool value && value;
         _editor.PreferredCapabilities.RemoveAll(item => string.Equals(item, functionName, StringComparison.OrdinalIgnoreCase));
@@ -257,6 +295,13 @@ namespace LocalGPT.Components.Pages
             .ToList();
         _capabilitiesJson = Serialize(_editor.PreferredCapabilities);
         _confirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.TogglePreferredCapability failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -266,9 +311,18 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string FunctionNamespace(DxAiFunctionCatalogEntry entry)
     {
+        try
+        {
         var name = entry.FunctionName?.Trim() ?? string.Empty;
         var separator = name.LastIndexOf('.');
         return separator > 0 ? name[..separator] : entry.Kind;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.FunctionNamespace failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -279,6 +333,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void ToggleRoleModel(int roleIndex, string selectionKey, ChangeEventArgs args)
     {
+        try
+        {
         if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
             return;
         var role = _editor.Roles[roleIndex];
@@ -292,6 +348,13 @@ namespace LocalGPT.Components.Pages
             .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
             .ToList();
         _confirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.ToggleRoleModel failed.");
+            throw;
+        }
     }
 
     /// <summary>Sets a provider-bound role to an exact invocation count without removing the more general minimum/maximum range controls.</summary>
@@ -299,9 +362,18 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Change event containing the requested positive invocation count.</param>
     private void SetExactRoleInvocationCount(int roleIndex, ChangeEventArgs args)
     {
+        try
+        {
         if (!int.TryParse(args.Value?.ToString(), out var count))
             return;
         SetExactRoleInvocationCount(roleIndex, count);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.SetExactRoleInvocationCount failed.");
+            throw;
+        }
     }
 
     /// <summary>Sets or clears the optional exact provider-bound role invocation count from the DevExpress number editor.</summary>
@@ -309,6 +381,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="count">Positive fixed invocation count, or null when the editor is left unspecified.</param>
     private void SetExactRoleInvocationCount(int roleIndex, int? count)
     {
+        try
+        {
         if (roleIndex < 0 || roleIndex >= _editor.Roles.Count || count is null || count < 1)
             return;
 
@@ -316,6 +390,13 @@ namespace LocalGPT.Components.Pages
         role.MinimumAiParticipants = count.Value;
         role.MaximumAiParticipants = count.Value;
         _confirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.SetExactRoleInvocationCount failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -325,12 +406,21 @@ namespace LocalGPT.Components.Pages
     /// <param name="selectionKey">Selection key value supplied to the council teams operation and used when producing its result.</param>
     private void RemoveRoleModel(int roleIndex, string selectionKey)
     {
+        try
+        {
         if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
             return;
         var role = _editor.Roles[roleIndex];
         role.AssignedModelKeys ??= [];
         role.AssignedModelKeys.RemoveAll(item => string.Equals(item, selectionKey, StringComparison.OrdinalIgnoreCase));
         _confirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RemoveRoleModel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -338,16 +428,28 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The collection produced by the operation.</returns>
-    private IReadOnlyList<string> UnavailableRoleModelKeys(OrganicCouncilRoleDefinition role) =>
-        role.AssignedModelKeys
+    private IReadOnlyList<string> UnavailableRoleModelKeys(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.AssignedModelKeys
             .Where(selectionKey => !IsWorkflowModelAvailable(selectionKey))
             .OrderBy(selectionKey => selectionKey, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.UnavailableRoleModelKeys failed.");
+            throw;
+        }
+    }
 
     /// <summary>Reconciles persisted provider-qualified model keys to the current unique provider/host identity without guessing across models or hosts.</summary>
     /// <returns>The number of saved bindings migrated in the editor state.</returns>
     private int ReconcileEditorProviderModelBindings()
     {
+        try
+        {
         var migrated = 0;
         foreach (var role in _editor.Roles)
         {
@@ -367,6 +469,13 @@ namespace LocalGPT.Components.Pages
         }
 
         return migrated;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.ReconcileEditorProviderModelBindings failed.");
+            throw;
+        }
     }
 
     /// <summary>Returns the current provider selection key when one saved value has exactly one safe equivalent candidate.</summary>
@@ -375,6 +484,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The current unique key, or the untouched saved key when no safe unique match exists.</returns>
     private string ReconcileProviderModelKey(string? savedKey, ref int migrated)
     {
+        try
+        {
         if (string.IsNullOrWhiteSpace(savedKey))
             return string.Empty;
 
@@ -386,19 +497,46 @@ namespace LocalGPT.Components.Pages
         if (!string.Equals(resolved.SelectionKey, normalized, StringComparison.OrdinalIgnoreCase))
             migrated++;
         return resolved.SelectionKey;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.ReconcileProviderModelKey failed.");
+            throw;
+        }
     }
 
     /// <summary>Returns whether a role uses an exact provider-qualified model pool.</summary>
     /// <param name="role">Role whose AI assignment policy is inspected.</param>
     /// <returns><see langword="true"/> when the role binds exact provider model identities.</returns>
-    private bool UsesProviderBoundRolePool(OrganicCouncilRoleDefinition role) =>
-        role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange;
+    private bool UsesProviderBoundRolePool(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.UsesProviderBoundRolePool failed.");
+            throw;
+        }
+    }
 
     /// <summary>Returns whether a role exposes the configurable minimum/maximum participant-count controls.</summary>
     /// <param name="role">Role whose AI assignment policy is inspected.</param>
     /// <returns><see langword="true"/> for unrestricted random selection or provider-pool random selection.</returns>
-    private bool UsesRandomParticipantCount(OrganicCouncilRoleDefinition role) =>
-        role.AiSelectionMode is CouncilRoleAiSelectionMode.RandomRange or CouncilRoleAiSelectionMode.AssignedModelsRandomRange;
+    private bool UsesRandomParticipantCount(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.AiSelectionMode is CouncilRoleAiSelectionMode.RandomRange or CouncilRoleAiSelectionMode.AssignedModelsRandomRange;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.UsesRandomParticipantCount failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs workflow model candidates for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
@@ -407,6 +545,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<MultiModelCouncilModelCandidate> WorkflowModelCandidates(CouncilWorkflowStepDefinition step)
     {
+        try
+        {
         var role = FindRolePolicy(step.Role);
         IEnumerable<MultiModelCouncilModelCandidate> candidates = _providerModels;
         if (role is not null && UsesProviderBoundRolePool(role) && role.AssignedModelKeys.Count > 0)
@@ -420,6 +560,13 @@ namespace LocalGPT.Components.Pages
             .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
             .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.WorkflowModelCandidates failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -429,9 +576,18 @@ namespace LocalGPT.Components.Pages
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsWorkflowModelAvailable(string selectionKey)
     {
+        try
+        {
         if (string.IsNullOrWhiteSpace(selectionKey))
             return false;
         return new ProviderModelIdentity().ResolveEquivalentCandidate(selectionKey, _providerModels, out _) is not null;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.IsWorkflowModelAvailable failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -442,6 +598,8 @@ namespace LocalGPT.Components.Pages
     /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void ToggleRuntimeClass(int roleIndex, string key, ChangeEventArgs args)
     {
+        try
+        {
         if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
             return;
         var role = _editor.Roles[roleIndex];
@@ -455,6 +613,13 @@ namespace LocalGPT.Components.Pages
             .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
             .ToList();
         _confirmed = false;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.ToggleRuntimeClass failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -462,22 +627,42 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The collection produced by the operation.</returns>
-    private IReadOnlyList<CouncilRuntimeClassDefinition> RuntimeClassesFor(OrganicCouncilRoleDefinition role) =>
-        _runtimeClasses
+    private IReadOnlyList<CouncilRuntimeClassDefinition> RuntimeClassesFor(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return _runtimeClasses
             .Where(item => role.RuntimeClassKeys.Contains(item.Key, StringComparer.OrdinalIgnoreCase))
             .OrderBy(item => item.Namespace, StringComparer.OrdinalIgnoreCase)
             .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RuntimeClassesFor failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Finds role policy for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
     /// <param name="roleName">Role name value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The organic council role definition produced by the operation.</returns>
-    private OrganicCouncilRoleDefinition? FindRolePolicy(string? roleName) =>
-        _editor.Roles.FirstOrDefault(role =>
+    private OrganicCouncilRoleDefinition? FindRolePolicy(string? roleName)
+    {
+        try
+        {
+            return _editor.Roles.FirstOrDefault(role =>
             !string.IsNullOrWhiteSpace(roleName) &&
             string.Equals(role.Role, roleName.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.FindRolePolicy failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs workflow role policy label for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
@@ -486,10 +671,19 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string WorkflowRolePolicyLabel(string? roleName)
     {
+        try
+        {
         var role = FindRolePolicy(roleName);
         return role is null
             ? "missing role policy; run will be blocked"
             : $"{RoleAiBadge(role)}; {RoleHumanBadge(role)}";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.WorkflowRolePolicyLabel failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -499,6 +693,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string RoleAiBadge(OrganicCouncilRoleDefinition role)
     {
+        try
+        {
         if (role.HumanParticipationMode == HumanParticipationMode.HumanOnly)
             return "Human only · 0 AI";
         if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected)
@@ -515,6 +711,13 @@ namespace LocalGPT.Components.Pages
         return role.MinimumAiParticipants == role.MaximumAiParticipants
             ? $"Random {role.MinimumAiParticipants} AI" + (role.MinimumAiParticipants == 1 ? string.Empty : "s")
             : $"Random {role.MinimumAiParticipants}–{role.MaximumAiParticipants} AIs";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RoleAiBadge failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -522,109 +725,208 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string RoleHumanBadge(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
+    private string RoleHumanBadge(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.HumanParticipationMode switch
     {
         HumanParticipationMode.Optional => "Human optional",
         HumanParticipationMode.Required => "Human required",
         HumanParticipationMode.HumanOnly => "Human only",
         _ => "AI role"
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RoleHumanBadge failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs role human badge class for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string RoleHumanBadgeClass(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
+    private string RoleHumanBadgeClass(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.HumanParticipationMode switch
     {
         HumanParticipationMode.Optional => "human-optional",
         HumanParticipationMode.Required => "human-required",
         HumanParticipationMode.HumanOnly => "human-only",
         _ => "human-none"
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RoleHumanBadgeClass failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs role performance badge for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string RolePerformanceBadge(OrganicCouncilRoleDefinition role) => role.PerformanceMode switch
+    private string RolePerformanceBadge(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.PerformanceMode switch
     {
         CouncilRolePerformanceMode.ImprovisationPlayer => "Improvisation player",
         _ => "Task specialist"
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RolePerformanceBadge failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs role boundary badge for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string RoleBoundaryBadge(OrganicCouncilRoleDefinition role) => role.BoundaryMode switch
+    private string RoleBoundaryBadge(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.BoundaryMode switch
     {
         CouncilRoleBoundaryMode.Collaborative => "Collaborative boundary",
         CouncilRoleBoundaryMode.Strict => "Strict boundary",
         _ => "Bounded role"
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RoleBoundaryBadge failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs role language badge for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string RoleLanguageBadge(OrganicCouncilRoleDefinition role) => role.LanguageMode switch
+    private string RoleLanguageBadge(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.LanguageMode switch
     {
         CouncilRoleLanguageMode.SenderLanguage => "Sender language",
         CouncilRoleLanguageMode.English => "English",
         _ => "Model language"
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RoleLanguageBadge failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs role policy explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string RolePolicyExplanation(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
+    private string RolePolicyExplanation(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.HumanParticipationMode switch
     {
         HumanParticipationMode.HumanOnly => "This role pauses for a human response and assigns no AI model.",
         HumanParticipationMode.Required => $"The role pauses for a human response, then {RoleAiBadge(role).ToLowerInvariant()} continue with that response in the transcript.",
         HumanParticipationMode.Optional => $"The human may join this role without blocking it; {RoleAiBadge(role).ToLowerInvariant()} are assigned when the round runs.",
         _ => $"No human response is requested for this role; {RoleAiBadge(role).ToLowerInvariant()} are assigned when the round runs."
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RolePolicyExplanation failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs role performance explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string RolePerformanceExplanation(OrganicCouncilRoleDefinition role) => role.PerformanceMode switch
+    private string RolePerformanceExplanation(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.PerformanceMode switch
     {
         CouncilRolePerformanceMode.ImprovisationPlayer => "The AI kernel plays this role as a self-aware improvisation participant, stays inside the fictional scene, and does not seize another role.",
         _ => "The AI kernel approaches this role as a bounded task specialist."
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RolePerformanceExplanation failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs role boundary explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string RoleBoundaryExplanation(OrganicCouncilRoleDefinition role) => role.BoundaryMode switch
+    private string RoleBoundaryExplanation(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.BoundaryMode switch
     {
         CouncilRoleBoundaryMode.Collaborative => "The participant may offer clearly labeled suggestions to neighboring roles but may not perform their decisions.",
         CouncilRoleBoundaryMode.Strict => "The participant may speak and act only for this role; narration, rulings, commands and outcomes belonging to another role are forbidden.",
         _ => "The participant remains inside this role and may reference other roles without deciding their actions or outcomes."
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RoleBoundaryExplanation failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs role language explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
     /// </summary>
     /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string RoleLanguageExplanation(OrganicCouncilRoleDefinition role) => role.LanguageMode switch
+    private string RoleLanguageExplanation(OrganicCouncilRoleDefinition role)
+    {
+        try
+        {
+            return role.LanguageMode switch
     {
         CouncilRoleLanguageMode.SenderLanguage => "Visible output and exposed thinking should follow the latest human sender's language when the model can do so.",
         CouncilRoleLanguageMode.English => "Visible output and exposed thinking are requested in English.",
         _ => "The model may choose the most suitable response language."
     };
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RoleLanguageExplanation failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs role coordination explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
@@ -633,6 +935,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The string produced by the operation.</returns>
     private string RoleCoordinationExplanation(OrganicCouncilRoleDefinition role)
     {
+        try
+        {
         var details = new List<string>();
         if (!string.IsNullOrWhiteSpace(role.DistinctAiAssignmentGroup))
             details.Add($"models are kept distinct from other roles in group '{role.DistinctAiAssignmentGroup}'");
@@ -651,6 +955,13 @@ namespace LocalGPT.Components.Pages
             }
         }
         return CouncilText.BuildRoleCoordinationExplanation(details, Logger);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.RoleCoordinationExplanation failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -658,11 +969,21 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string WorkflowLoopLabel(CouncilWorkflowStepDefinition step) =>
-        string.IsNullOrWhiteSpace(step.LoopGroup)
+    private string WorkflowLoopLabel(CouncilWorkflowStepDefinition step)
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(step.LoopGroup)
             ? "single pass"
             : $"loop {step.LoopGroup}, max {Math.Max(1, step.MaximumLoopIterations)}" +
               (string.IsNullOrWhiteSpace(step.LoopCompletionMarker) ? string.Empty : $", marker {step.LoopCompletionMarker}");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.WorkflowLoopLabel failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Calculates expanded round count for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
@@ -671,6 +992,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>The int produced by the operation.</returns>
     private int CalculateExpandedRoundCount(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
     {
+        try
+        {
         var ordered = steps
             .Where(step => step.IsEnabled)
             .OrderBy(step => step.SortOrder)
@@ -699,6 +1022,13 @@ namespace LocalGPT.Components.Pages
             total += blockRounds * maximumIterations;
         }
         return total;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.CalculateExpandedRoundCount failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -706,8 +1036,18 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="team">Team value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string WorkflowLabel(OrganicCouncilTeamDefinition team) =>
-        UsesDefaultWorkflow(team) ? "LocalGPT default orchestration" : "literal custom workflow";
+    private string WorkflowLabel(OrganicCouncilTeamDefinition team)
+    {
+        try
+        {
+            return UsesDefaultWorkflow(team) ? "LocalGPT default orchestration" : "literal custom workflow";
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.WorkflowLabel failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs uses default workflow for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
@@ -716,6 +1056,8 @@ namespace LocalGPT.Components.Pages
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool UsesDefaultWorkflow(OrganicCouncilTeamDefinition team)
     {
+        try
+        {
         if (!team.IsSystemSeed || team.IsUserModified)
             return false;
         var expected = new Dictionary<string, (int SortOrder, string ExecutionMode)>(StringComparer.OrdinalIgnoreCase)
@@ -734,6 +1076,13 @@ namespace LocalGPT.Components.Pages
             expected.TryGetValue(step.Key, out var contract) &&
             step.SortOrder == contract.SortOrder &&
             string.Equals(step.ExecutionMode, contract.ExecutionMode, StringComparison.OrdinalIgnoreCase));
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.UsesDefaultWorkflow failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -741,8 +1090,18 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="value">Value value supplied to the council teams operation and used when producing its result.</param>
     /// <returns>The organic council team definition produced by the operation.</returns>
-    private OrganicCouncilTeamDefinition Clone(OrganicCouncilTeamDefinition value) =>
-        System.Text.Json.JsonSerializer.Deserialize<OrganicCouncilTeamDefinition>(Serialize(value), JsonOptions) ?? new();
+    private OrganicCouncilTeamDefinition Clone(OrganicCouncilTeamDefinition value)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<OrganicCouncilTeamDefinition>(Serialize(value), JsonOptions) ?? new();
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method CouncilTeams.PersistenceAndPolicy.Clone failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs serialize for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.

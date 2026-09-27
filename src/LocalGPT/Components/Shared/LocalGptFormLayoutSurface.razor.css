@@ -1,0 +1,28 @@
+.localgpt-form-layout-surface {
+    width: 100%;
+    min-width: 0;
+}
+
+.localgpt-form-layout-surface ::deep .dxbl-fl,
+.localgpt-form-layout-surface ::deep .dxbl-fl-row,
+.localgpt-form-layout-surface ::deep .dxbl-fl-ctrl {
+    min-width: 0;
+}
+
+.localgpt-form-layout-surface ::deep .localgpt-layout-inner-stack {
+    width: 100%;
+    min-width: 0;
+}
+
+.localgpt-form-layout-surface ::deep .dxbl-grid-layout,
+.localgpt-form-layout-surface ::deep .dxbl-stack-layout,
+.localgpt-form-layout-surface ::deep .dxbl-tabs,
+.localgpt-form-layout-surface ::deep .dxbl-splitter,
+.localgpt-form-layout-surface ::deep .dxbl-carousel {
+    width: 100%;
+    min-width: 0;
+}
+
+.localgpt-layout-carousel {
+    min-height: 3rem;
+}

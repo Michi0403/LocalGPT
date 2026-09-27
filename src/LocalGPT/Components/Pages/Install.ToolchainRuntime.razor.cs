@@ -159,6 +159,8 @@ namespace LocalGPT.Components.Pages
 
         private void EditToolchainExecutionProfile(ToolchainExecutionProfile profile)
         {
+            try
+            {
             ToolchainProfileKey = profile.ProfileKey;
             ToolchainProfileName = profile.Name;
             ToolchainProfileCapability = profile.CapabilityKey;
@@ -172,6 +174,13 @@ namespace LocalGPT.Components.Pages
             ToolchainProfileIsDefault = profile.IsDefaultForCapability;
             ToolchainProfileRequiresApproval = profile.RequiresApproval;
             ToolchainRuntimeStatus = $"Editing process profile {profile.ProfileKey}.";
+        
+            }
+            catch (Exception __componentMethodException)
+            {
+                Logger.LogError(__componentMethodException, "Component method Install.ToolchainRuntime.EditToolchainExecutionProfile failed.");
+                throw;
+            }
         }
 
         private async Task RunToolchainExecutionProfileAsync(ToolchainExecutionProfile profile)

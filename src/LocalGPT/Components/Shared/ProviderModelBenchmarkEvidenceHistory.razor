@@ -2,6 +2,13 @@
 @using LocalGPT.Interfaces
 @inject IProviderModelBenchmarkService BenchmarkService
 
+@inject ILogger<ProviderModelBenchmarkEvidenceHistory> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ProviderModelBenchmarkEvidenceHistory">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <details class="benchmark-evidence-history">
     <summary>Saved benchmark audit evidence (@storedEvidence.Count recent archive(s))</summary>
     <div class="benchmark-evidence-history-body">
@@ -51,7 +58,10 @@
 
             @if (SelectedTarget is { } selectedTarget)
             {
-                <section class="benchmark-evidence-history-target">
+                <DxFormLayout CssClass="razor-section-layout-owner">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext002">
+        <div class="benchmark-evidence-history-target">
                     <header>
                         <strong>@selectedTarget.Model.SelectionKey</strong>
                         <small>@(string.IsNullOrWhiteSpace(selectedTarget.Error) ? selectedTarget.Recommendation.ProfileName : selectedTarget.Error)</small>
@@ -68,18 +78,32 @@
                             </div>
                         </details>
                     }
-                </section>
+                </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
             }
         }
     </div>
 </details>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
-    private IReadOnlyList<LocalGptSelectionOption<string>> StoredRunOptions => storedEvidence
-        .Select(item => new LocalGptSelectionOption<string>(item.RunId.ToString(), $"{FormatTimestamp(item.StoredAtUtc)} · {ShortRunId(item.RunId)} · {FormatBytes(item.ByteLength)}"))
-        .ToArray();
+    /// <summary>
+    /// Gets the stored run options collection maintained or exposed by this provider model benchmark evidence history instance for downstream processing.
+    /// </summary>
+    /// <value>The stored run options value exposed by <see cref="ProviderModelBenchmarkEvidenceHistory"/>.</value>
+    private IReadOnlyList<LocalGptSelectionOption<string>> StoredRunOptions => GetStoredRunOptionsForRender();
 
-    private IReadOnlyList<string> TargetSelectionKeys => loadedReport?.Targets.Select(target => target.Model.SelectionKey).ToArray() ?? [];
+    /// <summary>
+    /// Gets the target selection keys collection maintained or exposed by this provider model benchmark evidence history instance for downstream processing.
+    /// </summary>
+    /// <value>The target selection keys value exposed by <see cref="ProviderModelBenchmarkEvidenceHistory"/>.</value>
+    private IReadOnlyList<string> TargetSelectionKeys => GetTargetSelectionKeysForRender();
 
     /// <summary>
     /// Stores the in-memory stored evidence collection maintained internally by <see cref="ProviderModelBenchmarkEvidenceHistory"/> for its current workflow state.
@@ -110,8 +134,7 @@
     /// Gets the selected target value that forms part of the provider model benchmark evidence history state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The selected target value exposed by <see cref="ProviderModelBenchmarkEvidenceHistory"/>.</value>
-    private ProviderModelBenchmarkTargetResult? SelectedTarget => loadedReport?.Targets.FirstOrDefault(target =>
-        target.Model.SelectionKey.Equals(selectedTargetKey, StringComparison.OrdinalIgnoreCase));
+    private ProviderModelBenchmarkTargetResult? SelectedTarget => GetSelectedTargetForRender();
 
     /// <summary>
     /// Handles the initialized async lifecycle or event notification for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, updating the state required by the surrounding workflow.
@@ -119,7 +142,16 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         await RefreshAsync().ConfigureAwait(true);
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkEvidenceHistory.OnInitializedAsync failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -128,6 +160,7 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshAsync()
     {
+        Logger.LogDebug("Component method ProviderModelBenchmarkEvidenceHistory.RefreshAsync completed.");
         isBusy = true;
         statusText = string.Empty;
         IReadOnlyList<ProviderModelBenchmarkStoredEvidence> refreshedEvidence = [];
@@ -153,6 +186,7 @@
             statusText = nextStatus;
             isBusy = false;
         }).ConfigureAwait(false);
+    
     }
 
     /// <summary>
@@ -162,6 +196,7 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnStoredRunChangedAsync(string? value)
     {
+        Logger.LogDebug("Component method ProviderModelBenchmarkEvidenceHistory.OnStoredRunChangedAsync completed.");
         selectedRunValue = value ?? string.Empty;
         loadedReport = null;
         selectedTargetKey = string.Empty;
@@ -195,39 +230,81 @@
             statusText = nextStatus;
             isBusy = false;
         }).ConfigureAwait(false);
+    
     }
 
     /// <summary>
     /// Handles the target changed lifecycle or event notification for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, updating the state required by the surrounding workflow.
     /// </summary>
     /// <param name="value">Selected provider-qualified model key.</param>
-    private void OnTargetChanged(string? value) =>
-        selectedTargetKey = value ?? string.Empty;
+    private void OnTargetChanged(string? value)
+    {
+        try
+        {
+            selectedTargetKey = value ?? string.Empty;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkEvidenceHistory.OnTargetChanged failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs short run identifier for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.
     /// </summary>
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string ShortRunId(Guid runId) => runId.ToString("N")[..8];
+    private string ShortRunId(Guid runId)
+    {
+        try
+        {
+            return runId.ToString("N")[..8];
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkEvidenceHistory.ShortRunId failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs format timestamp for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.
     /// </summary>
     /// <param name="value">Value value supplied to the provider model benchmark evidence history operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string FormatTimestamp(DateTimeOffset value) =>
-        value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+    private string FormatTimestamp(DateTimeOffset value)
+    {
+        try
+        {
+            return value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkEvidenceHistory.FormatTimestamp failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs format completion for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.
     /// </summary>
     /// <param name="report">Report value supplied to the provider model benchmark evidence history operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string FormatCompletion(ProviderModelBenchmarkReport report) =>
-        report.CompletedAtUtc == default
+    private string FormatCompletion(ProviderModelBenchmarkReport report)
+    {
+        try
+        {
+            return report.CompletedAtUtc == default
             ? "not marked complete"
             : FormatTimestamp(report.CompletedAtUtc);
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkEvidenceHistory.FormatCompletion failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs format bytes for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.
@@ -236,10 +313,68 @@
     /// <returns>The string produced by the operation.</returns>
     private string FormatBytes(long bytes)
     {
+        try
+        {
         if (bytes >= 1024L * 1024L)
             return $"{bytes / (1024d * 1024d):0.0} MB";
         if (bytes >= 1024L)
             return $"{bytes / 1024d:0.0} KB";
         return $"{bytes} B";
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method ProviderModelBenchmarkEvidenceHistory.FormatBytes failed.");
+            throw;
+        }
+    }
+
+
+    /// <summary>Computes StoredRunOptions for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetStoredRunOptionsForRender()
+    {
+        try
+        {
+            return storedEvidence
+        .Select(item => new LocalGptSelectionOption<string>(item.RunId.ToString(), $"{FormatTimestamp(item.StoredAtUtc)} · {ShortRunId(item.RunId)} · {FormatBytes(item.ByteLength)}"))
+        .ToArray();
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkEvidenceHistory.StoredRunOptions failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes TargetSelectionKeys for the render path with component-local diagnostics.</summary>
+    /// <returns>The collection produced by the operation.</returns>
+    private IReadOnlyList<string> GetTargetSelectionKeysForRender()
+    {
+        try
+        {
+            return loadedReport?.Targets.Select(target => target.Model.SelectionKey).ToArray() ?? [];
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkEvidenceHistory.TargetSelectionKeys failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes SelectedTarget for the render path with component-local diagnostics.</summary>
+    /// <returns>The provider model benchmark target result produced by the operation.</returns>
+    private ProviderModelBenchmarkTargetResult? GetSelectedTargetForRender()
+    {
+        try
+        {
+            return loadedReport?.Targets.FirstOrDefault(target =>
+        target.Model.SelectionKey.Equals(selectedTargetKey, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ProviderModelBenchmarkEvidenceHistory.SelectedTarget failed.");
+            throw;
+        }
     }
 }

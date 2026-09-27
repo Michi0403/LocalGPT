@@ -7,6 +7,10 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner Drawer">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
 <div id="main-window-drawer">
 @*       <DxDrawer SizeMode="SizeMode.Large"
                 PanelWidth="@Width"
@@ -35,6 +39,11 @@
         </TargetContent>
     </DxDrawer>
 </div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
 
 @code {
     /// <summary>
@@ -91,7 +100,16 @@
     /// </summary>
     protected override void OnParametersSet()
     {
+        try
+        {
         drawerOpen = ToggledSidebar;
+    
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Drawer.OnParametersSet failed.");
+            throw;
+        }
     }
     /// <summary>
     /// Handles the after render async lifecycle or event notification for <see cref="Drawer"/>, updating the state required by the surrounding workflow.

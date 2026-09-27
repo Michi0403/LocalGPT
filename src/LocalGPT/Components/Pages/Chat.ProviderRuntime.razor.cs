@@ -316,6 +316,7 @@ namespace LocalGPT.Components.Pages
     /// <returns>The collection produced by the operation.</returns>
     private List<OneWireCouncilModelRoute> ParseModelRoutes(string? json)
     {
+        Logger.LogDebug("Component method Chat.ProviderRuntime.ParseModelRoutes completed.");
         if (string.IsNullOrWhiteSpace(json))
             return [];
         try
@@ -326,6 +327,7 @@ namespace LocalGPT.Components.Pages
         {
             return [];
         }
+    
     }
 
     /// <summary>
