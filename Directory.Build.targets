@@ -69,6 +69,7 @@
   <PropertyGroup>
     <InteractiveServerRenderModeScript>$(MSBuildThisFileDirectory)build/Assert-InteractiveServerRenderModes.ps1</InteractiveServerRenderModeScript>
     <AsyncContinuationScript>$(MSBuildThisFileDirectory)build/Assert-AsyncContinuationPolicy.ps1</AsyncContinuationScript>
+    <AsyncOnlyArchitectureScript>$(MSBuildThisFileDirectory)build/Assert-AsyncOnlyArchitecture.ps1</AsyncOnlyArchitectureScript>
   </PropertyGroup>
 
   <Target Name="AssertLocalGptInteractiveServerRenderModes"
@@ -99,6 +100,20 @@
           StandardErrorImportance="High" />
   </Target>
 
+  <Target Name="AssertLocalGptAsyncOnlyArchitecture"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptAsyncContinuationPolicy"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(AsyncOnlyArchitectureScript)')"
+           Text="Async-boundary architecture guard script is missing: $(AsyncOnlyArchitectureScript)" />
+    <Exec Condition="Exists('$(AsyncOnlyArchitectureScript)')"
+          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(AsyncOnlyArchitectureScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
   <PropertyGroup>
     <ComponentSafetyScript>$(MSBuildThisFileDirectory)build/Assert-ComponentSafety.ps1</ComponentSafetyScript>
     <MethodDiagnosticsPolicyScript>$(MSBuildThisFileDirectory)build/Assert-MethodDiagnostics.ps1</MethodDiagnosticsPolicyScript>
@@ -117,7 +132,7 @@
   </Target>
 
   <Target Name="AssertLocalGptMethodDiagnosticsPolicy"
-          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptAsyncContinuationPolicy"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptAsyncOnlyArchitecture"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipMethodDiagnosticsPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(MethodDiagnosticsPolicyScript)')" Text="Method diagnostics policy script is missing: $(MethodDiagnosticsPolicyScript)" />
     <Exec Condition="Exists('$(MethodDiagnosticsPolicyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(MethodDiagnosticsPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />

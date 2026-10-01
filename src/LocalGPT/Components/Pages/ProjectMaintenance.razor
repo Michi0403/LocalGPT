@@ -8,6 +8,7 @@
 @inject ILocalGptRequestFactoryService RequestFactory
 @inject ILocalGptLocalizationService Localization
 @inject ILogger<ProjectMaintenance> Logger
+@inject ISupervisedTaskRunner TaskRunner
 @inject INotificationService Notifier
 @inject CouncilTextService CouncilText
 
@@ -447,13 +448,13 @@
     string SelectedProjectValue
     {
         get => selectedProjectId?.ToString() ?? string.Empty;
-        set { selectedProjectId = Guid.TryParse(value, out var id) ? id : null; _ = SelectProjectAsync(); }
+        set { selectedProjectId = Guid.TryParse(value, out var id) ? id : null; TaskRunner.Run(nameof(ProjectMaintenance), nameof(SelectProjectAsync), _ => SelectProjectAsync()); }
     }
     /// <summary>
     /// Gets or sets the selected revision value value that forms part of the project maintenance state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The selected revision value value exposed by <see cref="ProjectMaintenance"/>.</value>
-    string SelectedRevisionValue { get => selectedRevisionId?.ToString() ?? string.Empty; set { selectedRevisionId = Guid.TryParse(value, out var id) ? id : null; SelectRevision(); _ = RefreshTrackedFilesAsync(); } }
+    string SelectedRevisionValue { get => selectedRevisionId?.ToString() ?? string.Empty; set { selectedRevisionId = Guid.TryParse(value, out var id) ? id : null; SelectRevision(); TaskRunner.Run(nameof(ProjectMaintenance), nameof(RefreshTrackedFilesAsync), _ => RefreshTrackedFilesAsync()); } }
     /// <summary>
     /// Gets or sets the selected compiler value value that forms part of the project maintenance state consumed or produced by the surrounding workflow.
     /// </summary>

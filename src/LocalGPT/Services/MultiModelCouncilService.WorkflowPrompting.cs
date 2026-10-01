@@ -341,13 +341,53 @@ namespace LocalGPT.Services
                             : $"Model completed with an error: {participantStep.Error}");
                 }
 
-                await AddCouncilStepAsync(
+                var functionSteps = await AddCouncilStepAsync(
                     result,
                     participantStep,
                     request.StepCompleted,
                     request.ProgressMessage,
                     allowDxFunctions,
                     cancellationToken).ConfigureAwait(false);
+                if (allowDxFunctions && functionSteps.Count > 0)
+                {
+                    await ContinueAfterDxFunctionResultsAsync(
+                        result,
+                        participantStep,
+                        functionSteps,
+                        baseUri,
+                        participants,
+                        RenderConfiguredWorkflowPrompt(
+                            definition,
+                            team,
+                            request,
+                            modelName,
+                            participants,
+                            roleAssignment,
+                            rolePairings,
+                            round,
+                            repeatIndex,
+                            repeatCount,
+                            loopGroup,
+                            loopIteration,
+                            loopMaximumIterations,
+                            transcript,
+                            previousStep,
+                            automaticFunctionPolicy),
+                        bootstrap,
+                        plan,
+                        keepAlive,
+                        modelTimeoutSeconds,
+                        request.ProgressMessage,
+                        request.StreamUpdate,
+                        request.StepCompleted,
+                        automaticFunctionPolicy.AutomaticFunctionAllowList,
+                        definition.RoleComplianceRetryCount,
+                        definition.FinalAnswerRecoveryEnabled,
+                        definition.FinalAnswerRecoveryMaxOutputTokens,
+                        definition.ToolResultContinuationMode,
+                        definition.ToolResultContinuationRounds,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (Exception __serviceMethodException)
             {

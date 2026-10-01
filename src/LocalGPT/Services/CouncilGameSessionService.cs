@@ -23,19 +23,24 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         /// Stores the logger used by <see cref="CouncilGameSessionService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
         private readonly ILogger<CouncilGameSessionService> logger;
+        /// <summary>Observes intentionally concurrent autoplay loops so their completion and failures remain owned.</summary>
+        private readonly ISupervisedTaskRunner taskRunner;
 
         /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
         /// <param name="gameDirector">Injected dependency used by the CouncilGameSessionService.</param>
         /// <param name="scopeFactory">Scope factory used to resolve database-backed team/runtime-class configuration safely from this singleton service.</param>
         /// <param name="logger">Injected dependency used by the CouncilGameSessionService.</param>
+        /// <param name="taskRunner">Supervised task owner used for intentionally concurrent autoplay loops.</param>
         public CouncilGameSessionService(
             ICouncilGameDirectorService gameDirector,
             IServiceScopeFactory scopeFactory,
-            ILogger<CouncilGameSessionService> logger)
+            ILogger<CouncilGameSessionService> logger,
+            ISupervisedTaskRunner taskRunner)
         {
             this.gameDirector = gameDirector;
             this.scopeFactory = scopeFactory;
             this.logger = logger;
+            this.taskRunner = taskRunner;
         }
 
     /// <summary>

@@ -1,11 +1,13 @@
-# LocalGPT 5.1.5
+# LocalGPT 5.2.4
 
-LocalGPT 5.1.5 addresses the post-build startup failure reported against 5.1.4 and adds the same bounded DevExpress popup behavior now used by the PublisherStudio repair.
+LocalGPT 5.2.4 repairs the async-only maintenance architecture introduced in 5.2.3 without weakening the useful asynchronous ownership rules.
 
-The optional dedicated MCP listener is preflighted before Kestrel receives it. If Windows refuses a loopback-only MCP port, LocalGPT keeps the primary loopback host alive and exposes MCP on its configured path through that endpoint instead. Remote-capable MCP configurations are not silently weakened; an unavailable dedicated socket disables MCP for that run rather than taking down the application. The primary LocalGPT app/installer endpoint remains unchanged.
+The 5.2.3 scanner treated ordinary synchronous .NET/Blazor contracts, pure helpers, atomic state, and synchronous-only disposal as architecture violations and also contained lexical false positives for domain `.Result` properties, `_ => await ...` lambdas, and `_ = await ...` result discards. The corrected gate now validates asynchronous boundaries rather than demanding fake asynchronous signatures everywhere.
 
-DevExpress modal dialogs are also viewport-bounded, with oversized popup bodies scrolling internally rather than bleeding beyond their visible modal surface. Dropdown/listbox portals are intentionally excluded.
+Real async ownership violations remain build-breaking. Methods ending in `Async` must be awaitable, `async void` is rejected, asynchronous work may not be hidden in getters, renderer/awaitable workflows may not block on Tasks, blocking coordination remains forbidden, and direct fire-and-forget starts are rejected.
 
-The version advances from 5.1.4 to 5.1.5. InteractiveServer directives and the existing DevExpress/Razor ownership model are unchanged. No .NET build/publish and no GitHub/online access were used for this source-only handoff.
+LocalGPT also removes all maintained direct discarded async starts found by the corrected rule. UI/event bridges, Council provider discovery, coalesced console render workers, documentation refresh, delayed Council-spool persistence, and Council autoplay now transfer intentional concurrency to the existing `ISupervisedTaskRunner`; existing cancellation tokens are retained where the worker already owned one.
 
-See `CHANGELOG-v5.1.5-STARTUP-POPUP-VIEWPORT-RESILIENCE.md` and `VALIDATION-v5.1.5-source.md`.
+The corrected async-boundary audit passes all 613 reviewed LocalGPT source files. The application-architecture, async-continuation, and Razor-maintenance source audits also pass. No .NET build was attempted in this environment.
+
+See `CHANGELOG-v5.2.4-ASYNC-BOUNDARY-ARCHITECTURE-REPAIR.md` and `VALIDATION-v5.2.4-source.md`.

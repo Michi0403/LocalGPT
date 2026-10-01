@@ -15,7 +15,7 @@ public sealed class McpGatewayOptions
     /// <summary>Gets or sets whether MCP is enabled.</summary>
     public bool Enabled { get; set; }
 
-    /// <summary>Gets or sets whether a dedicated Kestrel listener is created for MCP traffic.</summary>
+    /// <summary>Gets or sets whether a dedicated isolated Kestrel host is created for MCP traffic.</summary>
     public bool DedicatedListenerEnabled { get; set; } = true;
 
     /// <summary>Gets or sets whether the MCP path is also accepted on the authoritative LocalGPT web listener.</summary>

@@ -1,0 +1,121 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject NavigationManager NavigationManager
+@inject ILogger<LanguageSwitcher> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
+
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner LanguageSwitcher">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+            <div class="language-switcher" aria-label="@LanguageLabel">
+                <label for="localgpt-language-select" class="visually-hidden">@LanguageLabel</label>
+                <DxComboBox Data="@LanguageOptions"
+                            Value="@CurrentCulture"
+                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                            ValueChanged="async (string value) => await OnCultureChanged(value).ConfigureAwait(false)"
+                            InputId="localgpt-language-select"
+                            CssClass="localgpt-language-select"
+                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Never" />
+            </div>
+        </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+@code {
+    /// <summary>Gets the localized culture options exposed by the interactive language island.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> LanguageOptions => GetLanguageOptionsForRender();
+
+    /// <summary>Gets the currently active UI culture.</summary>
+    private string CurrentCulture => GetCurrentCultureForRender();
+
+    /// <summary>Gets the localized accessible label for the language selector.</summary>
+    private string LanguageLabel => GetLanguageLabelForRender();
+
+    /// <summary>Handles a user-selected UI culture and reloads the document through the canonical culture route.</summary>
+    private async Task OnCultureChanged(object cultureObject)
+    {
+        try
+        {
+            if (cultureObject is string culture)
+            {
+                if (string.IsNullOrWhiteSpace(culture) || string.Equals(culture, CurrentCulture, StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                ComponentActivity.RecordInformation(nameof(LanguageSwitcher), nameof(OnCultureChanged), $"Switching UI culture to {culture}.");
+                NavigationManager.NavigateTo(Localization.BuildCultureSelectionUrl(NavigationManager.Uri, culture), forceLoad: true);
+            }
+            else
+                throw new Exception($"cultureObject:{cultureObject} wasn't a string");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Language selector could not switch the UI culture.");
+            ComponentActivity.RecordFailure(nameof(LanguageSwitcher), nameof(OnCultureChanged), ex);
+            Notifier.ShowError("ComponentSafetyToasts", "The language could not be changed. See local application logs for details.", "Language change failed");
+            throw;
+        }
+    }
+
+    /// <summary>Builds the native-language label for one configured culture.</summary>
+    private string CultureLabel(string culture)
+    {
+        try
+        {
+            var info = System.Globalization.CultureInfo.GetCultureInfo(culture);
+            return $"{info.NativeName} ({info.Name})";
+        }
+        catch (System.Globalization.CultureNotFoundException ex)
+        {
+            Logger.LogDebug(ex, "Configured culture {Culture} could not be resolved; using its configured key as the label.", culture);
+            return culture;
+        }
+    }
+
+    /// <summary>Computes the configured language options for the render path.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> GetLanguageOptionsForRender()
+    {
+        try
+        {
+            return Localization.GetAvailableCultures()
+                .Select(culture => new LocalGptSelectionOption<string>(culture, CultureLabel(culture)))
+                .ToArray();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Language selector options could not be prepared.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes the current configured UI culture for the render path.</summary>
+    private string GetCurrentCultureForRender()
+    {
+        try
+        {
+            return Localization.ResolveAvailableCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Language selector could not resolve the current UI culture.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes the selector label for the render path.</summary>
+    private string GetLanguageLabelForRender()
+    {
+        try
+        {
+            return Localization.GetText("Language");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Language selector label could not be resolved.");
+            throw;
+        }
+    }
+}

@@ -102,6 +102,32 @@
     height: 0;
 }
 
+.themeswitcher-container,
+.themeswitcher-container .blazor-themes,
+.themeswitcher-container .blazor-themes .list-group,
+.themeswitcher-container .blazor-themes .list-group-item,
+.themeswitcher-container .themeswitcher-item {
+    color: var(--localgpt-body-color, var(--bs-body-color, #212529));
+    -webkit-text-fill-color: var(--localgpt-body-color, var(--bs-body-color, #212529));
+}
+
+.themeswitcher-container .blazor-themes .list-group-item-action:not(.active) {
+    background-color: var(--localgpt-surface-bg, var(--bs-body-bg, #fff));
+}
+
+.themeswitcher-container .blazor-themes .list-group-item-action:hover,
+.themeswitcher-container .blazor-themes .list-group-item-action:focus-visible {
+    color: var(--localgpt-body-color, var(--bs-body-color, #212529));
+    -webkit-text-fill-color: var(--localgpt-body-color, var(--bs-body-color, #212529));
+    background-color: var(--localgpt-surface-raised-bg, var(--bs-tertiary-bg, var(--bs-body-bg, #fff)));
+}
+
+.themeswitcher-container .blazor-themes .themeswitcher-item.active {
+    color: var(--localgpt-primary-contrast, #fff);
+    -webkit-text-fill-color: var(--localgpt-primary-contrast, #fff);
+    background-color: var(--localgpt-primary, var(--bs-primary, #0d6efd));
+}
+
 .themeswitcher-container {
     background-color: var(--bs-body-bg);
     position: fixed;

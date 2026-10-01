@@ -5,6 +5,7 @@
 @inject NavigationManager NavigationManager
 @namespace LocalGPT.Components.Layout
 @inject ILogger<MainLayout> Logger
+@inject ISupervisedTaskRunner TaskRunner
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
@@ -38,17 +39,7 @@
                             <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Back to Home" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav localgpt-shell-toolbar-button localgpt-back-home-button" IconCssClass="icon icon-back"></DxButton>
                         </NavLink>
                     }
-                    <div class="language-switcher" aria-label="@LanguageLabel">
-                        <label for="localgpt-language-select" class="visually-hidden">@LanguageLabel</label>
-                        <DxComboBox Data="@LanguageOptions"
-                                    Value="@CurrentCulture"
-                                    ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
-                                    TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
-                                    ValueChanged="@((string culture) => OnCultureChanged(culture))"
-                                    InputId="localgpt-language-select"
-                                    CssClass="localgpt-language-select"
-                                    ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Never" />
-                    </div>
+                    <LanguageSwitcher />
                 </div>
                 <SafeErrorBoundary @key="NavigationManager.Uri" Area="MainLayout" ToastName="ComponentSafetyToasts">
                     @Body
@@ -98,35 +89,6 @@
         GetIsInstallPageForRender();
 
     /// <summary>
-    /// Gets the language options collection maintained or exposed by this main layout instance for downstream processing.
-    /// </summary>
-    /// <value>The language options value exposed by <see cref="MainLayout"/>.</value>
-    private IReadOnlyList<LocalGptSelectionOption<string>> LanguageOptions => GetLanguageOptionsForRender();
-
-    /// <summary>
-    /// Handles the culture changed lifecycle or event notification for <see cref="MainLayout"/>, updating the state required by the surrounding workflow.
-    /// </summary>
-    /// <param name="culture">Culture value supplied to the main layout operation and used when producing its result.</param>
-    private void OnCultureChanged(string? culture)
-    {
-        try
-        {
-        if (string.IsNullOrWhiteSpace(culture) || string.Equals(culture, CurrentCulture, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        NavigationManager.NavigateTo(Localization.BuildCultureSelectionUrl(NavigationManager.Uri, culture), forceLoad: true);
-    
-        }
-        catch (Exception __componentMethodException)
-        {
-            Logger.LogError(__componentMethodException, "Component method MainLayout.OnCultureChanged failed.");
-            throw;
-        }
-    }
-
-    /// <summary>
     /// Handles the initialized lifecycle or event notification for <see cref="MainLayout"/>, updating the state required by the surrounding workflow.
     /// </summary>
     protected override void OnInitialized()
@@ -152,7 +114,7 @@
     {
         try
         {
-            _ = InvokeAsync(StateHasChanged);
+            TaskRunner.Run(nameof(MainLayout), nameof(OnLocationChanged), _ => InvokeAsync(StateHasChanged));
         }
         catch (Exception __componentMethodException)
         {
@@ -196,35 +158,6 @@
     }
 
     /// <summary>
-    /// Gets the current culture value that forms part of the main layout state consumed or produced by the surrounding workflow.
-    /// </summary>
-    /// <value>The current culture value exposed by <see cref="MainLayout"/>.</value>
-    private string CurrentCulture => GetCurrentCultureForRender();
-    /// <summary>
-    /// Gets the language label value that forms part of the main layout state consumed or produced by the surrounding workflow.
-    /// </summary>
-    /// <value>The language label value exposed by <see cref="MainLayout"/>.</value>
-    private string LanguageLabel => GetLanguageLabelForRender();
-
-    /// <summary>Creates a native-language label for one culture option.</summary>
-    /// <param name="culture">Culture value supplied to the main layout operation and used when producing its result.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string CultureLabel(string culture)
-    {
-        Logger.LogDebug("Component method MainLayout.CultureLabel completed.");
-        try
-        {
-            var info = System.Globalization.CultureInfo.GetCultureInfo(culture);
-            return $"{info.NativeName} ({info.Name})";
-        }
-        catch (System.Globalization.CultureNotFoundException)
-        {
-            return culture;
-        }
-    
-    }
-
-    /// <summary>
     /// Gets the drawer header value that forms part of the main layout state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The drawer header value exposed by <see cref="MainLayout"/>.</value>
@@ -263,53 +196,6 @@
         catch (Exception __componentPropertyException)
         {
             Logger.LogError(__componentPropertyException, "Computed render property MainLayout.IsInstallPage failed.");
-            throw;
-        }
-    }
-
-    /// <summary>Computes LanguageOptions for the render path with component-local diagnostics.</summary>
-    /// <returns>The collection produced by the operation.</returns>
-    private IReadOnlyList<LocalGptSelectionOption<string>> GetLanguageOptionsForRender()
-    {
-        try
-        {
-            return Localization.GetAvailableCultures()
-        .Select(culture => new LocalGptSelectionOption<string>(culture, CultureLabel(culture)))
-        .ToArray();
-        }
-        catch (Exception __componentPropertyException)
-        {
-            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.LanguageOptions failed.");
-            throw;
-        }
-    }
-
-    /// <summary>Computes CurrentCulture for the render path with component-local diagnostics.</summary>
-    /// <returns>The string produced by the operation.</returns>
-    private string GetCurrentCultureForRender()
-    {
-        try
-        {
-            return Localization.ResolveAvailableCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
-        }
-        catch (Exception __componentPropertyException)
-        {
-            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.CurrentCulture failed.");
-            throw;
-        }
-    }
-
-    /// <summary>Computes LanguageLabel for the render path with component-local diagnostics.</summary>
-    /// <returns>The string produced by the operation.</returns>
-    private string GetLanguageLabelForRender()
-    {
-        try
-        {
-            return Localization.GetText("Language");
-        }
-        catch (Exception __componentPropertyException)
-        {
-            Logger.LogError(__componentPropertyException, "Computed render property MainLayout.LanguageLabel failed.");
             throw;
         }
     }

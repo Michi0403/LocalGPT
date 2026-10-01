@@ -1213,7 +1213,7 @@ namespace LocalGPT.Components.Pages
         {
         showGameConsole = false;
         UpdateAsciiExperienceState();
-        _ = InvokeAsync(StateHasChanged);
+        TaskRunner.Run(nameof(Chat), nameof(CloseGameConsole), _ => InvokeAsync(StateHasChanged));
     
         }
         catch (Exception __componentMethodException)

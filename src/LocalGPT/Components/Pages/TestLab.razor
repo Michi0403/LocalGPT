@@ -30,6 +30,10 @@
                      Title='@Localization.Get("TestLab.Workbench.Title", fallback: "Test Lab")'
                      Subtitle='@Localization.Get("TestLab.Workbench.Subtitle", fallback: "Run local diagnostics, inspect generated artifacts and manage bounded knowledge imports from one responsive workbench.")' />
     <ToastWrapper Name="@toastName" />
+    <div class="test-lab-live-status @(isBusy ? "running" : "idle")" role="status" aria-live="polite">
+        <strong>@(isBusy ? "Running" : "Status")</strong>
+        <span>@statusText</span>
+    </div>
     <div class="test-lab-workbench-layout">
         <ConfigurationWorkbenchNav Items="@TestLabSections"
                                    ActiveKey="@ActiveTestLabSection"
@@ -340,8 +344,9 @@
 
     <DxPopup @bind-Visible="@sourcePopupVisible"
              HeaderText="@SourcePopupTitle"
-             Width="min(1180px, 96vw)"
-             MaxHeight="92vh"
+             Width="96vw"
+             Height="90dvh"
+             MaxHeight="94dvh"
              CloseOnOutsideClick="false">
         <BodyContentTemplate>
             <div class="source-popup">
@@ -441,7 +446,7 @@
     /// <summary>
     /// Stores the internal result text state used by <see cref="TestLab"/> while executing its surrounding workflow.
     /// </summary>
-    private string resultText = "Run a local diagnostic route to see JSON here.";
+    private string resultText = string.Empty;
     /// <summary>
     /// Stores the internal custom route state used by <see cref="TestLab"/> while executing its surrounding workflow.
     /// </summary>
@@ -1012,10 +1017,13 @@
                 return;
             }
 
+            var previousResult = resultText;
+            var previousDownloadLinks = downloadLinks.ToList();
             isBusy = true;
             statusText = $"Running GET {route} ...";
             resultText = string.Empty;
             downloadLinks = [];
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
 
             try
             {
@@ -1036,7 +1044,10 @@
             }
             finally
             {
+                resultText = AppendDiagnosticResult(previousResult, $"GET {route}", statusText, resultText);
+                downloadLinks = MergeDownloadLinks(previousDownloadLinks, downloadLinks);
                 isBusy = false;
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -1273,8 +1284,11 @@
         try
         {
             statusText = "Route blocked by Test Lab local safety policy.";
-            resultText = $"Blocked route: {route}{Environment.NewLine}Allowed prefixes: /__diag, /__artifacts, /health.";
-            downloadLinks = [];
+            resultText = AppendDiagnosticResult(
+                resultText,
+                $"Blocked route {route}",
+                statusText,
+                $"Allowed prefixes: /__diag, /__artifacts, /health.");
             return Task.CompletedTask;
         }
         catch (Exception ex)
@@ -1341,8 +1355,14 @@
     private async Task RunUiActionAsync(Func<Task> action, string operation)
     {
         ArgumentNullException.ThrowIfNull(action);
+        var previousResult = resultText;
+        var previousDownloadLinks = downloadLinks.ToList();
         isBusy = true;
+        statusText = $"Running {operation} ...";
+        resultText = string.Empty;
+        downloadLinks = [];
         ComponentActivity.RecordInformation(nameof(TestLab), operation, "The Test Lab UI operation started.");
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         try
         {
             await action().ConfigureAwait(false);
@@ -1366,12 +1386,51 @@
         }
         finally
         {
+            resultText = AppendDiagnosticResult(previousResult, operation, statusText, resultText);
+            downloadLinks = MergeDownloadLinks(previousDownloadLinks, downloadLinks);
             isBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 
  
 
+
+    /// <summary>Appends one diagnostic operation to the visible Test Lab history without discarding earlier evidence.</summary>
+    private string AppendDiagnosticResult(string existing, string operation, string status, string payload)
+    {
+        try
+        {
+            var timestamp = DateTimeOffset.Now.ToString("HH:mm:ss");
+            var body = string.IsNullOrWhiteSpace(payload) ? "No result payload was returned." : payload.Trim();
+            var entry = $"[{timestamp}] {operation}{Environment.NewLine}{status}{Environment.NewLine}{body}";
+            return string.IsNullOrWhiteSpace(existing)
+                ? entry
+                : $"{existing.TrimEnd()}{Environment.NewLine}{Environment.NewLine}-----{Environment.NewLine}{entry}";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Test Lab could not append a diagnostic result to the visible history.");
+            throw;
+        }
+    }
+
+    /// <summary>Merges newly discovered artifact links with links preserved from earlier Test Lab operations.</summary>
+    private List<TestLabDownloadLink> MergeDownloadLinks(IEnumerable<TestLabDownloadLink> existing, IEnumerable<TestLabDownloadLink> current)
+    {
+        try
+        {
+            return existing
+                .Concat(current)
+                .DistinctBy(link => link.AbsoluteUrl, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Test Lab could not merge diagnostic download links.");
+            throw;
+        }
+    }
 
     /// <summary>Computes TestLabSections for the render path with component-local diagnostics.</summary>
     /// <returns>The collection produced by the operation.</returns>

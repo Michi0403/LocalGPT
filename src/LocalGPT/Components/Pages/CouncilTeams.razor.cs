@@ -73,6 +73,12 @@ namespace LocalGPT.Components.Pages
         new(CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Use this team's allow-list"),
         new(CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Use this step's exact allow-list")
     ];
+    /// <summary>Stores the user-editable policies that control whether text-gateway function evidence is returned to the same model.</summary>
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilToolResultContinuationMode>> ToolResultContinuationModes =
+    [
+        new(CouncilToolResultContinuationMode.Disabled, "Disabled — preserve function evidence without another model turn"),
+        new(CouncilToolResultContinuationMode.SameMemberBounded, "Same member — bounded function-result continuation")
+    ];
     /// <summary>
     /// Stores the in-memory role result synthesis member modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
@@ -445,7 +451,7 @@ namespace LocalGPT.Components.Pages
                 Notifier.ShowInfo(nameof(CouncilTeams), _status, "Council Teams");
             }).ConfigureAwait(false);
 
-            _ = RefreshProviderModelsAsync();
+            TaskRunner.Run(nameof(CouncilTeams), nameof(RefreshProviderModelsAsync), _ => RefreshProviderModelsAsync());
         }
         catch (Exception ex)
         {
@@ -898,6 +904,8 @@ namespace LocalGPT.Components.Pages
         IsEnabled = true,
         CanUseOrganicFunctions = true,
         AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.AllPolicyApproved,
+        ToolResultContinuationMode = CouncilToolResultContinuationMode.SameMemberBounded,
+        ToolResultContinuationRounds = 2,
         RoleComplianceRetryCount = 1,
         MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool,
         MemberFailureRecoveryAttempts = 3,
@@ -1035,6 +1043,11 @@ namespace LocalGPT.Components.Pages
             step.CanUseOrganicFunctions = step.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.Disabled;
             step.AllowedAutomaticFunctions ??= [];
             step.AllowedAutomaticFunctions = step.AllowedAutomaticFunctions.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToList();
+            if (!Enum.IsDefined(typeof(CouncilToolResultContinuationMode), step.ToolResultContinuationMode))
+                step.ToolResultContinuationMode = CouncilToolResultContinuationMode.SameMemberBounded;
+            step.ToolResultContinuationRounds = step.ToolResultContinuationMode == CouncilToolResultContinuationMode.Disabled
+                ? 0
+                : Math.Clamp(step.ToolResultContinuationRounds, 1, 6);
             step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, 3);
             if (!Enum.IsDefined(typeof(CouncilMemberFailureRecoveryMode), step.MemberFailureRecoveryMode))
                 step.MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool;

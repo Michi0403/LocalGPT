@@ -74,19 +74,36 @@ $registryPath = Join-Path $sourceRoot 'Services/DxAiFunctionRegistry.cs'
 $registryText = Get-Content -LiteralPath $registryPath -Raw
 foreach ($forbidden in @(
     'IServiceProvider serviceProvider',
-    'serviceProvider.GetServices<IDxAiFunctionHandler>()',
-    'Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>>')) {
+    'InitializeHandlers(',
+    'handlerInitializationInProgress',
+    'handlersInitialized')) {
     if ($registryText.IndexOf($forbidden, [StringComparison]::Ordinal) -ge 0) {
-        $errors.Add("src/LocalGPT/Services/DxAiFunctionRegistry.cs(1,1): error DI0007: Scoped DXFunction registry must not capture IServiceProvider or defer handler resolution through a provider-backed Lazy. Architectural choices: construct the registry first, resolve handlers synchronously from the same active scope through InitializeHandlers, and keep IDxAiFunctionRegistry excluded from DispatchProxy because the registry already owns method-local diagnostics.")
+        $errors.Add("src/LocalGPT/Services/DxAiFunctionRegistry.cs(1,1): error DI0007: Scoped DXFunction registry must not own a provider or re-entrant eager-initialization state. Architectural choices: keep IDxAiFunctionRegistry as a normal scoped registration, defer the handler map through the scope-bound DxAiFunctionHandlerResolver, and never create a child scope for circuit-owned handlers.")
     }
 }
 foreach ($required in @(
-    'internal void InitializeHandlers(Func<IEnumerable<IDxAiFunctionHandler>> handlerFactory)',
-    'handlerInitializationInProgress',
-    'handlersInitialized',
-    'handlerMapService.Build(handlerFactory())')) {
+    'DxAiFunctionHandlerResolver handlerResolver',
+    'Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>>',
+    'handlerMapService.Build(handlerResolver.Resolve())',
+    'LazyThreadSafetyMode.ExecutionAndPublication')) {
     if ($registryText.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
-        $errors.Add("src/LocalGPT/Services/DxAiFunctionRegistry.cs(1,1): error DI0008: Scoped DXFunction same-scope initialization contract is missing '$required'. Architectural choices: preserve the re-entrant initialization protocol so handlers can depend on the registry without a deferred IServiceProvider capture or a new child scope.")
+        $errors.Add("src/LocalGPT/Services/DxAiFunctionRegistry.cs(1,1): error DI0008: Scoped DXFunction lazy-handler contract is missing '$required'. Architectural choices: preserve one normal scoped registry identity and delay handler construction until the function directory is actually used; do not eagerly resolve the complete handler graph while IChatClientFactory is being constructed.")
+    }
+}
+
+$resolverPath = Join-Path $sourceRoot 'Services/DxAiFunctionHandlerResolver.cs'
+if (-not (Test-Path -LiteralPath $resolverPath)) {
+    $errors.Add("src/LocalGPT/Services/DxAiFunctionHandlerResolver.cs(1,1): error DI0014: The scope-bound DXFunction handler resolver is missing. It owns the one deferred same-scope IServiceProvider access needed to break the handler-to-registry constructor cycle without changing registry identity or creating a child scope.")
+}
+else {
+    $resolverText = Get-Content -LiteralPath $resolverPath -Raw
+    foreach ($required in @(
+        'IServiceProvider serviceProvider',
+        'serviceProvider.GetServices<IDxAiFunctionHandler>()',
+        'ILogger<DxAiFunctionHandlerResolver>')) {
+        if ($resolverText.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
+            $errors.Add("src/LocalGPT/Services/DxAiFunctionHandlerResolver.cs(1,1): error DI0014: Scope-bound DXFunction handler resolver is missing '$required'. Keep deferred handler resolution isolated in this scoped lifetime boundary rather than in the registry or a child scope.")
+        }
     }
 }
 
@@ -95,17 +112,28 @@ $diagnosticsRegistrationText = Get-Content -LiteralPath $diagnosticsRegistration
 if ($diagnosticsRegistrationText.IndexOf('serviceType == typeof(IDxAiFunctionRegistry)', [StringComparison]::Ordinal) -lt 0) {
     $errors.Add("src/LocalGPT/Services/ServiceMethodDiagnosticsRegistration.cs(1,1): error DI0009: IDxAiFunctionRegistry must remain outside DispatchProxy decoration. Architectural choices: retain the registry's explicit method-local diagnostics and preserve its scoped graph identity; do not reintroduce a proxy around the cycle-breaking registry factory.")
 }
+if ($diagnosticsRegistrationText.IndexOf('services[index] = replacement', [StringComparison]::Ordinal) -ge 0) {
+    $errors.Add("src/LocalGPT/Services/ServiceMethodDiagnosticsRegistration.cs(1,1): error DI0011: The service-method diagnostics pass must not replace DI descriptors. Runtime evidence showed recursive ActivatorUtilities resolution can corrupt the .NET 10 scoped call-site cache; preserve authored descriptors and rely on service-owned diagnostics.")
+}
+if ($diagnosticsRegistrationText.IndexOf('registrations were preserved unchanged', [StringComparison]::Ordinal) -lt 0) {
+    $errors.Add("src/LocalGPT/Services/ServiceMethodDiagnosticsRegistration.cs(1,1): error DI0012: The descriptor-preservation contract for service-method diagnostics is missing. Keep Apply observational so scoped graph identity, lifetime and disposal ownership remain DI-owned.")
+}
 
 $registrationPath = Join-Path $sourceRoot 'Program.ServiceRegistration.cs'
 $registrationText = Get-Content -LiteralPath $registrationPath -Raw
+
+if ($registrationText.IndexOf('AddTransient<IDxAiFunctionRegistry>(provider =>', [StringComparison]::Ordinal) -ge 0 -or
+    $registrationText.IndexOf('AddScoped<IDxAiFunctionRegistry>(provider =>', [StringComparison]::Ordinal) -ge 0) {
+    $errors.Add("src/LocalGPT/Program.ServiceRegistration.cs(1,1): error DI0013: IDxAiFunctionRegistry must not be exposed through a re-entrant factory alias. Runtime evidence showed the scoped alias throws duplicate ServiceCacheKey errors and the transient alias can stall Chat construction while eagerly materializing the handler graph. Use the normal scoped interface-to-implementation registration plus the scoped lazy handler resolver.")
+}
 foreach ($required in @(
-    'AddScoped<DxAiFunctionRegistry>()',
-    'AddScoped<IDxAiFunctionRegistry>(provider =>',
-    'registry.InitializeHandlers(() => provider.GetServices<IDxAiFunctionHandler>())')) {
+    'AddScoped<DxAiFunctionHandlerResolver>()',
+    'AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>()')) {
     if ($registrationText.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
-        $errors.Add("src/LocalGPT/Program.ServiceRegistration.cs(1,1): error DI0010: DXFunction registry DI wiring is missing '$required'. Architectural choices: keep one same-scope registry instance, initialize its handlers synchronously while the provider is alive, and never cache the provider for later use.")
+        $errors.Add("src/LocalGPT/Program.ServiceRegistration.cs(1,1): error DI0010: DXFunction registry DI wiring is missing '$required'. Architectural choices: one normal scoped registry identity, one scope-bound handler resolver, lazy handler-map construction, and no unrelated child scope.")
     }
 }
+
 
 $themeDispatcherPath = Join-Path $sourceRoot 'Components/Layout/ThemeJsChangeDispatcher.cs'
 $themeDispatcher = Get-Content -LiteralPath $themeDispatcherPath -Raw

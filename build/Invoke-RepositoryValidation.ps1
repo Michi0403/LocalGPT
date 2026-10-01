@@ -19,6 +19,7 @@ try {
     & ./build/Assert-CouncilXRoundWiring.ps1
     & ./build/Assert-XmlDocumentationCoverage.ps1
     & ./build/Assert-AsyncContinuationPolicy.ps1
+    & ./build/Assert-AsyncOnlyArchitecture.ps1
     & ./build/Assert-MethodDiagnostics.ps1
     & ./build/Assert-ApplicationStaticPolicy.ps1
     & ./build/Assert-TextServiceOwnership.ps1

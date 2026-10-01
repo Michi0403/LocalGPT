@@ -1,5 +1,6 @@
 @inject IConsoleCommandService Console
 @inject ILogger<LocalConsoleFeed> Logger
+@inject ISupervisedTaskRunner TaskRunner
 @implements IDisposable
 
 @inject INotificationService Notifier
@@ -83,7 +84,7 @@
                 return;
             Interlocked.Exchange(ref renderPending, 1);
             if (Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
-                _ = RefreshRenderAsync();
+                TaskRunner.Run(nameof(LocalConsoleFeed), nameof(RefreshRenderAsync), _ => RefreshRenderAsync(), renderCancellation.Token);
         }
         catch (Exception exception)
         {
@@ -131,7 +132,7 @@
                 && Volatile.Read(ref renderPending) != 0
                 && !renderCancellation.IsCancellationRequested
                 && Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
-                _ = RefreshRenderAsync();
+                TaskRunner.Run(nameof(LocalConsoleFeed), nameof(RefreshRenderAsync), _ => RefreshRenderAsync(), renderCancellation.Token);
         }
     }
 

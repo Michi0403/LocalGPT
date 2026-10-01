@@ -357,7 +357,8 @@ namespace LocalGPT.Services
             try
             {
                 return string.Equals(candidatePhase, phase, StringComparison.Ordinal) ||
-                    candidatePhase.StartsWith($"{phase} · automatic member recovery ", StringComparison.Ordinal);
+                    candidatePhase.StartsWith($"{phase} · automatic member recovery ", StringComparison.Ordinal) ||
+                    candidatePhase.StartsWith($"{phase} · tool continuation ", StringComparison.Ordinal);
             }
             catch (Exception ex)
             {

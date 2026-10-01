@@ -319,7 +319,9 @@ namespace LocalGPT.Services
                                         automaticFunctionAllowList: automaticFunctionPolicy.AutomaticFunctionAllowList,
                                         roleComplianceRetryCount: definition.RoleComplianceRetryCount,
                                         finalAnswerRecoveryEnabled: definition.FinalAnswerRecoveryEnabled,
-                                        finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens).ConfigureAwait(false);
+                                        finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens,
+                                        toolResultContinuationMode: definition.ToolResultContinuationMode,
+                                        toolResultContinuationRounds: definition.ToolResultContinuationRounds).ConfigureAwait(false);
                                     break;
                                 }
                             case "AllMembersSequentialOnEachAIHostParallel":
@@ -368,7 +370,9 @@ namespace LocalGPT.Services
                                         automaticFunctionAllowList: automaticFunctionPolicy.AutomaticFunctionAllowList,
                                         roleComplianceRetryCount: definition.RoleComplianceRetryCount,
                                         finalAnswerRecoveryEnabled: definition.FinalAnswerRecoveryEnabled,
-                                        finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens).ConfigureAwait(false);
+                                        finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens,
+                                        toolResultContinuationMode: definition.ToolResultContinuationMode,
+                                        toolResultContinuationRounds: definition.ToolResultContinuationRounds).ConfigureAwait(false);
                                     break;
                                 }
                             case "AllMembersSequential":

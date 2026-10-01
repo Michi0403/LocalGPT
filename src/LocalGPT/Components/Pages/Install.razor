@@ -664,7 +664,7 @@
                                         <DxCheckBox @bind-Checked="McpGatewayModel.Enabled" Text="Serve the configured MCP endpoint after restart" />
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Dedicated listener" ColSpanMd="6">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.DedicatedListenerEnabled" Text="Create an MCP-only Kestrel TCP listener" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.DedicatedListenerEnabled" Text="Start an isolated MCP-only Kestrel endpoint" />
                                         <p class="field-help">Recommended: other routes on this listener return 404.</p>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Also on primary loopback" ColSpanMd="6">

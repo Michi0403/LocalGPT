@@ -204,7 +204,7 @@
         try
         {
             var policy = await Runtime.GetRuntimeConfigurationAsync(lifetime.Token).ConfigureAwait(false);
-            module ??= await JS.InvokeAsync<IJSObjectReference>("import", lifetime.Token, "./js/localgpt-microphone.js?v=5.1.5").ConfigureAwait(false);
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", lifetime.Token, "./js/localgpt-microphone.js?v=5.2.4").ConfigureAwait(false);
             reference ??= DotNetObjectReference.Create(this);
             captureId ??= await module.InvokeAsync<string>("create", lifetime.Token, reference, element).ConfigureAwait(false);
             await module.InvokeVoidAsync("start", lifetime.Token, captureId, policy.MaximumAudioSeconds).ConfigureAwait(false);

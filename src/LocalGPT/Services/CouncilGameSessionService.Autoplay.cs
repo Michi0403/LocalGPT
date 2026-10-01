@@ -35,7 +35,7 @@ namespace LocalGPT.Services
                 return;
             }
 
-            _ = Task.Run(() => RunAutoplayLoopAsync(session.Id, cancellation.Token), CancellationToken.None);
+            taskRunner.Run(nameof(CouncilGameSessionService), nameof(RunAutoplayLoopAsync), _ => RunAutoplayLoopAsync(session.Id, cancellation.Token), cancellation.Token);
     
     }
     catch (Exception __serviceMethodException)

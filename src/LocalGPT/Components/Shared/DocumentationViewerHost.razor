@@ -1,6 +1,7 @@
 @implements IDisposable
 @inject IDocumentationViewerService Viewer
 @inject ILogger<DocumentationViewerHost> Logger
+@inject ISupervisedTaskRunner TaskRunner
 
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -13,8 +14,9 @@
     <DxPopup Visible="true"
              VisibleChanged="OnDocumentationPopupVisibilityChanged"
              HeaderText="@Viewer.State.Title"
-             Width="min(1280px, 96vw)"
-             MaxHeight="94vh"
+             Width="96vw"
+             Height="94dvh"
+             MaxHeight="96dvh"
              CloseOnOutsideClick="true">
         <BodyContentTemplate Context="documentationPopupContext">
         <DxFormLayout CssClass="razor-section-layout-owner">
@@ -68,7 +70,7 @@
     {
         try
         {
-        _ = RefreshViewerAsync();
+        TaskRunner.Run(nameof(DocumentationViewerHost), nameof(RefreshViewerAsync), _ => RefreshViewerAsync());
     
         }
         catch (Exception __componentMethodException)

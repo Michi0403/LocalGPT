@@ -1978,7 +1978,7 @@
             return;
         Interlocked.Exchange(ref consoleRenderPending, 1);
         if (Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
-            _ = RefreshConsoleRenderAsync();
+            TaskRunner.Run(nameof(ChatGameConsole), nameof(RefreshConsoleRenderAsync), _ => RefreshConsoleRenderAsync(), consoleRenderCancellation.Token);
     
         }
         catch (Exception __componentMethodException)
@@ -2026,7 +2026,7 @@
                 && Volatile.Read(ref consoleRenderPending) != 0
                 && !consoleRenderCancellation.IsCancellationRequested
                 && Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
-                _ = RefreshConsoleRenderAsync();
+                TaskRunner.Run(nameof(ChatGameConsole), nameof(RefreshConsoleRenderAsync), _ => RefreshConsoleRenderAsync(), consoleRenderCancellation.Token);
         }
     }
 

@@ -4,6 +4,7 @@
 @inject CouncilTextService CouncilText
 @inject ILocalGptVocabularyService Vocabulary
 @inject ILogger<CouncilSpoolerPanel> Logger
+@inject ISupervisedTaskRunner TaskRunner
 
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -196,7 +197,7 @@
     {
         try
         {
-        _ = InvokeAsync(() => { Refresh(); StateHasChanged(); });
+        TaskRunner.Run(nameof(CouncilSpoolerPanel), nameof(OnSpoolerChanged), _ => InvokeAsync(() => { Refresh(); StateHasChanged(); }));
     
         }
         catch (Exception __componentMethodException)

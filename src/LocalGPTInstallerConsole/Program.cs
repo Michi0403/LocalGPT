@@ -1678,23 +1678,23 @@ internal static class Program
                     $"LocalGPT executable not found at '{exePath}'. Install it first or pass --localgpt-exe.");
 
             var port = options.LocalGptPort <= 0 ? 5000 : options.LocalGptPort;
-            var url = $"http://127.0.0.1:{port}";
+            var requestedUrl = $"http://127.0.0.1:{port}";
 
             logger.LogInformation($"Starting LocalGPT: {exePath}");
             logger.LogInformation($"LocalGPT port: {port}");
 
-            Process.Start(new ProcessStartInfo
+            var launchStartedAtUtc = DateTimeOffset.UtcNow;
+            using var process = Process.Start(new ProcessStartInfo
             {
                 FileName = exePath,
                 ArgumentList = { port.ToString() },
                 UseShellExecute = true,
                 WorkingDirectory = Path.GetDirectoryName(exePath)
-            });
-
-            Thread.Sleep(TimeSpan.FromSeconds(2));
+            }) ?? throw new InvalidOperationException("LocalGPT process could not be started.");
 
             if (options.OpenBrowser)
             {
+                var url = WaitForLocalGptRuntimeUrl(process, requestedUrl, launchStartedAtUtc, logger);
                 logger.LogInformation($"Opening browser: {url}");
                 OpenDefaultBrowser(url, logger);
             }
@@ -1704,6 +1704,105 @@ internal static class Program
             logger.LogError(ex, $"Error in StartLocalGpt. options {options}");
         }
     }
+    /// <summary>
+    /// Waits for the started LocalGPT process to publish its authoritative runtime URL. This keeps the installer/browser handoff
+    /// aligned when Windows denies the requested loopback port and LocalGPT safely recovers to another local port.
+    /// </summary>
+    /// <param name="process">LocalGPT process started by the installer.</param>
+    /// <param name="requestedUrl">Requested loopback URL used as a bounded fallback.</param>
+    /// <param name="launchStartedAtUtc">UTC timestamp captured immediately before process launch.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The runtime URL owned by the started process when available; otherwise the originally requested URL.</returns>
+    private static string WaitForLocalGptRuntimeUrl(Process process, string requestedUrl, DateTimeOffset launchStartedAtUtc, ILogger logger)
+    {
+        try
+        {
+            var installRoot = GetLocalGptInstallRoot(logger);
+            if (string.IsNullOrWhiteSpace(installRoot))
+                return requestedUrl;
+
+            var runtimeFile = Path.Combine(installRoot, "runtime", "server.json");
+            var deadline = DateTimeOffset.UtcNow.AddSeconds(12);
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                if (process.HasExited)
+                {
+                    logger.LogWarning("LocalGPT exited before publishing its runtime endpoint; the requested browser URL will be used.");
+                    break;
+                }
+
+                if (TryReadLocalGptRuntimeUrl(runtimeFile, process.Id, launchStartedAtUtc, out var runtimeUrl))
+                    return runtimeUrl;
+
+                Thread.Sleep(TimeSpan.FromMilliseconds(250));
+            }
+
+            logger.LogWarning("LocalGPT did not publish a matching runtime endpoint before the bounded installer wait expired; using requested URL {RequestedUrl}.", requestedUrl);
+            return requestedUrl;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogWarning(ex, "Could not resolve the started LocalGPT runtime endpoint; using requested URL {RequestedUrl}.", requestedUrl);
+            return requestedUrl;
+        }
+    }
+
+    /// <summary>
+    /// Reads one LocalGPT runtime endpoint snapshot only when it belongs to the newly started process.
+    /// </summary>
+    /// <param name="runtimeFile">Runtime endpoint JSON path.</param>
+    /// <param name="processId">Expected LocalGPT process identifier.</param>
+    /// <param name="launchStartedAtUtc">Launch timestamp used to reject stale endpoint snapshots after process-id reuse.</param>
+    /// <param name="runtimeUrl">Resolved loopback URL when the snapshot is current and valid.</param>
+    /// <returns><see langword="true"/> when a current loopback runtime URL was read successfully.</returns>
+    private static bool TryReadLocalGptRuntimeUrl(string runtimeFile, int processId, DateTimeOffset launchStartedAtUtc, out string runtimeUrl)
+    {
+        runtimeUrl = string.Empty;
+        try
+        {
+            if (!File.Exists(runtimeFile))
+                return false;
+
+            using var stream = new FileStream(runtimeFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var document = JsonDocument.Parse(stream);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("ProcessId", out var processElement) ||
+                !processElement.TryGetInt32(out var ownerProcessId) ||
+                ownerProcessId != processId)
+            {
+                return false;
+            }
+
+            if (!root.TryGetProperty("StartedAtUtc", out var startedElement) ||
+                !DateTimeOffset.TryParse(startedElement.GetString(), out var startedAtUtc) ||
+                startedAtUtc < launchStartedAtUtc.AddSeconds(-2))
+            {
+                return false;
+            }
+
+            if (!root.TryGetProperty("BaseUrl", out var baseUrlElement))
+                return false;
+            var baseUrl = baseUrlElement.GetString();
+            if (string.IsNullOrWhiteSpace(baseUrl) ||
+                !Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
+                !string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                uri.Port is <= 0 or > 65535)
+            {
+                return false;
+            }
+
+            runtimeUrl = uri.GetLeftPart(UriPartial.Authority);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or FormatException)
+        {
+            // The application writes this small file atomically enough for normal use, but the installer may
+            // observe it between create/write operations. Treat that as transient during the bounded poll.
+            return false;
+        }
+    }
+
     /// <summary>
     /// Opens default browser for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>

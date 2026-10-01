@@ -158,6 +158,11 @@ namespace LocalGPT.Services
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
                     .ToList();
+                if (!Enum.IsDefined(typeof(CouncilToolResultContinuationMode), step.ToolResultContinuationMode))
+                    step.ToolResultContinuationMode = CouncilToolResultContinuationMode.SameMemberBounded;
+                step.ToolResultContinuationRounds = step.ToolResultContinuationMode == CouncilToolResultContinuationMode.Disabled
+                    ? 0
+                    : Math.Clamp(step.ToolResultContinuationRounds, 1, 6);
                 step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
                 step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
                 step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
@@ -262,6 +267,11 @@ namespace LocalGPT.Services
                 step.AllowedAutomaticFunctions = NormalizeFunctionNames(step.AllowedAutomaticFunctions);
                 step.AutomaticFunctionPolicyMode = NormalizeAutomaticFunctionPolicy(step);
                 step.CanUseOrganicFunctions = step.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.Disabled;
+                if (!Enum.IsDefined(typeof(CouncilToolResultContinuationMode), step.ToolResultContinuationMode))
+                    step.ToolResultContinuationMode = CouncilToolResultContinuationMode.SameMemberBounded;
+                step.ToolResultContinuationRounds = step.ToolResultContinuationMode == CouncilToolResultContinuationMode.Disabled
+                    ? 0
+                    : Math.Clamp(step.ToolResultContinuationRounds, 1, 6);
                 step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, 3);
                 if (!Enum.IsDefined(typeof(CouncilMemberFailureRecoveryMode), step.MemberFailureRecoveryMode))
                     step.MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool;

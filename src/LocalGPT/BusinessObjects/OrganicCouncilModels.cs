@@ -130,6 +130,16 @@ public enum CouncilAutomaticFunctionPolicyMode
     ExactAllowList = 4
 }
 
+/// <summary>Defines how a configured Council step consumes intermediate results returned by the text DXFunction gateway.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilToolResultContinuationMode
+{
+    /// <summary>Preserves the returned function evidence without starting another model turn.</summary>
+    Disabled = 0,
+    /// <summary>Returns function evidence to the same assigned model for a bounded number of continuation turns.</summary>
+    SameMemberBounded = 1
+}
+
 /// <summary>Represents the normalized automatic/native function policy resolved from one persisted Council team and workflow step.</summary>
 /// <param name="Enabled">Whether automatic/native provider tools may be attached.</param>
 /// <param name="AutomaticFunctionAllowList">Exact registered-function allow-list, or <see langword="null"/> when every policy-approved registered function may be exposed.</param>
@@ -467,6 +477,12 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets an optional exact allow-list for automatic provider tools in this workflow step.</summary>
     /// <value>Registered DXFunction names allowed when <see cref="AutomaticFunctionPolicyMode"/> is <see cref="CouncilAutomaticFunctionPolicyMode.ExactAllowList"/>.</value>
     public List<string> AllowedAutomaticFunctions { get; set; } = [];
+    /// <summary>Gets or sets how LocalGPT returns intermediate text-gateway function results to this workflow step's assigned model.</summary>
+    /// <value>The bounded continuation policy used after the step emitted one or more registered DXFunction requests.</value>
+    public CouncilToolResultContinuationMode ToolResultContinuationMode { get; set; } = CouncilToolResultContinuationMode.SameMemberBounded;
+    /// <summary>Gets or sets the maximum same-member model turns used to consume successive text-gateway function results.</summary>
+    /// <value>A bounded continuation count. Zero disables continuation regardless of mode.</value>
+    public int ToolResultContinuationRounds { get; set; } = 2;
     /// <summary>Gets or sets how many same-member corrective role retries LocalGPT may run after a generic non-performance/refusal result.</summary>
     /// <value>A user-editable bounded retry count; zero disables role-compliance retry.</value>
     public int RoleComplianceRetryCount { get; set; } = 1;

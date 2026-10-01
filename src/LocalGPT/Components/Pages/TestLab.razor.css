@@ -1,3 +1,24 @@
+
+.test-lab-live-status {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-height: 2.75rem;
+    padding: .65rem .85rem;
+    border: 1px solid var(--localgpt-border-color, var(--bs-border-color));
+    border-radius: .65rem;
+    color: var(--localgpt-body-color, var(--bs-body-color));
+    background: var(--localgpt-surface-raised-bg, var(--bs-body-bg));
+}
+
+.test-lab-live-status.running {
+    border-inline-start: .3rem solid var(--localgpt-primary, var(--bs-primary));
+}
+
+.test-lab-live-status span {
+    overflow-wrap: anywhere;
+}
+
 .test-lab-page {
     display: flex;
     flex-direction: column;

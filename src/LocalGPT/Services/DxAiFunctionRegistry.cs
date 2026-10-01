@@ -17,6 +17,7 @@ namespace LocalGPT.Services;
 /// <param name="approvalExecutionContext">Human approval execution context dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="vocabulary">Local gpt vocabulary service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="handlerMapService">Devexpress ai function handler map service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="handlerResolver">Scope-bound handler resolver used to defer construction of the handler graph until the function directory is actually needed.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="userFunctions">User devexpress ai function service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="runtimePlugins">Runtime plugin service dependency used to expose persisted runtime-extension functions through the central DevExpress AI function registry.</param>
@@ -29,70 +30,25 @@ public sealed class DxAiFunctionRegistry(
     IHumanApprovalExecutionContext approvalExecutionContext,
     ILocalGptVocabularyService vocabulary,
     DxAiFunctionHandlerMapService handlerMapService,
+    DxAiFunctionHandlerResolver handlerResolver,
     IUserDxAiFunctionService userFunctions,
     IRuntimePluginService runtimePlugins,
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ILogger<DxAiFunctionRegistry> logger) : IDxAiFunctionRegistry
 {
-    // The registry intentionally does not capture IServiceProvider. Program.ServiceRegistration constructs
-    // the scoped registry first, marks handler initialization as active, and only then resolves the handler
-    // collection. If a handler dependency asks for IDxAiFunctionRegistry during that graph construction,
-    // the same already-created registry instance is returned without recursively rebuilding the handler map.
-    // This preserves one Blazor/circuit scope while eliminating deferred access to disposed scope providers.
+    // Keep the scoped registry itself on normal constructor injection. Handler construction is delayed until
+    // the function directory is actually used, which prevents Chat page construction from eagerly resolving
+    // the complete handler graph. The scoped resolver owns same-scope deferred resolution without creating a
+    // child scope or changing registry identity. A handler that depends on IDxAiFunctionRegistry therefore
+    // receives this already-constructed scoped instance when the lazy handler map is materialized.
     /// <summary>
-    /// Stores the scoped handler directory after same-scope dependency resolution has completed.
+    /// Gets the handlers by name collection maintained or exposed by this DevExpress AI function instance for downstream processing.
     /// </summary>
-    private IReadOnlyDictionary<string, IDxAiFunctionHandler> handlersByName = new Dictionary<string, IDxAiFunctionHandler>(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Tracks whether the scoped handler directory has completed initialization.</summary>
-    private bool handlersInitialized;
-
-    /// <summary>Tracks re-entrant registry resolution while the handler graph is being constructed.</summary>
-    private bool handlerInitializationInProgress;
-
-    /// <summary>
-    /// Initializes the scoped DXAIFunction handler directory without retaining the dependency-injection provider.
-    /// </summary>
-    /// <param name="handlerFactory">Factory that resolves handlers synchronously from the currently active scope.</param>
-    internal void InitializeHandlers(Func<IEnumerable<IDxAiFunctionHandler>> handlerFactory)
-    {
-        try
-        {
-            ArgumentNullException.ThrowIfNull(handlerFactory);
-            if (handlersInitialized || handlerInitializationInProgress)
-                return;
-
-            handlerInitializationInProgress = true;
-            handlersByName = handlerMapService.Build(handlerFactory());
-            handlersInitialized = true;
-            logger.LogDebug("Initialized the scoped DXAIFunction handler directory with {HandlerCount} handlers without retaining IServiceProvider.", handlersByName.Count);
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Initializing the scoped DXAIFunction handler directory failed.");
-            throw;
-        }
-        finally
-        {
-            handlerInitializationInProgress = false;
-        }
-    }
-
-    /// <summary>Ensures the scoped handler graph completed initialization before registry use.</summary>
-    private void EnsureHandlersInitialized()
-    {
-        try
-        {
-            if (!handlersInitialized)
-                throw new InvalidOperationException("The scoped DXAIFunction registry was used before its handler graph completed initialization.");
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "DXAIFunction registry handler initialization state is invalid.");
-            throw;
-        }
-    }
+    /// <value>The handlers by name value exposed by <see cref="DxAiFunctionRegistry"/>.</value>
+    private readonly Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>> handlersByName = new(
+        () => handlerMapService.Build(handlerResolver.Resolve()),
+        LazyThreadSafetyMode.ExecutionAndPublication);
 
     /// <summary>
     /// Retrieves functions in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
@@ -102,8 +58,7 @@ public sealed class DxAiFunctionRegistry(
     {
     try
     {
-            EnsureHandlersInitialized();
-            var functions = handlersByName.Values
+            var functions = handlersByName.Value.Values
                 .Select(handler => handler.Descriptor)
                 .Concat(userFunctions.GetDescriptors())
                 .Concat(runtimePlugins.GetDescriptors())
@@ -151,8 +106,7 @@ public sealed class DxAiFunctionRegistry(
             ["RequestedBy"] = string.IsNullOrWhiteSpace(request.RequestedBy) ? "CurrentUser" : request.RequestedBy
         });
 
-        EnsureHandlersInitialized();
-        handlersByName.TryGetValue(functionName, out var handler);
+        handlersByName.Value.TryGetValue(functionName, out var handler);
         DxaichatFunctionInfo descriptor;
         var runtimeSource = handler is not null ? "Handler" : string.Empty;
         if (handler is not null)

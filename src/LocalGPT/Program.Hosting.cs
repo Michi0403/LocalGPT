@@ -11,6 +11,7 @@ using LocalGPT.Diagnostics;
 using LocalGPT.Helper;
 using LocalGPT.Hubs;
 using LocalGPT.Interfaces;
+using LocalGPT.Mcp;
 using LocalGPT.Services;
 using LocalGPT.Services.Formatting;
 using LocalGPT.Services.Persistence;
@@ -57,11 +58,34 @@ namespace LocalGPT
         {
             try
             {
-                var port = requestedPort > 0 ? requestedPort : GetFreePort(logger);
+                var requestedLoopbackPort = requestedPort > 0 ? requestedPort : GetFreePort(logger);
                 var remote = ResolveRemoteWebEndpoint(args, builder.Configuration, builder.Environment.ContentRootPath, builder.Environment.ApplicationName, logger);
                 var mcp = ResolveMcpGatewayOptions(builder.Configuration, builder.Environment.ContentRootPath, logger);
-                ValidateMcpPortContract(mcp, remote);
-                PrepareMcpListenerForStartup(mcp, port, logger);
+                var port = ResolvePrimaryListenerPortForStartup(requestedLoopbackPort, remote, mcp, logger);
+                System.Threading.Volatile.Write(ref runtimePort, port);
+                try
+                {
+                    ValidateMcpPortContract(mcp, remote);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    logger.LogWarning(exception, "The optional MCP endpoint configuration conflicts with an existing LocalGPT listener. MCP is disabled for this run so the primary application can continue starting.");
+                    mcp.Enabled = false;
+                    mcp.DedicatedListenerEnabled = false;
+                    mcp.ExposeOnPrimaryEndpoint = false;
+                    SetMcpEnabledForRun(false);
+                    SetMcpDedicatedListenerState(false, 0);
+                    SetMcpPrimaryExposureForRun(false);
+                }
+                builder.Services.AddSingleton(new McpDedicatedListenerSettings(
+                    mcp.Enabled && mcp.DedicatedListenerEnabled,
+                    mcp.ExposeOnPrimaryEndpoint,
+                    !mcp.AllowRemoteClients && IsLoopbackMcpAddress(mcp.Address),
+                    mcp.Address,
+                    mcp.Port,
+                    mcp.Path,
+                    mcp.CertificatePath,
+                    mcp.CertificatePassword));
 
                 builder.WebHost.ConfigureKestrel(options =>
                 {
@@ -69,7 +93,6 @@ namespace LocalGPT
                     options.Limits.MaxRequestBodySize = null;
                     options.Limits.MaxRequestBufferSize = null;
                     options.Listen(IPAddress.Loopback, port);
-                    ConfigureMcpListener(options, mcp);
 
                     if (remote is null)
                         return;
@@ -115,6 +138,97 @@ namespace LocalGPT
             {
                 logger.LogError(ex, "Kestrel endpoint configuration failed.");
                 throw;
+            }
+        }
+
+
+        /// <summary>
+        /// Resolves a startable primary loopback port while preserving the historical requested port whenever Windows permits it.
+        /// Access-denied socket reservations are recoverable because they do not identify another LocalGPT instance; address-in-use remains
+        /// authoritative so the WinUI wrapper can probe and reuse an already-running LocalGPT process instead of starting a duplicate host.
+        /// </summary>
+        /// <param name="requestedPort">Requested loopback application port.</param>
+        /// <param name="remote">Optional remote web endpoint that must not collide with a recovered loopback port.</param>
+        /// <param name="mcp">MCP gateway options whose dedicated listener must remain on a separate port.</param>
+        /// <param name="logger">Logger used to record startup diagnostics.</param>
+        /// <returns>The requested port, or an available loopback replacement only when the requested port is denied by the operating system.</returns>
+        private static int ResolvePrimaryListenerPortForStartup(
+            int requestedPort,
+            RemoteWebEndpointOptions? remote,
+            McpGatewayOptions mcp,
+            ILogger logger)
+        {
+            if (requestedPort <= 0)
+                return requestedPort;
+
+            var bindError = ProbeLoopbackPort(requestedPort);
+            if (bindError is null)
+                return requestedPort;
+
+            if (bindError == SocketError.AddressAlreadyInUse)
+            {
+                logger.LogInformation(
+                    "The requested LocalGPT loopback port {Port} is already in use. Keeping that endpoint so the desktop wrapper can reuse an existing LocalGPT instance when its health probe succeeds.",
+                    requestedPort);
+                return requestedPort;
+            }
+
+            if (bindError != SocketError.AccessDenied)
+            {
+                logger.LogWarning(
+                    "The requested LocalGPT loopback port {Port} failed its startup preflight with socket error {SocketError}. Kestrel will keep the requested endpoint so the original failure remains visible instead of silently changing application identity.",
+                    requestedPort, bindError);
+                return requestedPort;
+            }
+
+            var excludedPorts = new List<int>
+            {
+                requestedPort,
+                OneWirePort,
+                OneWireDiscoveryPort
+            };
+            if (remote is not null && remote.Port > 0)
+                excludedPorts.Add(remote.Port);
+            if (mcp.Enabled && mcp.DedicatedListenerEnabled && mcp.Port > 0)
+                excludedPorts.Add(mcp.Port);
+
+            var replacement = GetFreePortExcluding(logger, excludedPorts.ToArray());
+            if (replacement <= 0)
+            {
+                logger.LogError(
+                    "Windows denied the requested LocalGPT loopback port {Port}, and no safe replacement loopback port could be reserved. Kestrel will keep the requested endpoint so startup diagnostics remain accurate.",
+                    requestedPort);
+                return requestedPort;
+            }
+
+            logger.LogWarning(
+                "Windows denied the requested LocalGPT loopback port {RequestedPort}. LocalGPT recovered startup by selecting loopback port {ReplacementPort}; runtime/server.json and the desktop wrapper will use the recovered endpoint.",
+                requestedPort, replacement);
+            return replacement;
+        }
+
+        /// <summary>
+        /// Probes the loopback bind that Kestrel will need without retaining the socket.
+        /// </summary>
+        /// <param name="port">Loopback TCP port to probe.</param>
+        /// <returns><see langword="null"/> when the bind succeeds; otherwise the socket error reported by the operating system.</returns>
+        private static SocketError? ProbeLoopbackPort(int port)
+        {
+            TcpListener? listener = null;
+            try
+            {
+                listener = new TcpListener(IPAddress.Loopback, port);
+                listener.Server.ExclusiveAddressUse = true;
+                listener.Start();
+                return null;
+            }
+            catch (SocketException exception)
+            {
+                return exception.SocketErrorCode;
+            }
+            finally
+            {
+                listener?.Stop();
             }
         }
 

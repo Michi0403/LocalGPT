@@ -32,6 +32,8 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     /// Stores the logger used by <see cref="CouncilSpoolerService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
     private readonly ILogger<CouncilSpoolerService> logger;
+    /// <summary>Observes intentionally concurrent persistence work so delayed checkpoints cannot become unobserved tasks.</summary>
+    private readonly ISupervisedTaskRunner taskRunner;
     /// <summary>
     /// Stores the LocalGPT vocabulary service dependency used by <see cref="CouncilSpoolerService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
@@ -55,10 +57,12 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     /// </summary>
     /// <param name="vocabulary">Local gpt vocabulary service dependency used by the council spooler workflow to provide the corresponding application capability.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-    public CouncilSpoolerService(ILocalGptVocabularyService vocabulary, ILogger<CouncilSpoolerService> logger)
+    /// <param name="taskRunner">Supervised task owner used for intentionally concurrent delayed checkpoint persistence.</param>
+    public CouncilSpoolerService(ILocalGptVocabularyService vocabulary, ILogger<CouncilSpoolerService> logger, ISupervisedTaskRunner taskRunner)
     {
         this.vocabulary = vocabulary;
         this.logger = logger;
+        this.taskRunner = taskRunner;
         LoadCheckpoint();
     }
 
@@ -290,7 +294,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
             var previous = Interlocked.Exchange(ref pendingPersist, next);
             previous?.Cancel();
             previous?.Dispose();
-            _ = PersistAfterDelayAsync(next.Token);
+            taskRunner.Run(nameof(CouncilSpoolerService), nameof(PersistAfterDelayAsync), cancellationToken => PersistAfterDelayAsync(cancellationToken), next.Token);
     
     }
     catch (Exception __serviceMethodException)

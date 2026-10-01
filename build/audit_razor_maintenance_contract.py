@@ -237,20 +237,10 @@ def add_method_findings(findings: list[Finding], relative: str, text: str, parse
 
 
 def add_expression_property_findings(findings: list[Finding], relative: str, text: str, parser) -> None:
-    for block_start, block, masked, _, _ in iter_code_blocks(text, parser):
-        for match in EXPRESSION_PROPERTY_RE.finditer(masked):
-            if depth_at(masked, match.start()) != 0:
-                continue
-            original_expr = block[match.start('expr'):match.end('expr')]
-            if SIMPLE_LOCAL_METHOD_CALL_RE.fullmatch(original_expr):
-                continue
-            start = block_start + match.start()
-            line, col = line_col(text, start)
-            findings.append(Finding(
-                relative, line, col, 'RAZORLOG0003',
-                f"Computed Razor property '{match.group('name')}' contains render-time logic instead of delegating to a named method.",
-                'Keep the property parser-simple and delegate to a named instance method, for example `private string Value => GetValue();`. The backing method must own try/catch plus structured logging. If the value needs asynchronous I/O or browser/service state, compute it in the appropriate lifecycle/event after the correct render boundary, store the result, and bind the stored value; do not create an async property or remove the DevExpress control.'
-            ))
+    # Procedural/computed getter calls are owned by the zero-baseline async-only architecture audit.
+    # Keep this Razor-specific guard focused on layout/diagnostics so the two rules cannot prescribe
+    # contradictory synchronous helper patterns.
+    return
 
 
 def add_codebehind_method_findings(findings: list[Finding], relative: str, text: str, parser) -> None:
@@ -518,7 +508,7 @@ def main() -> int:
         f'Razor maintenance architecture validation passed for {len(razor_files)} Razor component(s): '
         'containment-only root divs protect component boundaries, DxFormLayout is the default semantic owner for forms/editors, '
         'generic StackLayout wrappers and unexplained Grid-to-Stack nesting are rejected, FormLayout template contexts are explicit and unique, <section>/<dialog> are absent, '
-        'maintenance-only DevExpress wrapper shells remain box-neutral, typed component loggers are present, manual/native modal owners are absent, computed properties delegate to named methods, '
+        'maintenance-only DevExpress wrapper shells remain box-neutral, typed component loggers are present, manual/native modal owners are absent, '
         'and component methods own diagnostics.'
     )
     return 0

@@ -45,6 +45,8 @@ namespace LocalGPT.Services
         /// <param name="roleComplianceRetryCount">Number of bounded same-member corrective retries permitted when a role member refuses or ignores its assigned work.</param>
         /// <param name="finalAnswerRecoveryEnabled">Whether the workflow may issue a separate provider turn to recover a missing final answer.</param>
         /// <param name="finalAnswerRecoveryMaxOutputTokens">Maximum output-token budget for one configured final-answer recovery turn.</param>
+        /// <param name="toolResultContinuationMode">Policy controlling whether text-gateway function evidence is returned to the same member.</param>
+        /// <param name="toolResultContinuationRounds">Maximum bounded same-member function-result continuation turns.</param>
         /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RunPhaseAsync(
             MultiModelCouncilResult result,
@@ -73,7 +75,9 @@ namespace LocalGPT.Services
             IReadOnlyCollection<string>? automaticFunctionAllowList = null,
             int roleComplianceRetryCount = 1,
             bool finalAnswerRecoveryEnabled = true,
-            int finalAnswerRecoveryMaxOutputTokens = 8192)
+            int finalAnswerRecoveryMaxOutputTokens = 8192,
+            CouncilToolResultContinuationMode toolResultContinuationMode = CouncilToolResultContinuationMode.Disabled,
+            int toolResultContinuationRounds = 0)
         {
             try
             {
@@ -347,7 +351,34 @@ namespace LocalGPT.Services
 
                     foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(step.ModelName, out var index) ? index : int.MaxValue))
                     {
-                        await AddCouncilStepAsync(result, step, stepCompleted, progressMessage, allowDxFunctions, cancellationToken).ConfigureAwait(false);
+                        var functionSteps = await AddCouncilStepAsync(result, step, stepCompleted, progressMessage, allowDxFunctions, cancellationToken).ConfigureAwait(false);
+                        if (allowDxFunctions && functionSteps.Count > 0)
+                        {
+                            var continuationPlan = modelRoutes.TryGetValue(step.ModelName, out var configuredContinuationPlan)
+                                ? configuredContinuationPlan
+                                : new CouncilHardwareRoadPlan(step.ModelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{step.ModelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
+                            await ContinueAfterDxFunctionResultsAsync(
+                                result,
+                                step,
+                                functionSteps,
+                                baseUri,
+                                councilMembers ?? participants,
+                                promptFactory(step.ModelName),
+                                participantBootstrap,
+                                continuationPlan,
+                                keepAlive,
+                                modelTimeoutSeconds,
+                                progressMessage,
+                                streamUpdate,
+                                stepCompleted,
+                                automaticFunctionAllowList,
+                                roleComplianceRetryCount,
+                                finalAnswerRecoveryEnabled,
+                                finalAnswerRecoveryMaxOutputTokens,
+                                toolResultContinuationMode,
+                                toolResultContinuationRounds,
+                                cancellationToken).ConfigureAwait(false);
+                        }
                     }
                 }
                 finally

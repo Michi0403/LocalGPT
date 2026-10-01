@@ -7,6 +7,7 @@
 @inject ICouncilRuntimeClassService RuntimeClasses
 @inject IDxAiFunctionCatalogService FunctionCatalog
 @inject ILogger<CouncilTeams> Logger
+@inject ISupervisedTaskRunner TaskRunner
 @inject CouncilTextService CouncilText
 @inject IComponentActivityService ComponentActivity
 @inject INotificationService Notifier
@@ -536,8 +537,25 @@
                                             ValueChanged="@((CouncilAutomaticFunctionPolicyMode value) => SetAutomaticFunctionPolicy(step, new ChangeEventArgs { Value = value.ToString() }))"
                                             CssClass="localgpt-dx-combo" />
                             </label>
+                            <label>
+                                <span>Function-result processing</span>
+                                <DxComboBox Data="@ToolResultContinuationModes"
+                                            @bind-Value="step.ToolResultContinuationMode"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<CouncilToolResultContinuationMode>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<CouncilToolResultContinuationMode>.Label)"
+                                            CssClass="localgpt-dx-combo" />
+                            </label>
+                            <label>
+                                <span>Function-result continuation rounds</span>
+                                <DxSpinEdit @bind-Value="step.ToolResultContinuationRounds"
+                                            CssClass="localgpt-editor"
+                                            MinValue="1"
+                                            MaxValue="6"
+                                            Enabled="@(step.ToolResultContinuationMode != CouncilToolResultContinuationMode.Disabled)" />
+                            </label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.ProducesAsciiFrame" CssClass="localgpt-check" /><span>Produces one AI-owned ASCII frame</span></label>
                         </div>
+                        <p class="hint">Function results are intermediate evidence. Bounded continuation sends text-gateway results back to the same assigned model so it can analyze web, compiler, formula, file, or other function evidence instead of presenting the raw payload as the task result.</p>
                         @if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.TeamAllowList)
                         {
                             <p class="hint">This step uses the team's persisted allow-list: @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? CouncilText.FormatInlineNameList(_editor.AllowedAutomaticFunctions) : "no functions selected")</p>

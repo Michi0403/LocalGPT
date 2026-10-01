@@ -72,6 +72,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<LocalGPT.Mcp.LocalGptMcpConfigurationPolicy>();
                 builder.Services.AddScoped<LocalGPT.Mcp.LocalGptMcpGatewayAccessor>();
                 builder.Services.AddScoped<LocalGPT.Mcp.LocalGptMcpEndpoint>();
+                builder.Services.AddHostedService<LocalGPT.Mcp.LocalGptMcpListenerHostedService>();
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
@@ -316,13 +317,11 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IRuntimePluginService, RuntimePluginService>();
                 builder.Services.AddHostedService<RuntimePluginInitializationHostedService>();
                 builder.Services.AddSingleton<DxAiFunctionHandlerMapService>();
-                builder.Services.AddScoped<DxAiFunctionRegistry>();
-                builder.Services.AddScoped<IDxAiFunctionRegistry>(provider =>
-                {
-                    var registry = provider.GetRequiredService<DxAiFunctionRegistry>();
-                    registry.InitializeHandlers(() => provider.GetServices<IDxAiFunctionHandler>());
-                    return registry;
-                });
+                // Handler resolution stays lazy so resolving IChatClientFactory does not construct the complete
+                // DXFunction graph. The resolver is scoped to the same request/circuit as the registry and never
+                // creates a child scope; IDxAiFunctionRegistry itself remains a normal scoped DI registration.
+                builder.Services.AddScoped<DxAiFunctionHandlerResolver>();
+                builder.Services.AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>();
                 builder.Services.AddScoped<HardwarePerformancePresetDxAiSupport>();
                 builder.Services.AddSingleton<DxAiFunctionCatalogSynchronizationGate>();
                 builder.Services.AddScoped<IDxAiFunctionCatalogService, DxAiFunctionCatalogService>();

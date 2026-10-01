@@ -1,4 +1,4 @@
-﻿::deep .navigation-drawer {
+::deep .navigation-drawer {
     height: 100vh;
     max-height: 100%;
 }
@@ -10,8 +10,7 @@
 ::deep .navigation-drawer > .dxbl-drawer-panel {
     color: var(--localgpt-navigation-color);
     background-color: var(--localgpt-navigation-bg);
-    background-image: linear-gradient(180deg, #273447 0%, var(--localgpt-navigation-bg) 100%);
-    background-image: linear-gradient(180deg, color-mix(in srgb, var(--localgpt-primary) 38%, var(--localgpt-navigation-bg) 62%) 0%, var(--localgpt-navigation-bg) 100%);
+    background-image: linear-gradient(180deg, color-mix(in srgb, var(--localgpt-navigation-bg) 92%, var(--localgpt-navigation-color) 8%) 0%, var(--localgpt-navigation-bg) 100%);
 }
 
 ::deep .navigation-drawer > .dxbl-drawer-content {
@@ -39,7 +38,7 @@
     --dxbl-drawer-panel-footer-justify-content: center;
     border-top: none;
     padding-bottom: 1.5rem;
-    width: 240px;
+    width: 100%;
 }
 
 ::deep .navigation-drawer > .dxbl-drawer-panel {
