@@ -27,18 +27,20 @@ $violations = New-Object 'System.Collections.Generic.List[object]'
 $targetsPath = Join-Path $RepositoryRoot 'Directory.Build.targets'
 $maintenanceScriptPath = Join-Path $PSScriptRoot 'Assert-RazorMaintenanceArchitecture.ps1'
 $maintenanceAuditPath = Join-Path $PSScriptRoot 'audit_razor_maintenance_contract.py'
+$transientStateScriptPath = Join-Path $PSScriptRoot 'Assert-TransientUiStateOwnership.ps1'
+$transientStateAuditPath = Join-Path $PSScriptRoot 'audit_transient_ui_state_ownership.py'
 if (-not (Test-Path -LiteralPath $targetsPath -PathType Leaf)) {
     $violations.Add([pscustomobject]@{ File = 'Directory.Build.targets'; Line = 1; Code = 'PSDX0003'; Message = 'Directory.Build.targets is missing, so the Razor maintenance architecture guard cannot be enforced.'; Choices = 'Restore the repository build-target file and the Razor maintenance architecture target. Do not bypass the UI/layout/logging contract.' })
 }
 else {
     $targetsContent = [IO.File]::ReadAllText($targetsPath)
-    foreach ($requiredToken in @('RazorMaintenanceArchitectureScript', 'Assert-RazorMaintenanceArchitecture.ps1', 'SkipRazorMaintenanceArchitectureGuard')) {
+    foreach ($requiredToken in @('RazorMaintenanceArchitectureScript', 'Assert-RazorMaintenanceArchitecture.ps1', 'SkipRazorMaintenanceArchitectureGuard', 'TransientUiStateOwnershipScript', 'Assert-TransientUiStateOwnership.ps1', 'SkipTransientUiStateOwnershipGuard')) {
         if ($targetsContent.IndexOf($requiredToken, [StringComparison]::Ordinal) -lt 0) {
             $violations.Add([pscustomobject]@{ File = 'Directory.Build.targets'; Line = 1; Code = 'PSDX0003'; Message = "Required Razor maintenance architecture wiring '$requiredToken' was removed."; Choices = 'Restore the build-breaking Razor maintenance target. The correct repair for a violation is to fix the component architecture, not to detach the guard.' })
         }
     }
 }
-foreach ($requiredGuardFile in @($maintenanceScriptPath, $maintenanceAuditPath)) {
+foreach ($requiredGuardFile in @($maintenanceScriptPath, $maintenanceAuditPath, $transientStateScriptPath, $transientStateAuditPath)) {
     if (-not (Test-Path -LiteralPath $requiredGuardFile -PathType Leaf)) {
         $relativeGuard = $requiredGuardFile.Substring($RepositoryRoot.Length).TrimStart([char[]]@([char]'\', [char]'/')).Replace('\','/')
         $violations.Add([pscustomobject]@{ File = $relativeGuard; Line = 1; Code = 'PSDX0003'; Message = 'Required Razor maintenance architecture guard file was removed.'; Choices = 'Restore the guard file and fix reported source violations instead of weakening or deleting the enforcement path.' })

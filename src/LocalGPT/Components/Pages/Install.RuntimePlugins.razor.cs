@@ -15,6 +15,10 @@ public partial class Install
     private RuntimePluginDefinition RuntimePluginDraft = new();
     /// <summary>Stores DevExpress HTML-editor markup separately from the persisted plain executable source.</summary>
     private string RuntimePluginSourceMarkup = string.Empty;
+    /// <summary>Scopes vendor-owned HTML-editor interaction state to the current source generation.</summary>
+    private long _runtimePluginEditorRevision;
+    /// <summary>Suppresses the automatic InteractiveServer rerender caused by live HTML-editor markup notifications.</summary>
+    private bool _suppressRuntimePluginEditorRender;
     /// <summary>Tracks whether the runtime extension editor popup is visible.</summary>
     private bool RuntimePluginEditorVisible;
     /// <summary>Tracks runtime extension persistence/build activity.</summary>
@@ -37,6 +41,47 @@ public partial class Install
             .ToList(),
         _ => Array.Empty<ProjectCompilerInstallation>()
     };
+
+    /// <summary>
+    /// Observes live DevExpress HTML-editor markup without feeding the same intermediate document back through an InteractiveServer render.
+    /// </summary>
+    /// <param name="markup">Current vendor-owned editor markup.</param>
+    private void RuntimePluginSourceMarkupChanged(string markup)
+    {
+        try
+        {
+            RuntimePluginSourceMarkup = markup ?? string.Empty;
+            _suppressRuntimePluginEditorRender = true;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.RuntimePluginSourceMarkupChanged failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Keeps delayed HTML-editor input observational: the vendor editor owns its caret, selection and live document until an explicit command needs the captured markup.
+    /// </summary>
+    /// <returns><see langword="true"/> when the Install surface should render; otherwise <see langword="false"/>.</returns>
+    protected override bool ShouldRender()
+    {
+        try
+        {
+            if (_suppressRuntimePluginEditorRender)
+            {
+                _suppressRuntimePluginEditorRender = false;
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Install.RuntimePlugins.ShouldRender failed.");
+            throw;
+        }
+    }
 
 
     /// <summary>Keeps the DevExpress HTML editor focused on source editing by retaining only undo/redo and code-block insertion.</summary>
@@ -137,6 +182,7 @@ public partial class Install
         try
         {
         RuntimePluginSourceMarkup = RuntimePluginDefinitionSupport.ToEditorMarkup(RuntimePluginDraft.SourceCode);
+        _runtimePluginEditorRevision++;
     
         }
         catch (Exception __componentMethodException)

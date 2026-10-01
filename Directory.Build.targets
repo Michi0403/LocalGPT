@@ -68,6 +68,7 @@
 
   <PropertyGroup>
     <InteractiveServerRenderModeScript>$(MSBuildThisFileDirectory)build/Assert-InteractiveServerRenderModes.ps1</InteractiveServerRenderModeScript>
+    <TransientUiStateOwnershipScript>$(MSBuildThisFileDirectory)build/Assert-TransientUiStateOwnership.ps1</TransientUiStateOwnershipScript>
     <AsyncContinuationScript>$(MSBuildThisFileDirectory)build/Assert-AsyncContinuationPolicy.ps1</AsyncContinuationScript>
     <AsyncOnlyArchitectureScript>$(MSBuildThisFileDirectory)build/Assert-AsyncOnlyArchitecture.ps1</AsyncOnlyArchitectureScript>
   </PropertyGroup>
@@ -86,9 +87,23 @@
           StandardErrorImportance="High" />
   </Target>
 
-  <Target Name="AssertLocalGptAsyncContinuationPolicy"
+  <Target Name="AssertLocalGptTransientUiStateOwnership"
           BeforeTargets="BeforeBuild"
           AfterTargets="AssertLocalGptInteractiveServerRenderModes"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipTransientUiStateOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(TransientUiStateOwnershipScript)')"
+           Text="Transient UI-state ownership guard script is missing: $(TransientUiStateOwnershipScript)" />
+    <Exec Condition="Exists('$(TransientUiStateOwnershipScript)')"
+          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(TransientUiStateOwnershipScript)&quot; -Product localgpt"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptAsyncContinuationPolicy"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptTransientUiStateOwnership"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipAsyncContinuationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(AsyncContinuationScript)')"
            Text="Async continuation guard script is missing: $(AsyncContinuationScript)" />

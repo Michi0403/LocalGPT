@@ -1304,7 +1304,9 @@
                             @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript)
                             {
                                 <DxFormLayoutItem Caption="Script source" ColSpanMd="12">
-                                    <DxHtmlEditor @bind-Markup="RuntimePluginSourceMarkup"
+                                    <DxHtmlEditor @key="_runtimePluginEditorRevision"
+                                                  Markup="@RuntimePluginSourceMarkup"
+                                                  MarkupChanged="RuntimePluginSourceMarkupChanged"
                                                   BindMarkupMode="HtmlEditorBindMarkupMode.OnDelayedInput"
                                                   InputDelay="120"
                                                   CustomizeToolbar="CustomizeRuntimePluginEditorToolbar"
