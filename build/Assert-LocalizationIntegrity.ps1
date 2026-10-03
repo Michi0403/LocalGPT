@@ -98,7 +98,7 @@ foreach ($catalogFile in @(Get-ChildItem -LiteralPath $localization -File -Filte
 # and forget to add it to the catalogs. The source location is emitted before the build stops.
 $englishValues = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::Ordinal)
 foreach ($property in $english.PSObject.Properties) { [void]$englishValues.Add([string]$property.Value) }
-$applicationSource = Join-Path $root 'src\LocalGPT'
+$applicationSource = Join-Path $root 'src/LocalGPT'
 $literalPatterns = @(
     [regex]'\bLT\(\s*"((?:\\.|[^"\\])*)"\s*\)',
     [regex]'\.GetText\(\s*"((?:\\.|[^"\\])*)"'

@@ -68,6 +68,10 @@ function Get-LocalGptDocumentationToolCacheRoot {
         return Join-Path ([IO.Path]::GetFullPath($sharedCacheRoot)) 'LocalGPT/DocumentationTools'
     }
 
+    if (-not [string]::IsNullOrWhiteSpace($FallbackRoot)) {
+        return Join-Path ([IO.Path]::GetFullPath($FallbackRoot)) 'runtime'
+    }
+
     $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
     if (-not [string]::IsNullOrWhiteSpace($localApplicationData)) {
         return Join-Path $localApplicationData 'LocalGPT/DocumentationTools'
@@ -76,10 +80,6 @@ function Get-LocalGptDocumentationToolCacheRoot {
     $homePath = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
     if (-not [string]::IsNullOrWhiteSpace($homePath)) {
         return Join-Path $homePath '.local/share/LocalGPT/DocumentationTools'
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace($FallbackRoot)) {
-        return Join-Path ([IO.Path]::GetFullPath($FallbackRoot)) 'runtime'
     }
 
     throw 'Unable to determine a writable per-user cache directory for LocalGPT documentation tools.'

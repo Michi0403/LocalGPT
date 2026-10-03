@@ -430,7 +430,7 @@ if ($AddBrain -match '^(Y|y|1|J|j)$') {
 }
 try 
 {
-    Copy-Item ".\*.ps1" "$OutputRoot"
+    Copy-Item "./*.ps1" "$OutputRoot"
     try
     {
         $cert = Get-ChildItem Cert:\CurrentUser\My |
@@ -474,7 +474,7 @@ try
 {
     try
     {
-        Copy-Item "..\README.md" "$OutputRoot\README.md"
+        Copy-Item "../README.md" (Join-Path $OutputRoot "README.md")
     }
     catch
     {
@@ -482,7 +482,7 @@ try
     }
     try
     {
-        Copy-Item "..\SECURITY.md" "$OutputRoot\SECURITY.md"
+        Copy-Item "../SECURITY.md" (Join-Path $OutputRoot "SECURITY.md")
     }
     catch
     {
@@ -490,7 +490,7 @@ try
     }
     try
     {
-        Copy-Item "..\LICENSE.MD" "$OutputRoot\LICENSE.MD"
+        Copy-Item "../LICENSE.MD" (Join-Path $OutputRoot "LICENSE.MD")
     }
     catch
     {
@@ -499,9 +499,9 @@ try
     try
     {
         $targetZip = Join-Path $OutputRoot "images.zip"
-        Write-Host "Resolved path:" (Resolve-Path "..\images\*.png")
+        Write-Host "Resolved path:" (Resolve-Path "../images/*.png")
         Write-Host "Resolved destpathzip: $targetZip"
-        Compress-Archive -Path "..\images\*.png" -DestinationPath $targetZip -Force
+        Compress-Archive -Path "../images/*.png" -DestinationPath $targetZip -Force
     }
     catch
     {

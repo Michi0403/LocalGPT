@@ -10,6 +10,7 @@ $unsupportedArgumentListPattern = '\.ArgumentList(?:\.|\s*=)'
 $unsupportedKillTreePattern = '\.Kill\(\s*\$true\s*\)'
 $readOnlyPlatformVariableAssignmentPattern = '(?i)\$(?:IsWindows|IsLinux|IsMacOS|IsCoreCLR)\s*='
 $wrappedConvertFromJsonPattern = '@\(\s*ConvertFrom-Json\b'
+$repositoryBackslashPathLiteralPattern = '(?i)^(?:\.\.?\\|(?:src|build|docs|wwwroot|controller|controllers|services|components|diagnostics|properties)[\/\\]).*\\'
 $failures = [System.Collections.Generic.List[string]]::new()
 
 function Get-RepositoryRelativePath {
@@ -168,6 +169,12 @@ foreach ($file in $scriptFiles) {
             $relative = Get-RepositoryRelativePath -Path $file.FullName
             $failures.Add("${relative}:$($lineIndex + 1) assigns to a PowerShell 7 read-only platform automatic variable (IsWindows/IsLinux/IsMacOS/IsCoreCLR). Use a repository-specific variable name such as runningOnWindows instead; PowerShell variable names are case-insensitive.")
         }
+        foreach ($quoted in [regex]::Matches($sourceLine, '(["''])(?<value>[^"'']*\\[^"'']*)\1')) {
+            $value = $quoted.Groups['value'].Value
+            if (-not [regex]::IsMatch($value, $repositoryBackslashPathLiteralPattern)) { continue }
+            $relative = Get-RepositoryRelativePath -Path $file.FullName
+            $failures.Add("${relative}:$($lineIndex + 1) contains a repository-relative path literal with Windows-only backslash separators: '$value'. Use '/' inside repository-relative literals; PowerShell accepts forward slashes on Windows and pwsh on macOS/Linux resolves them consistently.")
+        }
         if ($sourceLine.IndexOf('Join-Path', [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
         foreach ($quoted in [regex]::Matches($sourceLine, '(["''])(?<value>[^"'']*\\[^"'']*)\1')) {
             $value = $quoted.Groups['value'].Value
@@ -176,6 +183,90 @@ foreach ($file in $scriptFiles) {
             $relative = Get-RepositoryRelativePath -Path $file.FullName
             $failures.Add("${relative}:$($lineIndex + 1) passes a backslash-delimited path literal to Join-Path. Use '/' or nested Join-Path calls so pwsh on macOS/Linux resolves the same path.")
         }
+    }
+}
+
+
+# Release builds can live on an external volume only if the expensive tool caches and temp state
+# follow the repository. Keep this contract in the early compatibility preflight so a future edit
+# cannot silently move NuGet, npm, DocFX, Chromium profiles, packaging stages, or dotnet CLI state
+# back to the system volume.
+$buildStorageHelperPath = Join-Path $root 'build/RepositoryBuildStorage.Common.ps1'
+$releaseEntryPath = Join-Path $root 'Build-Release.ps1'
+$documentationEntryPath = Join-Path $root 'build/Build-Documentation.ps1'
+$nodeRuntimePath = Join-Path $root 'build/NodeRuntime.Common.ps1'
+foreach ($requiredPath in @($buildStorageHelperPath, $releaseEntryPath, $documentationEntryPath, $nodeRuntimePath)) {
+    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+        $failures.Add("repository build-storage contract file is missing: $requiredPath")
+    }
+}
+if ((Test-Path -LiteralPath $buildStorageHelperPath -PathType Leaf) -and
+    (Test-Path -LiteralPath $releaseEntryPath -PathType Leaf) -and
+    (Test-Path -LiteralPath $documentationEntryPath -PathType Leaf) -and
+    (Test-Path -LiteralPath $nodeRuntimePath -PathType Leaf)) {
+    $buildStorageHelperText = [IO.File]::ReadAllText($buildStorageHelperPath)
+    foreach ($requiredToken in @(
+        'FUTURE2_BUILD_STORAGE_ROOT',
+        'FUTURE2_DOCUMENTATION_CACHE_ROOT',
+        'DOTNET_CLI_HOME',
+        'NUGET_PACKAGES',
+        'NUGET_HTTP_CACHE_PATH',
+        'NUGET_PLUGINS_CACHE_PATH',
+        'NUGET_SCRATCH',
+        'NPM_CONFIG_CACHE',
+        'XDG_CACHE_HOME',
+        'TMPDIR',
+        '$env:TMP =',
+        '$env:TEMP ='
+    )) {
+        if ($buildStorageHelperText.IndexOf($requiredToken, [System.StringComparison]::Ordinal) -lt 0) {
+            $failures.Add("build/RepositoryBuildStorage.Common.ps1 no longer redirects '$requiredToken'. Architectural repair: keep heavy release-build cache/temp state under the repository (or FUTURE2_BUILD_STORAGE_ROOT) so external-volume builds do not consume the system partition.")
+        }
+    }
+
+    $releaseEntryText = [IO.File]::ReadAllText($releaseEntryPath)
+    $releaseInitIndex = $releaseEntryText.IndexOf('Initialize-Future2RepositoryBuildStorage', [System.StringComparison]::Ordinal)
+    $releaseWorkIndex = $releaseEntryText.IndexOf('if ($CompileOnly)', [System.StringComparison]::Ordinal)
+    if ($releaseInitIndex -lt 0 -or ($releaseWorkIndex -ge 0 -and $releaseInitIndex -gt $releaseWorkIndex)) {
+        $failures.Add('Build-Release.ps1 must initialize repository build storage before compile/release work. Architectural repair: dot-source build/RepositoryBuildStorage.Common.ps1 immediately after resolving the repository root and initialize it before invoking dotnet/npm/DocFX/native packaging.')
+    }
+
+    $documentationEntryText = [IO.File]::ReadAllText($documentationEntryPath)
+    if ($documentationEntryText.IndexOf('Initialize-Future2RepositoryBuildStorage', [System.StringComparison]::Ordinal) -lt 0) {
+        $failures.Add('build/Build-Documentation.ps1 must initialize repository build storage for standalone documentation builds; otherwise Chromium profiles, DocFX/NuGet state, and temp files can fall back to the system partition.')
+    }
+
+    # Search source text literally. Do not use a double-quoted string containing a source-code
+    # variable name here: under StrictMode PowerShell would try to resolve that variable in this
+    # maintenance script instead of looking for its literal text.
+    $browserProfileNeedle = 'Join-Path $documentationToolCacheRoot ''browser-profiles'''
+    if ($documentationEntryText.IndexOf($browserProfileNeedle, [System.StringComparison]::Ordinal) -lt 0 -or
+        $documentationEntryText.IndexOf('DocumentationBrowserProfiles', [System.StringComparison]::Ordinal) -ge 0) {
+        $failures.Add('build/Build-Documentation.ps1 must place isolated browser profiles inside the repository-owned documentation cache. Architectural repair: use $documentationToolCacheRoot/browser-profiles instead of the operating-system temp directory.')
+    }
+
+    $defaultStorageNeedle = 'Join-Path $repository ''artifacts/.build-storage'''
+    if ($buildStorageHelperText.IndexOf($defaultStorageNeedle, [System.StringComparison]::Ordinal) -lt 0) {
+        $failures.Add('build/RepositoryBuildStorage.Common.ps1 must provide a zero-configuration default at <repository>/artifacts/.build-storage when FUTURE2_BUILD_STORAGE_ROOT is unset. Environment variables are optional overrides, not prerequisites for a normal clone.')
+    }
+
+    $gitIgnorePath = Join-Path $root '.gitignore'
+    if (-not (Test-Path -LiteralPath $gitIgnorePath -PathType Leaf)) {
+        $failures.Add('repository .gitignore is missing; repository-local build storage must never become source-controlled content.')
+    }
+    else {
+        $gitIgnoreText = [IO.File]::ReadAllText($gitIgnorePath)
+        if ($gitIgnoreText.IndexOf('artifacts/', [System.StringComparison]::Ordinal) -lt 0 -and
+            $gitIgnoreText.IndexOf('artifacts/.build-storage/', [System.StringComparison]::Ordinal) -lt 0) {
+            $failures.Add('.gitignore must ignore artifacts/ (or at minimum artifacts/.build-storage/) so the zero-configuration build cache remains local to each developer/build machine.')
+        }
+    }
+
+    $nodeRuntimeText = [IO.File]::ReadAllText($nodeRuntimePath)
+    $fallbackIndex = $nodeRuntimeText.IndexOf('if (-not [string]::IsNullOrWhiteSpace($FallbackRoot))', [System.StringComparison]::Ordinal)
+    $localDataIndex = $nodeRuntimeText.IndexOf('$localApplicationData = [Environment]::GetFolderPath', [System.StringComparison]::Ordinal)
+    if ($fallbackIndex -lt 0 -or $localDataIndex -lt 0 -or $fallbackIndex -gt $localDataIndex) {
+        $failures.Add('build/NodeRuntime.Common.ps1 must prefer its repository fallback cache before LocalApplicationData. Architectural repair: repository-local cache first, per-user cache only as a last-resort standalone fallback.')
     }
 }
 

@@ -57,7 +57,7 @@ function Require-TextAcrossFiles {
 }
 
 # Every Razor component inherits these circuit-scoped diagnostics dependencies from _Imports.
-Require-Text 'src/LocalGPT\Components/_Imports.razor' @(
+Require-Text 'src/LocalGPT/Components/_Imports.razor' @(
     '@inject\s+ILoggerFactory\s+OperationalLoggerFactory',
     '@inject\s+INotificationService\s+OperationalNotifier',
     '@inject\s+IComponentActivityService\s+OperationalActivity'
@@ -78,7 +78,7 @@ Require-Text 'src/LocalGPT/Components/Layout/MainLayout.razor' @(
     'ILogger<MainLayout>',
     'INotificationService'
 ) 'Layout diagnostics boundary'
-Require-Text 'src/LocalGPT\Components\Routes.razor' @(
+Require-Text 'src/LocalGPT/Components/Routes.razor' @(
     '<SafeErrorBoundary\s+@key="NavigationManager\.Uri"',
     'RecordNavigation\(',
     'LocationChanged\s*\+=\s*HandleLocationChanged'
@@ -94,11 +94,11 @@ Require-Text 'src/LocalGPT/Components/Pages/Chat.razor' @(
 ) 'Chat render boundary and injected diagnostics'
 $chatDiagnosticsFiles = @(
     'src/LocalGPT/Components/Pages/Chat.razor',
-    'src/LocalGPT\Components\Pages\Chat.Lifecycle.razor.cs',
-    'src/LocalGPT\Components\Pages\Chat.ProviderRuntime.razor.cs',
-    'src/LocalGPT\Components\Pages\Chat.PersistenceAndMemory.razor.cs',
-    'src/LocalGPT\Components\Pages\Chat.LiveCouncil.razor.cs',
-    'src/LocalGPT\Components\Pages\Chat.PresetsAndCouncilConfiguration.razor.cs'
+    'src/LocalGPT/Components/Pages/Chat.Lifecycle.razor.cs',
+    'src/LocalGPT/Components/Pages/Chat.ProviderRuntime.razor.cs',
+    'src/LocalGPT/Components/Pages/Chat.PersistenceAndMemory.razor.cs',
+    'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs',
+    'src/LocalGPT/Components/Pages/Chat.PresetsAndCouncilConfiguration.razor.cs'
 )
 Require-TextAcrossFiles $chatDiagnosticsFiles @(
     'interactiveAttached\s*=\s*true',
@@ -132,7 +132,7 @@ if (Test-Path -LiteralPath $chatPath) {
 }
 
 # Complex renderer-affine pages use their reviewed InteractiveServer boundaries and bounded initialization.
-Require-Text 'src/LocalGPT\Components\Pages\OneWireSecurity.razor' @(
+Require-Text 'src/LocalGPT/Components/Pages/OneWireSecurity.razor' @(
     '@rendermode\s+InteractiveServer',
     'CancelAfter\(TimeSpan\.FromSeconds\(8\)\)',
     'InitialSecurityRefresh',
@@ -141,7 +141,7 @@ Require-Text 'src/LocalGPT\Components\Pages\OneWireSecurity.razor' @(
     'OperationCanceledException',
     'JSDisconnectedException'
 ) '1-Wire renderer and timeout diagnostics'
-Require-Text 'src/LocalGPT\Diagnostics\LocalGptCircuitDiagnosticsHandler.cs' @(
+Require-Text 'src/LocalGPT/Diagnostics/LocalGptCircuitDiagnosticsHandler.cs' @(
     'CircuitHandler',
     'OnCircuitOpenedAsync',
     'OnConnectionDownAsync',
@@ -201,11 +201,11 @@ if (Test-Path -LiteralPath $runtimePolicyPath -PathType Leaf) {
 # kept separate from circuit UI services. This avoids injecting circuit UI services into
 # singleton/boot services, which would break startup.
 $programDiagnosticsFiles = @(
-    'src/LocalGPT\Program.cs',
-    'src/LocalGPT\Program.Hosting.cs',
-    'src/LocalGPT\Program.Middleware.cs',
-    'src/LocalGPT\Program.ServiceRegistration.cs',
-    'src/LocalGPT\Program.WebFeatures.cs'
+    'src/LocalGPT/Program.cs',
+    'src/LocalGPT/Program.Hosting.cs',
+    'src/LocalGPT/Program.Middleware.cs',
+    'src/LocalGPT/Program.ServiceRegistration.cs',
+    'src/LocalGPT/Program.WebFeatures.cs'
 )
 Require-TextAcrossFiles $programDiagnosticsFiles @(
     'AddScoped<ControllerRequestLoggingFilter>',
@@ -221,7 +221,7 @@ Require-TextAcrossFiles $programDiagnosticsFiles @(
     'AddHostedService<OneWireWorkProcessorHostedService>',
     'AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>'
 ) 'Controller, notifier, and startup diagnostics registration'
-Require-Text 'src/LocalGPT\Diagnostics\ControllerRequestLoggingFilter.cs' @(
+Require-Text 'src/LocalGPT/Diagnostics/ControllerRequestLoggingFilter.cs' @(
     'IAsyncActionFilter',
     'ILogger<ControllerRequestLoggingFilter>',
     'IComponentActivityService',
@@ -229,7 +229,7 @@ Require-Text 'src/LocalGPT\Diagnostics\ControllerRequestLoggingFilter.cs' @(
     'LogError',
     'RecordFailure'
 ) 'Global controller action diagnostics'
-Require-Text 'src/LocalGPT\Services\Persistence\DatabaseInitializationService.cs' @(
+Require-Text 'src/LocalGPT/Services/Persistence/DatabaseInitializationService.cs' @(
     'MigrateAsync\(cancellationToken\)',
     'ILogger<DatabaseInitializationService>',
     'catch\s*\(Exception'

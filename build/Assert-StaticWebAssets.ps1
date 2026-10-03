@@ -26,16 +26,16 @@ foreach ($content in $contentNodes) {
     }
 
     if ([string]::IsNullOrWhiteSpace($path)) { continue }
-    $normalized = $path.Replace('/', '\')
-    if ($normalized.StartsWith('wwwroot\images\', [StringComparison]::OrdinalIgnoreCase) -or
+    $normalized = $path.Replace('\', '/')
+    if ($normalized.StartsWith('wwwroot/images/', [StringComparison]::OrdinalIgnoreCase) -or
         $normalized -in @(
-            'wwwroot\favicon.ico',
-            'wwwroot\favicon-16x16.png',
-            'wwwroot\favicon-32x32.png',
-            'wwwroot\android-chrome-192x192.png',
-            'wwwroot\android-chrome-512x512.png',
-            'wwwroot\apple-touch-icon.png',
-            'wwwroot\css\site.css'
+            'wwwroot/favicon.ico',
+            'wwwroot/favicon-16x16.png',
+            'wwwroot/favicon-32x32.png',
+            'wwwroot/android-chrome-192x192.png',
+            'wwwroot/android-chrome-512x512.png',
+            'wwwroot/apple-touch-icon.png',
+            'wwwroot/css/site.css'
         )) {
         [void]$required.Add($normalized)
     }
@@ -44,9 +44,9 @@ foreach ($content in $contentNodes) {
 # These are runtime-critical even if a future SDK/default-item change stops producing
 # explicit Content metadata in the project file.
 foreach ($relative in @(
-    'wwwroot\js\documentationViewer.js',
-    'wwwroot\images\TacosLogos.svg',
-    'wwwroot\images\Information.svg'
+    'wwwroot/js/documentationViewer.js',
+    'wwwroot/images/TacosLogos.svg',
+    'wwwroot/images/Information.svg'
 )) {
     [void]$required.Add($relative)
 }

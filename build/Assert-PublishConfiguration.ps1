@@ -29,6 +29,15 @@ function Assert-Property([hashtable]$Properties, [string]$Name, [string]$Expecte
     }
 }
 
+function Assert-PathProperty([hashtable]$Properties, [string]$Name, [string]$Expected, [string]$RelativePath) {
+    if (-not $Properties.ContainsKey($Name)) { Fail "$RelativePath does not define $Name." }
+    $actualNormalized = ([string]$Properties[$Name]).Replace('\', '/')
+    $expectedNormalized = $Expected.Replace('\', '/')
+    if (-not [string]::Equals($actualNormalized, $expectedNormalized, [StringComparison]::OrdinalIgnoreCase)) {
+        Fail "$RelativePath defines $Name='$($Properties[$Name])'; expected path '$Expected'."
+    }
+}
+
 function Assert-Profile(
     [string]$RelativePath,
     [string]$Runtime,
@@ -37,7 +46,7 @@ function Assert-Profile(
     [string]$TargetFramework,
     [string]$PublishSingleFile) {
     $properties = Read-ProfileProperties $RelativePath
-    $output = "..\..\artifacts/release\$Folder\"
+    $output = "../../artifacts/release/$Folder/"
     foreach ($requirement in @(
         @{ Name = 'Configuration'; Value = 'Release' },
         @{ Name = 'RuntimeIdentifier'; Value = $Runtime },
@@ -63,7 +72,7 @@ function Assert-Profile(
         Fail "$RelativePath must define PublishDir or PublishUrl so release scripts can consume the profile-owned output."
     }
     foreach ($outputProperty in $declaredOutput) {
-        Assert-Property $properties $outputProperty $output $RelativePath
+        Assert-PathProperty $properties $outputProperty $output $RelativePath
     }
 }
 
@@ -78,8 +87,8 @@ $profiles = @(
 )
 
 foreach ($profile in $profiles) {
-    Assert-Profile "src/LocalGPT\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.App 'AnyCPU' 'net10.0' 'false'
-    Assert-Profile "src/LocalGPTInstallerConsole\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Setup $profile.SetupPlatform 'net10.0' 'true'
+    Assert-Profile "src/LocalGPT/Properties/PublishProfiles/$($profile.File)" $profile.Runtime $profile.App 'AnyCPU' 'net10.0' 'false'
+    Assert-Profile "src/LocalGPTInstallerConsole/Properties/PublishProfiles/$($profile.File)" $profile.Runtime $profile.Setup $profile.SetupPlatform 'net10.0' 'true'
 }
 
 $wrapperProfiles = @(
@@ -88,7 +97,7 @@ $wrapperProfiles = @(
     @{ File = 'winarm64.pubxml'; Runtime = 'win-arm64'; Platform = 'ARM64'; Folder = 'wrapper-winarm64' }
 )
 foreach ($profile in $wrapperProfiles) {
-    Assert-Profile "src/LocalGPTWebviewWrapper\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0' 'false'
+    Assert-Profile "src/LocalGPTWebviewWrapper/Properties/PublishProfiles/$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0' 'false'
 }
 
 $userProfiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -File -Filter '*.pubxml.user' -ErrorAction SilentlyContinue)

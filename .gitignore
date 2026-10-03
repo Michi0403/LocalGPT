@@ -11,6 +11,8 @@
 **/*.csproj.user
 **/*.pubxml.user
 **/*.wapproj.user
+# Repository-local release/build caches. Created automatically; no developer setup required.
+artifacts/.build-storage/
 artifacts/
 
 # WebView/MSIX packaging output

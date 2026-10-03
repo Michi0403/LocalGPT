@@ -46,12 +46,13 @@ function Initialize-BuildConsoleEncoding {
 Initialize-BuildConsoleEncoding
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$buildStorageScript = Join-Path $root 'build/RepositoryBuildStorage.Common.ps1'
+if (-not (Test-Path -LiteralPath $buildStorageScript -PathType Leaf)) { throw "Repository build-storage helper is missing: $buildStorageScript" }
+. $buildStorageScript
+$buildStorage = Initialize-Future2RepositoryBuildStorage -RepositoryRoot $root -DocumentationCacheRoot $DocumentationCacheRoot
 if ($CompileOnly) {
     & (Join-Path $root 'build/Invoke-ReleaseCompileValidation.ps1') -Solution 'src/LocalGPTWebviewWrapper.sln' -Configuration $Configuration
     return
-}
-if (-not [string]::IsNullOrWhiteSpace($DocumentationCacheRoot)) {
-    $env:FUTURE2_DOCUMENTATION_CACHE_ROOT = [IO.Path]::GetFullPath($DocumentationCacheRoot)
 }
 $nodeRuntimeCommonScript = Join-Path $root 'build/NodeRuntime.Common.ps1'
 if (-not (Test-Path -LiteralPath $nodeRuntimeCommonScript -PathType Leaf)) { throw "Documentation runtime helper is missing: $nodeRuntimeCommonScript" }
@@ -96,8 +97,7 @@ $pagesSnapshotScript = Join-Path $root "build/Update-GitHubPagesSnapshot.ps1"
 $pagesSnapshotArchive = Join-Path $root ".github/pages/localgpt-kawaii-docs.zip"
 $wirePackageName = "LocalGPT.WireProtocolVersion.$WireProtocolVersion.nupkg"
 $wirePackage = Join-Path $packageDirectory $wirePackageName
-$localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-$sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT/NuGet" }
+$sharedWirePackageDirectory = Join-Path $buildStorage.Root 'shared-package-cache/LocalGPT/NuGet'
 $documentationToolCacheBase = Get-LocalGptDocumentationToolCacheRoot -FallbackRoot (Join-Path $root 'docs/.tools')
 $documentationCacheRoot = Join-Path $documentationToolCacheBase 'release-payload/LocalGPT' 
 $documentationPrepared = $false

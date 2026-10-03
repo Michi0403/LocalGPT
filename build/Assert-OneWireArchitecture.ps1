@@ -18,11 +18,11 @@ function Read-OptionalText([string]$RelativePath) {
 
 $protocolProject = Read-OptionalText 'src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
 $appProject = Read-OptionalText 'src/LocalGPT/LocalGPT.csproj'
-$globalUsing = Read-OptionalText 'src/LocalGPT\GlobalImports.cs'
-$interfaces = Read-OptionalText 'src/LocalGPT\Interfaces\IOneWireServices.cs'
-$dispatcher = Read-OptionalText 'src/LocalGPT\Services\OneWire\OneWireExecutionServices.cs'
-$state = Read-OptionalText 'src/LocalGPT\Services\OneWire\OneWireStateServices.cs'
-$transport = Read-OptionalText 'src/LocalGPT\Services\OneWire\OneWireTransportHostedServices.cs'
+$globalUsing = Read-OptionalText 'src/LocalGPT/GlobalImports.cs'
+$interfaces = Read-OptionalText 'src/LocalGPT/Interfaces/IOneWireServices.cs'
+$dispatcher = Read-OptionalText 'src/LocalGPT/Services/OneWire/OneWireExecutionServices.cs'
+$state = Read-OptionalText 'src/LocalGPT/Services/OneWire/OneWireStateServices.cs'
+$transport = Read-OptionalText 'src/LocalGPT/Services/OneWire/OneWireTransportHostedServices.cs'
 $settingsPath = Join-Path $root 'src/LocalGPT/appsettings.json'
 
 if ($protocolProject -and $protocolProject -notmatch '<Platforms>AnyCPU</Platforms>') { Add-Finding 'The protocol package project is not explicitly AnyCPU.' }

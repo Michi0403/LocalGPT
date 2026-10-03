@@ -199,24 +199,24 @@ function Invoke-RuntimeFallback {
 function Invoke-MethodFallback {
     $strictFiles = if ($isLocalGpt) {
         @(
-            'Controller\RuntimePolicyController.cs',
-            'Services\Persistence\LocalGptRuntimePolicyDataService.cs',
-            'Services\Persistence\LocalGptRuntimePolicyStoreService.cs',
-            'Services\Persistence\LocalGptRuntimePolicySeedDataService.cs',
-            'Services\Persistence\LocalGptVocabularyService.cs',
-            'Services\Persistence\OneWireReplayPolicyDataService.cs',
-            'Services\OneWire\OneWireTransportSecurityPolicy.cs'
+            'Controller/RuntimePolicyController.cs',
+            'Services/Persistence/LocalGptRuntimePolicyDataService.cs',
+            'Services/Persistence/LocalGptRuntimePolicyStoreService.cs',
+            'Services/Persistence/LocalGptRuntimePolicySeedDataService.cs',
+            'Services/Persistence/LocalGptVocabularyService.cs',
+            'Services/Persistence/OneWireReplayPolicyDataService.cs',
+            'Services/OneWire/OneWireTransportSecurityPolicy.cs'
         )
     }
     else {
         @(
-            'Controllers\RuntimePolicyController.cs',
-            'Services\Configuration\PublisherRuntimePolicyDataService.cs',
-            'Services\Configuration\PublisherRuntimePatternService.cs',
-            'Services\Configuration\OrganicReplayPolicyDataService.cs',
-            'Services\OrganicPlugins\OrganicTransportSecurityPolicy.cs',
-            'Services\Streaming\Hotkeys\WindowsHotkeyNativeService.cs',
-            'Services\Streaming\Capture\WindowsProcessLoopbackNativeService.cs'
+            'Controllers/RuntimePolicyController.cs',
+            'Services/Configuration/PublisherRuntimePolicyDataService.cs',
+            'Services/Configuration/PublisherRuntimePatternService.cs',
+            'Services/Configuration/OrganicReplayPolicyDataService.cs',
+            'Services/OrganicPlugins/OrganicTransportSecurityPolicy.cs',
+            'Services/Streaming/Hotkeys/WindowsHotkeyNativeService.cs',
+            'Services/Streaming/Capture/WindowsProcessLoopbackNativeService.cs'
         )
     }
 
