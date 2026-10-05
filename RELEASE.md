@@ -1,5 +1,5 @@
-# LocalGPT 5.2.8
+# LocalGPT 5.3.1
 
-LocalGPT 5.2.8 repairs the repository-local build-storage preflight introduced in 5.2.7. Fresh clones require no cache-path configuration: heavy build state defaults to `artifacts/.build-storage`, ignored by Git. Optional environment/parameter values only override the default.
+LocalGPT 5.3.1 is a focused maintenance follow-up to 5.3.0. It fixes the reported compiler error in the diagnostic upload-workspace file endpoint after `ReadFileAsync` gained progressive character-offset support.
 
-The PowerShell compatibility guard now treats source-code variable names literally when validating documentation browser-profile placement, avoiding the corresponding StrictMode failure. Application runtime behavior is unchanged.
+The 5.3.0 behavior remains intact: user-supplied ZIPs are safely extracted read-only during quarantine intake, upload/context reads support substantial progressive whole-file consumption, source-backed repository evidence is available to learning workflows, ordinary non-game Councils receive the complete policy-approved DXFunction catalog when functions are enabled, and live `games.*` runtimes keep strict allow-lists.

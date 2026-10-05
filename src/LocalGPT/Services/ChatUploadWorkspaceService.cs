@@ -55,6 +55,7 @@ namespace LocalGPT.Services
 
                 var warnings = new List<string>();
                 var analyzedFiles = new List<AnalyzedUploadFile>();
+                var readOnlyArchiveExtractionReady = false;
                 long totalUploadedBytes = 0;
 
                 foreach (var input in fileList)
@@ -82,11 +83,23 @@ namespace LocalGPT.Services
                     var originalRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
                     if (councilRuntime.IsZip(input.Name, logger))
                     {
-                        var buildSummary = councilRuntime.BuildBinarySummary(originalRelativePath, bytes.Length, "zip", false,
-                            "Original zip saved in quarantine. Extraction is deferred until the regex/knowledge ingestion gate and independent reviews approve promotion.", logger);
+                        var buildSummary = councilRuntime.BuildBinarySummary(
+                            originalRelativePath,
+                            bytes.Length,
+                            "zip",
+                            false,
+                            "Original zip remains quarantined. Safe read-only extraction starts immediately so uploaded source can be inspected without waiting for promotion; execution and promotion remain gated.",
+                            logger);
                         ArgumentNullException.ThrowIfNull(buildSummary);
                         analyzedFiles.Add(buildSummary);
-                        warnings.Add($"{safeName}: quarantined; archive extraction is deferred until approved promotion.");
+                        readOnlyArchiveExtractionReady |= await ExtractZipAsync(
+                            root,
+                            extractedRoot,
+                            safeName,
+                            originalPath,
+                            analyzedFiles,
+                            warnings,
+                            cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
@@ -123,7 +136,8 @@ namespace LocalGPT.Services
                             catalog.MaxContextCharacters,
                             catalog.MaxExcerptCharactersPerFile
                         },
-                        GateStatus = "Quarantined",
+                        GateStatus = readOnlyArchiveExtractionReady ? "QuarantinedReadOnlyExtractionReady" : "Quarantined",
+                        ReadOnlyArchiveExtractionReady = readOnlyArchiveExtractionReady,
                         Warnings = warnings,
                         Files = analyzedFiles.Select(file => file.Summary)
                     }, catalog.JsonOptions),
@@ -189,6 +203,7 @@ namespace LocalGPT.Services
 
                 var warnings = new List<string>();
                 var analyzedFiles = new List<AnalyzedUploadFile>();
+                var readOnlyArchiveExtractionReady = false;
                 long totalUploadedBytes = 0;
                 foreach (var input in fileList)
                 {
@@ -224,11 +239,23 @@ namespace LocalGPT.Services
                     var originalRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
                     if (councilRuntime.IsZip(input.Name, logger))
                     {
-                        var summary = councilRuntime.BuildBinarySummary(originalRelativePath, copiedBytes, "zip", false,
-                            "Original zip saved in quarantine. Extraction is deferred until the regex/knowledge ingestion gate and independent reviews approve promotion.", logger);
+                        var summary = councilRuntime.BuildBinarySummary(
+                            originalRelativePath,
+                            copiedBytes,
+                            "zip",
+                            false,
+                            "Original zip remains quarantined. Safe read-only extraction starts immediately so uploaded source can be inspected without waiting for promotion; execution and promotion remain gated.",
+                            logger);
                         ArgumentNullException.ThrowIfNull(summary);
                         analyzedFiles.Add(summary);
-                        warnings.Add($"{safeName}: quarantined; archive extraction is deferred until approved promotion.");
+                        readOnlyArchiveExtractionReady |= await ExtractZipAsync(
+                            root,
+                            extractedRoot,
+                            safeName,
+                            originalPath,
+                            analyzedFiles,
+                            warnings,
+                            cancellationToken).ConfigureAwait(false);
                     }
                     else if (copiedBytes <= Math.Min(catalog.MaxSingleFileBytes, 8L * 1024 * 1024))
                     {
@@ -277,7 +304,8 @@ namespace LocalGPT.Services
                             catalog.MaxContextCharacters,
                             catalog.MaxExcerptCharactersPerFile
                         },
-                        GateStatus = "Quarantined",
+                        GateStatus = readOnlyArchiveExtractionReady ? "QuarantinedReadOnlyExtractionReady" : "Quarantined",
+                        ReadOnlyArchiveExtractionReady = readOnlyArchiveExtractionReady,
                         Warnings = warnings,
                         Files = analyzedFiles.Select(file => file.Summary)
                     }, catalog.JsonOptions),
@@ -475,10 +503,12 @@ namespace LocalGPT.Services
                             councilRuntime.IsTextLike(path, logger) || catalog.BinaryDiagnosticExtensions.Contains(Path.GetExtension(path)),
                             path.EndsWith("context.md", StringComparison.OrdinalIgnoreCase)
                                 ? "AI prompt context generated by LocalGPT."
-                                : "Uploaded or extracted workspace file.");
+                                : councilText.ToForwardSlash(Path.GetRelativePath(workspace, path), logger).StartsWith("extracted/", StringComparison.OrdinalIgnoreCase)
+                                    ? "Safely extracted source-backed read-only evidence; execution and promotion remain separately gated."
+                                    : "Original user-uploaded quarantine evidence.");
                     })
                     .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
-                    .Take(take > 0 ? Math.Min(take, Math.Max(1, catalog.MaxFiles)) : Math.Max(1, catalog.MaxFiles))
+                    .Take(take > 0 ? Math.Clamp(take, 1, 20_000) : 5_000)
                     .ToList();
             }
             catch (Exception ex)
@@ -493,13 +523,15 @@ namespace LocalGPT.Services
         /// </summary>
         /// <param name="workspaceName">Workspace name value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="relativePath">Relative path value supplied to the chat upload workspace operation and used when producing its result.</param>
-        /// <param name="maxCharacters">Max characters value supplied to the chat upload workspace operation and used when producing its result.</param>
+        /// <param name="maxCharacters">Maximum decoded characters returned by one progressive read segment.</param>
+        /// <param name="characterOffset">Decoded character offset at which this progressive read starts.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-        /// <returns>The chat upload workspace file read result produced by the operation.</returns>
+        /// <returns>The chat upload workspace file read result produced by the operation, including continuation metadata when more content remains.</returns>
         public async Task<ChatUploadWorkspaceFileReadResult?> ReadFileAsync(
             string workspaceName,
             string relativePath,
             int maxCharacters,
+            long characterOffset = 0,
             CancellationToken cancellationToken = default)
         {
             try
@@ -513,30 +545,146 @@ namespace LocalGPT.Services
                     return null;
 
                 var info = new FileInfo(file);
+                var normalizedRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(workspace, file), logger);
                 if (info.Length > catalog.MaxSingleFileBytes)
+                {
                     return new ChatUploadWorkspaceFileReadResult(
                         workspaceName,
-                       councilText.ToForwardSlash(Path.GetRelativePath(workspace, file), logger),
+                        normalizedRelativePath,
                         file,
                         "too-large",
                         info.Length,
-                        "File is too large for inline reading. Use the file summary and inspect it manually.");
+                        "File exceeds the configured workspace read limit.")
+                    {
+                        CharacterOffset = Math.Max(0, characterOffset)
+                    };
+                }
+
+                var effectiveOffset = Math.Max(0, characterOffset);
+                var effectiveMaximum = Math.Max(1, maxCharacters);
+                if (councilRuntime.IsTextLike(file, logger))
+                {
+                    var segment = await ReadTextSegmentAsync(file, effectiveOffset, effectiveMaximum, cancellationToken).ConfigureAwait(false);
+                    return new ChatUploadWorkspaceFileReadResult(
+                        workspaceName,
+                        normalizedRelativePath,
+                        file,
+                        "text",
+                        info.Length,
+                        councilRuntime.SanitizeForPrompt(segment.Content, logger))
+                    {
+                        CharacterOffset = effectiveOffset,
+                        CharactersReturned = segment.CharactersReturned,
+                        HasMore = segment.HasMore,
+                        NextOffsetCharacters = segment.HasMore
+                            ? effectiveOffset + segment.CharactersReturned
+                            : null
+                    };
+                }
 
                 var bytes = await System.IO.File.ReadAllBytesAsync(file, cancellationToken).ConfigureAwait(false);
-                var analyzed = councilRuntime.AnalyzeBytes(councilText.ToForwardSlash(Path.GetRelativePath(workspace, file), logger), bytes, logger);
+                var analyzed = councilRuntime.AnalyzeBytes(normalizedRelativePath, bytes, logger);
                 ArgumentNullException.ThrowIfNull(analyzed);
+                var analyzedOffset = (int)Math.Min(effectiveOffset, analyzed.Excerpt.Length);
+                var available = analyzed.Excerpt.Length - analyzedOffset;
+                var charactersReturned = Math.Min(effectiveMaximum, Math.Max(0, available));
+                var content = charactersReturned > 0
+                    ? analyzed.Excerpt.Substring(analyzedOffset, charactersReturned)
+                    : string.Empty;
+                var hasMore = analyzedOffset + charactersReturned < analyzed.Excerpt.Length;
                 return new ChatUploadWorkspaceFileReadResult(
                     workspaceName,
                     analyzed.Summary.RelativePath,
                     file,
                     analyzed.Summary.Kind,
                     analyzed.Summary.Length,
-                    councilText.TrimForPrompt(analyzed.Excerpt, maxCharacters, logger));
+                    content)
+                {
+                    CharacterOffset = effectiveOffset,
+                    CharactersReturned = charactersReturned,
+                    HasMore = hasMore,
+                    NextOffsetCharacters = hasMore
+                        ? effectiveOffset + charactersReturned
+                        : null
+                };
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ReadFileAsync workspaceName: {workspaceName.ToString()} relativePath: {relativePath.ToString()} maxCharacters {maxCharacters.ToString()} ");
+                logger.LogError(
+                    ex,
+                    "Error in ReadFileAsync workspaceName: {WorkspaceName} relativePath: {RelativePath} maxCharacters: {MaxCharacters} characterOffset: {CharacterOffset}.",
+                    workspaceName,
+                    relativePath,
+                    maxCharacters,
+                    characterOffset);
                 return null;
+            }
+        }
+
+        /// <summary>Reads one progressive character segment without loading a large text upload completely into managed memory.</summary>
+        /// <param name="filePath">Absolute workspace file path that has already passed workspace-root validation.</param>
+        /// <param name="characterOffset">Decoded character offset at which reading starts.</param>
+        /// <param name="maxCharacters">Maximum decoded characters returned in this segment.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The progressive segment content, returned character count, and whether unread content remains.</returns>
+        private async Task<(string Content, int CharactersReturned, bool HasMore)> ReadTextSegmentAsync(
+            string filePath,
+            long characterOffset,
+            int maxCharacters,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var stream = new FileStream(
+                    filePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    64 * 1024,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan);
+                await using var configuredStream = stream.ConfigureAwait(false);
+                using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 64 * 1024, leaveOpen: true);
+
+                var buffer = new char[64 * 1024];
+                var charactersToSkip = Math.Max(0, characterOffset);
+                while (charactersToSkip > 0)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var requested = (int)Math.Min(buffer.Length, charactersToSkip);
+                    var read = await reader.ReadAsync(buffer.AsMemory(0, requested), cancellationToken).ConfigureAwait(false);
+                    if (read == 0)
+                        return (string.Empty, 0, false);
+                    charactersToSkip -= read;
+                }
+
+                var targetCharacters = Math.Clamp(maxCharacters, 1, 1_000_000);
+                var builder = new StringBuilder(Math.Min(targetCharacters + 1, 1_000_001));
+                while (builder.Length <= targetCharacters)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var remaining = targetCharacters + 1 - builder.Length;
+                    var requested = Math.Min(buffer.Length, remaining);
+                    var read = await reader.ReadAsync(buffer.AsMemory(0, requested), cancellationToken).ConfigureAwait(false);
+                    if (read == 0)
+                        break;
+                    builder.Append(buffer, 0, read);
+                }
+
+                var hasMore = builder.Length > targetCharacters;
+                var returnedCharacters = Math.Min(builder.Length, targetCharacters);
+                return (
+                    returnedCharacters == 0 ? string.Empty : builder.ToString(0, returnedCharacters),
+                    returnedCharacters,
+                    hasMore);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Reading a progressive upload-workspace text segment failed; file path was omitted.");
+                throw;
             }
         }
 
@@ -610,24 +758,23 @@ namespace LocalGPT.Services
         /// <param name="workspaceRoot">Workspace root value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="extractedRoot">Extracted root value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="zipFileName">Zip file name value supplied to the chat upload workspace operation and used when producing its result.</param>
-        /// <param name="zipBytes">Zip bytes value supplied to the chat upload workspace operation and used when producing its result.</param>
+        /// <param name="zipPath">Quarantined archive path that is opened read-only for bounded safe extraction.</param>
         /// <param name="analyzedFiles">Analyzed files value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="warnings">Warnings value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-        /// <returns>A task that completes when the operation has finished.</returns>
-        private async Task ExtractZipAsync(
+        /// <returns><see langword="true"/> when the archive opened and its bounded safe extraction completed; otherwise <see langword="false"/>.</returns>
+        private async Task<bool> ExtractZipAsync(
             string workspaceRoot,
             string extractedRoot,
             string zipFileName,
-            byte[] zipBytes,
+            string zipPath,
             List<AnalyzedUploadFile> analyzedFiles,
             List<string> warnings,
             CancellationToken cancellationToken)
         {
             try
             {
-                using var memory = new MemoryStream(zipBytes);
-                using var archive = new ZipArchive(memory, ZipArchiveMode.Read);
+                using var archive = ZipFile.OpenRead(zipPath);
                 var zipName = Path.GetFileNameWithoutExtension(zipFileName);
                 var zipExtractRoot = Path.Combine(extractedRoot, councilText.SanitizeFileName(zipName, logger));
                 Directory.CreateDirectory(zipExtractRoot);
@@ -677,28 +824,82 @@ namespace LocalGPT.Services
                     }
 
                     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    if (System.IO.File.Exists(destination))
+                    {
+                        warnings.Add($"{zipFileName}: duplicate archive destination skipped: {entry.FullName}");
+                        continue;
+                    }
+
                     {
                         var entryStream = entry.Open();
                         await using var configuredEntryStreamAsyncDisposal = entryStream.ConfigureAwait(false);
-                        var destinationStream = System.IO.File.Create(destination);
+                        var destinationStream = new FileStream(
+                            destination,
+                            FileMode.CreateNew,
+                            FileAccess.Write,
+                            FileShare.None,
+                            64 * 1024,
+                            FileOptions.Asynchronous | FileOptions.SequentialScan);
                         await using var configuredDestinationStreamAsyncDisposal = destinationStream.ConfigureAwait(false);
                         await entryStream.CopyToAsync(destinationStream, cancellationToken).ConfigureAwait(false);
                     }
 
-                    var bytes = await System.IO.File.ReadAllBytesAsync(destination, cancellationToken).ConfigureAwait(false);
-                    var analyzedBytes = councilRuntime.AnalyzeBytes(councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger), bytes, logger);
-                    ArgumentNullException.ThrowIfNull(analyzedBytes);
-                    analyzedFiles.Add(analyzedBytes);
+                    var relativePath = councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger);
+                    if (entry.Length <= Math.Min(catalog.MaxSingleFileBytes, 8L * 1024 * 1024))
+                    {
+                        var bytes = await System.IO.File.ReadAllBytesAsync(destination, cancellationToken).ConfigureAwait(false);
+                        var analyzedBytes = councilRuntime.AnalyzeBytes(relativePath, bytes, logger);
+                        ArgumentNullException.ThrowIfNull(analyzedBytes);
+                        analyzedFiles.Add(analyzedBytes with
+                        {
+                            Summary = analyzedBytes.Summary with
+                            {
+                                Note = "Safely extracted source-backed read-only evidence; execution and promotion remain separately gated."
+                            }
+                        });
+                    }
+                    else
+                    {
+                        var summary = councilRuntime.BuildBinarySummary(
+                            relativePath,
+                            entry.Length,
+                            councilRuntime.DetermineFileKind(destination, logger),
+                            false,
+                            "Large safely extracted entry is available for progressive direct reading but is not duplicated into generated prompt context.",
+                            logger);
+                        ArgumentNullException.ThrowIfNull(summary);
+                        analyzedFiles.Add(summary);
+                    }
                 }
+
+                logger.LogInformation(
+                    "Safely extracted {EntryCount} read-only archive entr{EntrySuffix} from {ZipFileName}; extracted bytes {ExtractedBytes}. Promotion remains separately gated.",
+                    entryCount,
+                    entryCount == 1 ? "y" : "ies",
+                    zipFileName,
+                    extractedBytes);
+                return true;
             }
             catch (InvalidDataException ex)
             {
                 warnings.Add($"{zipFileName}: zip could not be opened: {ex.Message}");
+                logger.LogWarning(ex, "Safe read-only extraction rejected invalid archive {ZipFileName}.", zipFileName);
+                return false;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ExtractZipAsync workspaceRoot: {workspaceRoot.ToString()} extractedRoot: {extractedRoot.ToString()} zipFileName: {zipFileName.ToString()} zipBytes: {zipBytes.ToString()} analyzedFiles: {analyzedFiles.ToString()} warnings: {warnings.ToString()}");
+                logger.LogError(
+                    ex,
+                    "Error in ExtractZipAsync for {ZipFileName}; workspace paths and archive content were omitted.",
+                    zipFileName);
+                warnings.Add($"{zipFileName}: safe read-only extraction failed; original quarantine file remains available.");
+                return false;
             }
         }
+
     }
 }

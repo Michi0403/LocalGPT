@@ -42,7 +42,7 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
             RegexMatchTimeoutMilliseconds = new SystemVariableDefinition<int>("RegexMatchTimeoutMilliseconds", 2000);
             CouncilDxMaximumCallsPerStep = new SystemVariableDefinition<int>("CouncilDxMaximumCallsPerStep", 3);
             CouncilDxMaximumParameterCharacters = new SystemVariableDefinition<int>("CouncilDxMaximumParameterCharacters", 24000);
-            CouncilDxMaximumResultCharacters = new SystemVariableDefinition<int>("CouncilDxMaximumResultCharacters", 32000);
+            CouncilDxMaximumResultCharacters = new SystemVariableDefinition<int>("CouncilDxMaximumResultCharacters", 1100000);
             FirstRunOnboardingCompleted = new SystemVariableDefinition<bool>("FirstRunOnboardingCompleted", false);
             LegacyCouncilResourceLoadPercent = 30;
             InitialValues =

@@ -391,7 +391,7 @@
             return;
         try
         {
-            var reviewPrompt = $"Independently review quarantined workspace '{gate.WorkspaceName}' using project.ingestion.inspect and the approved regex/Knowledge evidence. Do not extract, execute, build, publish, or promote it. Each participating reviewer should call project.ingestion.review with its own verdict and concise evidence. User goal: {userGoal}";
+            var reviewPrompt = $"Independently review quarantined workspace '{gate.WorkspaceName}' using project.ingestion.inspect, any safe read-only extracted evidence already present, and the approved regex/Knowledge evidence. Do not execute, build, publish, or promote it. Each participating reviewer should call project.ingestion.review with its own verdict and concise evidence. User goal: {userGoal}";
             var request = CloneRecommendation(recommendation, reviewPrompt);
             await CouncilRequested.InvokeAsync(request).ConfigureAwait(false);
             statusText = "Independent-review request sent to the suggested/current Council team. Refresh this overlay after reviewers finish.";
@@ -413,7 +413,7 @@
             return;
         try
         {
-            SetBusy(true, "Requesting promotion approval…", "The exact ZIP/project promotion is being sent to the common Human Collaboration approval workflow. No archive is extracted by this action.");
+            SetBusy(true, "Requesting promotion approval…", "The exact ZIP/project promotion is being sent to the common Human Collaboration approval workflow. Existing safe read-only extraction remains evidence only; promoted project material is rebuilt only after approval.");
             var parameters = System.Text.Json.JsonSerializer.SerializeToElement(new
             {
                 workspaceName = gate.WorkspaceName

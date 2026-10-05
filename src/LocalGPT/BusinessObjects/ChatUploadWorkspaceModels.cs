@@ -108,5 +108,22 @@ namespace LocalGPT.BusinessObjects
         string FullPath,
         string Kind,
         long Length,
-        string Content);
+        string Content)
+    {
+        /// <summary>Gets the decoded character offset at which this result segment starts.</summary>
+        /// <value>The zero-based decoded character offset used for the progressive workspace read.</value>
+        public long CharacterOffset { get; init; }
+
+        /// <summary>Gets the number of decoded source characters returned before prompt sanitization.</summary>
+        /// <value>The number of source characters consumed by this result segment.</value>
+        public int CharactersReturned { get; init; }
+
+        /// <summary>Gets a value indicating whether unread content remains after this result segment.</summary>
+        /// <value><see langword="true"/> when the caller should continue from <see cref="NextOffsetCharacters"/> to complete the file.</value>
+        public bool HasMore { get; init; }
+
+        /// <summary>Gets the decoded character offset for the next progressive read when content remains.</summary>
+        /// <value>The next zero-based decoded character offset, or <see langword="null"/> when this segment reached the end.</value>
+        public long? NextOffsetCharacters { get; init; }
+    }
 }

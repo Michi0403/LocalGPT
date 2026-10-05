@@ -71,7 +71,7 @@ namespace LocalGPT.Services
                     cancellationToken.ThrowIfCancellationRequested();
                     var continuationNumber = continuationIndex + 1;
                     var continuationPhase = $"{sourceStep.Phase} · tool continuation {continuationNumber}";
-                    var evidence = BuildToolResultContinuationEvidence(pendingFunctionSteps);
+                    var evidence = BuildToolResultContinuationEvidence(pendingFunctionSteps, fallbackPlan.EffectiveMaxContextTokens);
                     progressMessage?.Invoke(
                         $"Council is returning {pendingFunctionSteps.Count} intermediate function result(s) to {sourceStep.ModelName} for bounded continuation {continuationNumber}/{boundedRounds}.");
 
@@ -141,12 +141,18 @@ Intermediate LocalGPT function evidence:
 
         /// <summary>Builds bounded, explicitly untrusted function-result evidence for one continuation prompt.</summary>
         /// <param name="functionSteps">Function result steps returned by the registered gateway.</param>
+        /// <param name="maxContextTokens">Effective model context used to bound evidence without imposing one tiny fixed ceiling on every model.</param>
         /// <returns>A bounded evidence block suitable for the next model turn.</returns>
-        private string BuildToolResultContinuationEvidence(IReadOnlyList<MultiModelCouncilStep> functionSteps)
+        private string BuildToolResultContinuationEvidence(
+            IReadOnlyList<MultiModelCouncilStep> functionSteps,
+            int maxContextTokens)
         {
             try
             {
-                const int maximumEvidenceCharacters = 24000;
+                var maximumEvidenceCharacters = (int)Math.Clamp(
+                    Math.Max(1L, maxContextTokens) * 3L,
+                    24_000L,
+                    1_000_000L);
                 var evidence = string.Join(
                     $"{Environment.NewLine}{Environment.NewLine}---{Environment.NewLine}",
                     functionSteps.Select(step =>

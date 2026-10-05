@@ -1,179 +1,287 @@
 {
-  "SchemaVersion": 1,
+  "SchemaVersion": 2,
   "Project": "LocalGPT",
   "ComponentsRoot": "src/LocalGPT/Components",
   "Files": {
     "src/LocalGPT/Components/App.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 2,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/InteractiveStartupMarker.razor": {
       "MinimumDevExpressTags": 0,
-      "MaximumNativeInteractiveTags": 2
-    },
-    "src/LocalGPT/Components/Shared/ChatMicrophone.razor": {
-      "MinimumDevExpressTags": 9,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/LocalGptFormLayoutSurface.razor": {
-      "MinimumDevExpressTags": 18,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/InitialSetupAssistantPanel.razor": {
-      "MinimumDevExpressTags": 45,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/ConfigurationWorkbenchNav.razor": {
-      "MinimumDevExpressTags": 1,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/DocumentationViewerHost.razor": {
-      "MinimumDevExpressTags": 1,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/UploadProcessingAdvisor.razor": {
-      "MinimumDevExpressTags": 22,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/ChatGameConsole.razor": {
-      "MinimumDevExpressTags": 57,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/ProviderModelPanel.razor": {
-      "MinimumDevExpressTags": 12,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/LocalPathExplorer.razor": {
-      "MinimumDevExpressTags": 14,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/UserDxFunctionEditor.razor": {
-      "MinimumDevExpressTags": 22,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/ProviderModelBenchmarkTaskEvidence.razor": {
-      "MinimumDevExpressTags": 2,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/ProviderRuntimeManagementPanel.razor": {
-      "MinimumDevExpressTags": 76,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/ProviderModelBenchmarkEvidenceHistory.razor": {
-      "MinimumDevExpressTags": 3,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/InvariantDoubleEditor.razor": {
-      "MinimumDevExpressTags": 2,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/CouncilHardwareRoadEditor.razor": {
-      "MinimumDevExpressTags": 12,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/ToolchainEnvironmentEditor.razor": {
-      "MinimumDevExpressTags": 7,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/ProviderModelBenchmarkCouncilPanel.razor": {
-      "MinimumDevExpressTags": 8,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/BoundedNumberEditor.razor": {
-      "MinimumDevExpressTags": 1,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/LayoutStudio.razor": {
-      "MinimumDevExpressTags": 41,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Shared/OperationStatusStrip.razor": {
-      "MinimumDevExpressTags": 1,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/Chat.razor": {
-      "MinimumDevExpressTags": 81,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/ProjectMaintenance.razor": {
-      "MinimumDevExpressTags": 57,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/Help.razor": {
-      "MinimumDevExpressTags": 10,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/Projects.razor": {
-      "MinimumDevExpressTags": 74,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/Index.razor": {
-      "MinimumDevExpressTags": 6,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/Database.razor": {
-      "MinimumDevExpressTags": 83,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/RemoteControl.razor": {
-      "MinimumDevExpressTags": 56,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/OneWireSecurity.razor": {
-      "MinimumDevExpressTags": 13,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/DxFunctionCatalog.razor": {
-      "MinimumDevExpressTags": 41,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/Install.razor": {
-      "MinimumDevExpressTags": 396,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/TestLab.razor": {
-      "MinimumDevExpressTags": 46,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/ModelCouncil.razor": {
-      "MinimumDevExpressTags": 35,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/CouncilTeams.razor": {
-      "MinimumDevExpressTags": 103,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Pages/MinecraftModBuilder.razor": {
-      "MinimumDevExpressTags": 20,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Layout/Drawer.razor": {
-      "MinimumDevExpressTags": 2,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor": {
-      "MinimumDevExpressTags": 2,
-      "MaximumNativeInteractiveTags": 0
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
     },
     "src/LocalGPT/Components/Layout/CouncilSpoolerPanel.razor": {
+      "MinimumDevExpressTags": 8,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 4
+    },
+    "src/LocalGPT/Components/Layout/Drawer.razor": {
       "MinimumDevExpressTags": 4,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Layout/ToastWrapper.razor": {
-      "MinimumDevExpressTags": 1,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Layout/MainLayout.razor": {
-      "MinimumDevExpressTags": 5,
-      "MaximumNativeInteractiveTags": 0
-    },
-    "src/LocalGPT/Components/Layout/ThemeSwitcher.razor": {
-      "MinimumDevExpressTags": 1,
-      "MaximumNativeInteractiveTags": 0
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
     },
     "src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor": {
-      "MinimumDevExpressTags": 27,
-      "MaximumNativeInteractiveTags": 0
+      "MinimumDevExpressTags": 41,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 4
+    },
+    "src/LocalGPT/Components/Layout/LanguageSwitcher.razor": {
+      "MinimumDevExpressTags": 3,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Layout/MainLayout.razor": {
+      "MinimumDevExpressTags": 4,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Layout/MenuIsland.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
     },
     "src/LocalGPT/Components/Layout/NavMenu.razor": {
+      "MinimumDevExpressTags": 16,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Layout/SafeErrorBoundary.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Layout/ThemeSwitcher.razor": {
+      "MinimumDevExpressTags": 3,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor": {
+      "MinimumDevExpressTags": 10,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Layout/ThemeSwitcherItem.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Layout/ToastWrapper.razor": {
+      "MinimumDevExpressTags": 3,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Pages/Chat.razor": {
+      "MinimumDevExpressTags": 99,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 32
+    },
+    "src/LocalGPT/Components/Pages/CouncilTeams.razor": {
+      "MinimumDevExpressTags": 117,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 20
+    },
+    "src/LocalGPT/Components/Pages/Database.razor": {
+      "MinimumDevExpressTags": 89,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Pages/DxFunctionCatalog.razor": {
+      "MinimumDevExpressTags": 52,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 2
+    },
+    "src/LocalGPT/Components/Pages/Error.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Pages/Help.razor": {
+      "MinimumDevExpressTags": 18,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Pages/Index.razor": {
       "MinimumDevExpressTags": 14,
-      "MaximumNativeInteractiveTags": 0
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 2
+    },
+    "src/LocalGPT/Components/Pages/Install.razor": {
+      "MinimumDevExpressTags": 422,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 30
+    },
+    "src/LocalGPT/Components/Pages/MinecraftModBuilder.razor": {
+      "MinimumDevExpressTags": 32,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Pages/ModelCouncil.razor": {
+      "MinimumDevExpressTags": 59,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 6
+    },
+    "src/LocalGPT/Components/Pages/OneWireSecurity.razor": {
+      "MinimumDevExpressTags": 25,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 4
+    },
+    "src/LocalGPT/Components/Pages/ProjectMaintenance.razor": {
+      "MinimumDevExpressTags": 61,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 2
+    },
+    "src/LocalGPT/Components/Pages/Projects.razor": {
+      "MinimumDevExpressTags": 82,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 2
+    },
+    "src/LocalGPT/Components/Pages/RemoteControl.razor": {
+      "MinimumDevExpressTags": 66,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 2
+    },
+    "src/LocalGPT/Components/Pages/TestLab.razor": {
+      "MinimumDevExpressTags": 56,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 4
+    },
+    "src/LocalGPT/Components/Routes.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/BoundedNumberEditor.razor": {
+      "MinimumDevExpressTags": 3,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/ChatGameConsole.razor": {
+      "MinimumDevExpressTags": 67,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/ChatMicrophone.razor": {
+      "MinimumDevExpressTags": 11,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/ConfigurationWorkbenchNav.razor": {
+      "MinimumDevExpressTags": 3,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/ConfigurationWorkbenchPanel.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/CouncilHardwareRoadEditor.razor": {
+      "MinimumDevExpressTags": 16,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/DocumentationViewerHost.razor": {
+      "MinimumDevExpressTags": 6,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/InitialSetupAssistantPanel.razor": {
+      "MinimumDevExpressTags": 49,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 2
+    },
+    "src/LocalGPT/Components/Shared/InvariantDoubleEditor.razor": {
+      "MinimumDevExpressTags": 4,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/LayoutStudio.razor": {
+      "MinimumDevExpressTags": 45,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/LocalConsoleFeed.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/LocalGptFormLayoutSurface.razor": {
+      "MinimumDevExpressTags": 20,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/LocalPathExplorer.razor": {
+      "MinimumDevExpressTags": 16,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/OperationStatusStrip.razor": {
+      "MinimumDevExpressTags": 3,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/OperationalActivityFeed.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/ProviderModelBenchmarkCouncilPanel.razor": {
+      "MinimumDevExpressTags": 12,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 6
+    },
+    "src/LocalGPT/Components/Shared/ProviderModelBenchmarkEvidenceHistory.razor": {
+      "MinimumDevExpressTags": 7,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 4
+    },
+    "src/LocalGPT/Components/Shared/ProviderModelBenchmarkReportAuditSummary.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 2
+    },
+    "src/LocalGPT/Components/Shared/ProviderModelBenchmarkTaskEvidence.razor": {
+      "MinimumDevExpressTags": 12,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 6
+    },
+    "src/LocalGPT/Components/Shared/ProviderModelPanel.razor": {
+      "MinimumDevExpressTags": 16,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 4
+    },
+    "src/LocalGPT/Components/Shared/ProviderRuntimeManagementPanel.razor": {
+      "MinimumDevExpressTags": 80,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/ToolchainEnvironmentEditor.razor": {
+      "MinimumDevExpressTags": 9,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 2
+    },
+    "src/LocalGPT/Components/Shared/UploadProcessingAdvisor.razor": {
+      "MinimumDevExpressTags": 24,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/UserDxFunctionEditor.razor": {
+      "MinimumDevExpressTags": 26,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/WorkbenchHeader.razor": {
+      "MinimumDevExpressTags": 2,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/_Imports.razor": {
+      "MinimumDevExpressTags": 0,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
     }
   }
 }

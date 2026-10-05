@@ -22,6 +22,8 @@ foreach ($property in $contract.Files.PSObject.Properties) {
 }
 
 $nativePattern = '<\s*(?:button|input|select|option|textarea|datalist|InputText|InputTextArea|InputCheckbox|InputNumber|InputDate|InputSelect)\b'
+$nativeDisclosurePattern = '<\s*(?:details|summary)\b'
+$forbiddenNativeEditorPattern = '<\s*datalist\b|<\s*input\b[^>]*\btype\s*=\s*[\"'']?color\b'
 $dxPattern = '<\s*Dx[A-Za-z0-9_]+' 
 $violations = New-Object 'System.Collections.Generic.List[object]'
 $targetsPath = Join-Path $RepositoryRoot 'Directory.Build.targets'
@@ -72,19 +74,34 @@ $currentFiles = Get-ChildItem -LiteralPath $componentsRoot -Recurse -File -Filte
 foreach ($file in $currentFiles) {
     $relative = ($file.FullName.Substring($RepositoryRoot.Length).TrimStart([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) -replace '\\', '/')
     $content = [IO.File]::ReadAllText($file.FullName)
-    $dxCount = [regex]::Matches($content, $dxPattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase).Count
-    $nativeCount = [regex]::Matches($content, $nativePattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase).Count
+    $codeIndex = $content.IndexOf('@code', [StringComparison]::Ordinal)
+    $markup = if ($codeIndex -ge 0) { $content.Substring(0, $codeIndex) } else { $content }
+    $dxCount = [regex]::Matches($markup, $dxPattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase).Count
+    $nativeCount = [regex]::Matches($markup, $nativePattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase).Count
+    $nativeDisclosureCount = [regex]::Matches($markup, $nativeDisclosurePattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase).Count
+    $forbiddenNativeEditor = [regex]::Match($markup, $forbiddenNativeEditorPattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase)
     $entry = $baseline[$relative]
     $minimumDx = if ($null -eq $entry) { 0 } else { [int]$entry.MinimumDevExpressTags }
     $maximumNative = if ($null -eq $entry) { 0 } else { [int]$entry.MaximumNativeInteractiveTags }
+    $maximumNativeDisclosures = if ($null -eq $entry -or $null -eq $entry.PSObject.Properties['MaximumNativeDisclosureTags']) { 0 } else { [int]$entry.MaximumNativeDisclosureTags }
+
+    if ($forbiddenNativeEditor.Success) {
+        $line = ([regex]::Matches($markup.Substring(0, $forbiddenNativeEditor.Index), "`n").Count + 1)
+        $violations.Add([pscustomobject]@{ File = $relative; Line = $line; Code = 'PSDX0006'; Message = 'A native datalist or input type=color was introduced into maintained Razor UI.'; Choices = 'Use a searchable DevExpress ComboBox/ListBox/SearchBox workflow for suggestions and DxColorPalette (optionally hosted by DxDropDownBox) for color selection. These native substitutes are no longer accepted anywhere in maintained application UI.' })
+    }
 
     if ($dxCount -lt $minimumDx) {
         $violations.Add([pscustomobject]@{ File = $relative; Line = 1; Code = 'PSDX0001'; Message = "DevExpress component count dropped from protected minimum $minimumDx to $dxCount."; Choices = "Restore the maintained DevExpress Blazor control(s), or explicitly revise the retention contract only when the product architecture intentionally changes. Native HTML is not an equivalent shortcut." })
     }
     if ($nativeCount -gt $maximumNative) {
-        $firstNative = [regex]::Match($content, $nativePattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase)
-        $line = if ($firstNative.Success) { ([regex]::Matches($content.Substring(0, $firstNative.Index), "`n").Count + 1) } else { 1 }
-        $violations.Add([pscustomobject]@{ File = $relative; Line = $line; Code = 'PSDX0002'; Message = "Native/legacy interactive Razor tag count increased from protected maximum $maximumNative to $nativeCount."; Choices = "Use the corresponding DevExpress Blazor control and preserve its existing render/circuit semantics. If the interaction truly must work without a circuit, document that architectural boundary and add a narrowly reviewed exception rather than replacing maintained controls broadly." })
+        $firstNative = [regex]::Match($markup, $nativePattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        $line = if ($firstNative.Success) { ([regex]::Matches($markup.Substring(0, $firstNative.Index), "`n").Count + 1) } else { 1 }
+        $violations.Add([pscustomobject]@{ File = $relative; Line = $line; Code = 'PSDX0002'; Message = "Native/legacy interactive Razor tag count increased from protected maximum $maximumNative to $nativeCount."; Choices = "Use the corresponding DevExpress Blazor control and preserve its existing render/circuit semantics. Prefer searchable DxComboBox/DxListBox/DxSearchBox workflows over select/datalist, DxColorPalette integration over input type=color, and DxButton over visual action buttons. If a browser-owned primitive truly must remain native, keep the exception narrow and documented." })
+    }
+    if ($nativeDisclosureCount -gt $maximumNativeDisclosures) {
+        $firstDisclosure = [regex]::Match($markup, $nativeDisclosurePattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        $line = if ($firstDisclosure.Success) { ([regex]::Matches($markup.Substring(0, $firstDisclosure.Index), "`n").Count + 1) } else { 1 }
+        $violations.Add([pscustomobject]@{ File = $relative; Line = $line; Code = 'PSDX0005'; Message = "Native disclosure tag count increased from protected maximum $maximumNativeDisclosures to $nativeDisclosureCount."; Choices = "Use DxAccordion for collapsible content, or a DevExpress menu/flyout when the interaction is an action menu. Existing legacy disclosures may be migrated downward over time, but new native details/summary UI must not increase the debt." })
     }
 }
 
@@ -96,4 +113,4 @@ if ($violations.Count -gt 0) {
     throw "DevExpress component retention validation failed with $($violations.Count) violation(s)."
 }
 
-Write-Host "DevExpress component retention validation passed: protected DevExpress controls were not removed and no Razor file gained native interactive controls."
+Write-Host "DevExpress component retention validation passed: protected DevExpress controls were not removed, native editor/action controls did not increase, datalist/native color-editor substitutions are absent, and legacy native disclosure debt did not grow."

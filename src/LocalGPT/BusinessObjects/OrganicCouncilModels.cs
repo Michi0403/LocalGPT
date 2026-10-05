@@ -178,8 +178,8 @@ public sealed class OrganicCouncilTeamDefinition
     /// </summary>
     /// <value>The preferred capabilities value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<string> PreferredCapabilities { get; set; } = [];
-    /// <summary>Gets or sets the team-level exact allow-list of automatic/native functions that workflow steps may opt into.</summary>
-    /// <value>Registered DXFunction names selected by the user in Council Teams. Shipped templates provide defaults, but persisted team configuration is authoritative at runtime.</value>
+    /// <summary>Gets or sets the team-level automatic/native function guidance, used as a hard allow-list only by live game runtimes.</summary>
+    /// <value>Registered DXFunction names selected by the user in Council Teams. Outside <c>games.*</c> runtimes these names are preferred guidance while the full policy-approved catalog remains available; live game runtimes retain strict allow-list semantics.</value>
     public List<string> AllowedAutomaticFunctions { get; set; } = [];
     /// <summary>Gets or sets architecture and safety contracts that every round must preserve.</summary>
     /// <value>The architecture contracts value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
@@ -474,8 +474,8 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets the user-editable automatic/native function policy for this workflow step.</summary>
     /// <value>The persisted policy that determines whether no functions, the team list, an exact step list, or the complete policy-approved catalog is exposed.</value>
     public CouncilAutomaticFunctionPolicyMode AutomaticFunctionPolicyMode { get; set; } = CouncilAutomaticFunctionPolicyMode.Legacy;
-    /// <summary>Gets or sets an optional exact allow-list for automatic provider tools in this workflow step.</summary>
-    /// <value>Registered DXFunction names allowed when <see cref="AutomaticFunctionPolicyMode"/> is <see cref="CouncilAutomaticFunctionPolicyMode.ExactAllowList"/>.</value>
+    /// <summary>Gets or sets step-level automatic provider function guidance, enforced as an exact allow-list for live game runtimes.</summary>
+    /// <value>Registered DXFunction names preferred by ordinary workflows and strictly allowed when a <c>games.*</c> runtime uses <see cref="CouncilAutomaticFunctionPolicyMode.ExactAllowList"/>.</value>
     public List<string> AllowedAutomaticFunctions { get; set; } = [];
     /// <summary>Gets or sets how LocalGPT returns intermediate text-gateway function results to this workflow step's assigned model.</summary>
     /// <value>The bounded continuation policy used after the step emitted one or more registered DXFunction requests.</value>

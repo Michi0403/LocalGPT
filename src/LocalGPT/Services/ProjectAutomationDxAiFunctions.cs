@@ -5,12 +5,12 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
-/// <summary>Runs deterministic quarantine inspection without extracting uploaded archives.</summary>
+/// <summary>Runs deterministic quarantine inspection without promoting or executing uploaded archives.</summary>
 public sealed class InspectProjectIngestionFunction(IProjectIngestionService ingestion, IDxAiFunctionJsonService json, ILogger<InspectProjectIngestionFunction> logger) : IDxAiFunctionHandler
 {
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.ingestion.inspect", "POST", "/api/dxai/functions/project.ingestion.inspect/invoke",
-        "Inspects a chat upload in quarantine, including hashes, safe archive metadata, reviewed regex matches and toolchain hints, without extracting it.",
+        "Inspects a chat upload in quarantine, including hashes, safe archive metadata, reviewed regex matches and toolchain hints. Safe read-only workspace extraction may already exist from upload intake; this function does not perform promotion or execution.",
         "JSON: workspaceName required.", "Read/analysis operation over quarantined data; it does not promote or execute project content.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true,
         Source: "DIHandler", ParameterSchemaJson: """{"type":"object","required":["workspaceName"],"properties":{"workspaceName":{"type":"string","minLength":1}},"additionalProperties":false}""", IsCoordinationOnly: true);
@@ -101,7 +101,7 @@ public sealed class FinalizeProjectBlobFunction(IProjectBlobReconstructionServic
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.blob.finalize", "POST", "/api/dxai/functions/project.blob.finalize/invoke",
         "Verifies every declared file length/hash and canonical manifest, then creates a normal quarantined chat workspace.", "JSON: sessionId.",
-        "The result remains quarantined and must pass project.ingestion review/promotion before extraction.", IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
+        "The result remains quarantined. Safe read-only extraction may exist for inspection, but reviewed project promotion still requires the project.ingestion approval path.", IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler", ParameterSchemaJson: """{"type":"object","required":["sessionId"],"properties":{"sessionId":{"type":"string","format":"uuid"}},"additionalProperties":false}""", IsCoordinationOnly: true);
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {

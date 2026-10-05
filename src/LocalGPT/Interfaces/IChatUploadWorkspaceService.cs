@@ -82,13 +82,15 @@ namespace LocalGPT.Interfaces
         /// </summary>
         /// <param name="workspaceName">Workspace name value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="relativePath">Relative path value supplied to the chat upload workspace operation and used when producing its result.</param>
-        /// <param name="maxCharacters">Max characters value supplied to the chat upload workspace operation and used when producing its result.</param>
+        /// <param name="maxCharacters">Maximum decoded characters returned by one progressive read segment.</param>
+        /// <param name="characterOffset">Decoded character offset at which this progressive read starts.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-        /// <returns>The chat upload workspace file read result produced by the operation.</returns>
+        /// <returns>The chat upload workspace file read result produced by the operation, including continuation metadata when more content remains.</returns>
         Task<ChatUploadWorkspaceFileReadResult?> ReadFileAsync(
             string workspaceName,
             string relativePath,
             int maxCharacters,
+            long characterOffset = 0,
             CancellationToken cancellationToken = default);
 
         /// <summary>

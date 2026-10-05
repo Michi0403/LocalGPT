@@ -41,33 +41,68 @@ public sealed class CouncilAutomaticFunctionPolicyService(
                     : CouncilAutomaticFunctionPolicyMode.AllPolicyApproved;
             }
 
+            if (mode == CouncilAutomaticFunctionPolicyMode.Disabled)
+                return new CouncilAutomaticFunctionPolicyResolution(false, [], "disabled by the workflow step");
+
             var teamList = Normalize(team.AllowedAutomaticFunctions);
             var stepList = Normalize(step.AllowedAutomaticFunctions);
+            if (!IsStrictGameRuntimeTeam(team))
+            {
+                var preferred = mode == CouncilAutomaticFunctionPolicyMode.TeamAllowList
+                    ? teamList
+                    : mode == CouncilAutomaticFunctionPolicyMode.ExactAllowList
+                        ? stepList
+                        : [];
+                var description = preferred.Count > 0
+                    ? $"available from the complete registered policy-approved catalog; configured names are preferred guidance outside game runtimes: {string.Join(", ", preferred)}"
+                    : "available from the complete registered policy-approved catalog";
+                return new CouncilAutomaticFunctionPolicyResolution(true, null, description);
+            }
+
             return mode switch
             {
-                CouncilAutomaticFunctionPolicyMode.Disabled => new(false, [], "disabled by the workflow step"),
                 CouncilAutomaticFunctionPolicyMode.TeamAllowList => new(
                     teamList.Count > 0,
                     teamList,
                     teamList.Count > 0
-                        ? $"restricted to the team allow-list: {string.Join(", ", teamList)}"
-                        : "disabled because the selected team allow-list is empty"),
+                        ? $"game runtime restricted to the team allow-list: {string.Join(", ", teamList)}"
+                        : "game runtime disabled because the selected team allow-list is empty"),
                 CouncilAutomaticFunctionPolicyMode.ExactAllowList => new(
                     stepList.Count > 0,
                     stepList,
                     stepList.Count > 0
-                        ? $"restricted to this step's exact allow-list: {string.Join(", ", stepList)}"
-                        : "disabled because this step's exact allow-list is empty"),
+                        ? $"game runtime restricted to this step's exact allow-list: {string.Join(", ", stepList)}"
+                        : "game runtime disabled because this step's exact allow-list is empty"),
                 CouncilAutomaticFunctionPolicyMode.AllPolicyApproved => new(
                     true,
                     null,
-                    "available from the complete registered policy-approved catalog"),
+                    "game runtime explicitly allows the complete registered policy-approved catalog"),
                 _ => new(false, [], "disabled because the configured policy mode is unsupported")
             };
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Resolving Council automatic-function policy failed for team {TeamKey} and step {StepKey}.", team?.Key, step?.Key);
+            throw;
+        }
+    }
+
+    /// <summary>Determines whether the selected team owns a live game runtime and therefore keeps hard tool allow-list semantics.</summary>
+    /// <param name="team">Council team whose role runtime classes are inspected.</param>
+    /// <returns><see langword="true"/> when at least one role is bound to a <c>games.*</c> runtime class.</returns>
+    private bool IsStrictGameRuntimeTeam(OrganicCouncilTeamDefinition team)
+    {
+        try
+        {
+            return team.Roles
+                .SelectMany(role => role.RuntimeClassKeys ?? [])
+                .Any(runtimeClassKey =>
+                    !string.IsNullOrWhiteSpace(runtimeClassKey) &&
+                    runtimeClassKey.Trim().StartsWith("games.", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Resolving strict game-runtime tool policy failed for team {TeamKey}.", team.Key);
             throw;
         }
     }

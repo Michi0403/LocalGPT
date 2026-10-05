@@ -537,8 +537,10 @@ namespace LocalGPT.Services
               .AppendLine()
               .AppendLine("## AI workflow instructions")
               .AppendLine("- Use this workspace as uploaded user evidence for the current DXAiChat prompt.")
-              .AppendLine("- Read files through chat.upload_workspace_* DXAiFunctions instead of asking for huge pasted context.")
-              .AppendLine("- Zips are extracted safely; skipped entries are listed as warnings.")
+              .AppendLine("- Read files through chat.upload_workspace_* DXAiFunctions instead of asking the user to paste them again. Large text reads are progressive: follow HasMore/NextOffsetCharacters until the requested file is complete.")
+              .AppendLine("- Zips are extracted immediately into read-only evidence with entry, size, and path-traversal limits; skipped entries are listed as warnings. Extraction does not authorize execution or promotion.")
+              .AppendLine("- Repository-shaped safe extraction is source-backed local evidence and can be synchronized by the learning/project services without treating it as executable code.")
+              .AppendLine("- Outside live game runtimes, attachment functions are not an exclusive tool allow-list; use any policy-approved LocalGPT DXFunction required by the user's request or the evidence.")
               .AppendLine("- PDB, DLL, EXE, WASM, and other binaries are never executed; only bounded printable strings are shown.")
               .AppendLine("- Generated or edited code belongs in a council artifact workspace, then a refreshed zip download.")
               .AppendLine();

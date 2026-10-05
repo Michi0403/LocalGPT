@@ -70,8 +70,8 @@ namespace LocalGPT.Components.Pages
     [
         new(CouncilAutomaticFunctionPolicyMode.Disabled, "Disabled — expose no automatic/native tools"),
         new(CouncilAutomaticFunctionPolicyMode.AllPolicyApproved, "All registered functions allowed by LocalGPT safety policy"),
-        new(CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Use this team's allow-list"),
-        new(CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Use this step's exact allow-list")
+        new(CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Prefer this team's list · strict only for games"),
+        new(CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Prefer this step's list · strict only for games")
     ];
     /// <summary>Stores the user-editable policies that control whether text-gateway function evidence is returned to the same model.</summary>
     private readonly IReadOnlyList<LocalGptSelectionOption<CouncilToolResultContinuationMode>> ToolResultContinuationModes =

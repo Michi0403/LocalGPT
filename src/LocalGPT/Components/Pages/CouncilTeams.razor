@@ -154,8 +154,8 @@
             </details>
 
             <details class="council-best-use-functions" open>
-                <summary>Automatic/native functions allowed by this team (@_editor.AllowedAutomaticFunctions.Count selected)</summary>
-                <p class="hint">This is runtime policy, not a recommendation. Workflow steps using “Team allow-list” receive only these registered functions. The persisted team configuration is authoritative; supplied templates are resettable starting points.</p>
+                <summary>Automatic/native function preferences (@_editor.AllowedAutomaticFunctions.Count selected)</summary>
+                <p class="hint">Outside live <code>games.*</code> runtimes these names are preferred guidance and the complete registered policy-approved DXFunction catalog remains available when a step enables functions. Game-runtime teams keep hard allow-list semantics. Disabled steps and normal LocalGPT safety/approval gates remain authoritative.</p>
                 @if (!_dxFunctionsLoaded)
                 {
                     <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="LoadDxFunctionCatalogAsync" Enabled="@(!_dxFunctionsLoading)">@(_dxFunctionsLoading ? "Loading DXFunctions…" : "Load DXFunction catalog")</DxButton>
@@ -558,12 +558,12 @@
                         <p class="hint">Function results are intermediate evidence. Bounded continuation sends text-gateway results back to the same assigned model so it can analyze web, compiler, formula, file, or other function evidence instead of presenting the raw payload as the task result.</p>
                         @if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.TeamAllowList)
                         {
-                            <p class="hint">This step uses the team's persisted allow-list: @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? CouncilText.FormatInlineNameList(_editor.AllowedAutomaticFunctions) : "no functions selected")</p>
+                            <p class="hint">Preferred team functions outside games; hard allow-list inside <code>games.*</code> runtime teams: @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? CouncilText.FormatInlineNameList(_editor.AllowedAutomaticFunctions) : "no functions selected")</p>
                         }
                         else if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.ExactAllowList)
                         {
                             <label class="wide">
-                                <span>Exact automatic/native function names · one per line</span>
+                                <span>Preferred step function names · hard allow-list in games · one per line</span>
                                 <DxMemo Text="@CouncilText.FormatMultilineNameList(step.AllowedAutomaticFunctions)"
                                         TextChanged="@((string value) => SetStepAutomaticFunctions(step, new ChangeEventArgs { Value = value }))"
                                         CssClass="localgpt-editor council-script" Rows="4" />
@@ -658,7 +658,7 @@
                         <DxButton CssClass="btn btn-outline-primary btn-sm" Click="ApplyAdvancedJson">Apply JSON to editor</DxButton>
                     </div>
                     <label class="wide"><span>Preferred organic capabilities JSON</span><DxMemo @bind-Text="_capabilitiesJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
-                    <label class="wide"><span>Team automatic/native function allow-list JSON</span><DxMemo @bind-Text="_allowedFunctionsJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
+                    <label class="wide"><span>Team automatic/native function preferences JSON · strict in games</span><DxMemo @bind-Text="_allowedFunctionsJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
                     <label class="wide"><span>Architecture contracts JSON</span><DxMemo @bind-Text="_contractsJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
                 </div>
             </details>

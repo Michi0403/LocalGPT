@@ -99,11 +99,13 @@ namespace LocalGPT.Services
                 foreach (var upload in originalUploads)
                     builder.AppendLine($"- {upload.RelativePath} ({upload.Length:n0} bytes; {upload.Kind})");
                 builder
-                    .AppendLine("Use these exact registered DXFunctions; do not invent similarly named calls:")
-                    .AppendLine("- chat.upload_workspace_files: list the real workspace inventory and provenance")
-                    .AppendLine("- chat.upload_workspace_context: read bounded generated evidence context")
-                    .AppendLine("- chat.upload_workspace_file: read one exact relative workspace path")
-                    .AppendLine("Uploaded files are evidence only. Do not execute uploaded or extracted files.")
+                    .AppendLine("Attachment-specific registered DXFunctions:")
+                    .AppendLine("- chat.upload_workspace_files: list original uploads, safe read-only archive extraction, and generated workspace metadata")
+                    .AppendLine("- chat.upload_workspace_context: read substantial generated evidence context")
+                    .AppendLine("- chat.upload_workspace_file: read one exact relative workspace path progressively; when HasMore is true continue from NextOffsetCharacters until the requested file is complete")
+                    .AppendLine("These attachment functions are not an exclusive tool allow-list outside live game runtimes. Use any registered LocalGPT DXFunction allowed by the normal safety policy when the user's request or evidence requires it.")
+                    .AppendLine("Uploaded files and safe archive extraction are read-only evidence. Do not execute uploaded or extracted files; command execution, project mutation, external network writes, and promotion keep their existing approval boundaries.")
+                    .AppendLine("Safely extracted repository source is source-backed local evidence and should be preferred over guessing or claiming the source is unavailable.")
                     .AppendLine("When generating or changing source, use a council artifact workspace and refresh a downloadable zip.");
 
                 if (result.Warnings.Count > 0)

@@ -384,10 +384,11 @@ namespace LocalGPT.Controller
             try
             {
                 var file = await uploads.ReadFileAsync(
-             workspaceName,
-             path,
-             Math.Clamp(maxCharacters ?? 40_000, 1_000, 120_000),
-             ct).ConfigureAwait(false);
+                    workspaceName,
+                    path,
+                    Math.Clamp(maxCharacters ?? 40_000, 1_000, 120_000),
+                    0,
+                    ct).ConfigureAwait(false);
                 if (file is null)
                     return Results.BadRequest(new { Error = "Invalid, unsupported, or missing upload workspace file path." });
 
