@@ -40,7 +40,7 @@ namespace LocalGPT.Interfaces
         /// </summary>
         /// <param name="take">Take value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <returns>The collection produced by the operation.</returns>
-        IReadOnlyList<ChatUploadWorkspaceSummary> ListWorkspaces(int take = 20);
+        IReadOnlyList<ChatUploadWorkspaceSummary> ListWorkspaces(int take = 0);
 
         /// <summary>
         /// Retrieves latest workspace as part of the chat upload workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -75,7 +75,7 @@ namespace LocalGPT.Interfaces
         /// <param name="workspaceName">Workspace name value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="take">Take value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <returns>The collection produced by the operation.</returns>
-        IReadOnlyList<ChatUploadWorkspaceFileSummary> ListFiles(string workspaceName, int take = 250);
+        IReadOnlyList<ChatUploadWorkspaceFileSummary> ListFiles(string workspaceName, int take = 0);
 
         /// <summary>
         /// Reads file as part of the chat upload workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -91,6 +91,14 @@ namespace LocalGPT.Interfaces
             string relativePath,
             int maxCharacters,
             long characterOffset = 0,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Runs the deterministic upload-workspace curation gate by validating every archive extraction and reading every original/extracted file byte stream completely.</summary>
+        /// <param name="workspaceName">Workspace that must be fully curated.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The complete curation coverage report used by gated Council workflows.</returns>
+        Task<ChatUploadWorkspaceCurationReport> CurateWorkspaceAsync(
+            string workspaceName,
             CancellationToken cancellationToken = default);
 
         /// <summary>

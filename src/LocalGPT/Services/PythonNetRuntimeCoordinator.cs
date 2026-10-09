@@ -45,12 +45,14 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     public PythonNetRuntimeCoordinator(
         IOptionsMonitor<LocalGptConfigurationRoot> options,
         IWebHostEnvironment environment,
+        ILocalGptRuntimePolicyDataService runtimePolicy,
         ILogger<PythonNetRuntimeCoordinator> logger)
     {
         this.options = options;
         this.environment = environment;
         this.logger = logger;
-        var capacity = Math.Clamp(options.CurrentValue.PythonCore?.QueueCapacity ?? 64, 1, 512);
+        var parameters = runtimePolicy.GetJson<PythonNetRuntimeParameters>(LocalGptRuntimeValue.PythonNetRuntimeParametersJson);
+        var capacity = Math.Clamp(options.CurrentValue.PythonCore?.QueueCapacity ?? parameters.DefaultQueueCapacity, parameters.MinimumQueueCapacity, parameters.MaximumQueueCapacity);
         queue = Channel.CreateBounded<QueuedJob>(new BoundedChannelOptions(capacity)
         {
             FullMode = BoundedChannelFullMode.Wait,

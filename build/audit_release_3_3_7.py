@@ -26,7 +26,7 @@ require('System.Management.Automation.Language.Parser]::ParseInput' in compat, '
 require('has a PowerShell parser error' in compat, 'PowerShell parser diagnostics are missing')
 require((root / 'docs/DocfxDependencies.csproj').is_file(), 'DocFX dependency project is missing')
 probe = read('docs/DocfxDependencies.csproj')
-require('System.Formats.Nrbf' in probe and 'Version="10.0.11"' in probe and 'PrivateAssets="all"' in probe, 'DocFX NRBF probe is not pinned correctly')
+require('System.Formats.Nrbf' in probe and 'Version="10.0.12"' in probe and 'PrivateAssets="all"' in probe, 'DocFX NRBF probe is not pinned correctly')
 require('System.Formats.Nrbf' not in read('src/LocalGPT/LocalGPT.csproj'), 'LocalGPT runtime project gained direct NRBF dependency')
 require('js/localgpt-chat-ui.js?v=3.3.7' in read('src/LocalGPT/Components/App.razor'), 'browser cache marker is not 3.3.7')
 require('LocalGPT/3.3.7' in read('src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs'), 'outbound product marker is not 3.3.7')

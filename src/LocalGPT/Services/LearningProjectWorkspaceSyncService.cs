@@ -15,26 +15,30 @@ namespace LocalGPT.Services;
 /// <param name="databaseInitializer">Database initializer used before project persistence.</param>
 /// <param name="workspaces">Chat upload workspace service that owns the extracted source roots.</param>
 /// <param name="platform">Platform runtime service used to normalize and compare imported workspace paths cross-platform.</param>
+/// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
 /// <param name="logger">Logger used for source-ingestion diagnostics.</param>
 public sealed class LearningProjectWorkspaceSyncService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     IChatUploadWorkspaceService workspaces,
     IPlatformRuntimeService platform,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LearningProjectWorkspaceSyncService> logger) : ILearningProjectWorkspaceSyncService
 {
     /// <summary>
     /// Stores the shared read-only excluded directory names value used by <see cref="LearningProjectWorkspaceSyncService"/> across instances of the containing type.
     /// </summary>
-    private readonly HashSet<string> ExcludedDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".git", ".vs", "bin", "obj", "node_modules"
-    };
+    private readonly HashSet<string> ExcludedDirectoryNames = runtimePolicy
+        .GetCollection(LocalGptRuntimeCollection.ExcludedDirectoryNames)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets the current database-backed upload-workspace synchronization limits.</summary>
+    private LearningProjectWorkspaceSyncRuntimeParameters Parameters => runtimePolicy.GetJson<LearningProjectWorkspaceSyncRuntimeParameters>(LocalGptRuntimeValue.LearningProjectWorkspaceSyncRuntimeParametersJson);
 
     /// <summary>
     /// Stores the shared read-only version element pattern value used by <see cref="LearningProjectWorkspaceSyncService"/> across instances of the containing type.
     /// </summary>
-    private readonly Regex VersionElementPattern = new("<Version>\\s*([^<]+?)\\s*</Version>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
+    private readonly Regex VersionElementPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.ProjectVersionXmlElement);
 
     /// <summary>
     /// Performs synchronize as part of the learning project workspace sync service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -44,48 +48,52 @@ public sealed class LearningProjectWorkspaceSyncService(
     {
         try
         {
-            var workspace = ResolveWorkspace(workspaceName);
-            if (workspace is null)
+            var resolvedWorkspaces = ResolveWorkspaces(workspaceName);
+            if (resolvedWorkspaces.Count == 0)
             {
                 logger.LogInformation("Learning project synchronization skipped because no chat upload workspace is available.");
                 return [];
             }
 
-            var extractedRoot = Path.Combine(workspace.RootPath, "extracted");
-            if (!Directory.Exists(extractedRoot))
-            {
-                logger.LogInformation("Learning project synchronization found no extracted source root in workspace {WorkspaceName}.", workspace.WorkspaceName);
-                return [];
-            }
-
-            var repositoryRoots = DiscoverRepositoryRoots(extractedRoot);
-            if (repositoryRoots.Count == 0)
-            {
-                logger.LogInformation("Learning project synchronization found no repository-shaped source tree in workspace {WorkspaceName}.", workspace.WorkspaceName);
-                return [];
-            }
-
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            var results = new List<LearningProjectSyncResult>(repositoryRoots.Count);
-            foreach (var repositoryRoot in repositoryRoots)
+            var results = new List<LearningProjectSyncResult>();
+            foreach (var workspace in resolvedWorkspaces)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var result = await SynchronizeRepositoryAsync(
-                    workspace.WorkspaceName,
-                    workspace.RootPath,
-                    Path.Combine(workspace.RootPath, "original"),
-                    "ChatUpload",
-                    string.Empty,
-                    repositoryRoot,
-                    cancellationToken).ConfigureAwait(false);
-                if (result is not null)
-                    results.Add(result);
+                var extractedRoot = Path.Combine(workspace.RootPath, "extracted");
+                if (!Directory.Exists(extractedRoot))
+                {
+                    logger.LogInformation("Learning project synchronization found no extracted source root in workspace {WorkspaceName}.", workspace.WorkspaceName);
+                    continue;
+                }
+
+                var repositoryRoots = DiscoverRepositoryRoots(extractedRoot);
+                if (repositoryRoots.Count == 0)
+                {
+                    logger.LogInformation("Learning project synchronization found no repository-shaped source tree in workspace {WorkspaceName}.", workspace.WorkspaceName);
+                    continue;
+                }
+
+                foreach (var repositoryRoot in repositoryRoots)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var result = await SynchronizeRepositoryAsync(
+                        workspace.WorkspaceName,
+                        workspace.RootPath,
+                        Path.Combine(workspace.RootPath, "original"),
+                        "ChatUpload",
+                        string.Empty,
+                        repositoryRoot,
+                        cancellationToken).ConfigureAwait(false);
+                    if (result is not null)
+                        results.Add(result);
+                }
             }
 
             logger.LogInformation(
-                "Learning project synchronization persisted {ProjectCount} source project(s) from chat workspace {WorkspaceName}.",
+                "Learning project synchronization persisted {ProjectCount} source project revision(s) from {WorkspaceCount} chat upload workspace(s).",
                 results.Count,
-                workspace.WorkspaceName);
+                resolvedWorkspaces.Count);
             return results;
         }
         catch (Exception exception)
@@ -161,19 +169,39 @@ public sealed class LearningProjectWorkspaceSyncService(
     /// </summary>
     /// <param name="workspaceName">Workspace name value supplied to the learning project workspace sync operation and used when producing its result.</param>
     /// <returns>The chat upload workspace summary produced by the operation.</returns>
-    private ChatUploadWorkspaceSummary? ResolveWorkspace(string? workspaceName)
+    private IReadOnlyList<ChatUploadWorkspaceSummary> ResolveWorkspaces(string? workspaceName)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(workspaceName))
-                return workspaces.GetLatestWorkspace();
+            var parameters = Parameters;
+            var candidates = workspaces.ListWorkspaces(parameters.WorkspaceScanMaximum);
+            if (candidates.Count == 0)
+                return [];
 
-            return workspaces.ListWorkspaces(200)
-                .FirstOrDefault(item => string.Equals(item.WorkspaceName, workspaceName.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (string.IsNullOrWhiteSpace(workspaceName))
+                return [candidates[0]];
+
+            var requestedName = workspaceName.Trim();
+            var requested = candidates.FirstOrDefault(item => string.Equals(item.WorkspaceName, requestedName, StringComparison.OrdinalIgnoreCase));
+            if (requested is null)
+            {
+                logger.LogWarning("Requested learning workspace {WorkspaceName} is no longer available; the latest upload workspace will be synchronized instead.", requestedName);
+                return [candidates[0]];
+            }
+
+            if (!parameters.IncludeNewerWorkspacesWhenExplicitWorkspaceIsStale)
+                return [requested];
+
+            return candidates
+                .Where(item => string.Equals(item.WorkspaceName, requested.WorkspaceName, StringComparison.OrdinalIgnoreCase)
+                    || item.CreatedAtUtc >= requested.CreatedAtUtc)
+                .OrderBy(item => item.CreatedAtUtc)
+                .ThenBy(item => item.WorkspaceName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Resolving the learning chat upload workspace failed.");
+            logger.LogError(exception, "Resolving learning chat upload workspaces failed.");
             throw;
         }
     }
@@ -190,7 +218,7 @@ public sealed class LearningProjectWorkspaceSyncService(
             var candidates = new HashSet<string>(platform.PathComparer);
             var markers = EnumerateRepositoryFiles(extractedRoot)
                 .Where(IsRepositoryMarker)
-                .Take(20000);
+                .Take(Parameters.RepositoryMarkerMaximum);
             foreach (var projectFile in markers)
             {
                 var directory = Path.GetDirectoryName(projectFile);
@@ -204,7 +232,7 @@ public sealed class LearningProjectWorkspaceSyncService(
 
             // A user-supplied Git repository may intentionally contain no language/package marker at its root.
             // Treat .git/config as repository identity evidence without adding Git internals to tracked source content.
-            foreach (var gitDirectory in Directory.EnumerateDirectories(extractedRoot, ".git", SearchOption.AllDirectories).Take(2000))
+            foreach (var gitDirectory in Directory.EnumerateDirectories(extractedRoot, ".git", SearchOption.AllDirectories).Take(Parameters.GitDirectoryMaximum))
             {
                 var gitConfig = Path.Combine(gitDirectory, "config");
                 if (!File.Exists(gitConfig))
@@ -422,7 +450,7 @@ public sealed class LearningProjectWorkspaceSyncService(
             workspaceRoot.RootPath = repositoryRoot;
             workspaceRoot.EnvironmentRootPath = repositoryRoot;
             workspaceRoot.EnvironmentKind = "LocalHost";
-            workspaceRoot.SolutionPattern = @"(?i)\.(sln|slnx)$";
+            workspaceRoot.SolutionPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString();
             workspaceRoot.ProjectTypePattern = $@"(?i){Regex.Escape(source.ProjectType)}";
             workspaceRoot.DefaultSubdirectoriesJson = JsonSerializer.Serialize(Directory.EnumerateDirectories(repositoryRoot, "*", SearchOption.TopDirectoryOnly).Select(Path.GetFileName).Where(name => !string.IsNullOrWhiteSpace(name)).OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
             workspaceRoot.ExpectedStructureRegex = BuildExpectedStructureRegex(source);
@@ -671,14 +699,14 @@ public sealed class LearningProjectWorkspaceSyncService(
             }
             else if (fileName.Equals("Cargo.toml", StringComparison.OrdinalIgnoreCase) || fileName.Equals("pyproject.toml", StringComparison.OrdinalIgnoreCase))
             {
-                var nameMatch = Regex.Match(text, @"(?m)^\s*name\s*=\s*[""']([^""']+)[""']", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
-                var versionMatch = Regex.Match(text, @"(?m)^\s*version\s*=\s*[""']([^""']+)[""']", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
+                var nameMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.TomlPackageName).Match(text);
+                var versionMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.TomlPackageVersion).Match(text);
                 if (nameMatch.Success) name = nameMatch.Groups[1].Value.Trim();
                 if (versionMatch.Success) version = versionMatch.Groups[1].Value.Trim();
             }
             else if (fileName.Equals("go.mod", StringComparison.OrdinalIgnoreCase))
             {
-                var module = Regex.Match(text, @"(?m)^\s*module\s+([^\s]+)", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
+                var module = runtimePolicy.GetPattern(LocalGptRuntimePattern.GoModuleDeclaration).Match(text);
                 if (module.Success) name = module.Groups[1].Value.Split('/').Last();
             }
         }
@@ -709,7 +737,7 @@ public sealed class LearningProjectWorkspaceSyncService(
             var name = preferredProjectName;
             if (string.IsNullOrWhiteSpace(name))
                 name = Path.GetFileName(repositoryRoot);
-            return Regex.Replace(name, @"-v?\d+(?:\.\d+){1,3}.*$", string.Empty, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2)).Trim(' ', '-', '_');
+            return runtimePolicy.GetPattern(LocalGptRuntimePattern.RepositoryTrailingVersion).Replace(name, string.Empty).Trim(' ', '-', '_');
         }
         catch (Exception exception)
         {

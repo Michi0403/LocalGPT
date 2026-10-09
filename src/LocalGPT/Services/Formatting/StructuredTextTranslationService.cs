@@ -102,32 +102,32 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         fencedBlockRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonFencePatternName,
-            "```(?:json)?\\s*(?<json>[\\[{].*?[\\]}])\\s*```",
+            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredJsonFence).ToString(),
             "IgnoreCase|Singleline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
         plainStartRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonPlainStartPatternName,
-            "(?m)^\\s*(?<jsonStart>[\\[{])",
+            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredJsonStart).ToString(),
             "Multiline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
         protectedBlockRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonProtectedBlockPatternName,
-            @"(?:```.*?(?:```|$)|<pre\b[^>]*>.*?(?:</pre>|$)|<code\b[^>]*>.*?(?:</code>|$)|<localgpt-dx-call>.*?(?:</localgpt-dx-call>|$))",
+            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredProtectedMarkup).ToString(),
             "IgnoreCase|Singleline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
         keyTokenRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonKeyTokenPatternName,
-            "(?<=[a-z0-9])(?=[A-Z])|[_\\-.]+",
+            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredIdentifierWordBoundary).ToString(),
             "CultureInvariant|Compiled",
             runtimePolicy.RegexTimeout);
 
         selfAssessmentBlockRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             SelfAssessmentBlockPatternName,
-            @"(?:#{1,6}[ \t]+)?(?:(?:<)|(?:&lt;))(?<tag>localgpt-self-(?:annotated-)?assessment)(?:(?:>)|(?:&gt;))(?<json>[\s\S]*?)(?:(?:<)|(?:&lt;))/(?<close>localgpt-self-(?:annotated-)?assessment)(?:(?:>)|(?:&gt;))",
+            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredSelfAssessmentEnvelope).ToString(),
             "IgnoreCase|Singleline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
     }

@@ -9,9 +9,11 @@ namespace LocalGPT.Services;
 /// <param name="dbContextFactory">Database context factory.</param>
 /// <param name="databaseInitializer">Database initialization dependency.</param>
 /// <param name="logger">Logger used for operational diagnostics.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class RemoteControlExecutionStoreService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RemoteControlExecutionStoreService> logger) : IRemoteControlExecutionStoreService
 {
     /// <summary>
@@ -96,7 +98,7 @@ public sealed class RemoteControlExecutionStoreService(
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
-            var boundedTake = Math.Clamp(take, 1, 500);
+            var boundedTake = Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).RemoteControlExecutionMaximum);
             return await db.RemoteControlExecutionRecords.AsNoTracking()
                 .OrderByDescending(item => item.StartedAtUtc)
                 .Take(boundedTake)

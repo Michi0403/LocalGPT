@@ -165,6 +165,6 @@ public interface ICouncilGameSessionService
         Guid sessionId,
         CouncilGameControlMode mode,
         bool autoplayEnabled,
-        int autoplayDelayMilliseconds = 1200,
+        int autoplayDelayMilliseconds = 0,
         CancellationToken cancellationToken = default);
 }

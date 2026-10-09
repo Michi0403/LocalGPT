@@ -33,6 +33,10 @@ namespace LocalGPT.Services
         /// Stores the local GPT catalog service dependency used by <see cref="CouncilRuntimeService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly LocalGptCatalogService catalog;
+        /// <summary>Stores database-backed runtime prompt and regex policy.</summary>
+        private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
+        /// <summary>Compiles dynamic database-backed regex templates through the shared bounded regex service.</summary>
+        private readonly IRegexCompilationService regexCompilation;
         /// <summary>
         /// Stores the logger used by <see cref="CouncilRuntimeService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -52,16 +56,22 @@ namespace LocalGPT.Services
         /// </summary>
         /// <param name="text">Injected dependency used by the service.</param>
         /// <param name="catalog">Injected dependency used by the service.</param>
+        /// <param name="runtimePolicy">Database-backed runtime prompt and regex policy.</param>
+        /// <param name="regexCompilation">Shared bounded regex compilation service for dynamic configured patterns.</param>
         /// <param name="platform">Injected host filesystem/platform semantics.</param>
         /// <param name="serviceLogger">Injected dependency used by the service.</param>
         public CouncilRuntimeService(
             CouncilTextService text,
             LocalGptCatalogService catalog,
+            ILocalGptRuntimePolicyDataService runtimePolicy,
+            IRegexCompilationService regexCompilation,
             IPlatformRuntimeService platform,
             ILogger<CouncilRuntimeService> serviceLogger)
         {
             this.text = text;
             this.catalog = catalog;
+            this.runtimePolicy = runtimePolicy;
+            this.regexCompilation = regexCompilation;
             this.platform = platform;
             this.serviceLogger = serviceLogger;
         }

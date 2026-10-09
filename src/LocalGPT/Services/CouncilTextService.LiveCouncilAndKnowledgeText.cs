@@ -88,34 +88,23 @@ namespace LocalGPT.Services
                 var originalUploads = result.Files
                     .Where(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase))
                     .ToList();
-                var builder = new StringBuilder()
-                .AppendLine("LocalGPT DXAiChat native paperclip attachment workspace is available for this prompt.")
-                .AppendLine($"Workspace name: {result.WorkspaceName}")
-                .AppendLine($"Workspace root: {result.RootPath}")
-                .AppendLine($"Original user uploads: {originalUploads.Count} file(s), {originalUploads.Sum(file => file.Length):n0} byte(s) total.")
-                .AppendLine($"Analyzed evidence entries: {result.Files.Count}. Generated context.md characters: {result.CharacterCount:n0}.")
-                .AppendLine("Important provenance: context.md and manifest.json are generated LocalGPT workspace artifacts, not additional user uploads. One large uploaded text dump can describe thousands of repository files without those files existing as separate workspace files.")
-                .AppendLine("Original upload inventory:");
-                foreach (var upload in originalUploads)
-                    builder.AppendLine($"- {upload.RelativePath} ({upload.Length:n0} bytes; {upload.Kind})");
-                builder
-                    .AppendLine("Attachment-specific registered DXFunctions:")
-                    .AppendLine("- chat.upload_workspace_files: list original uploads, safe read-only archive extraction, and generated workspace metadata")
-                    .AppendLine("- chat.upload_workspace_context: read substantial generated evidence context")
-                    .AppendLine("- chat.upload_workspace_file: read one exact relative workspace path progressively; when HasMore is true continue from NextOffsetCharacters until the requested file is complete")
-                    .AppendLine("These attachment functions are not an exclusive tool allow-list outside live game runtimes. Use any registered LocalGPT DXFunction allowed by the normal safety policy when the user's request or evidence requires it.")
-                    .AppendLine("Uploaded files and safe archive extraction are read-only evidence. Do not execute uploaded or extracted files; command execution, project mutation, external network writes, and promotion keep their existing approval boundaries.")
-                    .AppendLine("Safely extracted repository source is source-backed local evidence and should be preferred over guessing or claiming the source is unavailable.")
-                    .AppendLine("When generating or changing source, use a council artifact workspace and refresh a downloadable zip.");
+                var inventory = string.Join(
+                    Environment.NewLine,
+                    originalUploads.Select(upload => $"- {upload.RelativePath} ({upload.Length:n0} bytes; {upload.Kind})"));
+                var warnings = result.Warnings.Count == 0
+                    ? string.Empty
+                    : $"Upload warnings:{Environment.NewLine}{string.Join(Environment.NewLine, result.Warnings.Select(warning => $"- {warning}"))}";
 
-                if (result.Warnings.Count > 0)
-                {
-                    builder.AppendLine("Upload warnings:");
-                    foreach (var warning in result.Warnings)
-                        builder.AppendLine($"- {warning}");
-                }
-
-                return builder.ToString().Trim();
+                return runtimePolicy.GetString(LocalGptRuntimeValue.UploadWorkspaceSystemPromptTemplate)
+                    .Replace("{{WorkspaceName}}", result.WorkspaceName, StringComparison.Ordinal)
+                    .Replace("{{WorkspaceRoot}}", result.RootPath, StringComparison.Ordinal)
+                    .Replace("{{OriginalUploadCount}}", originalUploads.Count.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                    .Replace("{{OriginalUploadBytes}}", originalUploads.Sum(file => file.Length).ToString("n0", CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                    .Replace("{{EvidenceEntryCount}}", result.Files.Count.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                    .Replace("{{ContextCharacters}}", result.CharacterCount.ToString("n0", CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                    .Replace("{{OriginalUploadInventory}}", inventory, StringComparison.Ordinal)
+                    .Replace("{{UploadWarnings}}", warnings, StringComparison.Ordinal)
+                    .Trim();
             }
             catch (Exception ex)
             {

@@ -19,6 +19,7 @@ public sealed class LocalGptMcpEndpoint(
     LocalGptMcpGatewayAccessor accessor,
     IDxAiFunctionRegistry functions,
     IDataProtectionProvider dataProtectionProvider,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalGptMcpEndpoint> logger)
 {
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -26,6 +27,7 @@ public sealed class LocalGptMcpEndpoint(
         WriteIndented = false
     };
     private readonly IDataProtector ApprovalStateProtector = dataProtectionProvider.CreateProtector("LocalGPT.Mcp.ApprovalMrtr.v1");
+    private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>(LocalGptRuntimeValue.McpGatewayRuntimeParametersJson);
 
     /// <summary>Handles one MCP Streamable HTTP POST containing a JSON-RPC request or notification.</summary>
     public async Task HandlePostAsync(HttpContext context)
@@ -41,7 +43,7 @@ public sealed class LocalGptMcpEndpoint(
 
         try
         {
-            if (context.Request.ContentLength is long length && length > Math.Clamp(options.MaxRequestBodyBytes, 1024, 64 * 1024 * 1024))
+            if (context.Request.ContentLength is long length && length > Math.Clamp(options.MaxRequestBodyBytes, Parameters.MinimumRequestBodyBytes, Parameters.MaximumRequestBodyBytes))
             {
                 context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
                 return;
@@ -332,7 +334,7 @@ public sealed class LocalGptMcpEndpoint(
             if (offset < 0 || offset > all.Count)
                 return Error(-32602, "tools/list cursor is invalid.");
 
-            var pageSize = Math.Clamp(options.MaxListItems, 1, 10000);
+            var pageSize = Math.Clamp(options.MaxListItems, Parameters.MinimumListItems, Parameters.MaximumListItems);
             var page = all.Skip(offset).Take(pageSize).ToArray();
             var tools = new JsonArray();
             foreach (var function in page)
@@ -808,7 +810,7 @@ public sealed class LocalGptMcpEndpoint(
                 return false;
 
             var host = context.Request.Host.Host;
-            var allowedHostPolicy = string.IsNullOrWhiteSpace(options.AllowedHosts) ? "localhost;127.0.0.1;::1;[::1]" : options.AllowedHosts;
+            var allowedHostPolicy = string.IsNullOrWhiteSpace(options.AllowedHosts) ? Parameters.DefaultAllowedHosts : options.AllowedHosts;
             var allowedHosts = Split(allowedHostPolicy);
             if (allowedHosts.Count > 0 && !allowedHosts.Contains("*") && !allowedHosts.Contains(host, StringComparer.OrdinalIgnoreCase))
                 return false;
@@ -982,8 +984,8 @@ public sealed class LocalGptMcpEndpoint(
         return int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var offset) && offset >= 0 ? offset : -1;
     }
 
-    private string NormalizeModernProtocolVersion(string? value) => string.Equals(value?.Trim(), "2026-07-28", StringComparison.Ordinal) ? "2026-07-28" : "2026-07-28";
-    private string NormalizeLegacyProtocolVersion(string? value) => string.Equals(value?.Trim(), "2025-11-25", StringComparison.Ordinal) ? "2025-11-25" : "2025-11-25";
+    private string NormalizeModernProtocolVersion(string? value) => Parameters.ModernProtocolVersion;
+    private string NormalizeLegacyProtocolVersion(string? value) => Parameters.LegacyProtocolVersion;
 
     private List<string> Split(string? value) => string.IsNullOrWhiteSpace(value)
         ? []
@@ -1056,7 +1058,7 @@ public sealed class LocalGptMcpEndpoint(
 
             if (IsCacheHintMethod(method))
             {
-                modernResult["ttlMs"] = Math.Clamp(options.CacheTtlMs, 0, 86_400_000);
+                modernResult["ttlMs"] = Math.Clamp(options.CacheTtlMs, Parameters.MinimumCacheTtlMilliseconds, Parameters.MaximumCacheTtlMilliseconds);
                 modernResult["cacheScope"] = NormalizeCacheScope(options.CacheScope);
             }
         }

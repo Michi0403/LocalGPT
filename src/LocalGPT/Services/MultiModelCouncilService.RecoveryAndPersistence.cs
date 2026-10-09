@@ -768,6 +768,10 @@ namespace LocalGPT.Services
                     CancellationToken.None).ConfigureAwait(false);
                 System.IO.File.Move(temporaryPath, path, overwrite: true);
                 temporaryPath = null;
+                logger.LogInformation(
+                    "Persisted durable Council audit log for run {CouncilRunId} at {CouncilLogPath}.",
+                    result.RunId,
+                    path);
                 return path;
             }
             catch (Exception ex)

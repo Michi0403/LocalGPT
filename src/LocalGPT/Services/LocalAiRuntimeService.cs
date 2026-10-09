@@ -21,9 +21,11 @@ public sealed partial class LocalAiRuntimeService(
     IChatUploadWorkspaceService uploads,
     IPlatformRuntimeService platform,
     IWebHostEnvironment environment,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalAiRuntimeService> logger) : ILocalAiRuntimeService
 {
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    private LocalAiRuntimeParameters Parameters => runtimePolicy.GetJson<LocalAiRuntimeParameters>(LocalGptRuntimeValue.LocalAiRuntimeParametersJson);
     private readonly HashSet<LocalAiCapability> ExecutableCapabilities =
     [
         LocalAiCapability.ImageGeneration,
@@ -722,10 +724,10 @@ public sealed partial class LocalAiRuntimeService(
                     ["device"] = config.DefaultDevice,
                     ["prompt"] = request.Prompt,
                     ["negative_prompt"] = request.NegativePrompt,
-                    ["width"] = Math.Clamp(request.Width, 256, 4096),
-                    ["height"] = Math.Clamp(request.Height, 256, 4096),
-                    ["steps"] = Math.Clamp(request.Steps, 1, 200),
-                    ["guidance_scale"] = Math.Clamp(request.GuidanceScale, 0, 30),
+                    ["width"] = Math.Clamp(request.Width, Parameters.MinimumImageDimension, Parameters.MaximumImageDimension),
+                    ["height"] = Math.Clamp(request.Height, Parameters.MinimumImageDimension, Parameters.MaximumImageDimension),
+                    ["steps"] = Math.Clamp(request.Steps, Parameters.MinimumGenerationSteps, Parameters.MaximumGenerationSteps),
+                    ["guidance_scale"] = Math.Clamp(request.GuidanceScale, Parameters.MinimumGuidanceScale, Parameters.MaximumGuidanceScale),
                     ["seed"] = request.Seed
                 }
             }, cancellationToken).ConfigureAwait(false);
@@ -753,7 +755,7 @@ public sealed partial class LocalAiRuntimeService(
                 throw new ArgumentException("Image edit prompt must contain between 1 and 16000 characters.", nameof(request));
             var sourcePath = ResolveWorkspaceInput(request.WorkspaceName, request.RelativePath);
             var config = CurrentConfig();
-            var maximumBytes = (long)Math.Clamp(config.MaximumInputMegabytes, 1, 4096) * 1024 * 1024;
+            var maximumBytes = (long)Math.Clamp(config.MaximumInputMegabytes, Parameters.MinimumInputMegabytes, Parameters.MaximumInputMegabytes) * 1024 * 1024;
             EnsureInputSize(sourcePath, maximumBytes);
             var inputDirectory = LocalGptApplicationDataPaths.ResolveUserPath("LocalAiRuntime", "InputScratch", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(inputDirectory);
@@ -775,13 +777,13 @@ public sealed partial class LocalAiRuntimeService(
                         ["device"] = config.DefaultDevice,
                         ["input_path"] = privateCopy,
                         ["maximum_input_bytes"] = maximumBytes,
-                        ["maximum_image_pixels"] = Math.Clamp(config.MaximumImagePixels, 1_000_000L, 1_000_000_000L),
+                        ["maximum_image_pixels"] = Math.Clamp(config.MaximumImagePixels, Parameters.MinimumImagePixels, Parameters.MaximumImagePixels),
                         ["prompt"] = request.Prompt,
                         ["negative_prompt"] = request.NegativePrompt,
-                        ["width"] = Math.Clamp(request.Width, 256, 4096),
-                        ["height"] = Math.Clamp(request.Height, 256, 4096),
-                        ["steps"] = Math.Clamp(request.Steps, 1, 200),
-                        ["guidance_scale"] = Math.Clamp(request.GuidanceScale, 0, 30),
+                        ["width"] = Math.Clamp(request.Width, Parameters.MinimumImageDimension, Parameters.MaximumImageDimension),
+                        ["height"] = Math.Clamp(request.Height, Parameters.MinimumImageDimension, Parameters.MaximumImageDimension),
+                        ["steps"] = Math.Clamp(request.Steps, Parameters.MinimumGenerationSteps, Parameters.MaximumGenerationSteps),
+                        ["guidance_scale"] = Math.Clamp(request.GuidanceScale, Parameters.MinimumGuidanceScale, Parameters.MaximumGuidanceScale),
                         ["seed"] = request.Seed
                     }
                 }, cancellationToken).ConfigureAwait(false);
@@ -824,12 +826,12 @@ public sealed partial class LocalAiRuntimeService(
                     ["cache_models"] = config.CacheModels,
                     ["device"] = config.DefaultDevice,
                     ["prompt"] = request.Prompt,
-                    ["width"] = Math.Clamp(request.Width, 256, 1920),
-                    ["height"] = Math.Clamp(request.Height, 256, 1080),
-                    ["frames"] = Math.Clamp(request.Frames, 8, 241),
-                    ["steps"] = Math.Clamp(request.Steps, 1, 200),
-                    ["guidance_scale"] = Math.Clamp(request.GuidanceScale, 0, 30),
-                    ["fps"] = Math.Clamp(request.FramesPerSecond, 1, 60),
+                    ["width"] = Math.Clamp(request.Width, Parameters.MinimumImageDimension, Parameters.MaximumVideoWidth),
+                    ["height"] = Math.Clamp(request.Height, Parameters.MinimumImageDimension, Parameters.MaximumVideoHeight),
+                    ["frames"] = Math.Clamp(request.Frames, Parameters.MinimumVideoFrames, Parameters.MaximumVideoFrames),
+                    ["steps"] = Math.Clamp(request.Steps, Parameters.MinimumGenerationSteps, Parameters.MaximumGenerationSteps),
+                    ["guidance_scale"] = Math.Clamp(request.GuidanceScale, Parameters.MinimumGuidanceScale, Parameters.MaximumGuidanceScale),
+                    ["fps"] = Math.Clamp(request.FramesPerSecond, Parameters.MinimumFramesPerSecond, Parameters.MaximumFramesPerSecond),
                     ["seed"] = request.Seed
                 }
             }, cancellationToken).ConfigureAwait(false);
@@ -857,7 +859,7 @@ public sealed partial class LocalAiRuntimeService(
                 throw new ArgumentException("Image-to-video prompt cannot exceed 16000 characters.", nameof(request));
             var sourcePath = ResolveWorkspaceInput(request.WorkspaceName, request.RelativePath);
             var config = CurrentConfig();
-            var maximumBytes = (long)Math.Clamp(config.MaximumInputMegabytes, 1, 4096) * 1024 * 1024;
+            var maximumBytes = (long)Math.Clamp(config.MaximumInputMegabytes, Parameters.MinimumInputMegabytes, Parameters.MaximumInputMegabytes) * 1024 * 1024;
             EnsureInputSize(sourcePath, maximumBytes);
             var inputDirectory = LocalGptApplicationDataPaths.ResolveUserPath("LocalAiRuntime", "InputScratch", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(inputDirectory);
@@ -877,14 +879,14 @@ public sealed partial class LocalAiRuntimeService(
                         ["device"] = config.DefaultDevice,
                         ["input_path"] = privateCopy,
                         ["maximum_input_bytes"] = maximumBytes,
-                        ["maximum_image_pixels"] = Math.Clamp(config.MaximumImagePixels, 1_000_000L, 1_000_000_000L),
+                        ["maximum_image_pixels"] = Math.Clamp(config.MaximumImagePixels, Parameters.MinimumImagePixels, Parameters.MaximumImagePixels),
                         ["prompt"] = request.Prompt,
-                        ["width"] = Math.Clamp(request.Width, 256, 1920),
-                        ["height"] = Math.Clamp(request.Height, 256, 1080),
-                        ["frames"] = Math.Clamp(request.Frames, 8, 241),
-                        ["steps"] = Math.Clamp(request.Steps, 1, 200),
-                        ["guidance_scale"] = Math.Clamp(request.GuidanceScale, 0, 30),
-                        ["fps"] = Math.Clamp(request.FramesPerSecond, 1, 60),
+                        ["width"] = Math.Clamp(request.Width, Parameters.MinimumImageDimension, Parameters.MaximumVideoWidth),
+                        ["height"] = Math.Clamp(request.Height, Parameters.MinimumImageDimension, Parameters.MaximumVideoHeight),
+                        ["frames"] = Math.Clamp(request.Frames, Parameters.MinimumVideoFrames, Parameters.MaximumVideoFrames),
+                        ["steps"] = Math.Clamp(request.Steps, Parameters.MinimumGenerationSteps, Parameters.MaximumGenerationSteps),
+                        ["guidance_scale"] = Math.Clamp(request.GuidanceScale, Parameters.MinimumGuidanceScale, Parameters.MaximumGuidanceScale),
+                        ["fps"] = Math.Clamp(request.FramesPerSecond, Parameters.MinimumFramesPerSecond, Parameters.MaximumFramesPerSecond),
                         ["seed"] = request.Seed
                     }
                 }, cancellationToken).ConfigureAwait(false);
@@ -915,7 +917,7 @@ public sealed partial class LocalAiRuntimeService(
             var model = RequireCapability(request.ModelInstallationId, LocalAiCapability.SpeechRecognition);
             var sourcePath = ResolveWorkspaceInput(request.WorkspaceName, request.RelativePath);
             var config = CurrentConfig();
-            var maximumBytes = (long)Math.Clamp(config.MaximumInputMegabytes, 1, 4096) * 1024 * 1024;
+            var maximumBytes = (long)Math.Clamp(config.MaximumInputMegabytes, Parameters.MinimumInputMegabytes, Parameters.MaximumInputMegabytes) * 1024 * 1024;
             EnsureInputSize(sourcePath, maximumBytes);
             var language = string.IsNullOrWhiteSpace(request.Language) ? config.DefaultSpeechLanguage : request.Language;
             var task = NormalizeSpeechTask(string.IsNullOrWhiteSpace(request.Task) ? config.DefaultSpeechTask : request.Task);
@@ -947,8 +949,8 @@ public sealed partial class LocalAiRuntimeService(
                         ["task"] = task,
                         ["initial_prompt"] = initialPrompt,
                         ["maximum_input_bytes"] = maximumBytes,
-                        ["maximum_audio_seconds"] = Math.Clamp(config.MaximumAudioSeconds, 1, 86400),
-                        ["minimum_audio_bytes_per_second"] = Math.Clamp(config.MinimumAudioBytesPerSecond, 1, 1024 * 1024)
+                        ["maximum_audio_seconds"] = Math.Clamp(config.MaximumAudioSeconds, Parameters.MinimumAudioSeconds, Parameters.MaximumAudioSeconds),
+                        ["minimum_audio_bytes_per_second"] = Math.Clamp(config.MinimumAudioBytesPerSecond, Parameters.MinimumAudioBytesPerSecond, Parameters.MaximumAudioBytesPerSecond)
                     }
                 }, cancellationToken).ConfigureAwait(false);
                 return result;
@@ -1394,11 +1396,11 @@ public sealed partial class LocalAiRuntimeService(
                 DefaultSpeechLanguage = config.DefaultSpeechLanguage ?? string.Empty,
                 DefaultSpeechTask = NormalizeSpeechTask(config.DefaultSpeechTask),
                 DefaultSpeechInitialPrompt = config.DefaultSpeechInitialPrompt ?? string.Empty,
-                QueueCapacity = Math.Clamp(config.QueueCapacity, 1, 1024),
-                MaximumInputMegabytes = Math.Clamp(config.MaximumInputMegabytes, 1, 4096),
-                MaximumImagePixels = Math.Clamp(config.MaximumImagePixels, 1_000_000, 1_000_000_000),
-                MaximumAudioSeconds = Math.Clamp(config.MaximumAudioSeconds, 1, 86_400),
-                MinimumAudioBytesPerSecond = Math.Clamp(config.MinimumAudioBytesPerSecond, 1, 1_048_576),
+                QueueCapacity = Math.Clamp(config.QueueCapacity, Parameters.MinimumQueueCapacity, Parameters.MaximumQueueCapacity),
+                MaximumInputMegabytes = Math.Clamp(config.MaximumInputMegabytes, Parameters.MinimumInputMegabytes, Parameters.MaximumInputMegabytes),
+                MaximumImagePixels = Math.Clamp(config.MaximumImagePixels, Parameters.MinimumImagePixels, Parameters.MaximumImagePixels),
+                MaximumAudioSeconds = Math.Clamp(config.MaximumAudioSeconds, Parameters.MinimumAudioSeconds, Parameters.MaximumAudioSeconds),
+                MinimumAudioBytesPerSecond = Math.Clamp(config.MinimumAudioBytesPerSecond, Parameters.MinimumAudioBytesPerSecond, Parameters.MaximumAudioBytesPerSecond),
                 CacheModels = config.CacheModels,
                 InterpreterInitialized = python.IsInitialized,
                 QueueLength = python.QueueLength,
@@ -1485,11 +1487,11 @@ public sealed partial class LocalAiRuntimeService(
                     config.DefaultSpeechLanguage = (persisted.DefaultSpeechLanguage ?? string.Empty).Trim();
                     config.DefaultSpeechTask = NormalizeSpeechTask(persisted.DefaultSpeechTask);
                     config.DefaultSpeechInitialPrompt = persisted.DefaultSpeechInitialPrompt ?? string.Empty;
-                    config.QueueCapacity = Math.Clamp(persisted.QueueCapacity, 1, 1024);
-                    config.MaximumInputMegabytes = Math.Clamp(persisted.MaximumInputMegabytes, 1, 4096);
-                    config.MaximumImagePixels = Math.Clamp(persisted.MaximumImagePixels, 1_000_000, 1_000_000_000);
-                    config.MaximumAudioSeconds = Math.Clamp(persisted.MaximumAudioSeconds, 1, 86_400);
-                    config.MinimumAudioBytesPerSecond = Math.Clamp(persisted.MinimumAudioBytesPerSecond, 1, 1_048_576);
+                    config.QueueCapacity = Math.Clamp(persisted.QueueCapacity, Parameters.MinimumQueueCapacity, Parameters.MaximumQueueCapacity);
+                    config.MaximumInputMegabytes = Math.Clamp(persisted.MaximumInputMegabytes, Parameters.MinimumInputMegabytes, Parameters.MaximumInputMegabytes);
+                    config.MaximumImagePixels = Math.Clamp(persisted.MaximumImagePixels, Parameters.MinimumImagePixels, Parameters.MaximumImagePixels);
+                    config.MaximumAudioSeconds = Math.Clamp(persisted.MaximumAudioSeconds, Parameters.MinimumAudioSeconds, Parameters.MaximumAudioSeconds);
+                    config.MinimumAudioBytesPerSecond = Math.Clamp(persisted.MinimumAudioBytesPerSecond, Parameters.MinimumAudioBytesPerSecond, Parameters.MaximumAudioBytesPerSecond);
                     config.CacheModels = persisted.CacheModels;
                     configuredOverride = config;
                 }

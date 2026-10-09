@@ -10,10 +10,12 @@ namespace LocalGPT.Services;
 /// <param name="aiDiscovery">Ai discovery service dependency used by the AI connectivity probe workflow to provide the corresponding application capability.</param>
 /// <param name="councilText">Council text service dependency used by the AI connectivity probe workflow to provide the corresponding application capability.</param>
 /// <param name="optionsRoot">Options root value supplied to the AI connectivity probe operation and used when producing its result.</param>
+/// <param name="runtimePolicy">Database-backed runtime policy used for provider defaults and routes.</param>
 public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         AiDiscoveryService aiDiscovery,
         CouncilTextService councilText,
-        Microsoft.Extensions.Options.IOptionsMonitor<global::LocalGPT.BusinessObjects.ConfigurationRoot> optionsRoot) : IAiConnectivityProbe
+        Microsoft.Extensions.Options.IOptionsMonitor<global::LocalGPT.BusinessObjects.ConfigurationRoot> optionsRoot,
+        ILocalGptRuntimePolicyDataService runtimePolicy) : IAiConnectivityProbe
 {
     /// <summary>
     /// Performs test azure for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
@@ -56,10 +58,11 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
 
         try
         {
-            using var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
+            var parameters = runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
+            using var http = new HttpClient { BaseAddress = new Uri(parameters.DefaultOpenAiEndpoint.TrimEnd('/') + "/") };
             http.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
-            return await aiDiscovery.GetAsync(http, "models", cancellationToken, logger).ConfigureAwait(false);
+            return await aiDiscovery.GetAsync(http, parameters.OpenAiCompatibleModelsPath.TrimStart('/').Replace(parameters.OpenAiCompatibleApiPath.Trim('/') + "/", string.Empty, StringComparison.OrdinalIgnoreCase), cancellationToken, logger).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

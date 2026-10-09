@@ -9,8 +9,10 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="hardwareRoadPlanner">Council hardware road planner dependency used by the council run configuration workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class CouncilRunConfigurationService(
     ICouncilHardwareRoadPlanner hardwareRoadPlanner,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilRunConfigurationService> logger) : ICouncilRunConfigurationService
 {
     /// <summary>
@@ -215,7 +217,7 @@ public sealed class CouncilRunConfigurationService(
                 state.FallbackOllamaNumGpu = fallbackOllamaNumGpu is < 0 ? 0 : fallbackOllamaNumGpu;
                 state.AllowParallelHardwareRoads = allowParallelHardwareRoads;
                 state.MaxParallelModels = Math.Max(1, maxParallelModels);
-                state.ModelTimeoutSeconds = Math.Clamp(modelTimeoutSeconds, 30, 1800);
+                state.ModelTimeoutSeconds = Math.Clamp(modelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumModelTimeoutSeconds);
                 revision = ++state.Revision;
                 PulseLocked(state);
             }
@@ -747,7 +749,7 @@ public sealed class CouncilRunConfigurationService(
                 configuration.OllamaNumGpu is < 0 ? 0 : configuration.OllamaNumGpu,
                 configuration.AllowParallelHardwareRoads,
                 Math.Max(1, configuration.MaxParallelModels),
-                Math.Clamp(configuration.ModelTimeoutSeconds, 30, 1800),
+                Math.Clamp(configuration.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumModelTimeoutSeconds),
                 Math.Max(0, configuration.CritiqueRounds),
                 configuration.IncludeMemory,
                 configuration.CreateProjectPerRun,

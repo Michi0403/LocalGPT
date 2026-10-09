@@ -14,6 +14,7 @@ public sealed class UploadProcessingRecommendationService(
     ICouncilTeamConfigurationService teams,
     IChatClientFactory chatClientFactory,
     IUploadFileProcessingCapabilityService processingCapabilities,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     LocalGptCatalogService catalog,
     ILogger<UploadProcessingRecommendationService> logger) : IUploadProcessingRecommendationService
 {
@@ -45,8 +46,7 @@ public sealed class UploadProcessingRecommendationService(
                 var prompt = BuildPrompt(request, gate, relevantKnowledge, teamCandidates, processingRoutes);
                 var response = await client.GetResponseAsync(
                     [
-                        new ChatMessage(ChatRole.System,
-                            "You are LocalGPT's bounded upload-processing advisor. Recommend; do not execute. Use only the supplied quarantine evidence, approved knowledge and listed Council teams. Safely extracted read-only archive evidence may be inspected when the workspace exposes it, but never claim content was executed, built, published, promoted or trusted. Return one JSON object only."),
+                        new ChatMessage(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.UploadProcessingAdvisorSystemPrompt)),
                         new ChatMessage(ChatRole.User, prompt)
                     ],
                     new ChatOptions { MaxOutputTokens = 1_600, Temperature = 0.1f, Tools = [] },

@@ -11,7 +11,8 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="regexPatterns">Regex pattern service dependency used by the list regex patterns function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns, ILogger<ListRegexPatternsFunction> logger) : IDxAiFunctionHandler
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
+public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns, ILocalGptRuntimePolicyDataService runtimePolicy, ILogger<ListRegexPatternsFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
     /// Gets the descriptor value that forms part of the list regex patterns function state consumed or produced by the surrounding workflow.
@@ -53,7 +54,7 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
     {
             logger.LogInformation("Regex catalog list DXFunction started.");
             var parameters = Deserialize<RegexPatternListParameters>(request.Parameters);
-            var rows = await regexPatterns.ListAllAsync(Math.Clamp(parameters.Take, 1, 5000)).ConfigureAwait(false);
+            var rows = await regexPatterns.ListAllAsync(Math.Clamp(parameters.Take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).RegexDxListMaximum)).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(parameters.Prefix))
                 rows = rows.Where(item => item.Name.StartsWith(parameters.Prefix.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
             logger.LogInformation("Regex catalog list DXFunction completed with {PatternCount} pattern(s).", rows.Count);

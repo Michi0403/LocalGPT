@@ -53,7 +53,7 @@ public sealed partial class ProviderModelBenchmarkService
             if (!Directory.Exists(root))
                 return Task.FromResult<IReadOnlyList<ProviderModelBenchmarkStoredEvidence>>([]);
 
-            var boundedCount = Math.Clamp(maxCount, 1, 100);
+            var boundedCount = Math.Clamp(maxCount, 1, BenchmarkParameters.MaximumPersistedEvidenceItems);
             var results = new List<ProviderModelBenchmarkStoredEvidence>();
             foreach (var directory in new DirectoryInfo(root)
                 .EnumerateDirectories()
@@ -111,7 +111,7 @@ public sealed partial class ProviderModelBenchmarkService
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.Read,
-                bufferSize: 64 * 1024,
+                bufferSize: BenchmarkParameters.EvidenceStreamBufferBytes,
                 options: FileOptions.Asynchronous | FileOptions.SequentialScan);
             await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
             var archive = await JsonSerializer.DeserializeAsync<ProviderModelBenchmarkEvidenceArchive>(
@@ -157,7 +157,7 @@ public sealed partial class ProviderModelBenchmarkService
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.Read,
-                bufferSize: 64 * 1024,
+                bufferSize: BenchmarkParameters.EvidenceStreamBufferBytes,
                 options: FileOptions.Asynchronous | FileOptions.SequentialScan);
             await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
             return await JsonSerializer.DeserializeAsync<ProviderModelBenchmarkTaskEvidenceArchive>(
@@ -300,7 +300,7 @@ public sealed partial class ProviderModelBenchmarkService
                     FileMode.CreateNew,
                     FileAccess.Write,
                     FileShare.None,
-                    bufferSize: 64 * 1024,
+                    bufferSize: BenchmarkParameters.EvidenceStreamBufferBytes,
                     options: FileOptions.Asynchronous | FileOptions.SequentialScan);
                 await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
                 await JsonSerializer.SerializeAsync(

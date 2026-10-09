@@ -164,6 +164,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<MinecraftProjectService>();
                 builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
                 builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
+                builder.Services.AddSingleton<IRegexEngineService, RegexEngineService>();
                 builder.Services.AddSingleton<IRegexCompilationService, RegexCompilationService>();
                 builder.Services.AddSingleton<IRegexPatternService, RegexPatternService>();
                 builder.Services.AddSingleton<IRegexCuratorService, RegexCuratorService>();
@@ -227,6 +228,7 @@ namespace LocalGPT
                     options.UseSqlite($"Data Source={databaseOptions.DatabasePath}"));
 
                 builder.Services.AddSingleton<ISystemVariableDefinitionService, SystemVariableDefinitionService>();
+                builder.Services.AddSingleton<IInitialDataFeedService, InitialDataFeedService>();
                 builder.Services.AddSingleton<IInitialDataCatalog, InitialDataCatalog>();
                 builder.Services.AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>();
                 builder.Services.AddSingleton<IDatabaseInitializationService, DatabaseInitializationService>();

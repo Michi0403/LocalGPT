@@ -20,7 +20,7 @@
 
 - Added the Remote Control guided-editor strings to all six maintained catalogs; all six contain 2,012 keys in exact parity.
 - Updated LocalGPT, InstallerConsole and WebView wrapper to **3.2.6**.
-- Preserved DevExpress **25.2.9** and the existing deployment/runtime architecture.
+- Preserved DevExpress **25.2.10** and the existing deployment/runtime architecture.
 
 ## Validation status
 

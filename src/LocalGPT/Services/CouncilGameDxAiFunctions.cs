@@ -8,9 +8,11 @@ namespace LocalGPT.Services;
 /// Represents a council game DevExpress parameter application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 /// <param name="ambientContext">Ambient Council context used to correlate game functions before a chat conversation id exists.</param>
+/// <param name="runtimePolicy">Database-backed runtime policy used to bound game parameter arrays.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilGameDxParameterReader(
     IAmbientLocalGptContext ambientContext,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilGameDxParameterReader> logger)
 {
     /// <summary>
@@ -211,7 +213,7 @@ public sealed class CouncilGameDxParameterReader(
             if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array)
                 return [];
             var result = new List<IReadOnlyList<CouncilAsciiStyleRun>>();
-            foreach (var frame in value.EnumerateArray().Take(12))
+            foreach (var frame in value.EnumerateArray().Take(runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumDisplayFrames))
             {
                 result.Add(frame.ValueKind == JsonValueKind.Array
                     ? JsonSerializer.Deserialize<List<CouncilAsciiStyleRun>>(frame.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? []
@@ -321,13 +323,17 @@ public sealed class CouncilGameDxParameterReader(
 /// <param name="games">Council game session service dependency used by the start council game function workflow to provide the corresponding application capability.</param>
 /// <param name="parameters">Parameters value supplied to the start council game function operation and used when producing its result.</param>
 /// <param name="ambientContext">Ambient LocalGPT context used to associate an AI-started game with the active Council run.</param>
+/// <param name="runtimePolicy">Database-backed Council game defaults and bounds.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class StartCouncilGameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     IAmbientLocalGptContext ambientContext,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<StartCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>Gets the database-backed game session authoring limits and defaults.</summary>
+    private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Gets the descriptor value that forms part of the start council game function state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -368,19 +374,19 @@ public sealed class StartCouncilGameFunction(
                 CouncilRunId = ambientContext.Current.CouncilRunId,
                 ControlMode = mode,
                 AutoplayEnabled = mode == CouncilGameControlMode.Ai,
-                AutoplayDelayMilliseconds = parameters.Integer(request.Parameters, "autoplayDelayMilliseconds", 1200),
+                AutoplayDelayMilliseconds = parameters.Integer(request.Parameters, "autoplayDelayMilliseconds", RuntimeParameters.DefaultAutoplayDelayMilliseconds),
                 DirectorMode = directorMode,
                 GameDirectorModelName = parameters.String(request.Parameters, "gameDirectorModelName", "qwen3.5:0.8b"),
-                CreatureDirectorCount = Math.Clamp(parameters.Integer(request.Parameters, "creatureDirectorCount", 2), 1, 8),
-                FrameWidth = Math.Clamp(parameters.Integer(request.Parameters, "frameWidth", 80), 20, 240),
-                FrameHeight = Math.Clamp(parameters.Integer(request.Parameters, "frameHeight", 25), 8, 100),
+                CreatureDirectorCount = Math.Clamp(parameters.Integer(request.Parameters, "creatureDirectorCount", RuntimeParameters.DefaultCreatureDirectors), RuntimeParameters.MinimumCreatureDirectors, RuntimeParameters.MaximumCreatureDirectors),
+                FrameWidth = Math.Clamp(parameters.Integer(request.Parameters, "frameWidth", RuntimeParameters.DefaultFrameWidth), RuntimeParameters.MinimumFrameWidth, RuntimeParameters.MaximumFrameWidth),
+                FrameHeight = Math.Clamp(parameters.Integer(request.Parameters, "frameHeight", RuntimeParameters.DefaultFrameHeight), RuntimeParameters.MinimumFrameHeight, RuntimeParameters.MaximumFrameHeight),
                 MapSeed = parameters.NullableInt(request.Parameters, "mapSeed"),
                 ScenarioPrompt = parameters.String(request.Parameters, "scenarioPrompt"),
                 CampaignRuntimeClassKey = parameters.String(request.Parameters, "campaignRuntimeClassKey"),
                 StartingLevel = parameters.NullableInt(request.Parameters, "startingLevel"),
                 AsciiColorMode = parameters.ColorMode(request.Parameters, "asciiColorMode") ?? CouncilAsciiColorMode.TerminalDefault,
-                DefaultForegroundColor = parameters.NullableInt(request.Parameters, "defaultForegroundColor") ?? 46,
-                DefaultBackgroundColor = parameters.NullableInt(request.Parameters, "defaultBackgroundColor") ?? 0,
+                DefaultForegroundColor = parameters.NullableInt(request.Parameters, "defaultForegroundColor") ?? RuntimeParameters.DefaultForegroundColor,
+                DefaultBackgroundColor = parameters.NullableInt(request.Parameters, "defaultBackgroundColor") ?? RuntimeParameters.DefaultBackgroundColor,
                 AutoAdvanceLevels = request.Parameters.ValueKind == JsonValueKind.Object
                     && request.Parameters.TryGetProperty("autoAdvanceLevels", out var autoAdvanceElement)
                     && autoAdvanceElement.ValueKind is JsonValueKind.True or JsonValueKind.False
@@ -699,12 +705,16 @@ public sealed class EndCouncilGameFunction(
 /// </summary>
 /// <param name="games">Council game session service dependency used by the set council game control mode function workflow to provide the corresponding application capability.</param>
 /// <param name="parameters">Parameters value supplied to the set council game control mode function operation and used when producing its result.</param>
+/// <param name="runtimePolicy">Database-backed Council game defaults and bounds.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SetCouncilGameControlModeFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<SetCouncilGameControlModeFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>Gets the database-backed game session authoring limits and defaults.</summary>
+    private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Gets the descriptor value that forms part of the set council game control mode function state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -744,7 +754,7 @@ public sealed class SetCouncilGameControlModeFunction(
                 id,
                 mode,
                 autoplay,
-                parameters.Integer(request.Parameters, "autoplayDelayMilliseconds", 1200),
+                parameters.Integer(request.Parameters, "autoplayDelayMilliseconds", RuntimeParameters.DefaultAutoplayDelayMilliseconds),
                 cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
         }

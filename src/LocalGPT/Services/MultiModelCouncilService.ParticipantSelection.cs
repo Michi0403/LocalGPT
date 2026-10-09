@@ -365,7 +365,7 @@ namespace LocalGPT.Services
                     if (configured is null || string.IsNullOrWhiteSpace(configured.ModelName))
                         return false;
                     var configuredEndpoint = identity.NormalizeOpenAiCompatibleEndpoint(
-                        string.IsNullOrWhiteSpace(configured.Endpoint) ? "https://api.openai.com/v1" : configured.Endpoint);
+                        string.IsNullOrWhiteSpace(configured.Endpoint) ? runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson).DefaultOpenAiEndpoint : configured.Endpoint);
                     return configuredEndpoint.Equals(identity.NormalizeOpenAiCompatibleEndpoint(model.Endpoint), StringComparison.OrdinalIgnoreCase);
                 }
 

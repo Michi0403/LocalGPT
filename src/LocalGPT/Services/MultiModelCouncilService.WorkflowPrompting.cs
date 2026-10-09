@@ -779,39 +779,26 @@ namespace LocalGPT.Services
                     .Where(model => !string.Equals(model, reviewerModelName, StringComparison.OrdinalIgnoreCase))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                var peerList = peers.Count == 0 ? "none" : string.Join(Environment.NewLine, peers.Select(peer => $"- {peer}"));
+                var peerList = peers.Count == 0
+                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilNoRoleMembersText)
+                    : string.Join(Environment.NewLine, peers.Select(peer => $"- {peer}"));
                 var expertise = roleAssignment.Definition?.Expertise ?? string.Empty;
                 var responsibility = roleAssignment.Definition?.Responsibility ?? string.Empty;
+                var template = string.IsNullOrWhiteSpace(definition.RolePeerReviewPromptTemplate)
+                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilRolePeerReviewPromptTemplate)
+                    : definition.RolePeerReviewPromptTemplate;
 
-                return $"""
-                    You are {reviewerModelName}, one provider-qualified member of role "{roleAssignment.RoleName}" in Council team "{team.DisplayName}".
-                    This is an optional SAME-ROLE coordination turn after the normal role-member answers. Do not call functions or repeat side effects. Do not redo another role's work.
-
-                    Original user request:
-                    {request.Prompt}
-
-                    Current workflow step: {definition.DisplayName} / {definition.Phase}
-                    Current role: {roleAssignment.RoleName}
-                    Role expertise: {expertise}
-                    Role responsibility: {responsibility}
-                    Your exact identity: {reviewerModelName}
-                    Other AI members of THIS role that you must review:
-                    {peerList}
-
-                    Identity rule:
-                    Names appearing in the user request, benchmark candidate lists, tool arguments, earlier-role outputs, or the transcript are task SUBJECTS unless they exactly match the provider-qualified role members listed above. Never call a benchmark target or another role's model your teammate merely because its name appears in the evidence.
-
-                    Primary role-member results:
-                    {roleEvidence}
-
-                    Review every OTHER role member, not yourself. For each peer, output exactly one concise line in this shape:
-                    Peer usefulness — <exact provider-qualified peer identity>: <0-100>% — useful: <what materially helped> — correction: <what is wrong, missing, risky, or "none">
-
-                    Then output exactly one vote line choosing the strongest CURRENT-ROLE result:
-                    Role vote: <exact provider-qualified role member identity>
-
-                    Base the percentage and vote on correctness, relevance to this role, evidence, complementarity, and usefulness for the next workflow step. Disagreement is allowed. Do not invent peer identities.
-                    """;
+                return template
+                    .Replace("{{ReviewerModelName}}", reviewerModelName, StringComparison.Ordinal)
+                    .Replace("{{RoleName}}", roleAssignment.RoleName, StringComparison.Ordinal)
+                    .Replace("{{TeamName}}", team.DisplayName, StringComparison.Ordinal)
+                    .Replace("{{UserPrompt}}", request.Prompt, StringComparison.Ordinal)
+                    .Replace("{{StepDisplayName}}", definition.DisplayName, StringComparison.Ordinal)
+                    .Replace("{{StepPhase}}", definition.Phase, StringComparison.Ordinal)
+                    .Replace("{{RoleExpertise}}", expertise, StringComparison.Ordinal)
+                    .Replace("{{RoleResponsibility}}", responsibility, StringComparison.Ordinal)
+                    .Replace("{{PeerMembers}}", peerList, StringComparison.Ordinal)
+                    .Replace("{{RoleEvidence}}", roleEvidence, StringComparison.Ordinal);
             }
             catch (Exception ex)
             {

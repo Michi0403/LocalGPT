@@ -13,6 +13,7 @@ public sealed class ToolchainEnvironmentService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     IPlatformRuntimeService platform,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ToolchainEnvironmentService> logger) : IToolchainEnvironmentService
 {
     private const string DataType = "toolchain.environment";
@@ -103,7 +104,8 @@ public sealed class ToolchainEnvironmentService(
         try
         {
             ArgumentNullException.ThrowIfNull(entries);
-            var boundedMaximum = Math.Clamp(maximumResults, 1, 5000);
+            var parameters = runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson);
+            var boundedMaximum = Math.Clamp(maximumResults, 1, parameters.ToolchainRuntimeResultMaximum);
             if (string.IsNullOrWhiteSpace(searchText))
                 return entries.Take(boundedMaximum).ToList();
 

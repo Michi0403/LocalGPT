@@ -43,7 +43,7 @@ namespace LocalGPT.Services
     private bool IsGeneratedPath(string relative) {
     try
     {
-        return Regex.IsMatch(relative, @"(?i)(^|/)(bin|obj|node_modules|artifacts|\.vs)(/|$)", RegexOptions.CultureInvariant, runtimePolicy.RegexTimeout);
+        return runtimePolicy.GetPattern(LocalGptRuntimePattern.GeneratedProjectPath).IsMatch(relative);
     }
     catch (Exception __serviceMethodException)
     {
@@ -174,7 +174,7 @@ namespace LocalGPT.Services
     private bool RegexMatches(string pattern, string input) {
     try
     {
-        return !string.IsNullOrWhiteSpace(pattern) && CompileRegex(pattern, nameof(pattern), @"(?!)").IsMatch(input ?? string.Empty);
+        return !string.IsNullOrWhiteSpace(pattern) && CompileRegex(pattern, nameof(pattern), runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchNone).ToString()).IsMatch(input ?? string.Empty);
     }
     catch (Exception __serviceMethodException)
     {

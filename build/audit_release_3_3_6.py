@@ -28,8 +28,8 @@ require('PackageReference Include="System.Formats.Nrbf"' not in app, 'applicatio
 dep_rel = 'docs/DocfxDependencies.csproj'
 dep = read(dep_rel)
 ET.fromstring(dep)
-require('PackageReference Include="System.Formats.Nrbf" Version="10.0.11" PrivateAssets="all"' in dep,
-        'DocFX dependency project does not pin System.Formats.Nrbf 10.0.11 as private tooling-only dependency')
+require('PackageReference Include="System.Formats.Nrbf" Version="10.0.12" PrivateAssets="all"' in dep,
+        'DocFX dependency project does not pin System.Formats.Nrbf 10.0.12 as private tooling-only dependency')
 
 prereq = read('build/Initialize-BuildPrerequisites.ps1')
 require("'docs/DocfxDependencies.csproj'" in prereq, 'source preflight does not require DocfxDependencies.csproj')

@@ -9,10 +9,12 @@ namespace LocalGPT.Services;
 /// <param name="regexPatterns">Regex pattern service dependency used by the toolchain knowledge workflow to provide the corresponding application capability.</param>
 /// <param name="humanCollaboration">Human collaboration service dependency used by the toolchain knowledge workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class ToolchainKnowledgeService(
     ICouncilKnowledgeService knowledge,
     IRegexPatternService regexPatterns,
     IHumanCollaborationService humanCollaboration,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ToolchainKnowledgeService> logger) : IToolchainKnowledgeService
 {
     /// <summary>
@@ -35,7 +37,7 @@ public sealed class ToolchainKnowledgeService(
                 return [];
             }
 
-            var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: 500, cancellationToken).ConfigureAwait(false);
+            var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).KnowledgeMaximum, cancellationToken).ConfigureAwait(false);
             var profiles = new List<ToolchainKnowledgeProfile>();
             foreach (var entry in entries.OrderByDescending(item => item.IsUserApproved).ThenByDescending(item => item.UpdatedAtUtc))
             {
@@ -55,7 +57,8 @@ public sealed class ToolchainKnowledgeService(
                         profile.Language = string.IsNullOrWhiteSpace(profile.Language) ? "Other" : profile.Language.Trim();
                         profile.ValidationArguments = string.IsNullOrWhiteSpace(profile.ValidationArguments) ? "--version" : profile.ValidationArguments.Trim();
                         profile.VersionRegexPatternName = string.IsNullOrWhiteSpace(profile.VersionRegexPatternName) ? "builtin.toolchain-version-token-v2" : profile.VersionRegexPatternName.Trim();
-                        profile.MaximumSearchDepth = Math.Clamp(profile.MaximumSearchDepth, 0, 5);
+                        var parameters = runtimePolicy.GetJson<ToolchainRuntimeParameters>(LocalGptRuntimeValue.ToolchainRuntimeParametersJson);
+                        profile.MaximumSearchDepth = Math.Clamp(profile.MaximumSearchDepth, parameters.MinimumSearchDepth, parameters.MaximumSearchDepth);
                         profile.KnowledgeEntryId = entry.Id;
                         profiles.Add(profile);
                     }
@@ -157,7 +160,7 @@ public sealed class ToolchainKnowledgeService(
             ArgumentException.ThrowIfNullOrWhiteSpace(version);
             var normalizedProfile = profileKey.Trim().ToLowerInvariant();
             var normalizedVersion = version.Trim();
-            var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: 500, cancellationToken).ConfigureAwait(false);
+            var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).KnowledgeMaximum, cancellationToken).ConfigureAwait(false);
             var match = entries
                 .Where(item => item.IsUserApproved || item.IsPinned)
                 .FirstOrDefault(item => HasVersionContext(item, normalizedProfile, normalizedVersion));

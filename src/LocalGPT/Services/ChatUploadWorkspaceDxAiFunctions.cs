@@ -54,7 +54,9 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
             var originalUploads = files.Where(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase)).ToList();
             var generatedFiles = files.Where(file =>
                     file.RelativePath.Equals("context.md", StringComparison.OrdinalIgnoreCase) ||
-                    file.RelativePath.Equals("manifest.json", StringComparison.OrdinalIgnoreCase))
+                    file.RelativePath.Equals("manifest.json", StringComparison.OrdinalIgnoreCase) ||
+                    file.RelativePath.Equals("curation.md", StringComparison.OrdinalIgnoreCase) ||
+                    file.RelativePath.Equals("curation.json", StringComparison.OrdinalIgnoreCase))
                 .ToList();
             logger.LogInformation(
                 "DXFunction listed {FileCount} chat-upload workspace file(s), including {OriginalCount} original upload(s); workspace payload content was omitted.",
@@ -72,7 +74,7 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
                     OriginalUploads = originalUploads,
                     GeneratedWorkspaceArtifacts = generatedFiles,
                     Files = files,
-                    Note = "context.md and manifest.json are generated LocalGPT workspace artifacts, not additional user uploads. Safely extracted archive entries are read-only evidence and remain distinct from promotion. A text dump may describe many repository files while still being one original uploaded file."
+                    Note = "context.md, manifest.json and any curation.* reports are generated LocalGPT workspace artifacts, not additional user uploads. Safely extracted archive entries are read-only evidence and remain distinct from promotion. A text dump may describe many repository files while still being one original uploaded file."
                 }
             });
         }
@@ -509,4 +511,115 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         }
     }
 
+}
+
+
+/// <summary>Runs the deterministic upload-workspace curation gate and returns bounded coverage evidence for Council orchestration.</summary>
+/// <param name="workspaces">Chat upload workspace service that owns extraction and complete byte-read validation.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+public sealed class CurateChatUploadWorkspaceFunction(
+    IChatUploadWorkspaceService workspaces,
+    ILogger<CurateChatUploadWorkspaceFunction> logger) : IDxAiFunctionHandler
+{
+    /// <summary>Gets the registered read-only DXFunction descriptor.</summary>
+    /// <value>The descriptor for deterministic workspace curation.</value>
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "chat.upload_workspace_curate",
+        "POST",
+        "/api/dxai/functions/chat.upload_workspace_curate/invoke",
+        "Validates every original upload and every safely extracted ZIP entry in one DXAiChat workspace, reading every file byte stream to EOF and recording SHA-256 coverage evidence.",
+        "JSON parameters: workspaceName optional string (latest workspace when omitted).",
+        "Read-only. This function proves archive/extraction and complete byte-read coverage; it does not execute uploaded files and does not replace semantic source inspection.",
+        IsReadOnly: true,
+        AvailableToAi: true,
+        RequiresHumanConfirmation: false,
+        SupportsDirectInvocation: true,
+        SupportsAutomaticInvocation: true,
+        Source: "DIHandler",
+        ParameterSchemaJson: """
+        {"type":"object","properties":{"workspaceName":{"type":"string","maxLength":240}},"additionalProperties":false}
+        """);
+
+    /// <summary>Runs deterministic curation for the requested or latest upload workspace.</summary>
+    /// <param name="request">Function invocation request.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the operation.</param>
+    /// <returns>The bounded curation status and summary.</returns>
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(
+        DxAiFunctionInvocationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var workspaceName = ResolveWorkspaceName(request.Parameters);
+            if (string.IsNullOrWhiteSpace(workspaceName))
+                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "No DXAiChat upload workspace is available." };
+
+            var report = await workspaces.CurateWorkspaceAsync(workspaceName, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation(
+                "DXFunction curated upload workspace {WorkspaceName}: complete={Complete}, archives={ArchiveCount}, extracted files={ExtractedCount}, fully read files={ReadCount}.",
+                workspaceName,
+                report.IsComplete,
+                report.ArchiveUploadCount,
+                report.ExtractedFileCount,
+                report.FullyReadFileCount);
+            return new DxAiFunctionInvocationResult
+            {
+                Succeeded = report.IsComplete,
+                Status = report.IsComplete ? "Completed" : "Incomplete",
+                Value = new
+                {
+                    report.WorkspaceName,
+                    report.CompletedAtUtc,
+                    report.OriginalUploadCount,
+                    report.ArchiveUploadCount,
+                    report.ExtractedFileCount,
+                    report.FullyReadFileCount,
+                    report.FullyReadBytes,
+                    report.IsComplete,
+                    Archives = report.Archives,
+                    report.Warnings,
+                    report.SummaryMarkdown,
+                    Note = "The detailed per-file SHA-256 evidence is retained locally in curation.json and intentionally omitted from the model-facing result."
+                },
+                Error = report.IsComplete ? string.Empty : "The workspace did not satisfy complete archive/extraction byte-read coverage. Review the returned curation summary."
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Curating the DXAiChat upload workspace failed; source contents were omitted.");
+            return new DxAiFunctionInvocationResult
+            {
+                Status = "Failed",
+                Error = "The upload workspace curation gate failed. Review LocalGPT application logs."
+            };
+        }
+    }
+
+    /// <summary>Resolves the explicitly requested workspace name or falls back to the latest workspace.</summary>
+    /// <param name="parameters">Invocation parameters.</param>
+    /// <returns>The workspace name, or an empty string when no workspace exists.</returns>
+    private string ResolveWorkspaceName(JsonElement parameters)
+    {
+        try
+        {
+            if (parameters.ValueKind == JsonValueKind.Object &&
+                parameters.TryGetProperty("workspaceName", out var element) &&
+                element.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(element.GetString()))
+            {
+                return element.GetString()!.Trim();
+            }
+
+            return workspaces.GetLatestWorkspace()?.WorkspaceName ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not resolve a workspace for deterministic upload curation; parameters were omitted.");
+            return string.Empty;
+        }
+    }
 }

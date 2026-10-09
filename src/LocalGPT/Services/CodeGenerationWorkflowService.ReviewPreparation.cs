@@ -153,7 +153,7 @@ namespace LocalGPT.Services
     try
     {
             var source = string.IsNullOrWhiteSpace(title) ? goal : title;
-            var words = Regex.Matches(source ?? string.Empty, "[A-Za-z0-9]+")
+            var words = runtimePolicy.GetPattern(LocalGptRuntimePattern.CodeGenerationWordToken).Matches(source ?? string.Empty)
                 .Select(match => match.Value)
                 .Where(word => !word.Equals("create", StringComparison.OrdinalIgnoreCase) &&
                                !word.Equals("generate", StringComparison.OrdinalIgnoreCase) &&

@@ -120,7 +120,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
             var requests = await query
                 .OrderBy(item => item.Status == vocabulary.Get().HumanStatusPending ? 0 : 1)
                 .ThenByDescending(item => item.UpdatedAtUtc)
-                .Take(Math.Clamp(take, 1, 200))
+                .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).HumanContributionMaximum))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 

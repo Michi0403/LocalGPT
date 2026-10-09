@@ -16,13 +16,15 @@ namespace LocalGPT.Services
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     /// <param name="councilText">Council text service dependency used by the council knowledge workflow to provide the corresponding application capability.</param>
     /// <param name="knowledgeContent">Council knowledge content service that owns normalization, trust, topic and briefing policy.</param>
+    /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
     public partial class CouncilKnowledgeService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
         IDatabaseFileHealthService databaseFileHealth,
         ILogger<CouncilKnowledgeService> logger,
         CouncilTextService councilText,
-        CouncilKnowledgeContentService knowledgeContent) : ICouncilKnowledgeService
+        CouncilKnowledgeContentService knowledgeContent,
+        ILocalGptRuntimePolicyDataService runtimePolicy) : ICouncilKnowledgeService
     {
         /// <summary>
         /// Gets the database path used by this council knowledge instance to locate the associated file-system resource.
@@ -78,7 +80,7 @@ namespace LocalGPT.Services
                     .ThenByDescending(entry => entry.IsUserApproved)
                     .ThenBy(entry => entry.ReviewStatus)
                     .ThenByDescending(entry => entry.UpdatedAtUtc)
-                    .Take(Math.Clamp(take, 1, 500))
+                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).KnowledgeMaximum))
                     .ToListAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)

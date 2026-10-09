@@ -6,8 +6,9 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Coordinates LocalGPT request factory behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactoryService> logger) : ILocalGptRequestFactoryService
+public sealed class LocalGptRequestFactoryService(ILocalGptRuntimePolicyDataService runtimePolicy, ILogger<LocalGptRequestFactoryService> logger) : ILocalGptRequestFactoryService
 {
     /// <summary>
     /// Creates project request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -19,9 +20,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
         return Created(new SaveLocalGptProjectRequest
     {
         ProjectType = "DotNetSolution",
-        SolutionSearchPattern = @"(?i)\.(sln|slnx)$",
-        FileIncludePattern = @"(?s).*",
-        FileExcludePattern = @"(?i)(^|[\\/])(bin|obj|node_modules|\.git|\.vs|artifacts|security|secrets?)([\\/]|$)|(^|[\\/])(\.env(?:\..*)?|[^\\/]+\.(?:pfx|p12|key|pem))$",
+        SolutionSearchPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString(),
+        FileIncludePattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchAll).ToString(),
+        FileExcludePattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.ProjectSensitivePath).ToString(),
         CurrentVersion = "0.1.0",
         Status = "Active",
         RecommendGit = true

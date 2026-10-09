@@ -45,7 +45,7 @@ namespace LocalGPT.Services
             OutputTokens = profile.OutputTokens,
             OllamaNumGpu = profile.OllamaNumGpu
         };
-        var boundedRepetitionRecoveryAttempts = Math.Clamp(repetitionRecoveryAttempts, 0, 8);
+        var boundedRepetitionRecoveryAttempts = Math.Clamp(repetitionRecoveryAttempts, 0, BenchmarkParameters.MaximumRepetitionRecoveryAttempts);
         for (var taskIndex = 0; taskIndex < tasks.Count; taskIndex++)
         {
             var task = tasks[taskIndex];
@@ -53,7 +53,7 @@ namespace LocalGPT.Services
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(maxSeconds));
             var taskResult = new ProviderModelBenchmarkTaskResult { TaskName = task.Name };
-            taskResult.TaskPrompt = LimitBenchmarkEvidence(task.Prompt, 24_000, out var promptTruncated);
+            taskResult.TaskPrompt = LimitBenchmarkEvidence(task.Prompt, BenchmarkParameters.MaximumTaskPromptEvidenceCharacters, out var promptTruncated);
             taskResult.TaskPromptTruncated = promptTruncated;
             result.Tasks.Add(taskResult);
             var providerTrace = new StringBuilder();
@@ -70,7 +70,7 @@ namespace LocalGPT.Services
                     model,
                     "0s",
                     profile.ContextTokens,
-                    TimeSpan.FromSeconds(maxSeconds + 15),
+                    TimeSpan.FromSeconds(maxSeconds + BenchmarkParameters.ClientTimeoutPaddingSeconds),
                     profile.OllamaNumGpu,
                     enableAutomaticTools: false,
                     throwOnFailure: true);
@@ -84,9 +84,7 @@ namespace LocalGPT.Services
                     providerStream(attemptHeader);
                     var messages = new List<ChatMessage>
                     {
-                        new(ChatRole.System,
-                            "You are the provider-qualified Benchmark Subject for one bounded LocalGPT measurement. " +
-                            "The assignment is executable text/reasoning work. Execute it directly; do not decline because you are an AI model, do not ask another role to do it, do not call tools, and return only the requested final answer."),
+                        new(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.ProviderBenchmarkSubjectSystemPrompt)),
                         new(ChatRole.User, task.Prompt)
                     };
                     if (roleCorrectionPending)
@@ -192,7 +190,7 @@ namespace LocalGPT.Services
                     taskResult.QualityScore = 0d;
                     taskResult.TokensPerSecond = 0d;
                     var repeatedCompact = text.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
-                    taskResult.ResponsePreview = repeatedCompact[..Math.Min(repeatedCompact.Length, 320)];
+                    taskResult.ResponsePreview = repeatedCompact[..Math.Min(repeatedCompact.Length, BenchmarkParameters.ResponsePreviewCharacters)];
                     publish(
                         $"- Task {taskIndex + 1}/{tasks.Count}: repetition recovery exhausted for {model.DisplayName} / {profile.Name}. " +
                         "The failed provider stream remains inspectable and the benchmark will continue instead of blocking this host queue.");
@@ -205,7 +203,7 @@ namespace LocalGPT.Services
                         !LooksLikeGenericCapabilityRefusal(text) &&
                         taskResult.QualityScore >= 0.30d;
                     var compact = text.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
-                    taskResult.ResponsePreview = compact[..Math.Min(compact.Length, 320)];
+                    taskResult.ResponsePreview = compact[..Math.Min(compact.Length, BenchmarkParameters.ResponsePreviewCharacters)];
                     publish(taskResult.Succeeded
                         ? $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} completed for {model.DisplayName} / {profile.Name} in {taskResult.TotalMilliseconds} ms · quality {taskResult.QualityScore:0.000} · {taskResult.TokensPerSecond:0.00} token/s."
                         : $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} returned no contract-compliant response for {model.DisplayName} / {profile.Name}.");
@@ -235,9 +233,9 @@ namespace LocalGPT.Services
                 // A timeout/failure/repetition stop can leave an unclosed thinking block in the partial stream. Keep
                 // that evidence in ProviderTrace rather than relabelling it as a scored final answer.
                 var fullProviderTrace = providerTrace.ToString();
-                taskResult.ResponseText = LimitBenchmarkEvidence(text, 48_000, out var responseTruncated);
+                taskResult.ResponseText = LimitBenchmarkEvidence(text, BenchmarkParameters.MaximumResponseEvidenceCharacters, out var responseTruncated);
                 taskResult.ResponseTextTruncated = responseTruncated;
-                taskResult.ProviderTrace = LimitBenchmarkEvidence(fullProviderTrace, 64_000, out var traceTruncated);
+                taskResult.ProviderTrace = LimitBenchmarkEvidence(fullProviderTrace, BenchmarkParameters.MaximumProviderTraceEvidenceCharacters, out var traceTruncated);
                 taskResult.ProviderTraceTruncated = traceTruncated;
                 taskResult.EvidenceArtifactId = await TryPersistFullTaskEvidenceAsync(
                     runId,
@@ -326,8 +324,8 @@ namespace LocalGPT.Services
             using var client = providerModels.CreateChatClient(
                 reviewer,
                 "0s",
-                Math.Min(maximumContext, Math.Max(4096, profile.ContextTokens)),
-                TimeSpan.FromSeconds(maxSeconds + 15),
+                Math.Min(maximumContext, Math.Max(BenchmarkParameters.MinimumRecommendedContextTokens, profile.ContextTokens)),
+                TimeSpan.FromSeconds(maxSeconds + BenchmarkParameters.ClientTimeoutPaddingSeconds),
                 reviewer.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase) ? profile.OllamaNumGpu : null,
                 enableAutomaticTools: false,
                 throwOnFailure: true);
@@ -352,20 +350,20 @@ namespace LocalGPT.Services
                 {evidence}
 
                 Return one JSON object only with numeric fields qualityScore and reliabilityScore from 0 to 100,
-                recommendedContextTokens from 2048 to {maximumContext}, recommendedOutputTokens from 128 to {maximumOutput},
+                recommendedContextTokens from {BenchmarkParameters.MinimumRecommendedContextTokens} to {maximumContext}, recommendedOutputTokens from {BenchmarkParameters.MinimumRecommendedOutputTokens} to {maximumOutput},
                 and a short rationale string. Do not include markdown fences.
                 """;
             var response = await client.GetResponseAsync(
-                [new ChatMessage(ChatRole.System, "You are one bounded reviewer in a model benchmark council. Use only the supplied evidence."),
+                [new ChatMessage(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.ProviderBenchmarkReviewerSystemPrompt)),
                  new ChatMessage(ChatRole.User, prompt)],
-                new ChatOptions { MaxOutputTokens = Math.Min(512, maximumOutput), Temperature = 0f },
+                new ChatOptions { MaxOutputTokens = Math.Min(BenchmarkParameters.ReviewerMaximumOutputTokens, maximumOutput), Temperature = 0f },
                 timeout.Token).ConfigureAwait(false);
             using var document = ParseFirstJsonObject(response.Text ?? string.Empty);
             var root = document.RootElement;
             review.QualityScore = ReadDouble(root, "qualityScore", profile.Score);
             review.ReliabilityScore = ReadDouble(root, "reliabilityScore", profile.Score);
-            review.RecommendedContextTokens = Math.Clamp(ReadInt(root, "recommendedContextTokens", profile.ContextTokens), 2048, maximumContext);
-            review.RecommendedOutputTokens = Math.Clamp(ReadInt(root, "recommendedOutputTokens", profile.OutputTokens), 128, maximumOutput);
+            review.RecommendedContextTokens = Math.Clamp(ReadInt(root, "recommendedContextTokens", profile.ContextTokens), BenchmarkParameters.MinimumRecommendedContextTokens, maximumContext);
+            review.RecommendedOutputTokens = Math.Clamp(ReadInt(root, "recommendedOutputTokens", profile.OutputTokens), BenchmarkParameters.MinimumRecommendedOutputTokens, maximumOutput);
             review.Rationale = root.TryGetProperty("rationale", out var rationale) ? rationale.GetString() ?? string.Empty : string.Empty;
             publish($"- Reviewer {reviewer.DisplayName} completed · quality {review.QualityScore:0.0} · reliability {review.ReliabilityScore:0.0} · context {review.RecommendedContextTokens:N0} · output {review.RecommendedOutputTokens:N0}.");
         }

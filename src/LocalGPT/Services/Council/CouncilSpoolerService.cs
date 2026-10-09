@@ -38,6 +38,12 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     /// Stores the LocalGPT vocabulary service dependency used by <see cref="CouncilSpoolerService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly ILocalGptVocabularyService vocabulary;
+    /// <summary>Provides database-backed spooler retention, paging and persistence timing.</summary>
+    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
+    /// <summary>Gets database-backed read and retention limits for the spooler.</summary>
+    private ServiceQueryRuntimeParameters QueryParameters => runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson);
+    /// <summary>Gets database-backed service timing for spooler persistence.</summary>
+    private ServiceTimingRuntimeParameters TimingParameters => runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson);
     /// <summary>
     /// Stores the cancellation source used by <see cref="CouncilSpoolerService"/> to stop its current background or asynchronous operation.
     /// </summary>
@@ -58,11 +64,13 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     /// <param name="vocabulary">Local gpt vocabulary service dependency used by the council spooler workflow to provide the corresponding application capability.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     /// <param name="taskRunner">Supervised task owner used for intentionally concurrent delayed checkpoint persistence.</param>
-    public CouncilSpoolerService(ILocalGptVocabularyService vocabulary, ILogger<CouncilSpoolerService> logger, ISupervisedTaskRunner taskRunner)
+    /// <param name="runtimePolicy">Database-backed runtime policy used for spooler limits and persistence timing.</param>
+    public CouncilSpoolerService(ILocalGptVocabularyService vocabulary, ILogger<CouncilSpoolerService> logger, ISupervisedTaskRunner taskRunner, ILocalGptRuntimePolicyDataService runtimePolicy)
     {
         this.vocabulary = vocabulary;
         this.logger = logger;
         this.taskRunner = taskRunner;
+        this.runtimePolicy = runtimePolicy;
         LoadCheckpoint();
     }
 
@@ -155,7 +163,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                 var copy = CloneStep(step);
                 if (existing >= 0) snapshot.Steps[existing] = copy;
                 else snapshot.Steps.Add(copy);
-                snapshot.Steps = snapshot.Steps.OrderBy(item => item.SortOrder).TakeLast(512).ToList();
+                snapshot.Steps = snapshot.Steps.OrderBy(item => item.SortOrder).TakeLast(QueryParameters.CouncilSpoolerMaximumSteps).ToList();
                 snapshot.CurrentRound = Math.Max(snapshot.CurrentRound, step.Round);
                 snapshot.Phase = step.Phase;
                 snapshot.UpdatedAtUtc = DateTime.UtcNow;
@@ -198,7 +206,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                 snapshot.ModelNames = [.. result.ModelNames];
                 snapshot.CouncilTeamKey = result.CouncilTeamKey;
                 snapshot.Prompt = result.Prompt;
-                snapshot.Steps = result.Steps.OrderBy(item => item.SortOrder).TakeLast(512).Select(CloneStep).ToList();
+                snapshot.Steps = result.Steps.OrderBy(item => item.SortOrder).TakeLast(QueryParameters.CouncilSpoolerMaximumSteps).Select(CloneStep).ToList();
             }
             NotifyChanged();
     
@@ -219,7 +227,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     /// <param name="includeCompleted">Value indicating whether include completed should apply to this operation.</param>
     /// <param name="take">Take value supplied to the council spooler operation and used when producing its result.</param>
     /// <returns>The collection produced by the operation.</returns>
-    public IReadOnlyList<CouncilSpoolerSnapshot> GetSnapshots(bool includeCompleted = true, int take = 30)
+    public IReadOnlyList<CouncilSpoolerSnapshot> GetSnapshots(bool includeCompleted = true, int take = 0)
     {
     try
     {
@@ -229,7 +237,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                     .Where(item => includeCompleted || item.Status == vocabulary.Get().CouncilSpoolerRunning)
                     .OrderByDescending(item => item.Status == vocabulary.Get().CouncilSpoolerRunning)
                     .ThenByDescending(item => item.UpdatedAtUtc)
-                    .Take(Math.Clamp(take, 1, 100))
+                    .Take(Math.Clamp(take <= 0 ? QueryParameters.CouncilSpoolerDefault : take, 1, QueryParameters.CouncilSpoolerMaximum))
                     .Select(CloneSnapshot)
                     .ToList();
             }
@@ -316,11 +324,11 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     {
         try
         {
-            await Task.Delay(250, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimingParameters.CouncilSpoolerPersistenceDelayMilliseconds, cancellationToken).ConfigureAwait(false);
             await persistenceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                var snapshots = GetSnapshots(includeCompleted: true, take: 50);
+                var snapshots = GetSnapshots(includeCompleted: true, take: QueryParameters.CouncilSpoolerCheckpointCount);
                 Directory.CreateDirectory(Path.GetDirectoryName(CheckpointPath)!);
                 var temporary = CheckpointPath + ".tmp";
                 var stream = File.Create(temporary);
@@ -344,7 +352,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
             if (!File.Exists(CheckpointPath)) return;
             using var stream = File.OpenRead(CheckpointPath);
             var saved = JsonSerializer.Deserialize<List<CouncilSpoolerSnapshot>>(stream, JsonOptions) ?? [];
-            foreach (var snapshot in saved.Take(50))
+            foreach (var snapshot in saved.Take(QueryParameters.CouncilSpoolerCheckpointCount))
             {
                 // A process restart cannot keep the actual model task alive. Preserve the transcript and
                 // mark previously-running checkpoints as failed/recoverable context instead of pretending.

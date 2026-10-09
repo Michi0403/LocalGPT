@@ -1,12 +1,15 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 
 namespace LocalGPT.Mcp;
 
 /// <summary>
 /// Owns MCP gateway draft cloning and normalization so UI components only coordinate presentation and persistence.
 /// </summary>
-public sealed class LocalGptMcpConfigurationPolicy
+public sealed class LocalGptMcpConfigurationPolicy(ILocalGptRuntimePolicyDataService runtimePolicy)
 {
+    /// <summary>Gets the current database-backed MCP operational parameter set.</summary>
+    private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>(LocalGptRuntimeValue.McpGatewayRuntimeParametersJson);
     /// <summary>Creates a detached MCP gateway option copy for editable UI state.</summary>
     public McpGatewayOptions Clone(McpGatewayOptions? source)
     {
@@ -72,54 +75,59 @@ public sealed class LocalGptMcpConfigurationPolicy
     {
         ArgumentNullException.ThrowIfNull(source);
 
+        var parameters = Parameters;
         var result = Clone(source);
-        result.Address = string.IsNullOrWhiteSpace(result.Address) ? "127.0.0.1" : result.Address.Trim();
-        result.Port = result.Port is >= 1 and <= 65535 ? result.Port : McpGatewayOptions.DefaultPort;
+        result.Address = string.IsNullOrWhiteSpace(result.Address) ? parameters.DefaultAddress : result.Address.Trim();
+        result.Port = result.Port >= parameters.MinimumPort && result.Port <= parameters.MaximumPort ? result.Port : parameters.DefaultPort;
         result.Path = NormalizePath(result.Path);
         result.CertificatePath = result.CertificatePath?.Trim() ?? string.Empty;
         result.CertificatePassword ??= string.Empty;
         result.ApiKey = result.ApiKey?.Trim() ?? string.Empty;
-        result.ApiKeyHeader = string.IsNullOrWhiteSpace(result.ApiKeyHeader) ? "X-LocalGPT-MCP-Key" : result.ApiKeyHeader.Trim();
-        result.ProtocolVersion = string.IsNullOrWhiteSpace(result.ProtocolVersion) ? "2026-07-28" : result.ProtocolVersion.Trim();
-        result.LegacyProtocolVersion = string.IsNullOrWhiteSpace(result.LegacyProtocolVersion) ? "2025-11-25" : result.LegacyProtocolVersion.Trim();
-        if (!result.EnableModernProtocol && !result.EnableLegacyProtocol)
+        result.ApiKeyHeader = string.IsNullOrWhiteSpace(result.ApiKeyHeader) ? parameters.DefaultApiKeyHeader : result.ApiKeyHeader.Trim();
+        result.ProtocolVersion = string.IsNullOrWhiteSpace(result.ProtocolVersion) ? parameters.ModernProtocolVersion : result.ProtocolVersion.Trim();
+        result.LegacyProtocolVersion = string.IsNullOrWhiteSpace(result.LegacyProtocolVersion) ? parameters.LegacyProtocolVersion : result.LegacyProtocolVersion.Trim();
+        if (parameters.EnableModernProtocolWhenNoneSelected && !result.EnableModernProtocol && !result.EnableLegacyProtocol)
             result.EnableModernProtocol = true;
-        result.CacheTtlMs = Math.Clamp(result.CacheTtlMs, 0, 86_400_000);
-        result.CacheScope = string.Equals(result.CacheScope, "public", StringComparison.OrdinalIgnoreCase) ? "public" : "private";
-        result.AllowedHosts = string.IsNullOrWhiteSpace(result.AllowedHosts) ? "localhost;127.0.0.1;::1;[::1]" : result.AllowedHosts.Trim();
+        result.CacheTtlMs = Math.Clamp(result.CacheTtlMs, parameters.MinimumCacheTtlMilliseconds, parameters.MaximumCacheTtlMilliseconds);
+        result.CacheScope = string.Equals(result.CacheScope, parameters.PublicCacheScope, StringComparison.OrdinalIgnoreCase)
+            ? parameters.PublicCacheScope
+            : parameters.PrivateCacheScope;
+        result.AllowedHosts = string.IsNullOrWhiteSpace(result.AllowedHosts) ? parameters.DefaultAllowedHosts : result.AllowedHosts.Trim();
         result.AllowedOrigins = result.AllowedOrigins?.Trim() ?? string.Empty;
-        if (result.AllowRemoteClients)
+        if (parameters.RequireApiKeyForRemoteClients && result.AllowRemoteClients)
             result.RequireApiKey = true;
-        if (result.Enabled && !result.DedicatedListenerEnabled && !result.ExposeOnPrimaryEndpoint)
+        if (parameters.EnableDedicatedListenerWhenNoEndpointSelected && result.Enabled && !result.DedicatedListenerEnabled && !result.ExposeOnPrimaryEndpoint)
             result.DedicatedListenerEnabled = true;
         result.AllowedProjectIds = result.AllowedProjectIds?.Trim() ?? string.Empty;
         result.ToolIncludePrefixes = result.ToolIncludePrefixes?.Trim() ?? string.Empty;
         result.ToolExcludePrefixes = result.ToolExcludePrefixes?.Trim() ?? string.Empty;
-        result.MaxRequestBodyBytes = Math.Clamp(result.MaxRequestBodyBytes, 1024, 64 * 1024 * 1024);
-        result.MaxListItems = Math.Clamp(result.MaxListItems, 1, 10000);
-        result.MaxResultCharacters = Math.Clamp(result.MaxResultCharacters, 1024, 8_000_000);
+        result.MaxRequestBodyBytes = Math.Clamp(result.MaxRequestBodyBytes, parameters.MinimumRequestBodyBytes, parameters.MaximumRequestBodyBytes);
+        result.MaxListItems = Math.Clamp(result.MaxListItems, parameters.MinimumListItems, parameters.MaximumListItems);
+        result.MaxResultCharacters = Math.Clamp(result.MaxResultCharacters, parameters.MinimumResultCharacters, parameters.MaximumResultCharacters);
         return result;
     }
 
-    /// <summary>Creates a cryptographically random 256-bit API key suitable for MCP client admission.</summary>
+    /// <summary>Creates a cryptographically random API key using the database-backed MCP key-size policy.</summary>
     public string GenerateApiKey()
     {
-        return Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        return Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(Parameters.ApiKeyBytes));
     }
 
     /// <summary>Normalizes an MCP HTTP route and keeps it under the MCP route namespace.</summary>
     public string NormalizePath(string? value)
     {
-        var path = string.IsNullOrWhiteSpace(value) ? "/mcp" : value.Trim();
+        var rootPath = Parameters.RootPath;
+        var path = string.IsNullOrWhiteSpace(value) ? rootPath : value.Trim();
         if (!path.StartsWith('/'))
             path = "/" + path;
         if (path.Length > 1)
             path = path.TrimEnd('/');
         if (path.Equals("/", StringComparison.Ordinal))
-            return "/mcp";
-        if (!path.Equals("/mcp", StringComparison.OrdinalIgnoreCase) &&
-            !path.StartsWith("/mcp/", StringComparison.OrdinalIgnoreCase))
-            path = "/mcp" + path;
+            return rootPath;
+        var rootedPrefix = rootPath.EndsWith("/", StringComparison.Ordinal) ? rootPath : rootPath + "/";
+        if (!path.Equals(rootPath, StringComparison.OrdinalIgnoreCase) &&
+            !path.StartsWith(rootedPrefix, StringComparison.OrdinalIgnoreCase))
+            path = rootPath + path;
         return path;
     }
 }

@@ -16,20 +16,14 @@ public sealed class CouncilCodeGenerationPlanService(
 {
 
     /// <summary>
-    /// Stores the internal tagged plan pattern state used by <see cref="CouncilCodeGenerationPlanService"/> while executing its surrounding workflow.
+    /// Stores the database-backed tagged plan pattern used by the Council code-generation parser.
     /// </summary>
-    private readonly Regex taggedPlanPattern = new(
-        @"<localgpt-change-review>\s*(?<json>.*?)\s*</localgpt-change-review>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(2));
+    private readonly Regex taggedPlanPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilTaggedPlan);
 
     /// <summary>
-    /// Stores the internal fenced plan pattern state used by <see cref="CouncilCodeGenerationPlanService"/> while executing its surrounding workflow.
+    /// Stores the database-backed fenced plan pattern used by the Council code-generation parser.
     /// </summary>
-    private readonly Regex fencedPlanPattern = new(
-        @"```(?:localgpt-change-review|json\s+localgpt-change-review)\s*(?<json>.*?)\s*```",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(2));
+    private readonly Regex fencedPlanPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilFencedPlan);
 
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="CouncilCodeGenerationPlanService"/> while executing its surrounding workflow.

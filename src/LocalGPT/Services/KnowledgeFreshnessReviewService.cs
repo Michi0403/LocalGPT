@@ -17,12 +17,13 @@ public sealed class KnowledgeFreshnessReviewService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILocalGptVocabularyService vocabulary,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<KnowledgeFreshnessReviewService> logger) : IKnowledgeFreshnessReviewService
 {
     private const string ReviewOperationPrefix = "knowledge.freshness.review:";
     private const string RefreshOperationPrefix = "knowledge.freshness.refresh:";
     private const int MaximumApprovalSourceUrlLength = 1200;
-    private readonly Regex UrlRegex = new(@"https?://[^\s<>""']+", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private readonly Regex UrlRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ExternalHttpUrl);
 
     public async Task<KnowledgeFreshnessReviewResult> ReportAsync(KnowledgeFreshnessReportRequest request, CancellationToken cancellationToken = default)
     {

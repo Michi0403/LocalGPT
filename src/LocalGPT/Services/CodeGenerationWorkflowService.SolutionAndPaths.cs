@@ -200,7 +200,7 @@ namespace LocalGPT.Services
                    name.Equals("PRN", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("AUX", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("NUL", StringComparison.OrdinalIgnoreCase) ||
-                   Regex.IsMatch(name, "^(COM|LPT)[1-9]$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                   runtimePolicy.GetPattern(LocalGptRuntimePattern.WindowsReservedDeviceName).IsMatch(name);
     
     }
     catch (Exception __serviceMethodException)

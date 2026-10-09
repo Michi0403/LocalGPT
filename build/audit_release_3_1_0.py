@@ -43,15 +43,15 @@ try:
 
     require('global.json', '"version": "10.0.400"')
     require('src/LocalGPT/LocalGPT.csproj',
-            '<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />',
-            '<PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.11" />',
-            '<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">',
-            '<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />',
-            '<PackageReference Include="System.CodeDom" Version="10.0.11" />',
+            '<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />',
+            '<PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.12" />',
+            '<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">',
+            '<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />',
+            '<PackageReference Include="System.CodeDom" Version="10.0.12" />',
             '<PackageReference Include="DevExpress.Blazor" Version="25.2.*" />',
             '<PackageReference Include="DevExpress.AIIntegration.Blazor.Chat" Version="25.2.*" />')
     require('src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj',
-            '<PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.11" />')
+            '<PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12" />')
 
     # Preserve the exact migration/database source supplied by the user. This release
     # intentionally does not manufacture a migration from the dependency upgrade.
@@ -80,7 +80,7 @@ try:
         raise AssertionError(f'expected 20 explicit @rendermode files, found {len(render_files)}')
 
     require('CHANGELOG-v3.1.0-DOTNET-DEVEXPRESS-UPGRADE.md',
-            '10.0.400', '10.0.11', '25.2.*', 'byte-for-byte', '2.1.1')
+            '10.0.400', '10.0.12', '25.2.*', 'byte-for-byte', '2.1.1')
     require('VALIDATION-v3.1.0-source.md', 'No `dotnet`', 'byte-identical')
 
     print(f'LocalGPT 3.1.0 .NET/DevExpress upgrade source audit passed: {checks} checks.')

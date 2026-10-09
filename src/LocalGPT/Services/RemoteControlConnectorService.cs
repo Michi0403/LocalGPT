@@ -14,7 +14,6 @@ namespace LocalGPT.Services;
 /// <param name="transport">Bounded network and webhook transport service.</param>
 /// <param name="pipelines">Remote Control action-pipeline service.</param>
 /// <param name="executionStore">Bounded execution audit store.</param>
-/// <param name="regex">Shared regular-expression policy service.</param>
 /// <param name="runtimePolicy">Persisted operator runtime policy.</param>
 /// <param name="logger">Logger used for operational diagnostics.</param>
 public sealed class RemoteControlConnectorService(
@@ -23,14 +22,13 @@ public sealed class RemoteControlConnectorService(
     IRemoteControlTransportService transport,
     IRemoteControlPipelineService pipelines,
     IRemoteControlExecutionStoreService executionStore,
-    IRegexCompilationService regex,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RemoteControlConnectorService> logger) : IRemoteControlConnectorService
 {
     /// <summary>
     /// Stores the internal key pattern state used by <see cref="RemoteControlConnectorService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly System.Text.RegularExpressions.Regex _keyPattern = regex.Compile("^[a-z0-9][a-z0-9._-]{0,95}$", "c", TimeSpan.FromSeconds(2), nameof(RemoteControlConnectorService));
+    private readonly System.Text.RegularExpressions.Regex _keyPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.RemoteControlKey);
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="RemoteControlConnectorService"/> while executing its surrounding workflow.
     /// </summary>

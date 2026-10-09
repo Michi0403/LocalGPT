@@ -111,26 +111,11 @@ namespace LocalGPT.Services
                     ? ExtractLatestAssistantConsensus(normalized)
                     : ExtractInnermostUserRequest(normalized);
                 normalized = StripLocalGptRenderingPanels(normalized);
-                normalized = Regex.Replace(
-                    normalized,
-                    @"<!--localgpt-council-stream-complete:[a-f0-9]{32}-->|<p\s+class=""localgpt-stream-status""[^>]*>.*?</p>",
-                    string.Empty,
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
-                    TimeSpan.FromSeconds(2));
+                normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilStreamArtifacts).Replace(normalized, string.Empty);
                 normalized = WebUtility.HtmlDecode(normalized);
                 normalized = RepairUnbalancedMarkdownFence(normalized);
-                normalized = Regex.Replace(
-                    normalized,
-                    @"(?m)^[ \t]+$",
-                    string.Empty,
-                    RegexOptions.CultureInvariant,
-                    TimeSpan.FromSeconds(2));
-                normalized = Regex.Replace(
-                    normalized,
-                    @"\n{4,}",
-                    "\n\n\n",
-                    RegexOptions.CultureInvariant,
-                    TimeSpan.FromSeconds(2)).Trim();
+                normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilWhitespaceOnlyLine).Replace(normalized, string.Empty);
+                normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.ExcessBlankLines).Replace(normalized, "\n\n\n").Trim();
 
                 const int maximumHistoryCharacters = 32_000;
                 return normalized.Length <= maximumHistoryCharacters
@@ -154,11 +139,7 @@ namespace LocalGPT.Services
         {
     try
     {
-                var matches = Regex.Matches(
-                    value,
-                    @"(?m)^[ \t]*(?<fence>`{3,})[^\r\n]*$",
-                    RegexOptions.CultureInvariant,
-                    TimeSpan.FromSeconds(2));
+                var matches = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilMarkdownFenceLine).Matches(value);
                 if (matches.Count == 0 || matches.Count % 2 == 0)
                     return value;
 
@@ -193,11 +174,7 @@ namespace LocalGPT.Services
                     !value.Contains("Answer this DXAiChat conversation", StringComparison.OrdinalIgnoreCase))
                     return value;
 
-                var matches = Regex.Matches(
-                    value,
-                    @"(?ms)^User:\s*(?<body>.*?)(?=^Previous assistant consensus:|^User:|\z)",
-                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-                    TimeSpan.FromSeconds(2));
+                var matches = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilUserTranscriptBlock).Matches(value);
                 var candidate = matches
                     .Select(match => match.Groups["body"].Value.Trim())
                     .LastOrDefault(body => !string.IsNullOrWhiteSpace(body) &&
@@ -205,12 +182,7 @@ namespace LocalGPT.Services
                 if (!string.IsNullOrWhiteSpace(candidate))
                     return candidate;
 
-                return Regex.Replace(
-                    value,
-                    @"(?im)^(?:AI Council request:|Council members:.*|Answer this DXAiChat conversation.*|Use the selected members.*)\s*$",
-                    string.Empty,
-                    RegexOptions.CultureInvariant,
-                    TimeSpan.FromSeconds(2)).Trim();
+                return runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilBoilerplateLine).Replace(value, string.Empty).Trim();
         
     }
     catch (Exception __serviceMethodException)
@@ -287,26 +259,16 @@ namespace LocalGPT.Services
     try
     {
                 var result = value;
-                const string controlledPanelPattern = @"<details\s+class=""(?:model-thinking(?:\s+open)?|council-step(?:\s+council-live)?|council-prompt)""[^>]*>.*?</details>";
+                var controlledPanelPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilControlledDetailsBlock);
                 for (var pass = 0; pass < 6; pass++)
                 {
-                    var cleaned = Regex.Replace(
-                        result,
-                        controlledPanelPattern,
-                        string.Empty,
-                        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
-                        TimeSpan.FromSeconds(2));
+                    var cleaned = controlledPanelPattern.Replace(result, string.Empty);
                     if (string.Equals(cleaned, result, StringComparison.Ordinal))
                         break;
                     result = cleaned;
                 }
 
-                return Regex.Replace(
-                    result,
-                    @"</?(?:details|summary|pre)(?:\s[^>]*)?>",
-                    string.Empty,
-                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-                    TimeSpan.FromSeconds(2));
+                return runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilPanelTag).Replace(result, string.Empty);
         
     }
     catch (Exception __serviceMethodException)
@@ -667,7 +629,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(source))
                     source = prompt;
 
-                var slug = Regex.Replace(source ?? "prompt", "[^A-Za-z0-9]+", "-")
+                var slug = runtimePolicy.GetPattern(LocalGptRuntimePattern.NonAlphanumeric).Replace(source ?? "prompt", "-")
                     .Trim('-')
                     .ToLowerInvariant();
                 if (string.IsNullOrWhiteSpace(slug))

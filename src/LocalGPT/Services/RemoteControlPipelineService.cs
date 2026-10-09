@@ -13,8 +13,8 @@ namespace LocalGPT.Services;
 /// <param name="registry">DXFunction invocation registry.</param>
 /// <param name="templates">Remote Control interpolation service.</param>
 /// <param name="executionStore">Remote Control execution audit store.</param>
-/// <param name="regex">Shared regular-expression policy service.</param>
 /// <param name="logger">Logger used for operational diagnostics.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class RemoteControlPipelineService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -22,13 +22,13 @@ public sealed class RemoteControlPipelineService(
     IDxAiFunctionRegistry registry,
     IRemoteControlTemplateService templates,
     IRemoteControlExecutionStoreService executionStore,
-    IRegexCompilationService regex,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RemoteControlPipelineService> logger) : IRemoteControlPipelineService
 {
     /// <summary>
     /// Stores the internal key pattern state used by <see cref="RemoteControlPipelineService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly System.Text.RegularExpressions.Regex _keyPattern = regex.Compile("^[a-z0-9][a-z0-9._-]{0,95}$", "c", TimeSpan.FromSeconds(2), nameof(RemoteControlPipelineService));
+    private readonly System.Text.RegularExpressions.Regex _keyPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.RemoteControlKey);
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="RemoteControlPipelineService"/> while executing its surrounding workflow.
     /// </summary>

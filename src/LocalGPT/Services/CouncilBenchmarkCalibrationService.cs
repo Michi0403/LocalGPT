@@ -56,12 +56,13 @@ public sealed class CouncilBenchmarkCalibrationService(
                 throw new InvalidOperationException("None of the selected provider-qualified Council members supports the maintained benchmark contract.");
 
             var benchmarkRunId = Guid.NewGuid();
-            var profileCount = Math.Clamp(request.ProfileCount, 1, 16);
+            var parameters = catalog.GetRuntimeParameters<ModelBenchmarkRuntimeParameters>(LocalGptRuntimeValue.ModelBenchmarkRuntimeParametersJson);
+            var profileCount = Math.Clamp(request.ProfileCount, parameters.MinimumProfilesPerModel, parameters.MaximumProfilesPerModel);
             var maximumContextTokens = Math.Clamp(request.MaximumContextTokens, catalog.MinContextTokens, catalog.MaxContextTokens);
             var minimumContextTokens = Math.Clamp(request.MinimumContextTokens, catalog.MinContextTokens, maximumContextTokens);
             var maximumOutputTokens = Math.Clamp(request.MaximumOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens);
             var minimumOutputTokens = Math.Clamp(request.MinimumOutputTokens, catalog.MinOutputTokens, maximumOutputTokens);
-            var timeoutSeconds = Math.Clamp(request.MaxSecondsPerCall, 10, 900);
+            var timeoutSeconds = Math.Clamp(request.MaxSecondsPerCall, parameters.MinimumSecondsPerCall, parameters.MaximumSecondsPerCall);
             var failureStop = Math.Clamp(request.StopAfterConsecutiveProfileFailures, 0, profileCount);
             var taskPack = BuildCuratedTaskPack(request.TaskPackText);
             var profileNames = BuildProfileNames(profileCount);
@@ -138,7 +139,7 @@ public sealed class CouncilBenchmarkCalibrationService(
                                 IncludeCpuSafeControl = false,
                                 StopWhenImprovementStalls = false,
                                 StopAfterConsecutiveProfileFailures = failureStop,
-                                RepetitionRecoveryAttempts = Math.Clamp(request.RepetitionRecoveryAttempts, 0, 8),
+                                RepetitionRecoveryAttempts = Math.Clamp(request.RepetitionRecoveryAttempts, 0, parameters.MaximumRepetitionRecoveryAttempts),
                                 MaxTasks = 1,
                                 TaskDefinitions = [taskPack],
                                 MaxCouncilReviewers = 0,

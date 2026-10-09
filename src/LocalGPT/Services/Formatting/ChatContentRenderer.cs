@@ -25,80 +25,47 @@ public sealed class ChatContentRenderer(
     /// <summary>
     /// Stores the internal harmony marker regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex HarmonyMarkerRegex = new(
-        @"<\|[^>]+\|>",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex HarmonyMarkerRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyMarker);
     /// <summary>
     /// Stores the internal thinking details start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex ThinkingDetailsStartRegex = new(
-        "<details\\s+class=\"model-thinking(?:\\s+open)?\"(?:\\s+open)?\\s*>",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex ThinkingDetailsStartRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.RenderThinkingDetailsStart);
     /// <summary>
     /// Stores the internal council completion marker regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex CouncilCompletionMarkerRegex = new(
-        @"<!--localgpt-council-stream-complete:(?<id>[a-f0-9]{32})-->",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex CouncilCompletionMarkerRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilCompletionMarker);
     /// <summary>
     /// Stores the internal list after HTML regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex ListAfterHtmlRegex = new(
-        @"(</(?:p|details|pre|div)>)\s*((?:[-*]|\d+\.)\s+)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex ListAfterHtmlRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ListAfterHtml);
     /// <summary>
     /// Stores the internal controlled details start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex ControlledDetailsStartRegex = new(
-        "<details\\s+class=\"(?:model-thinking(?:\\s+open)?|council-step(?:\\s+council-live)?|council-prompt)\"[^>]*>",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex ControlledDetailsStartRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ControlledDetailsStart);
     /// <summary>
     /// Stores the internal details end regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex DetailsEndRegex = new(
-        @"</details>",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex DetailsEndRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.DetailsEnd);
     /// <summary>
     /// Stores the internal stable panel start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex StablePanelStartRegex = new(
-        "<details\\s+class=\"(?<class>model-thinking(?:\\s+open)?|council-step(?:\\s+council-live)?|council-prompt)\"(?<attributes>[^>]*)>",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex StablePanelStartRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.StablePanelStart);
     /// <summary>
     /// Stores the internal stream identifier attribute regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex StreamIdAttributeRegex = new(
-        "data-localgpt-stream-id=\"(?<id>[a-f0-9]{32})\"",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex StreamIdAttributeRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.StreamIdAttribute);
     /// <summary>
     /// Stores the internal pre start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex PreStartRegex = new(
-        @"<pre(?:\s[^>]*)?>",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex PreStartRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.PreStart);
     /// <summary>
     /// Stores the internal pre end regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex PreEndRegex = new(
-        @"</pre>",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex PreEndRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.PreEnd);
     /// <summary>
     /// Stores the internal ascii frame regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex AsciiFrameRegex = new(
-        @"\[\[ASCII_FRAME(?:\s+(?<attributes>[^\]]+))?\]\]\s*(?<frame>.*?)\s*\[\[/ASCII_FRAME\]\]",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.Singleline,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex AsciiFrameRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatAsciiFrame);
     /// <summary>
     /// Decodes only human-facing quote and apostrophe entities before structured-text recognition.
     /// Markup-significant entities such as &amp;lt;, &amp;gt;, and &amp;amp; deliberately remain encoded.
@@ -187,17 +154,11 @@ public sealed class ChatContentRenderer(
     /// <summary>
     /// Repairs a small set of known prose label/number boundaries emitted without whitespace by some local models.
     /// </summary>
-    private readonly Regex ProseLabelBoundaryRegex = new(
-        @"\b(?<label>output|context|input|timeout|connected|detailed)(?=(?:\d|1-Wire\b))",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex ProseLabelBoundaryRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatProseLabelBoundary);
     /// <summary>
     /// Repairs a missing boundary between a numeric value and common prose units without touching identifiers.
     /// </summary>
-    private readonly Regex ProseUnitBoundaryRegex = new(
-        @"(?<=\d)(?=(?:tokens?|models?|members?|capabilit(?:y|ies)|rounds?|seconds?|minutes?|messages?|files?|functions?|skills?|organs?|peers?|roads?)\b)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
-        runtimePolicy.RegexTimeout);
+    private readonly Regex ProseUnitBoundaryRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatProseUnitBoundary);
 
     /// <summary>
     /// Stores the internal markdown pipeline state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.

@@ -24,6 +24,7 @@ namespace LocalGPT.Services
     /// <param name="councilText">Council text service dependency used by the Entity Framework chat memory workflow to provide the corresponding application capability.</param>
     /// <param name="messageMapper">Chat memory message mapper dependency used by the Entity Framework chat memory workflow to provide the corresponding application capability.</param>
     /// <param name="sessionContext">Chat session context dependency used by the Entity Framework chat memory workflow to provide the corresponding application capability.</param>
+    /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
     public partial class EfChatMemoryService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
@@ -31,7 +32,8 @@ namespace LocalGPT.Services
         ILogger<EfChatMemoryService> logger,
         CouncilTextService councilText,
         IChatMemoryMessageMapper messageMapper,
-        IChatSessionContext sessionContext) : IChatMemoryService
+        IChatSessionContext sessionContext,
+        ILocalGptRuntimePolicyDataService runtimePolicy) : IChatMemoryService
     {
         /// <summary>
         /// Stores the synchronization primitive that protects concurrent access to save gate state owned by <see cref="EfChatMemoryService"/>.
@@ -60,7 +62,7 @@ namespace LocalGPT.Services
                 return await db.Conversations
                     .AsNoTracking()
                     .OrderByDescending(conversation => conversation.UpdatedAtUtc)
-                    .Take(Math.Clamp(take, 1, 200))
+                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).ConversationListMaximum))
                     .Select(conversation => new ChatMemoryConversationSummary(
                         conversation.Id,
                         conversation.Title,
@@ -366,7 +368,7 @@ namespace LocalGPT.Services
                     .AsNoTracking()
                     .Where(message => message.Thinking != null && message.Thinking != string.Empty)
                     .OrderByDescending(message => message.CreatedAtUtc)
-                    .Take(Math.Clamp(take, 1, 100))
+                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).ConversationMessageMaximum))
                     .Select(message => new ChatMemoryThought(
                         message.ConversationId,
                         message.Conversation.Title,

@@ -40,6 +40,8 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         /// Stores the regex pattern service dependency used by <see cref="CodeGenerationWorkflowService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly IRegexPatternService regexPatterns;
+        /// <summary>Stores database-backed runtime regex/text policy used by generated-source validation.</summary>
+        private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
         /// <summary>Stores host filesystem semantics behind the injected platform boundary.</summary>
         private readonly IPlatformRuntimeService platform;
         /// <summary>
@@ -54,6 +56,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         /// <param name="projectMaintenance">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="projectArchitecture">Injected project architecture service used for database-first greenfield projects.</param>
         /// <param name="regexPatterns">Injected dependency used by the CodeGenerationWorkflowService.</param>
+        /// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
         /// <param name="platform">Injected platform runtime service providing cross-platform filesystem semantics.</param>
         /// <param name="logger">Injected dependency used by the CodeGenerationWorkflowService.</param>
         public CodeGenerationWorkflowService(
@@ -63,6 +66,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             IProjectMaintenanceService projectMaintenance,
             IProjectArchitectureService projectArchitecture,
             IRegexPatternService regexPatterns,
+            ILocalGptRuntimePolicyDataService runtimePolicy,
             IPlatformRuntimeService platform,
             ILogger<CodeGenerationWorkflowService> logger)
         {
@@ -72,6 +76,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             this.projectMaintenance = projectMaintenance;
             this.projectArchitecture = projectArchitecture;
             this.regexPatterns = regexPatterns;
+            this.runtimePolicy = runtimePolicy;
             this.platform = platform;
             this.logger = logger;
         }

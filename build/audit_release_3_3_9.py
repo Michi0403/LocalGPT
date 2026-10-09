@@ -26,7 +26,7 @@ require('System.Management.Automation.Language.Parser]::ParseInput' in compat, '
 require('has a PowerShell parser error' in compat, 'PowerShell parser diagnostics are missing')
 require((root / 'docs/DocfxDependencies.csproj').is_file(), 'DocFX dependency project is missing')
 probe = read('docs/DocfxDependencies.csproj')
-require('System.Formats.Nrbf' in probe and 'Version="10.0.11"' in probe and 'PrivateAssets="all"' in probe, 'DocFX NRBF probe is not pinned correctly')
+require('System.Formats.Nrbf' in probe and 'Version="10.0.12"' in probe and 'PrivateAssets="all"' in probe, 'DocFX NRBF probe is not pinned correctly')
 require('System.Formats.Nrbf' not in read('src/LocalGPT/LocalGPT.csproj'), 'LocalGPT runtime project gained direct NRBF dependency')
 
 require('[Complete API reference](../api/index.md)' in read('docs/reference/index.md'), 'API conceptual link does not target authored Markdown source')

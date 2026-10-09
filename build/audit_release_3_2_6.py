@@ -16,7 +16,7 @@ for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTInstallerConsole/LocalGP
 major,minor,patch=map(int,'3.2.6'.split('.'))
 if minor>=10 or patch>=10: failures.append('release version violates single-digit minor/patch policy')
 else: checks.append('single-digit minor/patch release policy')
-req(read('src/LocalGPT/LocalGPT.csproj'),'<DevExpressVersion>25.2.9</DevExpressVersion>','DevExpress 25.2.9 retention')
+req(read('src/LocalGPT/LocalGPT.csproj'),'<DevExpressVersion>25.2.10</DevExpressVersion>','DevExpress 25.2.10 retention')
 
 razor=read('src/LocalGPT/Components/Pages/RemoteControl.razor')
 code=read('src/LocalGPT/Components/Pages/RemoteControl.razor.cs')

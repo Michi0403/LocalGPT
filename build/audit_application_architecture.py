@@ -229,6 +229,7 @@ def runtime_value_audit(app_root: Path, product: str):
             'Services/Persistence/CouncilTextPatternDataService.cs',
             'Services/Persistence/RegexPatternService.cs',
             'Services/RegexCompilationService.cs',
+            'Services/RegexEngineService.cs',
         },
         'publisherstudio': {
             'Services/Configuration/PublisherRuntimePatternService.cs',
@@ -248,9 +249,19 @@ def runtime_value_audit(app_root: Path, product: str):
     if product=='localgpt':
         required={
             'Services/Persistence/LocalGptRuntimePolicySeedDataService.cs': ['RegexTimeoutMilliseconds','AllowedNativeExecutables','VocabularyJson'],
-            'Services/Persistence/LocalGptRuntimePolicyDataService.cs': ['ILocalGptRuntimePolicyStoreService','store.GetDefinition()','GetPattern','GetCollection'],
+            'Services/Persistence/LocalGptRuntimePolicyDataService.cs': ['ILocalGptRuntimePolicyStoreService','IRegexEngineService','store.GetDefinition()','RegexRuntimeParametersJson','GetPattern','GetCollection'],
+            'Services/RegexEngineService.cs': ['IRegexEngineService','RegexRuntimeParameters','new Regex('],
+            'Services/RegexCompilationService.cs': ['IRegexEngineService','ILocalGptRuntimePolicyDataService','RegexRuntimeParametersJson'],
             'Controller/RuntimePolicyController.cs': ['GetDefinition','GetSeed','Reload'],
         }
+        runtime_policy_text=(app_root/'Services/Persistence/LocalGptRuntimePolicyDataService.cs').read_text(encoding='utf-8-sig',errors='replace')
+        if 'IRegexCompilationService' in runtime_policy_text:
+            failures.append('Services/Persistence/LocalGptRuntimePolicyDataService.cs: runtime-policy bootstrap must not depend on IRegexCompilationService because the policy-aware compiler consumes ILocalGptRuntimePolicyDataService')
+        regex_engine_path=app_root/'Services/RegexEngineService.cs'
+        if regex_engine_path.exists():
+            regex_engine_text=regex_engine_path.read_text(encoding='utf-8-sig',errors='replace')
+            if 'ILocalGptRuntimePolicyDataService' in regex_engine_text or 'IRegexCompilationService' in regex_engine_text:
+                failures.append('Services/RegexEngineService.cs: policy-independent regex engine must not depend on runtime-policy or policy-aware regex services')
     else:
         required={
             'Services/Configuration/PublisherRuntimePolicyDataService.cs': ['PublisherRuntimePolicyOptions','GetCollection','GetSnapshot'],

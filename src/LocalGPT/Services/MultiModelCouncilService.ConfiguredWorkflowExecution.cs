@@ -161,7 +161,7 @@ namespace LocalGPT.Services
                         loopSteps.Add(configuredSteps[stepIndex + loopSteps.Count]);
                     }
 
-                    var maximumIterations = loopSteps.Max(step => Math.Clamp(step.MaximumLoopIterations, 1, 100));
+                    var maximumIterations = loopSteps.Max(step => Math.Clamp(step.MaximumLoopIterations, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumLoopIterations));
                     var completionMarker = loopSteps
                         .Select(step => step.LoopCompletionMarker?.Trim() ?? string.Empty)
                         .FirstOrDefault(marker => !string.IsNullOrWhiteSpace(marker)) ?? string.Empty;
@@ -575,7 +575,7 @@ namespace LocalGPT.Services
                     return string.Empty;
                 }
 
-                var maximumDepth = Math.Clamp(sourceDefinition.XMaximumChildCouncilDepth, 1, 10);
+                var maximumDepth = Math.Clamp(sourceDefinition.XMaximumChildCouncilDepth, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth);
                 if (request.XRoundChildDepth >= maximumDepth)
                 {
                     var warning = $"X-Function child Council '{teamKey}' was not started because step '{sourceDefinition.DisplayName}' allows at most {maximumDepth} nested child-Council level(s).";

@@ -67,6 +67,8 @@ namespace LocalGPT.Services
         /// Stores the deferred DevExpress AI invocation service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly IDeferredDxAiInvocationService deferredDxAiInvocations;
+        /// <summary>Owns deterministic inspection and curation of DXAiChat upload workspaces used as Council evidence.</summary>
+        private readonly IChatUploadWorkspaceService uploadWorkspaces;
         /// <summary>
         /// Stores the organic council blueprint service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
@@ -166,6 +168,7 @@ namespace LocalGPT.Services
         /// <param name="humanCollaboration">Injected dependency used by the service.</param>
         /// <param name="councilXRounds">Injected dependency used by the service.</param>
         /// <param name="deferredDxAiInvocations">Injected dependency used by the service.</param>
+        /// <param name="uploadWorkspaces">Upload-workspace service used by deterministic Council curation gates.</param>
         /// <param name="organicCouncilBlueprints">Injected dependency used by the service.</param>
         /// <param name="councilSpooler">Injected dependency used by the service.</param>
         /// <param name="councilPreflight">Injected dependency used by the service.</param>
@@ -201,6 +204,7 @@ namespace LocalGPT.Services
             IHumanCollaborationService humanCollaboration,
             ICouncilXRoundService councilXRounds,
             IDeferredDxAiInvocationService deferredDxAiInvocations,
+            IChatUploadWorkspaceService uploadWorkspaces,
             IOrganicCouncilBlueprintService organicCouncilBlueprints,
             ICouncilSpoolerService councilSpooler,
             ICouncilPreflightService councilPreflight,
@@ -236,6 +240,7 @@ namespace LocalGPT.Services
             this.humanCollaboration = humanCollaboration;
             this.councilXRounds = councilXRounds;
             this.deferredDxAiInvocations = deferredDxAiInvocations;
+            this.uploadWorkspaces = uploadWorkspaces;
             this.organicCouncilBlueprints = organicCouncilBlueprints;
             this.councilSpooler = councilSpooler;
             this.councilPreflight = councilPreflight;

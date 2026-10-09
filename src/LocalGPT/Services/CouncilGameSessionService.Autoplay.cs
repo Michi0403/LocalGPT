@@ -243,7 +243,9 @@ namespace LocalGPT.Services
     private int NormalizeAutoplayDelay(int value) {
     try
     {
-        return Math.Clamp(value, 250, 10_000);
+        var parameters = RuntimeParameters;
+        var requested = value <= 0 ? parameters.DefaultAutoplayDelayMilliseconds : value;
+        return Math.Clamp(requested, parameters.MinimumAutoplayDelayMilliseconds, parameters.MaximumAutoplayDelayMilliseconds);
     }
     catch (Exception __serviceMethodException)
     {

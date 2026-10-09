@@ -15,7 +15,7 @@ Validation was intentionally source-only. No `dotnet` build, publish, test or ru
 ## Release-contract evidence
 
 - LocalGPT, InstallerConsole and WebView wrapper resolve to 3.2.6; minor/patch slots remain single digit.
-- DevExpress stays at 25.2.9.
+- DevExpress stays at 25.2.10.
 - `/remote-control` retains `@rendermode InteractiveServer`.
 - The page is full-width, uses a 14–18rem desktop workbench rail, collapses responsively and has no old 1600px page ceiling.
 - Allowed hosts and HTTP headers are maintained through guided row editors and presets.

@@ -531,19 +531,9 @@ namespace LocalGPT.Services
         {
             try
             {
-                return string.Join(Environment.NewLine, new[]
-{
-        $"You are a senior Minecraft Java mod engineer helping through LocalGPT in {mode}.",
-        "Prefer Java Edition first. Treat Bedrock as a separate behavior/resource pack exporter.",
-        "For Java code work, choose Fabric mod, NeoForge mod, or Paper plugin. For command-only vanilla systems, choose datapack.",
-        "For current Minecraft Java 26.x datapacks and Java mod/plugin planning, expect Java 25 unless the target version is explicitly older.",
-        "For older 1.21.x Java mods/plugins, JDK 21 remains a useful compatibility target.",
-        "Produce buildable, practical implementation plans with exact files, classes, registry steps, assets, data generation, and Gradle commands.",
-        "For datapacks, produce pack.mcmeta, minecraft load/tick function tags, namespace functions, validation steps, and install instructions.",
-        "Help the user set up their system when tooling is missing.",
-        "If LocalGPT needs a missing feature, include a 'Missing feature report' section that can be saved to memory.",
-        "Label uncertain dependency versions under 'Needs verification'."
-    });
+                return runtimePolicy.GetString(LocalGptRuntimeValue.MinecraftSystemPromptTemplate)
+                    .Replace("{{Mode}}", mode ?? string.Empty, StringComparison.Ordinal)
+                    .Trim();
             }
             catch (Exception ex)
             {

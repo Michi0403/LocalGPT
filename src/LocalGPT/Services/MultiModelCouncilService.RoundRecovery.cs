@@ -139,7 +139,7 @@ namespace LocalGPT.Services
                         attemptedModels.Add(failedModel); // RunParticipantAsync already exhausted its same-member safe fallback.
                     var recovered = false;
 
-                    for (var attemptIndex = 0; attemptIndex < Math.Clamp(definition.MemberFailureRecoveryAttempts, 0, 8); attemptIndex++)
+                    for (var attemptIndex = 0; attemptIndex < Math.Clamp(definition.MemberFailureRecoveryAttempts, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumMemberRecoveryAttempts); attemptIndex++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var recoveryModel = SelectConfiguredRoundRecoveryParticipant(

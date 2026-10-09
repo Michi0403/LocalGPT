@@ -12,9 +12,11 @@ namespace LocalGPT.Services;
 /// <param name="dbContextFactory">Local gpt memory database context dependency used by the model preset workflow to provide the corresponding application capability.</param>
 /// <param name="databaseInitializer">Database initialization service dependency used by the model preset workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class ModelPresetService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ModelPresetService> logger) : IModelPresetService
 {
     /// <summary>
@@ -115,8 +117,9 @@ public sealed class ModelPresetService(
         entity.ModelNamesJson = JsonSerializer.Serialize(models);
         entity.ModelRoutesJson = JsonSerializer.Serialize(routes);
         entity.AllowParallelHardwareRoads = preset.AllowParallelHardwareRoads;
-        entity.MaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, 512, 262144);
-        entity.MaxContextTokens = Math.Clamp(preset.MaxContextTokens, 2048, 262144);
+        var parameters = runtimePolicy.GetJson<ModelPresetRuntimeParameters>(LocalGptRuntimeValue.ModelPresetRuntimeParametersJson);
+        entity.MaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, parameters.MinimumPresetOutputTokens, parameters.MaximumPresetOutputTokens);
+        entity.MaxContextTokens = Math.Clamp(preset.MaxContextTokens, parameters.MinimumPresetContextTokens, parameters.MaximumPresetContextTokens);
         entity.MaxParallelModels = Math.Max(1, preset.MaxParallelModels);
         entity.OllamaNumGpu = preset.OllamaNumGpu is < 0 ? 0 : preset.OllamaNumGpu;
         entity.IncludeMemory = preset.IncludeMemory;
@@ -150,8 +153,9 @@ public sealed class ModelPresetService(
             logger.LogWarning(exception, "Council model preset {PresetId} contains invalid model-route JSON; the stored value remains available for repair.", preset.Id);
         }
 
-        preset.MaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, 512, 262144);
-        preset.MaxContextTokens = Math.Clamp(preset.MaxContextTokens, 2048, 262144);
+        var parameters = runtimePolicy.GetJson<ModelPresetRuntimeParameters>(LocalGptRuntimeValue.ModelPresetRuntimeParametersJson);
+        preset.MaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, parameters.MinimumPresetOutputTokens, parameters.MaximumPresetOutputTokens);
+        preset.MaxContextTokens = Math.Clamp(preset.MaxContextTokens, parameters.MinimumPresetContextTokens, parameters.MaximumPresetContextTokens);
         preset.MaxParallelModels = Math.Max(1, preset.MaxParallelModels);
         preset.OllamaNumGpu = preset.OllamaNumGpu is < 0 ? 0 : preset.OllamaNumGpu;
     }
@@ -185,10 +189,11 @@ public sealed class ModelPresetService(
                 route.OllamaNumGpu = null;
             route.HardwareName = route.HardwareName?.Trim() ?? string.Empty;
             route.HardwareIndex = Math.Max(-1, route.HardwareIndex);
-            route.MinOutputTokens = Math.Clamp(route.MinOutputTokens, 128, 262144);
-            route.MaxOutputTokens = Math.Clamp(Math.Max(route.MinOutputTokens, route.MaxOutputTokens), route.MinOutputTokens, 262144);
-            route.MinContextTokens = Math.Clamp(route.MinContextTokens, 512, 262144);
-            route.MaxContextTokens = Math.Clamp(Math.Max(route.MinContextTokens, route.MaxContextTokens), route.MinContextTokens, 262144);
+            var parameters = runtimePolicy.GetJson<ModelPresetRuntimeParameters>(LocalGptRuntimeValue.ModelPresetRuntimeParametersJson);
+            route.MinOutputTokens = Math.Clamp(route.MinOutputTokens, parameters.MinimumRouteOutputTokens, parameters.MaximumRouteTokens);
+            route.MaxOutputTokens = Math.Clamp(Math.Max(route.MinOutputTokens, route.MaxOutputTokens), route.MinOutputTokens, parameters.MaximumRouteTokens);
+            route.MinContextTokens = Math.Clamp(route.MinContextTokens, parameters.MinimumRouteContextTokens, parameters.MaximumRouteTokens);
+            route.MaxContextTokens = Math.Clamp(Math.Max(route.MinContextTokens, route.MaxContextTokens), route.MinContextTokens, parameters.MaximumRouteTokens);
             route.OllamaNumGpu = route.HardwareKind switch
             {
                 OneWireHardwareKind.Cpu => 0,

@@ -20,15 +20,19 @@ public sealed partial class OneWireRuntimeSecurityService : IOneWireRuntimeSecur
     private readonly ILogger<OneWireRuntimeSecurityService> logger;
     /// <summary>Stores host-specific secret-file permission handling behind an injected boundary.</summary>
     private readonly IRuntimeSecretFileProtectionService secretFileProtection;
+    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
 
     /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
     /// <param name="secretFileProtection">Platform boundary that applies host-appropriate protection to runtime secret files.</param>
     /// <param name="logger">Injected dependency used by OneWireRuntimeSecurityService.</param>
+    /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
     public OneWireRuntimeSecurityService(
         IRuntimeSecretFileProtectionService secretFileProtection,
+        ILocalGptRuntimePolicyDataService runtimePolicy,
         ILogger<OneWireRuntimeSecurityService> logger)
     {
         this.secretFileProtection = secretFileProtection;
+        this.runtimePolicy = runtimePolicy;
         this.logger = logger;
     }
 
@@ -204,7 +208,7 @@ public sealed partial class OneWireRuntimeSecurityService : IOneWireRuntimeSecur
                 KeyAgreementPublicKey = descriptor.KeyAgreementPublicKey,
                 SigningPublicKey = descriptor.SigningPublicKey,
                 CreatedUtc = DateTimeOffset.UtcNow,
-                ExpiresUtc = DateTimeOffset.UtcNow.Add(Clamp(lifetime, TimeSpan.FromMinutes(2), TimeSpan.FromDays(1))),
+                ExpiresUtc = DateTimeOffset.UtcNow.Add(Clamp(lifetime, TimeSpan.FromMinutes(runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MinimumPairingLifetimeMinutes), TimeSpan.FromMinutes(runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MaximumPairingLifetimeMinutes))),
                 Nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16))
             };
             using var signing = ECDsa.Create();
@@ -266,7 +270,8 @@ public sealed partial class OneWireRuntimeSecurityService : IOneWireRuntimeSecur
                 return false;
             }
 
-            var validity = TimeSpan.FromMinutes(Math.Clamp(request.ValidForMinutes, 5, 525600));
+            var parameters = runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson);
+            var validity = TimeSpan.FromMinutes(Math.Clamp(request.ValidForMinutes, parameters.MinimumTokenValidityMinutes, parameters.MaximumTokenValidityMinutes));
             var trusted = new OneWireTrustedPeerDescriptor
             {
                 PeerId = request.Ticket.PeerId,

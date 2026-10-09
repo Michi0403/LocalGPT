@@ -133,6 +133,7 @@
     <ComponentSafetyScript>$(MSBuildThisFileDirectory)build/Assert-ComponentSafety.ps1</ComponentSafetyScript>
     <MethodDiagnosticsPolicyScript>$(MSBuildThisFileDirectory)build/Assert-MethodDiagnostics.ps1</MethodDiagnosticsPolicyScript>
     <ApplicationStaticPolicyScript>$(MSBuildThisFileDirectory)build/Assert-ApplicationStaticPolicy.ps1</ApplicationStaticPolicyScript>
+    <RuntimeTextOwnershipScript>$(MSBuildThisFileDirectory)build/Assert-RuntimeTextOwnership.ps1</RuntimeTextOwnershipScript>
     <TextServiceOwnershipScript>$(MSBuildThisFileDirectory)build/Assert-TextServiceOwnership.ps1</TextServiceOwnershipScript>
     <IteratorExceptionPolicyScript>$(MSBuildThisFileDirectory)build/Assert-IteratorExceptionPolicy.ps1</IteratorExceptionPolicyScript>
     <SystemVariableInitializationScript>$(MSBuildThisFileDirectory)build/Assert-SystemVariableInitialization.ps1</SystemVariableInitializationScript>
@@ -160,8 +161,15 @@
     <Exec Condition="Exists('$(ApplicationStaticPolicyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(ApplicationStaticPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-  <Target Name="AssertLocalGptTextServiceOwnership"
+  <Target Name="AssertLocalGptRuntimeTextOwnership"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptApplicationStaticPolicy"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(RuntimeTextOwnershipScript)')" Text="Runtime text/regex ownership script is missing: $(RuntimeTextOwnershipScript)" />
+    <Exec Condition="Exists('$(RuntimeTextOwnershipScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RuntimeTextOwnershipScript)&quot; -ReportPath &quot;$(MSBuildProjectDirectory)/obj/runtime-text-ownership-findings.txt&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <Target Name="AssertLocalGptTextServiceOwnership"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptRuntimeTextOwnership"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipTextServiceOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(TextServiceOwnershipScript)')" Text="Text-service ownership script is missing: $(TextServiceOwnershipScript)" />
     <Exec Condition="Exists('$(TextServiceOwnershipScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(TextServiceOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />

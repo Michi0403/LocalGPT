@@ -15,6 +15,7 @@ public sealed class ProjectRepositoryLearningService(
     ICouncilKnowledgeService knowledge,
     IRegexPatternService regexPatterns,
     IRegexCuratorService regexCurator,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ProjectRepositoryLearningService> logger) : IProjectRepositoryLearningService
 {
     /// <inheritdoc />
@@ -176,8 +177,9 @@ public sealed class ProjectRepositoryLearningService(
                     : "Source";
             var name = $"project.evidence::SourceCode::{projectKind}::{toolchain}";
             var pattern = string.IsNullOrWhiteSpace(marker)
-                ? @"(?i)(?:^|!/|/)\.git/config$"
-                : $@"(?i)(?:^|!/|/){Regex.Escape(marker.Replace('\\', '/').TrimStart('/'))}$";
+                ? runtimePolicy.GetPattern(LocalGptRuntimePattern.GitConfigPath).ToString()
+                : runtimePolicy.GetString(LocalGptRuntimeValue.ProjectMarkerPatternTemplate)
+                    .Replace("{{Marker}}", Regex.Escape(marker.Replace('\\', '/').TrimStart('/')), StringComparison.Ordinal);
             await regexCurator.MarkSuggestedAsync(
                 name,
                 $"Source-backed marker learned from reviewed {synchronized.ProjectName} revision {synchronized.RevisionId:N}.",

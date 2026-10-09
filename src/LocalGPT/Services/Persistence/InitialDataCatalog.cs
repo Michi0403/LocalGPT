@@ -9,19 +9,17 @@ namespace LocalGPT.Services.Persistence;
 /// <summary>
 /// Maintains the authoritative directory of initial data entries used for discovery, validation, and runtime lookup.
 /// </summary>
-/// <param name="environment">Web host environment dependency used by the initial data workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="systemVariables">System variable definition service dependency used by the initial data workflow to provide the corresponding application capability.</param>
 /// <param name="runtimePolicySeed">Local gpt runtime policy seed data service dependency used by the initial data workflow to provide the corresponding application capability.</param>
-/// <param name="platform">Platform runtime service used for cross-platform initial-data path and host semantics.</param>
 /// <param name="applicationPaths">Application path service that documents the effective per-user runtime layout.</param>
+/// <param name="initialDataFeed">Centralized source-backed Markdown/SQL initial data feed.</param>
 public sealed class InitialDataCatalog(
-    IWebHostEnvironment environment,
     ILogger<InitialDataCatalog> logger,
     ISystemVariableDefinitionService systemVariables,
     ILocalGptRuntimePolicySeedDataService runtimePolicySeed,
-    IPlatformRuntimeService platform,
-    ILocalGptApplicationPathService applicationPaths) : IInitialDataCatalog
+    ILocalGptApplicationPathService applicationPaths,
+    IInitialDataFeedService initialDataFeed) : IInitialDataCatalog
 {
     /// <summary>
     /// Gets the regex patterns collection maintained or exposed by this initial data instance for downstream processing.
@@ -279,68 +277,30 @@ Keep work bounded to the request. Do not perform unrelated filesystem, process, 
     /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<CouncilKnowledgeEntry>> LoadKnowledgeAsync(CancellationToken cancellationToken = default)
     {
-        var root = ResolveKnowledgeRoot(environment.ContentRootPath);
-        string[] approvedRelativePaths =
-        [
-            "AGENTS.md",
-            "SECURITY.md",
-            "docs/architecture/system-overview.md",
-            "docs/architecture/ai-host.md",
-            "docs/architecture/council-runtime.md",
-            "docs/architecture/project-data.md",
-            "docs/architecture/onewire-security.md",
-            "docs/engineering/build-validation.md",
-            "docs/reference/capability-map.md",
-            "docs/reference/toolchain-discovery.md",
-            "docs/reference/runtime-path-layout.md",
-            "docs/reference/ai-provider-installation.md",
-            "docs/reference/ascii-game-authoring.md",
-            "docs/reference/canonical-repositories.md"
-        ];
-
-        var entries = new List<CouncilKnowledgeEntry>();
-        foreach (var relativePath in approvedRelativePaths)
+        var feedEntries = await initialDataFeed.LoadKnowledgeFeedAsync(cancellationToken).ConfigureAwait(false);
+        var entries = new List<CouncilKnowledgeEntry>(feedEntries.Count + 1);
+        foreach (var feedEntry in feedEntries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var normalizedRelative = relativePath.Replace('/', Path.DirectorySeparatorChar);
-            var path = Path.GetFullPath(Path.Combine(root, normalizedRelative));
-            if (!IsPathInsideRoot(path, root))
-                continue;
-
-            try
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(feedEntry.Content)));
+            entries.Add(new CouncilKnowledgeEntry
             {
-                var content = File.Exists(path)
-                    ? await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false)
-                    : await TryReadEmbeddedKnowledgeAsync(relativePath, cancellationToken).ConfigureAwait(false);
-                if (string.IsNullOrWhiteSpace(content))
-                    continue;
-
-                var relative = relativePath.Replace('\\', '/');
-                var sourceBackedByFile = File.Exists(path);
-                var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
-                entries.Add(new CouncilKnowledgeEntry
-                {
-                    Id = CreateDeterministicGuid(relative),
-                    Topic = Path.GetFileNameWithoutExtension(relative).Replace('_', ' '),
-                    Scope = "Repository Reference",
-                    Content = content,
-                    Source = sourceBackedByFile ? $"repository:{relative}" : $"embedded:{relative}",
-                    HelpfulSources = relative,
-                    Tags = "repository;reference;human-reviewed;source-backed",
-                    Confidence = 100,
-                    VerificationStatus = "SourceBacked",
-                    ReviewStatus = "Current",
-                    LastVerifiedAtUtc = DateTime.UtcNow,
-                    SourceHash = hash,
-                    SourceDateUtc = sourceBackedByFile ? File.GetLastWriteTimeUtc(path) : DateTime.UnixEpoch,
-                    IsUserApproved = true,
-                    IsPinned = true
-                });
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Could not load approved repository knowledge file {Path}.", path);
-            }
+                Id = CreateDeterministicGuid(feedEntry.RelativePath),
+                Topic = Path.GetFileNameWithoutExtension(feedEntry.RelativePath).Replace('_', ' '),
+                Scope = "Repository Reference",
+                Content = feedEntry.Content,
+                Source = feedEntry.Source,
+                HelpfulSources = feedEntry.RelativePath,
+                Tags = "repository;reference;human-reviewed;source-backed;initial-data-feed",
+                Confidence = 100,
+                VerificationStatus = "SourceBacked",
+                ReviewStatus = "Current",
+                LastVerifiedAtUtc = DateTime.UtcNow,
+                SourceHash = hash,
+                SourceDateUtc = feedEntry.SourceDateUtc,
+                IsUserApproved = true,
+                IsPinned = true
+            });
         }
 
         try
@@ -373,99 +333,6 @@ Keep work bounded to the request. Do not perform unrelated filesystem, process, 
 
         return entries;
     }
-
-    /// <summary>Reads critical setup knowledge embedded into the assembly when a publish layout cannot expose the corresponding file.</summary>
-    /// <param name="relativePath">Repository-relative knowledge path.</param>
-    /// <param name="cancellationToken">Cancellation token for the bounded read.</param>
-    /// <returns>Embedded article text, or <see langword="null"/> when the path is not an embedded fallback.</returns>
-    private async Task<string?> TryReadEmbeddedKnowledgeAsync(string relativePath, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var resourceName = relativePath.Replace('\\', '/').ToLowerInvariant() switch
-            {
-                "docs/reference/ai-provider-installation.md" => "LocalGPT.Knowledge.ai-provider-installation.md",
-                "docs/reference/ascii-game-authoring.md" => "LocalGPT.Knowledge.ascii-game-authoring.md",
-                "docs/reference/toolchain-discovery.md" => "LocalGPT.Knowledge.toolchain-discovery.md",
-                "docs/reference/runtime-path-layout.md" => "LocalGPT.Knowledge.runtime-path-layout.md",
-                _ => string.Empty
-            };
-            if (string.IsNullOrWhiteSpace(resourceName))
-                return null;
-
-            using var stream = typeof(InitialDataCatalog).Assembly.GetManifestResourceStream(resourceName);
-            if (stream is null)
-            {
-                logger.LogWarning("Embedded fallback knowledge resource {ResourceName} is unavailable.", resourceName);
-                return null;
-            }
-
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: false);
-            cancellationToken.ThrowIfCancellationRequested();
-            return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            logger.LogWarning(exception, "Could not read embedded fallback knowledge for {RelativePath}.", relativePath);
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Determines whether path inside root in the initial data directory so callers observe a consistent, authoritative runtime view.
-    /// </summary>
-    /// <param name="path">Path value supplied to the initial data operation and used when producing its result.</param>
-    /// <param name="root">Root value supplied to the initial data operation and used when producing its result.</param>
-    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    private bool IsPathInsideRoot(string path, string root)
-    {
-    try
-    {
-            return platform.IsSameOrDescendantPath(root, path);
-    
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(InitialDataCatalog)}.{nameof(IsPathInsideRoot)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(InitialDataCatalog)}.{nameof(IsPathInsideRoot)} failed.");
-        throw;
-    }
-}
-
-    /// <summary>
-    /// Resolves knowledge root in the initial data directory so callers observe a consistent, authoritative runtime view.
-    /// </summary>
-    /// <param name="contentRoot">Content root value supplied to the initial data operation and used when producing its result.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string ResolveKnowledgeRoot(string contentRoot)
-    {
-    try
-    {
-            var current = new DirectoryInfo(contentRoot);
-            for (var depth = 0; current is not null && depth < 6; depth++, current = current.Parent)
-            {
-                if (File.Exists(Path.Combine(current.FullName, "AGENTS.md")) &&
-                    Directory.Exists(Path.Combine(current.FullName, "docs")))
-                    return current.FullName;
-            }
-            return contentRoot;
-    
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(InitialDataCatalog)}.{nameof(ResolveKnowledgeRoot)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(InitialDataCatalog)}.{nameof(ResolveKnowledgeRoot)} failed.");
-        throw;
-    }
-}
 
     /// <summary>
     /// Creates deterministic GUID in the initial data directory so callers observe a consistent, authoritative runtime view.

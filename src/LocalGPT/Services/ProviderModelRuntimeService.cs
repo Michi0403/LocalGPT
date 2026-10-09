@@ -28,6 +28,7 @@ namespace LocalGPT.Services;
 /// <param name="functionRegistry">Devexpress ai function registry dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 /// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 /// <param name="sessionContext">Scoped chat/project identity propagated into provider-native automatic functions.</param>
+/// <param name="runtimePolicy">Database-backed runtime policy used for provider discovery and session defaults.</param>
 public sealed class ProviderModelRuntimeService(
     IOptionsMonitor<LocalGptConfigurationRoot> optionsRoot,
     ILoggerFactory loggerFactory,
@@ -38,12 +39,16 @@ public sealed class ProviderModelRuntimeService(
     IPromptConfigService promptConfigService,
     IDxAiFunctionRegistry functionRegistry,
     IDxAiFunctionCallRecoveryService functionCallRecovery,
-    IChatSessionContext sessionContext) : IProviderModelRuntimeService
+    IChatSessionContext sessionContext,
+    ILocalGptRuntimePolicyDataService runtimePolicy) : IProviderModelRuntimeService
 {
     /// <summary>
     /// Stores the in-memory reference cache collection maintained internally by <see cref="ProviderModelRuntimeService"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<string, ProviderModelReference> referenceCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets the current database-backed provider discovery and session defaults.</summary>
+    private ProviderModelRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
 
     /// <summary>
     /// Retrieves candidates as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -185,7 +190,7 @@ public sealed class ProviderModelRuntimeService(
             if (options.OpenAICore is { ModelName.Length: > 0 } openAi && HasRealApiKey(openAi.ApiKey))
             {
                 var endpoint = NormalizeOpenAiEndpoint(string.IsNullOrWhiteSpace(openAi.Endpoint)
-                    ? "https://api.openai.com/v1"
+                    ? RuntimeParameters.DefaultOpenAiEndpoint
                     : openAi.Endpoint);
                 AddCandidate(candidates, new MultiModelCouncilModelCandidate(
                     openAi.ModelName.Trim(), "OpenAI", endpoint,
@@ -267,7 +272,7 @@ public sealed class ProviderModelRuntimeService(
             }
 
             var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
-            var fallbackEndpoint = NormalizeOllamaEndpoint(options.OllamaCore?.Uri ?? "http://127.0.0.1:11434");
+            var fallbackEndpoint = NormalizeOllamaEndpoint(options.OllamaCore?.Uri ?? runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint));
             var fallback = new ProviderModelReference
             {
                 ProviderKind = ProviderModelKinds.Ollama,
@@ -342,9 +347,9 @@ public sealed class ProviderModelRuntimeService(
                 if (remaining <= TimeSpan.Zero)
                     break;
 
-                var delay = remaining < TimeSpan.FromSeconds(2)
+                var delay = remaining < TimeSpan.FromSeconds(RuntimeParameters.AvailabilityPollSeconds)
                     ? remaining
-                    : TimeSpan.FromSeconds(2);
+                    : TimeSpan.FromSeconds(RuntimeParameters.AvailabilityPollSeconds);
                 await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
             }
             while (DateTime.UtcNow <= deadlineUtc);
@@ -520,7 +525,7 @@ public sealed class ProviderModelRuntimeService(
                 if (configuredOpenAi is null || !HasRealApiKey(configuredOpenAi.ApiKey))
                     throw new InvalidOperationException("The OpenAI API key is not configured.");
                 var configuredEndpoint = NormalizeOpenAiEndpoint(string.IsNullOrWhiteSpace(configuredOpenAi.Endpoint)
-                    ? "https://api.openai.com/v1"
+                    ? RuntimeParameters.DefaultOpenAiEndpoint
                     : configuredOpenAi.Endpoint);
                 EnsureCredentialEndpointMatch(endpoint, configuredEndpoint, "OpenAI");
                 apiKey = configuredOpenAi.ApiKey;
@@ -538,7 +543,7 @@ public sealed class ProviderModelRuntimeService(
                 // Credentials are endpoint-owned; never forward one configured host's key to another host.
                 apiKey = configuredLocal is not null && !string.IsNullOrWhiteSpace(configuredLocal.ApiKey)
                     ? configuredLocal.ApiKey
-                    : "local-no-key";
+                    : RuntimeParameters.DefaultOpenAiCompatibleApiKey;
             }
 
             var openAiClient = new global::OpenAI.OpenAIClient(
@@ -573,7 +578,7 @@ public sealed class ProviderModelRuntimeService(
     try
     {
             cancellationToken.ThrowIfCancellationRequested();
-            var client = CreateChatClient(model, "2m", 65536, TimeSpan.FromMinutes(30), null);
+            var client = CreateChatClient(model, RuntimeParameters.DefaultSessionKeepAlive, RuntimeParameters.DefaultSessionContextTokens, TimeSpan.FromMinutes(RuntimeParameters.DefaultSessionTimeoutMinutes), null);
             return Task.FromResult(new ChatClientSession(
                 client,
                 model.SelectionKey,
@@ -644,8 +649,8 @@ public sealed class ProviderModelRuntimeService(
             // Preserve historical local LM Studio discovery while allowing configured remote hosts in parallel.
             Add(new ChatGPTLocalCoreOptions
             {
-                Endpoint = "http://127.0.0.1:1234/v1",
-                ApiKey = "local-no-key",
+                Endpoint = RuntimeParameters.DefaultOpenAiCompatibleEndpoint,
+                ApiKey = RuntimeParameters.DefaultOpenAiCompatibleApiKey,
                 ModelName = string.Empty,
                 AutoStartServer = false
             });
@@ -719,7 +724,7 @@ public sealed class ProviderModelRuntimeService(
 
             // A local Ollama has always been a LocalGPT discovery convention. It stays a probe
             // candidate even when a remote host is the configured primary provider.
-            Add("http://127.0.0.1:11434");
+            Add(runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint));
             return endpoints;
         }
         catch (Exception exception)
@@ -739,7 +744,7 @@ public sealed class ProviderModelRuntimeService(
     {
         try
         {
-            using var http = new HttpClient { BaseAddress = new Uri(endpoint), Timeout = TimeSpan.FromSeconds(10) };
+            using var http = new HttpClient { BaseAddress = new Uri(endpoint), Timeout = TimeSpan.FromSeconds(RuntimeParameters.DiscoveryHttpTimeoutSeconds) };
             using var tagsResponse = await http.GetAsync("/api/tags", cancellationToken).ConfigureAwait(false);
             tagsResponse.EnsureSuccessStatusCode();
             using var tags = JsonDocument.Parse(await tagsResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
@@ -814,7 +819,7 @@ public sealed class ProviderModelRuntimeService(
     {
         try
         {
-            using var http = new HttpClient { BaseAddress = new Uri(endpoint + "/"), Timeout = TimeSpan.FromSeconds(10) };
+            using var http = new HttpClient { BaseAddress = new Uri(endpoint + "/"), Timeout = TimeSpan.FromSeconds(RuntimeParameters.DiscoveryHttpTimeoutSeconds) };
             if (!string.IsNullOrWhiteSpace(apiKey))
                 http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
             using var response = await http.GetAsync("models", cancellationToken).ConfigureAwait(false);
@@ -917,7 +922,7 @@ public sealed class ProviderModelRuntimeService(
                 throw new InvalidOperationException("The OpenAI-compatible endpoint is not a valid absolute URI.");
             var builder = new UriBuilder(uri);
             if (string.IsNullOrWhiteSpace(builder.Path) || builder.Path == "/")
-                builder.Path = "/v1";
+                builder.Path = RuntimeParameters.OpenAiCompatibleApiPath;
             return builder.Uri.ToString().TrimEnd('/');
     
     }
@@ -939,7 +944,9 @@ public sealed class ProviderModelRuntimeService(
     private string GetLocalProviderName(string endpoint) {
     try
     {
-        return Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.Port == 1234
+        return Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
+            && Uri.TryCreate(RuntimeParameters.DefaultOpenAiCompatibleEndpoint, UriKind.Absolute, out var defaultUri)
+            && uri.Port == defaultUri.Port
             ? "LM Studio"
             : "Local OpenAI-compatible";
     }

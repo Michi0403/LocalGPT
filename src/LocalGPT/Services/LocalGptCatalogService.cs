@@ -38,6 +38,23 @@ namespace LocalGPT.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <summary>Retrieves a strongly typed database-backed service parameter document.</summary>
+        /// <typeparam name="T">BusinessObject parameter type owned by the runtime policy store.</typeparam>
+        /// <param name="key">Runtime value containing the serialized parameter document.</param>
+        /// <returns>The deserialized parameter BusinessObject.</returns>
+        public T GetRuntimeParameters<T>(LocalGptRuntimeValue key)
+        {
+            try
+            {
+                return _runtimePolicy.GetJson<T>(key);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "Could not resolve runtime parameter document {RuntimeValue} as {ParameterType}.", key, typeof(T).Name);
+                throw;
+            }
+        }
+
         /// <summary>
         /// Gets the default gradle version value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>

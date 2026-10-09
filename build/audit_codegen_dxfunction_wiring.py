@@ -114,7 +114,7 @@ forbid(PROJECT_MAINTENANCE, "EnumerateRelativeEntries(root, 5000", "fixed worksp
 require(PROJECT_MAINTENANCE, "var maximumAssessmentEntries = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles));", "database-backed workspace permission-assessment entry policy")
 forbid(CHAT_UPLOADS, ".Take(Math.Clamp(take, 1, 1000))", "fixed 1k chat-upload workspace file listing ceiling")
 forbid(CHAT_UPLOADS, ".Take(Math.Clamp(take, 1, 100))", "fixed chat-upload workspace history listing ceiling")
-require(CHAT_UPLOADS, "Math.Max(1, catalog.MaxFiles)", "database-backed chat-upload listing policy")
+require(CHAT_UPLOADS, "ChatUploadWorkspaceRuntimeParametersJson", "database-backed chat-upload listing policy")
 
 # Project-maintenance limits that already have runtime-policy keys must not be duplicated as
 # source constants. This protects the provisioning architecture from future drift.

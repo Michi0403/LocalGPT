@@ -1,33 +1,26 @@
+using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services;
 
-/// <summary>Owns regular-expression size, option and timeout policy shared by persisted pattern services.</summary>
+/// <summary>Applies database-backed regex limits before delegating framework construction to the policy-independent regex engine.</summary>
+/// <param name="regexEngine">Policy-independent regex engine used to construct expressions from explicit bounds.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 /// <param name="logger">Logger used for regex compilation diagnostics.</param>
-public sealed class RegexCompilationService(ILogger<RegexCompilationService> logger) : IRegexCompilationService
+public sealed class RegexCompilationService(
+    IRegexEngineService regexEngine,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
+    ILogger<RegexCompilationService> logger) : IRegexCompilationService
 {
-    /// <summary>
-    /// Stores the internal flag separators state used by <see cref="RegexCompilationService"/> while executing its surrounding workflow.
-    /// </summary>
-    private readonly char[] FlagSeparators = [',', '|', ';'];
-
-    /// <summary>
-    /// Performs compile as part of the regex compilation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
+    /// <summary>Compiles a regular expression using the active database-backed regex runtime parameters.</summary>
     /// <inheritdoc />
     public Regex Compile(string pattern, string? flags = null, TimeSpan? timeout = null, string? contextName = null)
     {
         try
         {
-            ArgumentNullException.ThrowIfNull(pattern);
-            if (pattern.Length > 16_000)
-                throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
-            var requestedTimeout = timeout ?? TimeSpan.FromSeconds(2);
-            var boundedTimeout = requestedTimeout <= TimeSpan.Zero || requestedTimeout > TimeSpan.FromSeconds(30)
-                ? TimeSpan.FromSeconds(2)
-                : requestedTimeout;
-            return new Regex(pattern, ParseOptions(flags, contextName), boundedTimeout);
+            var parameters = runtimePolicy.GetJson<RegexRuntimeParameters>(LocalGptRuntimeValue.RegexRuntimeParametersJson);
+            return regexEngine.Compile(pattern, flags, parameters, timeout, contextName);
         }
         catch (Exception exception)
         {
@@ -36,35 +29,13 @@ public sealed class RegexCompilationService(ILogger<RegexCompilationService> log
         }
     }
 
-    /// <summary>
-    /// Parses options as part of the regex compilation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
+    /// <summary>Parses LocalGPT regular-expression option tokens through the policy-independent regex engine.</summary>
     /// <inheritdoc />
     public RegexOptions ParseOptions(string? flags, string? contextName = null)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(flags))
-                return RegexOptions.CultureInvariant;
-            var result = RegexOptions.CultureInvariant;
-            foreach (var token in flags.Split(FlagSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                result |= token.ToLowerInvariant() switch
-                {
-                    "i" or "ignorecase" => RegexOptions.IgnoreCase,
-                    "m" or "multiline" => RegexOptions.Multiline,
-                    "s" or "singleline" => RegexOptions.Singleline,
-                    "x" or "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
-                    "n" or "explicitcapture" => RegexOptions.ExplicitCapture,
-                    "compiled" => RegexOptions.Compiled,
-                    "c" or "cultureinvariant" => RegexOptions.CultureInvariant,
-                    "ecmascript" => RegexOptions.ECMAScript,
-                    "none" => RegexOptions.None,
-                    _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
-                    _ => throw new InvalidDataException($"Unknown regular-expression option '{token}' for '{contextName ?? "unspecified context"}'.")
-                };
-            }
-            return result;
+            return regexEngine.ParseOptions(flags, contextName);
         }
         catch (Exception exception)
         {

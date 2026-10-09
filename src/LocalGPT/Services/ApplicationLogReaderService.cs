@@ -16,12 +16,14 @@ namespace LocalGPT.Services
     /// <param name="databaseOptions">Database options value supplied to the application log reader operation and used when producing its result.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     /// <param name="councilText">Council text service dependency used by the application log reader workflow to provide the corresponding application capability.</param>
+    /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
     public partial class ApplicationLogReaderService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
         LocalGptDatabaseOptions databaseOptions,
         ILogger<ApplicationLogReaderService> logger,
-        CouncilTextService councilText) : IApplicationLogReaderService
+        CouncilTextService councilText,
+        ILocalGptRuntimePolicyDataService runtimePolicy) : IApplicationLogReaderService
     {
         /// <summary>
         /// Gets the database path used by this application log reader instance to locate the associated file-system resource.
@@ -47,7 +49,7 @@ namespace LocalGPT.Services
                     .AsNoTracking()
                     .Where(log => log.LogLevelValue >= (int)minimumLevel)
                     .OrderByDescending(log => log.TimestampUtc)
-                    .Take(Math.Clamp(take, 1, 200))
+                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).ApplicationLogMaximum))
                     .Select(log => new ApplicationLogSummary(
                         log.Id,
                         log.TimestampUtc,

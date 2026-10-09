@@ -15,11 +15,13 @@ namespace LocalGPT.Mcp;
 public sealed class LocalGptMcpGatewayAccessor(
     IOptionsMonitor<McpGatewayOptions> optionMonitor,
     IDbContextFactory<LocalGptMemoryDbContext> dbFactory,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalGptMcpGatewayAccessor> logger)
 {
     private McpGatewayOptions Options => optionMonitor.CurrentValue;
-    private int MaxListItems => Math.Clamp(Options.MaxListItems, 1, 10000);
-    private int MaxResultCharacters => Math.Clamp(Options.MaxResultCharacters, 1024, 8_000_000);
+    private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>(LocalGptRuntimeValue.McpGatewayRuntimeParametersJson);
+    private int MaxListItems => Math.Clamp(Options.MaxListItems, Parameters.MinimumListItems, Parameters.MaximumListItems);
+    private int MaxResultCharacters => Math.Clamp(Options.MaxResultCharacters, Parameters.MinimumResultCharacters, Parameters.MaximumResultCharacters);
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true

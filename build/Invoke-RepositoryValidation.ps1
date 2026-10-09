@@ -22,6 +22,7 @@ try {
     & ./build/Assert-AsyncOnlyArchitecture.ps1
     & ./build/Assert-MethodDiagnostics.ps1
     & ./build/Assert-ApplicationStaticPolicy.ps1
+    & ./build/Assert-RuntimeTextOwnership.ps1
     & ./build/Assert-TextServiceOwnership.ps1
     & ./build/Assert-RuntimeValueOwnership.ps1
     & ./build/Assert-IteratorExceptionPolicy.ps1

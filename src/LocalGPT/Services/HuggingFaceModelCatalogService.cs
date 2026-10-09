@@ -11,6 +11,7 @@ namespace LocalGPT.Services;
 public sealed class HuggingFaceModelCatalogService(
     IHttpClientFactory httpClientFactory,
     IOptionsMonitor<LocalGptConfigurationRoot> options,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<HuggingFaceModelCatalogService> logger) : IHuggingFaceModelCatalogService
 {
     public async Task<IReadOnlyList<HuggingFaceModelSearchResult>> SearchAsync(HuggingFaceModelSearchRequest request, CancellationToken cancellationToken = default)
@@ -21,8 +22,9 @@ public sealed class HuggingFaceModelCatalogService(
             var query = (request.Query ?? string.Empty).Trim();
             if (query.Length > 300)
                 throw new ArgumentException("Hugging Face search query cannot exceed 300 characters.", nameof(request));
-            var limit = Math.Clamp(request.Limit, 1, 50);
-            var apiLimit = request.Sort == HuggingFaceModelSort.RecentLiked ? 50 : limit;
+            var parameters = runtimePolicy.GetJson<HuggingFaceCatalogRuntimeParameters>(LocalGptRuntimeValue.HuggingFaceCatalogRuntimeParametersJson);
+            var limit = Math.Clamp(request.Limit, parameters.MinimumResults, parameters.MaximumResults);
+            var apiLimit = request.Sort == HuggingFaceModelSort.RecentLiked ? parameters.MaximumResults : limit;
             var apiSort = request.Sort switch
             {
                 HuggingFaceModelSort.Likes => "likes",
@@ -80,7 +82,7 @@ public sealed class HuggingFaceModelCatalogService(
             IEnumerable<HuggingFaceModelSearchResult> ordered = results;
             if (request.Sort == HuggingFaceModelSort.RecentLiked)
             {
-                var cutoff = DateTime.UtcNow.AddDays(-Math.Clamp(request.RecentWindowDays, 1, 365));
+                var cutoff = DateTime.UtcNow.AddDays(-Math.Clamp(request.RecentWindowDays, parameters.MinimumRecentWindowDays, parameters.MaximumRecentWindowDays));
                 var recent = results.Where(item => item.LastModifiedUtc is not null && item.LastModifiedUtc >= cutoff).ToList();
                 if (recent.Count > 0)
                     ordered = recent.OrderByDescending(item => item.Likes).ThenByDescending(item => item.LastModifiedUtc);

@@ -7,7 +7,8 @@ namespace LocalGPT.Services;
 /// Coordinates local path explorer behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> logger) : ILocalPathExplorerService
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
+public sealed class LocalPathExplorerService(ILocalGptRuntimePolicyDataService runtimePolicy, ILogger<LocalPathExplorerService> logger) : ILocalPathExplorerService
 {
     /// <summary>
     /// Retrieves suggested roots as part of the local path explorer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -100,7 +101,7 @@ public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> l
             result.CurrentPath = full;
             result.ParentPath = Directory.GetParent(full)?.FullName ?? string.Empty;
 
-            var max = Math.Clamp(request.MaxEntries, 1, 1000);
+            var max = Math.Clamp(request.MaxEntries, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).LocalPathMaximumEntries);
             IEnumerable<FileSystemInfo> entries = new DirectoryInfo(full).EnumerateFileSystemInfos();
             if (!request.IncludeFiles)
                 entries = entries.Where(item => item is DirectoryInfo);

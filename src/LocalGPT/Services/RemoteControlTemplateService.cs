@@ -7,12 +7,12 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services;
 
 /// <summary>Resolves user-authored Remote Control interpolation tokens through scoped LocalGPT services.</summary>
-/// <param name="regex">Shared regular-expression compiler and timeout policy.</param>
 /// <param name="variables">Database-backed LocalGPT variable store.</param>
 /// <param name="jsonText">JSON text policy service.</param>
 /// <param name="logger">Logger used for operational diagnostics.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class RemoteControlTemplateService(
-    IRegexCompilationService regex,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     IVariableStoreService variables,
     IJsonTextService jsonText,
     ILogger<RemoteControlTemplateService> logger) : IRemoteControlTemplateService
@@ -20,7 +20,7 @@ public sealed class RemoteControlTemplateService(
     /// <summary>
     /// Stores the internal token pattern state used by <see cref="RemoteControlTemplateService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex _tokenPattern = regex.Compile(@"\{\{(?<expression>[^{}]{1,256})\}\}", "c", TimeSpan.FromSeconds(2), nameof(RemoteControlTemplateService));
+    private readonly Regex _tokenPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.RemoteControlTemplateExpression);
 
     /// <summary>
     /// Performs resolve as part of the remote control template service workflow, applying the service's runtime policy, state management, and diagnostics as required.

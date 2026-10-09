@@ -24,31 +24,23 @@ namespace LocalGPT.Services
         {
             try
             {
-                var builder = new StringBuilder()
-                    .AppendLine("The local user added new conversation input while your previous response was still generating.")
-                    .AppendLine("This is the highest-priority current conversation context. React to every entry now, revise incompatible assumptions, and explicitly answer or acknowledge it.")
-                    .AppendLine("Do not claim that you cannot see the message. Do not continue the old draft unchanged. Do not transform it into an unrelated older project request.")
-                    .AppendLine("LocalGPT is general-purpose: available functions and Council roles do not limit ordinary assistance to LocalGPT development.");
-
-                foreach (var contribution in contributions)
-                {
-                    builder.AppendLine()
-                        .AppendLine("<<<LOCALGPT_LIVE_USER_INPUT")
-                        .Append("Author: ").AppendLine(contribution.HumanDisplayName)
-                        .Append("Role: ").AppendLine(contribution.HumanRole)
-                        .AppendLine("Content:")
-                        .AppendLine(contribution.Content)
-                        .AppendLine("LOCALGPT_LIVE_USER_INPUT>>>");
-                }
-
-                return builder.ToString().Trim();
+                var entryTemplate = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilLiveInterruptionEntryTemplate);
+                var entries = string.Join(
+                    Environment.NewLine + Environment.NewLine,
+                    contributions.Select(contribution => entryTemplate
+                        .Replace("{{Author}}", contribution.HumanDisplayName, StringComparison.Ordinal)
+                        .Replace("{{Role}}", contribution.HumanRole, StringComparison.Ordinal)
+                        .Replace("{{Content}}", contribution.Content, StringComparison.Ordinal)));
+                return runtimePolicy.GetString(LocalGptRuntimeValue.CouncilLiveInterruptionPromptTemplate)
+                    .Replace("{{Entries}}", entries, StringComparison.Ordinal)
+                    .Trim();
             }
             catch (Exception ex)
             {
                 logger.LogError(
                     ex,
                     "Could not build a live Council interruption prompt; user message content was omitted from logs.");
-                return "The local user sent a live message. Stop the old draft and respond to the visible current user message directly.";
+                return runtimePolicy.GetString(LocalGptRuntimeValue.CouncilLiveInterruptionFallbackInstruction);
             }
         }
 
@@ -117,13 +109,13 @@ namespace LocalGPT.Services
         {
             try
             {
-                var recoveryOutput = Math.Clamp(Math.Min(maxOutputTokens, 8192), catalog.MinOutputTokens, catalog.MaxOutputTokens);
-                var recoveryContext = Math.Clamp(Math.Min(maxContextTokens, 65536), catalog.MinContextTokens, catalog.MaxContextTokens);
+                var recoveryOutput = Math.Clamp(Math.Min(maxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).RecoveryOutputTokenCeiling), catalog.MinOutputTokens, catalog.MaxOutputTokens);
+                var recoveryContext = Math.Clamp(Math.Min(maxContextTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).RecoveryContextTokenCeiling), catalog.MinContextTokens, catalog.MaxContextTokens);
                 var recoveryModel = await providerModels.ResolveAsync(modelName, cancellationToken).ConfigureAwait(false);
                 var isOllama = recoveryModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase);
                 if (isOllama)
                 {
-                    var availabilityWait = TimeSpan.FromSeconds(Math.Clamp(modelTimeoutSeconds / 6, 30, 120));
+                    var availabilityWait = TimeSpan.FromSeconds(Math.Clamp(modelTimeoutSeconds / runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).AvailabilityWaitDivisor, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumAvailabilityWaitSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumAvailabilityWaitSeconds));
                     streamUpdate?.Invoke(
                         Environment.NewLine + Environment.NewLine +
                         $"> {WebUtility.HtmlEncode(modelName)} failed in {WebUtility.HtmlEncode(phase)}. LocalGPT is checking the same Ollama host/model for reavailability before retrying; the current hardware road remains unchanged." +
@@ -165,7 +157,7 @@ namespace LocalGPT.Services
                     phase,
                     $"{role} (automatic recovery)",
                     prompt + Environment.NewLine + Environment.NewLine +
-                    "Recovery instruction: the previous attempt failed. Produce a concise final answer, avoid optional tools, and report only actionable blockers.",
+                    runtimePolicy.GetString(LocalGptRuntimeValue.CouncilParticipantRecoveryInstruction),
                     bootstrap,
                     recoveryOutput,
                     keepAlive,

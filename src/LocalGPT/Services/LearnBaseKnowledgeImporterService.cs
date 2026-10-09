@@ -184,10 +184,11 @@ namespace LocalGPT.Services
                         continue;
                     }
                     var sourceRoot = Path.GetDirectoryName(manifestPath)!;
-                    var include = CompileManifestRegex(manifest.IncludeRegex, @"(?i)\.(md|txt|ino|c|h|cpp|hpp|json|ya?ml)$");
-                    var exclude = CompileManifestRegex(manifest.ExcludeRegex, @"(?!)");
-                    var maximumFiles = Math.Clamp(manifest.MaximumFiles, 1, 20000);
-                    var maximumBytes = Math.Min(selection.MaximumFileBytes, Math.Clamp(manifest.MaximumFileBytes, 1024, 8 * 1024 * 1024));
+                    var include = CompileManifestRegex(manifest.IncludeRegex, runtimePolicy.GetPattern(LocalGptRuntimePattern.LearnBaseSourceFileExtension).ToString());
+                    var exclude = CompileManifestRegex(manifest.ExcludeRegex, runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchNone).ToString());
+                    var parameters = runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson);
+                    var maximumFiles = Math.Clamp(manifest.MaximumFiles, parameters.MinimumManifestFiles, parameters.MaximumManifestFiles);
+                    var maximumBytes = Math.Min(selection.MaximumFileBytes, Math.Clamp(manifest.MaximumFileBytes, parameters.MinimumFileBytes, parameters.MaximumManifestFileBytes));
                     var matched = new List<FileInfo>();
                     var pending = new Stack<string>();
                     pending.Push(sourceRoot);
@@ -645,9 +646,9 @@ namespace LocalGPT.Services
 
                 return new LearnBaseSelectionPolicy(
                     selected,
-                    CompileManifestRegex(request.FileIncludeRegex, @".*"),
-                    CompileManifestRegex(request.FileExcludeRegex, @"(?!)"),
-                    Math.Clamp(request.MaximumFileBytes, 1024, 16 * 1024 * 1024),
+                    CompileManifestRegex(request.FileIncludeRegex, runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchAll).ToString()),
+                    CompileManifestRegex(request.FileExcludeRegex, runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchNone).ToString()),
+                    Math.Clamp(request.MaximumFileBytes, runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MinimumFileBytes, runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MaximumRequestedFileBytes),
                     catalog.ExcludedDirectoryNames,
                     catalog.BinaryExtensions);
         

@@ -635,7 +635,7 @@ namespace LocalGPT.Services
             try
             {
                 var tags = new List<string> { "learn-base", "source-backed", "architecture-fingerprint" };
-                foreach (var token in Regex.Split($"{summary.Architecture};{summary.ProtocolsAndComponents}", @"[^A-Za-z0-9]+"))
+                foreach (var token in runtimePolicy.GetPattern(LocalGptRuntimePattern.NonAlphanumeric).Split($"{summary.Architecture};{summary.ProtocolsAndComponents}"))
                 {
                     if (token.Length is >= 3 and <= 28)
                         tags.Add(token.ToLowerInvariant());

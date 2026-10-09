@@ -9,7 +9,8 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="learning">Learning round service dependency used by the get learning round snapshot function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learning, ILogger<GetLearningRoundSnapshotFunction> logger) : IDxAiFunctionHandler
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
+public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learning, ILocalGptRuntimePolicyDataService runtimePolicy, ILogger<GetLearningRoundSnapshotFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
     /// Gets the descriptor value that forms part of the get learning round snapshot function state consumed or produced by the surrounding workflow.
@@ -44,8 +45,8 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
     {
             logger.LogInformation("Learning-round snapshot DXFunction started.");
             var take = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("takePerSource", out var element) && element.TryGetInt32(out var parsed)
-                ? Math.Clamp(parsed, 1, 10_000)
-                : 200;
+                ? Math.Clamp(parsed, runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MinimumLearningItemsPerSource, runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MaximumLearningItemsPerRound)
+                : runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).DefaultLearningItemsPerSource;
             var result = new DxAiFunctionInvocationResult
             {
                 Succeeded = true,

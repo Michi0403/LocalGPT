@@ -195,9 +195,18 @@ namespace LocalGPT.Services
                 });
             }
 
+            var seedMinimumAiParticipants = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilSeedRoleMinimumAiParticipants));
+            var seedMaximumAiParticipants = Math.Max(seedMinimumAiParticipants, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilSeedRoleMaximumAiParticipants));
             foreach (var role in team.Roles)
             {
                 role.Role = role.Role?.Trim() ?? string.Empty;
+                if (role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
+                    role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected)
+                {
+                    role.AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange;
+                    role.MinimumAiParticipants = seedMinimumAiParticipants;
+                    role.MaximumAiParticipants = seedMaximumAiParticipants;
+                }
                 role.Expertise = role.Expertise?.Trim() ?? string.Empty;
                 role.Responsibility = role.Responsibility?.Trim() ?? string.Empty;
                 role.DistinctAiAssignmentGroup = role.DistinctAiAssignmentGroup?.Trim() ?? string.Empty;
@@ -227,12 +236,14 @@ namespace LocalGPT.Services
                 if (!Enum.IsDefined(typeof(CouncilRoleResultSynthesisMemberMode), step.RoleResultSynthesisMemberMode))
                     step.RoleResultSynthesisMemberMode = CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember;
                 step.RoleResultSynthesisModelName = step.RoleResultSynthesisModelName?.Trim() ?? string.Empty;
+                step.RoleResultSynthesisPromptTemplate = step.RoleResultSynthesisPromptTemplate?.Trim() ?? string.Empty;
+                step.RolePeerReviewPromptTemplate = step.RolePeerReviewPromptTemplate?.Trim() ?? string.Empty;
                 step.AllowedAutomaticFunctions ??= [];
                 step.AllowedAutomaticFunctions = NormalizeFunctionNames(step.AllowedAutomaticFunctions);
                 step.AutomaticFunctionPolicyMode = NormalizeAutomaticFunctionPolicy(step);
                 step.CanUseOrganicFunctions = step.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.Disabled;
-                step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, 3);
-                step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, 128, 32768);
+                step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumRoleComplianceRetries);
+                step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumFinalRecoveryOutputTokens);
                 step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
                 step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
                 step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
@@ -241,13 +252,13 @@ namespace LocalGPT.Services
                     : Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps);
                 step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
                 step.XMaximumTransitions = Math.Clamp(step.XMaximumTransitions, 1, MaxExpandedWorkflowSteps);
-                step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, 10);
+                step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth);
                 step.XDefaultTargetStepKey = step.XDefaultTargetStepKey?.Trim().ToLowerInvariant() ?? string.Empty;
                 step.XChildCouncilTeamKey = step.XChildCouncilTeamKey?.Trim().ToLowerInvariant() ?? string.Empty;
                 step.XChildModelName = step.XChildModelName?.Trim() ?? string.Empty;
-                step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, 20, 240);
-                step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
-                step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);
+                step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MinimumFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumFrameWidth);
+                step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MinimumFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumFrameHeight);
+                step.WorldStepScale = Math.Clamp(step.WorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MinimumWorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumWorldStepScale);
                 if (step.ProducesAsciiFrame && step.ExecutionMode is "AllMembersParallel" or "AllMembersSequentialOnEachAIHostParallel" or "AllMembersSequential")
                     step.ExecutionMode = "LeaderSingle";
             }

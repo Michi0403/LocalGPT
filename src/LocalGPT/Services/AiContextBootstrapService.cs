@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using Microsoft.AspNetCore.Http;
 using System.Text;
@@ -183,7 +184,7 @@ namespace LocalGPT.Services
                     .AppendLine("- Use /__diag/chat-upload-workspace/{workspaceName}/files and /file?path=relative/path for read-only inspection.")
                     .AppendLine("- Uploaded binaries/PDBs are diagnostic evidence only; never execute uploaded or extracted files.");
 
-                var latestUploadWorkspace = chatUploadWorkspaces.GetLatestWorkspace(TimeSpan.FromMinutes(10));
+                var latestUploadWorkspace = chatUploadWorkspaces.GetLatestWorkspace(TimeSpan.FromMinutes(catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).UploadContextFreshnessMinutes));
                 if (latestUploadWorkspace is not null)
                 {
                     builder
@@ -194,7 +195,7 @@ namespace LocalGPT.Services
 
                     var uploadContext = chatUploadWorkspaces.GetLatestContextMarkdown(
                         maxCharacters: 2600,
-                        maxAge: TimeSpan.FromMinutes(10));
+                        maxAge: TimeSpan.FromMinutes(catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).UploadContextFreshnessMinutes));
                     if (!string.IsNullOrWhiteSpace(uploadContext))
                     {
                         builder

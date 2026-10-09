@@ -17,11 +17,13 @@ namespace LocalGPT.Services;
 /// <param name="dbContextFactory">Creates LocalGPT database contexts.</param>
 /// <param name="databaseInitializer">Ensures schema migrations are applied.</param>
 /// <param name="hardwareInventory">Provides best-effort local read-only discovery.</param>
+/// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
 /// <param name="logger">Writes bounded host-hardware diagnostics.</param>
 public sealed class ConfiguredAiHostHardwareService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     IHardwareInventoryService hardwareInventory,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ConfiguredAiHostHardwareService> logger) : IConfiguredAiHostHardwareService
 {
     /// <summary>Stores the JSON options used for portable GPU and endpoint arrays persisted with configured-host profiles.</summary>
@@ -120,12 +122,12 @@ public sealed class ConfiguredAiHostHardwareService(
             ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
             ArgumentException.ThrowIfNullOrWhiteSpace(reportText);
             var draft = CreateDraft(endpoint, await GetForEndpointAsync(endpoint, cancellationToken).ConfigureAwait(false));
-            var gpuMatches = Regex.Matches(reportText, @"(?im)^\s*(?:Grafikspeicher|Video\s+Memory)\s*:\s*([0-9]+(?:[\.,][0-9]+)?)\s*(MByte|MB|GByte|GB|GiB)\b.*$")
+            var gpuMatches = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoGpuMemory).Matches(reportText)
                 .Cast<Match>().ToList();
             if (gpuMatches.Count == 0)
                 throw new InvalidDataException("The HWiNFO report did not contain a supported GPU-memory line (Grafikspeicher / Video Memory).");
 
-            var gpuHeadings = Regex.Matches(reportText, @"(?im)^\s*(.+?(?:Radeon|GeForce|Arc).+?)\s*-{3,}\s*$")
+            var gpuHeadings = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoGpuHeading).Matches(reportText)
                 .Cast<Match>().ToList();
             var importedGpus = new List<ConfiguredAiHostGpu>();
             foreach (var gpuMatch in gpuMatches)
@@ -133,7 +135,7 @@ public sealed class ConfiguredAiHostHardwareService(
                 var gpuHeading = gpuHeadings.LastOrDefault(match => match.Index < gpuMatch.Index);
                 var gpuName = gpuHeading is null
                     ? string.Empty
-                    : Regex.Replace(gpuHeading.Groups[1].Value.Trim(), @"^(?:ATI/AMD\s+)", string.Empty, RegexOptions.IgnoreCase);
+                    : runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoAmdPrefix).Replace(gpuHeading.Groups[1].Value.Trim(), string.Empty);
                 if (importedGpus.Any(item => !string.IsNullOrWhiteSpace(gpuName) && item.Name.Equals(gpuName, StringComparison.OrdinalIgnoreCase)))
                     continue;
                 var vendor = gpuName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) ? "AMD"
@@ -161,7 +163,7 @@ public sealed class ConfiguredAiHostHardwareService(
                     : null;
             }
 
-            var memoryMatch = Regex.Match(reportText, @"(?im)^\s*(?:Gesamtspeichergröße|Total\s+Memory\s+Size)\s*:\s*([0-9]+(?:[\.,][0-9]+)?)\s*(GByte|GB|GiB|MByte|MB)\b");
+            var memoryMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoTotalMemory).Match(reportText);
             if (memoryMatch.Success)
             {
                 var systemAmount = double.Parse(memoryMatch.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
@@ -172,7 +174,7 @@ public sealed class ConfiguredAiHostHardwareService(
             else
             {
                 // Some HWiNFO text exports encode the unit in the label, e.g. "Total Memory Size [MB]: 65536".
-                var labeledMemoryMatch = Regex.Match(reportText, @"(?im)^\s*Total\s+Memory\s+Size\s*\[(MB|GB|GiB)\]\s*:\s*([0-9]+(?:[\.,][0-9]+)?)\s*$");
+                var labeledMemoryMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoLabeledTotalMemory).Match(reportText);
                 if (labeledMemoryMatch.Success)
                 {
                     var systemAmount = double.Parse(labeledMemoryMatch.Groups[2].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
@@ -181,11 +183,11 @@ public sealed class ConfiguredAiHostHardwareService(
                         : systemAmount;
                 }
             }
-            var cpuMatch = Regex.Match(reportText, @"(?im)^\s*(?:Prozessorname|Processor\s+Name)\s*:\s*(.+?)\s*$");
+            var cpuMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoProcessorName).Match(reportText);
             if (cpuMatch.Success) draft.CpuName = cpuMatch.Groups[1].Value.Trim();
-            var hostMatch = Regex.Match(reportText, @"(?im)^\s*(?:Computername|Computer\s+Name)\s*:\s*(.+?)\s*$");
+            var hostMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoComputerName).Match(reportText);
             if (hostMatch.Success) draft.HostName = hostMatch.Groups[1].Value.Trim();
-            var osMatch = Regex.Match(reportText, @"(?im)^\s*(?:Betriebssystem|Operating\s+System)\s*:\s*(.+?)\s*$");
+            var osMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoOperatingSystem).Match(reportText);
             if (osMatch.Success) draft.OperatingSystem = osMatch.Groups[1].Value.Trim();
             draft.SourceKind = "HWiNFO";
             draft.Confidence = "ImportedReport";

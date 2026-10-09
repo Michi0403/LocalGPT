@@ -14,10 +14,12 @@ namespace LocalGPT.Services.Persistence;
 /// <param name="databaseInitializer">Database initialization service dependency used by the regex pattern workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="regexCompiler">Regex compilation service dependency used by the regex pattern workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class RegexPatternService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     IRegexCompilationService regexCompiler,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RegexPatternService> logger) : IRegexPatternService
 {
     /// <summary>
@@ -88,7 +90,7 @@ public sealed class RegexPatternService(
     {
         try
         {
-            return regexCompiler.Compile(pattern, flags, TimeSpan.FromSeconds(2), nameof(RegexPatternService));
+            return regexCompiler.Compile(pattern, flags, TimeSpan.FromSeconds(runtimePolicy.GetJson<RegexRuntimeParameters>(LocalGptRuntimeValue.RegexRuntimeParametersJson).DefaultTimeoutSeconds), nameof(RegexPatternService));
         }
         catch (Exception exception)
         {
@@ -148,7 +150,7 @@ public sealed class RegexPatternService(
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.RegexPatterns.AsNoTracking().OrderBy(item => item.Name).AsQueryable();
             if (take.HasValue)
-                query = query.Take(Math.Clamp(take.Value, 1, 1000));
+                query = query.Take(Math.Clamp(take.Value, 1, runtimePolicy.GetJson<RegexRuntimeParameters>(LocalGptRuntimeValue.RegexRuntimeParametersJson).MaximumStoredPatternListItems));
             return await query.ToListAsync().ConfigureAwait(false);
         }
         catch (Exception exception)

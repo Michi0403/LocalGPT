@@ -6,7 +6,8 @@ namespace LocalGPT.Services;
 /// <summary>Owns LocalGPT's human-facing ASCII operator command vocabulary above the host shell adapters.</summary>
 /// <param name="console">Bounded console command/process service used for shell work and process control.</param>
 /// <param name="logger">Writes parser/control diagnostics without recording human-entered command text.</param>
-public sealed class ConsoleOperatorService(IConsoleCommandService console, ILogger<ConsoleOperatorService> logger) : IConsoleOperatorService
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
+public sealed class ConsoleOperatorService(IConsoleCommandService console, ILocalGptRuntimePolicyDataService runtimePolicy, ILogger<ConsoleOperatorService> logger) : IConsoleOperatorService
 {
     /// <summary>
     /// Retrieves available shells as part of the console operator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -361,7 +362,7 @@ public sealed class ConsoleOperatorService(IConsoleCommandService console, ILogg
         {
             ArgumentNullException.ThrowIfNull(conversations);
             var lines = conversations
-                .Take(Math.Clamp(take, 1, 50))
+                .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).ConsoleOperatorMaximum))
                 .Select(item => $"{item.Id.ToString("N")[..8]}  {item.Title}  [{item.ProviderName}]  {item.MessageCount} message(s)")
                 .ToArray();
             return lines.Length == 0

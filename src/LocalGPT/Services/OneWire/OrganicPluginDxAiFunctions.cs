@@ -707,12 +707,14 @@ public sealed class RequestPublisherScreenCaptureFunction(
 /// <param name="peers">One wire peer registry dependency used by the request publisher screen record function workflow to provide the corresponding application capability.</param>
 /// <param name="spooler">One wire work spooler dependency used by the request publisher screen record function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class RequestPublisherScreenRecordFunction(
     IOrganicDxFunctionSupport organicSupport,
     IPublisherInteractionDxSupport publisherInteractionSupport,
     IOneWireConnectionRegistry connections,
     IOneWirePeerRegistry peers,
     IOneWireWorkSpooler spooler,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RequestPublisherScreenRecordFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -745,7 +747,9 @@ public sealed class RequestPublisherScreenRecordFunction(
             parameters => JsonSerializer.SerializeToElement(new
             {
                 reason = organicSupport.GetString(parameters, "reason", "Temporal visual evidence requested by the AI Council."),
-                maximumSeconds = parameters.TryGetProperty("maximumSeconds", out var seconds) && seconds.TryGetInt32(out var value) ? Math.Clamp(value, 1, 15) : 10,
+                maximumSeconds = parameters.TryGetProperty("maximumSeconds", out var seconds) && seconds.TryGetInt32(out var value)
+                    ? Math.Clamp(value, runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MinimumOrganicCallSeconds, runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MaximumOrganicCallSeconds)
+                    : runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).DefaultOrganicCallSeconds,
                 includeAudio = parameters.TryGetProperty("includeAudio", out var audio) && audio.ValueKind is JsonValueKind.True or JsonValueKind.False && audio.GetBoolean()
             }), cancellationToken);
     }
@@ -767,12 +771,14 @@ public sealed class RequestPublisherScreenRecordFunction(
 /// <param name="peers">One wire peer registry dependency used by the request publisher website content function workflow to provide the corresponding application capability.</param>
 /// <param name="spooler">One wire work spooler dependency used by the request publisher website content function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class RequestPublisherWebsiteContentFunction(
     IOrganicDxFunctionSupport organicSupport,
     IPublisherInteractionDxSupport publisherInteractionSupport,
     IOneWireConnectionRegistry connections,
     IOneWirePeerRegistry peers,
     IOneWireWorkSpooler spooler,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RequestPublisherWebsiteContentFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -812,7 +818,9 @@ public sealed class RequestPublisherWebsiteContentFunction(
                     initialText = organicSupport.GetString(parameters, "initialContent"),
                     format = organicSupport.GetString(parameters, "format", "html"),
                     sourceUrl = organicSupport.GetString(parameters, "sourceUrl"),
-                    maximumCharacters = parameters.TryGetProperty("maximumCharacters", out var maximum) && maximum.TryGetInt32(out var value) ? Math.Clamp(value, 1000, 200000) : 120000
+                    maximumCharacters = parameters.TryGetProperty("maximumCharacters", out var maximum) && maximum.TryGetInt32(out var value)
+                        ? Math.Clamp(value, runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MinimumOrganicResultCharacters, runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MaximumOrganicResultCharacters)
+                        : runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).DefaultOrganicResultCharacters
                 });
             }, cancellationToken);
     }

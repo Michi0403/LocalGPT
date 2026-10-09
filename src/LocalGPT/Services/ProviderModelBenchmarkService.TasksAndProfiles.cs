@@ -31,7 +31,7 @@ namespace LocalGPT.Services
                     task.Prompt.Trim(),
                     task.ExpectedTokens.Where(token => !string.IsNullOrWhiteSpace(token)).Select(token => token.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                     task.ExpectJson,
-                    Math.Clamp(task.ExpectedSectionCount, 0, 16),
+                    Math.Clamp(task.ExpectedSectionCount, 0, BenchmarkParameters.MaximumExpectedSections),
                     task.RequireEmbeddedJsonObject,
                     task.EnforceRoleExecution))
                 .ToList();

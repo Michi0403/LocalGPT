@@ -155,7 +155,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             item.ScopeKind = scope;
             item.ProjectId = request.ProjectId;
             item.ProjectTypePattern = Trim(request.ProjectTypePattern, 240);
-            item.SolutionPattern = TrimOrFallback(request.SolutionPattern, 1000, @"(?i)\.(sln|slnx)$");
+            item.SolutionPattern = TrimOrFallback(request.SolutionPattern, 1000, runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString());
             item.EnvironmentKind = TrimOrFallback(request.EnvironmentKind, 80, "LocalHost");
             item.EnvironmentRootPath = NormalizeOptionalPath(request.EnvironmentRootPath);
             item.PreferredCompilerInstallationId = request.PreferredCompilerInstallationId;
@@ -169,7 +169,8 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             item.LastPermissionReadAccess = false;
             item.LastPermissionWriteAccess = false;
             item.LastPermissionCheckedAtUtc = null;
-            item.Priority = Math.Clamp(request.Priority, 0, 10000);
+            var parameters = runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>(LocalGptRuntimeValue.ProjectMaintenanceRuntimeParametersJson);
+            item.Priority = Math.Clamp(request.Priority, parameters.MinimumPriority, parameters.MaximumPriority);
             item.IsDefault = request.IsDefault;
             item.IsEnabled = request.IsEnabled;
             item.UpdatedAtUtc = DateTime.UtcNow;
@@ -314,7 +315,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
                 if (!string.IsNullOrWhiteSpace(workspace.ExpectedStructureRegex))
                 {
                     var structure = string.Join("\n", relativeEntries);
-                    if (!CompileRegex(workspace.ExpectedStructureRegex, nameof(workspace.ExpectedStructureRegex), @"(?s).*").IsMatch(structure))
+                    if (!CompileRegex(workspace.ExpectedStructureRegex, nameof(workspace.ExpectedStructureRegex), runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchAll).ToString()).IsMatch(structure))
                         findings.Add(new("Warning", "STRUCTURE_REGEX_MISMATCH", "The current directory/file map does not satisfy the configured expected-structure regular expression."));
                 }
                 foreach (var rule in ParseAccessPolicy(workspace.AccessPolicyJson))
@@ -726,9 +727,9 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             var root = NormalizeAbsolutePath(!string.IsNullOrWhiteSpace(revision?.SourceRootPath) ? revision.SourceRootPath : project.RootPath, nameof(project.RootPath));
             if (!Directory.Exists(root)) throw new DirectoryNotFoundException("The stored project or revision root does not exist.");
             var workspace = await ResolveWorkspaceAsync(projectId, cancellationToken).ConfigureAwait(false);
-            var include = CompileRegex(project.FileIncludePattern, nameof(project.FileIncludePattern), @"(?s).*");
-            var exclude = CompileRegex(project.FileExcludePattern, nameof(project.FileExcludePattern), @"(?!)");
-            var solutionRegex = CompileRegex(project.SolutionSearchPattern, nameof(project.SolutionSearchPattern), @"(?i)\.(sln|slnx)$");
+            var include = CompileRegex(project.FileIncludePattern, nameof(project.FileIncludePattern), runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchAll).ToString());
+            var exclude = CompileRegex(project.FileExcludePattern, nameof(project.FileExcludePattern), runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchNone).ToString());
+            var solutionRegex = CompileRegex(project.SolutionSearchPattern, nameof(project.SolutionSearchPattern), runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString());
             var configuredMaximumFiles = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles));
             var maximum = request.MaximumFiles > 0
                 ? Math.Min(request.MaximumFiles, configuredMaximumFiles)

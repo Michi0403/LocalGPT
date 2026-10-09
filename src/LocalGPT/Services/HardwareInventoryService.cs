@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.WireProtocol;
 using System.Runtime.InteropServices;
@@ -10,8 +11,10 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="platformProbe">Platform-specific read-only hardware probe used to discover local devices without changing device state.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class HardwareInventoryService(
     IHardwarePlatformProbeService platformProbe,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<HardwareInventoryService> logger) : IHardwareInventoryService
 {
     /// <summary>
@@ -36,13 +39,13 @@ public sealed class HardwareInventoryService(
     {
     try
     {
-            if (cached is not null && DateTimeOffset.UtcNow - cacheUtc < TimeSpan.FromMinutes(2))
+            if (cached is not null && DateTimeOffset.UtcNow - cacheUtc < TimeSpan.FromMinutes(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).HardwareInventoryCacheMinutes))
                 return cached.Select(Clone).ToList();
 
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (cached is not null && DateTimeOffset.UtcNow - cacheUtc < TimeSpan.FromMinutes(2))
+                if (cached is not null && DateTimeOffset.UtcNow - cacheUtc < TimeSpan.FromMinutes(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).HardwareInventoryCacheMinutes))
                     return cached.Select(Clone).ToList();
 
                 var cpuName = await GetCpuNameAsync(cancellationToken).ConfigureAwait(false);

@@ -289,6 +289,14 @@ public enum LocalGptRuntimeValue
     /// </summary>
     CouncilTeamSeedVersion,
     /// <summary>
+    /// Selects the minimum AI participant count assigned to each supplied Council seed role when random-range selection is used.
+    /// </summary>
+    CouncilSeedRoleMinimumAiParticipants,
+    /// <summary>
+    /// Selects the maximum AI participant count assigned to each supplied Council seed role when random-range selection is used.
+    /// </summary>
+    CouncilSeedRoleMaximumAiParticipants,
+    /// <summary>
     /// Selects the debug artifact maximum inspection bytes option for <see cref="LocalGptRuntimeValue"/>, giving callers a named value for that supported mode or state.
     /// </summary>
     DebugArtifactMaximumInspectionBytes,
@@ -530,6 +538,127 @@ public enum LocalGptRuntimeValue
     /// Selects the vocabulary JSON option for <see cref="LocalGptRuntimeValue"/>, giving callers a named value for that supported mode or state.
     /// </summary>
     VocabularyJson,
+    /// <summary>Database-backed system prompt template used for each Council participant.</summary>
+    CouncilParticipantSystemPromptTemplate,
+    /// <summary>Database-backed system prompt template describing the read-only upload workspace to the model.</summary>
+    UploadWorkspaceSystemPromptTemplate,
+    /// <summary>Database-backed system prompt template for Minecraft project assistance.</summary>
+    MinecraftSystemPromptTemplate,
+    /// <summary>Database-backed system prompt for the upload-processing advisor model.</summary>
+    UploadProcessingAdvisorSystemPrompt,
+    /// <summary>Database-backed system prompt for a provider-qualified benchmark subject.</summary>
+    ProviderBenchmarkSubjectSystemPrompt,
+    /// <summary>Database-backed system prompt for the benchmark recommendation reviewer.</summary>
+    ProviderBenchmarkReviewerSystemPrompt,
+    /// <summary>Database-backed system prompt used by the configured-client diagnostic smoke route.</summary>
+    DiagnosticConfiguredClientSystemPrompt,
+    /// <summary>Database-backed role-performance instruction for improvisation participants.</summary>
+    CouncilRolePerformanceImprovisationInstructionTemplate,
+    /// <summary>Database-backed role-performance instruction for task-specialist participants.</summary>
+    CouncilRolePerformanceTaskInstructionTemplate,
+    /// <summary>Database-backed strict role-boundary instruction.</summary>
+    CouncilRoleBoundaryStrictInstructionTemplate,
+    /// <summary>Database-backed collaborative role-boundary instruction.</summary>
+    CouncilRoleBoundaryCollaborativeInstructionTemplate,
+    /// <summary>Database-backed default bounded role-boundary instruction.</summary>
+    CouncilRoleBoundaryBoundedInstructionTemplate,
+    /// <summary>Database-backed instruction that follows the latest human sender language.</summary>
+    CouncilRoleLanguageSenderInstruction,
+    /// <summary>Database-backed instruction that forces English role output.</summary>
+    CouncilRoleLanguageEnglishInstruction,
+    /// <summary>Database-backed adaptive role-language instruction.</summary>
+    CouncilRoleLanguageAdaptiveInstruction,
+    /// <summary>Database-backed optional-human-participation instruction.</summary>
+    CouncilRoleHumanOptionalInstruction,
+    /// <summary>Database-backed required-human-participation instruction.</summary>
+    CouncilRoleHumanRequiredInstruction,
+    /// <summary>Database-backed human-only role instruction.</summary>
+    CouncilRoleHumanOnlyInstruction,
+    /// <summary>Database-backed autonomous role instruction when no human turn is configured.</summary>
+    CouncilRoleHumanNoneInstruction,
+    /// <summary>Database-backed live-user-interruption prompt template.</summary>
+    CouncilLiveInterruptionPromptTemplate,
+    /// <summary>Database-backed live-user-interruption entry template.</summary>
+    CouncilLiveInterruptionEntryTemplate,
+    /// <summary>Database-backed fallback instruction when a live-user-interruption briefing cannot be formatted.</summary>
+    CouncilLiveInterruptionFallbackInstruction,
+    /// <summary>Database-backed bounded participant recovery instruction.</summary>
+    CouncilParticipantRecoveryInstruction,
+    /// <summary>Database-backed current-human-contribution briefing template.</summary>
+    CouncilHumanContributionBriefingTemplate,
+    /// <summary>Database-backed current-human-contribution entry template.</summary>
+    CouncilHumanContributionEntryTemplate,
+    /// <summary>Database-backed human-contribution briefing fallback instruction.</summary>
+    CouncilHumanContributionFallbackInstruction,
+    /// <summary>Database-backed deferred-DXFunction outcome briefing template.</summary>
+    CouncilDeferredInvocationBriefingTemplate,
+    /// <summary>Database-backed deferred-DXFunction outcome entry template.</summary>
+    CouncilDeferredInvocationEntryTemplate,
+    /// <summary>Database-backed instruction requiring explicit review of Human: transcript steps.</summary>
+    CouncilHumanPeerReviewInstruction,
+    /// <summary>Database-backed bounded DXFunction-result continuation prompt template.</summary>
+    CouncilToolResultContinuationPromptTemplate,
+    /// <summary>Database-backed default prompt template for same-role peer review when a workflow step has no user override.</summary>
+    CouncilRolePeerReviewPromptTemplate,
+    /// <summary>Database-backed default prompt template for role-result synthesis when a workflow step has no user override.</summary>
+    CouncilRoleResultSynthesisPromptTemplate,
+    /// <summary>Database-backed fallback label used when a role has no listed AI peer/member.</summary>
+    CouncilNoRoleMembersText,
+    /// <summary>Database-backed fallback text used when role-result synthesis has no optional peer-review evidence.</summary>
+    CouncilNoRolePeerReviewEvidenceText,
+    /// <summary>Database-backed default prompt template for the optional all-members readiness preflight.</summary>
+    CouncilAllMembersReadinessPreflightPromptTemplate,
+    /// <summary>Database-backed boundary instruction appended to the optional all-members readiness preflight.</summary>
+    CouncilAllMembersReadinessPreflightBoundaryInstruction,
+    /// <summary>Database-backed readiness text used when a Council member has no AI role assignment.</summary>
+    CouncilReadinessNoAssignedRoleText,
+    /// <summary>Database-backed readiness fallback responsibility for a configured role without explicit responsibility text.</summary>
+    CouncilReadinessDefaultRoleResponsibilityText,
+    /// <summary>Database-backed operational defaults and bounds for the MCP gateway configuration policy.</summary>
+    McpGatewayRuntimeParametersJson,
+    /// <summary>Database-backed operational defaults and bounds for chat upload workspaces.</summary>
+    ChatUploadWorkspaceRuntimeParametersJson,
+    /// <summary>Database-backed operational defaults and bounds for repository synchronization from chat upload workspaces.</summary>
+    LearningProjectWorkspaceSyncRuntimeParametersJson,
+    /// <summary>Database-backed provider discovery and default chat-session parameters.</summary>
+    ProviderModelRuntimeParametersJson,
+    /// <summary>Database-backed operational defaults and bounds shared by adaptive and provider benchmark services.</summary>
+    ModelBenchmarkRuntimeParametersJson,
+    /// <summary>Database-backed operational defaults and bounds used by Council execution services.</summary>
+    CouncilExecutionRuntimeParametersJson,
+    /// <summary>Database-backed operational defaults and bounds used by Council game services.</summary>
+    CouncilGameRuntimeParametersJson,
+    /// <summary>Database-backed query/page limits used by read-only operational services.</summary>
+    ServiceQueryRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for LearningBase imports.</summary>
+    LearnBaseImportRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for Local AI media runtimes.</summary>
+    LocalAiRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for model preset normalization.</summary>
+    ModelPresetRuntimeParametersJson,
+    /// <summary>Database-backed operational timing and limits for 1-Wire services.</summary>
+    OneWireRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for project maintenance and automation.</summary>
+    ProjectMaintenanceRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for Python.NET coordination.</summary>
+    PythonNetRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for regex compilation and persistence.</summary>
+    RegexRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for remote repository and knowledge import.</summary>
+    RemoteKnowledgeRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for toolchain services.</summary>
+    ToolchainRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for Hugging Face catalog queries.</summary>
+    HuggingFaceCatalogRuntimeParametersJson,
+    /// <summary>Database-backed operational bounds for embedded firmware planning.</summary>
+    EmbeddedFirmwareRuntimeParametersJson,
+    /// <summary>Database-backed service timing defaults that are operational policy.</summary>
+    ServiceTimingRuntimeParametersJson,
+
+    /// <summary>Database-backed regex template used to match a dynamic Council marker without embedding the boundary policy in operational code.</summary>
+    CouncilMarkerBoundaryPatternTemplate,
+    /// <summary>Database-backed regex template used to create a repository-marker evidence candidate without embedding regex policy in operational code.</summary>
+    ProjectMarkerPatternTemplate,
 }
 
 /// <summary>
@@ -980,6 +1109,118 @@ public enum LocalGptRuntimePattern
     /// Selects the toolchain environment token option for <see cref="LocalGptRuntimePattern"/>, giving callers a named value for that supported mode or state.
     /// </summary>
     ToolchainEnvironmentToken,
+    /// <summary>Validates persisted Remote Control connector and pipeline keys.</summary>
+    RemoteControlKey,
+    /// <summary>Parses bounded Remote Control template expressions.</summary>
+    RemoteControlTemplateExpression,
+    /// <summary>Validates user-owned DXFunction names.</summary>
+    UserDxAiFunctionName,
+    /// <summary>Matches .NET solution file extensions.</summary>
+    SolutionFileExtension,
+    /// <summary>Matches all text for explicitly configured fallback semantics.</summary>
+    MatchAll,
+    /// <summary>Matches no text for explicitly configured fallback semantics.</summary>
+    MatchNone,
+    /// <summary>Rejects generated/dependency/security-sensitive repository paths from broad project scans.</summary>
+    ProjectSensitivePath,
+    /// <summary>Matches HTML line-break tags while converting editor markup to executable source.</summary>
+    HtmlBreakTag,
+    /// <summary>Matches closing HTML block tags that map to a plain-text line break.</summary>
+    HtmlBlockEndTag,
+    /// <summary>Matches an HTML tag for bounded markup-to-text normalization.</summary>
+    HtmlTag,
+    /// <summary>Matches a fenced ASCII animation sequence.</summary>
+    AsciiSequenceBlock,
+    /// <summary>Matches an explicit ASCII animation frame separator.</summary>
+    AsciiSequenceFrameSeparator,
+    /// <summary>Matches an HTML summary element.</summary>
+    HtmlSummaryElement,
+    /// <summary>Matches a Markdown heading line.</summary>
+    MarkdownHeadingLine,
+    /// <summary>Matches an ASCII/text fenced-code boundary.</summary>
+    AsciiFenceBoundary,
+    /// <summary>Matches excessive blank lines for bounded normalization.</summary>
+    ExcessBlankLines,
+    /// <summary>Matches characters not permitted in compact ASCII-chat nicknames.</summary>
+    AsciiNicknameUnsafeCharacters,
+    /// <summary>Matches one ASCII alphanumeric token for generated-source comparison.</summary>
+    CodeGenerationWordToken,
+    /// <summary>Matches reserved Windows COM/LPT device names.</summary>
+    WindowsReservedDeviceName,
+    /// <summary>Matches an ASCII frame envelope in rendered chat.</summary>
+    ChatAsciiFrame,
+    /// <summary>Matches a known prose label missing a numeric boundary.</summary>
+    ChatProseLabelBoundary,
+    /// <summary>Matches a missing numeric-to-unit prose boundary.</summary>
+    ChatProseUnitBoundary,
+    /// <summary>Matches a fenced JSON candidate in structured model output.</summary>
+    StructuredJsonFence,
+    /// <summary>Matches the first line that starts a structured JSON candidate.</summary>
+    StructuredJsonStart,
+    /// <summary>Matches markup regions that structured translation must protect.</summary>
+    StructuredProtectedMarkup,
+    /// <summary>Matches boundaries used to split identifier-like labels into words.</summary>
+    StructuredIdentifierWordBoundary,
+    /// <summary>Matches LocalGPT self-assessment tagged envelopes.</summary>
+    StructuredSelfAssessmentEnvelope,
+    /// <summary>Matches a provider model-size token measured in billions of parameters.</summary>
+    ModelSizeBillions,
+    /// <summary>Matches a provider model architecture suffix such as A3B.</summary>
+    ModelArchitectureSuffix,
+    /// <summary>Matches a bounded provider model-size token and its unit.</summary>
+    ModelSizeToken,
+    /// <summary>Matches a plain HTTP or HTTPS URL in authored knowledge.</summary>
+    ExternalHttpUrl,
+    /// <summary>Matches HWiNFO GPU memory lines.</summary>
+    HwInfoGpuMemory,
+    /// <summary>Matches HWiNFO GPU headings.</summary>
+    HwInfoGpuHeading,
+    /// <summary>Matches the HWiNFO ATI/AMD GPU-name prefix.</summary>
+    HwInfoAmdPrefix,
+    /// <summary>Matches HWiNFO total-memory lines.</summary>
+    HwInfoTotalMemory,
+    /// <summary>Matches HWiNFO total-memory labels that carry the unit in brackets.</summary>
+    HwInfoLabeledTotalMemory,
+    /// <summary>Matches HWiNFO processor-name lines.</summary>
+    HwInfoProcessorName,
+    /// <summary>Matches HWiNFO computer-name lines.</summary>
+    HwInfoComputerName,
+    /// <summary>Matches HWiNFO operating-system lines.</summary>
+    HwInfoOperatingSystem,
+    /// <summary>Matches source/document extensions imported by Learn Base.</summary>
+    LearnBaseSourceFileExtension,
+    /// <summary>Matches a project Version XML element.</summary>
+    ProjectVersionXmlElement,
+    /// <summary>Matches a Cargo/Python TOML package name assignment.</summary>
+    TomlPackageName,
+    /// <summary>Matches a Cargo/Python TOML package version assignment.</summary>
+    TomlPackageVersion,
+    /// <summary>Matches a Go module declaration.</summary>
+    GoModuleDeclaration,
+    /// <summary>Matches a trailing semantic version suffix in repository names.</summary>
+    RepositoryTrailingVersion,
+    /// <summary>Matches a versioned repository changelog filename.</summary>
+    RepositoryChangelogFile,
+    /// <summary>Matches generated/dependency paths excluded from project maintenance.</summary>
+    GeneratedProjectPath,
+    /// <summary>Matches a .git/config path in flattened or repository-relative evidence.</summary>
+    GitConfigPath,
+    /// <summary>Matches LocalGPT Council completion/status artifacts that must not re-enter prompt history.</summary>
+    CouncilStreamArtifacts,
+    /// <summary>Matches whitespace-only lines in normalized Council history.</summary>
+    CouncilWhitespaceOnlyLine,
+    /// <summary>Matches Markdown fenced-code delimiter lines in Council history.</summary>
+    CouncilMarkdownFenceLine,
+    /// <summary>Matches nested persisted User transcript blocks.</summary>
+    CouncilUserTranscriptBlock,
+    /// <summary>Matches generated Council wrapper lines that must not re-enter user prompt content.</summary>
+    CouncilBoilerplateLine,
+    /// <summary>Matches complete LocalGPT-controlled details panels.</summary>
+    CouncilControlledDetailsBlock,
+    /// <summary>Matches LocalGPT details, summary, and pre tags after panel removal.</summary>
+    CouncilPanelTag,
+    /// <summary>Matches non-alphanumeric characters for deterministic workspace slugs.</summary>
+    NonAlphanumeric,
 }
 
 /// <summary>

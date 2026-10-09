@@ -11,10 +11,12 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="dbContextFactory">Local gpt memory database context dependency used by the LocalGPT project workflow to provide the corresponding application capability.</param>
 /// <param name="databaseInitializer">Database initialization service dependency used by the LocalGPT project workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalGptProjectService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalGptProjectService> logger) : ILocalGptProjectService
 {
     /// <summary>
@@ -228,9 +230,9 @@ public sealed class LocalGptProjectService(
             project.RootPath = rootPath;
             project.ProjectType = TrimOrFallback(request.ProjectType, 120, "DotNetSolution");
             project.SolutionPath = solutionPath;
-            project.SolutionSearchPattern = TrimOrFallback(request.SolutionSearchPattern, 1000, @"(?i)\.(sln|slnx)$");
-            project.FileIncludePattern = TrimOrFallback(request.FileIncludePattern, 4000, @"(?s).*");
-            project.FileExcludePattern = TrimOrFallback(request.FileExcludePattern, 4000, @"(?i)(^|[\\/])(bin|obj|node_modules|\.git|\.vs|artifacts|security|secrets?)([\\/]|$)|(^|[\\/])(\.env(?:\..*)?|[^\\/]+\.(?:pfx|p12|key|pem))$");
+            project.SolutionSearchPattern = TrimOrFallback(request.SolutionSearchPattern, 1000, runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString());
+            project.FileIncludePattern = TrimOrFallback(request.FileIncludePattern, 4000, runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchAll).ToString());
+            project.FileExcludePattern = TrimOrFallback(request.FileExcludePattern, 4000, runtimePolicy.GetPattern(LocalGptRuntimePattern.ProjectSensitivePath).ToString());
             project.CurrentVersion = TrimOrFallback(request.CurrentVersion, 120, "0.1.0");
             project.Status = TrimOrFallback(request.Status, 80, "Active");
             project.RecommendGit = request.RecommendGit;

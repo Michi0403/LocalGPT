@@ -34,6 +34,7 @@ namespace LocalGPT.Services
     /// <param name="councilRuntime">Council runtime service dependency used by the chat client workflow to provide the corresponding application capability.</param>
     /// <param name="councilText">Council text service dependency used by the chat client workflow to provide the corresponding application capability.</param>
     /// <param name="sessionContext">Scoped chat/project identity propagated into provider-native automatic functions.</param>
+    /// <param name="runtimePolicy">Database-backed runtime policy used for provider discovery and default session parameters.</param>
     public class ChatClientFactory(
           ILogger<ChatClientFactory> logger,
           ILoggerFactory loggerFactory,
@@ -53,8 +54,12 @@ namespace LocalGPT.Services
       ,
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
-        IChatSessionContext sessionContext) : IChatClientFactory
+        IChatSessionContext sessionContext,
+        ILocalGptRuntimePolicyDataService runtimePolicy) : IChatClientFactory
     {
+        /// <summary>Gets the current database-backed provider defaults.</summary>
+        private ProviderModelRuntimeParameters ProviderParameters => runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
+
         /// <summary>
         /// Performs build using the configuration and dependencies owned by <see cref="ChatClientFactory"/>.
         /// </summary>
@@ -79,9 +84,9 @@ namespace LocalGPT.Services
                         ollama,
                         logger,
                         councilRuntime,
-                        keepAlive: "2m",
-                        contextLength: 65536,
-                        timeout: TimeSpan.FromMinutes(30),
+                        keepAlive: ProviderParameters.DefaultSessionKeepAlive,
+                        contextLength: ProviderParameters.DefaultSessionContextTokens,
+                        timeout: TimeSpan.FromMinutes(ProviderParameters.DefaultSessionTimeoutMinutes),
                         numGpu: null,
                         formatterFactory: formatterFactory,
                         protocolResolver: protocolResolver,
@@ -130,7 +135,7 @@ namespace LocalGPT.Services
                     // Allow custom endpoint (use default if empty)
                     var configString = openai.Endpoint?.TrimEnd('/');
                     var endpoint = string.IsNullOrWhiteSpace(configString)
-                        ? "https://api.openai.com/v1"
+                        ? ProviderParameters.DefaultOpenAiEndpoint
                         : NormalizeOpenAiCompatibleEndpoint(configString);
 
                     var oai = new OpenAIClient(
@@ -177,7 +182,7 @@ namespace LocalGPT.Services
                         continue;
                     }
 
-                    var runtimeApiKey = !string.IsNullOrWhiteSpace(loc.ApiKey) ? loc.ApiKey : "local-no-key";
+                    var runtimeApiKey = !string.IsNullOrWhiteSpace(loc.ApiKey) ? loc.ApiKey : ProviderParameters.DefaultOpenAiCompatibleApiKey;
                     var localClient = new OpenAIClient(
                         new ApiKeyCredential(runtimeApiKey),
                         new OpenAIClientOptions
@@ -253,8 +258,8 @@ namespace LocalGPT.Services
                 // Preserve the historical local LM Studio auto-discovery while allowing any number of configured remote hosts.
                 Add(new ChatGPTLocalCoreOptions
                 {
-                    Endpoint = "http://127.0.0.1:1234/v1",
-                    ApiKey = "local-no-key",
+                    Endpoint = ProviderParameters.DefaultOpenAiCompatibleEndpoint,
+                    ApiKey = ProviderParameters.DefaultOpenAiCompatibleApiKey,
                     ModelName = string.Empty,
                     AutoStartServer = false
                 });
@@ -280,7 +285,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).ChatClientProbeTimeoutSeconds) };
                 if (!string.IsNullOrWhiteSpace(apiKey))
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
                 using var response = client.GetAsync(endpoint.TrimEnd('/') + "/models").GetAwaiter().GetResult();
@@ -314,7 +319,9 @@ namespace LocalGPT.Services
         private string GetLocalProviderName(string endpoint) {
     try
     {
-        return Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.Port == 1234
+        return Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
+                && Uri.TryCreate(ProviderParameters.DefaultOpenAiCompatibleEndpoint, UriKind.Absolute, out var defaultUri)
+                && uri.Port == defaultUri.Port
                 ? "LM Studio"
                 : "Local OpenAI-compatible";
     }
@@ -369,7 +376,7 @@ namespace LocalGPT.Services
                 if (string.Equals(builder.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                     builder.Host = "127.0.0.1";
                 if (string.IsNullOrWhiteSpace(builder.Path) || builder.Path == "/")
-                    builder.Path = "/v1";
+                    builder.Path = ProviderParameters.OpenAiCompatibleApiPath;
                 return builder.Uri.ToString().TrimEnd('/');
         
     }

@@ -23,6 +23,7 @@ public sealed partial class EmbeddedFirmwarePlanningService : IEmbeddedFirmwareP
     /// Stores the embedded telemetry bridge service dependency used by <see cref="EmbeddedFirmwarePlanningService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly IEmbeddedTelemetryBridgeService telemetryBridge;
+    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
     /// <summary>
     /// Stores the logger used by <see cref="EmbeddedFirmwarePlanningService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -33,15 +34,18 @@ public sealed partial class EmbeddedFirmwarePlanningService : IEmbeddedFirmwareP
     /// <param name="wiring">Injected dependency used by the EmbeddedFirmwarePlanningService.</param>
     /// <param name="telemetryBridge">Injected dependency used by the EmbeddedFirmwarePlanningService.</param>
     /// <param name="logger">Injected dependency used by the EmbeddedFirmwarePlanningService.</param>
+    /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
     public EmbeddedFirmwarePlanningService(
         IEmbeddedHardwareCatalogService catalog,
         IEmbeddedWiringService wiring,
         IEmbeddedTelemetryBridgeService telemetryBridge,
+        ILocalGptRuntimePolicyDataService runtimePolicy,
         ILogger<EmbeddedFirmwarePlanningService> logger)
     {
         this.catalog = catalog;
         this.wiring = wiring;
         this.telemetryBridge = telemetryBridge;
+        this.runtimePolicy = runtimePolicy;
         this.logger = logger;
     }
 

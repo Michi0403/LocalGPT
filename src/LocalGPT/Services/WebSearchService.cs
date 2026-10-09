@@ -5,7 +5,7 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Routes public web searches to the configured provider without granting the model unrestricted network access.</summary>
-public sealed class WebSearchService(IEnumerable<IWebSearchProvider> providers, ILogger<WebSearchService> logger) : IWebSearchService
+public sealed class WebSearchService(IEnumerable<IWebSearchProvider> providers, ILocalGptRuntimePolicyDataService runtimePolicy, ILogger<WebSearchService> logger) : IWebSearchService
 {
     /// <inheritdoc />
     public async Task<WebSearchResponse> SearchAsync(WebSearchRequest request, CancellationToken cancellationToken = default)
@@ -22,7 +22,7 @@ public sealed class WebSearchService(IEnumerable<IWebSearchProvider> providers, 
                 ?? throw new InvalidOperationException($"Web search provider '{providerKey}' is not configured.");
             request.Query = query;
             request.Provider = provider.Key;
-            request.MaximumResults = Math.Clamp(request.MaximumResults, 1, 20);
+            request.MaximumResults = Math.Clamp(request.MaximumResults, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).WebSearchMaximumResults);
             return await provider.SearchAsync(request, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception)

@@ -19,6 +19,7 @@ namespace LocalGPT.Services;
 /// <param name="regexCuratorService">Regex curator service used to place model-suggested regex changes behind the maintained review workflow.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="projectWorkspaceSync">Learning project workspace sync service dependency used by the learning round workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class LearningRoundService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -26,6 +27,7 @@ public sealed class LearningRoundService(
     IRegexPatternService regexPatternService,
     IRegexCuratorService regexCuratorService,
     ILearningProjectWorkspaceSyncService projectWorkspaceSync,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LearningRoundService> logger) : ILearningRoundService
 {
     /// <summary>
@@ -39,7 +41,8 @@ public sealed class LearningRoundService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            var take = Math.Clamp(takePerSource, 1, 10_000);
+            var parameters = runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson);
+            var take = Math.Clamp(takePerSource <= 0 ? parameters.DefaultLearningItemsPerSource : takePerSource, parameters.MinimumLearningItemsPerSource, parameters.MaximumLearningItemsPerRound);
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
@@ -240,7 +243,7 @@ public sealed class LearningRoundService(
             var knowledgeIds = new List<Guid>();
             var regexNames = new List<string>();
 
-            foreach (var fact in request.Facts.Take(10_000))
+            foreach (var fact in request.Facts.Take(runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MaximumLearningItemsPerRound))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(fact.Topic) || string.IsNullOrWhiteSpace(fact.Content))
@@ -270,7 +273,7 @@ public sealed class LearningRoundService(
                 knowledgeIds.Add(entry.Id);
             }
 
-            foreach (var regex in request.RegexPatterns.Take(10_000))
+            foreach (var regex in request.RegexPatterns.Take(runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MaximumLearningItemsPerRound))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(regex.Name) || string.IsNullOrWhiteSpace(regex.Pattern))
@@ -286,7 +289,7 @@ public sealed class LearningRoundService(
             var synchronizedProjects = request.SynchronizeProjectStructure
                 ? await projectWorkspaceSync.SynchronizeAsync(request.WorkspaceName, cancellationToken).ConfigureAwait(false)
                 : [];
-            var synchronizedWorkspace = synchronizedProjects.FirstOrDefault()?.WorkspaceName ?? request.WorkspaceName?.Trim() ?? string.Empty;
+            var synchronizedWorkspace = synchronizedProjects.LastOrDefault()?.WorkspaceName ?? request.WorkspaceName?.Trim() ?? string.Empty;
 
             logger.LogInformation(
                 "Learning self-maintenance stored {FactCount} model-suggested fact(s), {RegexCount} regex pattern(s), and synchronized {ProjectCount} source project(s).",

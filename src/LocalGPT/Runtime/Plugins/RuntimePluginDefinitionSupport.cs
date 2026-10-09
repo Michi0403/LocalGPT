@@ -1,4 +1,5 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
@@ -8,7 +9,7 @@ using System.Text.Json;
 namespace LocalGPT.Runtime.Plugins;
 
 /// <summary>Provides deterministic validation and copying helpers for persisted runtime-extension definitions.</summary>
-public sealed class RuntimePluginDefinitionSupport
+public sealed class RuntimePluginDefinitionSupport(ILocalGptRuntimePolicyDataService runtimePolicy)
 {
     /// <summary>Normalizes and validates one persisted runtime-extension definition.</summary>
     /// <param name="definition">Definition to normalize and validate.</param>
@@ -102,9 +103,9 @@ public sealed class RuntimePluginDefinitionSupport
             return string.Empty;
 
         var normalized = markup.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
-        normalized = Regex.Replace(normalized, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        normalized = Regex.Replace(normalized, @"</(?:p|div|pre|li|h[1-6])\s*>", "\n", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        normalized = Regex.Replace(normalized, @"<[^>]+>", string.Empty, RegexOptions.CultureInvariant);
+        normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlBreakTag).Replace(normalized, "\n");
+        normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlBlockEndTag).Replace(normalized, "\n");
+        normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlTag).Replace(normalized, string.Empty);
         normalized = WebUtility.HtmlDecode(normalized).Replace('\u00a0', ' ');
         if (normalized.EndsWith('\n'))
             normalized = normalized[..^1];

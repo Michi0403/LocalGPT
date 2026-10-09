@@ -49,6 +49,7 @@ namespace LocalGPT.Controller
         /// Stores the local GPT catalog service dependency used by <see cref="LocalGptDiagnosticController"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly LocalGptCatalogService catalog;
+        private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
 
         /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
         /// <param name="logger">Injected dependency used by the LocalGptDiagnosticController.</param>
@@ -57,13 +58,15 @@ namespace LocalGPT.Controller
         /// <param name="devExpressChat">Injected dependency used by the LocalGptDiagnosticController.</param>
         /// <param name="dxAiFunctionRegistry">Injected dependency used by the LocalGptDiagnosticController.</param>
         /// <param name="catalog">Injected dependency used by the LocalGptDiagnosticController.</param>
+        /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
         public LocalGptDiagnosticController(
             ILogger<LocalGptDiagnosticController> logger,
             CouncilRuntimeService councilRuntime,
             CouncilTextService councilText,
             DevExpressChatService devExpressChat,
             IDxAiFunctionRegistry dxAiFunctionRegistry,
-            LocalGptCatalogService catalog)
+            LocalGptCatalogService catalog,
+            ILocalGptRuntimePolicyDataService runtimePolicy)
         {
             this.logger = logger;
             this.councilRuntime = councilRuntime;
@@ -71,6 +74,7 @@ namespace LocalGPT.Controller
             this.devExpressChat = devExpressChat;
             this.dxAiFunctionRegistry = dxAiFunctionRegistry;
             this.catalog = catalog;
+            this.runtimePolicy = runtimePolicy;
         }
 
         /// <summary>
@@ -323,11 +327,9 @@ namespace LocalGPT.Controller
                 var messages = new List<Microsoft.Extensions.AI. ChatMessage>();
                 if (request.IncludeDiagnosticSystemPrompt)
                 {
-                    messages.Add(new Microsoft.Extensions.AI.ChatMessage(ChatRole.System, """
-                    You are being called through LocalGPT's configured IChatClient, the same backend service used by the DXAiChat page.
-                    This is a diagnostic smoke test, not direct Ollama access.
-                    Keep the visible answer concise, mark uncertain claims as "Needs verification", and do not claim UI behavior was tested unless the prompt says it was.
-                    """));
+                    messages.Add(new Microsoft.Extensions.AI.ChatMessage(
+                        ChatRole.System,
+                        runtimePolicy.GetString(LocalGptRuntimeValue.DiagnosticConfiguredClientSystemPrompt)));
                 }
 
                 messages.Add(new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, prompt));

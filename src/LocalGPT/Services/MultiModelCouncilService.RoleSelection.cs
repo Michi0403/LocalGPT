@@ -419,15 +419,12 @@ namespace LocalGPT.Services
             string roleName) {
     try
     {
-        return performanceMode switch
-        {
-            CouncilRolePerformanceMode.ImprovisationPlayer =>
-                $"You are AI kernel '{modelName}', a genuine improvisation player performing the assigned role '{roleName}' inside the configured fictional scene. " +
-                "You are not an NPC or a passive narrator. Make creative, bounded choices for your own role, preserve continuity, react to other players, and remain aware that the world, prizes, creatures and consequences are fictional. " +
-                "Do not seize another participant's role, decide another player's action, or step outside the scenario to redesign the workflow unless the role explicitly requires it.",
-            _ =>
-                $"Work as AI kernel '{modelName}' in the bounded task-specialist role '{roleName}'. Stay within that role's responsibility and do not take over another role."
-        };
+        var template = runtimePolicy.GetString(performanceMode == CouncilRolePerformanceMode.ImprovisationPlayer
+            ? LocalGptRuntimeValue.CouncilRolePerformanceImprovisationInstructionTemplate
+            : LocalGptRuntimeValue.CouncilRolePerformanceTaskInstructionTemplate);
+        return template
+            .Replace("{{ModelName}}", modelName, StringComparison.Ordinal)
+            .Replace("{{RoleName}}", roleName, StringComparison.Ordinal);
     }
     catch (Exception __serviceMethodException)
     {
@@ -448,15 +445,13 @@ namespace LocalGPT.Services
         private string BuildConfiguredRoleBoundaryInstruction(CouncilRoleBoundaryMode boundaryMode, string roleName) {
     try
     {
-        return boundaryMode switch
+        var key = boundaryMode switch
         {
-            CouncilRoleBoundaryMode.Strict =>
-                $"Strict role ownership is active for '{roleName}'. Speak and act only for this role. Do not narrate another participant's private thinking, choose another player's move, issue a ruling reserved for another role, or manufacture another role's dialogue or outcome.",
-            CouncilRoleBoundaryMode.Collaborative =>
-                $"Collaborative role boundaries are active for '{roleName}'. You may offer clearly labeled suggestions to neighboring roles, but you may not perform their choices, speak as them, or convert a suggestion into an accomplished action.",
-            _ =>
-                $"Bounded role ownership is active for '{roleName}'. Stay inside this role's responsibility, refer to other participants only as shared context, and never decide their actions or outcomes."
+            CouncilRoleBoundaryMode.Strict => LocalGptRuntimeValue.CouncilRoleBoundaryStrictInstructionTemplate,
+            CouncilRoleBoundaryMode.Collaborative => LocalGptRuntimeValue.CouncilRoleBoundaryCollaborativeInstructionTemplate,
+            _ => LocalGptRuntimeValue.CouncilRoleBoundaryBoundedInstructionTemplate
         };
+        return runtimePolicy.GetString(key).Replace("{{RoleName}}", roleName, StringComparison.Ordinal);
     }
     catch (Exception __serviceMethodException)
     {
@@ -476,15 +471,13 @@ namespace LocalGPT.Services
         private string BuildConfiguredRoleLanguageInstruction(CouncilRoleLanguageMode languageMode) {
     try
     {
-        return languageMode switch
+        var key = languageMode switch
         {
-            CouncilRoleLanguageMode.SenderLanguage =>
-                "Use the natural language of the latest human sender message for both visible output and any thinking text the model exposes. Preserve identifiers, code, names and quoted commands unchanged. If the latest human message is mixed-language, follow its dominant language.",
-            CouncilRoleLanguageMode.English =>
-                "Use English for visible output and any thinking text the model exposes, while preserving identifiers, code, names and quoted commands unchanged.",
-            _ =>
-                "Choose the response language that best fits the current conversation, while preserving identifiers, code, names and quoted commands unchanged."
+            CouncilRoleLanguageMode.SenderLanguage => LocalGptRuntimeValue.CouncilRoleLanguageSenderInstruction,
+            CouncilRoleLanguageMode.English => LocalGptRuntimeValue.CouncilRoleLanguageEnglishInstruction,
+            _ => LocalGptRuntimeValue.CouncilRoleLanguageAdaptiveInstruction
         };
+        return runtimePolicy.GetString(key);
     }
     catch (Exception __serviceMethodException)
     {
@@ -504,17 +497,14 @@ namespace LocalGPT.Services
         private string BuildConfiguredRoleHumanParticipationInstruction(HumanParticipationMode mode) {
     try
     {
-        return mode switch
+        var key = mode switch
         {
-            HumanParticipationMode.Optional =>
-                "A human may optionally send a current role command or improvisation cue. Use a clearly targeted current human message when present; otherwise continue autonomously without asking, blocking or inventing a human command.",
-            HumanParticipationMode.Required =>
-                "A current human response is required before this role continues. Use the approved human response as guidance without treating it as proof that an outcome already happened.",
-            HumanParticipationMode.HumanOnly =>
-                "This role belongs to the human participant. Do not simulate the missing human decision.",
-            _ =>
-                "No human turn is configured for this role. Continue autonomously and do not ask the user to choose commands unless the workflow prompt explicitly creates a decision checkpoint."
+            HumanParticipationMode.Optional => LocalGptRuntimeValue.CouncilRoleHumanOptionalInstruction,
+            HumanParticipationMode.Required => LocalGptRuntimeValue.CouncilRoleHumanRequiredInstruction,
+            HumanParticipationMode.HumanOnly => LocalGptRuntimeValue.CouncilRoleHumanOnlyInstruction,
+            _ => LocalGptRuntimeValue.CouncilRoleHumanNoneInstruction
         };
+        return runtimePolicy.GetString(key);
     }
     catch (Exception __serviceMethodException)
     {
@@ -667,7 +657,7 @@ namespace LocalGPT.Services
                     humanCollaboration.Changed += HandleChanged;
                     try
                     {
-                        var fallback = Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                        var fallback = Task.Delay(TimeSpan.FromSeconds(runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumAvailabilityWaitSeconds), cancellationToken);
                         await Task.WhenAny(changed.Task, fallback).ConfigureAwait(false);
                         cancellationToken.ThrowIfCancellationRequested();
                     }

@@ -43,7 +43,7 @@ The final 3.3.0 worktree completed these checks successfully before packaging:
 ## Version and scope
 
 - LocalGPT, InstallerConsole, and WebView wrapper: **3.3.0**.
-- DevExpress: **25.2.9** unchanged.
+- DevExpress: **25.2.10** unchanged.
 - PublisherStudio: **2.9.7** unchanged.
 - 3.2.9 database/knowledge/RegEx/lifecycle behavior was not modified by this theme-focused release.
 

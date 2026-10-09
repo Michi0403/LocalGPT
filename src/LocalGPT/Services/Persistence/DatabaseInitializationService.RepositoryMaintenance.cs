@@ -11,9 +11,9 @@ namespace LocalGPT.Services.Persistence;
 /// <summary>Extends deterministic initialization with source-backed repository/project maintenance records.</summary>
 public sealed partial class DatabaseInitializationService
 {
-    /// <summary>Matches the semantic release version encoded in a maintained top-level LocalGPT changelog filename.</summary>
-    private readonly Regex RepositoryReleaseChangelogPattern = new(
-        @"^CHANGELOG-v(?<version>\d+\.\d+\.\d+)(?:-|\.md$)",
+    /// <summary>Resolves the semantic release changelog pattern from the same authoritative runtime-policy seed that is persisted during initialization.</summary>
+    private Regex RepositoryReleaseChangelogPattern => new(
+        runtimePolicySeed.GetSeed().RegexPatterns.Single(item => item.Key == LocalGptRuntimePattern.RepositoryChangelogFile).Pattern,
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(2));
 

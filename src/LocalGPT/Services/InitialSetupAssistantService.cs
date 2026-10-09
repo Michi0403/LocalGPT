@@ -21,6 +21,7 @@ namespace LocalGPT.Services;
 /// <param name="jsonText">Serializes maintained team templates for a detached deep clone.</param>
 /// <param name="optionsRoot">Current LocalGPT provider configuration used to expose saved hosts independently from reachability.</param>
 /// <param name="httpClientFactory">Creates the bounded client used only for explicit official provider-catalog searches.</param>
+/// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
 /// <param name="logger">Writes bounded setup diagnostics.</param>
 public sealed class InitialSetupAssistantService(
     IHardwareInventoryService hardwareInventory,
@@ -34,6 +35,7 @@ public sealed class InitialSetupAssistantService(
     IJsonTextService jsonText,
     IOptionsMonitor<LocalGptConfigurationRoot> optionsRoot,
     IHttpClientFactory httpClientFactory,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<InitialSetupAssistantService> logger) : IInitialSetupAssistantService
 {
     /// <summary>Synchronizes the last successful provider candidate snapshot within this scoped setup workflow so one UI refresh does not repeat slow remote-provider probes.</summary>
@@ -745,7 +747,7 @@ public sealed class InitialSetupAssistantService(
             var parts = value.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             for (var index = parts.Length - 1; index >= 0; index--)
             {
-                if (!System.Text.RegularExpressions.Regex.IsMatch(parts[index], @"^\d+(?:\.\d+)?b$", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
+                if (!runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelSizeBillions).IsMatch(parts[index]))
                     continue;
                 var family = string.Join('-', parts.Take(index));
                 if (!string.IsNullOrWhiteSpace(family))
@@ -801,12 +803,7 @@ public sealed class InitialSetupAssistantService(
             {
                 string.Concat(text.Where(char.IsLetterOrDigit)).ToLowerInvariant()
             };
-            var withoutArchitectureSuffix = System.Text.RegularExpressions.Regex.Replace(
-                text,
-                @"(?:[-_\s]+a\d+b)\s*$",
-                string.Empty,
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase,
-                TimeSpan.FromSeconds(1));
+            var withoutArchitectureSuffix = runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelArchitectureSuffix).Replace(text, string.Empty);
             keys.Add(string.Concat(withoutArchitectureSuffix.Where(char.IsLetterOrDigit)).ToLowerInvariant());
             return keys.Where(item => item.Length > 0).ToList();
         }
@@ -1873,7 +1870,7 @@ public sealed class InitialSetupAssistantService(
                 return null;
             var family = value[..separator];
             var size = value[(separator + 1)..];
-            if (!System.Text.RegularExpressions.Regex.IsMatch(size, @"^\d+(?:\.\d+)?b$", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
+            if (!runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelSizeBillions).IsMatch(size))
                 return null;
             var knownFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -1954,11 +1951,7 @@ public sealed class InitialSetupAssistantService(
         try
         {
             var value = providerModelId ?? string.Empty;
-            var match = System.Text.RegularExpressions.Regex.Match(
-                value,
-                @"(?<size>\d+(?:\.\d+)?)(?<unit>[bm])(?:\b|$)",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase,
-                TimeSpan.FromSeconds(1));
+            var match = runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelSizeToken).Match(value);
             if (!match.Success
                 || !double.TryParse(match.Groups["size"].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var size))
                 return double.MaxValue;

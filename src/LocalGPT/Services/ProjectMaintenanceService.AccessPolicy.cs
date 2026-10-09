@@ -25,7 +25,7 @@ namespace LocalGPT.Services
     {
     try
     {
-            try { return JsonSerializer.Deserialize<List<string>>(string.IsNullOrWhiteSpace(json) ? "[]" : json)?.Where(item => !string.IsNullOrWhiteSpace(item)).Select(item => item.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(100).ToList() ?? []; }
+            try { return JsonSerializer.Deserialize<List<string>>(string.IsNullOrWhiteSpace(json) ? "[]" : json)?.Where(item => !string.IsNullOrWhiteSpace(item)).Select(item => item.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>(LocalGptRuntimeValue.ProjectMaintenanceRuntimeParametersJson).MaximumAccessRoots).ToList() ?? []; }
             catch (JsonException) { return []; }
     
     }
@@ -47,7 +47,7 @@ namespace LocalGPT.Services
     {
     try
     {
-            try { return JsonSerializer.Deserialize<List<WorkspaceAccessPolicyRule>>(string.IsNullOrWhiteSpace(json) ? "[]" : json, new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })?.Take(200).ToList() ?? []; }
+            try { return JsonSerializer.Deserialize<List<WorkspaceAccessPolicyRule>>(string.IsNullOrWhiteSpace(json) ? "[]" : json, new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })?.Take(runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>(LocalGptRuntimeValue.ProjectMaintenanceRuntimeParametersJson).MaximumAccessRules).ToList() ?? []; }
             catch (JsonException) { return []; }
     
     }
@@ -123,8 +123,8 @@ namespace LocalGPT.Services
     {
     try
     {
-            var regex = CompileRegex(rule.RelativePathRegex, nameof(rule.RelativePathRegex), @"(?!)");
-            var matches = entries.Where(entry => regex.IsMatch(entry)).Take(100).ToArray();
+            var regex = CompileRegex(rule.RelativePathRegex, nameof(rule.RelativePathRegex), runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchNone).ToString());
+            var matches = entries.Where(entry => regex.IsMatch(entry)).Take(runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>(LocalGptRuntimeValue.ProjectMaintenanceRuntimeParametersJson).MaximumAccessMatches).ToArray();
             if (rule.Required && matches.Length == 0)
             {
                 findings.Add(new(rule.Severity, "POLICY_NO_MATCH", $"Required workspace policy '{Trim(rule.Name, 160)}' matched no file or directory."));

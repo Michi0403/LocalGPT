@@ -33,8 +33,10 @@ public sealed class ChatUploadController(
             var configuredMaximumFiles = Math.Max(1, catalog.MaxFiles);
             var files = form.Files
                 .Where(file => file is not null && !string.IsNullOrWhiteSpace(file.FileName))
-                .Take(configuredMaximumFiles)
+                .Take(configuredMaximumFiles == int.MaxValue ? int.MaxValue : configuredMaximumFiles + 1)
                 .ToList();
+            if (files.Count > configuredMaximumFiles)
+                return Results.BadRequest(new { Error = "The dropped batch exceeds the configured maximum file count; no archive was silently discarded." });
             if (files.Count == 0)
                 return Results.BadRequest(new { Error = "No dropped files were supplied." });
 

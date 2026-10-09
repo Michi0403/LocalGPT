@@ -86,7 +86,7 @@ public sealed partial class DxAiFunctionCatalogService
                 string.Equals(entry.Kind, vocabulary.Get().CatalogPublicServiceMethod, StringComparison.OrdinalIgnoreCase))
             {
                 var implementation = GetStoredTypeName(entry.ImplementationTypeName);
-                var schema = Regex.Replace(entry.ParameterSchemaJson ?? string.Empty, @"\s+", string.Empty);
+                var schema = runtimePolicy.GetPattern(LocalGptRuntimePattern.WhitespacePattern).Replace(entry.ParameterSchemaJson ?? string.Empty, string.Empty);
                 return $"service|{implementation}|{entry.ServiceMethodName}|{schema}";
             }
 

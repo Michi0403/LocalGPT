@@ -25,32 +25,30 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         private readonly ILogger<CouncilGameSessionService> logger;
         /// <summary>Observes intentionally concurrent autoplay loops so their completion and failures remain owned.</summary>
         private readonly ISupervisedTaskRunner taskRunner;
+        /// <summary>Provides database-backed operational limits and defaults for game sessions.</summary>
+        private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
+        /// <summary>Gets the current database-backed Council game parameters.</summary>
+        private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
 
         /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
         /// <param name="gameDirector">Injected dependency used by the CouncilGameSessionService.</param>
         /// <param name="scopeFactory">Scope factory used to resolve database-backed team/runtime-class configuration safely from this singleton service.</param>
         /// <param name="logger">Injected dependency used by the CouncilGameSessionService.</param>
         /// <param name="taskRunner">Supervised task owner used for intentionally concurrent autoplay loops.</param>
+        /// <param name="runtimePolicy">Database-backed Council game defaults and bounds.</param>
         public CouncilGameSessionService(
             ICouncilGameDirectorService gameDirector,
             IServiceScopeFactory scopeFactory,
             ILogger<CouncilGameSessionService> logger,
-            ISupervisedTaskRunner taskRunner)
+            ISupervisedTaskRunner taskRunner,
+            ILocalGptRuntimePolicyDataService runtimePolicy)
         {
             this.gameDirector = gameDirector;
             this.scopeFactory = scopeFactory;
             this.logger = logger;
             this.taskRunner = taskRunner;
+            this.runtimePolicy = runtimePolicy;
         }
-
-    /// <summary>
-    /// Defines the default frame width constant used by <see cref="CouncilGameSessionService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int DefaultFrameWidth = 80;
-    /// <summary>
-    /// Defines the default frame height constant used by <see cref="CouncilGameSessionService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int DefaultFrameHeight = 25;
     /// <summary>
     /// Defines the field of view constant used by <see cref="CouncilGameSessionService"/> so callers and internal logic share the same stable value.
     /// </summary>
@@ -178,10 +176,10 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 CurrentTurnOwner = request.ControlMode == CouncilGameControlMode.Ai ? "AI Hunter" : request.ControlMode == CouncilGameControlMode.Shared ? "Human / AI" : "Human Player",
                 DirectorMode = request.DirectorMode,
                 GameDirectorModelName = request.GameDirectorModelName?.Trim() ?? string.Empty,
-                CreatureDirectorCount = Math.Clamp(request.CreatureDirectorCount, 1, 8),
+                CreatureDirectorCount = Math.Clamp(request.CreatureDirectorCount <= 0 ? RuntimeParameters.DefaultCreatureDirectors : request.CreatureDirectorCount, RuntimeParameters.MinimumCreatureDirectors, RuntimeParameters.MaximumCreatureDirectors),
                 LastDirectorDecision = "The GameDirector owns all state transitions; controllers may only submit proposals.",
-                FrameWidth = Math.Clamp(request.FrameWidth, 20, 240),
-                FrameHeight = Math.Clamp(request.FrameHeight, 8, 100),
+                FrameWidth = Math.Clamp(request.FrameWidth <= 0 ? RuntimeParameters.DefaultFrameWidth : request.FrameWidth, RuntimeParameters.MinimumFrameWidth, RuntimeParameters.MaximumFrameWidth),
+                FrameHeight = Math.Clamp(request.FrameHeight <= 0 ? RuntimeParameters.DefaultFrameHeight : request.FrameHeight, RuntimeParameters.MinimumFrameHeight, RuntimeParameters.MaximumFrameHeight),
                 AsciiColorMode = asciiColorMode,
                 DefaultForegroundColor = defaultForegroundColor,
                 DefaultBackgroundColor = defaultBackgroundColor,
@@ -745,7 +743,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         Guid sessionId,
         CouncilGameControlMode mode,
         bool autoplayEnabled,
-        int autoplayDelayMilliseconds = 1200,
+        int autoplayDelayMilliseconds = 0,
         CancellationToken cancellationToken = default)
     {
         try

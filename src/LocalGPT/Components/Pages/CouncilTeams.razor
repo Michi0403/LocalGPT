@@ -520,7 +520,18 @@
                                                     Enabled="@(step.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember)" />
                                     </label>
                                 </div>
+                                <label class="wide">
+                                    <span>Role-result synthesis prompt override (optional)</span>
+                                    <DxMemo @bind-Text="step.RoleResultSynthesisPromptTemplate" CssClass="localgpt-editor council-script" Rows="9" NullText="Blank = database-backed global default. Placeholders: {{SynthesisParticipant}}, {{RoleName}}, {{TeamName}}, {{UserPrompt}}, {{StepDisplayName}}, {{StepPhase}}, {{RoleExpertise}}, {{RoleResponsibility}}, {{AssignedMembers}}, {{RoleEvidence}}, {{PeerReviewEvidence}}" />
+                                </label>
                                 <p class="hint mb-0">Random selection is stable for one run/round so rejoin and replay diagnostics stay understandable. A selected model is used only when it is actually assigned to this role in the run; otherwise LocalGPT safely falls back to a deterministic role member and records a warning.</p>
+                            }
+                            @if (step.EnableRolePeerReview)
+                            {
+                                <label class="wide">
+                                    <span>Role peer-review prompt override (optional)</span>
+                                    <DxMemo @bind-Text="step.RolePeerReviewPromptTemplate" CssClass="localgpt-editor council-script" Rows="9" NullText="Blank = database-backed global default. Placeholders: {{ReviewerModelName}}, {{RoleName}}, {{TeamName}}, {{UserPrompt}}, {{StepDisplayName}}, {{StepPhase}}, {{RoleExpertise}}, {{RoleResponsibility}}, {{PeerMembers}}, {{RoleEvidence}}" />
+                                </label>
                             }
                         </details>
                         <div class="council-step-options">
@@ -528,6 +539,8 @@
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.IncludePriorTranscript" CssClass="localgpt-check" /><span>Include prior transcript according to visibility policy</span></label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.ProducesFinalAnswer" CssClass="localgpt-check" /><span>Can become final answer</span></label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequiresHumanCheckpoint" CssClass="localgpt-check" /><span>Respect human gate before round</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequiresCompleteUploadWorkspaceCuration" CssClass="localgpt-check" /><span>Require complete upload-workspace curation before round</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.WaitForDeferredApprovalsBeforeNextStep" CssClass="localgpt-check" /><span>Wait for approval-gated DXFunctions before next round</span></label>
                             <label>
                                 <span>Automatic/native function policy</span>
                                 <DxComboBox Data="@AutomaticFunctionPolicyModes"

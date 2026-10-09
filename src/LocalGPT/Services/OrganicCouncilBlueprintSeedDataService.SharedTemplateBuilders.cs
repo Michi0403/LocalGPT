@@ -117,6 +117,8 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
     /// <param name="canUseOrganicFunctions">Whether the round may request registered functions.</param>
     /// <param name="producesFinalAnswer">Whether the round produces the visible final answer.</param>
     /// <param name="requiresHumanCheckpoint">Whether the round waits at the maintained human collaboration boundary before execution.</param>
+    /// <param name="requiresCompleteUploadWorkspaceCuration">Whether deterministic upload-workspace curation must pass before this round starts.</param>
+    /// <param name="waitForDeferredApprovalsBeforeNextStep">Whether exact approval-gated deferred functions requested by this round must resolve before the workflow advances.</param>
     /// <param name="enableRolePeerReview">Whether same-role members run the optional usefulness/vote pass after their primary answers.</param>
     /// <param name="summarizeRoleResults">Whether one role member consolidates the same-role results before downstream workflow steps.</param>
     /// <param name="includePriorTranscript">Whether the prior Council transcript is appended when the prompt template does not explicitly place it.</param>
@@ -133,6 +135,8 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         bool canUseOrganicFunctions = false,
         bool producesFinalAnswer = false,
         bool requiresHumanCheckpoint = false,
+        bool requiresCompleteUploadWorkspaceCuration = false,
+        bool waitForDeferredApprovalsBeforeNextStep = false,
         bool enableRolePeerReview = false,
         bool summarizeRoleResults = false,
         bool includePriorTranscript = true,
@@ -159,6 +163,8 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         AllowedAutomaticFunctions = allowedAutomaticFunctions?.ToList() ?? [],
         ProducesFinalAnswer = producesFinalAnswer,
         RequiresHumanCheckpoint = requiresHumanCheckpoint,
+        RequiresCompleteUploadWorkspaceCuration = requiresCompleteUploadWorkspaceCuration,
+        WaitForDeferredApprovalsBeforeNextStep = waitForDeferredApprovalsBeforeNextStep,
         EnableRolePeerReview = enableRolePeerReview,
         SummarizeRoleResults = summarizeRoleResults,
         UseBuiltInBehavior = false

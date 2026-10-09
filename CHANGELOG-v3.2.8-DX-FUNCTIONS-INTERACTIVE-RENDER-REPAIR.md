@@ -21,4 +21,4 @@
 ## Version
 
 - LocalGPT, InstallerConsole and WebView wrapper advance to **3.2.8**.
-- DevExpress remains **25.2.9**.
+- DevExpress remains **25.2.10**.

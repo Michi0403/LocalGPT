@@ -39,6 +39,9 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     /// Stores database-backed runtime token bounds so benchmark limits adapt to maintained configuration rather than one developer machine.
     /// </summary>
     private readonly LocalGptCatalogService catalog;
+    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
+    /// <summary>Gets database-backed provider benchmark operational parameters.</summary>
+    private ModelBenchmarkRuntimeParameters BenchmarkParameters => runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>(LocalGptRuntimeValue.ModelBenchmarkRuntimeParametersJson);
     /// <summary>Normalizes provider thinking/status markup so benchmark scoring uses only the visible final answer.</summary>
     private readonly CouncilTextService councilText;
     /// <summary>Projects provider-native reasoning and function metadata into the same durable user-visible trace used by normal Council execution.</summary>
@@ -58,6 +61,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     /// <param name="councilText">Shared Council text normalization used to separate visible final answers from reasoning/status markup.</param>
     /// <param name="councilRuntime">Shared provider trace projection used to expose reasoning and function metadata consistently.</param>
     /// <param name="logger">Injected dependency used by the ProviderModelBenchmarkService.</param>
+    /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
     public ProviderModelBenchmarkService(
         IProviderModelRuntimeService providerModels,
         IModelPresetService modelPresets,
@@ -65,6 +69,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         ICouncilLiveSessionService liveSessions,
         IProviderModelReviewerPolicyService reviewerPolicy,
         LocalGptCatalogService catalog,
+        ILocalGptRuntimePolicyDataService runtimePolicy,
         CouncilTextService councilText,
         CouncilRuntimeService councilRuntime,
         ILogger<ProviderModelBenchmarkService> logger)
@@ -75,6 +80,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         this.liveSessions = liveSessions;
         this.reviewerPolicy = reviewerPolicy;
         this.catalog = catalog;
+        this.runtimePolicy = runtimePolicy;
         this.councilText = councilText;
         this.councilRuntime = councilRuntime;
         this.logger = logger;
@@ -121,13 +127,14 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         }
 
         var maxProfiles = Math.Max(1, request.MaxProfilesPerModel);
-        var maxTasks = Math.Clamp(request.MaxTasks, 1, 4);
-        var maxSeconds = Math.Clamp(request.MaxSecondsPerCall, 10, 900);
+        var parameters = runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>(LocalGptRuntimeValue.ModelBenchmarkRuntimeParametersJson);
+        var maxTasks = Math.Clamp(request.MaxTasks, parameters.MinimumTasks, parameters.MaximumTasks);
+        var maxSeconds = Math.Clamp(request.MaxSecondsPerCall, parameters.MinimumSecondsPerCall, parameters.MaximumSecondsPerCall);
         var maximumContext = Math.Clamp(request.MaximumContextTokens, catalog.MinContextTokens, catalog.MaxContextTokens);
         var maximumOutput = Math.Clamp(request.MaximumOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens);
-        var threshold = Math.Clamp(request.ImprovementThresholdPercent, 0d, 50d);
+        var threshold = Math.Clamp(request.ImprovementThresholdPercent, parameters.MinimumImprovementPercent, parameters.MaximumImprovementPercent);
         var stopAfterConsecutiveProfileFailures = Math.Clamp(request.StopAfterConsecutiveProfileFailures, 0, maxProfiles);
-        var repetitionRecoveryAttempts = Math.Clamp(request.RepetitionRecoveryAttempts, 0, 8);
+        var repetitionRecoveryAttempts = Math.Clamp(request.RepetitionRecoveryAttempts, 0, parameters.MaximumRepetitionRecoveryAttempts);
         var tasks = BuildTasks(request).Take(maxTasks).ToList();
         var maximumTaskAttemptsPerProfile = tasks.Sum(task =>
             (long)(task.EnforceRoleExecution ? 2 : 1) * (repetitionRecoveryAttempts + 1));
@@ -331,10 +338,10 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
                         : successfulReviews.Average(review => (review.QualityScore + review.ReliabilityScore) / 2d);
                     var context = successfulReviews.Count == 0
                         ? best.ContextTokens
-                        : ClampToSupportedStep((int)Math.Round(successfulReviews.Average(review => review.RecommendedContextTokens)), 2048, maximumContext);
+                        : ClampToSupportedStep((int)Math.Round(successfulReviews.Average(review => review.RecommendedContextTokens)), BenchmarkParameters.MinimumRecommendedContextTokens, maximumContext);
                     var output = successfulReviews.Count == 0
                         ? best.OutputTokens
-                        : ClampToSupportedStep((int)Math.Round(successfulReviews.Average(review => review.RecommendedOutputTokens)), 128, maximumOutput);
+                        : ClampToSupportedStep((int)Math.Round(successfulReviews.Average(review => review.RecommendedOutputTokens)), BenchmarkParameters.MinimumRecommendedOutputTokens, maximumOutput);
                     targetResult.Recommendation = new ProviderModelBenchmarkRecommendation
                     {
                         ProfileName = best.ProfileName,

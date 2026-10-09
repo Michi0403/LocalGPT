@@ -44,7 +44,7 @@ namespace LocalGPT.Services
                     request.MaxContextTokens <= 0 ? catalog.DefaultContextTokens : request.MaxContextTokens,
                     catalog.MinContextTokens,
                     catalog.MaxContextTokens);
-                var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? 900 : request.ModelTimeoutSeconds, 30, 1800);
+                var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).DefaultModelTimeoutSeconds : request.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumModelTimeoutSeconds);
                 var keepAlive = MultiModelCouncilServiceGetCouncilKeepAlive(request, participants.Count, maxParallelModels, logger);
                 var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
                 var modelRoutes = hardwareRoadPlanner.BuildPlans(
@@ -359,7 +359,7 @@ namespace LocalGPT.Services
                     request.AllowParallelHardwareRoads,
                     cancellationToken).ConfigureAwait(false);
 
-                var critiqueRounds = Math.Clamp(request.MaxRounds, 0, 3);
+                var critiqueRounds = Math.Clamp(request.MaxRounds, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumCritiqueRounds);
                 if (critiqueRounds == 0)
                     result.Warnings.Add("Low-resource council mode: critique/refinement rounds are skipped for this run.");
                 for (var round = 1; round <= critiqueRounds; round++)

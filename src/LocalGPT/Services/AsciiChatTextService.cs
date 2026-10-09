@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using DevExpress.AIIntegration.Blazor.Chat;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
@@ -17,6 +18,10 @@ public sealed class AsciiChatTextService
 
     /// <summary>Stores the logger used to record bounded ASCII text-processing diagnostics without recording chat content.</summary>
     private readonly ILogger<AsciiChatTextService> logger;
+    /// <summary>Database-backed excessive blank-line normalization pattern.</summary>
+    private readonly Regex excessBlankLinesPattern;
+    /// <summary>Database-backed compact nickname sanitization pattern.</summary>
+    private readonly Regex nicknameUnsafeCharactersPattern;
 
     /// <summary>Caches unchanged Council lane projections so one streamed token does not re-normalize every other active model lane.</summary>
     private readonly ConcurrentDictionary<string, ParticipantProjectionCacheEntry> participantProjectionCache = new(StringComparer.Ordinal);
@@ -34,48 +39,39 @@ public sealed class AsciiChatTextService
     private sealed record ParticipantProjectionCacheEntry(string Signature, string Body);
 
     /// <summary>Matches one bounded fenced ASCII animation block inside canonical chat content.</summary>
-    private readonly Regex AsciiSequenceBlockPattern = new(
-        "```ascii-sequence\\s*(?<body>.*?)```",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(250));
+    private readonly Regex AsciiSequenceBlockPattern;
 
     /// <summary>Matches explicit frame separators inside an ASCII animation block.</summary>
-    private readonly Regex AsciiSequenceFrameSeparatorPattern = new(
-        "^\\s*---\\s*frame(?:\\s+\\d+)?\\s*---\\s*$",
-        RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(250));
+    private readonly Regex AsciiSequenceFrameSeparatorPattern;
 
     /// <summary>Matches provider trace summary elements so thinking and function labels remain visible in terminal text.</summary>
-    private readonly Regex SummaryPattern = new(
-        "<summary>(?<summary>.*?)</summary>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(250));
+    private readonly Regex HtmlSummaryPattern;
 
-    /// <summary>Matches inert HTML tags that should be removed after trace summaries are projected into terminal text.</summary>
-    private readonly Regex HtmlTagPattern = new(
-        "<[^>]+>",
-        RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(250));
+    /// <summary>Matches residual HTML elements after controlled summary extraction.</summary>
+    private readonly Regex HtmlTagPattern;
 
-    /// <summary>Matches Markdown heading markers while preserving the human-visible heading content.</summary>
-    private readonly Regex MarkdownHeadingPattern = new(
-        "^\\s{0,3}#{1,6}\\s+(?<heading>.+?)\\s*$",
-        RegexOptions.Multiline | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(250));
+    /// <summary>Matches Markdown heading lines so terminal text can preserve their content without markup.</summary>
+    private readonly Regex MarkdownHeadingPattern;
 
-    /// <summary>Matches fenced ASCII/text delimiters that should not appear as Markdown syntax in the terminal.</summary>
-    private readonly Regex AsciiFencePattern = new(
-        "^\\s*```(?:ascii|text)?\\s*$",
-        RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(250));
+    /// <summary>Matches ASCII/text fenced-code boundaries that are presentation-only in terminal text.</summary>
+    private readonly Regex AsciiFencePattern;
 
     /// <summary>
     /// Initializes the ASCII chat text service.
     /// </summary>
+    /// <param name="runtimePolicy">Database-backed runtime text and regex policy.</param>
     /// <param name="logger">Logger used for bounded formatting diagnostics without recording chat content.</param>
-    public AsciiChatTextService(ILogger<AsciiChatTextService> logger)
+    public AsciiChatTextService(ILocalGptRuntimePolicyDataService runtimePolicy, ILogger<AsciiChatTextService> logger)
     {
         this.logger = logger;
+        AsciiSequenceBlockPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.AsciiSequenceBlock);
+        AsciiSequenceFrameSeparatorPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.AsciiSequenceFrameSeparator);
+        HtmlSummaryPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlSummaryElement);
+        HtmlTagPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlTag);
+        MarkdownHeadingPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.MarkdownHeadingLine);
+        AsciiFencePattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.AsciiFenceBoundary);
+        excessBlankLinesPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.ExcessBlankLines);
+        nicknameUnsafeCharactersPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.AsciiNicknameUnsafeCharacters);
     }
 
     /// <summary>
@@ -386,7 +382,7 @@ public sealed class AsciiChatTextService
                     .Count(frame => !string.IsNullOrWhiteSpace(frame));
                 return $"\n[ASCII SEQUENCE · {Math.Clamp(frames, 0, 12)} frame(s) · playing above transcript]\n";
             });
-            normalized = SummaryPattern.Replace(normalized, match =>
+            normalized = HtmlSummaryPattern.Replace(normalized, match =>
             {
                 var summary = WebUtility.HtmlDecode(HtmlTagPattern.Replace(match.Groups["summary"].Value, string.Empty)).Trim();
                 if (summary.StartsWith("Model thinking", StringComparison.OrdinalIgnoreCase))
@@ -409,7 +405,7 @@ public sealed class AsciiChatTextService
             normalized = MarkdownHeadingPattern.Replace(normalized, match => match.Groups["heading"].Value);
             normalized = AsciiFencePattern.Replace(normalized, string.Empty);
             normalized = normalized.Replace("```ascii-game", "[ASCII GAME]", StringComparison.OrdinalIgnoreCase);
-            normalized = Regex.Replace(normalized, "\\n{4,}", "\n\n\n", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
+            normalized = excessBlankLinesPattern.Replace(normalized, "\n\n\n");
             return normalized.Trim();
         }
         catch (RegexMatchTimeoutException exception)
@@ -597,7 +593,7 @@ public sealed class AsciiChatTextService
             if (endpointIndex > 0)
                 value = value[..endpointIndex].Trim();
             value = value.Replace(':', '-');
-            value = Regex.Replace(value, "[^A-Za-z0-9._-]+", string.Empty, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
+            value = nicknameUnsafeCharactersPattern.Replace(value, string.Empty);
             const int maxNicknameLength = 16;
             if (value.Length > maxNicknameLength)
             {

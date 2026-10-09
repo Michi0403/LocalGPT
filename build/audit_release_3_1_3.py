@@ -49,7 +49,7 @@ try:
     require('src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs', 'LocalGPT/3.1.3')
     require('global.json', '"version": "10.0.400"')
     require('src/LocalGPT/LocalGPT.csproj',
-            '<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />',
+            '<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />',
             '<PackageReference Include="DevExpress.Blazor" Version="25.2.*" />')
 
     checks += 1

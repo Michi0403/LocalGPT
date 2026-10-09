@@ -8,11 +8,15 @@ namespace LocalGPT.Services;
 /// A configured low-parameter Council model may review the proposal later, but cannot bypass this service.
 /// </summary>
 /// <param name="subdirectors">Council game subdirector dependency used by the council game director workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Database-backed Council game defaults and bounds.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilGameDirectorService(
     IEnumerable<ICouncilGameSubdirector> subdirectors,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilGameDirectorService> logger) : ICouncilGameDirectorService
 {
+    /// <summary>Gets the database-backed Council game operational parameters.</summary>
+    private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Gets the actor directors collection maintained or exposed by this council game director instance for downstream processing.
     /// </summary>
@@ -83,9 +87,13 @@ public sealed class CouncilGameDirectorService(
 
 /// <summary>Predicts bounded creature reactions for the next authoritative world step.</summary>
 /// <param name="actorFactory">Council game actor runtime factory dependency used by the creature council game subdirector workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Database-backed Council game defaults and bounds.</param>
 public sealed class CreatureCouncilGameSubdirector(
-    ICouncilGameActorRuntimeFactory actorFactory) : ICouncilGameSubdirector
+    ICouncilGameActorRuntimeFactory actorFactory,
+    ILocalGptRuntimePolicyDataService runtimePolicy) : ICouncilGameSubdirector
 {
+    /// <summary>Gets the database-backed Council game operational parameters.</summary>
+    private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Gets the stable key used to identify or correlate this creature council game subdirector instance with related application state.
     /// </summary>
@@ -118,8 +126,8 @@ public sealed class CreatureCouncilGameSubdirector(
                 ActorKind = ActorKind,
                 RuntimeClassKey = "games.ascii.doom.creature",
                 Prediction = noisyAction
-                    ? $"{Math.Clamp(context.Session.CreatureDirectorCount, 1, 8)} configured creature director(s) may investigate the sound during the resolved world step."
-                    : $"{Math.Clamp(context.Session.CreatureDirectorCount, 1, 8)} configured creature director(s) may keep patrol state or approach only when line-of-sight rules permit.",
+                    ? $"{Math.Clamp(context.Session.CreatureDirectorCount, RuntimeParameters.MinimumCreatureDirectors, RuntimeParameters.MaximumCreatureDirectors)} configured creature director(s) may investigate the sound during the resolved world step."
+                    : $"{Math.Clamp(context.Session.CreatureDirectorCount, RuntimeParameters.MinimumCreatureDirectors, RuntimeParameters.MaximumCreatureDirectors)} configured creature director(s) may keep patrol state or approach only when line-of-sight rules permit.",
                 ConfidencePercent = 70,
                 ActorInstances = actors
             });
@@ -186,10 +194,14 @@ public sealed class ReactiveObjectCouncilGameSubdirector(
 }
 
 /// <summary>Creates stable per-turn actor descriptors without granting them state-mutation authority.</summary>
+/// <param name="runtimePolicy">Database-backed Council game defaults and bounds.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilGameActorRuntimeFactory(
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilGameActorRuntimeFactory> logger) : ICouncilGameActorRuntimeFactory
 {
+    /// <summary>Gets the database-backed Council game operational parameters.</summary>
+    private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Creates actors using the configuration and dependencies owned by <see cref="CouncilGameActorRuntimeFactory"/>.
     /// </summary>
@@ -204,7 +216,7 @@ public sealed class CouncilGameActorRuntimeFactory(
             ArgumentNullException.ThrowIfNull(context);
             if (actorKind == CouncilGameActorKind.Creature)
             {
-                var count = Math.Clamp(context.Session.CreatureDirectorCount, 1, 8);
+                var count = Math.Clamp(context.Session.CreatureDirectorCount, RuntimeParameters.MinimumCreatureDirectors, RuntimeParameters.MaximumCreatureDirectors);
                 return Enumerable.Range(1, count)
                     .Select(index => new CouncilGameActorRuntimeDescriptor
                     {

@@ -26,6 +26,8 @@ namespace LocalGPT.Services
         /// Stores the logger used by <see cref="MinecraftProjectService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
         private readonly ILogger<MinecraftProjectService> serviceLogger;
+        /// <summary>Database-backed runtime text and regex policy.</summary>
+        private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
 
         /// <summary>Creates the Minecraft project domain service with its scoped policy collaborators.</summary>
         /// <param name="jsonText">JSON text parsing and formatting service.</param>
@@ -33,17 +35,20 @@ namespace LocalGPT.Services
         /// <param name="datapackService">Minecraft datapack collaborator.</param>
         /// <param name="catalog">LocalGPT runtime catalog and maintained defaults.</param>
         /// <param name="serviceLogger">Service diagnostics logger.</param>
+        /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
         public MinecraftProjectService(
             IJsonTextService jsonText,
             ICouncilTextPatternDataService patterns,
             MinecraftDatapackService datapackService,
             LocalGptCatalogService catalog,
+            ILocalGptRuntimePolicyDataService runtimePolicy,
             ILogger<MinecraftProjectService> serviceLogger)
         {
             this.jsonText = jsonText;
             this.patterns = patterns;
             this.datapackService = datapackService;
             this.catalog = catalog;
+            this.runtimePolicy = runtimePolicy;
             this.serviceLogger = serviceLogger;
         }
 

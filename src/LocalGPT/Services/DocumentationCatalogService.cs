@@ -15,12 +15,14 @@ namespace LocalGPT.Services;
 /// <param name="translation">Documentation translation adapter dependency used by the documentation catalog workflow to provide the corresponding application capability.</param>
 /// <param name="platform">Platform runtime service used to compare and normalize documentation filesystem paths safely.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 [DocumentationUpdated("2.2.8")]
 public sealed class DocumentationCatalogService(
     IWebHostEnvironment environment,
     ICustomVersion version,
     IDocumentationTranslationAdapter translation,
     IPlatformRuntimeService platform,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<DocumentationCatalogService> logger) : IDocumentationCatalogService
 {
     /// <summary>
@@ -165,7 +167,7 @@ public sealed class DocumentationCatalogService(
         try
         {
             var normalizedQuery = query?.Trim() ?? string.Empty;
-            var boundedLimit = Math.Clamp(limit, 1, 500);
+            var boundedLimit = Math.Clamp(limit, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).DocumentationMaximum);
             return GetCommentCatalog()
                 .Where(item => normalizedQuery.Length == 0 ||
                     item.MemberId.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase) ||
@@ -789,7 +791,7 @@ public sealed class DocumentationCatalogService(
     {
         return string.IsNullOrWhiteSpace(value)
             ? string.Empty
-            : Regex.Replace(value, @"\s+", " ").Trim();
+            : runtimePolicy.GetPattern(LocalGptRuntimePattern.WhitespacePattern).Replace(value, " ").Trim();
     }
     catch (Exception __serviceMethodException)
     {

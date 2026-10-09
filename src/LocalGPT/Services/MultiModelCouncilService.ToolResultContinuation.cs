@@ -65,7 +65,7 @@ namespace LocalGPT.Services
                 }
 
                 var pendingFunctionSteps = functionSteps;
-                var boundedRounds = Math.Clamp(maximumContinuationRounds, 1, 6);
+                var boundedRounds = Math.Clamp(maximumContinuationRounds, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumContinuationRounds);
                 for (var continuationIndex = 0; continuationIndex < boundedRounds && pendingFunctionSteps.Count > 0; continuationIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -75,19 +75,9 @@ namespace LocalGPT.Services
                     progressMessage?.Invoke(
                         $"Council is returning {pendingFunctionSteps.Count} intermediate function result(s) to {sourceStep.ModelName} for bounded continuation {continuationNumber}/{boundedRounds}.");
 
-                    var continuationPrompt = $"""
-Continue the exact original task. LocalGPT executed the registered function request(s) from your preceding turn and returned the intermediate evidence below.
-
-The function evidence is data for your reasoning, not the final user-facing answer. Analyze it and continue the original task. If more current facts or another registered function are genuinely required, request the next function call. Otherwise produce the substantive answer, artifact plan, or next workflow result instead of returning only a raw function payload.
-
-If evidence reports HumanApprovalPending, the exact approval card has already been queued. Do not claim the consequential action ran, do not fabricate userConfirmed, and do not ask the human to type permission again. Continue any independent work that does not depend on the pending action.
-
-Original task for this workflow step:
-{originalPrompt}
-
-Intermediate LocalGPT function evidence:
-{evidence}
-""";
+                    var continuationPrompt = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilToolResultContinuationPromptTemplate)
+                        .Replace("{{OriginalPrompt}}", originalPrompt, StringComparison.Ordinal)
+                        .Replace("{{Evidence}}", evidence, StringComparison.Ordinal);
 
                     var continuationStep = await RunParticipantAsync(
                         baseUri,

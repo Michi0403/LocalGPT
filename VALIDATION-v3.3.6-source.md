@@ -3,7 +3,7 @@
 Static validation performed without running `dotnet` or `pwsh`:
 
 - all three shipping project versions are 3.3.6;
-- `docs/DocfxDependencies.csproj` exists and pins `System.Formats.Nrbf` 10.0.11 with `PrivateAssets="all"`;
+- `docs/DocfxDependencies.csproj` exists and pins `System.Formats.Nrbf` an earlier .NET 10 patch with `PrivateAssets="all"`;
 - the LocalGPT application project does not gain a direct `System.Formats.Nrbf` package reference;
 - build prerequisites require the documentation dependency project in clean source archives;
 - the documentation pipeline restores the isolated dependency project only when the probe package is absent, stages the probe DLL before initial DocFX metadata extraction, and retains the generic repair pass;

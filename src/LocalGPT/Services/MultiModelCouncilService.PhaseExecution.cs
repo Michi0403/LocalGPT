@@ -87,7 +87,7 @@ namespace LocalGPT.Services
                 {
                     allowParallelHardwareRoads = runConfiguration.AllowParallelHardwareRoads;
                     maxParallelModels = Math.Max(1, runConfiguration.MaxParallelModels);
-                    modelTimeoutSeconds = Math.Clamp(runConfiguration.ModelTimeoutSeconds, 30, 1800);
+                    modelTimeoutSeconds = Math.Clamp(runConfiguration.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumModelTimeoutSeconds);
                 }
                 var failedModels = result.Steps
                     .Where(step => !string.IsNullOrWhiteSpace(step.Error))

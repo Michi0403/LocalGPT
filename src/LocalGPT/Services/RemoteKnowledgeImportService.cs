@@ -60,6 +60,16 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
         this.catalog = catalog;
         this.platform = platform;
         this.logger = logger;
+        var parameters = catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>(LocalGptRuntimeValue.RemoteKnowledgeRuntimeParametersJson);
+        http = new HttpClient(new HttpClientHandler
+        {
+            AllowAutoRedirect = false,
+            AutomaticDecompression = DecompressionMethods.All,
+            UseCookies = false
+        })
+        {
+            Timeout = TimeSpan.FromMinutes(parameters.HttpTimeoutMinutes)
+        };
     }
 
     /// <summary>
@@ -69,15 +79,7 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
     /// <summary>
     /// Stores the HTTP client dependency used by <see cref="RemoteKnowledgeImportService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
-    private readonly HttpClient http = new(new HttpClientHandler
-    {
-        AllowAutoRedirect = false,
-        AutomaticDecompression = DecompressionMethods.All,
-        UseCookies = false
-    })
-    {
-        Timeout = TimeSpan.FromMinutes(10)
-    };
+    private readonly HttpClient http;
 
 
     /// <summary>
@@ -170,7 +172,7 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
                 result.LearnBaseResult = await learnBaseImporter.ImportAsync(new LearnBaseImportRequest
                 {
                     RootPath = selectedRoot,
-                    MaxProjects = Math.Clamp(Math.Min(120, Math.Max(1, result.MatchedFileCount)), 1, 120),
+                    MaxProjects = Math.Clamp(Math.Min(catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>(LocalGptRuntimeValue.RemoteKnowledgeRuntimeParametersJson).MaximumProjects, Math.Max(1, result.MatchedFileCount)), 1, catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>(LocalGptRuntimeValue.RemoteKnowledgeRuntimeParametersJson).MaximumProjects),
                     SaveToKnowledge = request.SaveToKnowledge
                 }, cancellationToken).ConfigureAwait(false);
                 result.ImportedKnowledgeCount = result.LearnBaseResult.SavedKnowledgeCount;

@@ -1,5 +1,5 @@
-# LocalGPT 5.3.1
+# LocalGPT 5.4.1
 
-LocalGPT 5.3.1 is a focused maintenance follow-up to 5.3.0. It fixes the reported compiler error in the diagnostic upload-workspace file endpoint after `ReadFileAsync` gained progressive character-offset support.
+This corrective release repairs the source compiler error in the 5.4.0 `ResilientStep` wrapper for seeded compiler/release Council workflows. `Step` gained two optional Boolean arguments for complete upload-workspace curation and deferred approval handling; the wrapper still passed following arguments positionally. The helper now passes every optional argument by **name**, preserving the wrapper's original flags and allowing the new gates to use their own defaults.
 
-The 5.3.0 behavior remains intact: user-supplied ZIPs are safely extracted read-only during quarantine intake, upload/context reads support substantial progressive whole-file consumption, source-backed repository evidence is available to learning workflows, ordinary non-game Councils receive the complete policy-approved DXFunction catalog when functions are enabled, and live `games.*` runtimes keep strict allow-lists.
+The 5.4.0 per-ZIP curator, research approval, seed role sampling, and file logging are unchanged. See `CHANGELOG-v5.4.1-RESILIENT-STEP-ARGUMENT-REPAIR.md` and `VALIDATION-v5.4.1-source.md`. The owner must compile/runtime-test locally; no .NET compilation was run for this package.

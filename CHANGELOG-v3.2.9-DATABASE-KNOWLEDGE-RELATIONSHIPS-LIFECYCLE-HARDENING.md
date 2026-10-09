@@ -83,5 +83,5 @@ See `DATABASE-RELATIONSHIP-ANALYSIS-v3.2.9.md` for the detailed conservative mig
 ## Version
 
 - LocalGPT, InstallerConsole and WebView wrapper advance to **3.2.9**.
-- DevExpress remains **25.2.9**.
+- DevExpress remains **25.2.10**.
 - PublisherStudio remains **2.9.7** because its source is not changed in this release.

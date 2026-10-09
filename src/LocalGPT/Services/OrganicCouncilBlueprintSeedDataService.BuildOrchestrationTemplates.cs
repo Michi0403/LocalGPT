@@ -27,6 +27,8 @@ namespace LocalGPT.Services
                 var automaticFunctions = canUseOrganicFunctions
                     ? (allowedAutomaticFunctions ?? []).Append("human.collaboration.request").Distinct(StringComparer.OrdinalIgnoreCase).ToList()
                     : allowedAutomaticFunctions;
+                // Keep optional workflow flags name-bound: Step also owns curation and
+                // deferred-approval gates that this resilient wrapper leaves disabled.
                 var step = Step(
                     key,
                     displayName,
@@ -35,13 +37,13 @@ namespace LocalGPT.Services
                     role,
                     prompt,
                     executionMode,
-                    canUseOrganicFunctions,
-                    producesFinalAnswer,
-                    requiresHumanCheckpoint,
-                    enableRolePeerReview,
-                    summarizeRoleResults,
-                    includePriorTranscript,
-                    automaticFunctions);
+                    canUseOrganicFunctions: canUseOrganicFunctions,
+                    producesFinalAnswer: producesFinalAnswer,
+                    requiresHumanCheckpoint: requiresHumanCheckpoint,
+                    enableRolePeerReview: enableRolePeerReview,
+                    summarizeRoleResults: summarizeRoleResults,
+                    includePriorTranscript: includePriorTranscript,
+                    allowedAutomaticFunctions: automaticFunctions);
                 step.MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool;
                 step.MemberFailureRecoveryAttempts = 2;
                 return step;

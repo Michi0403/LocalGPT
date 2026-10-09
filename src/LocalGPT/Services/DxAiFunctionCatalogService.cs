@@ -45,6 +45,8 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
     private readonly IOrganicAddonManifestService addonManifests;
     /// <summary>Stores the user-owned dynamic DXFunction service used to refresh runtime descriptors before catalog synchronization.</summary>
     private readonly IUserDxAiFunctionService userFunctions;
+    /// <summary>Stores database-backed runtime regex/text policy.</summary>
+    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
     /// <summary>
     /// Stores the logger used by <see cref="DxAiFunctionCatalogService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -59,6 +61,7 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
     /// <param name="addonManifests">Injected dependency used by DxAiFunctionCatalogService.</param>
     /// <param name="logger">Injected dependency used by DxAiFunctionCatalogService.</param>
     /// <param name="userFunctions">User devexpress ai function service dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
+    /// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
     public DxAiFunctionCatalogService(
         ILocalGptVocabularyService vocabulary,
         DxAiFunctionCatalogSynchronizationGate synchronizationGate,
@@ -67,6 +70,7 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
         IDxAiFunctionRegistry registry,
         IOrganicAddonManifestService addonManifests,
         IUserDxAiFunctionService userFunctions,
+        ILocalGptRuntimePolicyDataService runtimePolicy,
         ILogger<DxAiFunctionCatalogService> logger)
     {
         this.vocabulary = vocabulary;
@@ -76,6 +80,7 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
         this.registry = registry;
         this.addonManifests = addonManifests;
         this.userFunctions = userFunctions;
+        this.runtimePolicy = runtimePolicy;
         this.logger = logger;
     }
 

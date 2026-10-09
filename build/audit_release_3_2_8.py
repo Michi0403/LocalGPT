@@ -35,7 +35,7 @@ if minor >= 10 or patch >= 10:
 else:
     checks.append("single-digit minor/patch release policy")
 
-require(read("src/LocalGPT/LocalGPT.csproj"), "<DevExpressVersion>25.2.9</DevExpressVersion>", "DevExpress 25.2.9 retention")
+require(read("src/LocalGPT/LocalGPT.csproj"), "<DevExpressVersion>25.2.10</DevExpressVersion>", "DevExpress 25.2.10 retention")
 require(read("src/LocalGPT/Components/App.razor"), "js/localgpt-chat-ui.js?v=3.2.8", "browser cache version marker")
 require(read("src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs"), "LocalGPT/3.2.8", "outbound LocalGPT product version")
 

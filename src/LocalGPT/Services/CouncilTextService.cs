@@ -40,6 +40,8 @@ namespace LocalGPT.Services
         /// Stores the local GPT catalog service dependency used by <see cref="CouncilTextService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly LocalGptCatalogService catalog;
+        /// <summary>Database-backed runtime text and regex policy.</summary>
+        private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
         /// <summary>
         /// Stores the logger used by <see cref="CouncilTextService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -50,14 +52,17 @@ namespace LocalGPT.Services
         /// </summary>
         /// <param name="patterns">Injected dependency used by the service.</param>
         /// <param name="catalog">Injected dependency used by the service.</param>
+        /// <param name="runtimePolicy">Database-backed runtime text and regex policy.</param>
         /// <param name="serviceLogger">Injected dependency used by the service.</param>
         public CouncilTextService(
             ICouncilTextPatternDataService patterns,
             LocalGptCatalogService catalog,
+            ILocalGptRuntimePolicyDataService runtimePolicy,
             ILogger<CouncilTextService> serviceLogger)
         {
             this.patterns = patterns;
             this.catalog = catalog;
+            this.runtimePolicy = runtimePolicy;
             this.serviceLogger = serviceLogger;
         }
 

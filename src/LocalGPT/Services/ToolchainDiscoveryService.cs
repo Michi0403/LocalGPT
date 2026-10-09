@@ -10,10 +10,12 @@ namespace LocalGPT.Services;
 /// <param name="regexPatterns">Regex pattern service dependency used by the toolchain discovery workflow to provide the corresponding application capability.</param>
 /// <param name="platform">Platform runtime service used to select host-specific toolchain roots, executable names, and path comparison rules.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class ToolchainDiscoveryService(
     IToolchainKnowledgeService knowledge,
     IRegexPatternService regexPatterns,
     IPlatformRuntimeService platform,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ToolchainDiscoveryService> logger) : IToolchainDiscoveryService
 {
     /// <summary>
@@ -35,7 +37,8 @@ public sealed class ToolchainDiscoveryService(
     {
         try
         {
-            maximumCandidates = Math.Clamp(maximumCandidates, 1, 512);
+            var parameters = runtimePolicy.GetJson<ToolchainRuntimeParameters>(LocalGptRuntimeValue.ToolchainRuntimeParametersJson);
+            maximumCandidates = Math.Clamp(maximumCandidates <= 0 ? parameters.DefaultCandidates : maximumCandidates, parameters.MinimumCandidates, parameters.MaximumCandidates);
             var profiles = await knowledge.GetProfilesAsync(cancellationToken).ConfigureAwait(false);
             if (profiles.Count == 0)
                 return [];
@@ -271,7 +274,7 @@ public sealed class ToolchainDiscoveryService(
             var pending = new Queue<(string Path, int Depth)>();
             pending.Enqueue((root, 0));
             var visited = 0;
-            while (pending.Count > 0 && result.Count < maximumCandidates && visited < 3000)
+            while (pending.Count > 0 && result.Count < maximumCandidates && visited < runtimePolicy.GetJson<ToolchainRuntimeParameters>(LocalGptRuntimeValue.ToolchainRuntimeParametersJson).MaximumVisitedDirectories)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var current = pending.Dequeue();
@@ -315,8 +318,10 @@ public sealed class ToolchainDiscoveryService(
                 return true;
             foreach (var pattern in profile.ExecutablePatterns.Where(item => !string.IsNullOrWhiteSpace(item)))
             {
-                var regexPattern = "^" + Regex.Escape(pattern.Trim()).Replace("\\*", ".*").Replace("\\?", ".") + "$";
-                if (Regex.IsMatch(fileName, regexPattern, platform.PathComparison == StringComparison.OrdinalIgnoreCase ? RegexOptions.IgnoreCase : RegexOptions.None, TimeSpan.FromMilliseconds(100)))
+                if (System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(
+                        pattern.Trim(),
+                        fileName,
+                        platform.PathComparison == StringComparison.OrdinalIgnoreCase))
                     return true;
             }
             return false;

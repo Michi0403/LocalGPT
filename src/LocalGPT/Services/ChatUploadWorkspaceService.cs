@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -26,6 +27,9 @@ namespace LocalGPT.Services
         /// <value>The workspace root value exposed by <see cref="ChatUploadWorkspaceService"/>.</value>
         public string WorkspaceRoot { get; } = LocalGptApplicationDataPaths.ResolveUserPath("ChatUploadWorkspaces");
 
+        /// <summary>Gets the current database-backed upload-workspace operational parameter set.</summary>
+        private ChatUploadWorkspaceRuntimeParameters Parameters => catalog.GetRuntimeParameters<ChatUploadWorkspaceRuntimeParameters>(LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson);
+
         /// <summary>
         /// Creates workspace as part of the chat upload workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
@@ -44,8 +48,10 @@ namespace LocalGPT.Services
 
                 var fileList = files
                     .Where(file => !string.IsNullOrWhiteSpace(file.Name))
-                    .Take(catalog.MaxFiles)
+                    .Take(catalog.MaxFiles == int.MaxValue ? int.MaxValue : Math.Max(1, catalog.MaxFiles + 1))
                     .ToList();
+                if (fileList.Count > catalog.MaxFiles)
+                    throw new InvalidDataException($"Upload batch contains more than the configured {catalog.MaxFiles:n0} files. LocalGPT will not silently drop an archive.");
                 var workspaceName = councilRuntime.BuildWorkspaceName(prompt, fileList, logger);
                 var root = Path.Combine(WorkspaceRoot, workspaceName);
                 var originalRoot = Path.Combine(root, "original");
@@ -124,6 +130,8 @@ namespace LocalGPT.Services
                         WorkspaceName = workspaceName,
                         RootPath = root,
                         CreatedAtUtc = DateTimeOffset.UtcNow,
+                        ReceivedUploadCount = fileList.Count,
+                        SavedUploadCount = Directory.EnumerateFiles(originalRoot, "*", SearchOption.TopDirectoryOnly).Count(),
                         Prompt = prompt,
                         Limits = new
                         {
@@ -191,8 +199,10 @@ namespace LocalGPT.Services
                 Directory.CreateDirectory(WorkspaceRoot);
                 var fileList = files
                     .Where(file => !string.IsNullOrWhiteSpace(file.Name) && file.OpenReadStream is not null)
-                    .Take(catalog.MaxFiles)
+                    .Take(catalog.MaxFiles == int.MaxValue ? int.MaxValue : Math.Max(1, catalog.MaxFiles + 1))
                     .ToList();
+                if (fileList.Count > catalog.MaxFiles)
+                    throw new InvalidDataException($"Upload batch contains more than the configured {catalog.MaxFiles:n0} files. LocalGPT will not silently drop an archive.");
                 var nameInputs = fileList.Select(file => new ChatUploadWorkspaceInputFile(file.Name, file.ContentType, file.SizeBytes, ReadOnlyMemory<byte>.Empty)).ToList();
                 var workspaceName = councilRuntime.BuildWorkspaceName(prompt, nameInputs, logger);
                 var root = Path.Combine(WorkspaceRoot, workspaceName);
@@ -224,7 +234,7 @@ namespace LocalGPT.Services
                     long copiedBytes;
                     using (var source = input.OpenReadStream())
                     {
-                        var destination = new FileStream(originalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                        var destination = new FileStream(originalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, Parameters.StreamBufferBytes, FileOptions.Asynchronous | FileOptions.SequentialScan);
                         await using var configuredDestination = destination.ConfigureAwait(false);
                         copiedBytes = await CopyBoundedStreamAsync(source, destination, catalog.MaxSingleFileBytes, cancellationToken).ConfigureAwait(false);
                     }
@@ -257,7 +267,7 @@ namespace LocalGPT.Services
                             warnings,
                             cancellationToken).ConfigureAwait(false);
                     }
-                    else if (copiedBytes <= Math.Min(catalog.MaxSingleFileBytes, 8L * 1024 * 1024))
+                    else if (copiedBytes <= Math.Min(catalog.MaxSingleFileBytes, Parameters.ImmediateAnalysisMaximumBytes))
                     {
                         var bytes = await File.ReadAllBytesAsync(originalPath, cancellationToken).ConfigureAwait(false);
                         var analyzed = councilRuntime.AnalyzeBytes(originalRelativePath, bytes, logger);
@@ -292,6 +302,8 @@ namespace LocalGPT.Services
                         WorkspaceName = workspaceName,
                         RootPath = root,
                         CreatedAtUtc = DateTimeOffset.UtcNow,
+                        ReceivedUploadCount = fileList.Count,
+                        SavedUploadCount = Directory.EnumerateFiles(originalRoot, "*", SearchOption.TopDirectoryOnly).Count(),
                         Prompt = prompt,
                         Limits = new
                         {
@@ -334,7 +346,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var buffer = new byte[128 * 1024];
+                var buffer = new byte[Parameters.StreamBufferBytes];
                 long total = 0;
                 while (true)
                 {
@@ -364,7 +376,7 @@ namespace LocalGPT.Services
         /// </summary>
         /// <param name="take">Take value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <returns>The collection produced by the operation.</returns>
-        public IReadOnlyList<ChatUploadWorkspaceSummary> ListWorkspaces(int take = 20)
+        public IReadOnlyList<ChatUploadWorkspaceSummary> ListWorkspaces(int take = 0)
         {
             try
             {
@@ -377,7 +389,9 @@ namespace LocalGPT.Services
                     .Where(summary => summary is not null)
                     .Cast<ChatUploadWorkspaceSummary>()
                     .OrderByDescending(summary => summary.LastWriteTimeUtc)
-                    .Take(take > 0 ? Math.Min(take, Math.Max(1, catalog.MaxFiles)) : Math.Max(1, catalog.MaxFiles))
+                    .Take(take > 0
+                        ? Math.Min(take, Math.Max(Parameters.MinimumFileListCount, catalog.MaxFiles))
+                        : Math.Min(Parameters.DefaultWorkspaceListCount, Math.Max(Parameters.MinimumFileListCount, catalog.MaxFiles)))
                     .ToList();
             }
             catch (Exception ex)
@@ -482,7 +496,7 @@ namespace LocalGPT.Services
         /// <param name="workspaceName">Workspace name value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="take">Take value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <returns>The collection produced by the operation.</returns>
-        public IReadOnlyList<ChatUploadWorkspaceFileSummary> ListFiles(string workspaceName, int take = 250)
+        public IReadOnlyList<ChatUploadWorkspaceFileSummary> ListFiles(string workspaceName, int take = 0)
         {
             try
             {
@@ -501,14 +515,19 @@ namespace LocalGPT.Services
                             info.Length,
                             info.LastWriteTimeUtc,
                             councilRuntime.IsTextLike(path, logger) || catalog.BinaryDiagnosticExtensions.Contains(Path.GetExtension(path)),
-                            path.EndsWith("context.md", StringComparison.OrdinalIgnoreCase)
-                                ? "AI prompt context generated by LocalGPT."
+                            path.EndsWith("context.md", StringComparison.OrdinalIgnoreCase) ||
+                            path.EndsWith("curation.md", StringComparison.OrdinalIgnoreCase) ||
+                            path.EndsWith("curation.json", StringComparison.OrdinalIgnoreCase)
+                                ? "LocalGPT-generated upload-workspace evidence artifact."
                                 : councilText.ToForwardSlash(Path.GetRelativePath(workspace, path), logger).StartsWith("extracted/", StringComparison.OrdinalIgnoreCase)
                                     ? "Safely extracted source-backed read-only evidence; execution and promotion remain separately gated."
                                     : "Original user-uploaded quarantine evidence.");
                     })
-                    .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
-                    .Take(take > 0 ? Math.Clamp(take, 1, 20_000) : 5_000)
+                    .OrderBy(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                    .ThenBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                    .Take(take > 0
+                        ? Math.Clamp(take, Parameters.MinimumFileListCount, Parameters.MaximumFileListCount)
+                        : Parameters.DefaultFileListCount)
                     .ToList();
             }
             catch (Exception ex)
@@ -561,7 +580,7 @@ namespace LocalGPT.Services
                 }
 
                 var effectiveOffset = Math.Max(0, characterOffset);
-                var effectiveMaximum = Math.Max(1, maxCharacters);
+                var effectiveMaximum = Math.Max(Parameters.MinimumReadSegmentCharacters, maxCharacters);
                 if (councilRuntime.IsTextLike(file, logger))
                 {
                     var segment = await ReadTextSegmentAsync(file, effectiveOffset, effectiveMaximum, cancellationToken).ConfigureAwait(false);
@@ -640,12 +659,12 @@ namespace LocalGPT.Services
                     FileMode.Open,
                     FileAccess.Read,
                     FileShare.Read,
-                    64 * 1024,
+                    Parameters.TextReaderBufferCharacters,
                     FileOptions.Asynchronous | FileOptions.SequentialScan);
                 await using var configuredStream = stream.ConfigureAwait(false);
-                using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 64 * 1024, leaveOpen: true);
+                using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: Parameters.TextReaderBufferCharacters, leaveOpen: true);
 
-                var buffer = new char[64 * 1024];
+                var buffer = new char[Parameters.TextReaderBufferCharacters];
                 var charactersToSkip = Math.Max(0, characterOffset);
                 while (charactersToSkip > 0)
                 {
@@ -657,8 +676,8 @@ namespace LocalGPT.Services
                     charactersToSkip -= read;
                 }
 
-                var targetCharacters = Math.Clamp(maxCharacters, 1, 1_000_000);
-                var builder = new StringBuilder(Math.Min(targetCharacters + 1, 1_000_001));
+                var targetCharacters = Math.Clamp(maxCharacters, Parameters.MinimumReadSegmentCharacters, Parameters.MaximumReadSegmentCharacters);
+                var builder = new StringBuilder(Math.Min(targetCharacters + 1, Parameters.MaximumReadSegmentCharacters + 1));
                 while (builder.Length <= targetCharacters)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -684,6 +703,387 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Reading a progressive upload-workspace text segment failed; file path was omitted.");
+                throw;
+            }
+        }
+
+        /// <summary>Runs the deterministic upload-workspace curation gate by validating every archive extraction and reading every original/extracted file byte stream completely.</summary>
+        /// <param name="workspaceName">Workspace that must be fully curated.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The complete curation coverage report used by gated Council workflows.</returns>
+        public async Task<ChatUploadWorkspaceCurationReport> CurateWorkspaceAsync(
+            string workspaceName,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var workspace = ResolveWorkspacePath(workspaceName)
+                    ?? throw new DirectoryNotFoundException($"Chat upload workspace '{workspaceName}' does not exist.");
+                var originalRoot = Path.Combine(workspace, "original");
+                var extractedRoot = Path.Combine(workspace, "extracted");
+                var warnings = new List<string>();
+                var fileEvidence = new List<ChatUploadWorkspaceCurationFileEvidence>();
+                var archiveReports = new List<ChatUploadWorkspaceArchiveCuration>();
+                var originalFiles = Directory.Exists(originalRoot)
+                    ? Directory.EnumerateFiles(originalRoot, "*", SearchOption.TopDirectoryOnly)
+                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToList()
+                    : [];
+
+                if (!Directory.Exists(originalRoot))
+                    warnings.Add("The workspace has no original upload directory.");
+
+                var manifestPath = Path.Combine(workspace, "manifest.json");
+                if (File.Exists(manifestPath))
+                {
+                    try
+                    {
+                        using var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false));
+                        if (manifest.RootElement.TryGetProperty("ReceivedUploadCount", out var receivedProperty) &&
+                            receivedProperty.TryGetInt32(out var receivedCount) &&
+                            receivedCount != originalFiles.Count)
+                        {
+                            warnings.Add($"The upload manifest declares {receivedCount:n0} input attachment(s), but only {originalFiles.Count:n0} original file(s) exist. The Council may not advance with missing uploads.");
+                        }
+                    }
+                    catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+                    {
+                        logger.LogWarning(ex, "The upload-workspace manifest could not be verified; source names were omitted.");
+                        warnings.Add("The workspace manifest could not be verified.");
+                    }
+                }
+
+                var originalReadCount = 0;
+                foreach (var originalFile in originalFiles)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var evidence = await ReadCompleteFileEvidenceAsync(workspace, originalFile, cancellationToken).ConfigureAwait(false);
+                    if (evidence is null)
+                    {
+                        warnings.Add($"Original upload could not be fully read: {councilText.ToForwardSlash(Path.GetRelativePath(workspace, originalFile), logger)}");
+                        continue;
+                    }
+
+                    fileEvidence.Add(evidence);
+                    originalReadCount++;
+                }
+
+                var archiveFiles = originalFiles
+                    .Where(path => councilRuntime.IsZip(path, logger))
+                    .ToList();
+                foreach (var archiveFile in archiveFiles)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    archiveReports.Add(await CurateArchiveAsync(
+                        workspace,
+                        extractedRoot,
+                        archiveFile,
+                        fileEvidence,
+                        cancellationToken).ConfigureAwait(false));
+                }
+
+                var complete = warnings.Count == 0 &&
+                    Directory.Exists(originalRoot) &&
+                    originalFiles.Count > 0 &&
+                    originalReadCount == originalFiles.Count &&
+                    archiveReports.All(report => report.IsComplete);
+                var completedAtUtc = DateTimeOffset.UtcNow;
+                var extractedFileCount = archiveReports.Sum(report => report.ExtractedFileCount);
+                var fullyReadBytes = fileEvidence.Sum(file => file.Length);
+                var preliminary = new ChatUploadWorkspaceCurationReport(
+                    workspaceName,
+                    completedAtUtc,
+                    originalFiles.Count,
+                    archiveFiles.Count,
+                    extractedFileCount,
+                    fileEvidence.Count,
+                    fullyReadBytes,
+                    complete,
+                    archiveReports,
+                    fileEvidence,
+                    warnings,
+                    string.Empty);
+                var summaryMarkdown = BuildCurationSummaryMarkdown(preliminary);
+                var report = preliminary with { SummaryMarkdown = summaryMarkdown };
+
+                await File.WriteAllTextAsync(
+                    Path.Combine(workspace, "curation.json"),
+                    JsonSerializer.Serialize(report, catalog.JsonOptions),
+                    Encoding.UTF8,
+                    cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(
+                    Path.Combine(workspace, "curation.md"),
+                    summaryMarkdown,
+                    Encoding.UTF8,
+                    cancellationToken).ConfigureAwait(false);
+
+                logger.LogInformation(
+                    "Curated chat upload workspace {WorkspaceName}: complete={Complete}, original uploads={OriginalCount}, archives={ArchiveCount}, extracted files={ExtractedCount}, fully read files={ReadCount}, fully read bytes={ReadBytes}.",
+                    workspaceName,
+                    complete,
+                    originalFiles.Count,
+                    archiveFiles.Count,
+                    extractedFileCount,
+                    fileEvidence.Count,
+                    fullyReadBytes);
+                return report;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Upload-workspace curation failed for workspace {WorkspaceName}; source contents were omitted.", workspaceName);
+                throw;
+            }
+        }
+
+        /// <summary>Validates one uploaded ZIP against the safe extraction tree and fully reads every extracted file.</summary>
+        /// <param name="workspaceRoot">Absolute workspace root.</param>
+        /// <param name="extractedRoot">Absolute shared extraction root.</param>
+        /// <param name="archivePath">Absolute original ZIP path.</param>
+        /// <param name="fileEvidence">Shared file-evidence list populated by the curation pass.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The per-archive curation result.</returns>
+        private async Task<ChatUploadWorkspaceArchiveCuration> CurateArchiveAsync(
+            string workspaceRoot,
+            string extractedRoot,
+            string archivePath,
+            List<ChatUploadWorkspaceCurationFileEvidence> fileEvidence,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var archiveWarnings = new List<string>();
+                var archiveFileName = Path.GetFileName(archivePath);
+                var extractionRoot = Path.Combine(
+                    extractedRoot,
+                    councilText.SanitizeFileName(Path.GetFileNameWithoutExtension(archiveFileName), logger));
+                var archiveRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, archivePath), logger);
+                var extractionRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, extractionRoot), logger);
+                var archiveEntryCount = 0;
+                var expectedExtractedFileCount = 0;
+                var skippedOrInvalidEntryCount = 0;
+                var expectedDestinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                long extractedBudget = 0;
+
+                using (var archive = ZipFile.OpenRead(archivePath))
+                {
+                    foreach (var entry in archive.Entries)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (string.IsNullOrWhiteSpace(entry.Name))
+                            continue;
+
+                        archiveEntryCount++;
+                        if (archiveEntryCount > catalog.MaxZipEntries)
+                        {
+                            skippedOrInvalidEntryCount++;
+                            continue;
+                        }
+                        if (entry.Length > catalog.MaxZipEntryBytes)
+                        {
+                            skippedOrInvalidEntryCount++;
+                            continue;
+                        }
+
+                        extractedBudget += entry.Length;
+                        if (extractedBudget > catalog.MaxExtractedBytes)
+                        {
+                            skippedOrInvalidEntryCount++;
+                            continue;
+                        }
+
+                        var safeRelativePath = councilText.BuildSafeZipRelativePath(entry.FullName, logger);
+                        if (safeRelativePath is null)
+                        {
+                            skippedOrInvalidEntryCount++;
+                            continue;
+                        }
+
+                        var destination = Path.GetFullPath(Path.Combine(extractionRoot, safeRelativePath));
+                        if (!councilRuntime.IsInsideRoot(extractionRoot, destination, logger) || !expectedDestinations.Add(destination))
+                        {
+                            skippedOrInvalidEntryCount++;
+                            continue;
+                        }
+
+                        expectedExtractedFileCount++;
+                        if (!File.Exists(destination))
+                            archiveWarnings.Add($"Missing safely expected extracted file: {councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger)}");
+                    }
+                }
+
+                if (skippedOrInvalidEntryCount > 0)
+                {
+                    archiveWarnings.Add(
+                        $"{skippedOrInvalidEntryCount:n0} archive file entr{(skippedOrInvalidEntryCount == 1 ? "y was" : "ies were")} not representable under the configured safe extraction limits or path rules.");
+                }
+
+                var extractedFiles = Directory.Exists(extractionRoot)
+                    ? Directory.EnumerateFiles(extractionRoot, "*", SearchOption.AllDirectories)
+                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToList()
+                    : [];
+                if (!Directory.Exists(extractionRoot))
+                    archiveWarnings.Add("The expected safe extraction root does not exist.");
+
+                var fullyReadFileCount = 0;
+                foreach (var extractedFile in extractedFiles)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var evidence = await ReadCompleteFileEvidenceAsync(workspaceRoot, extractedFile, cancellationToken).ConfigureAwait(false);
+                    if (evidence is null)
+                    {
+                        archiveWarnings.Add($"Extracted file could not be fully read: {councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, extractedFile), logger)}");
+                        continue;
+                    }
+
+                    fileEvidence.Add(evidence);
+                    fullyReadFileCount++;
+                }
+
+                var expectedFilesExist = expectedDestinations.All(File.Exists);
+                var complete = skippedOrInvalidEntryCount == 0 &&
+                    expectedFilesExist &&
+                    extractedFiles.Count == expectedExtractedFileCount &&
+                    fullyReadFileCount == extractedFiles.Count;
+                if (extractedFiles.Count != expectedExtractedFileCount)
+                {
+                    archiveWarnings.Add(
+                        $"Archive/extraction file-count mismatch: archive expects {expectedExtractedFileCount:n0} safely extractable file(s), extraction contains {extractedFiles.Count:n0} file(s).");
+                }
+
+                return new ChatUploadWorkspaceArchiveCuration(
+                    archiveRelativePath,
+                    extractionRelativePath,
+                    archiveEntryCount,
+                    expectedExtractedFileCount,
+                    extractedFiles.Count,
+                    fullyReadFileCount,
+                    skippedOrInvalidEntryCount,
+                    complete,
+                    archiveWarnings);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Archive curation failed; archive source content and absolute paths were omitted.");
+                var archiveRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, archivePath), logger);
+                return new ChatUploadWorkspaceArchiveCuration(
+                    archiveRelativePath,
+                    string.Empty,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    false,
+                    ["The archive could not be validated against its extraction tree. Review LocalGPT application logs."]);
+            }
+        }
+
+        /// <summary>Reads an entire workspace source file and returns digest evidence proving the byte stream reached EOF.</summary>
+        /// <param name="workspaceRoot">Absolute workspace root used to produce a stable relative source path.</param>
+        /// <param name="filePath">Absolute file path inside the workspace.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The file evidence, or <see langword="null"/> when the file could not be read completely.</returns>
+        private async Task<ChatUploadWorkspaceCurationFileEvidence?> ReadCompleteFileEvidenceAsync(
+            string workspaceRoot,
+            string filePath,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var stream = new FileStream(
+                    filePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    Parameters.StreamBufferBytes,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan);
+                await using var configuredStream = stream.ConfigureAwait(false);
+                using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                var buffer = new byte[Parameters.StreamBufferBytes];
+                long totalRead = 0;
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                    if (read == 0)
+                        break;
+                    hash.AppendData(buffer, 0, read);
+                    totalRead += read;
+                }
+
+                var info = new FileInfo(filePath);
+                if (totalRead != info.Length)
+                    return null;
+                return new ChatUploadWorkspaceCurationFileEvidence(
+                    councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, filePath), logger),
+                    totalRead,
+                    Convert.ToHexString(hash.GetHashAndReset()));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Complete upload-workspace file read failed; source path and content were omitted.");
+                return null;
+            }
+        }
+
+        /// <summary>Builds a bounded curation summary without copying source file contents into the Council prompt.</summary>
+        /// <param name="report">Curation report to summarize.</param>
+        /// <returns>Markdown evidence suitable for a workspace-curator Council role.</returns>
+        private string BuildCurationSummaryMarkdown(ChatUploadWorkspaceCurationReport report)
+        {
+            try
+            {
+                var builder = new StringBuilder();
+                builder.AppendLine("## Deterministic upload-workspace curation gate");
+                builder.AppendLine($"Workspace: `{report.WorkspaceName}`");
+                builder.AppendLine($"Status: **{(report.IsComplete ? "COMPLETE" : "INCOMPLETE")}**");
+                builder.AppendLine($"Original uploads fully inspected: {report.OriginalUploadCount:n0}");
+                builder.AppendLine($"ZIP archives: {report.ArchiveUploadCount:n0}");
+                builder.AppendLine($"Safely extracted files discovered: {report.ExtractedFileCount:n0}");
+                builder.AppendLine($"Original/extracted files read completely to EOF and SHA-256 hashed: {report.FullyReadFileCount:n0} ({report.FullyReadBytes:n0} bytes)");
+                if (report.Archives.Count > 0)
+                {
+                    builder.AppendLine();
+                    builder.AppendLine("### Archive coverage");
+                    foreach (var archive in report.Archives)
+                    {
+                        builder.AppendLine(
+                            $"- `{archive.ArchiveRelativePath}` -> `{archive.ExtractionRootRelativePath}`: " +
+                            $"{archive.FullyReadFileCount:n0}/{archive.ArchiveEntryCount:n0} archive file entries fully read; " +
+                            $"status {(archive.IsComplete ? "complete" : "incomplete")}");
+                    }
+                }
+                var allWarnings = report.Warnings
+                    .Concat(report.Archives.SelectMany(archive => archive.Warnings))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                if (allWarnings.Count > 0)
+                {
+                    builder.AppendLine();
+                    builder.AppendLine("### Gate warnings");
+                    foreach (var warning in allWarnings)
+                        builder.AppendLine($"- {warning}");
+                }
+                builder.AppendLine();
+                builder.AppendLine("The curation gate proves complete byte-read coverage; semantic conclusions still require the Council to inspect the relevant source files and repository metadata through the read-only workspace functions.");
+                return builder.ToString().Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not build the upload-workspace curation summary.");
                 throw;
             }
         }
@@ -838,14 +1238,14 @@ namespace LocalGPT.Services
                             FileMode.CreateNew,
                             FileAccess.Write,
                             FileShare.None,
-                            64 * 1024,
+                            Parameters.TextReaderBufferCharacters,
                             FileOptions.Asynchronous | FileOptions.SequentialScan);
                         await using var configuredDestinationStreamAsyncDisposal = destinationStream.ConfigureAwait(false);
                         await entryStream.CopyToAsync(destinationStream, cancellationToken).ConfigureAwait(false);
                     }
 
                     var relativePath = councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger);
-                    if (entry.Length <= Math.Min(catalog.MaxSingleFileBytes, 8L * 1024 * 1024))
+                    if (entry.Length <= Math.Min(catalog.MaxSingleFileBytes, Parameters.ImmediateAnalysisMaximumBytes))
                     {
                         var bytes = await System.IO.File.ReadAllBytesAsync(destination, cancellationToken).ConfigureAwait(false);
                         var analyzedBytes = councilRuntime.AnalyzeBytes(relativePath, bytes, logger);

@@ -36,7 +36,7 @@ A second CSS-scope bug made the problem more visible in the navigation drawer: `
 - No database schema, Council, knowledge, RegEx, project persistence, 1-Wire, DXFunction, provider or deployment behavior is changed.
 - InteractiveServer render-mode boundaries are unchanged.
 - The 3.2.9 database/relationship/lifecycle work is retained intact.
-- DevExpress remains 25.2.9.
+- DevExpress remains 25.2.10.
 - PublisherStudio remains 2.9.7 and is unchanged.
 
 ## Version

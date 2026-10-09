@@ -438,6 +438,12 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets the exact provider-qualified role member used when assigned-member role synthesis is enabled.</summary>
     /// <value>The provider-qualified model selection key preferred for role-result synthesis.</value>
     public string RoleResultSynthesisModelName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the optional user-owned role-result synthesis prompt template. Blank uses the database-backed global runtime-policy default.</summary>
+    /// <value>A persisted workflow-step prompt template supporting role-synthesis placeholders.</value>
+    public string RoleResultSynthesisPromptTemplate { get; set; } = string.Empty;
+    /// <summary>Gets or sets the optional user-owned same-role peer-review prompt template. Blank uses the database-backed global runtime-policy default.</summary>
+    /// <value>A persisted workflow-step prompt template supporting role-peer-review placeholders.</value>
+    public string RolePeerReviewPromptTemplate { get; set; } = string.Empty;
     /// <summary>Gets or sets whether prior step output is included in the prompt.</summary>
     /// <value>The include prior transcript value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool IncludePriorTranscript { get; set; } = true;
@@ -468,6 +474,12 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets whether the step pauses for a human checkpoint.</summary>
     /// <value>The requires human checkpoint value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool RequiresHumanCheckpoint { get; set; }
+    /// <summary>Gets or sets whether LocalGPT must complete deterministic curation of every upload workspace referenced by the request before this workflow step may start.</summary>
+    /// <value><see langword="true"/> to block the step until every referenced original archive and safely extracted file has complete byte-read coverage.</value>
+    public bool RequiresCompleteUploadWorkspaceCuration { get; set; }
+    /// <summary>Gets or sets whether the workflow must wait for approval-gated deferred DXFunctions requested by this step before advancing to the next configured step.</summary>
+    /// <value><see langword="true"/> to pause while exact deferred requests await local human approval or decline and to expose approved results as downstream evidence.</value>
+    public bool WaitForDeferredApprovalsBeforeNextStep { get; set; }
     /// <summary>Gets or sets whether registered organic/DX functions may be requested.</summary>
     /// <value>The can use organic functions value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool CanUseOrganicFunctions { get; set; } = true;

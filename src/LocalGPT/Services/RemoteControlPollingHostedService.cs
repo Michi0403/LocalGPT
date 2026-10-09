@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
@@ -5,14 +6,16 @@ namespace LocalGPT.Services;
 /// <summary>Polls only user-enabled Remote Control connectors whose explicitly configured intervals are due.</summary>
 /// <param name="scopeFactory">Scope factory used to resolve scoped connector services for each polling pass.</param>
 /// <param name="logger">Logger used for operational diagnostics.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class RemoteControlPollingHostedService(
     IServiceScopeFactory scopeFactory,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RemoteControlPollingHostedService> logger) : BackgroundService
 {
     /// <summary>
     /// Stores the internal scan interval state used by <see cref="RemoteControlPollingHostedService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly TimeSpan ScanInterval = TimeSpan.FromSeconds(30);
+    private TimeSpan ScanInterval => TimeSpan.FromSeconds(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).RemoteControlPollingSeconds);
 
     /// <summary>
     /// Performs execute as part of the remote control polling service workflow, applying the service's runtime policy, state management, and diagnostics as required.

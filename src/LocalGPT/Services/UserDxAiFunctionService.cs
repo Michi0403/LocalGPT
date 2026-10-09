@@ -12,13 +12,13 @@ namespace LocalGPT.Services;
 /// <param name="dbContextFactory">Local gpt memory database context dependency used by the user DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="databaseInitializer">Database initialization service dependency used by the user DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="scopeFactory">Service scope factory dependency used by the user DevExpress AI function workflow to provide the corresponding application capability.</param>
-/// <param name="regexCompilation">Regex compilation service dependency used by the user DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class UserDxAiFunctionService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     IServiceScopeFactory scopeFactory,
-    IRegexCompilationService regexCompilation,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<UserDxAiFunctionService> logger) : IUserDxAiFunctionService
 {
     /// <summary>
@@ -32,7 +32,7 @@ public sealed class UserDxAiFunctionService(
     /// <summary>
     /// Stores the internal name pattern state used by <see cref="UserDxAiFunctionService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly System.Text.RegularExpressions.Regex namePattern = regexCompilation.Compile("^user\\.[a-z0-9][a-z0-9._-]{0,118}$", "c", TimeSpan.FromSeconds(2), nameof(UserDxAiFunctionService));
+    private readonly System.Text.RegularExpressions.Regex namePattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.UserDxAiFunctionName);
 
     /// <summary>Returns whether the supplied Remote Control key belongs to a generated JSON/OData user source adapter.</summary>
     /// <param name="key">Remote Control connector or pipeline key to classify.</param>

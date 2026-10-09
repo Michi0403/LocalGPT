@@ -16,11 +16,13 @@ namespace LocalGPT.Services;
 /// <param name="configuredHostHardware">Durable configured-host hardware dependency; confirmed host facts override weak automatic discovery.</param>
 /// <param name="modelPresets">Model preset service dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class AdaptiveOllamaBenchmarkWiring(
     IOptionsMonitor<global::LocalGPT.BusinessObjects.ConfigurationRoot> configuration,
     IHardwareInventoryService hardwareInventory,
     IConfiguredAiHostHardwareService configuredHostHardware,
     IModelPresetService modelPresets,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<AdaptiveOllamaBenchmarkWiring> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -130,18 +132,19 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
                 : JsonSerializer.Deserialize<AdaptiveOllamaBenchmarkOptions>(parameters.GetRawText(), jsonOptions)
                     ?? new AdaptiveOllamaBenchmarkOptions();
 
-            options.MaxModels = Math.Clamp(options.MaxModels, 1, 24);
-            options.MaxProfilesPerModel = Math.Clamp(options.MaxProfilesPerModel, 1, 6);
-            options.MaxTasks = Math.Clamp(options.MaxTasks, 1, 4);
-            options.MaxSecondsPerCall = Math.Clamp(options.MaxSecondsPerCall, 10, 900);
-            options.ImprovementThresholdPercent = Math.Clamp(options.ImprovementThresholdPercent, 0d, 50d);
-            options.MaximumContextTokens = Math.Clamp(options.MaximumContextTokens, 2048, 262144);
-            options.MaximumOutputTokens = Math.Clamp(options.MaximumOutputTokens, 128, 4096);
+            var runtimeParameters = runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>(LocalGptRuntimeValue.ModelBenchmarkRuntimeParametersJson);
+            options.MaxModels = Math.Clamp(options.MaxModels, runtimeParameters.MinimumModels, runtimeParameters.MaximumModels);
+            options.MaxProfilesPerModel = Math.Clamp(options.MaxProfilesPerModel, runtimeParameters.MinimumProfilesPerModel, runtimeParameters.MaximumProfilesPerModel);
+            options.MaxTasks = Math.Clamp(options.MaxTasks, runtimeParameters.MinimumTasks, runtimeParameters.MaximumTasks);
+            options.MaxSecondsPerCall = Math.Clamp(options.MaxSecondsPerCall, runtimeParameters.MinimumSecondsPerCall, runtimeParameters.MaximumSecondsPerCall);
+            options.ImprovementThresholdPercent = Math.Clamp(options.ImprovementThresholdPercent, runtimeParameters.MinimumImprovementPercent, runtimeParameters.MaximumImprovementPercent);
+            options.MaximumContextTokens = Math.Clamp(options.MaximumContextTokens, runtimeParameters.MinimumRecommendedContextTokens, runtimeParameters.MaximumRecommendedContextTokens);
+            options.MaximumOutputTokens = Math.Clamp(options.MaximumOutputTokens, runtimeParameters.MinimumRecommendedOutputTokens, runtimeParameters.MaximumRecommendedOutputTokens);
             options.ModelNames = options.ModelNames
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Select(name => name.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(24)
+                .Take(runtimeParameters.MaximumModels)
                 .ToList();
             options.PresetName = string.IsNullOrWhiteSpace(options.PresetName)
                 ? "Adaptive Ollama Benchmark"
@@ -299,7 +302,7 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
                 .Select(option => option.Uri.Trim())
                 .FirstOrDefault(value => Uri.TryCreate(value, UriKind.Absolute, out var candidate) && candidate.IsLoopback);
             var value = string.IsNullOrWhiteSpace(requestedEndpoint) ? configuredLoopback : requestedEndpoint;
-            value = string.IsNullOrWhiteSpace(value) ? "http://127.0.0.1:11434" : value.Trim();
+            value = string.IsNullOrWhiteSpace(value) ? runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint) : value.Trim();
             if (!Uri.TryCreate(value.TrimEnd('/') + "/", UriKind.Absolute, out var endpoint))
                 throw new InvalidOperationException("The Ollama endpoint is not a valid absolute URI.");
             if (!endpoint.IsLoopback)

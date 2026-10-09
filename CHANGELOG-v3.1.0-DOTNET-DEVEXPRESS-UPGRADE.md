@@ -7,12 +7,12 @@ This release starts from the LocalGPT archive supplied after the user's .NET and
 The supplied source carries these .NET 10 upgrade changes:
 
 - `global.json` now selects **.NET SDK 10.0.400**.
-- `Microsoft.AspNetCore.SignalR.Client` is **10.0.11**.
-- `Microsoft.AspNetCore.SignalR.Protocols.MessagePack` is **10.0.11**.
-- `Microsoft.EntityFrameworkCore.Design` is **10.0.11**.
-- `Microsoft.EntityFrameworkCore.Sqlite` is **10.0.11**.
-- `System.CodeDom` is **10.0.11**.
-- the Windows WebView wrapper uses `System.Security.Cryptography.Xml` **10.0.11**.
+- `Microsoft.AspNetCore.SignalR.Client` is **an earlier .NET 10 patch**.
+- `Microsoft.AspNetCore.SignalR.Protocols.MessagePack` is **an earlier .NET 10 patch**.
+- `Microsoft.EntityFrameworkCore.Design` is **an earlier .NET 10 patch**.
+- `Microsoft.EntityFrameworkCore.Sqlite` is **an earlier .NET 10 patch**.
+- `System.CodeDom` is **an earlier .NET 10 patch**.
+- the Windows WebView wrapper uses `System.Security.Cryptography.Xml` **an earlier .NET 10 patch**.
 
 LocalGPT's DevExpress package references intentionally remain on the existing **`25.2.*`** patch lane. The supplied source therefore permits the upgraded licensed 25.2 patch release to resolve without introducing a new hardcoded patch pin that was not present in the user's archive.
 
@@ -20,7 +20,7 @@ LocalGPT's DevExpress package references intentionally remain on the existing **
 
 No database schema or migration change was added while preparing 3.1.0. The complete `src/LocalGPT/Migrations` tree and `DatabaseMigrationCompatibilityService.cs` are preserved byte-for-byte from the user's supplied upgrade archive. This specifically avoids reintroducing database/migration edits the user had already reverted.
 
-The supplied EF Core 10.0.11 product-version metadata that remains in that archive is preserved as-is; 3.1.0 adds no migration IDs, tables, columns, model changes, or migration code.
+The supplied EF Core an earlier .NET 10 patch product-version metadata that remains in that archive is preserved as-is; 3.1.0 adds no migration IDs, tables, columns, model changes, or migration code.
 
 ## Authored documentation source restored
 

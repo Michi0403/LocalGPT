@@ -8,7 +8,7 @@ Static validation performed without running `dotnet` or `pwsh`:
 - `Invoke-LocalGptDocfx` streams native DocFX output live while retaining captured output for retry/failure diagnostics;
 - the PDF invocation uses verbose DocFX diagnostics and the console message explains that large page sets can take several minutes;
 - the 3.3.7 PowerShell parser preflight remains present;
-- `docs/DocfxDependencies.csproj` still pins `System.Formats.Nrbf` 10.0.11 with `PrivateAssets="all"`, while the LocalGPT application project itself has no direct NRBF package reference;
+- `docs/DocfxDependencies.csproj` still pins `System.Formats.Nrbf` an earlier .NET 10 patch with `PrivateAssets="all"`, while the LocalGPT application project itself has no direct NRBF package reference;
 - Node.js 20–22 cross-platform bootstrap, DevExpress license preflight, documentation source preflight, and generic DocFX unresolved-reference repair remain wired;
 - existing `@rendermode InteractiveServer` declarations are unchanged from 3.3.7;
 - source archive packaging follows the Finder-compatible root-layout ZIP structure and is checked for duplicate, case-folded, and Unicode-normalized path collisions.

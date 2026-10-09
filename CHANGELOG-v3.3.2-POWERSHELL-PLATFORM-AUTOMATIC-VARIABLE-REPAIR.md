@@ -17,7 +17,7 @@ LocalGPT 3.3.1 introduced cross-platform DevExpress license preflight helpers. O
 
 The 3.3.1 cross-platform build/install work is retained: Windows cross-targeting for the WinUI wrapper, normal NuGet restore without a mandatory repository-local package source, the guided Ollama/LM Studio setup surface, OS-specific Ollama services selected through DI, portable PowerShell path handling and DevExpress license discovery/registration for Windows, macOS and Linux.
 
-`@rendermode InteractiveServer` ownership remains unchanged from 3.3.0/3.3.1. DevExpress remains 25.2.9.
+`@rendermode InteractiveServer` ownership remains unchanged from 3.3.0/3.3.1. DevExpress remains 25.2.10.
 
 ## Version
 

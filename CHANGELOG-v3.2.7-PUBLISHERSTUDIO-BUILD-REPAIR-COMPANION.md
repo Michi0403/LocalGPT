@@ -12,7 +12,7 @@
 - `/remote-control` remains full-width and aligned with the configuration/install workbench family.
 - Allowed hosts and headers remain guided row-based editors instead of raw-array entry surfaces.
 - Existing connector JSON persistence remains compatible through the maintained text/JSON service boundaries.
-- DevExpress remains 25.2.9 and the existing deployment architecture remains unchanged.
+- DevExpress remains 25.2.10 and the existing deployment architecture remains unchanged.
 
 ## Validation status
 

@@ -20,9 +20,13 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// </summary>
     private readonly ILogger<LocalGptRuntimePolicyDataService> logger;
     /// <summary>
-    /// Stores the regex compilation service dependency used by <see cref="LocalGptRuntimePolicyDataService"/> to delegate that application responsibility to its owning collaborator.
+    /// Stores the policy-independent regex engine used to compile persisted runtime patterns from explicit database-backed bounds.
     /// </summary>
-    private readonly IRegexCompilationService regexCompiler;
+    private readonly IRegexEngineService regexEngine;
+    /// <summary>
+    /// Stores the JSON text service used to deserialize typed runtime-policy documents without creating a second serializer policy.
+    /// </summary>
+    private readonly IJsonTextService jsonText;
     /// <summary>
     /// Stores the internal state state used by <see cref="LocalGptRuntimePolicyDataService"/> while executing its surrounding workflow.
     /// </summary>
@@ -33,16 +37,19 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// </summary>
     /// <param name="store">Local gpt runtime policy store service dependency used by the LocalGPT runtime policy workflow to provide the corresponding application capability.</param>
     /// <param name="seedData">Authoritative built-in runtime-policy seed used before persisted database overrides are available.</param>
-    /// <param name="regexCompiler">Regex compilation service that owns option and timeout policy.</param>
+    /// <param name="regexEngine">Policy-independent regex engine used during bootstrap and database reload from explicit runtime-policy bounds.</param>
+    /// <param name="jsonText">JSON text service used to deserialize typed runtime-policy documents.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public LocalGptRuntimePolicyDataService(
         ILocalGptRuntimePolicyStoreService store,
         ILocalGptRuntimePolicySeedDataService seedData,
-        IRegexCompilationService regexCompiler,
+        IRegexEngineService regexEngine,
+        IJsonTextService jsonText,
         ILogger<LocalGptRuntimePolicyDataService> logger)
     {
         this.store = store;
-        this.regexCompiler = regexCompiler;
+        this.regexEngine = regexEngine;
+        this.jsonText = jsonText;
         this.logger = logger;
         try
         {
@@ -185,9 +192,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         try
         {
             var raw = GetString(key);
-            var jsonOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-            jsonOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-            return System.Text.Json.JsonSerializer.Deserialize<T>(raw, jsonOptions)
+            return jsonText.Deserialize<T>(raw)
                 ?? throw new InvalidDataException($"Runtime value '{key}' could not be deserialized as {typeof(T).Name}.");
         }
         catch (Exception exception)
@@ -309,6 +314,11 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
             if (!int.TryParse(timeoutRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMilliseconds) || timeoutMilliseconds <= 0)
                 throw new InvalidDataException("RegexTimeoutMilliseconds must be positive.");
 
+            if (!values.TryGetValue(LocalGptRuntimeValue.RegexRuntimeParametersJson, out var regexParametersRaw))
+                throw new InvalidDataException("RegexRuntimeParametersJson is missing from the runtime policy definition.");
+            var regexParameters = jsonText.Deserialize<RegexRuntimeParameters>(regexParametersRaw)
+                ?? throw new InvalidDataException("RegexRuntimeParametersJson could not be deserialized.");
+
             var timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds);
             var next = new LocalGptRuntimePolicyState(
                 values.ToFrozenDictionary(),
@@ -323,7 +333,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
                 definition.RegexPatterns
                     .ToDictionary(
                         item => item.Key,
-                        item => regexCompiler.Compile(item.Value.Pattern, item.Value.Flags, timeout, item.Value.Name))
+                        item => regexEngine.Compile(item.Value.Pattern, item.Value.Flags, regexParameters, timeout, item.Value.Name))
                     .ToFrozenDictionary());
             logger.LogTrace($"Compiled immutable LocalGPT runtime-policy state with {next.Values.Count} values, {next.Collections.Count} collections, and {next.Patterns.Count} regex patterns.");
             return next;

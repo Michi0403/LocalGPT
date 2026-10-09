@@ -44,7 +44,7 @@ The first-run/install experience also already contained provider bootstrap servi
 
 - Existing LocalGPT persistence, Council, knowledge, RegEx, DXFunction, 1-Wire and logging behavior is retained.
 - `@rendermode InteractiveServer` boundaries are unchanged from 3.3.0.
-- DevExpress remains **25.2.9**.
+- DevExpress remains **25.2.10**.
 - PublisherStudio is not modified by this LocalGPT archive.
 
 ## Version

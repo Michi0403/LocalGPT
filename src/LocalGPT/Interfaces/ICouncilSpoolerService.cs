@@ -41,7 +41,7 @@ public interface ICouncilSpoolerService
     /// <param name="includeCompleted">Value indicating whether include completed should apply to this operation.</param>
     /// <param name="take">Take value supplied to the council spooler operation and used when producing its result.</param>
     /// <returns>The collection produced by the operation.</returns>
-    IReadOnlyList<CouncilSpoolerSnapshot> GetSnapshots(bool includeCompleted = true, int take = 30);
+    IReadOnlyList<CouncilSpoolerSnapshot> GetSnapshots(bool includeCompleted = true, int take = 0);
     /// <summary>
     /// Retrieves snapshot as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

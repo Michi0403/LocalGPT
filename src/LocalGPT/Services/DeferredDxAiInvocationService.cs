@@ -143,6 +143,43 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>Checks whether an exact deferred invocation for this Council run is still waiting for the local human approval decision.</summary>
+    /// <param name="councilRunId">Identifier of the Council run.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns><see langword="true"/> while at least one invocation remains pending approval.</returns>
+    public async Task<bool> HasPendingApprovalForRunAsync(
+        Guid councilRunId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
+                var pendingApprovalStatus = vocabulary.Get().DeferredPendingApproval;
+                return await db.DeferredDxAiInvocations.AsNoTracking()
+                    .AnyAsync(
+                        item => item.CouncilRunId == councilRunId && item.Status == pendingApprovalStatus,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                databaseGate.Release();
+            }
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(HasPendingApprovalForRunAsync)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(HasPendingApprovalForRunAsync)} failed.");
+            throw;
+        }
+    }
+
     /// <summary>
     /// Executes approved for approval request as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

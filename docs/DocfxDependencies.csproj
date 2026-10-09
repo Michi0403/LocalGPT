@@ -11,6 +11,6 @@
       does not change the application/runtime dependency graph. DocFX 2.78.x can encounter this assembly
       while reflecting .NET 10 resource metadata even though the RID-neutral app build does not copy it.
     -->
-    <PackageReference Include="System.Formats.Nrbf" Version="10.0.11" PrivateAssets="all" />
+    <PackageReference Include="System.Formats.Nrbf" Version="10.0.12" PrivateAssets="all" />
   </ItemGroup>
 </Project>

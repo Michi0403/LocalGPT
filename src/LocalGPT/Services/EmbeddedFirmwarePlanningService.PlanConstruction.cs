@@ -28,7 +28,8 @@ namespace LocalGPT.Services
             var framework = Text(request.Framework, profile?.Framework ?? "Arduino", 80);
             var deviceName = Text(request.DeviceName, "localgpt-embedded-node", 120);
             var transport = NormalizeTransport(request.TelemetryTransport);
-            var interval = Math.Clamp(request.TelemetryIntervalMilliseconds, 250, 3_600_000);
+            var parameters = runtimePolicy.GetJson<EmbeddedFirmwareRuntimeParameters>(LocalGptRuntimeValue.EmbeddedFirmwareRuntimeParametersJson);
+            var interval = Math.Clamp(request.TelemetryIntervalMilliseconds, parameters.MinimumTelemetryIntervalMilliseconds, parameters.MaximumTelemetryIntervalMilliseconds);
             var baud = request.BaudRate is >= 1200 and <= 4_000_000 ? request.BaudRate : 115200;
             var protocols = await catalog.GetProtocolDescriptorsAsync(cancellationToken).ConfigureAwait(false);
             var assignments = NormalizeAssignments(request, profile);

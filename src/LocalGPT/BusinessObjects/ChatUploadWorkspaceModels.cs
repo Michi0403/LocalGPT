@@ -126,4 +126,61 @@ namespace LocalGPT.BusinessObjects
         /// <value>The next zero-based decoded character offset, or <see langword="null"/> when this segment reached the end.</value>
         public long? NextOffsetCharacters { get; init; }
     }
+    /// <summary>Represents one file whose complete byte stream was read by the upload-workspace curation gate.</summary>
+    /// <param name="RelativePath">Workspace-relative source path.</param>
+    /// <param name="Length">Observed file length in bytes.</param>
+    /// <param name="Sha256">SHA-256 digest calculated while reading the complete file.</param>
+    public sealed record ChatUploadWorkspaceCurationFileEvidence(
+        string RelativePath,
+        long Length,
+        string Sha256);
+
+    /// <summary>Represents deterministic extraction and full-read coverage for one uploaded ZIP archive.</summary>
+    /// <param name="ArchiveRelativePath">Workspace-relative path of the original archive.</param>
+    /// <param name="ExtractionRootRelativePath">Workspace-relative extraction root assigned to the archive.</param>
+    /// <param name="ArchiveEntryCount">Number of file entries observed in the archive.</param>
+    /// <param name="ExpectedExtractedFileCount">Number of archive file entries that must exist after the configured safe extraction policy is applied.</param>
+    /// <param name="ExtractedFileCount">Number of files currently present below this archive's extraction root.</param>
+    /// <param name="FullyReadFileCount">Number of extracted files whose complete byte stream was read by the curator.</param>
+    /// <param name="SkippedOrInvalidEntryCount">Number of archive file entries that could not be represented by the safe extraction policy.</param>
+    /// <param name="IsComplete">Whether every archive file entry is safely extracted and fully readable.</param>
+    /// <param name="Warnings">Archive-specific curation warnings.</param>
+    public sealed record ChatUploadWorkspaceArchiveCuration(
+        string ArchiveRelativePath,
+        string ExtractionRootRelativePath,
+        int ArchiveEntryCount,
+        int ExpectedExtractedFileCount,
+        int ExtractedFileCount,
+        int FullyReadFileCount,
+        int SkippedOrInvalidEntryCount,
+        bool IsComplete,
+        IReadOnlyList<string> Warnings);
+
+    /// <summary>Represents the deterministic control-gateway result that proves upload and extracted-source coverage before a gated Council step may continue.</summary>
+    /// <param name="WorkspaceName">Workspace inspected by the curator.</param>
+    /// <param name="CompletedAtUtc">UTC completion time of the curation pass.</param>
+    /// <param name="OriginalUploadCount">Number of original user uploads inspected.</param>
+    /// <param name="ArchiveUploadCount">Number of original ZIP uploads inspected.</param>
+    /// <param name="ExtractedFileCount">Number of safely extracted files discovered across all archive roots.</param>
+    /// <param name="FullyReadFileCount">Number of original and extracted files whose complete byte streams were read.</param>
+    /// <param name="FullyReadBytes">Total number of bytes read by the curator.</param>
+    /// <param name="IsComplete">Whether every original upload and every safely expected archive file passed the full-read coverage gate.</param>
+    /// <param name="Archives">Per-archive extraction coverage.</param>
+    /// <param name="Files">Complete file-digest evidence retained in the local curation report.</param>
+    /// <param name="Warnings">Workspace-level curation warnings.</param>
+    /// <param name="SummaryMarkdown">Bounded human/model-readable curation summary.</param>
+    public sealed record ChatUploadWorkspaceCurationReport(
+        string WorkspaceName,
+        DateTimeOffset CompletedAtUtc,
+        int OriginalUploadCount,
+        int ArchiveUploadCount,
+        int ExtractedFileCount,
+        int FullyReadFileCount,
+        long FullyReadBytes,
+        bool IsComplete,
+        IReadOnlyList<ChatUploadWorkspaceArchiveCuration> Archives,
+        IReadOnlyList<ChatUploadWorkspaceCurationFileEvidence> Files,
+        IReadOnlyList<string> Warnings,
+        string SummaryMarkdown);
+
 }

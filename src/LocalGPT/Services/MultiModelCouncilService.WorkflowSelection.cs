@@ -102,7 +102,7 @@ namespace LocalGPT.Services
                     cancellationToken).ConfigureAwait(false);
                 var maxOutputTokens = Math.Min(
                     request.MaxOutputTokens,
-                    Math.Clamp(team.AllMembersReadinessPreflightMaxOutputTokens, 32, 2048));
+                    Math.Clamp(team.AllMembersReadinessPreflightMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumReadinessOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumReadinessOutputTokens));
 
                 request.ProgressMessage?.Invoke(
                     $"Running optional all-members readiness preflight for team {team.DisplayName}: {participants.Count} selected member(s), role-aware probe, maximum {maxOutputTokens} output token(s) per member. Preflight output is {(team.IncludeAllMembersReadinessPreflightInWorkflowContext ? "included in" : "excluded from")} later workflow model context.");
@@ -161,35 +161,24 @@ namespace LocalGPT.Services
                 var assignedRoles = assigned.Count == 0
                     ? "none"
                     : string.Join(", ", assigned.Select(assignment => assignment.RoleName));
+                var defaultResponsibility = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilReadinessDefaultRoleResponsibilityText);
                 var responsibilities = assigned.Count == 0
-                    ? "No AI workflow role is assigned to this member in the current run. Report that as a preflight blocker."
+                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilReadinessNoAssignedRoleText)
                     : string.Join(Environment.NewLine, assigned.Select(assignment =>
-                        $"- {assignment.RoleName}: {(string.IsNullOrWhiteSpace(assignment.Definition?.Responsibility) ? "follow the configured workflow-step role task exactly" : assignment.Definition.Responsibility)}"));
+                        $"- {assignment.RoleName}: {(string.IsNullOrWhiteSpace(assignment.Definition?.Responsibility) ? defaultResponsibility : assignment.Definition.Responsibility)}"));
 
                 var configuredTemplate = team.AllMembersReadinessPreflightPromptTemplate?.Trim() ?? string.Empty;
-                var prompt = string.IsNullOrWhiteSpace(configuredTemplate)
-                    ? $"""
-This is an optional team readiness preflight only. Do not execute the user's original request and do not perform the substantive workflow tasks yet.
-Provider-qualified member: {modelName}
-Team: {team.DisplayName}
-Assigned role(s): {assignedRoles}
-Assigned role responsibilities:
-{responsibilities}
+                var template = string.IsNullOrWhiteSpace(configuredTemplate)
+                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilAllMembersReadinessPreflightPromptTemplate)
+                    : configuredTemplate;
+                var prompt = template
+                    .Replace("{{ModelName}}", modelName, StringComparison.Ordinal)
+                    .Replace("{{TeamName}}", team.DisplayName, StringComparison.Ordinal)
+                    .Replace("{{AssignedRoles}}", assignedRoles, StringComparison.Ordinal)
+                    .Replace("{{RoleResponsibilities}}", responsibilities, StringComparison.Ordinal);
+                var boundary = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilAllMembersReadinessPreflightBoundaryInstruction);
 
-Confirm only whether you can later execute the role tasks listed above. Do not plan the whole Council, do not take over another role, do not call tools, and do not produce benchmark/profile results during this preflight.
-Return exactly three short lines:
-READINESS: Ready | Blocked
-ROLES: <the assigned role names you understand>
-BLOCKERS: none | <specific missing capability or ambiguity>
-"""
-                    : configuredTemplate
-                        .Replace("{{ModelName}}", modelName, StringComparison.Ordinal)
-                        .Replace("{{TeamName}}", team.DisplayName, StringComparison.Ordinal)
-                        .Replace("{{AssignedRoles}}", assignedRoles, StringComparison.Ordinal)
-                        .Replace("{{RoleResponsibilities}}", responsibilities, StringComparison.Ordinal);
-
-                return prompt.Trim() + Environment.NewLine + Environment.NewLine +
-                    "Preflight boundary: the current role task remains authoritative when substantive workflow execution starts. The original user request is background context only and must not replace an assigned role task.";
+                return prompt.Trim() + Environment.NewLine + Environment.NewLine + boundary;
             }
             catch (Exception __serviceMethodException)
             {
