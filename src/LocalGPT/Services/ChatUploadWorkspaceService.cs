@@ -537,6 +537,90 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Provides a platform-neutral, paged and searchable inventory without silently truncating source roots.</summary>
+        /// <param name="workspaceName">Existing upload workspace name.</param>
+        /// <param name="take">Maximum matching files returned in this page.</param>
+        /// <param name="offset">Filtered-list offset.</param>
+        /// <param name="pathContains">Optional case-insensitive path filter.</param>
+        /// <param name="extension">Optional exact file extension.</param>
+        /// <returns>Complete root and project inventory plus a bounded matching page.</returns>
+        public ChatUploadWorkspaceFilePage QueryFiles(string workspaceName, int take, int offset, string? pathContains = null, string? extension = null)
+        {
+            try
+            {
+                var root = ResolveWorkspacePath(workspaceName);
+                if (root is null)
+                    return new ChatUploadWorkspaceFilePage(workspaceName, 0, 0, 0, false, null, [], [], [], [], []);
+
+                var paths = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                    .Select(path => (FullPath: path, RelativePath: councilText.ToForwardSlash(Path.GetRelativePath(root, path), logger)))
+                    .OrderBy(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                    .ThenBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var originals = paths.Where(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var archiveRoots = originals.Where(file => file.RelativePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    .Select(file => "extracted/" + Path.GetFileNameWithoutExtension(file.RelativePath.Replace('\\', '/')))
+                    .Where(path => Directory.Exists(Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar))))
+                    .ToList();
+                var projectFiles = paths.Where(file =>
+                        file.RelativePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) ||
+                        file.RelativePath.EndsWith(".fsproj", StringComparison.OrdinalIgnoreCase) ||
+                        file.RelativePath.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) ||
+                        file.RelativePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) ||
+                        file.RelativePath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+                    .Select(file => file.RelativePath)
+                    .ToList();
+                var suffix = string.IsNullOrWhiteSpace(extension) ? null : extension.Trim().TrimStart('.');
+                var matches = paths.Where(file =>
+                        (string.IsNullOrWhiteSpace(pathContains) || file.RelativePath.Contains(pathContains.Trim().Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)) &&
+                        (suffix is null || Path.GetExtension(file.RelativePath).Equals("." + suffix, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+                var pageOffset = Math.Clamp(offset, 0, matches.Count);
+                var pageSize = Math.Clamp(take, Math.Max(1, Parameters.MinimumFileListCount), Math.Max(1, Parameters.MaximumFileListCount));
+                var pageFiles = matches.Skip(pageOffset).Take(pageSize)
+                    .Select(file =>
+                    {
+                        var info = new FileInfo(file.FullPath);
+                        return new ChatUploadWorkspaceFileSummary(
+                            file.RelativePath,
+                            councilRuntime.DetermineFileKind(file.FullPath, logger),
+                            info.Length,
+                            info.LastWriteTimeUtc,
+                            councilRuntime.IsTextLike(file.FullPath, logger),
+                            file.RelativePath.StartsWith("extracted/", StringComparison.OrdinalIgnoreCase)
+                                ? "Safely extracted source evidence; read only."
+                                : file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase)
+                                    ? "Original uploaded file; quarantined."
+                                    : "LocalGPT-generated workspace metadata.");
+                    })
+                    .ToList();
+                var originalSummaries = originals.Select(file => new ChatUploadWorkspaceFileSummary(
+                        file.RelativePath, councilRuntime.DetermineFileKind(file.FullPath, logger),
+                        new FileInfo(file.FullPath).Length, System.IO.File.GetLastWriteTimeUtc(file.FullPath),
+                        false, "Original user-uploaded quarantine evidence."))
+                    .ToList();
+                var generatedSummaries = paths.Where(file =>
+                        file.RelativePath.Equals("context.md", StringComparison.OrdinalIgnoreCase) ||
+                        file.RelativePath.Equals("manifest.json", StringComparison.OrdinalIgnoreCase) ||
+                        file.RelativePath.Equals("curation.md", StringComparison.OrdinalIgnoreCase) ||
+                        file.RelativePath.Equals("curation.json", StringComparison.OrdinalIgnoreCase))
+                    .Select(file => new ChatUploadWorkspaceFileSummary(
+                        file.RelativePath, councilRuntime.DetermineFileKind(file.FullPath, logger),
+                        new FileInfo(file.FullPath).Length, System.IO.File.GetLastWriteTimeUtc(file.FullPath),
+                        true, "LocalGPT-generated upload-workspace evidence artifact."))
+                    .ToList();
+                var hasMore = pageOffset + pageFiles.Count < matches.Count;
+                return new ChatUploadWorkspaceFilePage(workspaceName, paths.Count, matches.Count, pageOffset, hasMore,
+                    hasMore ? pageOffset + pageFiles.Count : null, pageFiles, originalSummaries, generatedSummaries, archiveRoots, projectFiles);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not query upload-workspace files in {WorkspaceName} at offset {Offset}.", workspaceName, offset);
+                throw;
+            }
+        }
+
         /// <summary>
         /// Reads file as part of the chat upload workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>

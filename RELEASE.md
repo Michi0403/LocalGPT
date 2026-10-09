@@ -1,5 +1,5 @@
-# LocalGPT 5.4.1
+# LocalGPT 5.4.2
 
-This corrective release repairs the source compiler error in the 5.4.0 `ResilientStep` wrapper for seeded compiler/release Council workflows. `Step` gained two optional Boolean arguments for complete upload-workspace curation and deferred approval handling; the wrapper still passed following arguments positionally. The helper now passes every optional argument by **name**, preserving the wrapper's original flags and allowing the new gates to use their own defaults.
+Platform-neutral upload-workspace file discovery and reading repair; page/filtered file lists report all archive roots and exact .NET project paths. File-read schema accepts undersized model proposals and upgrades them to substantial reads. Missing paths return exact candidate filenames, and durable Council logs are checkpointed as steps are added. File logger has a provider-specific filter so it is not suppressed by production-wide filtering; persisted local settings still own severity and output path.
 
-The 5.4.0 per-ZIP curator, research approval, seed role sampling, and file logging are unchanged. See `CHANGELOG-v5.4.1-RESILIENT-STEP-ARGUMENT-REPAIR.md` and `VALIDATION-v5.4.1-source.md`. The owner must compile/runtime-test locally; no .NET compilation was run for this package.
+See `CHANGELOG-v5.4.2-WORKSPACE-DISCOVERY-READ-CHECKPOINTS.md` and `VALIDATION-v5.4.2-source.md`. No .NET build, restore or publish was run.

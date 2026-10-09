@@ -203,6 +203,7 @@ namespace LocalGPT.Services
                     stepCompleted?.Invoke(functionStep);
                     progressMessage?.Invoke($"Council DXFunction gateway added {functionStep.Role} for round {functionStep.Round} with status {(string.IsNullOrWhiteSpace(functionStep.Error) ? "available" : "failed")}.");
                 }
+                result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
                 logger.LogDebug($"Added Council step {step.SortOrder} and {functionSteps.Count} database-backed DX function result step(s).");
                 return functionSteps;
             }
@@ -238,6 +239,7 @@ namespace LocalGPT.Services
 
                 MultiModelCouncilServiceAddOrderedStep(result, step, logger);
                 stepCompleted?.Invoke(step);
+                result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
                 progressMessage?.Invoke($"Council added {step.ModelName} for round {step.Round} / {step.Phase} without organic function execution.");
                 return [];
         

@@ -45,7 +45,7 @@ public sealed class LoggingConfigurationService(
             loggingBuilder.AddDebug();
 #endif
             AddEmailLoggerIfConfigured(loggingOptions);
-            AddFileLoggerIfConfigured(loggingOptions);
+            AddFileLoggerIfConfigured(loggingOptions, loggingBuilder);
             AddDatabaseLoggerIfConfigured(loggingBuilder, loggingOptions);
             logger.LogInformation("Configured the enabled LocalGPT logging providers.");
         }
@@ -88,7 +88,8 @@ public sealed class LoggingConfigurationService(
     /// Adds file logger if configured as part of the logging configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="loggingOptions">Logging options value supplied to the logging configuration operation and used when producing its result.</param>
-    private void AddFileLoggerIfConfigured(LoggingCoreOptions loggingOptions)
+    /// <param name="loggingBuilder">Logger composition root where the file-provider filter is registered.</param>
+    private void AddFileLoggerIfConfigured(LoggingCoreOptions loggingOptions, ILoggingBuilder loggingBuilder)
     {
         try
         {
@@ -99,8 +100,11 @@ public sealed class LoggingConfigurationService(
             if (loggingOptions.FileCore is null || loggingOptions.FileCore.CoreLogLevel == CoreLogLevel.None)
                 return;
 
+            // The file provider owns its CoreLogLevel. Do not let the global/production
+            // category filter hide successful Council checkpoints from the durable sink.
             services.AddSingleton<ILoggerProvider>(provider =>
                 new FileLoggerProvider(provider.GetRequiredService<IOptionsMonitor<FileLoggerCoreOptions>>()));
+            loggingBuilder.AddFilter<FileLoggerProvider>((_, _) => true);
             logger.LogInformation("Registered the optional file logger provider.");
         }
         catch (Exception exception)

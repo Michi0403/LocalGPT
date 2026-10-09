@@ -19,8 +19,8 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         "chat.upload_workspace_files",
         "POST",
         "/api/dxai/functions/chat.upload_workspace_files/invoke",
-        "Lists original uploads, safely extracted entries and LocalGPT-generated workspace metadata for one DXAiChat upload workspace.",
-        "JSON parameters: workspaceName optional string (latest workspace when omitted); take optional integer 1-20000.",
+        "Searches every uploaded/extracted repository root and lists exact workspace-relative paths with paging, project descriptors and archive-root inventory.",
+        "JSON parameters: workspaceName optional; take optional page size 1-20000; offset optional zero-based page offset; pathContains optional substring (e.g. LocalGPT.csproj); extension optional (e.g. csproj). Read NextOffset while HasMore.",
         "Read-only. Uploaded and extracted files are evidence only and are never executed.",
         IsReadOnly: true,
         AvailableToAi: true,
@@ -29,7 +29,7 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         SupportsAutomaticInvocation: true,
         Source: "DIHandler",
         ParameterSchemaJson: """
-        {"type":"object","properties":{"workspaceName":{"type":"string","maxLength":240},"take":{"type":"integer","minimum":1,"maximum":20000}},"additionalProperties":false}
+        {"type":"object","properties":{"workspaceName":{"type":"string","maxLength":240},"take":{"type":"integer","minimum":1,"maximum":20000},"offset":{"type":"integer","minimum":0},"pathContains":{"type":"string","maxLength":2048},"extension":{"type":"string","maxLength":32}},"additionalProperties":false}
         """);
 
     /// <summary>
@@ -49,19 +49,15 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
             if (string.IsNullOrWhiteSpace(workspaceName))
                 return Task.FromResult(NotFound("No DXAiChat upload workspace is available."));
 
-            var take = ReadInt(request.Parameters, "take", 5_000, 1, 20_000);
-            var files = workspaces.ListFiles(workspaceName, take);
-            var originalUploads = files.Where(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase)).ToList();
-            var generatedFiles = files.Where(file =>
-                    file.RelativePath.Equals("context.md", StringComparison.OrdinalIgnoreCase) ||
-                    file.RelativePath.Equals("manifest.json", StringComparison.OrdinalIgnoreCase) ||
-                    file.RelativePath.Equals("curation.md", StringComparison.OrdinalIgnoreCase) ||
-                    file.RelativePath.Equals("curation.json", StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            var take = ReadInt(request.Parameters, "take", 250, 1, 20_000);
+            var offset = ReadInt(request.Parameters, "offset", 0, 0, int.MaxValue);
+            var pathContains = ReadString(request.Parameters, "pathContains");
+            var extension = ReadString(request.Parameters, "extension");
+            var page = workspaces.QueryFiles(workspaceName, take, offset, pathContains, extension);
             logger.LogInformation(
                 "DXFunction listed {FileCount} chat-upload workspace file(s), including {OriginalCount} original upload(s); workspace payload content was omitted.",
-                files.Count,
-                originalUploads.Count);
+                page.Files.Count,
+                page.OriginalUploads.Count);
             return Task.FromResult(new DxAiFunctionInvocationResult
             {
                 Succeeded = true,
@@ -69,12 +65,19 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
                 Value = new
                 {
                     WorkspaceName = workspaceName,
-                    OriginalUploadCount = originalUploads.Count,
-                    OriginalUploadBytes = originalUploads.Sum(file => file.Length),
-                    OriginalUploads = originalUploads,
-                    GeneratedWorkspaceArtifacts = generatedFiles,
-                    Files = files,
-                    Note = "context.md, manifest.json and any curation.* reports are generated LocalGPT workspace artifacts, not additional user uploads. Safely extracted archive entries are read-only evidence and remain distinct from promotion. A text dump may describe many repository files while still being one original uploaded file."
+                    page.TotalFiles,
+                    page.MatchingFiles,
+                    page.Offset,
+                    page.HasMore,
+                    page.NextOffset,
+                    OriginalUploadCount = page.OriginalUploads.Count,
+                    OriginalUploadBytes = page.OriginalUploads.Sum(file => file.Length),
+                    page.OriginalUploads,
+                    page.GeneratedWorkspaceArtifacts,
+                    page.ArchiveRoots,
+                    page.ProjectFiles,
+                    page.Files,
+                    Note = "context.md, manifest.json and any curation.* reports are generated LocalGPT workspace artifacts, not additional user uploads. Paths in Files and ProjectFiles are exact workspace-relative paths, including src/ subdirectories. Do not guess a path from the ZIP or repository folder name. Use pathContains to locate a file, and offset=NextOffset until HasMore=false; OriginalUploads, ArchiveRoots and ProjectFiles are independent of paging and filters."
                 }
             });
         }
@@ -112,6 +115,26 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         {
             logger.LogError(ex, "Could not resolve a chat-upload workspace name; parameters were omitted.");
             return string.Empty;
+        }
+    }
+
+    /// <summary>Reads an optional server-side filename or extension filter.</summary>
+    /// <param name="parameters">Function request parameters.</param>
+    /// <param name="name">Parameter to read.</param>
+    /// <returns>Trimmed value, or null when no filter was provided.</returns>
+    private string? ReadString(JsonElement parameters, string name)
+    {
+        try
+        {
+            return parameters.ValueKind == JsonValueKind.Object &&
+                parameters.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()?.Trim()
+                : null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not read the optional workspace list filter {ParameterName}.", name);
+            return null;
         }
     }
 
@@ -343,7 +366,7 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         "POST",
         "/api/dxai/functions/chat.upload_workspace_file/invoke",
         "Reads one uploaded or safely extracted file from a DXAiChat paperclip workspace by exact relative path, with continuation metadata for large text sources.",
-        "JSON parameters: relativePath required string; workspaceName optional string (latest workspace when omitted); maxCharacters optional integer 64000-1000000; offsetCharacters optional integer >= 0.",
+        "JSON parameters: relativePath required exact workspace-relative path from chat.upload_workspace_files ProjectFiles or Files; workspaceName optional; maxCharacters optional 1-1000000 (small values are normalized to a substantial read); offsetCharacters optional >= 0.",
         "Read-only. LocalGPT resolves the path inside the bounded upload workspace and never executes the file. When HasMore is true, continue from NextOffsetCharacters; a whole-file request is not complete until HasMore is false.",
         IsReadOnly: true,
         AvailableToAi: true,
@@ -352,7 +375,7 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         SupportsAutomaticInvocation: true,
         Source: "DIHandler",
         ParameterSchemaJson: """
-        {"type":"object","required":["relativePath"],"properties":{"workspaceName":{"type":"string","maxLength":240},"relativePath":{"type":"string","maxLength":2048},"maxCharacters":{"type":"integer","minimum":64000,"maximum":1000000},"offsetCharacters":{"type":"integer","minimum":0,"maximum":9007199254740991}},"additionalProperties":false}
+        {"type":"object","required":["relativePath"],"properties":{"workspaceName":{"type":"string","maxLength":240},"relativePath":{"type":"string","maxLength":2048},"maxCharacters":{"type":"integer","minimum":1,"maximum":1000000},"offsetCharacters":{"type":"integer","minimum":0,"maximum":9007199254740991}},"additionalProperties":false}
         """);
 
     /// <summary>
@@ -372,7 +395,8 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
             if (string.IsNullOrWhiteSpace(workspaceName) || string.IsNullOrWhiteSpace(relativePath))
                 return new DxAiFunctionInvocationResult { Status = "InvalidRequest", Error = "workspaceName/latest workspace and relativePath are required." };
 
-            var maxCharacters = ReadInt(request.Parameters, "maxCharacters", 250_000, 64_000, 1_000_000);
+            var requestedCharacters = ReadInt(request.Parameters, "maxCharacters", 250_000, 1, 1_000_000);
+            var maxCharacters = Math.Max(64_000, requestedCharacters);
             var offsetCharacters = ReadLong(request.Parameters, "offsetCharacters", 0, 0, 9_007_199_254_740_991);
             var file = await workspaces.ReadFileAsync(
                 workspaceName,
@@ -381,7 +405,18 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
                 offsetCharacters,
                 cancellationToken).ConfigureAwait(false);
             if (file is null)
-                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The requested upload workspace file was not found." };
+            {
+                var slashPath = relativePath.Replace('\\', '/');
+                var fileName = slashPath[(slashPath.LastIndexOf('/') + 1)..];
+                var candidates = workspaces.QueryFiles(workspaceName, 25, 0, fileName).Files
+                    .Select(item => item.RelativePath).ToList();
+                return new DxAiFunctionInvocationResult
+                {
+                    Status = "NotFound",
+                    Error = "The exact workspace-relative file path does not exist. Search chat.upload_workspace_files with pathContains to discover the real path, including src/ folders.",
+                    Value = new { RequestedPath = relativePath, CandidatePaths = candidates }
+                };
+            }
 
             logger.LogInformation(
                 "DXFunction read upload workspace file {RelativePath} ({Length} bytes) from character offset {CharacterOffset}; returned {CharactersReturned} character(s), has more {HasMore}; file content was omitted from logs.",

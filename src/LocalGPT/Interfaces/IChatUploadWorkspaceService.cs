@@ -77,6 +77,15 @@ namespace LocalGPT.Interfaces
         /// <returns>The collection produced by the operation.</returns>
         IReadOnlyList<ChatUploadWorkspaceFileSummary> ListFiles(string workspaceName, int take = 0);
 
+        /// <summary>Enumerates exact workspace paths with server-side filtering, stable paging, and archive/project-root discovery.</summary>
+        /// <param name="workspaceName">Existing upload workspace name.</param>
+        /// <param name="take">Maximum matching files returned on this page.</param>
+        /// <param name="offset">Zero-based offset in the filtered results.</param>
+        /// <param name="pathContains">Optional case-insensitive workspace-relative path fragment.</param>
+        /// <param name="extension">Optional file extension, with or without a leading dot.</param>
+        /// <returns>Matching-page results plus independently complete upload and project metadata.</returns>
+        ChatUploadWorkspaceFilePage QueryFiles(string workspaceName, int take, int offset, string? pathContains = null, string? extension = null);
+
         /// <summary>
         /// Reads file as part of the chat upload workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>

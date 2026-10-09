@@ -93,6 +93,31 @@ namespace LocalGPT.BusinessObjects
         bool IncludedInPrompt,
         string Note);
 
+    /// <summary>One complete, searchable inventory view with explicit paging and exact project-file paths.</summary>
+    /// <param name="WorkspaceName">Workspace whose paths were enumerated.</param>
+    /// <param name="TotalFiles">Total files physically present across all source roots.</param>
+    /// <param name="MatchingFiles">Number of files matching the caller's path and extension filters.</param>
+    /// <param name="Offset">Zero-based offset into filtered, sorted results.</param>
+    /// <param name="HasMore">Whether more matching paths remain after this page.</param>
+    /// <param name="NextOffset">Offset for the next page or null when this page is the last.</param>
+    /// <param name="Files">Exact workspace-relative paths and metadata in this page.</param>
+    /// <param name="OriginalUploads">All original uploaded archive/file summaries, independent of paging.</param>
+    /// <param name="GeneratedWorkspaceArtifacts">LocalGPT-generated curation/manifest/context metadata summaries.</param>
+    /// <param name="ArchiveRoots">Separate extraction roots for the original ZIPs.</param>
+    /// <param name="ProjectFiles">Exact paths of discovered solution and project descriptors across all archive roots.</param>
+    public sealed record ChatUploadWorkspaceFilePage(
+        string WorkspaceName,
+        int TotalFiles,
+        int MatchingFiles,
+        int Offset,
+        bool HasMore,
+        int? NextOffset,
+        IReadOnlyList<ChatUploadWorkspaceFileSummary> Files,
+        IReadOnlyList<ChatUploadWorkspaceFileSummary> OriginalUploads,
+        IReadOnlyList<ChatUploadWorkspaceFileSummary> GeneratedWorkspaceArtifacts,
+        IReadOnlyList<string> ArchiveRoots,
+        IReadOnlyList<string> ProjectFiles);
+
     /// <summary>
     /// Represents the outcome of chat upload workspace file read, carrying the data and status produced by the corresponding application operation.
     /// </summary>

@@ -305,9 +305,9 @@ Original upload inventory:
 {{OriginalUploadInventory}}
 Attachment-specific registered DXFunctions:
 - chat.upload_workspace_curate: deterministically validate every original upload and every safe archive extraction entry, reading each file to EOF and retaining SHA-256 coverage evidence
-- chat.upload_workspace_files: list original uploads, safe read-only archive extraction, and generated workspace metadata
+- chat.upload_workspace_files: list all original uploads, exact extracted archive roots, and complete project/solution marker paths; search with pathContains or extension, paginate with offset=NextOffset until HasMore=false; a bounded list is never the whole inventory
 - chat.upload_workspace_context: read substantial generated evidence context
-- chat.upload_workspace_file: read one exact relative workspace path progressively; when HasMore is true continue from NextOffsetCharacters until the requested file is complete
+- chat.upload_workspace_file: read an exact relativePath copied from workspace_files ProjectFiles or Files, not a guessed ZIP-root path; maxCharacters defaults to a substantial read (small requests are expanded); when HasMore is true continue from NextOffsetCharacters until complete
 These attachment functions are not an exclusive tool allow-list outside live game runtimes. Use any registered LocalGPT DXFunction allowed by the normal safety policy when the user's request or evidence requires it.
 Uploaded files and safe archive extraction are read-only evidence. Do not execute uploaded or extracted files; command execution, project mutation, external network writes, and promotion keep their existing approval boundaries.
 Safely extracted repository source is source-backed local evidence and should be preferred over guessing or claiming the source is unavailable.

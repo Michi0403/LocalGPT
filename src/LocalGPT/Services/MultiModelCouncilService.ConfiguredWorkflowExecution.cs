@@ -533,6 +533,7 @@ namespace LocalGPT.Services
                 step.WorkflowRevision = 1;
                 step.XRoundCause = directive.Reason;
                 MultiModelCouncilServiceAddOrderedStep(result, step, logger);
+                result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
                 request.StepCompleted?.Invoke(step);
                 request.ProgressMessage?.Invoke($"X-Function single-model subtask returned from {selectedModel}.");
                 return step.VisibleContent?.Trim() ?? string.Empty;
@@ -648,6 +649,7 @@ namespace LocalGPT.Services
                     XRoundCause = directive.Reason
                 };
                 MultiModelCouncilServiceAddOrderedStep(result, parentStep, logger);
+                result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
                 request.StepCompleted?.Invoke(parentStep);
                 return returned;
             }

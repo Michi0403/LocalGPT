@@ -74,6 +74,7 @@ namespace LocalGPT.Services
                         DurationSeconds = 0
                     };
                     MultiModelCouncilServiceAddOrderedStep(result, curationStep, logger);
+                    result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
                     request.StepCompleted?.Invoke(curationStep);
 
                     if (!report.IsComplete)

@@ -1,0 +1,7 @@
+# LocalGPT 5.4.2 — workspace DXFunction and diagnostic persistence repair
+
+- `chat.upload_workspace_files` now accepts `offset`, `pathContains`, `extension` and bounded page size. Reports total/matched file counts, `HasMore`, `NextOffset`, every original archive, every ZIP extraction root and exact project/solution paths independently of page bounds. A 2,000-entry page may no longer masquerade as a complete workspace.
+- `chat.upload_workspace_file` now normalizes small requested `maxCharacters` values to a substantial read instead of rejecting a valid file request. On a missing exact relative path it suggests existing candidates by filename, without guessing, silently picking among duplicates or allowing workspace escape. Relative-path separators are normalized on Windows/macOS/Linux; absolute paths are accepted only when inside the same workspace.
+- Normal Council step integrations and deterministic workspace-curator gate now atomically refresh the run's existing audit-log path, preserving useful steps if cancellation interrupts the workflow before finalization. The existing cancelled-run/failure handlers remain authoritative.
+- File log provider registers a provider-specific filter, retaining its configurable CoreLogLevel even when a global host filter would hide informational Council checkpoints. User overrides and logging ownership are preserved.
+- Bumped executable and web asset versions to 5.4.2. PublisherStudio unchanged.

@@ -581,12 +581,11 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(relativePath))
                     return null;
 
-                var normalized = relativePath.Replace('/', Path.DirectorySeparatorChar);
-                if (Path.IsPathRooted(normalized))
-                    return null;
-
+                var normalized = relativePath.Trim().Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
                 var root = Path.GetFullPath(workspace);
-                var file = Path.GetFullPath(Path.Combine(root, normalized));
+                var file = Path.GetFullPath(Path.IsPathRooted(normalized) ? normalized : Path.Combine(root, normalized));
+                // Accept an explicit absolute path only when it resolves inside this exact workspace.
+                // Normalize either slash convention on Windows, macOS and Linux and never permit traversal.
                 return IsInsideRoot(root, file, logger) ? file : null;
             }
             catch (Exception ex)
