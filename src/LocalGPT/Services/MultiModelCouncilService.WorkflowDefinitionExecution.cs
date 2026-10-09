@@ -76,6 +76,20 @@ namespace LocalGPT.Services
                 var previousStep = state.PreviousStep;
                 var fallbackAnswer = state.FallbackAnswer;
                 var finalAnswer = state.FinalAnswer;
+                // A curator result is not just evidence for the first round. Source-declared
+                // frameworks must remain visible to the research judge, verifier and leader.
+                var sourceAuthority = state.AuthoritativeCurationEvidence;
+                // Follow-up uploads can arrive between configured steps. They are curated at the
+                // human heartbeat and must remain authoritative for subsequent AI roles too.
+                foreach (var curatedContinuation in result.Steps.Where(step =>
+                    string.Equals(step.ModelName, "LocalGPT: continuation workspace curator gate", StringComparison.Ordinal)))
+                {
+                    if (string.IsNullOrWhiteSpace(curatedContinuation.Content) ||
+                        sourceAuthority.Contains(curatedContinuation.Content, StringComparison.Ordinal))
+                        continue;
+                    sourceAuthority = MultiModelCouncilServiceAppendPromptSection(
+                        sourceAuthority, "Verified continuation archive/source metadata", curatedContinuation.Content, logger);
+                }
                 CouncilXRoundDirective? xDirective = null;
                 var repeatCount = Math.Clamp(definition.RepeatCount, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumLoopIterations);
                 var automaticFunctionPolicy = councilAutomaticFunctionPolicy.Resolve(team, definition, suppressOrganicFunctions);
@@ -149,12 +163,16 @@ namespace LocalGPT.Services
                         phase,
                         bootstrap,
                         cancellationToken).ConfigureAwait(false);
-                    var gatedBootstrap = string.IsNullOrWhiteSpace(curationEvidence)
+                    if (!string.IsNullOrWhiteSpace(curationEvidence))
+                        sourceAuthority = string.IsNullOrWhiteSpace(sourceAuthority)
+                            ? curationEvidence
+                            : MultiModelCouncilServiceAppendPromptSection(sourceAuthority, "Additional curated upload evidence", curationEvidence, logger);
+                    var gatedBootstrap = string.IsNullOrWhiteSpace(sourceAuthority)
                         ? bootstrap
                         : MultiModelCouncilServiceAppendPromptSection(
                             bootstrap,
-                            "Deterministic upload-workspace curation evidence",
-                            curationEvidence,
+                            "Authoritative upload-source inventory and framework declarations (override stale learned facts)",
+                            sourceAuthority,
                             logger);
                     var heartbeatBootstrap = await PrepareHumanHeartbeatAsync(
                         result,
@@ -740,7 +758,7 @@ namespace LocalGPT.Services
                         break;
                 }
 
-                return new ConfiguredWorkflowExecutionState(nextAutomaticRound, expandedStepIndex, previousStep, fallbackAnswer, finalAnswer, xDirective);
+                return new ConfiguredWorkflowExecutionState(nextAutomaticRound, expandedStepIndex, previousStep, fallbackAnswer, finalAnswer, xDirective, sourceAuthority);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

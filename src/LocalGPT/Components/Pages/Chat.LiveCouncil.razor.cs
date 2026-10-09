@@ -38,6 +38,9 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     public partial class Chat
     {
+    /// <summary>Short-lived user-visible continuation upload stage, cleared as soon as the message is queued.</summary>
+    private string liveCouncilUploadStatus = string.Empty;
+
     // Completed Council lanes remain cheap until the developer explicitly asks to inspect one.
     // Running lanes still stream immediately.
     /// <summary>
@@ -496,6 +499,8 @@ namespace LocalGPT.Components.Pages
             ChatUploadWorkspaceResult? uploadWorkspace = null;
             if (uploadedFiles.Count > 0)
             {
+                liveCouncilUploadStatus = $"Receiving and indexing {uploadedFiles.Count:n0} attachment(s). The Council remains running; extracted source will be available for on-demand reading.";
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
                 var workspaceInputs = uploadedFiles.Select(file => new ChatUploadWorkspaceInputFile(
                     file.Name.Trim(),
                     string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType.Trim(),
@@ -508,6 +513,7 @@ namespace LocalGPT.Components.Pages
                 deliveredContent = $"{normalizedContent}\n\n{CouncilText.BuildUploadWorkspaceSystemPrompt(uploadWorkspace, Logger)}";
             }
 
+            liveCouncilUploadStatus = "Uploads indexed. Waiting for the next Council heartbeat to incorporate new evidence.";
             await HumanCollaboration.QueueUserMessageAsync(
                 councilRunId,
                 deliveredContent,
@@ -539,6 +545,13 @@ namespace LocalGPT.Components.Pages
                 StateHasChanged();
             }).ConfigureAwait(false);
 
+            // Durable recovery for another browser tab: persist the accepted continuation
+            // before waiting for the next periodic autosave or the slowest Council member.
+            if (ChatClientProvider?.SelectedSession is not null)
+                await PersistMessagesAsync(ChatClientProvider.SelectedSession.Messages.ToList(), force: true, showToast: false).ConfigureAwait(false);
+            liveCouncilUploadStatus = string.Empty;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+
             ComponentActivity.RecordInformation(
                 nameof(Chat),
                 "QueueLiveCouncilUserMessage",
@@ -550,10 +563,12 @@ namespace LocalGPT.Components.Pages
         }
         catch (OperationCanceledException) when (componentLifetimeCts.IsCancellationRequested || isDisposed)
         {
+            liveCouncilUploadStatus = string.Empty;
             return false;
         }
         catch (Exception ex)
         {
+            liveCouncilUploadStatus = string.Empty;
             Logger.LogError(ex, "Could not queue a direct user message or upload from the active Chat composer; content was omitted from logs.");
             ComponentActivity.RecordFailure(nameof(Chat), "QueueLiveCouncilUserMessage", ex);
             Notifier.ShowError(
@@ -689,14 +704,31 @@ namespace LocalGPT.Components.Pages
                     try
                     {
                         await Task.Delay(200, cancellationToken).ConfigureAwait(false);
-                        if (!cancellationToken.IsCancellationRequested && !isDisposed)
+                        if (cancellationToken.IsCancellationRequested || componentLifetimeCts.IsCancellationRequested || isDisposed || !interactiveAttached)
+                            return;
+                        try
                         {
                             await InvokeAsync(() =>
                             {
+                                // Dispatcher entry does not guarantee the owning circuit survived the delay.
+                                if (cancellationToken.IsCancellationRequested || isDisposed || !interactiveAttached)
+                                    return;
                                 if (SelectedCouncilRunId is null && CouncilLiveSessions.GetActiveSummaries().FirstOrDefault() is { } newestLiveSession)
                                     SelectedCouncilRunId = newestLiveSession.RunId;
-                                StateHasChanged();
+                                if (!isDisposed && !cancellationToken.IsCancellationRequested)
+                                    StateHasChanged();
                             }).ConfigureAwait(false);
+                        }
+                        catch (ObjectDisposedException exception)
+                        {
+                            // The DI circuit can be disposed by the renderer before this component's
+                            // synchronous Dispose callback updates isDisposed. This is a terminal
+                            // refresh race, not a reason to crash the entire Blazor tab.
+                            Logger.LogWarning(exception, "Skipped Council list refresh because the interactive renderer's service scope was disposed.");
+                        }
+                        catch (InvalidOperationException) when (isDisposed || cancellationToken.IsCancellationRequested)
+                        {
+                            Logger.LogDebug("Skipped Council list refresh after Chat renderer disconnection.");
                         }
                     }
                     finally
@@ -779,6 +811,52 @@ namespace LocalGPT.Components.Pages
                 .FirstOrDefault(session => string.Equals(session.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase));
             if (councilSession is null)
                 return false;
+
+            // A new browser tab owns a different circuit. Restore only the SQLite chat history
+            // whose persisted Council marker matches this exact run; never load an unrelated
+            // conversation merely because it was saved more recently.
+            if (firstAttachmentToRun && !councilSession.Messages.Any(message =>
+                message.Role == ChatMessageRole.Assistant &&
+                CouncilText.ContainsText(message.Content, $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->", StringComparison.Ordinal)))
+            {
+                try
+                {
+                    var markerToRecover = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
+                    var recentConversations = await ChatMemory.GetConversationsAsync(
+                        take: 25, cancellationToken: componentLifetimeCts.Token).ConfigureAwait(false);
+                    foreach (var summary in recentConversations
+                        .Where(item => string.Equals(item.ProviderName, councilSession.Name, StringComparison.OrdinalIgnoreCase))
+                        .Take(12))
+                    {
+                        var restored = await ChatMemory.LoadConversationAsync(summary.Id, componentLifetimeCts.Token).ConfigureAwait(false);
+                        if (restored is null || !restored.Messages.Any(message =>
+                            message.Role == ChatMessageRole.Assistant &&
+                            CouncilText.ContainsText(message.Content, markerToRecover, StringComparison.Ordinal)))
+                            continue;
+                        await InvokeAsync(() =>
+                        {
+                            if (isDisposed)
+                                return;
+                            councilSession.Messages.Clear();
+                            councilSession.Messages.AddRange(restored.Messages);
+                            ActiveConversationId = restored.Id;
+                            SessionContext.SetConversation(restored.Id);
+                            canonicalConversationMessages.Clear();
+                            canonicalConversationMessages.AddRange(restored.Messages);
+                        }).ConfigureAwait(false);
+                        Logger.LogInformation("Restored saved Council conversation {ConversationId} for rejoining run {RunId}.", restored.Id, runId);
+                        break;
+                    }
+                }
+                catch (OperationCanceledException) when (componentLifetimeCts.IsCancellationRequested || isDisposed)
+                {
+                    return false;
+                }
+                catch (Exception exception)
+                {
+                    Logger.LogWarning(exception, "Could not restore matching saved chat during Council rejoin {RunId}; server-owned Council transcript remains available.", runId);
+                }
+            }
 
             // A running Council is represented in DevExpress by a tiny marker only. The Razor template
             // reads transcript and participant lanes directly from the server-owned live-session service.

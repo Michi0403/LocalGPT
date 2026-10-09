@@ -76,6 +76,7 @@ namespace LocalGPT.Services
                     MultiModelCouncilServiceAddOrderedStep(result, curationStep, logger);
                     result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
                     request.StepCompleted?.Invoke(curationStep);
+                    request.ProgressMessage?.Invoke($"Workspace curator completed {workspace.WorkspaceName}: {report.ArchiveUploadCount:n0} original archives, {report.ExtractedFileCount:n0} extracted files, complete={report.IsComplete}. Source project frameworks are recorded in the curation transcript for all later roles.");
 
                     if (!report.IsComplete)
                     {
@@ -93,6 +94,80 @@ namespace LocalGPT.Services
             catch (Exception __serviceMethodException)
             {
                 logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(PrepareUploadWorkspaceCurationGateAsync)} failed.");
+                throw;
+            }
+        }
+
+        /// <summary>Validates newly supplied ZIP workspaces from live human continuations before their content enters a model heartbeat.</summary>
+        /// <param name="result">Council result that receives the additional evidence steps.</param>
+        /// <param name="request">Active Council request with user-visible progress callbacks.</param>
+        /// <param name="round">Current Council round.</param>
+        /// <param name="phase">Current Council phase.</param>
+        /// <param name="contributions">Newly drained direct user or human contributions.</param>
+        /// <param name="cancellationToken">Cancellation token of the Council run.</param>
+        /// <returns>Freshly curated source evidence to carry into this and following Council steps.</returns>
+        private async Task<string> CurateContinuationWorkspaceEvidenceAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            int round,
+            string phase,
+            IReadOnlyList<HumanCouncilContribution> contributions,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var references = contributions
+                    .Where(contribution => contribution.Content.Contains("chat-upload-", StringComparison.OrdinalIgnoreCase))
+                    .Select(contribution => contribution.Content)
+                    .ToList();
+                if (references.Count == 0)
+                    return string.Empty;
+
+                var parameters = runtimePolicy.GetJson<ChatUploadWorkspaceRuntimeParameters>(LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson);
+                var candidates = uploadWorkspaces.ListWorkspaces(parameters.DefaultWorkspaceListCount);
+                var referenced = candidates.Where(workspace => references.Any(text =>
+                        text.Contains(workspace.WorkspaceName, StringComparison.OrdinalIgnoreCase)))
+                    .OrderBy(workspace => workspace.CreatedAtUtc)
+                    .ToList();
+                if (referenced.Count == 0)
+                    throw new InvalidOperationException("A new Council attachment references a chat-upload workspace that cannot be found; the Council will not invent or skip its content.");
+
+                var verified = new List<string>();
+                foreach (var workspace in referenced)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    request.ProgressMessage?.Invoke($"Council is curating new continuation workspace {workspace.WorkspaceName} before accepting its source claims.");
+                    var report = await uploadWorkspaces.CurateWorkspaceAsync(workspace.WorkspaceName, cancellationToken).ConfigureAwait(false);
+                    var evidenceStep = new MultiModelCouncilStep
+                    {
+                        Round = round,
+                        Phase = phase,
+                        ModelName = "LocalGPT: continuation workspace curator gate",
+                        CouncilMembers = [.. result.ModelNames],
+                        Role = "Deterministic newly uploaded source integrity and project declarations",
+                        Content = report.SummaryMarkdown,
+                        VisibleContent = report.SummaryMarkdown,
+                        StartedAtUtc = report.CompletedAtUtc.UtcDateTime,
+                        CompletedAtUtc = report.CompletedAtUtc.UtcDateTime,
+                        DurationSeconds = 0
+                    };
+                    MultiModelCouncilServiceAddOrderedStep(result, evidenceStep, logger);
+                    result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
+                    request.StepCompleted?.Invoke(evidenceStep);
+                    request.ProgressMessage?.Invoke($"New Council upload curated: {report.ArchiveUploadCount:n0} ZIP archive(s), {report.ExtractedFileCount:n0} extracted file(s), complete={report.IsComplete}.");
+                    if (!report.IsComplete)
+                        throw new InvalidOperationException($"New workspace {workspace.WorkspaceName} failed source-integrity curation. See its curator report; the Council cannot continue with an incomplete attachment.");
+                    verified.Add(report.SummaryMarkdown);
+                }
+                return string.Join($"{Environment.NewLine}{Environment.NewLine}", verified);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to curate newly attached Council workspace evidence before heartbeat; source content omitted.");
                 throw;
             }
         }

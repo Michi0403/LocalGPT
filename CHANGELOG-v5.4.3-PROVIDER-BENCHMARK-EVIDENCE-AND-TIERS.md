@@ -1,0 +1,8 @@
+# LocalGPT 5.4.3 — benchmark evidence and model-adaptive tiers
+
+- Corrected per-profile scoring so missing/failed tasks reduce the total score. Previously the scorer averaged only successful tasks, which could reward one valid answer over a complete suite.
+- Benchmark subjects and reviewers now use the already database-configured provider session keep-alive rather than silently forcing `0s` on every call. This improves warm-run representativeness without changing the normal multi-host Council unload policy.
+- Records and displays the time to first non-status provider text separately from full wall-clock task duration. The value **includes** cold model loading and prompt evaluation; it is not an Ollama-native `load_duration` measurement. Existing wall-clock throughput is retained for comparable scores, and an estimated post-first-text visible-output throughput is stored for inspection.
+- Calibration still sends **the same four-section task and five exact token/profile points to each model** to ensure fair comparison, but stored Low/Normal/High/Expert/Max performance presets now **select per model** from actually successful points within each tier's ceiling. Low chooses the fastest successful point; Normal and High use coverage-adjusted balanced score; Expert and Max favor answer quality, not model name or parameter count.
+- Does not assign more tokens simply because a model has more parameters; results depend on observed evidence, subject to the user's maximum token limits. Does not auto-enable or overwrite presets without human confirmation.
+- Does not modify Council model membership, override user-authored hardware roads, introduce network calls, or change database schema.

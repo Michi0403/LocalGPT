@@ -516,7 +516,15 @@ namespace LocalGPT.Services
                 }
 
                 builder.AppendLine("## Files");
-                foreach (var file in analyzedFiles.Select(file => file.Summary))
+                var indexedFiles = analyzedFiles.Select(file => file.Summary).ToList();
+                var indexedFileLimit = Math.Max(1, catalog.GetRuntimeParameters<ChatUploadWorkspaceRuntimeParameters>(
+                    LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson).DefaultWorkspaceListCount);
+                builder.AppendLine($"Indexed {indexedFiles.Count:n0} file entries; this is a preview, not the complete listing. Call chat.upload_workspace_files with filters and pagination for the exact complete inventory.");
+                foreach (var file in indexedFiles
+                    .OrderByDescending(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase))
+                    .ThenByDescending(file => file.RelativePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                    .Take(indexedFileLimit))
                 {
                     builder
                         .Append("- ")

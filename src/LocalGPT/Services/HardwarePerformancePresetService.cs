@@ -282,21 +282,29 @@ public sealed class HardwarePerformancePresetService(
             var saved = new List<HardwarePerformancePreset>(tiers.Length);
             foreach (var tier in tiers)
             {
+                // All benchmark subjects are measured on the same exact token grid for fair
+                // comparisons. The saved hardware tier is then selected independently per
+                // model from successful, already measured points at or below this tier's cap.
+                // Low prioritizes latency, Normal/High balance measured quality and speed,
+                // and Expert/Max prioritize answer quality for verifier/judge duties.
                 var routes = successfulTargets
                     .Select(item => new
                     {
                         item.Target,
                         item.Profiles,
-                        ProfileIndex = item.Profiles.FindIndex(profile =>
-                            profile.ProfileName.Equals(tier, StringComparison.OrdinalIgnoreCase))
+                        Selected = SelectMeasuredTierProfile(item.Profiles, tier)
                     })
-                    .Where(item => item.ProfileIndex >= 0)
-                    .Select(item => BuildBenchmarkTierRoute(item.Target, item.Profiles, item.ProfileIndex, tier))
+                    .Where(item => item.Selected is not null)
+                    .Select(item => BuildBenchmarkTierRoute(
+                        item.Target,
+                        item.Profiles,
+                        item.Profiles.FindIndex(profile => ReferenceEquals(profile, item.Selected)),
+                        tier))
                     .ToList();
                 if (routes.Count == 0)
                 {
                     logger.LogWarning(
-                        "Measured calibration tier {TierName} was not stored for benchmark {BenchmarkRunId} because no target completed that exact provider profile point.",
+                        "Adaptive calibration tier {TierName} was not stored for benchmark {BenchmarkRunId} because no target had a successful measured point within this tier's bounds.",
                         tier,
                         report.RunId);
                     continue;
@@ -304,7 +312,7 @@ public sealed class HardwarePerformancePresetService(
                 var preset = new HardwarePerformancePreset
                 {
                     Name = NormalizeName($"{baseName} · {tier}"),
-                    Description = $"Measured {tier} calibration profile from provider benchmark {report.RunId}. Every route comes from a successful measured profile point; selected members without successful evidence are intentionally not assigned invented settings.",
+                    Description = $"Model-specific {tier} calibration from provider benchmark {report.RunId}. All models ran the same test grid; each route selects an actually measured, successful operating point within its tier (Low: latency; Normal/High: balanced; Expert/Max: quality). Missing evidence creates no invented route.",
                     ModelRoutesJson = JsonSerializer.Serialize(routes),
                     ResourceLoadPercent = 100,
                     SourceRunId = report.RunId,
@@ -611,6 +619,48 @@ public sealed class HardwarePerformancePresetService(
     /// <param name="profileIndex">Measured point selected for this tier.</param>
     /// <param name="tierName">User-visible tier label.</param>
     /// <returns>A normalized hardware road whose maximums equal the selected measured point.</returns>
+    /// <summary>Selects a successful, actually measured token point for this model and requested hardware tier. Common benchmark settings remain identical for fair measurement.</summary>
+    /// <param name="profiles">Successfully completed profiles for one provider-qualified model.</param>
+    /// <param name="tierName">Saved hardware tier whose measured-token ceiling applies.</param>
+    /// <returns>An evidence-backed profile, or null if the model has no successful measurements within this tier.</returns>
+    private ProviderModelBenchmarkProfileResult? SelectMeasuredTierProfile(
+        IReadOnlyList<ProviderModelBenchmarkProfileResult> profiles,
+        string tierName)
+    {
+        try
+        {
+            var tiers = new[] { "Low", "Normal", "High", "Expert", "Max" };
+            var tierIndex = Array.FindIndex(tiers, name => name.Equals(tierName, StringComparison.OrdinalIgnoreCase));
+            if (tierIndex < 0)
+                return null;
+            var eligibleTierNames = tiers.Take(tierIndex + 1).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var eligible = profiles.Where(profile =>
+                eligibleTierNames.Contains(profile.ProfileName) &&
+                profile.Tasks.Count > 0 && profile.Tasks.Any(task => task.Succeeded));
+            var successfulMeasurements = eligible.ToList();
+            // Where a subject has completed the full suite, do not let a partial
+            // answer win merely by responding quickly or producing one good section.
+            var completeMeasurements = successfulMeasurements
+                .Where(profile => profile.Tasks.All(task => task.Succeeded)).ToList();
+            var ranked = completeMeasurements.Count > 0 ? completeMeasurements : successfulMeasurements;
+            return tierIndex switch
+            {
+                0 => ranked.OrderBy(profile => profile.AverageTotalMilliseconds)
+                    .ThenByDescending(profile => profile.AverageQualityScore).FirstOrDefault(),
+                1 or 2 => ranked.OrderByDescending(profile => profile.Score)
+                    .ThenByDescending(profile => profile.AverageQualityScore).FirstOrDefault(),
+                _ => ranked.OrderByDescending(profile => profile.AverageQualityScore *
+                        (profile.Tasks.Count(task => task.Succeeded) / (double)profile.Tasks.Count))
+                    .ThenByDescending(profile => profile.Score).FirstOrDefault()
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Selecting evidence-backed benchmark tier {TierName} failed.", tierName);
+            throw;
+        }
+    }
+
     private OneWireCouncilModelRoute BuildBenchmarkTierRoute(
         ProviderModelBenchmarkTargetResult target,
         IReadOnlyList<ProviderModelBenchmarkProfileResult> successfulProfiles,

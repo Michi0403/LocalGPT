@@ -419,6 +419,12 @@ public sealed class ProviderModelBenchmarkTaskResult
     /// </summary>
     /// <value>The total milliseconds value exposed by <see cref="ProviderModelBenchmarkTaskResult"/>.</value>
     public long TotalMilliseconds { get; set; }
+    /// <summary>Milliseconds until the first non-status provider text in the last attempted request; includes cold model loading and prompt evaluation.</summary>
+    /// <value>Observed first-text latency, or zero when the provider never produced content. It is not an Ollama-native load-duration metric.</value>
+    public long FirstProviderTextMilliseconds { get; set; }
+    /// <summary>Approximate final-answer text throughput after the first provider fragment, excluding the initial wait.</summary>
+    /// <value>An estimated, not provider-reported, number of visible output tokens per generation second.</value>
+    public double EstimatedGenerationTokensPerSecond { get; set; }
     /// <summary>
     /// Gets or sets the response preview value that forms part of the provider model benchmark task state consumed or produced by the surrounding workflow.
     /// </summary>

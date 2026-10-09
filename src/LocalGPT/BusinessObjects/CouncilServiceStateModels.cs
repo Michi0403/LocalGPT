@@ -482,10 +482,12 @@ internal sealed record CouncilParticipantPairing(
 /// <param name="FallbackAnswer">Fallback answer value supplied to the configured workflow execution operation and used when producing its result.</param>
 /// <param name="FinalAnswer">Final answer value supplied to the configured workflow execution operation and used when producing its result.</param>
 /// <param name="XDirective">X directive value supplied to the configured workflow execution operation and used when producing its result.</param>
+/// <param name="AuthoritativeCurationEvidence">Persisted verified upload and project metadata carried to every subsequent workflow step.</param>
 internal sealed record ConfiguredWorkflowExecutionState(
     int Round,
     int ExpandedStepIndex,
     string PreviousStep,
     string FallbackAnswer,
     string FinalAnswer,
-    CouncilXRoundDirective? XDirective = null);
+    CouncilXRoundDirective? XDirective = null,
+    string AuthoritativeCurationEvidence = "");

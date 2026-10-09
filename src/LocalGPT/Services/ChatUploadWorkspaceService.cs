@@ -1123,6 +1123,70 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Summarizes actual target frameworks from extracted project files without trusting stale knowledge or model guesses.</summary>
+        /// <param name="builder">Curator's human-readable summary builder.</param>
+        /// <param name="report">Complete, hashed workspace evidence report.</param>
+        private void AppendAuthoritativeProjectMetadata(StringBuilder builder, ChatUploadWorkspaceCurationReport report)
+        {
+            try
+            {
+                var root = ResolveWorkspacePath(report.WorkspaceName);
+                if (root is null)
+                    return;
+                var projects = report.Files
+                    .Where(file => file.RelativePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (projects.Count == 0)
+                    return;
+                builder.AppendLine();
+                builder.AppendLine("### Authoritative source project frameworks (read from .csproj)");
+                // Keep the prompt bounded across enormous SDK/demo trees without discarding the
+                // full machine-readable inventory or any direct-read capability.
+                var displayLimit = Math.Max(1, Parameters.DefaultWorkspaceListCount);
+                foreach (var archiveGroup in projects.GroupBy(
+                    file => string.Join("/", file.RelativePath.Split('/').Take(2)),
+                    StringComparer.OrdinalIgnoreCase))
+                {
+                    builder.AppendLine($"#### `{archiveGroup.Key}`: {archiveGroup.Count():n0} project file(s)");
+                    // Distribute the budget across every original ZIP, so a large examples
+                    // repository cannot hide later attachments or their framework declarations.
+                    var selected = archiveGroup
+                        .OrderBy(file => file.RelativePath.Split('/').Length)
+                        .ThenBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                        .Take(displayLimit)
+                        .ToList();
+                    foreach (var project in selected)
+                    {
+                        var path = Path.Combine(root, project.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+                        try
+                        {
+                            var xml = System.Xml.Linq.XDocument.Load(path);
+                            var declared = xml.Descendants()
+                                .Where(element => element.Name.LocalName is "TargetFramework" or "TargetFrameworks")
+                                .Select(element => element.Value.Trim())
+                                .Where(value => !string.IsNullOrWhiteSpace(value))
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+                            builder.AppendLine($"- `{project.RelativePath}`: {(declared.Count == 0 ? "framework inherited/conditional; inspect props" : string.Join(", ", declared))}");
+                        }
+                        catch (Exception ex) when (ex is System.Xml.XmlException or IOException or UnauthorizedAccessException)
+                        {
+                            logger.LogWarning(ex, "Could not inspect extracted project metadata at {Path}; evidence content omitted.", project.RelativePath);
+                            builder.AppendLine($"- `{project.RelativePath}`: unreadable; cannot assert a framework");
+                        }
+                    }
+                    if (archiveGroup.Count() > selected.Count)
+                        builder.AppendLine($"- {archiveGroup.Count() - selected.Count:n0} further project file(s) in this archive: filter chat.upload_workspace_files extension=csproj and read their exact paths.");
+                }
+                builder.AppendLine("These are source declarations, not .NET release assumptions. Frameworks are tied to their own exact repository/project paths. A net8.0 sample in a documentation or demo ZIP does not imply that LocalGPT targets net8.0. The user's actual project metadata and installed runtime are separate evidence; stale learned knowledge must not override them.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not summarize curated workspace project framework declarations.");
+            }
+        }
+
         /// <summary>Builds a bounded curation summary without copying source file contents into the Council prompt.</summary>
         /// <param name="report">Curation report to summarize.</param>
         /// <returns>Markdown evidence suitable for a workspace-curator Council role.</returns>
@@ -1162,6 +1226,7 @@ namespace LocalGPT.Services
                         builder.AppendLine($"- {warning}");
                 }
                 builder.AppendLine();
+                AppendAuthoritativeProjectMetadata(builder, report);
                 builder.AppendLine("The curation gate proves complete byte-read coverage; semantic conclusions still require the Council to inspect the relevant source files and repository metadata through the read-only workspace functions.");
                 return builder.ToString().Trim();
             }
@@ -1329,31 +1394,19 @@ namespace LocalGPT.Services
                     }
 
                     var relativePath = councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger);
-                    if (entry.Length <= Math.Min(catalog.MaxSingleFileBytes, Parameters.ImmediateAnalysisMaximumBytes))
-                    {
-                        var bytes = await System.IO.File.ReadAllBytesAsync(destination, cancellationToken).ConfigureAwait(false);
-                        var analyzedBytes = councilRuntime.AnalyzeBytes(relativePath, bytes, logger);
-                        ArgumentNullException.ThrowIfNull(analyzedBytes);
-                        analyzedFiles.Add(analyzedBytes with
-                        {
-                            Summary = analyzedBytes.Summary with
-                            {
-                                Note = "Safely extracted source-backed read-only evidence; execution and promotion remain separately gated."
-                            }
-                        });
-                    }
-                    else
-                    {
-                        var summary = councilRuntime.BuildBinarySummary(
-                            relativePath,
-                            entry.Length,
-                            councilRuntime.DetermineFileKind(destination, logger),
-                            false,
-                            "Large safely extracted entry is available for progressive direct reading but is not duplicated into generated prompt context.",
-                            logger);
-                        ArgumentNullException.ThrowIfNull(summary);
-                        analyzedFiles.Add(summary);
-                    }
+                    // ZIP entry bytes were just written to the safe extraction tree. Do not reopen and
+                    // analyze tens of thousands of files while the human waits for upload acceptance.
+                    // File listing and exact progressive reads remain available to the Council; the
+                    // deterministic curator still verifies all original/extracted bytes before gated work.
+                    var summary = councilRuntime.BuildBinarySummary(
+                        relativePath,
+                        entry.Length,
+                        councilRuntime.DetermineFileKind(destination, logger),
+                        false,
+                        "Indexed read-only ZIP entry. Use chat.upload_workspace_file to inspect exact source content; executable promotion remains gated.",
+                        logger);
+                    ArgumentNullException.ThrowIfNull(summary);
+                    analyzedFiles.Add(summary);
                 }
 
                 logger.LogInformation(

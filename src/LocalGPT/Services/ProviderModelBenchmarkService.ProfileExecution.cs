@@ -62,13 +62,14 @@ namespace LocalGPT.Services
             var repetitionRetriesUsed = 0;
             var roleCorrectionRetriesUsed = 0;
             var roleCorrectionPending = false;
+            var lastAttemptStartedMilliseconds = 0L;
             ProviderStreamRepetitionException? exhaustedRepetition = null;
             string text = string.Empty;
             try
             {
                 using var client = providerModels.CreateChatClient(
                     model,
-                    "0s",
+                    runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson).DefaultSessionKeepAlive,
                     profile.ContextTokens,
                     TimeSpan.FromSeconds(maxSeconds + BenchmarkParameters.ClientTimeoutPaddingSeconds),
                     profile.OllamaNumGpu,
@@ -78,6 +79,7 @@ namespace LocalGPT.Services
                 while (true)
                 {
                     taskResult.AttemptCount++;
+                    taskResult.FirstProviderTextMilliseconds = 0;
                     latestAttemptTranscript.Clear();
                     var attemptHeader = $"\n\n#### {task.Name} · provider attempt {taskResult.AttemptCount}\n\n";
                     providerTrace.Append(attemptHeader);
@@ -97,6 +99,7 @@ namespace LocalGPT.Services
                     }
 
                     var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger, forceEnabled: true);
+                    lastAttemptStartedMilliseconds = stopwatch.ElapsedMilliseconds;
                     using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
                     try
                     {
@@ -108,6 +111,12 @@ namespace LocalGPT.Services
                             var updateText = update.Text ?? string.Empty;
                             if (!string.IsNullOrEmpty(updateText))
                             {
+                                if (taskResult.FirstProviderTextMilliseconds == 0 &&
+                                    !string.IsNullOrWhiteSpace(updateText) &&
+                                    !councilRuntime.IsLocalGptStreamingStatusUpdate(updateText, logger))
+                                {
+                                    taskResult.FirstProviderTextMilliseconds = Math.Max(1L, stopwatch.ElapsedMilliseconds - lastAttemptStartedMilliseconds);
+                                }
                                 latestAttemptTranscript.Append(updateText);
                                 providerTrace.Append(updateText);
                                 providerStream(updateText);
@@ -198,14 +207,20 @@ namespace LocalGPT.Services
                 else
                 {
                     taskResult.QualityScore = ScoreQuality(text, task);
+                    // Wall-clock throughput includes model-load and prompt-evaluation latency. Retain
+                    // it for comparable benchmark scoring; expose post-first-text throughput separately.
                     taskResult.TokensPerSecond = EstimateTokens(text) / Math.Max(0.001d, stopwatch.Elapsed.TotalSeconds);
+                    var generationMilliseconds = Math.Max(1L, taskResult.TotalMilliseconds - lastAttemptStartedMilliseconds - taskResult.FirstProviderTextMilliseconds);
+                    taskResult.EstimatedGenerationTokensPerSecond = taskResult.FirstProviderTextMilliseconds > 0
+                        ? EstimateTokens(text) / (generationMilliseconds / 1000d)
+                        : 0d;
                     taskResult.Succeeded = !string.IsNullOrWhiteSpace(text) &&
                         !LooksLikeGenericCapabilityRefusal(text) &&
                         taskResult.QualityScore >= 0.30d;
                     var compact = text.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
                     taskResult.ResponsePreview = compact[..Math.Min(compact.Length, BenchmarkParameters.ResponsePreviewCharacters)];
                     publish(taskResult.Succeeded
-                        ? $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} completed for {model.DisplayName} / {profile.Name} in {taskResult.TotalMilliseconds} ms · quality {taskResult.QualityScore:0.000} · {taskResult.TokensPerSecond:0.00} token/s."
+                        ? $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} completed for {model.DisplayName} / {profile.Name} in {taskResult.TotalMilliseconds} ms · first provider text {taskResult.FirstProviderTextMilliseconds} ms · quality {taskResult.QualityScore:0.000} · wall-clock {taskResult.TokensPerSecond:0.00} estimated visible tokens/s."
                         : $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} returned no contract-compliant response for {model.DisplayName} / {profile.Name}.");
                 }
             }
@@ -257,7 +272,9 @@ namespace LocalGPT.Services
             result.AverageTotalMilliseconds = successful.Average(task => task.TotalMilliseconds);
             var qualityComponent = result.AverageQualityScore * 75d;
             var speedComponent = Math.Min(1d, result.AverageTokensPerSecond / 30d) * 25d;
-            result.Score = qualityComponent + speedComponent;
+            // Do not reward a profile that solves one easy task while failing the rest.
+            // The all-subject suite must be completed for full credit, independent of model size.
+            result.Score = (qualityComponent + speedComponent) * (successful.Count / (double)result.Tasks.Count);
         }
         return result;
     }
@@ -323,7 +340,7 @@ namespace LocalGPT.Services
             timeout.CancelAfter(TimeSpan.FromSeconds(maxSeconds));
             using var client = providerModels.CreateChatClient(
                 reviewer,
-                "0s",
+                runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson).DefaultSessionKeepAlive,
                 Math.Min(maximumContext, Math.Max(BenchmarkParameters.MinimumRecommendedContextTokens, profile.ContextTokens)),
                 TimeSpan.FromSeconds(maxSeconds + BenchmarkParameters.ClientTimeoutPaddingSeconds),
                 reviewer.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase) ? profile.OllamaNumGpu : null,

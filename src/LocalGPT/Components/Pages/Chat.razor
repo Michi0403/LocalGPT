@@ -960,6 +960,14 @@
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="QueueRunningCouncilContributionAsync" />
             }
+            @if (!string.IsNullOrWhiteSpace(liveCouncilUploadStatus))
+            {
+                <p class="memory-status" role="status" aria-live="polite">@liveCouncilUploadStatus</p>
+            }
+            @if (ActiveLiveCouncilSession is { } visibleCouncilProgress)
+            {
+                <p class="memory-status" role="status" aria-live="polite" data-testid="live-council-progress">Council progress: @visibleCouncilProgress.StatusMessage</p>
+            }
             @if (ActiveCouncilRun is not null)
             {
                 <span class="memory-status">Joined run @ActiveCouncilRunShortId · round @ActiveCouncilRun.CurrentRound · @ActiveCouncilRun.Phase</span>
