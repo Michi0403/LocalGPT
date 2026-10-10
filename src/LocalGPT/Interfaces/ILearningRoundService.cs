@@ -21,4 +21,13 @@ public interface ILearningRoundService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The learning maintenance result produced by the operation.</returns>
     Task<LearningMaintenanceResult> MaintainAsync(LearningMaintenanceRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Lists every tracked file's persisted learning state with bounded page output.</summary>
+    Task<LearningFileChecklistSnapshot> GetFileChecklistAsync(Guid projectId, Guid? revisionId = null, int offset = 0, int take = 100, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the next source-backed content page and records only the bytes actually read.</summary>
+    Task<LearningFileReadResult> ReadNextFileChunkAsync(Guid projectId, Guid? revisionId = null, Guid? fileId = null, int maximumCharacters = 6000, CancellationToken cancellationToken = default);
+
+    /// <summary>Records a review only after the full content hash has been read, or a reasoned block.</summary>
+    Task<LearningFileReviewResult> ReviewFileAsync(Guid fileId, string evidence, bool blocked = false, CancellationToken cancellationToken = default);
 }

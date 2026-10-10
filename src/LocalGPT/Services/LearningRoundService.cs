@@ -20,7 +20,7 @@ namespace LocalGPT.Services;
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="projectWorkspaceSync">Learning project workspace sync service dependency used by the learning round workflow to provide the corresponding application capability.</param>
 /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
-public sealed class LearningRoundService(
+public sealed partial class LearningRoundService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ICouncilKnowledgeService knowledgeService,
@@ -279,9 +279,14 @@ public sealed class LearningRoundService(
                 if (string.IsNullOrWhiteSpace(regex.Name) || string.IsNullOrWhiteSpace(regex.Pattern))
                     continue;
                 var name = regex.Name.Trim();
+                if (!string.IsNullOrWhiteSpace(regex.SampleText) &&
+                    !regexPatternService.Compile(regex.Pattern, regex.Flags).IsMatch(regex.SampleText))
+                    throw new InvalidOperationException($"Learning regex {name} did not match its provided source sample; no unverified suggestion was saved.");
                 // Persist review metadata first so a process interruption can never leave an uncurated
                 // database regex that the legacy-reconciliation path could mistake for approved evidence.
-                await regexCuratorService.MarkSuggestedAsync(name, "LearningRound model suggestion", "Project/toolchain/game classification", cancellationToken).ConfigureAwait(false);
+                await regexCuratorService.MarkSuggestedAsync(name, "LearningRound model suggestion",
+                    string.IsNullOrWhiteSpace(regex.Description) ? "Project/toolchain/game classification" : regex.Description[..Math.Min(regex.Description.Length, 2000)],
+                    cancellationToken).ConfigureAwait(false);
                 await regexPatternService.AddOrUpdateAsync(new RegexPatternDto(name, regex.Pattern, regex.Flags)).ConfigureAwait(false);
                 regexNames.Add(name);
             }

@@ -165,7 +165,11 @@ public sealed partial class OllamaThinkingChatClient
         var functions = GetAutomaticFunctions();
         ValidateUniqueAutomaticToolNames(functions);
         return functions
-            .FirstOrDefault(function => ToOllamaToolName(function.Name).Equals(toolName, StringComparison.OrdinalIgnoreCase))
+            // Some providers echo the canonical dotted name even though the advertised Ollama
+            // tool name was transport-sanitized. Both forms must resolve through the same
+            // policy-filtered registry list, never through an unrestricted registry lookup.
+            .FirstOrDefault(function => function.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase) ||
+                ToOllamaToolName(function.Name).Equals(toolName, StringComparison.OrdinalIgnoreCase))
             ?.Name;
     }
     catch (Exception __serviceMethodException)

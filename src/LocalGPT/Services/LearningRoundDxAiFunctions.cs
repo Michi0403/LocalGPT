@@ -104,7 +104,7 @@ public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService
             "synchronizeProjectStructure":{"type":"boolean","default":true},
             "workspaceName":{"type":"string","maxLength":240},
             "facts":{"type":"array","items":{"type":"object","required":["topic","content"],"properties":{"topic":{"type":"string","maxLength":240},"scope":{"type":"string","maxLength":120},"content":{"type":"string"},"helpfulSources":{"type":"string"},"tags":{"type":"string","maxLength":400},"confidence":{"type":"integer","minimum":0,"maximum":100}},"additionalProperties":false}},
-            "regexPatterns":{"type":"array","items":{"type":"object","required":["name","pattern"],"properties":{"name":{"type":"string","maxLength":128},"pattern":{"type":"string","maxLength":16000},"flags":{"type":"string","maxLength":64}},"additionalProperties":false}}
+            "regexPatterns":{"type":"array","items":{"type":"object","required":["name","pattern"],"properties":{"name":{"type":"string","maxLength":128},"pattern":{"type":"string","maxLength":16000},"flags":{"type":"string","maxLength":64},"description":{"type":"string","maxLength":2000},"sampleText":{"type":"string","maxLength":4000}},"additionalProperties":false}}
           },
           "additionalProperties":false
         }
