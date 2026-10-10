@@ -47,11 +47,6 @@ namespace LocalGPT.Components.Pages
     /// Stores the in-memory revealed completed council activity evidence collection maintained internally by <see cref="Chat"/> for its current workflow state.
     /// </summary>
     private readonly HashSet<string> revealedCompletedCouncilActivityEvidence = new(StringComparer.Ordinal);
-    /// <summary>Stores per-request free-text drafts for AI review cards rendered directly below the active Chat surface.</summary>
-    private readonly Dictionary<Guid, string> inlineRequestDrafts = [];
-    /// <summary>Tracks inline AI review requests currently being persisted so double-clicks cannot submit conflicting decisions.</summary>
-    private readonly HashSet<Guid> inlineRequestSubmissions = [];
-
     /// <summary>Gets unresolved AI/Council review requests that belong to the currently selected Chat/Council session.</summary>
     /// <value>The ordered unresolved collaboration requests projected into the active chat.</value>
     private IReadOnlyList<HumanCollaborationRequest> InlineChatRequests
@@ -59,65 +54,23 @@ namespace LocalGPT.Components.Pages
         get
         {
             var runId = AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? SelectedCouncilRunId;
+            // This is the SAME canonical pending queue shown in Human Collaboration.
+            // Sort the active Council first; never hide other pending requests, ASCII role
+            // feedback, or non-Council function approvals from the chat-side view.
             return collaborationSnapshot.Requests
                 .Where(request => request.DecidedAtUtc is null)
-                .Where(request => !AsciiText.IsCouncilRoleResponseRequest(request))
-                .Where(request => runId is Guid selected
-                    ? request.CouncilRunId == selected
-                    : request.CouncilRunId is null)
-                .OrderBy(request => request.RequestedAtUtc)
-                .Take(8)
+                .OrderBy(request => request.CouncilRunId == runId ? 0 : 1)
+                .ThenBy(request => request.RequestedAtUtc)
                 .ToList();
         }
     }
 
-    /// <summary>Returns whether one inline request represents a confirmation-gated operation.</summary>
-    /// <param name="request">Collaboration request being classified for inline chat presentation.</param>
-    /// <returns><see langword="true"/> when the request is an approval/decline operation; otherwise <see langword="false"/>.</returns>
-    private bool IsInlineApprovalRequest(HumanCollaborationRequest request)
-    {
-        try
-        {
-            return string.Equals(request.RequestKind, Vocabulary.Get().HumanRequestApproval, StringComparison.Ordinal);
-        }
-        catch (Exception __componentMethodException)
-        {
-            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.IsInlineApprovalRequest failed.");
-            throw;
-        }
-    }
-
-    /// <summary>Reads the current inline response draft while preserving an AI-supplied prefill until the user edits it.</summary>
-    /// <param name="request">Collaboration request whose response draft is being read.</param>
-    /// <returns>The current user-edited draft or the request prefill when no edit exists yet.</returns>
-    private string GetInlineRequestText(HumanCollaborationRequest request)
-    {
-        try
-        {
-            return inlineRequestDrafts.TryGetValue(request.Id, out var value) ? value : request.PrefillText;
-        }
-        catch (Exception __componentMethodException)
-        {
-            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.GetInlineRequestText failed.");
-            throw;
-        }
-    }
-
-    /// <summary>Updates a response draft for one inline review card.</summary>
-    /// <param name="requestId">Stable request identifier for the inline collaboration card.</param>
-    /// <param name="value">Current response text entered by the user.</param>
-    private void SetInlineRequestText(Guid requestId, string value)
-    {
-        try
-        {
-            inlineRequestDrafts[requestId] = value ?? string.Empty;
-        }
-        catch (Exception __componentMethodException)
-        {
-            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.SetInlineRequestText failed.");
-            throw;
-        }
-    }
+    /// <summary>Shows recent decisions from the same persistent queue underneath the Chat review controls.</summary>
+    private IReadOnlyList<HumanCollaborationRequest> RecentChatReviewDecisions => collaborationSnapshot.Requests
+        .Where(request => request.DecidedAtUtc is not null)
+        .OrderByDescending(request => request.DecidedAtUtc)
+        .Take(12)
+        .ToList();
 
     /// <summary>
     /// Refreshes human collaboration for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
@@ -127,7 +80,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            var snapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 100).ConfigureAwait(false);
+            var snapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: true, take: 200).ConfigureAwait(false);
             var activeLiveSessions = CouncilLiveSessions.GetActiveSummaries();
             var activeLiveRunIds = activeLiveSessions.Select(session => session.RunId).ToHashSet();
 
@@ -317,112 +270,6 @@ namespace LocalGPT.Components.Pages
         {
             Logger.LogError(ex, "Could not enable the local human council participant profile.");
             Notifier.ShowError(toastName, "Human participation could not be enabled. Review LocalGPT logs.", "Human participation");
-        }
-    }
-
-    /// <summary>Resolves one AI/Council review request directly from the active Chat surface and executes approved deferred DXFunctions.</summary>
-    /// <param name="request">Request being answered.</param>
-    /// <param name="approved">Optional approval decision; null is used for guidance/suggested-response requests.</param>
-    /// <param name="response">User response, review note or selected suggestion.</param>
-    /// <returns>A task that completes after the human decision has been persisted.</returns>
-    private async Task ResolveInlineChatRequestAsync(HumanCollaborationRequest request, bool? approved, string response)
-    {
-        if (!inlineRequestSubmissions.Add(request.Id))
-            return;
-
-        if (!isDisposed)
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false) /* renderer dispatch */;
-
-        try
-        {
-            var profile = collaborationSnapshot.Profile.Id == Guid.Empty
-                ? await HumanCollaboration.GetProfileAsync().ConfigureAwait(false)
-                : collaborationSnapshot.Profile;
-            var normalizedResponse = CouncilText.TrimForPrompt(response, 2000, Logger, collapseWhitespace: true);
-            var reason = approved == false
-                ? (string.IsNullOrWhiteSpace(normalizedResponse) ? "Declined from the active Chat review card." : normalizedResponse)
-                : string.Empty;
-            if (approved is null && string.IsNullOrWhiteSpace(normalizedResponse))
-                return;
-
-            using var humanScope = HumanAmbientContext.PushHumanInteraction(
-                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
-                string.IsNullOrWhiteSpace(profile.DisplayName) ? "Human User" : profile.DisplayName,
-                nameof(Chat),
-                request.CorrelationId,
-                request.CouncilRunId,
-                request.RequestedCouncilRound,
-                request.RequestedCouncilPhase);
-
-            var resolved = await HumanCollaboration.ResolveRequestAsync(
-                request.Id,
-                new HumanDecisionSubmission(approved, normalizedResponse, reason),
-                componentLifetimeCts.Token).ConfigureAwait(false);
-
-            inlineRequestDrafts.Remove(request.Id);
-            if (approved == true && resolved is not null)
-                QueueInlineApprovedExecution(request.Id);
-
-            await RefreshHumanCollaborationAsync().ConfigureAwait(false);
-            await InvokeAsync(() => Notifier.ShowInfo(
-                toastName,
-                resolved is null ? "The AI request was already resolved elsewhere." : $"Saved {resolved.Status} for {request.Title}.",
-                "AI request reviewed")).ConfigureAwait(false) /* renderer dispatch */;
-        }
-        catch (OperationCanceledException) when (componentLifetimeCts.IsCancellationRequested)
-        {
-            // Component teardown canceled an inline review submission.
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Could not resolve inline AI/Council review request {RequestId} from Chat.", request.Id);
-            await InvokeAsync(() => Notifier.ShowError(toastName, "The AI request could not be saved. Review LocalGPT logs.", "AI request review")).ConfigureAwait(false) /* renderer dispatch */;
-        }
-        finally
-        {
-            inlineRequestSubmissions.Remove(request.Id);
-            if (!isDisposed)
-                await InvokeAsync(StateHasChanged).ConfigureAwait(false) /* renderer dispatch */;
-        }
-    }
-
-    /// <summary>Queues approved deferred DXFunction calls without making the Chat renderer wait for build/publish work.</summary>
-    /// <param name="approvalRequestId">Approval request whose deferred calls may now run.</param>
-    private void QueueInlineApprovedExecution(Guid approvalRequestId)
-    {
-        try
-        {
-        TaskRunner.Run(
-            nameof(Chat),
-            "ExecuteInlineApprovedDeferredCalls",
-            async cancellationToken =>
-            {
-                var outcomes = await DeferredDxInvocations
-                    .ExecuteApprovedForApprovalRequestAsync(approvalRequestId, cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
-                if (outcomes.Count == 0 || isDisposed)
-                    return;
-
-                var failed = outcomes.Count(outcome => !string.Equals(
-                    outcome.Status,
-                    Vocabulary.Get().DeferredCompleted,
-                    StringComparison.OrdinalIgnoreCase));
-                await InvokeAsync(() =>
-                {
-                    if (failed == 0)
-                        Notifier.ShowSuccess(toastName, $"Executed {outcomes.Count} approved function call(s).", "Approved AI action complete");
-                    else
-                        Notifier.ShowWarning(toastName, $"Executed {outcomes.Count} approved function call(s); {failed} reported a failure.", "Approved AI action completed with issues");
-                }).ConfigureAwait(false);
-                await RefreshHumanCollaborationAsync().ConfigureAwait(false);
-            },
-            componentLifetimeCts.Token);
-    
-        }
-        catch (Exception __componentMethodException)
-        {
-            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.QueueInlineApprovedExecution failed.");
-            throw;
         }
     }
 

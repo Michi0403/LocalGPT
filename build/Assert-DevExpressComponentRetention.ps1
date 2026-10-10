@@ -84,14 +84,36 @@ foreach ($file in $currentFiles) {
     $minimumDx = if ($null -eq $entry) { 0 } else { [int]$entry.MinimumDevExpressTags }
     $maximumNative = if ($null -eq $entry) { 0 } else { [int]$entry.MaximumNativeInteractiveTags }
     $maximumNativeDisclosures = if ($null -eq $entry -or $null -eq $entry.PSObject.Properties['MaximumNativeDisclosureTags']) { 0 } else { [int]$entry.MaximumNativeDisclosureTags }
+    $composedDxCount = 0
+    # A factored, reusable Razor component still renders its DevExpress controls at the caller.
+    # Credit only explicitly tracked compositions, and protect each extracted component in Files too.
+    if ($null -ne $entry -and $null -ne $entry.PSObject.Properties['ComposedDevExpressComponents']) {
+        foreach ($componentName in @($entry.ComposedDevExpressComponents)) {
+            $componentName = [string]$componentName
+            $componentRelative = "src/LocalGPT/Components/Shared/$componentName.razor"
+            $componentPath = Join-Path $componentsRoot "Shared/$componentName.razor"
+            $componentTag = '<\s*' + [regex]::Escape($componentName) + '\b'
+            if ($componentName -notmatch '^[A-Za-z][A-Za-z0-9]*$' -or
+                -not [regex]::IsMatch($markup, $componentTag, [Text.RegularExpressions.RegexOptions]::IgnoreCase) -or
+                -not $baseline.ContainsKey($componentRelative) -or
+                -not (Test-Path -LiteralPath $componentPath -PathType Leaf)) {
+                $violations.Add([pscustomobject]@{ File = $relative; Line = 1; Code = 'PSDX0007'; Message = "Protected composed DevExpress component '$componentName' is missing from its call site or source."; Choices = 'Restore the shared DevExpress component and its invocation; do not lower the protected parent minimum or replace the editor with native HTML.' })
+                continue
+            }
+            $componentContent = [IO.File]::ReadAllText($componentPath)
+            $componentCodeIndex = $componentContent.IndexOf('@code', [StringComparison]::Ordinal)
+            $componentMarkup = if ($componentCodeIndex -ge 0) { $componentContent.Substring(0, $componentCodeIndex) } else { $componentContent }
+            $composedDxCount += [regex]::Matches($componentMarkup, $dxPattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase).Count
+        }
+    }
 
     if ($forbiddenNativeEditor.Success) {
         $line = ([regex]::Matches($markup.Substring(0, $forbiddenNativeEditor.Index), "`n").Count + 1)
         $violations.Add([pscustomobject]@{ File = $relative; Line = $line; Code = 'PSDX0006'; Message = 'A native datalist or input type=color was introduced into maintained Razor UI.'; Choices = 'Use a searchable DevExpress ComboBox/ListBox/SearchBox workflow for suggestions and DxColorPalette (optionally hosted by DxDropDownBox) for color selection. These native substitutes are no longer accepted anywhere in maintained application UI.' })
     }
 
-    if ($dxCount -lt $minimumDx) {
-        $violations.Add([pscustomobject]@{ File = $relative; Line = 1; Code = 'PSDX0001'; Message = "DevExpress component count dropped from protected minimum $minimumDx to $dxCount."; Choices = "Restore the maintained DevExpress Blazor control(s), or explicitly revise the retention contract only when the product architecture intentionally changes. Native HTML is not an equivalent shortcut." })
+    if (($dxCount + $composedDxCount) -lt $minimumDx) {
+        $violations.Add([pscustomobject]@{ File = $relative; Line = 1; Code = 'PSDX0001'; Message = "DevExpress component count dropped from protected minimum $minimumDx to $($dxCount + $composedDxCount) ($dxCount direct, $composedDxCount in explicitly tracked shared components)."; Choices = "Restore the maintained DevExpress Blazor control(s), including the extracted component, or explicitly revise the retention contract only when the product architecture intentionally changes. Native HTML is not an equivalent shortcut." })
     }
     if ($nativeCount -gt $maximumNative) {
         $firstNative = [regex]::Match($markup, $nativePattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase)

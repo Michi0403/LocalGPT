@@ -625,6 +625,76 @@ dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-console.loca
     overflow: hidden !important;
 }
 
+/* The same FormLayout ownership exists in the normal 96dvh popup. Without this
+   chain the terminal has a fixed-height island floating above an empty modal body.
+   The existing modal-dialog class scopes this to Chat's ASCII popup. */
+dxbl-modal-dialog.localgpt-chat-dialog-surface .dxbl-modal-body > .razor-component-boundary,
+dxbl-modal-dialog.localgpt-chat-dialog-surface .dxbl-modal-body > .razor-component-boundary dxbl-form-layout,
+dxbl-modal-dialog.localgpt-chat-dialog-surface .dxbl-modal-body > .razor-component-boundary dxbl-form-layout-item,
+dxbl-modal-dialog.localgpt-chat-dialog-surface .dxbl-modal-body > .razor-component-boundary .dxbl-row,
+dxbl-modal-dialog.localgpt-chat-dialog-surface .dxbl-modal-body > .razor-component-boundary .dxbl-fl-ctrl,
+dxbl-modal-dialog.localgpt-chat-dialog-surface .chat-ascii-layout-surface,
+dxbl-modal-dialog.localgpt-chat-dialog-surface .chat-game-popup-body {
+    box-sizing: border-box;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+}
+dxbl-modal-dialog.localgpt-chat-dialog-surface .chat-game-console {
+    height: 100%;
+    min-height: 0;
+}
+dxbl-modal-dialog.localgpt-chat-dialog-surface .chat-game-stage,
+dxbl-modal-dialog.localgpt-chat-dialog-surface .ascii-operator-stage,
+dxbl-modal-dialog.localgpt-chat-dialog-surface .ascii-conversation-stage {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+}
+
+/* 5.4.7: A DevExpress popup contains multiple FormLayout-owned roots between its modal
+   body and the ASCII surface. Percentage height on the console alone cannot traverse those
+   wrappers; fill every node on this *specific* fullscreen popup chain. Ordinary editor
+   popups, portal dropdowns and the non-fullscreen Chat form layouts stay untouched. */
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen dxbl-modal,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .dxbl-modal-body > .razor-component-boundary,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-ascii-layout-surface,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-ascii-layout-surface .razor-component-boundary,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-ascii-layout-surface dxbl-form-layout,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-ascii-layout-surface dxbl-form-layout-item,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-ascii-layout-surface .dxbl-row,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-ascii-layout-surface .dxbl-fl-ctrl,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-popup-body,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-popup-body .razor-component-boundary,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-popup-body dxbl-form-layout,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-popup-body dxbl-form-layout-item,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-popup-body .dxbl-row,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-popup-body .dxbl-fl-ctrl {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: hidden !important;
+}
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-popup-body .dxbl-row,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-ascii-layout-surface .dxbl-row {
+    flex: 1 1 auto !important;
+}
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-console.localgpt-game-fullscreen {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+}
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-console.localgpt-game-fullscreen .chat-game-stage,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-console.localgpt-game-fullscreen .ascii-operator-stage,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-console.localgpt-game-fullscreen .ascii-conversation-stage {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+}
+
 /* 4.5.7: DevExpress list editors render their option surface in an adaptive portal. Keep that
    portal above LocalGPT's fixed rails/panels and explicitly interactive; the editor itself still
    owns open/close and selection state. */

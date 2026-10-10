@@ -471,12 +471,16 @@ public sealed record HumanApprovalGateResult(
 /// <param name="Reason">Reason value supplied to the human decision submission operation and used when producing its result.</param>
 /// <param name="ReuseScope">Reuse scope value supplied to the human decision submission operation and used when producing its result.</param>
 /// <param name="ConsumeApproval">Value indicating whether consume approval should apply to this operation.</param>
+/// <param name="ExpectedDecisionVersion">Optional version read by a review surface; prevents stale approval forms from overwriting decisions made elsewhere.</param>
+/// <param name="RequirePending">Requires that the request still be pending when a review surface submits its first decision.</param>
 public sealed record HumanDecisionSubmission(
     bool? Approved,
     string Response,
     string Reason,
     HumanApprovalReuseScope ReuseScope = HumanApprovalReuseScope.ExactRequestOnce,
-    bool ConsumeApproval = true);
+    bool ConsumeApproval = true,
+    int? ExpectedDecisionVersion = null,
+    bool RequirePending = false);
 
 /// <summary>
 /// Represents a human council run snapshot application type, grouping the state and behavior that belong to that domain concept.

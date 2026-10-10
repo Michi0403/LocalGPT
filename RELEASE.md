@@ -1,3 +1,3 @@
-# LocalGPT 5.4.5
+# LocalGPT 5.4.8
 
-Revision-scoped toolchain authority, version-pinned workspace evidence, Knowledge/regex-first research triage and a Council same-revision downgrade guard. See `CHANGELOG-v5.4.5-REVISION-SCOPED-VERSION-EVIDENCE.md` and `VALIDATION-v5.4.5-source.md`. Source-only validation; no .NET build/restore/publish performed.
+Full-source release that repairs the shared Human Collaboration component safety injections, retains extracted DevExpress controls in the architectural retention guard, replaces Chat's added native disclosure with DxAccordion, and corrects the four stale hardware-preset XML documentation tags. Shared Chat/Inbox decision behavior and the 5.4.7 ASCII console fixes remain intact. See `CHANGELOG-v5.4.8-UNIFIED-APPROVAL-DEVEXPRESS-MAINTENANCE.md` and `VALIDATION-v5.4.8-source.md`. No .NET build, NuGet restore, or publish performed.

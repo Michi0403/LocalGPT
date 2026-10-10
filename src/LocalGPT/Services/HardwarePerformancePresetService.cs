@@ -613,12 +613,6 @@ public sealed class HardwarePerformancePresetService(
     }
 
 
-    /// <summary>Builds one measured tier route from successful benchmark points for a provider-qualified target.</summary>
-    /// <param name="target">Provider-qualified benchmark target.</param>
-    /// <param name="successfulProfiles">Successful measured points ordered from low to high token budgets.</param>
-    /// <param name="profileIndex">Measured point selected for this tier.</param>
-    /// <param name="tierName">User-visible tier label.</param>
-    /// <returns>A normalized hardware road whose maximums equal the selected measured point.</returns>
     /// <summary>Selects a successful, actually measured token point for this model and requested hardware tier. Common benchmark settings remain identical for fair measurement.</summary>
     /// <param name="profiles">Successfully completed profiles for one provider-qualified model.</param>
     /// <param name="tierName">Saved hardware tier whose measured-token ceiling applies.</param>

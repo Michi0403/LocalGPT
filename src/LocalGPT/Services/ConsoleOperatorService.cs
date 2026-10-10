@@ -43,6 +43,13 @@ public sealed class ConsoleOperatorService(IConsoleCommandService console, ILoca
             if (input.StartsWith(':'))
                 return await SubmitMetaCommandAsync(request, input[1..], cancellationToken).ConfigureAwait(false);
 
+            // A new host shell is started for each command. Keep ordinary "cd" in the
+            // operator session so successive human commands see the same directory.
+            if (string.Equals(input, "cd", StringComparison.OrdinalIgnoreCase))
+                return ChangeDirectory(request, string.Empty);
+            if (input.StartsWith("cd ", StringComparison.OrdinalIgnoreCase))
+                return ChangeDirectory(request, input[3..].Trim());
+
             if (!request.UserConfirmed)
                 return Result(request, false, "Human confirmation is required before an operating-system command can start.");
 
@@ -256,7 +263,13 @@ public sealed class ConsoleOperatorService(IConsoleCommandService console, ILoca
             if (string.IsNullOrWhiteSpace(value))
                 return Result(request, true, string.IsNullOrWhiteSpace(request.WorkingDirectory) ? Environment.CurrentDirectory : request.WorkingDirectory);
             var basis = string.IsNullOrWhiteSpace(request.WorkingDirectory) ? Environment.CurrentDirectory : request.WorkingDirectory;
-            var path = Path.GetFullPath(Path.IsPathRooted(value) ? value : Path.Combine(basis, value));
+            var requestedPath = value.Trim().Trim('"', '\'');
+            var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (requestedPath == "~")
+                requestedPath = userHome;
+            else if (requestedPath.StartsWith("~/", StringComparison.Ordinal) || requestedPath.StartsWith("~\\", StringComparison.Ordinal))
+                requestedPath = Path.Combine(userHome, requestedPath[2..]);
+            var path = Path.GetFullPath(Path.IsPathRooted(requestedPath) ? requestedPath : Path.Combine(basis, requestedPath));
             if (!Directory.Exists(path))
                 return Result(request, false, "Directory does not exist.");
             var result = Result(request, true, $"Working directory: {path}");

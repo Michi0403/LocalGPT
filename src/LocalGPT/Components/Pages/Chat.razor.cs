@@ -1207,13 +1207,14 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Closes the shared ASCII terminal without stopping the underlying chat, Council run, game session, or operator jobs.
     /// </summary>
-    private void CloseGameConsole()
+    /// <returns>A task that completes after renderer-owned console visibility has been cleared.</returns>
+    private async Task CloseGameConsole()
     {
         try
         {
-        showGameConsole = false;
-        UpdateAsciiExperienceState();
-        TaskRunner.Run(nameof(Chat), nameof(CloseGameConsole), _ => InvokeAsync(StateHasChanged));
+        // Close through the same renderer-owned visibility path as the popup close button.
+        // Queuing a second background render can race a disposed popup after fullscreen exit.
+        await OnGameConsoleVisibilityChangedAsync(false).ConfigureAwait(false);
     
         }
         catch (Exception __componentMethodException)

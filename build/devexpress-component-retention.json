@@ -26,7 +26,8 @@
     "src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor": {
       "MinimumDevExpressTags": 41,
       "MaximumNativeInteractiveTags": 0,
-      "MaximumNativeDisclosureTags": 4
+      "MaximumNativeDisclosureTags": 4,
+      "ComposedDevExpressComponents": ["HumanCollaborationRequestCard"]
     },
     "src/LocalGPT/Components/Layout/LanguageSwitcher.razor": {
       "MinimumDevExpressTags": 3,
@@ -76,7 +77,8 @@
     "src/LocalGPT/Components/Pages/Chat.razor": {
       "MinimumDevExpressTags": 99,
       "MaximumNativeInteractiveTags": 0,
-      "MaximumNativeDisclosureTags": 32
+      "MaximumNativeDisclosureTags": 32,
+      "ComposedDevExpressComponents": ["HumanCollaborationRequestCard"]
     },
     "src/LocalGPT/Components/Pages/CouncilTeams.razor": {
       "MinimumDevExpressTags": 117,
@@ -185,6 +187,11 @@
     },
     "src/LocalGPT/Components/Shared/DocumentationViewerHost.razor": {
       "MinimumDevExpressTags": 6,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Shared/HumanCollaborationRequestCard.razor": {
+      "MinimumDevExpressTags": 15,
       "MaximumNativeInteractiveTags": 0,
       "MaximumNativeDisclosureTags": 0
     },

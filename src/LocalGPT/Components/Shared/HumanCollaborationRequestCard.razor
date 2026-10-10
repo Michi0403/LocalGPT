@@ -1,0 +1,102 @@
+@using LocalGPT.BusinessObjects
+@using LocalGPT.Interfaces
+@inject IHumanCollaborationService Collaboration
+@inject ILocalGptVocabularyService Vocabulary
+@inject ILocalGptRuntimePolicyDataService RuntimePolicy
+@inject ILocalHumanInteractionContext HumanAmbientContext
+@inject IDeferredDxAiInvocationService DeferredDxInvocations
+@inject ISupervisedTaskRunner TaskRunner
+@inject ILogger<HumanCollaborationRequestCard> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
+<div class="razor-component-boundary">
+    <DxFormLayout CssClass="razor-component-layout-owner HumanCollaborationRequestCard">
+        <DxFormLayoutItem ColSpanMd="12">
+            <Template Context="approvalCardContext">
+                <article class="human-unified-request" data-testid="human-unified-request" data-request-id="@Request.Id">
+                    <header>
+                        <strong>@Request.Title</strong>
+                        <span>@Request.RequestKind · @Request.RiskLevel · @Request.GateMode</span>
+                    </header>
+                    <p>@Request.Description</p>
+                    <dl>
+                        <dt>Requested by</dt><dd>@Request.RequestedBy</dd>
+                        <dt>Source</dt><dd>@Request.Source</dd>
+                        <dt>Role</dt><dd>@Request.RequestedRole</dd>
+                        <dt>Question scope</dt><dd>@Request.QuestionScope</dd>
+                        <dt>Execution gate</dt><dd>@Request.GateMode</dd>
+                        <dt>Asked during</dt><dd>Round @Request.RequestedCouncilRound · @Request.RequestedCouncilPhase</dd>
+                        <dt>Operation</dt><dd>@Request.OperationKey</dd>
+                        @if (!string.IsNullOrWhiteSpace(Request.ParameterFingerprint))
+                        {
+                            <dt>Exact request</dt><dd>@FingerprintPreview</dd>
+                        }
+                        @if (Request.CouncilRunId is Guid runId)
+                        {
+                            <dt>Council run</dt><dd>@runId</dd>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Request.TargetMembersText))
+                        {
+                            <dt>Members</dt><dd>@Request.TargetMembersDisplay</dd>
+                        }
+                    </dl>
+                    @if (Request.SuggestedResponses.Count > 0)
+                    {
+                        <div class="human-unified-suggestions" aria-label="Suggested responses">
+                            @foreach (var suggestion in Request.SuggestedResponses)
+                            {
+                                <DxButton Text="@suggestion" Enabled="@(!isSubmitting)" Click="@(() => ChooseSuggestion(suggestion))" />
+                            }
+                        </div>
+                    }
+                    @if (!Request.AllowFreeText && !string.IsNullOrWhiteSpace(response))
+                    {
+                        <p><strong>Selected answer:</strong> @response</p>
+                    }
+                    <DxFormLayout CssClass="human-unified-editor">
+                        @if (Request.AllowFreeText || !IsApproval)
+                        {
+                            <DxFormLayoutItem Caption="@ResponseCaption" ColSpanMd="12">
+                                <DxMemo @bind-Text="response" BindValueMode="BindValueMode.OnInput" MaxLength="1000000" Rows="3" />
+                            </DxFormLayoutItem>
+                        }
+                        <DxFormLayoutItem Caption="Reason / team note" ColSpanMd="12">
+                            <DxMemo @bind-Text="reason" BindValueMode="BindValueMode.OnInput" MaxLength="2000" Rows="2" />
+                        </DxFormLayoutItem>
+                        @if (IsApproval)
+                        {
+                            <DxFormLayoutItem Caption="Approval reuse scope" ColSpanMd="12">
+                                <DxComboBox Data="@ReuseScopes" @bind-Value="reuseScope"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<HumanApprovalReuseScope>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<HumanApprovalReuseScope>.Label)" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="12">
+                                <label class="human-unified-consume">
+                                    <DxCheckBox @bind-Checked="consumeApproval" />
+                                    <span>Consume the approval after one matching use</span>
+                                </label>
+                            </DxFormLayoutItem>
+                        }
+                    </DxFormLayout>
+                    @if (IsApproval)
+                    {
+                        <p class="human-unified-note">Approval is limited to the exact operation and parameters. Decisions are recorded once and shared with Chat and Human Collaboration.</p>
+                        <div class="human-unified-actions">
+                            <DxButton Text="Approve and save" RenderStyle="ButtonRenderStyle.Success" Enabled="@(!isSubmitting)" Click="@(() => SubmitAsync(true))" />
+                            <DxButton Text="Decline and save" RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!isSubmitting)" Click="@(() => SubmitAsync(false))" />
+                        </div>
+                    }
+                    else
+                    {
+                        <DxButton Text="Send to team" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!isSubmitting && !string.IsNullOrWhiteSpace(response))" Click="@(() => SubmitAsync(null))" />
+                    }
+                    @if (!string.IsNullOrWhiteSpace(statusText))
+                    {
+                        <p role="status" class="human-unified-note">@statusText</p>
+                    }
+                </article>
+            </Template>
+        </DxFormLayoutItem>
+    </DxFormLayout>
+</div>

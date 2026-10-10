@@ -799,59 +799,45 @@
         <div class="chat-inline-ai-requests" aria-label="AI requests awaiting your review" data-testid="chat-inline-ai-requests">
                 <header>
                     <div>
-                        <strong>AI requests for this session</strong>
-                        <small>Review function approvals and AI-seeded choices directly where the Council is working.</small>
+                        <strong>Human review · shared inbox</strong>
+                        <small>The same pending approvals, polls, guidance and feedback are available here and in Human Collaboration. One saved decision updates both.</small>
                     </div>
                     <span>@InlineChatRequests.Count waiting</span>
                 </header>
                 @foreach (var request in InlineChatRequests)
                 {
-                    <article class="chat-inline-ai-request" @key="request.Id">
-                        <div class="chat-inline-ai-request-heading">
-                            <div>
-                                <strong>@request.Title</strong>
-                                <small>@request.RequestedRole · @request.RequestedBy · @request.OperationKey</small>
-                            </div>
-                            <span class="chat-inline-ai-request-risk">@request.RiskLevel</span>
-                        </div>
-                        <p>@(string.IsNullOrWhiteSpace(request.ResponsePrompt) ? request.Description : request.ResponsePrompt)</p>
-                        @if (IsInlineApprovalRequest(request))
-                        {
-                            <div class="chat-inline-ai-request-actions">
-                                <DxButton Text="Approve" RenderStyle="ButtonRenderStyle.Success" Enabled="@(!inlineRequestSubmissions.Contains(request.Id))" Click="@(() => ResolveInlineChatRequestAsync(request, true, GetInlineRequestText(request)))" />
-                                <DxButton Text="Decline" RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!inlineRequestSubmissions.Contains(request.Id))" Click="@(() => ResolveInlineChatRequestAsync(request, false, GetInlineRequestText(request)))" />
-                            </div>
-                        }
-                        @if (request.SuggestedResponses.Count > 0)
-                        {
-                            <div class="chat-inline-ai-request-suggestions" aria-label="Suggested responses">
-                                @foreach (var suggestion in request.SuggestedResponses)
-                                {
-                                    <DxButton Text="@suggestion" RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" Enabled="@(!inlineRequestSubmissions.Contains(request.Id))" Click="@(() => ResolveInlineChatRequestAsync(request, null, suggestion))" />
-                                }
-                            </div>
-                        }
-                        @if (request.AllowFreeText || !IsInlineApprovalRequest(request))
-                        {
-                            <div class="chat-inline-ai-request-response">
-                                <DxTextBox Text="@GetInlineRequestText(request)"
-                                           TextChanged="@((string value) => SetInlineRequestText(request.Id, value))"
-                                           BindValueMode="BindValueMode.OnInput"
-                                           MaxLength="2000"
-                                           NullText="Answer, add a review note, or explain a decline…"
-                                           Enabled="@(!inlineRequestSubmissions.Contains(request.Id))" />
-                                @if (!IsInlineApprovalRequest(request))
-                                {
-                                    <DxButton Text="Send" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!inlineRequestSubmissions.Contains(request.Id) && !string.IsNullOrWhiteSpace(GetInlineRequestText(request)))" Click="@(() => ResolveInlineChatRequestAsync(request, null, GetInlineRequestText(request)))" />
-                                }
-                            </div>
-                        }
-                    </article>
+                    <HumanCollaborationRequestCard @key="request.Id" Request="@request" DecisionSaved="RefreshHumanCollaborationAsync" />
                 }
             </div>
     </Template>
     </DxFormLayoutItem>
 </DxFormLayout>
+        }
+        @if (RecentChatReviewDecisions.Count > 0)
+        {
+            <DxFormLayout CssClass="razor-section-layout-owner">
+                <DxFormLayoutItem ColSpanMd="12">
+                    <Template Context="reviewHistoryContext">
+                        <div data-testid="chat-shared-approval-history">
+                            <DxAccordion CssClass="chat-inline-ai-requests">
+                                <Items>
+                                    <DxAccordionItem Text="Saved human decisions · synchronized with Human Collaboration">
+                                        <ContentTemplate Context="reviewHistoryContentContext">
+                                            @foreach (var decision in RecentChatReviewDecisions)
+                                            {
+                                                <p @key="decision.Id">
+                                                    <strong>@decision.Status</strong> · @decision.Title
+                                                    <small> · @decision.UpdatedAtUtc.ToLocalTime() · @decision.OperationKey</small>
+                                                </p>
+                                            }
+                                        </ContentTemplate>
+                                    </DxAccordionItem>
+                                </Items>
+                            </DxAccordion>
+                        </div>
+                    </Template>
+                </DxFormLayoutItem>
+            </DxFormLayout>
         }
         @* Quick selectors stay outside the DevExpress chat host. One normal-flow DevExpress form row
            sits directly below Chat and above Running session tools; no composer geometry is changed. *@

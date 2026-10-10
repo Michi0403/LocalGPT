@@ -384,6 +384,21 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                 if (request is null)
                     return null;
 
+                // Chat and Human Collaboration are two views of the same persisted request.
+                // A form loaded before a decision in the other view must never replay or
+                // silently replace that decision (especially a consequential approval).
+                if (submission.ExpectedDecisionVersion is int expectedVersion
+                    && request.DecisionVersion != expectedVersion)
+                {
+                    logger.LogInformation("Human decision {RequestId} was not saved because its version changed in another review surface.", request.Id);
+                    return null;
+                }
+                if (submission.RequirePending && request.Status != vocabulary.Get().HumanStatusPending)
+                {
+                    logger.LogInformation("Human decision {RequestId} was already resolved in another review surface.", request.Id);
+                    return null;
+                }
+
                 var isApproval = request.RequestKind == vocabulary.Get().HumanRequestApproval;
                 if (isApproval && submission.Approved is null)
                     throw new InvalidOperationException("Approval requests require an explicit approve or decline decision.");

@@ -280,7 +280,12 @@ public sealed class ConsoleCommandService(
             var stdoutPump = PumpOutputAsync(process.StandardOutput, operation.OperationId, request.DisplayName, "stdout", stdout);
             var stderrPump = PumpOutputAsync(process.StandardError, operation.OperationId, request.DisplayName, "stderr", stderr);
             using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(linkedCancellation.Token);
-            timeoutSource.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+            // CancellationTokenSource.CancelAfter accepts milliseconds only up to uint.MaxValue - 1.
+            // The database default int.MaxValue denotes an unbounded operator session; do not
+            // feed an enormous TimeSpan into the framework (which throws before the shell runs).
+            // An explicit shorter timeout remains enforced, and every job can still be cancelled.
+            if ((long)timeoutSeconds * 1000 <= uint.MaxValue - 1L)
+                timeoutSource.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
             var timedOut = false;
             try
             {
