@@ -162,6 +162,12 @@ namespace LocalGPT.Services
             team.MainRoundInstructionTemplate = string.IsNullOrWhiteSpace(team.MainRoundInstructionTemplate)
                 ? "Every member contributes democratically according to role, evidence and demonstrated skill. Integrate new human corrections at the next heartbeat without cancelling the active run."
                 : team.MainRoundInstructionTemplate;
+            // Applies to every supplied development/learning team; existing user-owned revisions and
+            // customized team copies are not overwritten by this policy evolution.
+            const string versionRevisionBoundary = "PROJECT REVISION & TOOLCHAIN CONTRACT: Resolve exact compiler, SDK, language runtime, dependency and framework versions from the selected project's current revision (global.json, project files, lockfiles, environment/venv metadata), then verify installed toolchains separately. Read the existing Project/Knowledge/regex/LearningBase and version-matched official documentation before recommending any resource. If the declared toolchain or reference docs are unavailable, stop and issue an exact human.collaboration.request rather than falling back to an older version. Migration is ALWAYS a separately approved child project revision via project.revision.save (with parent revision preserved); NEVER change framework/language/compiler versions inside the current revision merely to make it compile. Other repositories and demo archives do not supply fallback requirements.";
+            team.ArchitectureContracts ??= [];
+            if (!team.ArchitectureContracts.Contains(versionRevisionBoundary, StringComparer.Ordinal))
+                team.ArchitectureContracts.Add(versionRevisionBoundary);
             team.AllowedAutomaticFunctions ??= [];
             team.AllowedAutomaticFunctions = NormalizeFunctionNames(team.AllowedAutomaticFunctions);
             var useSuppliedDefaultWorkflow = team.WorkflowSteps.Count == 0;

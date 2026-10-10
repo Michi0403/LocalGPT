@@ -1,0 +1,12 @@
+# LocalGPT 5.4.5 — revision-scoped versions and research evidence
+
+- A software project's **current source revision**, not a model's stale learned knowledge or an unrelated demo archive, owns its SDK, compiler, framework/runtime target and dependency compatibility requirements.
+- The deterministic ZIP curator now surfaces per-archive `global.json` SDK selection/roll-forward, `Directory.Build.*`, `package.json` engines, Python `pyproject.toml`, `.python-version`, `pyvenv.cfg` and dependency-lockfile markers, along with Java, Rust, Go, Node and CMake manifest paths. It retains exact paths and distinguishes declared toolchains from installed runtimes and SDKs.
+- The research judge now receives a service-observed, bounded read-only snapshot of persisted Council Knowledge and runtime-regex keys before inference. It distinguishes that partial inventory from the separate curated-regex catalog and remote-source cache; failures explicitly report **UNVERIFIED**, never a fabricated successful check.
+- The research-necessity judge is instructed to consult source project files, existing database-backed Knowledge/learning, regex definitions and local LearningBase/RemoteSources *before* proposing exact version-matched external documentation. Actual DX functions for those queries are now permitted on the judge step. GitHub/web import and search remain human-approved.
+- Missing required versions/resources require an exact blocking human collaboration request, never an automatic downgrade to `.NET 6`, `.NET 7`, `.NET 8` or another substitute. No source rewrite, SDK execution or online import is performed by the curation update.
+- **Migration creates a separately approved, parent-linked project revision** using the existing `project.revision.save` approval contract. No framework/compiler/runtime version is silently rewritten inside the current revision.
+- A Council compatibility guard stops affirmative, source-contradicting fallback recommendations before they flow into later role synthesis. It preserves the original model output in the Council transcript for diagnosis and returns the exact source project declarations as the authority.
+- Versioned supplied Council presets updated without overwriting user-owned edited teams; the existing seeded/user-copy preservation behavior remains in place.
+
+This is a source-only release. No .NET build, restore, publish or GitHub connection performed.

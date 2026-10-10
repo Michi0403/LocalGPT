@@ -174,6 +174,16 @@ namespace LocalGPT.Services
                             "Authoritative upload-source inventory and framework declarations (override stale learned facts)",
                             sourceAuthority,
                             logger);
+                    if (string.Equals(definition.Role, "Web research necessity judge", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var localResearchEvidence = await BuildLocalResearchEvidenceReceiptAsync(cancellationToken).ConfigureAwait(false);
+                        gatedBootstrap = MultiModelCouncilServiceAppendPromptSection(
+                            gatedBootstrap,
+                            "Local Knowledge/regex source inspection receipt — inspect exact matching version before online research",
+                            localResearchEvidence,
+                            logger);
+                        request.ProgressMessage?.Invoke("Research judge received a database-backed Knowledge and runtime-regex inspection receipt; exact project metadata and version-matched LearningBase/remote sources remain mandatory.");
+                    }
                     var heartbeatBootstrap = await PrepareHumanHeartbeatAsync(
                         result,
                         request,
@@ -710,6 +720,7 @@ namespace LocalGPT.Services
 
                     if (!string.IsNullOrWhiteSpace(stageAnswer))
                     {
+                        stageAnswer = GuardCurrentRevisionToolchainClaims(stageAnswer, sourceAuthority, result, request);
                         previousStep = stageAnswer;
                         fallbackAnswer = stageAnswer;
                         if (definition.ProducesFinalAnswer)

@@ -1179,11 +1179,113 @@ namespace LocalGPT.Services
                     if (archiveGroup.Count() > selected.Count)
                         builder.AppendLine($"- {archiveGroup.Count() - selected.Count:n0} further project file(s) in this archive: filter chat.upload_workspace_files extension=csproj and read their exact paths.");
                 }
-                builder.AppendLine("These are source declarations, not .NET release assumptions. Frameworks are tied to their own exact repository/project paths. A net8.0 sample in a documentation or demo ZIP does not imply that LocalGPT targets net8.0. The user's actual project metadata and installed runtime are separate evidence; stale learned knowledge must not override them.");
+                AppendPinnedToolchainMetadata(builder, report, root);
+                builder.AppendLine("VERSION / REVISION AUTHORITY: Each repository's target framework, SDK selection, compiler and package constraints come from that repository's exact source metadata; do not borrow versions from another archive, a demo, or a stale knowledge entry. An installed runtime does not establish an installed SDK. Missing required toolchains or documentation are blocking resource gaps, not permission to downgrade. A framework/SDK/language-runtime migration changes project identity and MUST be proposed as a separate, user-approved child project revision through project.revision.save; NEVER alter the current revision's target versions to make a build pass.");
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Could not summarize curated workspace project framework declarations.");
+            }
+        }
+
+
+        /// <summary>Lists exact version/toolchain pins from each extracted source root, keeping demo and application repositories separate.</summary>
+        /// <param name="builder">Curator summary receiving source-backed version declarations.</param>
+        /// <param name="report">Validated archive file inventory.</param>
+        /// <param name="root">Validated workspace root.</param>
+        private void AppendPinnedToolchainMetadata(StringBuilder builder, ChatUploadWorkspaceCurationReport report, string root)
+        {
+            try
+            {
+                var markerNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "global.json", "Directory.Build.props", "Directory.Build.targets", "pyproject.toml",
+                    "Pipfile", "Pipfile.lock", "poetry.lock", "uv.lock", "requirements.txt",
+                    "environment.yml", "environment.yaml", "pyvenv.cfg", ".python-version",
+                    "package.json", ".nvmrc", ".node-version", "Cargo.toml", "rust-toolchain.toml",
+                    "go.mod", "pom.xml", "gradle.properties", "gradle-wrapper.properties", "CMakePresets.json"
+                };
+                var markers = report.Files.Where(file =>
+                        file.RelativePath.StartsWith("extracted/", StringComparison.OrdinalIgnoreCase)
+                        && markerNames.Contains(Path.GetFileName(file.RelativePath)))
+                    .GroupBy(file => string.Join("/", file.RelativePath.Split('/').Take(2)), StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
+                builder.AppendLine();
+                builder.AppendLine("### Exact source toolchain, dependency and Python environment evidence (version-specific)");
+                foreach (var group in markers)
+                {
+                    var rootMarkers = group.OrderBy(file => file.RelativePath.Split('/').Length)
+                        .ThenBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                        .Take(Math.Max(1, Parameters.DefaultWorkspaceListCount)).ToList();
+                    builder.AppendLine($"#### `{group.Key}`: {group.Count():n0} version/config marker file(s)");
+                    foreach (var file in rootMarkers)
+                    {
+                        var path = Path.Combine(root, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+                        var name = Path.GetFileName(path);
+                        try
+                        {
+                            if (name.Equals("global.json", StringComparison.OrdinalIgnoreCase) ||
+                                name.Equals("package.json", StringComparison.OrdinalIgnoreCase))
+                            {
+                                using var doc = JsonDocument.Parse(File.ReadAllText(path));
+                                var metadata = new List<string>();
+                                if (name.Equals("global.json", StringComparison.OrdinalIgnoreCase) &&
+                                    doc.RootElement.TryGetProperty("sdk", out var sdk) && sdk.ValueKind == JsonValueKind.Object)
+                                {
+                                    if (sdk.TryGetProperty("version", out var sdkVersion)) metadata.Add($"sdk.version={sdkVersion}");
+                                    if (sdk.TryGetProperty("rollForward", out var rollForward)) metadata.Add($"sdk.rollForward={rollForward}");
+                                    if (sdk.TryGetProperty("allowPrerelease", out var allowPrerelease)) metadata.Add($"sdk.allowPrerelease={allowPrerelease}");
+                                }
+                                if (name.Equals("package.json", StringComparison.OrdinalIgnoreCase) &&
+                                    doc.RootElement.TryGetProperty("engines", out var engines))
+                                    metadata.Add($"engines={engines}");
+                                builder.AppendLine($"- `{file.RelativePath}`: {(metadata.Count == 0 ? "no explicit version constraint; inspect source" : string.Join("; ", metadata))}");
+                            }
+                            else if (name.Equals(".python-version", StringComparison.OrdinalIgnoreCase) ||
+                                     name.Equals(".nvmrc", StringComparison.OrdinalIgnoreCase) ||
+                                     name.Equals(".node-version", StringComparison.OrdinalIgnoreCase))
+                            {
+                                builder.AppendLine($"- `{file.RelativePath}`: declared version `{File.ReadLines(path).FirstOrDefault()?.Trim() ?? ""}`");
+                            }
+                            else if (name.Equals("pyvenv.cfg", StringComparison.OrdinalIgnoreCase) ||
+                                     name.Equals("pyproject.toml", StringComparison.OrdinalIgnoreCase) ||
+                                     name.Equals("Pipfile", StringComparison.OrdinalIgnoreCase) ||
+                                     name.Equals("Cargo.toml", StringComparison.OrdinalIgnoreCase) ||
+                                     name.Equals("go.mod", StringComparison.OrdinalIgnoreCase) ||
+                                     name.Equals("gradle.properties", StringComparison.OrdinalIgnoreCase) ||
+                                     name.Equals("rust-toolchain.toml", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var declared = File.ReadLines(path).Take(200)
+                                    .Select(line => line.Trim())
+                                    .Where(line => line.StartsWith("requires-python", StringComparison.OrdinalIgnoreCase)
+                                        || line.StartsWith("python =", StringComparison.OrdinalIgnoreCase)
+                                        || line.StartsWith("python_version", StringComparison.OrdinalIgnoreCase)
+                                        || line.StartsWith("version =", StringComparison.OrdinalIgnoreCase)
+                                        || line.StartsWith("version=", StringComparison.OrdinalIgnoreCase)
+                                        || line.StartsWith("go ", StringComparison.OrdinalIgnoreCase)
+                                        || line.StartsWith("toolchain ", StringComparison.OrdinalIgnoreCase)
+                                        || line.StartsWith("rust-version", StringComparison.OrdinalIgnoreCase)
+                                        || line.StartsWith("org.gradle.java.home", StringComparison.OrdinalIgnoreCase))
+                                    .Take(5).ToList();
+                                builder.AppendLine($"- `{file.RelativePath}`: {(declared.Count > 0 ? string.Join("; ", declared) : "read this exact source file for compiler/runtime/dependency pins")}");
+                            }
+                            else
+                                builder.AppendLine($"- `{file.RelativePath}`: exact dependency/build manifest; read for version-locked details before selecting tools or searching documentation");
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+                        {
+                            logger.LogWarning(ex, "Could not inspect version manifest {RelativePath}; the version remains unresolved.", file.RelativePath);
+                            builder.AppendLine($"- `{file.RelativePath}`: unreadable; require an evidence/resource request rather than selecting a fallback compiler");
+                        }
+                    }
+                    if (group.Count() > rootMarkers.Count)
+                        builder.AppendLine($"- {group.Count() - rootMarkers.Count:n0} additional source manifests: use chat.upload_workspace_files pathContains or extension with pagination");
+                }
+                builder.AppendLine("Version research order: exact current project/revision declarations and dependency lockfiles -> installed toolchain evidence -> locally approved Knowledge/regexes/LearningBase and cached RemoteSources -> missing version-matched official documentation through an approval-controlled import/search. Never silently substitute an older compiler; request the missing resources. A migration is a NEW revision, not a modification of the current one.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not summarize pinned toolchain metadata; do not infer replacement compiler versions.");
             }
         }
 

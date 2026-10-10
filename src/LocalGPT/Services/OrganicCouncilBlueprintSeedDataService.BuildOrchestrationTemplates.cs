@@ -129,7 +129,7 @@ Review the intent manifest independently.
 
 For Greenfield work, verify that the proposed solution/project/file shape directly satisfies the user's requested artifact without inventing dependencies or forcing repository intake. The absence of an existing workspace is expected and is not a reason to stop.
 
-For ExistingProject work, test useful structure/content regexes against bounded supplied evidence and reject duplicate, generated-noise, contradictory, path-unsafe or unsupported file mappings. When more evidence is genuinely required, name the smallest bounded file/slice needed; never demand that an entire huge context be loaded before useful work can continue.
+For ExistingProject work, honor pinned compiler/runtime/package versions from the current project/revision; never propose a compiler downgrade as a repair. Check version-relevant database Knowledge/regexes and source manifests before researching; migration requires a separate parent-linked approved revision. Test useful structure/content regexes against bounded supplied evidence and reject duplicate, generated-noise, contradictory, path-unsafe or unsupported file mappings. When more evidence is genuinely required, name the smallest bounded file/slice needed; never demand that an entire huge context be loaded before useful work can continue.
 
 Return a corrected target manifest suitable for concrete source generation or maintenance planning.
 
@@ -141,7 +141,7 @@ Turn the reviewed target manifest into an exact implementation plan that is imme
 
 For Greenfield work, specify the exact relative files and full source/configuration needed for a minimal complete artifact. When .NET 10/C# is requested, include a net10.0 project/solution shape and ordinary SDK conventions. Do not answer with pseudocode, a tutorial, or a request to inspect unrelated workspaces. If the user requested compile/build, mark BuildAfterGeneration=true. If the user requested a ZIP/artifact, generation already produces a downloadable ZIP; do not ask the user to package it manually.
 
-For ExistingProject work, preserve current architecture/style and identify exact create/update/delete paths plus revision/toolchain implications. Ask through human.collaboration.request only when one consequential choice is genuinely unresolved; otherwise continue without asking for scope the user already supplied.
+For ExistingProject work, preserve current architecture/style and identify exact create/update/delete paths plus revision/toolchain implications. NEVER silently change the current project's target framework, compiler or language runtime to match a different locally installed version. First verify the selected revision's global.json / project files / language manifests / Python environment and exact installed toolchains. If the exact compiler is missing, issue a human resource request; an upgrade or downgrade can only be proposed as a new user-approved parent-linked project revision via project.revision.save, never in-place. Ask through human.collaboration.request only when one consequential choice is genuinely unresolved; otherwise continue without asking for scope the user already supplied.
 
 Return the exact source/output plan, not a prose substitute for implementation.
 """, "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.maintenance.get", "project.workspace.files.list", "project.workspace.file.read", "toolchain.knowledge.list", "toolchain.installation.list", "codegen.capabilities"]),
