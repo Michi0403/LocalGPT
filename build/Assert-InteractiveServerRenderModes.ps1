@@ -14,6 +14,7 @@ $expected = [ordered]@{
     'Components/Layout/ToastWrapper.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Pages/Chat.razor' = '@rendermode InteractiveServer'
     'Components/Pages/CouncilTeams.razor' = '@rendermode InteractiveServer'
+    'Components/Pages/DataManagement.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Pages/Database.razor' = '@rendermode InteractiveServer'
     'Components/Pages/DxFunctionCatalog.razor' = '@rendermode InteractiveServer'
     'Components/Pages/Help.razor' = '@rendermode InteractiveServer'
@@ -55,8 +56,10 @@ foreach ($relative in $inheritedThemeChildren) {
 }
 
 # Every routed application page except the static fatal-error fallback must retain its own
-# prerendered InteractiveServer boundary. This makes a newly added route fail validation instead
-# of silently shipping as static SSR because it was omitted from the reviewed list above.
+# reviewed InteractiveServer boundary. Data Management is deliberately non-prerendered because
+# its scoped data-domain services belong to one interactive circuit, not a duplicated SSR pass.
+# The exact non-prerendered route remains explicitly owned here, without a general opt-out.
+$reviewedNonPrerenderedPages = @('Components/Pages/DataManagement.razor')
 $pagesRoot = Join-Path $appRoot 'Components/Pages'
 foreach ($file in @(Get-ChildItem -LiteralPath $pagesRoot -Recurse -File -Filter '*.razor')) {
     $text = [System.IO.File]::ReadAllText($file.FullName, $utf8)
@@ -66,8 +69,13 @@ foreach ($file in @(Get-ChildItem -LiteralPath $pagesRoot -Recurse -File -Filter
         if ($text.IndexOf('@rendermode', [StringComparison]::Ordinal) -ge 0) { Fail 'Error.razor is the static fatal-error fallback and must not open a circuit.' }
         continue
     }
-    if (-not $expected.Contains($relative) -or $expected[$relative] -cne '@rendermode InteractiveServer') {
-        Fail "$relative is a routed application page but is not registered as a prerendered InteractiveServer page."
+    $requiredMode = if ($reviewedNonPrerenderedPages -contains $relative) {
+        '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
+    } else {
+        '@rendermode InteractiveServer'
+    }
+    if (-not $expected.Contains($relative) -or $expected[$relative] -cne $requiredMode) {
+        Fail "$relative is a routed application page but is not registered with its reviewed InteractiveServer mode."
     }
 }
 

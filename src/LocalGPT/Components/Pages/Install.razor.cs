@@ -43,6 +43,9 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <value>The active install section value exposed by <see cref="Install"/>.</value>
     private string ActiveInstallSection { get; set; } = "providers";
+    /// <summary>Keeps the last opt-in CanIRun.ai score results available when the setup-guide tab is unmounted and reopened.</summary>
+    /// <value>The last successfully fetched, attributed recommendation rows for this Install page instance.</value>
+    private IReadOnlyList<CanIRunModelRecommendation> CanIRunRecommendationCache { get; set; } = [];
     /// <summary>Gets the detected per-user/runtime path layout shown on the setup page.</summary>
     /// <value>The application path layout value exposed by <see cref="Install"/>.</value>
     private LocalGptApplicationPathLayout? ApplicationPathLayout { get; set; }

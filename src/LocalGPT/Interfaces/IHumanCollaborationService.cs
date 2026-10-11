@@ -28,6 +28,17 @@ public interface IHumanCollaborationService
         int take = 80,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Retrieves human-approved one-run model-health exclusions still awaiting consumption.</summary>
+    /// <param name="cancellationToken">Cancellation token for the database read.</param>
+    /// <returns>The active decisions, including older approvals outside the normal inbox page limit.</returns>
+    Task<IReadOnlyList<HumanCollaborationRequest>> GetActiveModelHealthExclusionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Releases one approved model-health exclusion without deleting the human decision history.</summary>
+    /// <param name="requestId">The exact approved model-health request to release.</param>
+    /// <param name="cancellationToken">Cancellation token for the update.</param>
+    /// <returns>Whether an active exclusion was released.</returns>
+    Task<bool> ReleaseModelHealthExclusionAsync(Guid requestId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Performs authorize or enqueue as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

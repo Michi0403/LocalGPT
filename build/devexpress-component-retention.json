@@ -45,7 +45,7 @@
       "MaximumNativeDisclosureTags": 0
     },
     "src/LocalGPT/Components/Layout/NavMenu.razor": {
-      "MinimumDevExpressTags": 16,
+      "MinimumDevExpressTags": 17,
       "MaximumNativeInteractiveTags": 0,
       "MaximumNativeDisclosureTags": 0
     },
@@ -87,6 +87,11 @@
     },
     "src/LocalGPT/Components/Pages/Database.razor": {
       "MinimumDevExpressTags": 89,
+      "MaximumNativeInteractiveTags": 0,
+      "MaximumNativeDisclosureTags": 0
+    },
+    "src/LocalGPT/Components/Pages/DataManagement.razor": {
+      "MinimumDevExpressTags": 35,
       "MaximumNativeInteractiveTags": 0,
       "MaximumNativeDisclosureTags": 0
     },

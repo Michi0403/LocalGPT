@@ -229,6 +229,21 @@
                         </div>
                     }
                 }
+                @if (recommendations.Count > 0)
+                {
+                    <div class="initial-setup-provider-catalog-results">
+                        <h5>@T("CanIRun.ai model") · @recommendations.Count</h5>
+                        <DxGrid Data="@recommendations" PageSize="12" ShowSearchBox="true" TextWrapEnabled="true">
+                            <Columns>
+                                <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.ModelName)" Caption='@T("CanIRun.ai model")' />
+                                <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.Score)" Caption='@T("score")' />
+                                <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.Grade)" Caption='@T("Grade")' />
+                                <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.Status)" Caption='@T("Status")' />
+                                <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.DeviceEndpoint)" Caption='@T("Provider endpoint / physical host")' />
+                            </Columns>
+                        </DxGrid>
+                    </div>
+                }
                 @if (modelChoices.Count == 0)
                 {
                     <p>No provider model entries are currently available. You can still enter a provider model ID manually or browse the selected provider's official catalog.</p>
@@ -385,6 +400,14 @@
 
 
 @code {
+    /// <summary>Results retained by the Install route when changing between its vertically tabbed workbench sections.</summary>
+    /// <value>The last successful, explicitly opted-in CanIRun.ai lookup for this Install page instance.</value>
+    [Parameter] public IReadOnlyList<CanIRunModelRecommendation> CachedRecommendations { get; set; } = [];
+
+    /// <summary>Notifies the Install route that the attributed recommendation list was replaced by a successful lookup.</summary>
+    /// <value>The event callback that retains recommendations across workbench tab remounts.</value>
+    [Parameter] public EventCallback<IReadOnlyList<CanIRunModelRecommendation>> CachedRecommendationsChanged { get; set; }
+
     /// <summary>Returns one setup-assistant string through the maintained LocalGPT localization catalog.</summary>
     /// <param name="source">English source text used as the exact localization-catalog lookup value.</param>
     /// <returns>The localized setup-assistant text, or the maintained fallback when no culture-specific value exists.</returns>
@@ -529,6 +552,8 @@
     {
         try
         {
+        if (CachedRecommendations.Count > 0)
+            recommendations.AddRange(CachedRecommendations);
         benchmarkTeamName = T("Hardware-curated initial benchmark");
         await RefreshAsync().ConfigureAwait(false);
     
@@ -774,6 +799,7 @@
             await SetBusyAsync(true, "canirun", T("Querying CanIRun.ai and mapping hardware-fit recommendations…")).ConfigureAwait(false);
             var reduced = await Setup.GetHardwareRecommendationsAsync(hardware, canIRunOptIn).ConfigureAwait(false);
             await InvokeAsync(() => { recommendations.Clear(); recommendations.AddRange(reduced); statusText = TF("Loaded {0} attributed CanIRun.ai recommendation(s) without merging physical hosts.", reduced.Count); }).ConfigureAwait(false);
+            await InvokeAsync(() => CachedRecommendationsChanged.InvokeAsync(reduced.ToList())).ConfigureAwait(false);
             await RebuildModelChoicesAsync().ConfigureAwait(false);
         }
         catch (Exception exception) { Logger.LogError(exception, "CanIRun.ai setup recommendation lookup failed."); await SetStatusAsync(T("CanIRun.ai lookup failed. Review LocalGPT logs.")).ConfigureAwait(false); }

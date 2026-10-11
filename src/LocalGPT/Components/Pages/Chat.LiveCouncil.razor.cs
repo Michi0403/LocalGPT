@@ -47,6 +47,22 @@ namespace LocalGPT.Components.Pages
     /// Stores the in-memory revealed completed council activity evidence collection maintained internally by <see cref="Chat"/> for its current workflow state.
     /// </summary>
     private readonly HashSet<string> revealedCompletedCouncilActivityEvidence = new(StringComparer.Ordinal);
+
+    /// <summary>Reveals or hides completed lane evidence while keeping heavy content lazy until requested.</summary>
+    /// <param name="activityKey">Unique live participant activity key.</param>
+    private void ToggleCompletedCouncilActivityEvidence(string activityKey)
+    {
+        try
+        {
+            if (!revealedCompletedCouncilActivityEvidence.Add(activityKey))
+                revealedCompletedCouncilActivityEvidence.Remove(activityKey);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Toggling completed Council participant evidence failed.");
+            Notifier.ShowError("ChatToasts", "Council member evidence could not be opened. See local logs.", "Council evidence");
+        }
+    }
     /// <summary>Gets unresolved AI/Council review requests that belong to the currently selected Chat/Council session.</summary>
     /// <value>The ordered unresolved collaboration requests projected into the active chat.</value>
     private IReadOnlyList<HumanCollaborationRequest> InlineChatRequests

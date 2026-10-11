@@ -151,6 +151,67 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
     }
 }
 
+    /// <summary>Lists all active approved one-run model-health decisions for direct operator maintenance.</summary>
+    /// <param name="cancellationToken">Cancellation token for the database read.</param>
+    /// <returns>The approved, not yet consumed model-health decisions.</returns>
+    public async Task<IReadOnlyList<HumanCollaborationRequest>> GetActiveModelHealthExclusionsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            return await db.HumanCollaborationRequests.AsNoTracking()
+                .Where(item => item.OperationKey.StartsWith("council.model.exclude-next-run.")
+                    && item.Status == vocabulary.Get().HumanStatusApproved)
+                .OrderByDescending(item => item.DecidedAtUtc)
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not load the approved one-run model-health decisions.");
+            throw;
+        }
+    }
+
+    /// <summary>Releases an active one-run exclusion while preserving the saved human decision and its audit trail.</summary>
+    /// <param name="requestId">Identifier of the exact decision to release.</param>
+    /// <param name="cancellationToken">Cancellation token for the database update.</param>
+    /// <returns>Whether a matching active exclusion was released.</returns>
+    public async Task<bool> ReleaseModelHealthExclusionAsync(Guid requestId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            EnsureTrustedHumanInteraction("release an approved Council model-health exclusion");
+            await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var request = await db.HumanCollaborationRequests.SingleOrDefaultAsync(item => item.Id == requestId, cancellationToken).ConfigureAwait(false);
+                if (request is null || !request.OperationKey.StartsWith("council.model.exclude-next-run.", StringComparison.OrdinalIgnoreCase)
+                    || request.Status != vocabulary.Get().HumanStatusApproved)
+                    return false;
+
+                request.Status = vocabulary.Get().HumanStatusConsumed;
+                request.ConsumedAtUtc = DateTime.UtcNow;
+                request.UpdatedAtUtc = DateTime.UtcNow;
+                request.ConsumeApproval = true;
+                request.ApprovalReuseScope = HumanApprovalReuseScope.ExactRequestOnce;
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                NotifyChanged();
+                logger.LogInformation("Operator released the approved one-run model-health decision {RequestId} without deleting its audit history.", requestId);
+                return true;
+            }
+            finally
+            {
+                databaseGate.Release();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not release model-health decision {RequestId}.", requestId);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Performs authorize or enqueue as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -228,8 +289,15 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
 
                     var resolvedStatus = existing.Status;
                     var declined = resolvedStatus == vocabulary.Get().HumanStatusDeclined;
-                    if (existing.ConsumeApproval)
+                    // A model-health exclusion always means one run. Older low-risk approvals could
+                    // have been saved with persistent reuse, which accidentally excluded models forever.
+                    if (existing.ConsumeApproval || normalizedOperationKey.StartsWith("council.model.exclude-next-run.", StringComparison.OrdinalIgnoreCase))
                     {
+                        if (normalizedOperationKey.StartsWith("council.model.exclude-next-run.", StringComparison.OrdinalIgnoreCase))
+                        {
+                            existing.ConsumeApproval = true;
+                            existing.ApprovalReuseScope = HumanApprovalReuseScope.ExactRequestOnce;
+                        }
                         existing.Status = vocabulary.Get().HumanStatusConsumed;
                         existing.ConsumedAtUtc = DateTime.UtcNow;
                         existing.UpdatedAtUtc = DateTime.UtcNow;
@@ -418,10 +486,11 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                 request.UpdatedAtUtc = DateTime.UtcNow;
                 request.ConsumedAtUtc = null;
                 request.DecisionVersion = Math.Max(1, request.DecisionVersion + 1);
-                request.ApprovalReuseScope = isApproval
+                var oneRunModelHealth = request.OperationKey.StartsWith("council.model.exclude-next-run.", StringComparison.OrdinalIgnoreCase);
+                request.ApprovalReuseScope = isApproval && !oneRunModelHealth
                     ? submission.ReuseScope
                     : HumanApprovalReuseScope.ExactRequestOnce;
-                request.ConsumeApproval = !isApproval || submission.ConsumeApproval;
+                request.ConsumeApproval = oneRunModelHealth || !isApproval || submission.ConsumeApproval;
                 request.ApprovalSessionId = request.ApprovalReuseScope == HumanApprovalReuseScope.CurrentApplicationSession
                     ? approvalSessionId
                     : null;

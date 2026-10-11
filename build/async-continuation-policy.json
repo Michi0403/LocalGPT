@@ -74,6 +74,22 @@
       "LinkKnowledgeToProjectTopicAsync",
       "RemoveKnowledgeProjectRelationshipAsync"
     ],
+    "Components/Pages/DataManagement.razor.cs": [
+      "ReloadAsync",
+      "SelectGroupAsync",
+      "SelectTableAsync",
+      "OpenTableFromTreeAsync",
+      "LoadSelectedTableAsync",
+      "NextPageAsync",
+      "PreviousPageAsync",
+      "LoadSelectedTableCoreAsync",
+      "NavigateRelationAsync",
+      "ClearRelationFilterAsync",
+      "SaveRowAsync",
+      "DeleteRowAsync",
+      "SavePreferenceAsync",
+      "ReleaseHealthExclusionAsync"
+    ],
     "Components/Shared/ChatGameConsole.razor": [
       "ReportGameAvailabilityAsync",
       "ResolveActiveGameAsync",

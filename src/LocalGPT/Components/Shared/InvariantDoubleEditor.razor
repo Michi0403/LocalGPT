@@ -74,9 +74,7 @@
     {
         try
         {
-            return DecimalPlaces <= 0
-        ? "0"
-        : $"0.{new string('#', Math.Clamp(DecimalPlaces, 1, 8))}";
+            return $"n{Math.Clamp(DecimalPlaces, 0, 8)}";
         }
         catch (Exception __componentPropertyException)
         {
