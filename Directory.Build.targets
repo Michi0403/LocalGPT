@@ -48,6 +48,25 @@
           StandardErrorImportance="High" />
   </Target>
 
+  <!-- Publish already invokes this audit; enforce the identical, unweakened boundary
+       contract during normal compilation as well, including every cross-RID build. -->
+  <PropertyGroup>
+    <CrossPlatformBoundariesScript>$(MSBuildThisFileDirectory)build/Assert-CrossPlatformBoundaries.ps1</CrossPlatformBoundariesScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptCrossPlatformBoundaries"
+          BeforeTargets="BeforeBuild;Publish"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(CrossPlatformBoundariesScript)')"
+           Text="Cross-platform boundary audit script is missing: $(CrossPlatformBoundariesScript)" />
+    <Exec Condition="Exists('$(CrossPlatformBoundariesScript)')"
+          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(CrossPlatformBoundariesScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
   <PropertyGroup>
     <OperationalDiagnosticsScript>$(MSBuildThisFileDirectory)build/Assert-OperationalDiagnostics.ps1</OperationalDiagnosticsScript>
   </PropertyGroup>

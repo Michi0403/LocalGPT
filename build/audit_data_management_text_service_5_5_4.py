@@ -11,7 +11,7 @@ SOURCE = ROOT / "src" / "LocalGPT"
 
 def require(condition: bool, detail: str) -> None:
     if not condition:
-        raise SystemExit(f"LocalGPT 5.5.4 Data Management regression: {detail}")
+        raise SystemExit(f"LocalGPT 5.6.0 Data Management regression: {detail}")
 
 
 page = (SOURCE / "Components/Pages/DataManagement.razor").read_text(encoding="utf-8-sig")
@@ -53,4 +53,4 @@ for folder in ("Components", "Controllers", "Controller"):
                 violations.append(identity)
 
 require(not violations, "Windows text-service ownership gate would reject:\n" + "\n".join(violations))
-print("LocalGPT 5.5.4 text-service ownership and protected SQLite primary-key editor audit passed.")
+print("LocalGPT 5.6.0 text-service ownership and protected SQLite primary-key editor audit passed.")

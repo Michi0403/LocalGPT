@@ -65,7 +65,7 @@
                             ValueChanged="@((AsciiSelectOption<string> option) => ChangeFullscreenScaleModeAsync(option))"
                             CssClass="ascii-console-combo" />
             </label>
-            <DxButton Text="Fullscreen" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="FullscreenAsync" />
+            <DxButton Text="Fullscreen" CssClass="ascii-console-button chat-game-fullscreen-toggle" RenderStyle="ButtonRenderStyle.Secondary" Click="FullscreenAsync" />
             @if (!operatorMode && snapshot is null)
             {
                 <DxButton Text="Play ASCII corridor" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="StartDoomAsync" />
@@ -111,7 +111,7 @@
                 }
                 @if (CanShowControlGuide)
                 {
-                    <DxButton Text="@(showControls ? "Hide guide" : "Show guide")" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="ToggleControls" />
+                    <DxButton Text="@(showControls ? "Hide guide" : "Show guide")" CssClass="ascii-console-button chat-game-guide-toggle" RenderStyle="ButtonRenderStyle.Secondary" Click="ToggleControls" />
                 }
                 @if (string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase))
                 {
@@ -122,6 +122,38 @@
                     <DxButton Text="Restart same map" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="RestartSameMapAsync" />
                     <DxButton Text="New map" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="StartFreshMapAsync" />
                 }
+            }
+            @if (!operatorMode)
+            {
+                <div class="chat-game-revision-picker @(showRevisionPicker ? "is-open" : string.Empty)" aria-label="Play an approved Game Studio revision">
+                    <DxButton Text="@(playableRevisions.Count > 0 ? $"Games ({playableRevisions.Count})" : "Games (0)")"
+                              RenderStyle="ButtonRenderStyle.Secondary" Click="ToggleRevisionPicker" />
+                    @if (showRevisionPicker)
+                    {
+                        @if (playableRevisions.Count > 0)
+                        {
+                            <DxListBox Data="@playableRevisions" Value="@selectedPlayableRevision"
+                                       ValueExpression="@(() => selectedPlayableRevision)"
+                                       TextFieldName="@nameof(ProjectGameRevisionChoice.DisplayName)"
+                                       ValueChanged="@((ProjectGameRevisionChoice choice) => SelectPlayableRevision(choice))"
+                                       Height="110px" />
+                        }
+                        <div class="chat-game-revision-actions">
+                            @if (playableRevisions.Count > 0)
+                            {
+                                <DxButton Text="Play revision" RenderStyle="ButtonRenderStyle.Primary"
+                                          Enabled="@(!revisionsLoading && selectedPlayableRevision is not null)"
+                                          Click="StartSelectedRevisionAsync" />
+                            }
+                            <DxButton Text="Refresh" RenderStyle="ButtonRenderStyle.Secondary"
+                                      Enabled="@(!revisionsLoading)" Click="RefreshPlayableRevisionsAsync" />
+                        </div>
+                        @if (revisionsStatus is not "")
+                        {
+                            <small role="status">@revisionsStatus</small>
+                        }
+                    }
+                </div>
             }
             <DxButton Text="× Close"
                       CssClass="ascii-console-button chat-game-console-close"
@@ -141,9 +173,10 @@
                 <span class="ascii-operator-prompt" aria-hidden="true">λ</span>
                 <label class="visually-hidden">Operator shell</label>
                 <DxComboBox Data="@availableShells"
-                            Value="@SelectedOperatorShell"
+                            Value="@operatorShell"
+                            ValueFieldName="@nameof(LocalConsoleShellDescriptor.Shell)"
                             TextFieldName="DisplayName"
-                            ValueChanged="@((LocalConsoleShellDescriptor shell) => ChangeOperatorShell(shell))"
+                            ValueChanged="@((LocalConsoleShellKind shell) => ChangeOperatorShell(shell))"
                             ReadOnly="@operatorSubmitting"
                             CssClass="ascii-operator-shell" />
                 <label class="visually-hidden">ASCII operator command</label>
@@ -319,7 +352,7 @@
                     <div class="chat-game-live-status" role="status" aria-live="polite">@GamePreparationStatus</div>
                 }
                 <pre class="chat-game-screen" data-game-animation-screen aria-live="polite">@snapshot.FrameText</pre>
-                <canvas class="chat-game-pixel-screen" data-game-pixel-screen aria-label="Pixel rendering of the current deterministic game frame" hidden></canvas>
+                <canvas id="@($"{elementId}-scene-pixel")" class="chat-game-pixel-screen" data-game-pixel-screen aria-label="Pixel rendering of the current deterministic game frame" hidden></canvas>
                 <div class="chat-game-animation-subtitle" data-game-animation-subtitle aria-live="polite" hidden>@snapshot.AnimationSubtitle</div>
             </div>
             @if (ShowControlGuide)
@@ -580,6 +613,16 @@
     /// Stores the internal snapshot state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
     /// </summary>
     private CouncilGameSessionSnapshot? snapshot;
+    /// <summary>Approved, persistent Game Studio scene revisions available in the regular Chat console.</summary>
+    private IReadOnlyList<ProjectGameRevisionChoice> playableRevisions = [];
+    /// <summary>Exact persistent project revision selected in the DevExpress list.</summary>
+    private ProjectGameRevisionChoice? selectedPlayableRevision;
+    /// <summary>Prevents overlapping revision lookup and launch requests.</summary>
+    private bool revisionsLoading;
+    /// <summary>Bounded, user-visible status for revision browsing and launch failures.</summary>
+    private string revisionsStatus = string.Empty;
+    /// <summary>Prevents repeated large authored-scene interop on token-stream component updates.</summary>
+    private string lastJsAuthoredSceneSignature = string.Empty;
     /// <summary>
     /// Stores the in-memory console output collection maintained internally by <see cref="ChatGameConsole"/> for its current workflow state.
     /// </summary>
@@ -670,6 +713,8 @@
     private string operatorWorkingDirectory = string.Empty;
     /// <summary>Retains the host-resolved shell choices displayed by the embedded operator selector.</summary>
     private IReadOnlyList<LocalConsoleShellDescriptor> availableShells = [];
+    /// <summary>Keeps the DevExpress revision list collapsed until the operator explicitly requests it.</summary>
+    private bool showRevisionPicker;
     /// <summary>
     /// Gets a value indicating whether show control guide applies to the chat game console state.
     /// </summary>
@@ -714,11 +759,6 @@
     /// <value>The selected autoplay delay option value exposed by <see cref="ChatGameConsole"/>.</value>
     private AsciiSelectOption<int> SelectedAutoplayDelayOption =>
         GetSelectedAutoplayDelayOptionForRender();
-
-    /// <summary>Gets the selected host-resolved shell descriptor for the DevExpress operator selector.</summary>
-    /// <value>The selected operator shell value exposed by <see cref="ChatGameConsole"/>.</value>
-    private LocalConsoleShellDescriptor? SelectedOperatorShell =>
-        GetSelectedOperatorShellForRender();
 
     /// <summary>Gets whether the active game should expose its human control guide.</summary>
     /// <value><c>true</c> when controls or in-game collaboration input are currently relevant.</value>
@@ -876,6 +916,7 @@
         if (availableShells.Count > 0 && !availableShells.Any(item => item.Shell == operatorShell))
             operatorShell = availableShells[0].Shell;
         snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);
+        await RefreshPlayableRevisionsAsync().ConfigureAwait(true);
         await ReportGameAvailabilityAsync().ConfigureAwait(true);
         await RefreshHotSeatRequestAsync().ConfigureAwait(true);
         lastHumanRequestProjectionRunId = CouncilRunId;
@@ -973,6 +1014,14 @@
 
             if (!operatorMode && !conversationMode && snapshot is not null)
             {
+                var authoredSceneSignature = snapshot.Scene is null || snapshot.SceneClock is null
+                    ? string.Empty : $"{snapshot.Id:N}:{snapshot.SourceRevisionId:N}:{snapshot.SceneClock.Tick}";
+                if (!string.Equals(lastJsAuthoredSceneSignature, authoredSceneSignature, StringComparison.Ordinal))
+                {
+                    await JS.InvokeVoidAsync("localGptGameConsole.setAuthoredScene", elementId,
+                        snapshot.Scene, snapshot.SceneClock).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                    lastJsAuthoredSceneSignature = authoredSceneSignature;
+                }
                 var framePresentationSignature = AsciiText.BuildFramePresentationSignature(snapshot);
                 if (!string.Equals(lastJsFramePresentationSignature, framePresentationSignature, StringComparison.Ordinal))
                 {
@@ -990,6 +1039,7 @@
             else
             {
                 lastJsFramePresentationSignature = string.Empty;
+                lastJsAuthoredSceneSignature = string.Empty;
             }
 
             IReadOnlyList<string> activeSequenceFrames = !operatorMode && conversationMode
@@ -1157,14 +1207,14 @@
     }
 
     /// <summary>Updates the renderer-owned shell selection from one installed backend descriptor.</summary>
-    /// <param name="shell">Host-resolved shell descriptor selected by the operator.</param>
-    private void ChangeOperatorShell(LocalConsoleShellDescriptor? shell)
+    /// <param name="shell">Stable installed shell kind selected by the operator.</param>
+    private void ChangeOperatorShell(LocalConsoleShellKind shell)
     {
         try
         {
-            if (shell is not null && availableShells.Any(item => item.Shell == shell.Shell))
+            if (availableShells.Any(item => item.Shell == shell))
             {
-                operatorShell = shell.Shell;
+                operatorShell = shell;
                 operatorStatus = $"Selected {OperatorShellLabel}. Ordinary lines run behind the ASCII wall.";
             }
         }
@@ -1315,6 +1365,100 @@
         {
             Logger.LogError(exception, "Dispatching a parsed LocalGPT ASCII operator application action failed.");
             throw;
+        }
+    }
+
+    /// <summary>Expands the revision editor only on demand, preserving the compact console command bar.</summary>
+    private void ToggleRevisionPicker()
+    {
+        try
+        {
+            showRevisionPicker = !showRevisionPicker;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Toggling the Game Studio revision picker failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Reloads persistent approved game revisions through the project domain service.</summary>
+    /// <returns>The completed revision-list lookup.</returns>
+    private async Task RefreshPlayableRevisionsAsync()
+    {
+        if (revisionsLoading)
+            return;
+        revisionsLoading = true;
+        try
+        {
+            var previous = selectedPlayableRevision?.RevisionId;
+            playableRevisions = await GameProjects.ListPlayableRevisionsAsync().ConfigureAwait(true);
+            selectedPlayableRevision = playableRevisions.FirstOrDefault(item => item.RevisionId == previous)
+                ?? playableRevisions.FirstOrDefault();
+            revisionsStatus = playableRevisions.Count == 0
+                ? "No completed playable Game Studio revisions yet."
+                : $"{playableRevisions.Count} approved revisions ready to play.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Refreshing approved Game Studio revisions in Chat failed.");
+            revisionsStatus = "Could not load Game Studio revisions; retry Refresh.";
+        }
+        finally
+        {
+            revisionsLoading = false;
+        }
+    }
+
+    /// <summary>Selects a durable revision without starting or mutating any game.</summary>
+    /// <param name="choice">Project/revision identity selected in DevExpress ListBox.</param>
+    private void SelectPlayableRevision(ProjectGameRevisionChoice choice)
+    {
+        try
+        {
+            selectedPlayableRevision = choice;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Selecting an approved Game Studio revision failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Starts an explicitly selected approved revision through the shared session service.</summary>
+    /// <returns>The completed launch and chat display handoff.</returns>
+    private async Task StartSelectedRevisionAsync()
+    {
+        if (revisionsLoading || selectedPlayableRevision is null)
+            return;
+        revisionsLoading = true;
+        try
+        {
+            var chosen = selectedPlayableRevision;
+            var started = await GameProjects.LaunchRevisionAsync(chosen.ProjectId, chosen.RevisionId,
+                new LaunchProjectGameRequest
+                {
+                    ConversationId = ConversationId,
+                    CouncilRunId = CouncilRunId,
+                    StartedBy = "Human User"
+                }).ConfigureAwait(true);
+            snapshot = started;
+            revisionsStatus = $"Playing {chosen.DisplayName}.";
+            showControls = true;
+            operatorMode = false;
+            conversationMode = false;
+            await ReportGameAvailabilityAsync().ConfigureAwait(true);
+            await RefreshHotSeatRequestAsync().ConfigureAwait(true);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Starting the selected Game Studio revision in Chat failed.");
+            revisionsStatus = "The selected revision could not be started. Check game diagnostics.";
+        }
+        finally
+        {
+            revisionsLoading = false;
         }
     }
 
@@ -2217,21 +2361,6 @@
         catch (Exception __componentPropertyException)
         {
             Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.SelectedAutoplayDelayOption failed.");
-            throw;
-        }
-    }
-
-    /// <summary>Computes SelectedOperatorShell for the render path with component-local diagnostics.</summary>
-    /// <returns>The local console shell descriptor produced by the operation.</returns>
-    private LocalConsoleShellDescriptor? GetSelectedOperatorShellForRender()
-    {
-        try
-        {
-            return availableShells.FirstOrDefault(option => option.Shell == operatorShell);
-        }
-        catch (Exception __componentPropertyException)
-        {
-            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.SelectedOperatorShell failed.");
             throw;
         }
     }

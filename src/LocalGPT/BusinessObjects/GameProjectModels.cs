@@ -89,6 +89,8 @@ public sealed class LocalGptGameProjectProfile
 /// </summary>
 public sealed class ProjectGameDefinition
 {
+    /// <summary>Curated scene from the last explicitly completed project revision, if that revision contains a Game Studio world.</summary>
+    public GameSceneDocument? Scene { get; set; }
     /// <summary>Identifies the durable LocalGPT project that owns this compiled game definition.</summary>
     /// <value>The non-empty project identifier captured by the build.</value>
     public Guid ProjectId { get; set; }
@@ -250,6 +252,14 @@ public sealed class LaunchProjectGameRequest
     /// <summary>Provides the bounded human-readable actor label recorded as the launch initiator.</summary>
     /// <value>The launch initiator label.</value>
     public string StartedBy { get; set; } = "Human User";
+}
+
+/// <summary>A completed, approved Game Studio revision available for direct play in the shared Chat game surface.</summary>
+public sealed record ProjectGameRevisionChoice(Guid ProjectId, Guid RevisionId, string ProjectName,
+    string RevisionName, string ProjectVersion, bool IsCurrent)
+{
+    /// <summary>Shows project identity and its exact immutable revision without hiding the revision boundary.</summary>
+    public string DisplayName => $"{ProjectName} · {RevisionName} [{RevisionId.ToString("N")[..8]}]{(IsCurrent ? " · current" : string.Empty)}";
 }
 
 /// <summary>Wraps the project identifier used by the read-only project.game.profile.get DX function.</summary>

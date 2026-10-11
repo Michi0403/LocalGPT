@@ -20,6 +20,7 @@ namespace LocalGPT.Services;
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="projectWorkspaceSync">Learning project workspace sync service dependency used by the learning round workflow to provide the corresponding application capability.</param>
 /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
+/// <param name="platform">Host filesystem path semantics supplied by the registered platform runtime service.</param>
 public sealed partial class LearningRoundService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -28,6 +29,7 @@ public sealed partial class LearningRoundService(
     IRegexCuratorService regexCuratorService,
     ILearningProjectWorkspaceSyncService projectWorkspaceSync,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    IPlatformRuntimeService platform,
     ILogger<LearningRoundService> logger) : ILearningRoundService
 {
     /// <summary>

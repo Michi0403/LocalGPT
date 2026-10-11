@@ -19,6 +19,8 @@ namespace LocalGPT.Services
     private string Render(CouncilGameSessionState session) {
     try
     {
+        if (session.Scene is not null && session.SceneClock is not null)
+            return gameSceneEngine.Preview(session.Scene, session.SceneClock).Text;
         if (string.Equals(session.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase))
             return RenderKernelTournamentWaiting(session);
         return session.RuntimeProfile == CouncilGameRuntimeProfile.Story

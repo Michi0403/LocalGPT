@@ -17,6 +17,7 @@ $expected = [ordered]@{
     'Components/Pages/DataManagement.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Pages/Database.razor' = '@rendermode InteractiveServer'
     'Components/Pages/DxFunctionCatalog.razor' = '@rendermode InteractiveServer'
+    'Components/Pages/GameStudio.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Pages/Help.razor' = '@rendermode InteractiveServer'
     'Components/Pages/Index.razor' = '@rendermode InteractiveServer'
     'Components/Pages/Install.razor' = '@rendermode InteractiveServer'
@@ -59,7 +60,7 @@ foreach ($relative in $inheritedThemeChildren) {
 # reviewed InteractiveServer boundary. Data Management is deliberately non-prerendered because
 # its scoped data-domain services belong to one interactive circuit, not a duplicated SSR pass.
 # The exact non-prerendered route remains explicitly owned here, without a general opt-out.
-$reviewedNonPrerenderedPages = @('Components/Pages/DataManagement.razor')
+$reviewedNonPrerenderedPages = @('Components/Pages/DataManagement.razor', 'Components/Pages/GameStudio.razor')
 $pagesRoot = Join-Path $appRoot 'Components/Pages'
 foreach ($file in @(Get-ChildItem -LiteralPath $pagesRoot -Recurse -File -Filter '*.razor')) {
     $text = [System.IO.File]::ReadAllText($file.FullName, $utf8)

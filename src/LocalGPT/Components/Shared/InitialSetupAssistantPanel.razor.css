@@ -19,6 +19,19 @@
 .initial-setup-model-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .55rem; min-width: 0; font-size: .9rem; }
 .initial-setup-model-meta > span:not(:last-child)::after { content: "·"; margin-inline-start: .55rem; opacity: .55; }
 .initial-setup-model-meta code { overflow-wrap: anywhere; }
+.initial-setup-model-memory {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    gap: .3rem .65rem;
+    padding: .5rem .65rem;
+    border: 1px solid var(--localgpt-border-color);
+    border-radius: .45rem;
+    min-width: 0;
+    font-variant-numeric: tabular-nums;
+}
+.initial-setup-model-memory > strong,
+.initial-setup-model-memory > small { grid-column: 1 / -1; }
+.initial-setup-model-memory > small { overflow-wrap: anywhere; }
 .initial-setup-model-actions { display: flex; flex-wrap: wrap; gap: .45rem .65rem; align-items: center; min-width: 0; }
 .initial-setup-model-actions a { overflow-wrap: anywhere; }
 .initial-setup-model-actions ::deep .dxbl-btn { min-height: 2.25rem; }

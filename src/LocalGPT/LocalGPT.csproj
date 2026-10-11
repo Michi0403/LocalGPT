@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>5.5.4</Version>
+    <Version>5.6.0</Version>
     <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
@@ -31,6 +31,9 @@
 		  osx-arm64
 	  </RuntimeIdentifiers>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="GameTemplates/GodotSceneRuntime.cs.txt" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\LocalGPT.PluginContracts\LocalGPT.PluginContracts.csproj" />

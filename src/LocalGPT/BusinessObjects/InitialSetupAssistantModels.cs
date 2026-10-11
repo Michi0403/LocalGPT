@@ -383,6 +383,14 @@ public sealed class CanIRunModelRecommendation
     /// <summary>Gets or sets the selected quantization VRAM requirement in GiB when available.</summary>
     /// <value>The required vram gi b value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
     public double? RequiredVramGiB { get; set; }
+    /// <summary>Service-estimated dedicated GPU VRAM allocation for this host and model; not a runtime measurement.</summary>
+    public double? EstimatedGpuVramGiB { get; set; }
+    /// <summary>Service-estimated system RAM allocation; includes a possible GPU-offload spill, not application overhead.</summary>
+    public double? EstimatedSystemRamGiB { get; set; }
+    /// <summary>Service-estimated shared GPU allocation from the unified/system pool, never additional to system RAM capacity.</summary>
+    public double? EstimatedUnifiedMemoryGiB { get; set; }
+    /// <summary>Explains how the model working-set estimate maps onto the reviewed host, or why no numeric estimate is available.</summary>
+    public string MemoryPlanSummary { get; set; } = string.Empty;
     /// <summary>Gets or sets the model provider/publisher reported by CanIRun.ai.</summary>
     /// <value>The publisher value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
     public string Publisher { get; set; } = string.Empty;

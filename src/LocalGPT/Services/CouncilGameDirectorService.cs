@@ -44,9 +44,14 @@ public sealed class CouncilGameDirectorService(
             var legal = context.Session.Status == "Running" &&
                         context.Session.LegalActions.Contains(action, StringComparer.OrdinalIgnoreCase);
             var predictions = new List<CouncilGameSubdirectorPrediction>(actorDirectors.Count);
-            foreach (var subdirector in actorDirectors)
+            // Legacy corridor subdirectors predict hardcoded Doom actors, not the artist-authored scene actors.
+            // Keep the same Director approval gate without injecting unrelated creature/door lore into a project revision.
+            if (context.Session.Scene is null)
             {
-                predictions.Add(await subdirector.PredictAsync(context, cancellationToken).ConfigureAwait(false));
+                foreach (var subdirector in actorDirectors)
+                {
+                    predictions.Add(await subdirector.PredictAsync(context, cancellationToken).ConfigureAwait(false));
+                }
             }
 
             var modelName = context.DirectorMode == CouncilGameDirectorMode.CouncilModelPreferred

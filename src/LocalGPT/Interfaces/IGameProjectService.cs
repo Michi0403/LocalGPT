@@ -44,6 +44,20 @@ public interface IGameProjectService
         Guid projectId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Lists approved, closed Game Studio scene revisions backed by existing Project business objects.</summary>
+    /// <param name="cancellationToken">Cancellation token for project lookup.</param>
+    /// <returns>Selectable project/revision identities, with no example or generated scene content.</returns>
+    Task<IReadOnlyList<ProjectGameRevisionChoice>> ListPlayableRevisionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Starts one exact, approved and curated project revision in the shared GameDirector session.</summary>
+    /// <param name="projectId">Owning Game project.</param>
+    /// <param name="revisionId">Immutable closed revision to play, including historical revisions.</param>
+    /// <param name="request">Chat/Council ownership metadata.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The authoritative GameDirector session snapshot.</returns>
+    Task<CouncilGameSessionSnapshot> LaunchRevisionAsync(Guid projectId, Guid revisionId,
+        LaunchProjectGameRequest request, CancellationToken cancellationToken = default);
+
     /// <summary>Launches the latest built definition for one game project through the shared GameDirector runtime.</summary>
     /// <param name="projectId">Identifier of the owning LocalGPT project.</param>
     /// <param name="request">Launch-time chat/Council ownership context.</param>

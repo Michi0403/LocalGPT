@@ -1,0 +1,137 @@
+using Godot;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+
+// General Godot C# fixed-time layer. Visual content, tile maps, creatures and camera bands come from scene.json.
+public partial class LocalGptSceneRuntime : Node2D
+{
+    private JsonDocument _scene = null!;
+    private readonly Dictionary<string, Vector2> _actors = new();
+    private double _accumulator;
+    private double _worldSeconds;
+    private long _tick;
+    private const int Cell = 24;
+
+    public override void _Ready()
+    {
+        _scene = JsonDocument.Parse(File.ReadAllText(ProjectSettings.GlobalizePath("res://scene.json")));
+        foreach (var actor in Items(_scene.RootElement, "actors"))
+            _actors[Text(actor, "id", "actor")] = new Vector2((float)Number(actor, "x", 0), (float)Number(actor, "y", 0));
+    }
+
+    public override void _Process(double delta)
+    {
+        var world = _scene.RootElement;
+        var step = 1.0 / Math.Clamp(Number(world, "fixedTicksPerSecond", 60), 10, 240);
+        _accumulator += Math.Max(0, delta);
+        var count = 0;
+        while (_accumulator + 1e-10 >= step && count++ < 1000)
+        {
+            _accumulator -= step;
+            var elapsed = step * Number(world, "worldSecondsPerRealSecond", 1);
+            foreach (var actor in Items(world, "actors"))
+            {
+                var id = Text(actor, "id", "actor");
+                if (!_actors.TryGetValue(id, out var point)) continue;
+                var next = point + new Vector2((float)(Number(actor, "velocityX", 0) * elapsed), (float)(Number(actor, "velocityY", 0) * elapsed));
+                var width = Number(world, "worldWidth", 64);
+                var height = Number(world, "worldHeight", 48);
+                var solid = Bool(actor, "collides", true);
+                if (next.X >= 0 && next.X < width && (!solid || !Blocked((int)Math.Floor(next.X), (int)Math.Floor(point.Y)))) point.X = next.X;
+                if (next.Y >= 0 && next.Y < height && (!solid || !Blocked((int)Math.Floor(point.X), (int)Math.Floor(next.Y)))) point.Y = next.Y;
+                _actors[id] = point;
+            }
+            _worldSeconds += elapsed;
+            _tick++;
+        }
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        var world = _scene.RootElement;
+        var width = (int)Number(world, "viewWidth", 32);
+        var height = (int)Number(world, "viewHeight", 18);
+        var fg = new Color("#eeeeee");
+        var bg = new Color("#101820");
+        foreach (var key in Items(world, "paletteTimeline").OrderBy(item => Number(item, "atWorldSecond", 0)))
+        {
+            if (Number(key, "atWorldSecond", 0) > _worldSeconds) break;
+            fg = new Color(Text(key, "foreground", "#eeeeee"));
+            bg = new Color(Text(key, "background", "#101820"));
+        }
+        DrawRect(new Rect2(0, 0, width * Cell, height * Cell), bg);
+        foreach (var plane in Items(world, "layers").OrderBy(item => Number(item, "depth", 0)))
+        {
+            var pattern = Text(plane, "glyphPattern", "");
+            if (pattern.Length == 0) continue;
+            var sx = (int)Math.Floor(_worldSeconds * Number(plane, "scrollCellsPerWorldSecondX", 0));
+            var sy = (int)Math.Floor(_worldSeconds * Number(plane, "scrollCellsPerWorldSecondY", 0));
+            var first = Math.Max(0, (int)Number(plane, "firstScreenRow", 0));
+            var last = Math.Min(height - 1, (int)Number(plane, "lastScreenRow", height - 1));
+            for (var row = first; row <= last; row++)
+                for (var col = 0; col < width; col++)
+                {
+                    var offset = col + sx + (row + sy) * width;
+                    if (!Bool(plane, "wrap", true) && (offset < 0 || offset >= pattern.Length)) continue;
+                    var index = ((offset % pattern.Length) + pattern.Length) % pattern.Length;
+                    if (pattern[index] != ' ') Glyph(col, row, pattern[index].ToString(), new Color(Text(plane, "color", "#4a6b8a")));
+                }
+        }
+        foreach (var tile in Items(world, "tiles"))
+            Glyph((int)Number(tile, "x", 0), (int)Number(tile, "y", 0), Text(tile, "glyph", "."), new Color(Text(tile, "color", "#87cefa")), Text(tile, "spriteId", ""), Text(tile, "id", ""));
+        foreach (var actor in Items(world, "actors").OrderBy(item => Number(item, "layer", 10)))
+            if (_actors.TryGetValue(Text(actor, "id", "actor"), out var pos))
+                Glyph((int)pos.X, (int)pos.Y, Text(actor, "glyph", "@"), new Color(Text(actor, "color", "#ffffff")), Text(actor, "spriteId", ""), Text(actor, "id", ""));
+        foreach (var hud in Items(world, "hud"))
+        {
+            var label = Text(hud, "format", "").Replace("{tick}", _tick.ToString())
+                .Replace("{worldSeconds}", _worldSeconds.ToString("F2"))
+                .Replace("{turn}", Math.Floor(_worldSeconds / Math.Max(.001, Number(world, "secondsPerTurn", 1))).ToString());
+            DrawString(ThemeDB.FallbackFont, new Vector2((float)Number(hud, "x", 0) * Cell, ((float)Number(hud, "y", 0) + 1) * Cell),
+                label, HorizontalAlignment.Left, -1, 15, new Color(Text(hud, "color", "#ffffff")));
+        }
+    }
+
+    private bool Blocked(int x, int y) => Items(_scene.RootElement, "tiles").Any(tile => Bool(tile, "solid", false) && (int)Number(tile, "x", -1) == x && (int)Number(tile, "y", -1) == y);
+    private void Glyph(int x, int y, string value, Color color, string spriteId = "", string objectId = "")
+    {
+        foreach (var animation in Items(_scene.RootElement, "animations"))
+        {
+            if (Text(animation, "targetId", "") != objectId || _worldSeconds < Number(animation, "startWorldSecond", 0)) continue;
+            var frames = Items(animation, "frames").ToList();
+            var duration = frames.Sum(frame => Number(frame, "durationWorldSeconds", 0));
+            if (duration <= 0) continue;
+            var phase = _worldSeconds - Number(animation, "startWorldSecond", 0);
+            phase = Bool(animation, "loop", true) ? phase % duration : Math.Min(phase, duration - .000001);
+            foreach (var frame in frames)
+            {
+                phase -= Number(frame, "durationWorldSeconds", 0);
+                if (phase < 0) { spriteId = Text(frame, "spriteId", spriteId); break; }
+            }
+        }
+        if (spriteId.Length > 0)
+        {
+            var sprite = Items(_scene.RootElement, "sprites").FirstOrDefault(item => Text(item, "id", "") == spriteId);
+            if (sprite.ValueKind == JsonValueKind.Object && sprite.TryGetProperty("palette", out var colors))
+            {
+                var rows = Items(sprite, "pixelRows").Select(item => item.GetString() ?? "").ToList();
+                var resolution = Math.Max(rows.Count, rows.Count == 0 ? 1 : rows.Max(row => row.Length));
+                var pixelSize = Math.Max(1, Cell / Math.Max(1, resolution));
+                for (var row = 0; row < rows.Count; row++)
+                    for (var column = 0; column < rows[row].Length; column++)
+                        if (rows[row][column] != ' ' && colors.TryGetProperty(rows[row][column].ToString(), out var ink))
+                            DrawRect(new Rect2(x * Cell + column * pixelSize, y * Cell + row * pixelSize, pixelSize, pixelSize), new Color(ink.GetString() ?? "#ffffff"));
+                return;
+            }
+        }
+        if (value.Length > 0) DrawString(ThemeDB.FallbackFont, new Vector2(x * Cell, (y + 1) * Cell - 4), value[..1], HorizontalAlignment.Left, -1, 20, color);
+    }
+    private static IEnumerable<JsonElement> Items(JsonElement item, string key) => item.TryGetProperty(key, out var list) && list.ValueKind == JsonValueKind.Array ? list.EnumerateArray() : Enumerable.Empty<JsonElement>();
+    private static string Text(JsonElement item, string key, string fallback) => item.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? fallback : fallback;
+    private static double Number(JsonElement item, string key, double fallback) => item.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetDouble() : fallback;
+    private static bool Bool(JsonElement item, string key, bool fallback) => item.TryGetProperty(key, out var value) && (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False) ? value.GetBoolean() : fallback;
+}

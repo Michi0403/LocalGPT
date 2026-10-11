@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 import re
 import sys
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "src" / "LocalGPT"
@@ -26,6 +27,23 @@ def require(condition: bool, message: str) -> None:
 
 def text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+# The same audit must run at the normal compilation boundary, before cross-RID release work.
+# Protect this wiring here so a future change cannot silently move platform failures back to publish.
+build_targets = ET.parse(ROOT / "Directory.Build.targets").getroot()
+build_guard = next((target for target in build_targets.findall("Target")
+                    if target.get("Name") == "AssertLocalGptCrossPlatformBoundaries"), None)
+require(build_guard is not None, "cross-platform guard is registered in Directory.Build.targets")
+if build_guard is not None:
+    scheduled_targets = set(build_guard.get("BeforeTargets", "").split(";"))
+    require({"BeforeBuild", "Publish"}.issubset(scheduled_targets),
+            "cross-platform guard executes before normal Build and Publish")
+    condition = build_guard.get("Condition", "")
+    require("'$(MSBuildProjectName)' == 'LocalGPT'" in condition and "$(Skip" not in condition,
+            "cross-platform guard is mandatory for LocalGPT, with no maintenance bypass")
+    require(any("$(CrossPlatformBoundariesScript)" in item.get("Command", "")
+                for item in build_guard.findall("Exec")),
+            "cross-platform build target invokes the existing release audit entrypoint")
 
 # Dependencies/APIs that should never be needed by the platform-neutral application backend.
 csproj = text(APP / "LocalGPT.csproj")

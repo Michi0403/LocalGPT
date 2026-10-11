@@ -553,6 +553,7 @@ public sealed class ConsoleCommandService(
             var pending = new StringBuilder();
             var lastProgressPercentages = new Dictionary<string, int>(StringComparer.Ordinal);
             string lastPublishedText = string.Empty;
+            var pendingCarriageReturn = false;
             while (true)
             {
                 var read = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false);
@@ -562,9 +563,24 @@ public sealed class ConsoleCommandService(
                 for (var index = 0; index < read; index++)
                 {
                     var character = buffer[index];
-                    if (character is '\r' or '\n')
+                    if (pendingCarriageReturn)
                     {
-                        PublishOutputFrame(operationId, displayName, stream, pending, capture, character == '\r', ref lastPublishedText, lastProgressPercentages);
+                        // Windows shells emit CRLF for ordinary output. A lone CR rewrites a
+                        // progress line; CRLF (including across buffer boundaries) is a newline.
+                        PublishOutputFrame(operationId, displayName, stream, pending, capture, character != '\n', ref lastPublishedText, lastProgressPercentages);
+                        pending.Clear();
+                        pendingCarriageReturn = false;
+                        if (character == '\n')
+                            continue;
+                    }
+                    if (character == '\r')
+                    {
+                        pendingCarriageReturn = true;
+                        continue;
+                    }
+                    if (character == '\n')
+                    {
+                        PublishOutputFrame(operationId, displayName, stream, pending, capture, false, ref lastPublishedText, lastProgressPercentages);
                         pending.Clear();
                         continue;
                     }
@@ -574,7 +590,7 @@ public sealed class ConsoleCommandService(
                 PublishProgressSnapshot(operationId, displayName, stream, pending, capture, ref lastPublishedText, lastProgressPercentages);
             }
 
-            PublishOutputFrame(operationId, displayName, stream, pending, capture, false, ref lastPublishedText, lastProgressPercentages);
+            PublishOutputFrame(operationId, displayName, stream, pending, capture, pendingCarriageReturn, ref lastPublishedText, lastProgressPercentages);
         }
         catch (ObjectDisposedException)
         {
@@ -941,6 +957,13 @@ public sealed class ConsoleCommandService(
         try
         {
             var label = string.IsNullOrWhiteSpace(request.DisplayName) ? "LocalGPT command" : request.DisplayName.Trim();
+            // Only the explicitly confirmed, human-typed ASCII operator command is echoed
+            // back to that same operator. Background/provider commands retain the opaque
+            // description, and command contents are never added to diagnostics logs.
+            if (request.UserConfirmed
+                && string.Equals(label, "ASCII operator shell", StringComparison.Ordinal)
+                && !string.IsNullOrWhiteSpace(request.CommandText))
+                return $"> {request.CommandText.Trim()}";
             return request.IsReadOnly
                 ? $"> {label} [{Path.GetFileName(resolved.FileName)}; read-only]"
                 : $"> {label} [{Path.GetFileName(resolved.FileName)}; user-confirmed]";

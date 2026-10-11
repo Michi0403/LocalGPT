@@ -1,4 +1,4 @@
-"""Source-only acceptance contract for the compact, service-owned Data Management workbench, retained in 5.5.4."""
+"""Source-only acceptance contract for the compact, service-owned Data Management workbench, retained in 5.6.0."""
 
 from pathlib import Path
 import json
@@ -15,11 +15,11 @@ def read(path: str) -> str:
 
 def require(condition: bool, message: str) -> None:
     if not condition:
-        raise SystemExit(f"Data Management 5.5.4 regression: {message}")
+        raise SystemExit(f"Data Management 5.6.0 regression: {message}")
 
 
 project = read("src/LocalGPT/LocalGPT.csproj")
-require("<Version>5.5.4</Version>" in project, "version must advance to 5.5.4")
+require("<Version>5.6.0</Version>" in project, "version must advance to 5.6.0")
 
 page = read("src/LocalGPT/Components/Pages/DataManagement.razor")
 code = read("src/LocalGPT/Components/Pages/DataManagement.razor.cs")
@@ -70,4 +70,4 @@ for culture, translations in keys.items():
 for match in re.finditer(r'T\("(DataManagement\.[^"]+)"', page + code):
     require(match.group(1) in english, f"new UI string is missing from localization: {match.group(1)}")
 
-print("LocalGPT 5.5.4 Data Management layout, complete paged reads, CRUD services, editor preferences, approvals and localization audit passed.")
+print("LocalGPT 5.6.0 Data Management layout, complete paged reads, CRUD services, editor preferences, approvals and localization audit passed.")

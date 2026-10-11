@@ -1,0 +1,61 @@
+{
+  "sceneName": "Parallax and pixel-art authoring example",
+  "worldWidth": 64,
+  "worldHeight": 32,
+  "viewWidth": 32,
+  "viewHeight": 16,
+  "chunkSize": 8,
+  "fixedTicksPerSecond": 60,
+  "worldSecondsPerRealSecond": 1.0,
+  "secondsPerTurn": 0.5,
+  "artDirection": "Replace this demonstration artwork with AI-authored scenes and independent Council curation.",
+  "tiles": [
+    { "id": "solid-bank", "x": 8, "y": 11, "glyph": "#", "color": "#879697", "solid": true, "blocksDecoration": true },
+    { "id": "ground", "x": 5, "y": 12, "glyph": ".", "color": "#65ad5d", "solid": false, "blocksDecoration": false }
+  ],
+  "sprites": [
+    {
+      "id": "walker-frame-a",
+      "pixelRows": [" g ", "gyg", " g "],
+      "palette": { "g": "#32e274", "y": "#ffdb4e" },
+      "artistModel": "DemoOnly", "curatorModel": "DemoOnly"
+    },
+    {
+      "id": "walker-frame-b",
+      "pixelRows": ["g g", " y ", "g g"],
+      "palette": { "g": "#32e274", "y": "#ffdb4e" },
+      "artistModel": "DemoOnly", "curatorModel": "DemoOnly"
+    }
+  ],
+  "actors": [
+    {
+      "id": "walker", "kind": "creature", "x": 3, "y": 8, "velocityX": 1.25, "velocityY": 0,
+      "glyph": "@", "spriteId": "walker-frame-a", "color": "#32e274", "collides": true, "layer": 10
+    }
+  ],
+  "layers": [
+    { "id": "sky", "name": "Distant sky", "depth": -10, "firstScreenRow": 0, "lastScreenRow": 4,
+      "scrollCellsPerWorldSecondX": 0.33, "scrollCellsPerWorldSecondY": 0,
+      "cameraFactorX": 0.1, "cameraFactorY": 0, "glyphPattern": "    ~       ~      ",
+      "color": "#4488bb", "wrap": true },
+    { "id": "waves", "name": "Near waves", "depth": -5, "firstScreenRow": 5, "lastScreenRow": 10,
+      "scrollCellsPerWorldSecondX": 1.75, "scrollCellsPerWorldSecondY": 0.15,
+      "cameraFactorX": 0.7, "cameraFactorY": 0.4, "glyphPattern": "_~=~_~~ _~=~_~~ ",
+      "color": "#36b5bc", "wrap": true }
+  ],
+  "paletteTimeline": [
+    { "atWorldSecond": 0, "foreground": "#d4ffdb", "background": "#102029", "name": "Dawn" },
+    { "atWorldSecond": 12, "foreground": "#ffcf7d", "background": "#312244", "name": "Dusk" }
+  ],
+  "animations": [
+    { "targetId": "walker", "loop": true, "startWorldSecond": 0,
+      "frames": [
+        { "spriteId": "walker-frame-a", "durationWorldSeconds": 0.15 },
+        { "spriteId": "walker-frame-b", "durationWorldSeconds": 0.15 }
+      ] }
+  ],
+  "hud": [
+    { "x": 1, "y": 15, "format": "World {worldSeconds}s · tick {tick} · turn {turn}", "color": "#ffffff" }
+  ],
+  "timeline": []
+}

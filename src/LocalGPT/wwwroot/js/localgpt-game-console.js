@@ -141,6 +141,12 @@
             if (!state?.element) return;
             const canvas = state.element.querySelector('[data-game-pixel-screen]');
             if (!(canvas instanceof HTMLCanvasElement)) return;
+            if (state.authoredScene && state.authoredClock && globalThis.localgptGameStudio?.draw) {
+                globalThis.localgptGameStudio.draw(canvas.id, state.authoredScene, state.authoredClock);
+                state.pixelCanvas = canvas;
+                requestScale(state);
+                return;
+            }
             const value = String(text || '').replace(/\r\n?/g, '\n');
             const presentation = normalizePresentation(mode, foreground, background, runs);
             const lines = value.split('\n');
@@ -743,7 +749,7 @@
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), gamepadNextRepeat:0, gamepadRepeatAction:'', keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, displayMode:String(element.dataset.displayMode || 'ascii').toLowerCase() === 'pixel' ? 'pixel' : 'ascii', currentFrameText:'', currentFrameColorMode:'TerminalDefault', currentFrameForeground:46, currentFrameBackground:0, currentFrameStyleRuns:[], pixelCanvas:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), resizeObserver:null, lastFitFontSize:'' };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), gamepadNextRepeat:0, gamepadRepeatAction:'', keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, displayMode:String(element.dataset.displayMode || 'ascii').toLowerCase() === 'pixel' ? 'pixel' : 'ascii', currentFrameText:'', currentFrameColorMode:'TerminalDefault', currentFrameForeground:46, currentFrameBackground:0, currentFrameStyleRuns:[], authoredScene:null, authoredClock:null, pixelCanvas:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), resizeObserver:null, lastFitFontSize:'' };
                 states.set(id, state);
                 attachFollowTail(state);
                 updateDisplayMode(state, state.displayMode);
@@ -850,6 +856,17 @@
                     }
                 }
             } catch (error) { diagnostics.report('localgpt-game-console.setEnabled', error); }
+        },
+        setAuthoredScene(id, scene, clock) {
+            try {
+                const state = states.get(id);
+                if (!state) return;
+                state.authoredScene = scene || null;
+                state.authoredClock = clock || null;
+                if (state.displayMode === 'pixel')
+                    renderPixelFrame(state, state.currentFrameText, state.currentFrameColorMode,
+                        state.currentFrameForeground, state.currentFrameBackground, state.currentFrameStyleRuns);
+            } catch (error) { diagnostics.report('localgpt-game-console.setAuthoredScene', error); }
         },
         setFramePresentation(id, text, colorMode, defaultForegroundColor, defaultBackgroundColor, styleRuns) {
             try {

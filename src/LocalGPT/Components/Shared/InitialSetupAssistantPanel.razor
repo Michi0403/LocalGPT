@@ -113,6 +113,13 @@
                                     }
                                     @if (!string.IsNullOrWhiteSpace(item.DeviceEndpoint)) { <code>@item.DeviceEndpoint</code> }
                                 </div>
+                                <div class="initial-setup-model-memory" aria-label="Estimated memory needed for this model on its reviewed hardware host">
+                                    <strong>Per-model memory budget (GiB · estimate, not measured)</strong>
+                                    <span>PC RAM: @(item.EstimatedSystemRamGiB is double ram ? FormatInvariant(ram) : "unknown")</span>
+                                    <span>Dedicated GPU VRAM: @(item.EstimatedGpuVramGiB is double vram ? FormatInvariant(vram) : "unknown")</span>
+                                    <span>Unified/shared memory: @(item.EstimatedUnifiedMemoryGiB is double unified ? FormatInvariant(unified) : "unknown")</span>
+                                    <small>@item.MemoryPlanSummary</small>
+                                </div>
                                 <div class="initial-setup-model-actions">
                                     <a href="@item.SourceUrl" target="_blank" rel="noopener noreferrer">@T("CanIRun.ai source")</a>
                                     @if (mappedChoice?.IsInstalled == true && mappedChoice.CanCheckUpdate)
@@ -239,6 +246,7 @@
                                 <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.Score)" Caption='@T("score")' />
                                 <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.Grade)" Caption='@T("Grade")' />
                                 <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.Status)" Caption='@T("Status")' />
+                                <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.MemoryPlanSummary)" Caption="Estimated PC RAM / GPU VRAM / unified memory" />
                                 <DxGridDataColumn FieldName="@nameof(CanIRunModelRecommendation.DeviceEndpoint)" Caption='@T("Provider endpoint / physical host")' />
                             </Columns>
                         </DxGrid>

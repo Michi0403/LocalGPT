@@ -81,7 +81,8 @@ public sealed partial class LearningRoundService
             var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(!string.IsNullOrWhiteSpace(revision?.SourceRootPath) ? revision.SourceRootPath : project.RootPath));
             var path = Path.GetFullPath(file.AbsolutePath);
             var relative = Path.GetRelativePath(root, path);
-            if (Path.IsPathRooted(relative) || relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            if (!platform.IsSameOrDescendantPath(root, path) || Path.IsPathRooted(relative) || relative == ".." ||
+                relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
                 HasUnsafeReparsePoint(root, path))
                 throw new UnauthorizedAccessException("The tracked source file is outside its approved project root or follows a link.");
 
@@ -228,7 +229,7 @@ public sealed partial class LearningRoundService
         try
         {
             var current = path;
-            while (!string.Equals(current, root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            while (!platform.PathsEqual(current, root))
             {
                 if (File.Exists(current) || Directory.Exists(current))
                 {

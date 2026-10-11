@@ -1,0 +1,190 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@page "/game-studio"
+@attribute [LocalGptUiLayoutSurface("page", "Game Studio", "/game-studio", CanHide = false)]
+@attribute [LocalGptUiLayoutSurface("editor", "Game Studio · editor", "/game-studio")]
+@inject ILocalGptProjectService ProjectService
+@inject IGameStudioService Studio
+@inject IGameGodotWorkspaceService Godot
+@inject GameSceneEngine Engine
+@inject ILogger<GameStudio> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+@inject IJSRuntime JsRuntime
+
+<div class="razor-component-boundary">
+    <DxFormLayout CssClass="razor-component-layout-owner GameStudio">
+        <DxFormLayoutItem ColSpanMd="12">
+            <Template Context="formItemContext001">
+                <PageTitle>Game Studio · LocalGPT</PageTitle>
+                <LocalGptFormLayoutSurface OwnerType="@typeof(GameStudio)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
+                    <main class="game-studio-page localgpt-surface" aria-busy="@Busy">
+                        <ToastWrapper Name="GameStudioToasts" />
+                        <WorkbenchHeader Eyebrow="LocalGPT · project authoring"
+                                         Title="Game Studio"
+                                         Subtitle="Curate unique AI-authored ASCII and 2D worlds, iterate an editable Godot C# worktree and explicitly close each revision.">
+                            <Actions>
+                                <DxButton Text="Refresh projects" Enabled="@(!Busy)" Click="ReloadAsync" RenderStyle="ButtonRenderStyle.Secondary" />
+                            </Actions>
+                        </WorkbenchHeader>
+                        <div class="game-studio-toolbar">
+                            <label>Game project
+                                <DxComboBox Data="@GameProjects" Value="@SelectedProjectId" ValueChanged="@((Guid value) => SelectProjectAsync(value))"
+                                            ValueExpression="@(() => SelectedProjectId)"
+                                            TextFieldName="@nameof(LocalGptProjectSummary.DisplayName)" ValueFieldName="@nameof(LocalGptProjectSummary.Id)" />
+                            </label>
+                            @if (Draft is null || Draft.ClosedRevisionId is not null)
+                            {
+                                <DxButton Text="Open editable worktree" Enabled="@(!Busy && SelectedProjectId != Guid.Empty)" Click="OpenDraftAsync" />
+                            }
+                            else
+                            {
+                                <span class="game-studio-draft-state">Open draft · @(Draft.DraftId.ToString("N")[..8]) · parent @Draft.ParentRevisionId</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Status))
+                        {
+                            <div class="alert alert-info" role="status">@Status</div>
+                        }
+                        @if (Draft is not null)
+                        {
+                            <DxSplitter Orientation="Orientation.Horizontal" Height="740px" Width="100%" CssClass="game-studio-splitter">
+                                <Panes>
+                                    <DxSplitterPane Size="27%" MinSize="230px" AllowResize="true">
+                                        <div class="game-studio-sidebar">
+                                            <h2>Authoring hierarchy</h2>
+                                            <DxTreeView>
+                                                <Nodes>
+                                                    <DxTreeViewNode Text="World · fixed-step simulation" Click="@((TreeViewNodeClickEventArgs _) => ChangeSection("world"))" />
+                                                    <DxTreeViewNode Text="Tiles · semantic geometry" Click="@((TreeViewNodeClickEventArgs _) => ChangeSection("geometry"))" />
+                                                    <DxTreeViewNode Text="Actors · AI art and motion" Click="@((TreeViewNodeClickEventArgs _) => ChangeSection("actors"))" />
+                                                    <DxTreeViewNode Text="Planes, scanlines & palettes" Click="@((TreeViewNodeClickEventArgs _) => ChangeSection("effects"))" />
+                                                    <DxTreeViewNode Text="AI curation and proposals" Click="@((TreeViewNodeClickEventArgs _) => ChangeSection("curation"))" />
+                                                    <DxTreeViewNode Text="Godot project files" Click="@((TreeViewNodeClickEventArgs _) => ChangeSection("godot"))">
+                                                        <Nodes>
+                                                            @foreach (var path in Draft.FilePaths)
+                                                            {
+                                                                @if (Draft.ClosedRevisionId is null)
+                                                                {
+                                                                    <DxTreeViewNode @key="path" Text="@path" Click="@((TreeViewNodeClickEventArgs _) => SelectFileAsync(path))" />
+                                                                }
+                                                                else
+                                                                {
+                                                                    <DxTreeViewNode @key="path" Text="@path" />
+                                                                }
+                                                            }
+                                                        </Nodes>
+                                                    </DxTreeViewNode>
+                                                    <DxTreeViewNode Text="Close revision · commit" Click="@((TreeViewNodeClickEventArgs _) => ChangeSection("revision"))" />
+                                                </Nodes>
+                                            </DxTreeView>
+                                            <p class="game-studio-note">Edits remain in the open worktree. A revision is created only by the explicit close action.</p>
+                                        </div>
+                                    </DxSplitterPane>
+                                    <DxSplitterPane MinSize="420px" AllowResize="true">
+                                        <div class="game-studio-editor">
+                                            @if (ActiveSection == "world")
+                                            {
+                                                <h2>World time and viewport</h2>
+                                                <div class="game-studio-fields">
+                                                    <label>Scene title<DxTextBox @bind-Text="Draft.Scene.SceneName" /></label>
+                                                    <label>Branch<DxTextBox @bind-Text="Draft.BranchName" /></label>
+                                                    <label>World width<DxSpinEdit @bind-Value="Draft.Scene.WorldWidth" MinValue="1" MaxValue="1024" /></label>
+                                                    <label>World height<DxSpinEdit @bind-Value="Draft.Scene.WorldHeight" MinValue="1" MaxValue="1024" /></label>
+                                                    <label>Viewport width<DxSpinEdit @bind-Value="Draft.Scene.ViewWidth" MinValue="8" MaxValue="240" /></label>
+                                                    <label>Viewport height<DxSpinEdit @bind-Value="Draft.Scene.ViewHeight" MinValue="6" MaxValue="100" /></label>
+                                                    <label>Open-world chunk size<DxSpinEdit @bind-Value="Draft.Scene.ChunkSize" MinValue="4" MaxValue="128" /></label>
+                                                    <label>Fixed ticks per second<DxSpinEdit @bind-Value="Draft.Scene.FixedTicksPerSecond" MinValue="10" MaxValue="240" /></label>
+                                                    <label>World seconds / real second<DxSpinEdit @bind-Value="Draft.Scene.WorldSecondsPerRealSecond" MinValue="0.01" MaxValue="100" Increment="0.1" /></label>
+                                                    <label>Seconds per turn<DxSpinEdit @bind-Value="Draft.Scene.SecondsPerTurn" MinValue="0.01" MaxValue="3600" Increment="0.1" /></label>
+                                                </div>
+                                                <label>Art direction<DxMemo @bind-Text="Draft.Scene.ArtDirection" Rows="3" /></label>
+                                                <DxButton Text="Save scene in open draft" Enabled="@CanEdit" Click="SaveSceneAsync" />
+                                            }
+                                            else if (ActiveSection == "godot")
+                                            {
+                                                <h2>Godot C# source worktree</h2>
+                                                <p>Generate project files only if absent. Export checks for external edits; import preserves changes made in Godot.</p>
+                                                <div class="game-studio-actions">
+                                                    <DxButton Text="Generate Godot project" Enabled="@CanEdit" Click="SeedAsync" />
+                                                    <DxButton Text="Publish scene.json" Enabled="@CanEdit" Click="PublishSceneAsync" />
+                                                    <DxButton Text="Export to project root" Enabled="@CanEdit" Click="ExportAsync" />
+                                                    <DxButton Text="Import Godot edits" Enabled="@CanEdit" Click="ImportAsync" />
+                                                </div>
+                                                <label>Source path within project root<DxTextBox @bind-Text="FilePath" /></label>
+                                                <label>Editable Godot source file<DxMemo @bind-Text="FileContent" Rows="20" /></label>
+                                                <DxButton Text="Save file (do not commit)" Enabled="@CanEdit" Click="SaveFileAsync" />
+                                            }
+                                            else if (ActiveSection == "revision")
+                                            {
+                                                <h2>Explicit revision closure</h2>
+                                                <label>Revision name<DxTextBox @bind-Text="RevisionName" /></label>
+                                                <label>Summary<DxMemo @bind-Text="RevisionSummary" Rows="4" /></label>
+                                                <label><DxCheckBox @bind-Checked="ConfirmClose" /> I confirm that this worktree should become a closed project revision.</label>
+                                                <DxButton Text="Close worktree and create revision" Enabled="@(CanEdit && ConfirmClose && !string.IsNullOrWhiteSpace(RevisionName))" Click="CloseAsync" />
+                                            }
+                                            else if (ActiveSection == "curation")
+                                            {
+                                                <h2>Independent AI curation</h2>
+                                                <p>Each model can propose a new scene as JSON. The candidate remains isolated until a different curator is named and a human accepts it.</p>
+                                                <label>Artist/model<DxTextBox @bind-Text="ProposalArtist" /></label>
+                                                <label>Independent curator/model<DxTextBox @bind-Text="ProposalCurator" /></label>
+                                                <label>Visual intent<DxTextBox @bind-Text="ProposalDescription" /></label>
+                                                <label>Scene proposal (JSON)<DxMemo @bind-Text="ProposalJson" Rows="12" /></label>
+                                                <DxButton Text="Submit candidate" Enabled="@CanEdit" Click="SubmitProposalAsync" />
+                                                <p>For a small local artist model, supply only changed arrays in a visual patch (for example one new sprite and one actor). The untouched scene is retained.</p>
+                                                <label>Small upsert-only scene patch (JSON)<DxMemo @bind-Text="PatchJson" Rows="7" /></label>
+                                                <DxButton Text="Submit small patch as candidate" Enabled="@CanEdit" Click="SubmitPatchAsync" />
+                                                <label>Curated candidate
+                                                    <DxComboBox Data="@Proposals" TextFieldName="@nameof(GameSceneProposal.Description)"
+                                                                ValueFieldName="@nameof(GameSceneProposal.Id)" @bind-Value="SelectedProposalId" />
+                                                </label>
+                                                <label>Curator critique<DxMemo @bind-Text="ReviewCritique" Rows="3" /></label>
+                                                <label><DxCheckBox @bind-Checked="ReviewApproved" /> Curator approves after inspecting this proposed scene</label>
+                                                <DxButton Text="Record independent curator decision" Enabled="@(CanEdit && SelectedProposalId != Guid.Empty)" Click="ReviewProposalAsync" />
+                                                <DxButton Text="Accept candidate into open worktree" Enabled="@(CanEdit && SelectedProposalId != Guid.Empty)" Click="AcceptProposalAsync" />
+                                            }
+                                            else
+                                            {
+                                                <h2>@(ActiveSection == "geometry" ? "Tile geometry & exclusion" : ActiveSection == "actors" ? "Creatures and motion" : "Parallax, synchronized palettes & cinematics")</h2>
+                                                <p>All placements, scanline speeds, color phases and timeline events live in this scene definition, not in the runtime C# engine. Edit the JSON and let the curator validate it.</p>
+                                                <DxMemo @bind-Text="SceneJson" Rows="22" />
+                                                <DxButton Text="Validate and save world JSON" Enabled="@CanEdit" Click="SaveSceneJsonAsync" />
+                                            }
+                                        </div>
+                                    </DxSplitterPane>
+                                </Panes>
+                            </DxSplitter>
+                            <div class="game-studio-preview">
+                                <div>
+                                    <h2>Deterministic ASCII / 2D scene preview</h2>
+                                    <div class="game-studio-actions">
+                                        <DxButton Text="Preview now" Click="PreviewNow" />
+                                        <DxButton Text="+1 world turn" Click="AdvanceTurn" />
+                                        <DxButton Text="+1 real second" Click="AdvanceSecond" />
+                                        <DxButton Text="Reset simulation" Click="ResetClock" />
+                                    </div>
+                                    @if (Preview is not null)
+                                    {
+                                        <p>Tick @Preview.Tick · world @Preview.WorldSeconds.ToString("F2") s</p>
+                                        <canvas id="localgpt-game-studio-pixel-preview" class="game-studio-pixel" aria-label="Pixel-art projection of the authored world"></canvas>
+                                        <pre class="game-studio-console" style="color: @Preview.Foreground; background-color: @Preview.Background">@Preview.Text</pre>
+                                    }
+                                </div>
+                                <div>
+                                    <h3>Curator findings</h3>
+                                    <DxGrid Data="@Findings" PageSize="8" TextWrapEnabled="true">
+                                        <Columns>
+                                            <DxGridDataColumn FieldName="@nameof(GameSceneFinding.Code)" Caption="Rule" />
+                                            <DxGridDataColumn FieldName="@nameof(GameSceneFinding.Message)" Caption="Finding" />
+                                            <DxGridDataColumn FieldName="@nameof(GameSceneFinding.BlocksAcceptance)" Caption="Blocks" />
+                                        </Columns>
+                                    </DxGrid>
+                                </div>
+                            </div>
+                        }
+                    </main>
+                </LocalGptFormLayoutSurface>
+            </Template>
+        </DxFormLayoutItem>
+    </DxFormLayout>
+</div>

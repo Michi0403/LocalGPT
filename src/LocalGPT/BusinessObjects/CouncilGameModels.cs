@@ -543,6 +543,12 @@ public sealed class CouncilGameEnemyState
 /// </summary>
 public sealed class CouncilGameSessionSnapshot
 {
+    /// <summary>Curated, revision-backed 2D world when the session was launched from Game Studio.</summary>
+    public GameSceneDocument? Scene { get; set; }
+    /// <summary>Current fixed-tick world state used by the shared ASCII and pixel views.</summary>
+    public GameSceneClock? SceneClock { get; set; }
+    /// <summary>Exact project revision that owns the running scene.</summary>
+    public Guid? SourceRevisionId { get; set; }
     /// <summary>
     /// Gets or sets the stable identifier used to identify or correlate this council game session snapshot instance with related application state.
     /// </summary>
@@ -807,6 +813,12 @@ public sealed class CouncilGameSessionSnapshot
 /// </summary>
 public sealed class CouncilGameSessionState
 {
+    /// <summary>Immutable authored Game Studio scene selected from the approved project revision.</summary>
+    public GameSceneDocument? Scene { get; set; }
+    /// <summary>Authoritative fixed-tick state; separate from user-authored scene data.</summary>
+    public GameSceneClock? SceneClock { get; set; }
+    /// <summary>Exact source revision for play and reload identity.</summary>
+    public Guid? SourceRevisionId { get; set; }
     /// <summary>
     /// Gets the sync root value that forms part of the council game session state consumed or produced by the surrounding workflow.
     /// </summary>

@@ -87,6 +87,8 @@ public sealed class CanIRunHardwareRecommendationService(
                     Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumRecommendations)),
                     Math.Min(2048, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumCatalogCompatibilityRows)))))
                 .ToList();
+            foreach (var model in result)
+                PopulateModelMemoryPlan(model, device);
             logger.LogInformation("Loaded {RecommendationCount} attributed CanIRun.ai recommendation/compatibility row(s) for one user-approved hardware profile.", result.Count);
             return result;
         }
@@ -99,6 +101,54 @@ public sealed class CanIRunHardwareRecommendationService(
         {
             logger.LogError(exception, "CanIRun.ai lookup failed; hardware facts and response content were omitted from logs.");
             throw;
+        }
+    }
+
+    /// <summary>Distributes the source-reported model footprint against reviewed host memory pools for planning only; never invents a missing requirement or double-counts unified memory.</summary>
+    /// <param name="model">Model with an optional source-attributed quantization memory requirement.</param>
+    /// <param name="device">The exact reviewed host row used to obtain the compatibility score.</param>
+    private void PopulateModelMemoryPlan(CanIRunModelRecommendation model, InitialSetupHardwareDevice device)
+    {
+        try
+        {
+            if (model.RequiredVramGiB is not > 0 || !double.IsFinite(model.RequiredVramGiB.Value))
+            {
+                model.MemoryPlanSummary = "Memory requirement not reported by CanIRun.ai for this model/quantization.";
+                return;
+            }
+
+            var footprint = Math.Round(model.RequiredVramGiB.Value, 2, MidpointRounding.AwayFromZero);
+            var footprintLabel = footprint.ToString("0.##", CultureInfo.InvariantCulture);
+            if (device.DedicatedVramGiB is > 0)
+            {
+                model.EstimatedGpuVramGiB = Math.Min(footprint, device.DedicatedVramGiB.Value);
+                model.EstimatedSystemRamGiB = Math.Max(0, footprint - model.EstimatedGpuVramGiB.Value);
+                model.EstimatedUnifiedMemoryGiB = 0;
+                model.MemoryPlanSummary = $"~{footprintLabel} GiB model footprint; up to {model.EstimatedGpuVramGiB.Value.ToString("0.##", CultureInfo.InvariantCulture)} GiB dedicated GPU VRAM, at least {model.EstimatedSystemRamGiB.Value.ToString("0.##", CultureInfo.InvariantCulture)} GiB RAM spill (full GPU offload assumed).";
+            }
+            else if (device.DedicatedVramGiB == 0 && !string.IsNullOrWhiteSpace(device.Name))
+            {
+                model.EstimatedGpuVramGiB = 0;
+                model.EstimatedSystemRamGiB = footprint;
+                model.EstimatedUnifiedMemoryGiB = footprint;
+                model.MemoryPlanSummary = $"~{footprintLabel} GiB shared/unified system memory (one physical RAM pool, not RAM + VRAM). Confirm that this accelerator uses shared memory.";
+            }
+            else if (device.DedicatedVramGiB == 0)
+            {
+                model.EstimatedGpuVramGiB = 0;
+                model.EstimatedSystemRamGiB = footprint;
+                model.EstimatedUnifiedMemoryGiB = 0;
+                model.MemoryPlanSummary = $"~{footprintLabel} GiB CPU/system RAM; no dedicated GPU allocation in this reviewed hardware profile.";
+            }
+            else
+            {
+                model.MemoryPlanSummary = $"~{footprintLabel} GiB model footprint; GPU/RAM/unified split unknown because this host has no reviewed dedicated-VRAM figure.";
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Estimating one model memory plan failed; model and hardware identifiers were omitted.");
+            model.MemoryPlanSummary = "Model memory allocation estimate unavailable.";
         }
     }
 

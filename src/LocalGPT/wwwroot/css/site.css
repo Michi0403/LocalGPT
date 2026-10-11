@@ -652,6 +652,42 @@ dxbl-modal-dialog.localgpt-chat-dialog-surface .ascii-conversation-stage {
     max-height: none;
 }
 
+/* DevExpress can mount the Chat popup before its optional configuration class is
+   assigned. Scope the sizing contract to the actual ASCII console descendant so
+   the FormLayout wrappers fill the popup on the very first InteractiveServer render. */
+dxbl-modal-dialog:has(.chat-game-popup-body) > .dxbl-modal-content {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    height: 100% !important;
+    min-height: 0 !important;
+}
+dxbl-modal-dialog:has(.chat-game-popup-body) .dxbl-modal-body {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding: .25rem !important;
+}
+dxbl-modal-dialog:has(.chat-game-popup-body) .dxbl-modal-body :is(
+    .razor-component-boundary,
+    .chat-ascii-layout-surface,
+    .chat-game-popup-body,
+    dxbl-form-layout,
+    dxbl-form-layout-item,
+    .dxbl-row,
+    .dxbl-fl-ctrl) {
+    box-sizing: border-box;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+}
+dxbl-modal-dialog:has(.chat-game-popup-body) .dxbl-modal-body .dxbl-row { flex: 1 1 auto !important; }
+dxbl-modal-dialog:has(.chat-game-popup-body) .chat-game-console {
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
 /* 5.4.7: A DevExpress popup contains multiple FormLayout-owned roots between its modal
    body and the ASCII surface. Percentage height on the console alone cannot traverse those
    wrappers; fill every node on this *specific* fullscreen popup chain. Ordinary editor
@@ -685,7 +721,7 @@ dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-ascii-layout-surf
 }
 dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-console.localgpt-game-fullscreen {
     display: grid !important;
-    grid-template-rows: auto minmax(0, 1fr) auto !important;
+    grid-template-rows: minmax(0, 1fr) auto !important;
 }
 dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-console.localgpt-game-fullscreen .chat-game-stage,
 dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-console.localgpt-game-fullscreen .ascii-operator-stage,
@@ -932,4 +968,16 @@ dxbl-popup-root > dxbl-popup-cell > dxbl-modal .dxbl-modal-body :is(
     .chat-game-popup-body) {
     width: 100% !important;
     max-height: 100% !important;
+}
+
+/* This override follows the shared scrolling policy by design: only the ASCII
+   console popup owns its scrollback internally, so its modal body may not impose
+   the generic document/editor scroll container or its stable side gutters. */
+dxbl-popup-root:not(:fullscreen) > dxbl-popup-cell > dxbl-modal dxbl-modal-dialog.dxbl-popup:has(.chat-game-popup-body) .dxbl-modal-body {
+    height: 100% !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    padding: .2rem !important;
+    overflow: hidden !important;
+    scrollbar-gutter: auto !important;
 }

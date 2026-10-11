@@ -14,12 +14,14 @@ namespace LocalGPT.Services;
 /// <param name="dbContextFactory">Database-context factory used to persist the project-owned game authoring profile.</param>
 /// <param name="architecture">Project architecture service used to persist the compiled game definition as a reviewed project artifact.</param>
 /// <param name="games">Shared GameDirector session service that consumes compiled definitions.</param>
+/// <param name="engine">Scene curator for approved, revision-specific user-authored games.</param>
 /// <param name="logger">Logger used to record bounded operational diagnostics.</param>
 public sealed class GameProjectService(
     ILocalGptProjectService projects,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IProjectArchitectureService architecture,
     ICouncilGameSessionService games,
+    GameSceneEngine engine,
     ILogger<GameProjectService> logger) : IGameProjectService
 {
     /// <summary>Reads the editable authoring profile owned by one LocalGPT Game project.</summary>
@@ -172,7 +174,10 @@ public sealed class GameProjectService(
                 throw new InvalidOperationException("Only projects whose project type is Game can be compiled by the LocalGPT game-project build service.");
             var profile = details.GameProfile
                 ?? throw new InvalidOperationException("Save the Game project design before building it. Builds compile persisted Project-system authoring state and never mutate it implicitly.");
-            var currentRevisionId = details.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
+            var completedRevision = details.Revisions.FirstOrDefault(item => item.IsCurrent);
+            var currentRevisionId = completedRevision?.Id;
+            var committedScene = completedRevision is not null && completedRevision.IsUserApproved
+                ? ReadPlayableRevisionScene(completedRevision) : null;
             var requirementIds = details.Requirements
                 .Where(item => item.IsUserApproved)
                 .OrderBy(item => item.CreatedAtUtc)
@@ -182,6 +187,7 @@ public sealed class GameProjectService(
             var definition = new ProjectGameDefinition
             {
                 ProjectId = projectId,
+                Scene = committedScene,
                 ProjectVersion = details.Project.CurrentVersion,
                 AuthoringProfileId = profile.Id,
                 SourceRevisionId = currentRevisionId,
@@ -207,6 +213,8 @@ public sealed class GameProjectService(
 
             var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
             var serializedDefinition = JsonSerializer.Serialize(definition, jsonOptions);
+            if (serializedDefinition.Length > 60000)
+                throw new InvalidOperationException("The committed Game Studio scene exceeds the project game build artifact budget. Split the scene into smaller curated world chunks before building.");
             var artifact = await architecture.SaveArtifactAsync(projectId, new SaveProjectArtifactRequest
             {
                 RevisionId = currentRevisionId,
@@ -303,6 +311,154 @@ public sealed class GameProjectService(
             else
                 logger.LogError(exception, "Reading a LocalGPT game-project build failed for project {ProjectId}; definition content was omitted.", projectId);
             throw;
+        }
+    }
+
+    /// <summary>Lists only durable, explicitly approved project revisions with playable, curated scene content.</summary>
+    /// <param name="cancellationToken">Cancellation token for project and revision reads.</param>
+    /// <returns>Stable project/revision pairs for the shared chat console.</returns>
+    public async Task<IReadOnlyList<ProjectGameRevisionChoice>> ListPlayableRevisionsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = new List<ProjectGameRevisionChoice>();
+            var available = await projects.GetProjectsAsync(includeArchived: false, cancellationToken).ConfigureAwait(false);
+            foreach (var item in available.Where(project => project.IsGameProject))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var details = await projects.GetProjectAsync(item.Id, cancellationToken).ConfigureAwait(false);
+                if (details is null || details.Project.IsArchived)
+                    continue;
+                foreach (var revision in details.Revisions.Where(value => value.IsUserApproved)
+                             .OrderByDescending(value => value.IsCurrent).ThenByDescending(value => value.CreatedAtUtc))
+                {
+                    if (ReadPlayableRevisionScene(revision) is not null)
+                        result.Add(new ProjectGameRevisionChoice(item.Id, revision.Id, item.Name,
+                            revision.RevisionName, details.Project.CurrentVersion, revision.IsCurrent));
+                }
+            }
+            return result;
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Listing approved Game Studio revisions was cancelled.");
+            else
+                logger.LogError(exception, "Listing approved Game Studio revisions failed; scene contents were not logged.");
+            throw;
+        }
+    }
+
+    /// <summary>Loads and starts one immutable, approved Game Studio revision, even when it is not the current revision.</summary>
+    /// <param name="projectId">Owning project identifier.</param>
+    /// <param name="revisionId">Explicitly selected revision identifier.</param>
+    /// <param name="request">Current chat and Council ownership context.</param>
+    /// <param name="cancellationToken">Cancellation token for the launch operation.</param>
+    /// <returns>The new authoritative, scene-backed GameDirector session.</returns>
+    public async Task<CouncilGameSessionSnapshot> LaunchRevisionAsync(Guid projectId, Guid revisionId,
+        LaunchProjectGameRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var details = await projects.GetProjectAsync(projectId, cancellationToken).ConfigureAwait(false)
+                ?? throw new KeyNotFoundException($"Project {projectId} was not found.");
+            if (!details.Project.IsGameProject || details.Project.IsArchived)
+                throw new InvalidOperationException("Only active Game projects can be launched in Chat.");
+            var revision = details.Revisions.SingleOrDefault(value => value.Id == revisionId)
+                ?? throw new KeyNotFoundException($"Revision {revisionId} was not found in project {projectId}.");
+            if (!revision.IsUserApproved)
+                throw new InvalidOperationException("Only explicitly completed and approved Game Studio revisions can be played.");
+            var scene = ReadPlayableRevisionScene(revision)
+                ?? throw new InvalidOperationException("This revision has no accepted, playable scene. Finish and curate its game artwork before playing.");
+            var profile = details.GameProfile;
+            var definition = new ProjectGameDefinition
+            {
+                ProjectId = projectId,
+                ProjectVersion = details.Project.CurrentVersion,
+                SourceRevisionId = revision.Id,
+                AuthoringProfileId = profile?.Id ?? Guid.Empty,
+                Scene = scene,
+                GameKey = profile?.GameKey ?? $"project-{projectId:N}",
+                DisplayName = profile?.DisplayName ?? details.Project.Name,
+                RuntimeProfile = profile?.RuntimeProfile ?? CouncilGameRuntimeProfile.Corridor,
+                DefaultTeamKey = profile?.DefaultTeamKey ?? "game-project-playtest",
+                DefaultControlMode = profile?.DefaultControlMode ?? CouncilGameControlMode.Shared,
+                DirectorMode = profile?.DirectorMode ?? CouncilGameDirectorMode.Deterministic,
+                GameDirectorModelName = profile?.GameDirectorModelName ?? string.Empty,
+                CreatureDirectorCount = profile?.CreatureDirectorCount ?? 2,
+                AutoplayDelayMilliseconds = profile?.AutoplayDelayMilliseconds ?? 1000,
+                FrameWidth = scene.ViewWidth,
+                FrameHeight = scene.ViewHeight,
+                AsciiColorMode = profile?.AsciiColorMode ?? CouncilAsciiColorMode.TerminalDefault,
+                DefaultForegroundColor = profile?.DefaultForegroundColor ?? 46,
+                DefaultBackgroundColor = profile?.DefaultBackgroundColor ?? 0,
+                MapSeed = profile?.MapSeed ?? 0,
+                ScenarioPrompt = profile?.ScenarioPrompt ?? string.Empty,
+                BuiltAtUtc = DateTime.UtcNow
+            };
+            var snapshot = await games.StartAsync(new StartCouncilGameRequest
+            {
+                ProjectId = projectId,
+                Definition = definition,
+                GameKey = definition.GameKey,
+                TeamKey = definition.DefaultTeamKey,
+                ConversationId = request.ConversationId,
+                CouncilRunId = request.CouncilRunId,
+                ControlMode = definition.DefaultControlMode,
+                AutoplayEnabled = definition.DefaultControlMode == CouncilGameControlMode.Ai,
+                AutoplayDelayMilliseconds = definition.AutoplayDelayMilliseconds,
+                DirectorMode = definition.DirectorMode,
+                GameDirectorModelName = definition.GameDirectorModelName,
+                CreatureDirectorCount = definition.CreatureDirectorCount,
+                FrameWidth = definition.FrameWidth,
+                FrameHeight = definition.FrameHeight,
+                ScenarioPrompt = definition.ScenarioPrompt,
+                StartedBy = string.IsNullOrWhiteSpace(request.StartedBy) ? "Human User" : request.StartedBy.Trim()
+            }, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Launched approved game revision {RevisionId} from project {ProjectId} in session {SessionId}.",
+                revisionId, projectId, snapshot.Id);
+            return snapshot;
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Launching Game Studio revision {RevisionId} was cancelled.", revisionId);
+            else
+                logger.LogError(exception, "Launching Game Studio revision {RevisionId} from project {ProjectId} failed.", revisionId, projectId);
+            throw;
+        }
+    }
+
+    /// <summary>Reads exactly the scene committed in a revision's ProjectStructure business-object field.</summary>
+    /// <param name="revision">Persisted immutable project revision.</param>
+    /// <returns>The accepted scene or <c>null</c> when no playable scene was committed.</returns>
+    private GameSceneDocument? ReadPlayableRevisionScene(LocalGptProjectRevision revision)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(revision.ProjectStructureJson))
+                return null;
+            using var document = JsonDocument.Parse(revision.ProjectStructureJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("scene", out var sceneElement))
+                return null;
+            var scene = sceneElement.Deserialize<GameSceneDocument>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (scene is null || (scene.Tiles.Count == 0 && scene.Actors.Count == 0 && scene.Layers.Count == 0 && scene.Hud.Count == 0))
+                return null;
+            var findings = engine.Curate(scene);
+            if (findings.Any(value => value.BlocksAcceptance))
+            {
+                logger.LogWarning("Approved game revision {RevisionId} contains {FindingCount} blocking scene findings; it is not playable.",
+                    revision.Id, findings.Count(value => value.BlocksAcceptance));
+                return null;
+            }
+            return scene;
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or NullReferenceException)
+        {
+            logger.LogWarning(exception, "Game revision {RevisionId} has unreadable scene data and will not be launched.", revision.Id);
+            return null;
         }
     }
 

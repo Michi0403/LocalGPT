@@ -45,6 +45,18 @@ namespace LocalGPT.Services
         return new()
     {
         Id = session.Id,
+        Scene = session.Scene,
+        SceneClock = session.SceneClock is null ? null : new GameSceneClock
+        {
+            Tick = session.SceneClock.Tick,
+            FractionalRealSeconds = session.SceneClock.FractionalRealSeconds,
+            WorldSeconds = session.SceneClock.WorldSeconds,
+            CurrentTurn = session.SceneClock.CurrentTurn,
+            CameraX = session.SceneClock.CameraX,
+            CameraY = session.SceneClock.CameraY,
+            ActorPositions = session.SceneClock.ActorPositions.ToDictionary(item => item.Key, item => item.Value)
+        },
+        SourceRevisionId = session.SourceRevisionId,
         GameKey = session.GameKey,
         TeamKey = session.TeamKey,
         ConversationId = session.ConversationId,
@@ -75,7 +87,7 @@ namespace LocalGPT.Services
         AsciiColorMode = session.AsciiColorMode,
         DefaultForegroundColor = session.DefaultForegroundColor,
         DefaultBackgroundColor = session.DefaultBackgroundColor,
-        FrameStyleRuns = ResolveFrameStyleRuns(session, session.FrameText).ToArray(),
+        FrameStyleRuns = session.Scene is null ? ResolveFrameStyleRuns(session, session.FrameText).ToArray() : [],
         AnimationFrames = session.AnimationFrames.ToArray(),
         AnimationDelayMilliseconds = session.AnimationDelayMilliseconds,
         AnimationSubtitle = session.AnimationSubtitle,

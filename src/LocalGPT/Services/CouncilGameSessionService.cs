@@ -17,6 +17,8 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         /// Stores the council game director service dependency used by <see cref="CouncilGameSessionService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly ICouncilGameDirectorService gameDirector;
+        /// <summary>Generic, stateless two-dimensional scene engine shared by authoring and live project play.</summary>
+        private readonly GameSceneEngine gameSceneEngine;
         /// <summary>Creates bounded scopes for database-backed team/runtime-class configuration lookups from this singleton game service.</summary>
         private readonly IServiceScopeFactory scopeFactory;
         /// <summary>
@@ -32,18 +34,21 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
 
         /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
         /// <param name="gameDirector">Injected dependency used by the CouncilGameSessionService.</param>
+        /// <param name="gameSceneEngine">Curated scene simulation and projection engine.</param>
         /// <param name="scopeFactory">Scope factory used to resolve database-backed team/runtime-class configuration safely from this singleton service.</param>
         /// <param name="logger">Injected dependency used by the CouncilGameSessionService.</param>
         /// <param name="taskRunner">Supervised task owner used for intentionally concurrent autoplay loops.</param>
         /// <param name="runtimePolicy">Database-backed Council game defaults and bounds.</param>
         public CouncilGameSessionService(
             ICouncilGameDirectorService gameDirector,
+            GameSceneEngine gameSceneEngine,
             IServiceScopeFactory scopeFactory,
             ILogger<CouncilGameSessionService> logger,
             ISupervisedTaskRunner taskRunner,
             ILocalGptRuntimePolicyDataService runtimePolicy)
         {
             this.gameDirector = gameDirector;
+            this.gameSceneEngine = gameSceneEngine;
             this.scopeFactory = scopeFactory;
             this.logger = logger;
             this.taskRunner = taskRunner;
@@ -88,6 +93,9 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             cancellationToken.ThrowIfCancellationRequested();
 
             var definition = request.Definition;
+            var authoredScene = definition?.Scene;
+            if (authoredScene is not null && gameSceneEngine.Curate(authoredScene).Any(item => item.BlocksAcceptance))
+                throw new InvalidOperationException("A completed Game Studio revision must pass semantic scene curation before starting a shared game session.");
             string gameKey;
             CouncilGameRuntimeProfile runtimeProfile;
             Guid? projectId;
@@ -153,9 +161,19 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             var tournamentRules = string.Equals(gameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
                 ? await ResolveKernelTournamentRulesAsync(request, cancellationToken).ConfigureAwait(false)
                 : null;
+            var controlledActor = authoredScene?.Actors.FirstOrDefault(actor => actor.PlayerControlled);
             var session = new CouncilGameSessionState
             {
                 Id = Guid.NewGuid(),
+                Scene = authoredScene,
+                SceneClock = authoredScene is null ? null : new GameSceneClock
+                {
+                    CameraX = Math.Clamp(Math.Floor((controlledActor?.X ?? 0) - authoredScene.ViewWidth / 2d),
+                        0, Math.Max(0, authoredScene.WorldWidth - authoredScene.ViewWidth)),
+                    CameraY = Math.Clamp(Math.Floor((controlledActor?.Y ?? 0) - authoredScene.ViewHeight / 2d),
+                        0, Math.Max(0, authoredScene.WorldHeight - authoredScene.ViewHeight))
+                },
+                SourceRevisionId = definition?.SourceRevisionId,
                 GameKey = gameKey,
                 RuntimeProfile = runtimeProfile,
                 ProjectId = projectId,
@@ -178,8 +196,8 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 GameDirectorModelName = request.GameDirectorModelName?.Trim() ?? string.Empty,
                 CreatureDirectorCount = Math.Clamp(request.CreatureDirectorCount <= 0 ? RuntimeParameters.DefaultCreatureDirectors : request.CreatureDirectorCount, RuntimeParameters.MinimumCreatureDirectors, RuntimeParameters.MaximumCreatureDirectors),
                 LastDirectorDecision = "The GameDirector owns all state transitions; controllers may only submit proposals.",
-                FrameWidth = Math.Clamp(request.FrameWidth <= 0 ? RuntimeParameters.DefaultFrameWidth : request.FrameWidth, RuntimeParameters.MinimumFrameWidth, RuntimeParameters.MaximumFrameWidth),
-                FrameHeight = Math.Clamp(request.FrameHeight <= 0 ? RuntimeParameters.DefaultFrameHeight : request.FrameHeight, RuntimeParameters.MinimumFrameHeight, RuntimeParameters.MaximumFrameHeight),
+                FrameWidth = authoredScene?.ViewWidth ?? Math.Clamp(request.FrameWidth <= 0 ? RuntimeParameters.DefaultFrameWidth : request.FrameWidth, RuntimeParameters.MinimumFrameWidth, RuntimeParameters.MaximumFrameWidth),
+                FrameHeight = authoredScene?.ViewHeight ?? Math.Clamp(request.FrameHeight <= 0 ? RuntimeParameters.DefaultFrameHeight : request.FrameHeight, RuntimeParameters.MinimumFrameHeight, RuntimeParameters.MaximumFrameHeight),
                 AsciiColorMode = asciiColorMode,
                 DefaultForegroundColor = defaultForegroundColor,
                 DefaultBackgroundColor = defaultBackgroundColor,
@@ -198,10 +216,13 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 PlayerX = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
                 PlayerY = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
                 FacingRadians = 0d,
-                LegalActions = BuildLegalActions(runtimeProfile),
-                InputBindings = BuildInputBindings(runtimeProfile)
+                LegalActions = authoredScene is null ? BuildLegalActions(runtimeProfile) : ["move-forward", "move-backward", "strafe-left", "strafe-right", "turn-left", "turn-right", "use"],
+                InputBindings = authoredScene is null
+                    ? BuildInputBindings(runtimeProfile)
+                    : BuildInputBindings(CouncilGameRuntimeProfile.Corridor)
+                        .Where(binding => binding.Action is not ("shoot" or "duck")).ToList()
             };
-            if (runtimeProfile == CouncilGameRuntimeProfile.Corridor)
+            if (authoredScene is null && runtimeProfile == CouncilGameRuntimeProfile.Corridor)
                 InitializeDoomWorld(session);
             if (string.Equals(gameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase))
             {
@@ -212,9 +233,9 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.LegalActions = [];
                 session.InputBindings = [];
             }
+            session.FrameRenderer = authoredScene is null ? "LocalGPT deterministic preview renderer" : "LocalGPT curated scene engine";
             session.FrameText = Render(session);
             session.FrameCaption = BuildCaption(session);
-            session.FrameRenderer = "LocalGPT deterministic preview renderer";
             sessions[session.Id] = session;
             EnsureAutoplayLoop(session);
             Notify(session.Id);
@@ -560,8 +581,13 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.HumanInputRequired = false;
                 session.InputReason = "The GameDirector approved the proposal and is resolving one authoritative world step.";
                 session.CurrentTurnOwner = session.GameDirectorName;
-                ApplyAction(session, decision.NormalizedAction, request.AimX, request.AimY);
-                AdvanceDoomWorld(session);
+                if (session.Scene is not null)
+                    ApplySceneControl(session, decision.NormalizedAction);
+                else
+                {
+                    ApplyAction(session, decision.NormalizedAction, request.AimX, request.AimY);
+                    AdvanceDoomWorld(session);
+                }
                 session.Turn++;
                 session.LastAction = decision.NormalizedAction;
                 session.LastActionBy = string.IsNullOrWhiteSpace(request.ActorName) ? request.Source : request.ActorName.Trim();
@@ -569,7 +595,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.LastDirectorPredictions = decision.Predictions.Select(ClonePrediction).ToList();
                 session.FrameText = Render(session);
                 session.FrameCaption = BuildCaption(session);
-                session.FrameRenderer = "LocalGPT deterministic preview renderer";
+                session.FrameRenderer = session.Scene is null ? "LocalGPT deterministic preview renderer" : "LocalGPT curated scene engine";
                 session.AnimationFrames.Clear();
                 session.AnimationFrameStyleRuns.Clear();
                 session.AnimationSubtitleStyle = null;
