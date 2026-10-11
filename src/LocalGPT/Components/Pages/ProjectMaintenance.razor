@@ -83,6 +83,40 @@
         </article>
 
         <article class="maintenance-card wide">
+            <h2>@T("ProjectMaintenance.LearningChecklist", "Learning checklist per file")</h2>
+            <p>@T("ProjectMaintenance.LearningChecklistHelp", "Each tracked source file has a durable, revision-specific learning task. Hash coverage is not semantic review. Open, blocked and review-required files remain visible until their source evidence is processed.")</p>
+            @if (trackedFiles.Count == 0)
+            {
+                <p class="hint">@T("ProjectMaintenance.LearningChecklistEmpty", "Select and scan a project or synchronize a learning workspace to create file tasks.")</p>
+            }
+            else
+            {
+                <dl class="metadata-list">
+                    <dt>@T("ProjectMaintenance.LearningTotal", "Total file tasks")</dt><dd>@trackedFiles.Count</dd>
+                    <dt>@T("ProjectMaintenance.LearningCompleted", "Reviewed")</dt><dd>@trackedFiles.Count(file => file.LearningStatus == "Completed")</dd>
+                    <dt>@T("ProjectMaintenance.LearningOpen", "Open or reading")</dt><dd>@trackedFiles.Count(file => file.LearningStatus == "Pending" || file.LearningStatus == "Reading")</dd>
+                    <dt>@T("ProjectMaintenance.LearningReviewRequired", "Awaiting review")</dt><dd>@trackedFiles.Count(file => file.LearningStatus == "NeedsReview")</dd>
+                    <dt>@T("ProjectMaintenance.LearningBlocked", "Blocked")</dt><dd>@trackedFiles.Count(file => file.LearningStatus == "Blocked")</dd>
+                </dl>
+                <DxGrid Data="@trackedFiles"
+                        KeyFieldName="@nameof(LocalGptProjectTrackedFile.Id)"
+                        PageSize="25"
+                        ShowFilterRow="true"
+                        HighlightRowOnHover="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="@nameof(LocalGptProjectTrackedFile.ProjectRelativePath)" Caption='@T("Common.Path", "Path")' MinWidth="260" />
+                        <DxGridDataColumn FieldName="@nameof(LocalGptProjectTrackedFile.LearningStatus)" Caption='@T("ProjectMaintenance.LearningStatus", "Status")' Width="160px" />
+                        <DxGridDataColumn FieldName="@nameof(LocalGptProjectTrackedFile.LearningReadCharacters)" Caption='@T("ProjectMaintenance.LearningRead", "Read characters")' Width="150px" />
+                        <DxGridDataColumn FieldName="@nameof(LocalGptProjectTrackedFile.LearningReadComplete)" Caption='@T("ProjectMaintenance.LearningReadComplete", "Read to EOF")' Width="125px" />
+                        <DxGridDataColumn FieldName="@nameof(LocalGptProjectTrackedFile.LearningEvidence)" Caption='@T("ProjectMaintenance.LearningEvidence", "Review evidence")' MinWidth="260" />
+                        <DxGridDataColumn FieldName="@nameof(LocalGptProjectTrackedFile.LearningBlockReason)" Caption='@T("ProjectMaintenance.LearningBlockReason", "Blocking reason")' MinWidth="240" />
+                        <DxGridDataColumn FieldName="@nameof(LocalGptProjectTrackedFile.LearningUpdatedAtUtc)" Caption='@T("ProjectMaintenance.LearningLastUpdate", "Updated UTC")' Width="185px" />
+                    </Columns>
+                </DxGrid>
+            }
+        </article>
+
+        <article class="maintenance-card wide">
             <h2>@T("ProjectMaintenance.FilePatterns", "Tracked file structure patterns")</h2>
             <p>@T("ProjectMaintenance.FilePatternsHelp", "Each tracked file keeps its stable identity, absolute and relative paths, content hash, role, and optional regular expressions that help Council members arrange and validate its structure without changing the file.")</p>
             @if (trackedFiles.Count == 0)

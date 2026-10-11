@@ -2471,12 +2471,22 @@ function Invoke-LocalGptChunkedBrowserPdf {
         }
 
         Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
-        $mergeArguments = [System.Collections.Generic.List[string]]::new()
-        $mergeArguments.Add('pdf-merge'); $mergeArguments.Add('--output'); $mergeArguments.Add($PdfPath)
-        foreach ($chunkPdf in $chunkPdfs) { $mergeArguments.Add('--input'); $mergeArguments.Add($chunkPdf) }
+        # Use a short UTF-8 manifest argument: passing hundreds of absolute PDF paths to
+        # Windows PowerShell's native-process launcher can exceed the Windows command-line limit.
+        # The ordered durable chunk paths stay in the repository-owned working directory.
+        $mergeInputListPath = Join-Path $chunkRoot 'pdf-merge-inputs.txt'
+        [IO.File]::WriteAllLines($mergeInputListPath, [string[]]$chunkPdfs.ToArray(), [Text.UTF8Encoding]::new($false))
+        $mergeArguments = @('pdf-merge', '--output', $PdfPath, '--input-list', $mergeInputListPath)
         Write-Host "Merging $($chunkPdfs.Count) durable PDF part(s) with LocalGPT.ReleasePackaging ($reusedChunks reused, $renderedChunks rendered this run)..." -ForegroundColor DarkCyan
-        $mergeOutput = @(& $PackagingTool @($mergeArguments) 2>&1)
-        $mergeExitCode = [int]$LASTEXITCODE
+        $mergeExitCode = -1
+        try {
+            $mergeOutput = @(& $PackagingTool @mergeArguments 2>&1)
+            $mergeExitCode = [int]$LASTEXITCODE
+        }
+        catch {
+            $diagnostics.Add("Managed PDF merge invocation failed: $($_.Exception.Message). Durable chunks were retained for the next attempt.")
+            return [pscustomobject]@{ Succeeded = $false; ExitCode = $mergeExitCode; Diagnostics = @($diagnostics); RenderMode = ''; AccessibilityMode = 'unavailable'; ChunkCount = $chunkPdfs.Count; RenderedChunkCount = $renderedChunks; ReusedChunkCount = $reusedChunks }
+        }
         foreach ($line in $mergeOutput) { if (-not [string]::IsNullOrWhiteSpace([string]$line)) { $diagnostics.Add([string]$line) } }
         if ($mergeExitCode -ne 0 -or -not (Test-LocalGptCompletePdf -Path $PdfPath -MinimumBytes $MinimumBytes)) {
             $diagnostics.Add("Managed PDF merge failed or produced an incomplete PDF (exit=$mergeExitCode). Durable chunks were retained for the next attempt.")

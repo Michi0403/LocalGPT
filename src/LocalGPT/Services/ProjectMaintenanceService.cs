@@ -786,6 +786,17 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
                 tracked.FileRole = patterns.Role;
                 if (string.IsNullOrWhiteSpace(tracked.StructureRegex)) tracked.StructureRegex = patterns.Structure;
                 if (string.IsNullOrWhiteSpace(tracked.ContentFormatRegex)) tracked.ContentFormatRegex = patterns.Content;
+                if (!string.Equals(tracked.ContentHash, hash, StringComparison.OrdinalIgnoreCase) || tracked.LearningStatus == "Blocked")
+                {
+                    tracked.LearningStatus = "Pending";
+                    tracked.LearningReadCharacters = 0;
+                    tracked.LearningReadComplete = false;
+                    tracked.LearningReviewedHash = string.Empty;
+                    tracked.LearningEvidence = string.Empty;
+                    tracked.LearningBlockReason = string.Empty;
+                    tracked.LearningUpdatedAtUtc = now;
+                    tracked.LearningCompletedAtUtc = null;
+                }
                 tracked.ContentHash = hash;
                 tracked.SizeBytes = info.Length;
                 tracked.LastWriteTimeUtc = info.LastWriteTimeUtc;
@@ -794,6 +805,14 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
                 tracked.IsGenerated = IsGeneratedPath(relative);
                 tracked.IsUserApproved = true;
                 filesStored++;
+            }
+
+            foreach (var missing in existing.Where(item => !item.Exists))
+            {
+                missing.LearningStatus = "Blocked";
+                missing.LearningBlockReason = "The tracked file is absent or outside the current scan limits.";
+                missing.LearningCompletedAtUtc = null;
+                missing.LearningUpdatedAtUtc = now;
             }
 
             if (revision is not null)

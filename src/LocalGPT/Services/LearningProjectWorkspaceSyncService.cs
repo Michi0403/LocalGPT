@@ -1023,6 +1023,17 @@ public sealed class LearningProjectWorkspaceSyncService(
                 row.ContentType = GuessContentType(path);
                 row.EncodingName = IsLikelyTextFile(path) ? "utf-8" : "binary";
                 row.FileRole = GuessFileRole(relative);
+                if (!string.Equals(row.ContentHash, hash, StringComparison.OrdinalIgnoreCase) || !row.Exists)
+                {
+                    row.LearningStatus = "Pending";
+                    row.LearningReadCharacters = 0;
+                    row.LearningReadComplete = false;
+                    row.LearningReviewedHash = string.Empty;
+                    row.LearningEvidence = string.Empty;
+                    row.LearningBlockReason = string.Empty;
+                    row.LearningUpdatedAtUtc = now;
+                    row.LearningCompletedAtUtc = null;
+                }
                 row.ContentHash = hash;
                 row.SizeBytes = info.Length;
                 row.LastWriteTimeUtc = info.LastWriteTimeUtc;
@@ -1035,6 +1046,10 @@ public sealed class LearningProjectWorkspaceSyncService(
             {
                 row.Exists = false;
                 row.LastSeenAtUtc = now;
+                row.LearningStatus = "Blocked";
+                row.LearningBlockReason = "The tracked file is missing from the current source revision.";
+                row.LearningCompletedAtUtc = null;
+                row.LearningUpdatedAtUtc = now;
             }
         }
         catch (Exception exception)

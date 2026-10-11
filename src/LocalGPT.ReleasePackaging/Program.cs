@@ -309,12 +309,20 @@ internal static class Program
     /// <summary>
     /// Merges one or more PDF files in the supplied order using the cross-platform PDFsharp core package.
     /// </summary>
-    /// <param name="values">Parsed command-line values containing repeated input paths and the output path.</param>
+    /// <param name="values">Parsed command-line values containing repeated input paths or a UTF-8 input-list manifest, and the output path.</param>
     private static void MergePdf(Dictionary<string, List<string>> values)
     {
         var output = Path.GetFullPath(Required(values, "output"));
-        var inputs = Multi(values, "input").Where(x => !string.IsNullOrWhiteSpace(x)).Select(Path.GetFullPath).ToArray();
-        if (inputs.Length == 0) throw new ArgumentException("At least one --input PDF is required.");
+        var directInputs = Multi(values, "input");
+        var inputLists = Multi(values, "input-list");
+        if (inputLists.Count > 1) throw new ArgumentException("Only one --input-list manifest is supported per PDF merge.");
+        if (directInputs.Count > 0 && inputLists.Count > 0) throw new ArgumentException("Use either --input or --input-list, not both.");
+        var inputPaths = inputLists.Count == 1
+            ? File.ReadAllLines(Path.GetFullPath(inputLists[0]), Encoding.UTF8)
+            : directInputs.ToArray();
+        if (inputPaths.Length == 0 || inputPaths.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("At least one non-empty PDF input path is required.");
+        var inputs = inputPaths.Select(Path.GetFullPath).ToArray();
         foreach (var input in inputs) if (!File.Exists(input)) throw new FileNotFoundException("PDF input was not found.", input);
 
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);

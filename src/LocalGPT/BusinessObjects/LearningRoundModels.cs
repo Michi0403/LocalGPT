@@ -125,6 +125,12 @@ public sealed class LearningRegexInput
     /// </summary>
     /// <value>The flags value exposed by <see cref="LearningRegexInput"/>.</value>
     public string Flags { get; set; } = "c";
+
+    /// <summary>Explains the concrete source-backed purpose of the suggested pattern.</summary>
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>Optional literal source excerpt against which the proposed pattern must match.</summary>
+    public string SampleText { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -166,6 +172,79 @@ public sealed record LearningMaintenanceResult(
     IReadOnlyList<string> RegexNames,
     string WorkspaceName,
     IReadOnlyList<LearningProjectSyncResult> ProjectsSynchronized);
+
+/// <summary>One bounded file-checklist row; a scan or hash never constitutes a semantic review.</summary>
+public sealed record LearningFileChecklistItem(
+    Guid FileId,
+    string RelativePath,
+    string ContentHash,
+    string Status,
+    long ReadCharacters,
+    bool ReadComplete,
+    string Evidence,
+    string BlockReason,
+    DateTime? UpdatedAtUtc);
+
+/// <summary>Database-grounded progress counters and a bounded, resumable window of file tasks.</summary>
+public sealed record LearningFileChecklistSnapshot(
+    Guid ProjectId,
+    Guid? RevisionId,
+    int Total,
+    int Pending,
+    int Reading,
+    int NeedsReview,
+    int Blocked,
+    int Completed,
+    int SkippedWithReason,
+    int Offset,
+    IReadOnlyList<LearningFileChecklistItem> Files);
+
+/// <summary>A single verified source chunk and its durable read-continuation cursor.</summary>
+public sealed record LearningFileReadResult(
+    Guid FileId,
+    string RelativePath,
+    string ContentHash,
+    long OffsetCharacters,
+    long NextOffsetCharacters,
+    bool HasMore,
+    string Content,
+    string Status,
+    string BlockReason);
+
+/// <summary>Result of storing a model-suggested per-file review, never user-approved knowledge.</summary>
+public sealed record LearningFileReviewResult(
+    Guid FileId,
+    string ContentHash,
+    string Status,
+    bool ReadComplete);
+
+/// <summary>JSON arguments selecting one bounded checklist page or tracked source chunk.</summary>
+public sealed class LearningFileCursorRequest
+{
+    /// <summary>Selected project, falling back to the active chat project if omitted.</summary>
+    public Guid? ProjectId { get; set; }
+    /// <summary>Selected revision or the project's base files.</summary>
+    public Guid? RevisionId { get; set; }
+    /// <summary>Optional specific file identity for continuation.</summary>
+    public Guid? FileId { get; set; }
+    /// <summary>Bounded checklist-page offset.</summary>
+    public int Offset { get; set; }
+    /// <summary>Bounded result size.</summary>
+    public int Take { get; set; } = 100;
+    /// <summary>Maximum content characters in one read step.</summary>
+    public int MaximumCharacters { get; set; } = 6000;
+}
+
+/// <summary>Model-suggested, non-authoritative file review or explicit blocker.</summary>
+public sealed class LearningFileReviewRequest
+{
+    /// <summary>Source-backed file identity.</summary>
+    public Guid FileId { get; set; }
+    /// <summary>Concise findings or reason for an unresolved blocker.</summary>
+    public string Evidence { get; set; } = string.Empty;
+    /// <summary>True when no credible semantic review is possible.</summary>
+    public bool Blocked { get; set; }
+}
 
 /// <summary>Describes one repository that a learning round synchronized into LocalGPT's database-first project structure.</summary>
 /// <param name="ProjectId">Stable project identifier.</param>

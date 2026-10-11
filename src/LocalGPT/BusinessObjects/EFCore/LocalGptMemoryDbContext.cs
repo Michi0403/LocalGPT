@@ -864,8 +864,13 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.StructureRegex).IsRequired();
                 entity.Property(item => item.ContentFormatRegex).IsRequired();
                 entity.Property(item => item.ContentHash).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.LearningStatus).HasMaxLength(32).IsRequired();
+                entity.Property(item => item.LearningReviewedHash).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.LearningEvidence).IsRequired();
+                entity.Property(item => item.LearningBlockReason).IsRequired();
                 entity.HasIndex(item => new { item.ProjectId, item.RevisionId, item.ProjectRelativePath }).IsUnique();
                 entity.HasIndex(item => new { item.ProjectId, item.RevisionId, item.Exists });
+                entity.HasIndex(item => new { item.ProjectId, item.RevisionId, item.LearningStatus });
                 entity.HasOne(item => item.Project).WithMany(project => project.TrackedFiles).HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(item => item.Revision).WithMany(revision => revision.TrackedFiles).HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
             });

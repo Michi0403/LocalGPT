@@ -1814,6 +1814,36 @@ namespace LocalGPT.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("LearningBlockReason")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LearningCompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LearningEvidence")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("LearningReadCharacters")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("LearningReadComplete")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LearningReviewedHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LearningStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LearningUpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EncodingName")
                         .IsRequired()
                         .HasMaxLength(80)
@@ -1892,6 +1922,8 @@ namespace LocalGPT.Migrations
                     b.HasIndex("RevisionId");
 
                     b.HasIndex("ProjectId", "RevisionId", "Exists");
+
+                    b.HasIndex("ProjectId", "RevisionId", "LearningStatus");
 
                     b.HasIndex("ProjectId", "RevisionId", "ProjectRelativePath")
                         .IsUnique();
