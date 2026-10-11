@@ -56,6 +56,26 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>Determines whether a SQLite form field must remain read-only, including integer primary keys during insertion.</summary>
+        /// <param name="column">Column metadata supplied by the maintained SQLite editor service.</param>
+        /// <param name="isExistingRow">Indicates whether an existing record is being edited.</param>
+        /// <param name="canEditTable">Indicates whether the surrounding table is editable.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>True for protected editor fields and whenever the read-only decision cannot be completed safely.</returns>
+        public bool IsReadOnlyEditorColumn(SqliteColumnSummary column, bool isExistingRow, bool canEditTable, ILogger logger)
+        {
+            try
+            {
+                return !canEditTable || (column.IsPrimaryKey &&
+                    (isExistingRow || column.Type.Contains("INT", StringComparison.OrdinalIgnoreCase)));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not classify SQLite editor column {ColumnName}; field remains read-only.", column?.Name);
+                return true;
+            }
+        }
+
         /// <summary>
         /// Builds cell preview as part of the sqlite grid presentation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>

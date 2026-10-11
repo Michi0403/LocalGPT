@@ -371,12 +371,15 @@ public sealed class CanIRunHardwareRecommendationService(
                 throw new InvalidDataException("One CanIRun.ai compatibility response exceeded LocalGPT's bounded response size.");
             using var document = JsonDocument.Parse(json);
             var compatibilityRows = ParseRecommendations(document.RootElement, deviceName, compatibilityUri.ToString(), cancellationToken);
-            var parsed = BuildCompatibilityFallback(document.RootElement, catalogModel, deviceName)
-                ?? compatibilityRows
-                    .Where(item => item.ModelId.Equals(catalogModel.ModelId, StringComparison.OrdinalIgnoreCase))
-                    .OrderByDescending(item => item.Score)
-                    .FirstOrDefault()
-                ?? compatibilityRows.OrderByDescending(item => item.Score).FirstOrDefault();
+            var matchingRow = compatibilityRows
+                .Where(item => item.ModelId.Equals(catalogModel.ModelId, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(item => item.Score)
+                .FirstOrDefault();
+            var fallbackRow = BuildCompatibilityFallback(document.RootElement, catalogModel, deviceName);
+            var parsed = new[] { matchingRow, fallbackRow, compatibilityRows.OrderByDescending(item => item.Score).FirstOrDefault() }
+                .Where(item => item is not null)
+                .OrderByDescending(item => item!.Score)
+                .FirstOrDefault();
             if (parsed is null)
                 return null;
 
@@ -414,7 +417,7 @@ public sealed class CanIRunHardwareRecommendationService(
             var source = compatibility ?? root;
             var grade = FirstString(source, "grade", "tier", "rating");
             var status = FirstString(source, "status", "runStatus", "compatibilityStatus", "verdict", "label");
-            var score = FirstInt(source, "score", "compatibilityScore", "rankScore");
+            var score = FirstInt(source, "score", "compatibilityScore", "rankScore", "fitScore", "overallScore");
             var quantization = FirstString(source, "quantization", "quant", "recommendedQuantization", "selectedQuantization");
             var requiredVram = FirstDouble(source, "requiredVramGb", "requiredVRAMGb", "vramGb", "memoryGb", "memoryRequiredGb");
             if (TryGetObject(source, "selectedQuantization") is { } selectedQuantization)
@@ -625,9 +628,9 @@ public sealed class CanIRunHardwareRecommendationService(
             var status = FirstString(candidate, "status", "runStatus", "compatibilityStatus", "verdict");
             if (string.IsNullOrWhiteSpace(status) && compatibility is { } statusCompatibility)
                 status = FirstString(statusCompatibility, "status", "verdict", "label");
-            var score = FirstInt(candidate, "score", "compatibilityScore", "rankScore");
+            var score = FirstInt(candidate, "score", "compatibilityScore", "rankScore", "fitScore", "overallScore");
             if (score == 0 && compatibility is { } scoreCompatibility)
-                score = FirstInt(scoreCompatibility, "score", "compatibilityScore", "rankScore");
+                score = FirstInt(scoreCompatibility, "score", "compatibilityScore", "rankScore", "fitScore", "overallScore");
             var quantization = FirstString(candidate, "quantization", "quant", "recommendedQuantization", "selectedQuantization");
             var requiredVram = FirstDouble(candidate, "requiredVramGb", "requiredVRAMGb", "vramGb", "memoryGb", "memoryRequiredGb");
             var publisher = FirstString(candidate, "publisher", "provider", "organization", "author");
@@ -832,10 +835,13 @@ public sealed class CanIRunHardwareRecommendationService(
                 {
                     if (!property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                         continue;
-                    if (property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out var value))
-                        return value;
-                    if (property.Value.ValueKind == JsonValueKind.String && int.TryParse(property.Value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-                        return value;
+                    if (property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetDouble(out var numericScore)
+                        && double.IsFinite(numericScore) && numericScore >= int.MinValue && numericScore <= int.MaxValue)
+                        return (int)Math.Round(numericScore, MidpointRounding.AwayFromZero);
+                    if (property.Value.ValueKind == JsonValueKind.String
+                        && double.TryParse(property.Value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out numericScore)
+                        && double.IsFinite(numericScore) && numericScore >= int.MinValue && numericScore <= int.MaxValue)
+                        return (int)Math.Round(numericScore, MidpointRounding.AwayFromZero);
                 }
             }
             return 0;

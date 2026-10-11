@@ -26,7 +26,7 @@ def require(condition: bool, description: str) -> None:
 project = source("LocalGPT.csproj")
 version = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", project)
 require(version is not None, "LocalGPT must declare a release version")
-require(tuple(map(int, version.groups())) == (5, 5, 0), "Expected current LocalGPT release 5.5.0")
+require(tuple(map(int, version.groups())) == (5, 5, 4), "Expected current LocalGPT release 5.5.4")
 require(all(int(part) <= 9 for part in version.groups()[1:]), "Version slots must roll over at 10")
 
 models = source("BusinessObjects/ProjectMaintenanceModels.cs")
@@ -94,4 +94,4 @@ seed = source("Services/OrganicCouncilBlueprintSeedDataService.cs")
 require("After localgpt.learning.maintain synchronizes source projects" in seed and
         '"localgpt.learning.file.read"' in seed,
         "Learning Council must be instructed and allowed to resume the per-file queue")
-print("LocalGPT 5.5.0 retained learning-file source contract passed: schema, migration, state transitions, tools, seeded Council, DevExpress grid and all localization catalogs.")
+print("LocalGPT 5.5.4 retained learning-file source contract passed: schema, migration, state transitions, tools, seeded Council, DevExpress grid and all localization catalogs.")

@@ -99,12 +99,32 @@ namespace LocalGPT.Services
         {
             try
             {
+                return await GetTablePageAsync(tableName, take, 0, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not read the first SQLite page from {TableName}.", tableName);
+                throw;
+            }
+        }
+
+        /// <summary>Returns a bounded SQLite page with stable newest-first row identifiers.</summary>
+        /// <param name="tableName">Validated SQLite table name.</param>
+        /// <param name="take">Requested page size, limited by runtime policy.</param>
+        /// <param name="skip">Number of newer records to skip.</param>
+        /// <param name="cancellationToken">Cancellation token for the read.</param>
+        /// <returns>One page of records and its column metadata.</returns>
+        public async Task<SqliteTableSnapshot> GetTablePageAsync(string tableName, int take, int skip, CancellationToken cancellationToken = default)
+        {
+            try
+            {
                 await EnsureDatabaseFileAsync(cancellationToken).ConfigureAwait(false);
                 var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
                 await using var configuredConnectionAsyncDisposal = connection.ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(connection);
                 await sqliteUtility.EnsureValidTableAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
 
+                if (skip < 0) throw new ArgumentOutOfRangeException(nameof(skip));
                 var safeTake = Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.SqliteTableEditorMaximumRows)));
                 var columns = await sqliteUtility.GetColumnsAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
                 var rows = new List<SqliteRowSnapshot>();
@@ -115,9 +135,10 @@ namespace LocalGPT.Services
                 SELECT rowid AS "__rowid", *
                 FROM {sqliteUtility.QuoteIdentifier(tableName)}
                 ORDER BY rowid DESC
-                LIMIT $take 
+                LIMIT $take OFFSET $skip
                 """;
                 command.Parameters.AddWithValue("$take", safeTake);
+                command.Parameters.AddWithValue("$skip", skip);
 
                 var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 await using var configuredReaderAsyncDisposal = reader.ConfigureAwait(false);
@@ -154,6 +175,89 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not read SQLite table {TableName}.", tableName);
+                throw;
+            }
+        }
+
+        /// <summary>Reads a bounded relational slice without silently discarding older matching records.</summary>
+        /// <param name="tableName">Name of the dependent or principal table.</param>
+        /// <param name="columnName">Validated SQLite relation column.</param>
+        /// <param name="value">Exact relation value.</param>
+        /// <param name="take">Maximum matching records.</param>
+        /// <param name="cancellationToken">Cancellation token for the read.</param>
+        /// <returns>A normal table snapshot containing only relationally matched rows.</returns>
+        public async Task<SqliteTableSnapshot> GetRelatedRowsAsync(string tableName, string columnName, string? value, int take = 100, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await GetRelatedRowsPageAsync(tableName, columnName, value, take, 0, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not read the first relational SQLite page from {TableName}.", tableName);
+                throw;
+            }
+        }
+
+        /// <summary>Reads a bounded relationship page using validated names and a parameterized offset.</summary>
+        /// <param name="tableName">Validated relation table.</param>
+        /// <param name="columnName">Validated relation column.</param>
+        /// <param name="value">Exact comparison value.</param>
+        /// <param name="take">Maximum page size.</param>
+        /// <param name="skip">Nonnegative offset within the relation.</param>
+        /// <param name="cancellationToken">Cancellation token for the read.</param>
+        /// <returns>Related rows and their schema metadata.</returns>
+        public async Task<SqliteTableSnapshot> GetRelatedRowsPageAsync(string tableName, string columnName, string? value, int take, int skip, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await EnsureDatabaseFileAsync(cancellationToken).ConfigureAwait(false);
+                var connection = await OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredConnectionAsyncDisposal = connection.ConfigureAwait(false);
+                await sqliteUtility.EnsureValidTableAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
+                var columns = await sqliteUtility.GetColumnsAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
+                if (!columns.Any(column => column.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase)))
+                    throw new ArgumentException("The selected foreign-key column does not belong to the table.", nameof(columnName));
+
+                if (skip < 0) throw new ArgumentOutOfRangeException(nameof(skip));
+                var safeTake = Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.SqliteTableEditorMaximumRows)));
+                var command = connection.CreateCommand();
+                await using (command.ConfigureAwait(false))
+                {
+                    var predicate = value is null ? "IS NULL" : "= $relationValue";
+                    command.CommandText = $"SELECT rowid AS \"__rowid\", * FROM {sqliteUtility.QuoteIdentifier(tableName)} WHERE {sqliteUtility.QuoteIdentifier(columnName)} {predicate} ORDER BY rowid DESC LIMIT $take OFFSET $skip;";
+                    command.Parameters.AddWithValue("$take", safeTake);
+                    command.Parameters.AddWithValue("$skip", skip);
+                    if (value is not null) command.Parameters.AddWithValue("$relationValue", value);
+                    var rows = new List<SqliteRowSnapshot>();
+                    var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                    await using var configuredReaderAsyncDisposal = reader.ConfigureAwait(false);
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        var row = new SqliteRowSnapshot { RowId = Convert.ToInt64(reader["__rowid"], CultureInfo.InvariantCulture) };
+                        foreach (var column in columns)
+                        {
+                            var rawValue = reader[column.Name];
+                            row.Values[column.Name] = rawValue is null or DBNull ? null : Convert.ToString(rawValue, CultureInfo.InvariantCulture);
+                        }
+                        rows.Add(row);
+                    }
+                    return new SqliteTableSnapshot
+                    {
+                        DatabasePath = DatabasePath,
+                        TableName = tableName,
+                        Columns = columns,
+                        Rows = rows
+                    };
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not load related rows from {TableName} using {ColumnName}.", tableName, columnName);
                 throw;
             }
         }

@@ -289,6 +289,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<ISafeTextDocumentService, SafeTextDocumentService>();
                 builder.Services.AddScoped<IKnowledgeRatingService, KnowledgeRatingService>();
                 builder.Services.AddScoped<ISqliteTableEditorService, SqliteTableEditorService>();
+                builder.Services.AddScoped<IDataManagementCatalogService, DataManagementCatalogService>();
                 builder.Services.AddScoped<ILearnBaseKnowledgeImporterService, LearnBaseKnowledgeImporterService>();
                 builder.Services.AddSingleton<IDocumentationTranslationAdapter, DocumentationTranslationAdapter>();
                 builder.Services.AddSingleton<IDocumentationCatalogService, DocumentationCatalogService>();

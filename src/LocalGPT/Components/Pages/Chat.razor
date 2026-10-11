@@ -689,19 +689,24 @@
                                     </header>
                                     @foreach (var activity in participantActivities)
                                     {
-                                        <details class="localgpt-live-participant-card" open="@activity.IsRunning" @key="activity.ActivityKey">
-                                            <summary>
+                                        <div class="localgpt-live-participant-card" @key="activity.ActivityKey">
+                                            <div class="localgpt-live-participant-heading">
                                                 <span class="localgpt-live-participant-state @(activity.IsRunning ? "is-running" : "is-complete")" aria-hidden="true"></span>
                                                 <span>
                                                     <strong>@activity.ModelName</strong>
                                                     <small>@activity.Phase · @activity.Role · @activity.RouteLabel</small>
                                                 </span>
                                                 <em>@activity.StatusMessage</em>
-                                                @if (!activity.IsRunning && !string.IsNullOrWhiteSpace(activity.FinalContent))
+                                                @if (!activity.IsRunning)
                                                 {
-                                                    <span class="localgpt-live-result-ready">Result ready · expand</span>
+                                                    <DxButton CssClass="localgpt-live-participant-evidence-button"
+                                                              RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                                              Click="@(() => ToggleCompletedCouncilActivityEvidence(activity.ActivityKey))">
+                                                        @(revealedCompletedCouncilActivityEvidence.Contains(activity.ActivityKey)
+                                                            ? "Hide answer and provider evidence" : "Inspect answer, thinking and provider evidence")
+                                                    </DxButton>
                                                 }
-                                            </summary>
+                                            </div>
                                             @if (activity.IsRunning)
                                             {
                                                 @if (!string.IsNullOrWhiteSpace(activity.Content))
@@ -718,15 +723,7 @@
                                                     <p class="localgpt-live-participant-waiting">Waiting for streamed model output…</p>
                                                 }
                                             }
-                                            else if (!revealedCompletedCouncilActivityEvidence.Contains(activity.ActivityKey))
-                                            {
-                                                <DxButton
-                                                        CssClass="localgpt-live-participant-evidence-button"
-                                                        Click="@(() => revealedCompletedCouncilActivityEvidence.Add(activity.ActivityKey))">
-                                                    Inspect completed answer and provider evidence
-                                                </DxButton>
-                                            }
-                                            else
+                                            else if (revealedCompletedCouncilActivityEvidence.Contains(activity.ActivityKey))
                                             {
                                                 @if (!string.IsNullOrWhiteSpace(activity.FinalContent))
                                                 {
@@ -753,7 +750,7 @@
                                                     </details>
                                                 }
                                             }
-                                        </details>
+                                        </div>
                                     }
                                 </div>
     </Template>

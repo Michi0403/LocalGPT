@@ -244,11 +244,13 @@ namespace LocalGPT.Services
             {
                 var configuredBindings = GetConfiguredTeamModelBindings(team);
                 var identity = new ProviderModelIdentity();
-                var snapshot = await humanCollaboration.GetSnapshotAsync(includeResolved: true, take: 200, cancellationToken).ConfigureAwait(false);
+                // Health decisions must not disappear from this lookup when the generic inbox's
+                // bounded recent-history page rolls past 200 unrelated approval requests.
+                var approvedHealthDecisions = await humanCollaboration.GetActiveModelHealthExclusionsAsync(cancellationToken).ConfigureAwait(false);
                 foreach (var modelName in selectedParticipants)
                 {
                     var spec = CreateModelHealthExclusionRequest(modelName, null, string.Empty);
-                    var approved = snapshot.Requests.FirstOrDefault(request =>
+                    var approved = approvedHealthDecisions.FirstOrDefault(request =>
                         string.Equals(request.CorrelationId, spec.CorrelationId, StringComparison.OrdinalIgnoreCase)
                         && string.Equals(request.OperationKey, spec.OperationKey, StringComparison.OrdinalIgnoreCase)
                         && string.Equals(request.Status, vocabulary.Get().HumanStatusApproved, StringComparison.OrdinalIgnoreCase));

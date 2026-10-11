@@ -1,0 +1,302 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@page "/data-management"
+@attribute [LocalGptUiLayoutSurface("page", "Data Management", "/data-management", CanHide = false)]
+@inject IDataManagementCatalogService DataCatalog
+@inject ISqliteTableEditorService TableEditor
+@inject ISqliteEditorPreferenceService EditorPreferences
+@inject SqliteGridPresentationService GridPresentation
+@inject IHumanCollaborationService HumanCollaboration
+@inject ILocalHumanInteractionContext HumanAmbientContext
+@inject ILocalGptRuntimePolicyDataService RuntimePolicy
+@inject CouncilTextService CouncilText
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
+@inject ILogger<DataManagement> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner DataManagement">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+            <PageTitle>@T("DataManagement.Title", "Data Management")</PageTitle>
+            <LocalGptFormLayoutSurface OwnerType="@typeof(DataManagement)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
+                <main class="data-management-page localgpt-surface" aria-busy="@Busy">
+                    <ToastWrapper Name="DataManagementToasts" />
+                    <WorkbenchHeader Eyebrow="LocalGPT · data studio"
+                                     Title='@T("DataManagement.Title", "Data Management")'
+                                     Subtitle='@T("DataManagement.Subtitle", "Navigate business domains and real database relationships, inspect records, and maintain data in one DevExpress workbench.")'>
+                        <Actions>
+                            <DxButton Text='@T("Common.Refresh", "Refresh")' Click="ReloadAsync"
+                                      Enabled="@(!Busy)" RenderStyle="ButtonRenderStyle.Secondary"
+                                      RenderStyleMode="ButtonRenderStyleMode.Outline" />
+                        </Actions>
+                    </WorkbenchHeader>
+
+                    @if (!string.IsNullOrWhiteSpace(StatusText))
+                    {
+                        <div class="alert alert-info data-management-status" role="status" aria-live="polite">@StatusText</div>
+                    }
+
+                    <div class="data-management-workbench">
+                        <div class="data-management-sidebar">
+                            <ConfigurationWorkbenchNav Items="@DomainGroups" ActiveKey="@ActiveGroup"
+                                                       ActiveKeyChanged="SelectGroupAsync" AriaLabel="Data domains" />
+                            <div class="data-management-entity-navigation">
+                                <div class="data-management-heading">
+                                    <h2>@T("DataManagement.Entities", "Entity hierarchy")</h2>
+                                    <span class="data-management-counter">@VisibleTables.Count / @AllTables.Count</span>
+                                </div>
+                                <DxTreeView CssClass="data-management-entity-tree">
+                                    <Nodes>
+                                        @foreach (var table in VisibleTables)
+                                        {
+                                            <DxTreeViewNode @key="table.Name"
+                                                            Text="@($"{table.Name} · {table.RowCount}")"
+                                                            Click="@((TreeViewNodeClickEventArgs args) => SelectTableAsync(table))">
+                                                <Nodes>
+                                                    @foreach (var relation in table.Children)
+                                                    {
+                                                        <DxTreeViewNode @key="@(relation.ChildTable + relation.ChildColumn)"
+                                                                        Text="@($"↳ {relation.ChildTable}")"
+                                                                        Click="@((TreeViewNodeClickEventArgs args) => OpenTableFromTreeAsync(relation.ChildTable))" />
+                                                    }
+                                                </Nodes>
+                                            </DxTreeViewNode>
+                                        }
+                                    </Nodes>
+                                </DxTreeView>
+                            </div>
+                        </div>
+
+                        <div class="data-management-stage">
+                            @if (ActiveGroup == "approvals")
+                            {
+                                <div class="data-management-panel data-management-health-panel">
+                                    <div class="data-management-heading">
+                                        <div>
+                                            <h2>@T("DataManagement.HealthTitle", "Council model-health decisions")</h2>
+                                            <p>@T("DataManagement.HealthHelp", "Approved one-run model exclusions are visible here. Releasing a decision restores model eligibility and preserves the decision audit trail.")</p>
+                                        </div>
+                                    </div>
+                                    @if (ActiveModelHealthExclusions.Count == 0)
+                                    {
+                                        <p class="hint">@T("DataManagement.HealthEmpty", "No approved model-health exclusions are waiting to be consumed.")</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="data-management-health-controls">
+                                            <DxListBox Data="@ActiveModelHealthExclusions" Value="@SelectedHealthExclusion" ValueExpression="@(() => SelectedHealthExclusion)"
+                                                       TextFieldName="@nameof(HumanCollaborationRequest.Title)"
+                                                       ValueChanged="@((HumanCollaborationRequest request) => SelectHealthExclusion(request))"
+                                                       Height="150px" />
+                                            <div class="data-management-health-detail">
+                                                @if (SelectedHealthExclusion is not null)
+                                                {
+                                                    <strong>@SelectedHealthExclusion.Title</strong>
+                                                    <small>@SelectedHealthExclusion.DecidedAtUtc · @SelectedHealthExclusion.ApprovalReuseScope</small>
+                                                }
+                                                <DxButton Text='@T("DataManagement.Release", "Release selected exclusion")'
+                                                          Enabled="@(!Busy && SelectedHealthExclusion is not null)"
+                                                          RenderStyle="ButtonRenderStyle.Primary" Click="ReleaseHealthExclusionAsync" />
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            <div class="data-management-panel data-management-entity-toolbar">
+                                <div class="data-management-heading">
+                                    <div>
+                                        <h2>@(SelectedTable?.Name ?? T("DataManagement.OpenEntity", "Open entity"))</h2>
+                                        @if (SelectedTable is not null)
+                                        {
+                                            <p>@SelectedTable.RowCount @T("DataManagement.TotalRows", "records in database") · @SelectedTable.ColumnCount @T("DataManagement.Columns", "Columns")</p>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="data-management-actions">
+                                    <label class="data-management-selector">
+                                        @T("DataManagement.OpenEntity", "Open entity")
+                                        <DxComboBox Data="@VisibleTables" Value="@SelectedTable" ValueExpression="@(() => SelectedTable)"
+                                                    TextFieldName="@nameof(DataManagementTableInfo.Name)"
+                                                    ValueChanged="@((DataManagementTableInfo item) => SelectTableAsync(item))" />
+                                    </label>
+                                    <label class="data-management-limit">
+                                        @T("DataManagement.Limit", "Max records")
+                                        <DxSpinEdit @bind-Value="RowLimit" MinValue="1" MaxValue="500" />
+                                    </label>
+                                    <DxButton Text='@T("DataManagement.Load", "Load records")' Enabled="@(!Busy && SelectedTable is not null)"
+                                              Click="LoadSelectedTableAsync" RenderStyle="ButtonRenderStyle.Secondary" />
+                                    @if (!string.IsNullOrWhiteSpace(RelationColumn))
+                                    {
+                                        <DxButton Text='@T("DataManagement.ClearFilter", "All records")'
+                                                  Click="ClearRelationFilterAsync" Enabled="@(!Busy)"
+                                                  RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline" />
+                                    }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(RelationColumn))
+                                {
+                                    <p class="data-management-filter" role="status">@T("DataManagement.Filter", "Relationship filter"): <code>@RelationColumn</code> = <code>@(RelationValue ?? "NULL")</code></p>
+                                }
+                            </div>
+
+                            @if (SelectedTable is not null && CurrentTable is not null)
+                            {
+                                <DxSplitter Orientation="Orientation.Horizontal" Width="100%" Height="680px" CssClass="data-management-splitter">
+                                    <Panes>
+                                        <DxSplitterPane Size="32%" MinSize="210px" AllowResize="true">
+                                            <div class="data-management-record-browser">
+                                                <div class="data-management-heading">
+                                                    <h2>@T("DataManagement.Record", "Record")</h2>
+                                                    <span class="data-management-counter">@(CurrentTable.Rows.Count == 0 ? 0 : RowOffset + 1)–@(RowOffset + CurrentTable.Rows.Count)</span>
+                                                </div>
+                                                <DxListBox Data="@CurrentTable.Rows" Value="@SelectedRow" ValueExpression="@(() => SelectedRow)"
+                                                           TextFieldName="@nameof(SqliteRowSnapshot.DisplayName)"
+                                                           ValueChanged="@((SqliteRowSnapshot row) => SelectRow(row))"
+                                                           Height="390px" CssClass="data-management-record-list" />
+                                                <DxAccordion CssClass="data-management-row-preview">
+                                                    <Items>
+                                                        <DxAccordionItem Text='@T("DataManagement.TablePreview", "Compact table preview")'>
+                                                            <ContentTemplate>
+                                                                <DxGrid Data="@CurrentTable.Rows" PageSize="8" ShowSearchBox="true" TextWrapEnabled="false">
+                                                                    <Columns>
+                                                                        <DxGridDataColumn FieldName="@nameof(SqliteRowSnapshot.DisplayName)" Caption='@T("DataManagement.Record", "Record")' />
+                                                                        <DxGridDataColumn FieldName="@nameof(SqliteRowSnapshot.RowId)" Caption="rowid" />
+                                                                    </Columns>
+                                                                </DxGrid>
+                                                            </ContentTemplate>
+                                                        </DxAccordionItem>
+                                                    </Items>
+                                                </DxAccordion>
+                                                <div class="data-management-page-actions">
+                                                    <DxButton Text='@T("DataManagement.Previous", "Previous")' Enabled="@(!Busy && RowOffset > 0)"
+                                                              Click="PreviousPageAsync" RenderStyle="ButtonRenderStyle.Secondary" />
+                                                    <DxButton Text='@T("DataManagement.Next", "Next")' Enabled="@(!Busy && HasNextPage)"
+                                                              Click="NextPageAsync" RenderStyle="ButtonRenderStyle.Secondary" />
+                                                </div>
+                                                <small>@CurrentTable.Rows.Count @T("DataManagement.LoadedRows", "loaded")</small>
+                                            </div>
+                                        </DxSplitterPane>
+                                        <DxSplitterPane>
+                                            <div class="data-management-record-editor">
+                                                <div class="data-management-editor-toolbar">
+                                                    <div>
+                                                        <h2>@T("DataManagement.Editor", "Record editor")</h2>
+                                                        <small>@(SelectedRow is null ? T("DataManagement.New", "New record") : SelectedRow.DisplayName)</small>
+                                                    </div>
+                                                    <div class="data-management-actions">
+                                                        <DxButton Text='@T("DataManagement.New", "New record")' Click="NewRow"
+                                                                  Enabled="@(!Busy && CanEditCurrentTable)" RenderStyle="ButtonRenderStyle.Secondary" />
+                                                        <DxButton Text='@T("DataManagement.Save", "Save record")' Click="SaveRowAsync"
+                                                                  Enabled="@(!Busy && CanEditCurrentTable && (!RequiresProtectedFieldApproval || ProtectedFieldsConfirmed))"
+                                                                  RenderStyle="ButtonRenderStyle.Primary" />
+                                                    </div>
+                                                </div>
+                                                <div class="data-management-editor-scroll">
+                                                    @if (!CanEditCurrentTable)
+                                                    {
+                                                        <p class="alert alert-warning">@T("DataManagement.Protected", "Internal migration metadata is available for inspection, but editing is protected.")</p>
+                                                    }
+                                                    @if (SelectedTable.Parents.Count > 0 || SelectedTable.Children.Count > 0)
+                                                    {
+                                                        <div class="data-management-relations">
+                                                            @foreach (var relation in SelectedTable.Parents)
+                                                            {
+                                                                <DxButton Text="@relation.ParentNavigationLabel" Enabled="@(!Busy)"
+                                                                          RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                                                          Click="@(() => NavigateRelationAsync(relation, true))" />
+                                                            }
+                                                            @foreach (var relation in SelectedTable.Children)
+                                                            {
+                                                                <DxButton Text="@relation.ChildNavigationLabel" Enabled="@(!Busy)"
+                                                                          RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                                                          Click="@(() => NavigateRelationAsync(relation, false))" />
+                                                            }
+                                                        </div>
+                                                    }
+                                                    <p class="data-management-editor-hint">@T("DataManagement.EditorHelp", "Primary keys stay read-only on existing records. Enter [null] to persist SQL NULL. Saving uses the maintained SQLite editor service.")</p>
+                                                    <DxFormLayout CssClass="data-management-record-form">
+                                                        @foreach (var column in CurrentTable.Columns)
+                                                        {
+                                                            var value = GetEditValue(column.Name);
+                                                            var editorKind = GetEditorKind(column, value);
+                                                            var readOnly = GridPresentation.IsReadOnlyEditorColumn(column, SelectedRow is not null, CanEditCurrentTable, Logger);
+                                                            var wide = editorKind is "Json" or "LongText";
+                                                            <DxFormLayoutItem Caption="@column.Name" ColSpanMd="@(wide ? 12 : 6)">
+                                                                <div class="data-management-field" title="@GridPresentation.BuildColumnTitle(column, Logger)">
+                                                                    <small>@column.Type @(column.IsPrimaryKey ? "· key" : string.Empty)</small>
+                                                                    @switch (editorKind)
+                                                                    {
+                                                                        case "Json":
+                                                                        case "LongText":
+                                                                            <DxMemo Text="@value" TextChanged="@((string text) => SetEditValue(column.Name, text))" Rows="5" ReadOnly="@readOnly" />
+                                                                            break;
+                                                                        case "Boolean":
+                                                                            <DxComboBox Data="@BooleanOptions" Value="@value" ValueChanged="@((string text) => SetEditValue(column.Name, text))" ReadOnly="@readOnly" />
+                                                                            break;
+                                                                        case "Secret":
+                                                                            <DxTextBox Text="@value" TextChanged="@((string text) => SetEditValue(column.Name, text))" Password="true" ReadOnly="@readOnly" />
+                                                                            break;
+                                                                        case "Number":
+                                                                            <DxSpinEdit Value="@ParseDecimal(value)" ValueChanged="@((decimal? next) => SetEditValue(column.Name, FormatDecimal(next)))" ReadOnly="@readOnly" />
+                                                                            break;
+                                                                        case "DateTime":
+                                                                            <DxDateEdit Date="@ParseDate(value)" DateChanged="@((DateTime? next) => SetEditValue(column.Name, FormatDate(next)))" TimeSectionVisible="true" ReadOnly="@readOnly" />
+                                                                            break;
+                                                                        default:
+                                                                            <DxTextBox Text="@value" TextChanged="@((string text) => SetEditValue(column.Name, text))" ReadOnly="@readOnly" />
+                                                                            break;
+                                                                    }
+                                                                </div>
+                                                            </DxFormLayoutItem>
+                                                        }
+                                                    </DxFormLayout>
+                                                    <DxAccordion CssClass="data-management-preferences">
+                                                        <Items>
+                                                            <DxAccordionItem Text='@T("DataManagement.EditorPreferences", "Field editor preferences")'>
+                                                                <ContentTemplate>
+                                                                    <div class="data-management-preference-form">
+                                                                        <label>@T("DataManagement.Field", "Field")
+                                                                            <DxComboBox Data="@CurrentTable.Columns" Value="@SelectedPreferenceColumn" ValueExpression="@(() => SelectedPreferenceColumn)"
+                                                                                        TextFieldName="@nameof(SqliteColumnSummary.Name)"
+                                                                                        ValueChanged="@((SqliteColumnSummary column) => SelectPreferenceColumn(column))" />
+                                                                        </label>
+                                                                        <label>@T("DataManagement.EditorType", "Editor type")
+                                                                            <DxComboBox Data="@EditorKindOptions" @bind-Value="PreferenceKind" />
+                                                                        </label>
+                                                                        <label class="data-management-check"><DxCheckBox @bind-Checked="PreferenceIsSensitive" />@T("DataManagement.Sensitive", "Sensitive value")</label>
+                                                                        <label class="data-management-check"><DxCheckBox @bind-Checked="PreferenceRequiresApproval" />@T("DataManagement.RequireApproval", "Require confirmation before field changes")</label>
+                                                                        <label class="data-management-check"><DxCheckBox @bind-Checked="PreferenceSaveConfirmed" />@T("DataManagement.ConfirmPreference", "Confirm editor preference change")</label>
+                                                                        <DxButton Text='@T("DataManagement.SavePreference", "Save editor preference")' Click="SavePreferenceAsync"
+                                                                                  Enabled="@(!Busy && SelectedPreferenceColumn is not null && PreferenceSaveConfirmed)"
+                                                                                  RenderStyle="ButtonRenderStyle.Primary" />
+                                                                    </div>
+                                                                </ContentTemplate>
+                                                            </DxAccordionItem>
+                                                        </Items>
+                                                    </DxAccordion>
+                                                </div>
+                                                <div class="data-management-editor-footer">
+                                                    @if (RequiresProtectedFieldApproval)
+                                                    {
+                                                        <label class="data-management-check"><DxCheckBox @bind-Checked="ProtectedFieldsConfirmed" />@T("DataManagement.ConfirmFields", "Confirm protected field changes")</label>
+                                                    }
+                                                    <label class="data-management-check"><DxCheckBox @bind-Checked="DeleteConfirmed" />@T("DataManagement.ConfirmDelete", "I confirm deletion of the selected record")</label>
+                                                    <DxButton Text='@T("DataManagement.Delete", "Delete record")' Click="DeleteRowAsync"
+                                                              Enabled="@(!Busy && CanEditCurrentTable && SelectedRow is not null && DeleteConfirmed)"
+                                                              RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" />
+                                                </div>
+                                            </div>
+                                        </DxSplitterPane>
+                                    </Panes>
+                                </DxSplitter>
+                            }
+                            <p class="data-management-footer"><a href="/database">@T("DataManagement.Advanced", "Advanced SQLite & knowledge editor")</a> · <a href="/project-maintenance">@T("DataManagement.Checklist", "Per-file learning checklist")</a></p>
+                        </div>
+                    </div>
+                </main>
+            </LocalGptFormLayoutSurface>
+        </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
