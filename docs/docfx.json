@@ -47,8 +47,8 @@
     "globalMetadata": {
       "_appName": "LocalGPT Documentation",
       "_appTitle": "LocalGPT Documentation",
-      "_appFooter": "LocalGPT 5.6.0 Â· generated documentation",
-      "localgptVersion": "5.6.0"
+      "_appFooter": "LocalGPT 5.6.1 · generated documentation",
+      "localgptVersion": "5.6.1"
     }
   }
 }

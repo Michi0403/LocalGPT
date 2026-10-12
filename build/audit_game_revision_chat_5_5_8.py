@@ -21,7 +21,7 @@ def require(condition: bool, message: str) -> None:
 
 
 version = read('src/LocalGPT/LocalGPT.csproj')
-require('<Version>5.6.0</Version>' in version, 'release version not advanced')
+require('<Version>5.6.1</Version>' in version, 'release version not advanced')
 require('EmbeddedResource Include="GameTemplates/GodotSceneRuntime.cs.txt"' in version,
         'Godot C# source template is not embedded for generation into Godot projects')
 
@@ -88,4 +88,4 @@ for token in ('setAuthoredScene(id, scene, clock)', 'localgptGameStudio?.draw',
 registration = read('src/LocalGPT/Program.ServiceRegistration.cs')
 require('AddSingleton<GameSceneEngine>()' in registration,
         'stateless scene engine must be compatible with singleton GameDirector session ownership')
-print('LocalGPT 5.6.0 revisioned Chat play audit passed: approved project data, exact revision identity, DevExpress list, shared controls, curated scene ticks, ASCII/pixel projection and embedded Godot template.')
+print('LocalGPT 5.6.1 revisioned Chat play audit passed: approved project data, exact revision identity, DevExpress list, shared controls, curated scene ticks, ASCII/pixel projection and embedded Godot template.')

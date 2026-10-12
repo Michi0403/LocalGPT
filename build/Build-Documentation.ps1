@@ -44,6 +44,13 @@ if (-not [string]::IsNullOrWhiteSpace($OutputWebRoot)) {
 if (-not [string]::IsNullOrWhiteSpace($PackagingTool)) {
     $PackagingTool = [IO.Path]::GetFullPath($PackagingTool)
     if (-not (Test-Path -LiteralPath $PackagingTool -PathType Leaf)) { throw "Release-packaging tool was not found: $PackagingTool" }
+    if ($RequirePdf) {
+        $packagingCapabilities = @(& $PackagingTool capabilities 2>$null)
+        $packagingCapabilitiesExitCode = [int]$LASTEXITCODE
+        if ($packagingCapabilitiesExitCode -ne 0 -or $packagingCapabilities -cnotcontains 'pdf-merge-input-list') {
+            throw "Documentation PDF requires a release-packaging helper with --input-list support; the selected executable is incompatible (exit=$packagingCapabilitiesExitCode): $PackagingTool. Rebuild/install the current LocalGPT.ReleasePackaging package before beginning documentation."
+        }
+    }
 }
 
 . (Join-Path $RepositoryRoot "build/NodeRuntime.Common.ps1")

@@ -28,11 +28,15 @@ internal static class Program
     {
         try
         {
-            if (args.Length == 0) throw new ArgumentException("A command is required: tar, deb, sha256, pdf-merge, or pdf-optimize.");
+            if (args.Length == 0) throw new ArgumentException("A command is required: capabilities, tar, deb, sha256, pdf-merge, or pdf-optimize.");
             var command = args[0].ToLowerInvariant();
             var values = Parse(args.Skip(1).ToArray());
             switch (command)
             {
+                case "capabilities":
+                    if (values.Count != 0) throw new ArgumentException("The capabilities command does not accept options.");
+                    Console.WriteLine("pdf-merge-input-list");
+                    break;
                 case "tar": CreateTarGz(Required(values, "source"), Required(values, "output"), Optional(values, "root", string.Empty), Multi(values, "executable")); break;
                 case "deb": CreateDeb(values); break;
                 case "sha256": CreateSha256(Required(values, "directory"), Required(values, "output")); break;
