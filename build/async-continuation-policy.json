@@ -47,7 +47,11 @@
       "SynchronizeAsync",
       "SaveAsync",
       "SaveVisibleAsync",
-      "HandleUserFunctionsChangedAsync"
+      "HandleUserFunctionsChangedAsync",
+      "PreviewWorkbenchFunctionAsync",
+      "ExecuteWorkbenchFunctionAsync",
+      "RefreshWorkbenchHistoryAsync",
+      "RefreshWorkbenchOptionsAsync"
     ],
     "Components/Pages/Database.razor": [
       "RefreshAllAsync",

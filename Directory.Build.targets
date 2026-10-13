@@ -241,6 +241,19 @@
     <Exec Condition="Exists('$(LocalGptStaticWebAssetsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptStaticWebAssetsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
+  <!-- Keep the DX tool discovery, preview and execution contract build-breaking so release builds cannot regress it. -->
+  <PropertyGroup>
+    <LocalGptDxFunctionWorkbenchScript>$(MSBuildThisFileDirectory)build/Assert-DxFunctionWorkbench.ps1</LocalGptDxFunctionWorkbenchScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptDxFunctionWorkbench" BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(LocalGptDxFunctionWorkbenchScript)')"
+           Text="DX function workbench guard script missing: $(LocalGptDxFunctionWorkbenchScript)" />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptDxFunctionWorkbenchScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
+          StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
   <PropertyGroup>
     <LocalGptDocumentationScript>$(MSBuildThisFileDirectory)build/Build-Documentation.ps1</LocalGptDocumentationScript>
     <LocalGptPagesSnapshotScript>$(MSBuildThisFileDirectory)build/Update-GitHubPagesSnapshot.ps1</LocalGptPagesSnapshotScript>

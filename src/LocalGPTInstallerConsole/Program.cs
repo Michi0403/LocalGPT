@@ -291,6 +291,9 @@ internal static class Program
                     logger.LogError(ex, "Error in InstallOllama.");
                 }
                
+                if (options.InstallOllama && !options.PullOllamaModels)
+                    logger.LogInformation("Ollama setup does not download models. Choose and install models explicitly in LocalGPT /install (Ollama or LM Studio).");
+
                 SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
                 {
@@ -2771,9 +2774,6 @@ internal sealed class CliOptions
         if (argsList.Count == 0)
         {
             argsList.Add("--install-ollama");
-            argsList.Add("--pull-models");
-            argsList.Add("--range");
-            argsList.Add("Slim");
             argsList.Add("--install-localgpt");
             argsList.Add("--start-localgpt");
             argsList.Add("--shortcuts");
@@ -2816,7 +2816,6 @@ internal sealed class CliOptions
                     break;
                 case "--all":
                     options.InstallOllama = true;
-                    options.PullOllamaModels = true;
                     options.InstallLocalGptWin = true;
                     options.SetupLearningBase = true;
                     options.ImportRecommended = true;
@@ -2929,8 +2928,9 @@ Usage:
   localgpt-setup [options]
 
 Common examples:
+  localgpt-setup                        (default: install Ollama and LocalGPT; no model pulls)
   localgpt-setup --install-ollama
-  localgpt-setup --pull-models --range RTX3060
+  localgpt-setup --pull-models --range RTX3060  (explicit legacy model pull only)
   localgpt-setup --install-localgpt --force-delete
   localgpt-setup --setup-learning-base --repo {repositorySlug} --force-delete
   localgpt-setup --setup-learning-base --repo id-Software/DOOM
@@ -2938,13 +2938,14 @@ Common examples:
   localgpt-setup --setup-learning-base --repo php/doc-en
   localgpt-setup --setup-learning-base --repo llvm/llvm-project
   localgpt-setup --import-recommended --force-delete
-  localgpt-setup --all --range Slim --force-delete
+  localgpt-setup --all --force-delete
 
 Options:
   --install-ollama           Install Ollama by downloading and running the official Windows EXE installer.
-  --pull-models              Pull Ollama models.
-  --range <Slim|RTX3060|Full> Model set to pull. Default: Slim.
+  --pull-models              Explicitly pull Ollama models. Never part of default or --all setup.
+  --range <Slim|RTX3060|Full> Model set for explicit --pull-models only. Default: Slim.
   --install-localgpt         Download and install latest LocalGPT Windows release.
+  --all                      Run the combined setup without downloading models; select models in /install.
   --setup-learning-base      Prepare/import repositories into the learning base path.
   --import-recommended       Import the hardcoded recommended repository list.
   --repo <owner/repo>         Import one user-selected GitHub repository. Can be repeated; nothing in these examples is pulled automatically.

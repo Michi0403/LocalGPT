@@ -7,6 +7,8 @@ namespace LocalGPT.Interfaces;
 /// </summary>
 public interface IDxAiFunctionCatalogService
 {
+    /// <summary>Searches callable, policy-allowed AI functions with optional expanded schemas.</summary>
+    Task<DxAiFunctionDiscoveryResult> DiscoverForAiAsync(DxAiFunctionDiscoveryRequest request, CancellationToken cancellationToken = default);
     /// <summary>
     /// Performs synchronize as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

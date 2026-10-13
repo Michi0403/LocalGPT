@@ -21,6 +21,21 @@ public sealed class DxAiFunctionCatalogController(
     /// </summary>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The HTTP-facing result produced for the caller.</returns>
+    /// <summary>Policy-filtered, paged two-stage discovery used by UI and AI clients.</summary>
+    [HttpPost("discover")]
+    public async Task<IResult> DiscoverAsync([FromBody] DxAiFunctionDiscoveryRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await catalog.DiscoverForAiAsync(request, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "DX function discovery failed.");
+            return Results.InternalServerError("DX function discovery failed. See application diagnostics.");
+        }
+    }
+
     [HttpGet]
     public async Task<IResult> GetAsync(CancellationToken cancellationToken)
     {

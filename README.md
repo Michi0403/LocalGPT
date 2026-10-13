@@ -110,8 +110,9 @@ The original screenshot naming, sizing, and privacy plan remains preserved for m
 The installer supports commands such as:
 
 ```powershell
-localgpt-setup --install-ollama
-localgpt-setup --pull-models --range Slim
+localgpt-setup                    # Default Windows setup: no model downloads
+localgpt-setup --install-ollama  # Ollama only; configure models under /install
+localgpt-setup --pull-models --range Slim  # Optional manual legacy model pull
 localgpt-setup --install-localgpt --force
 localgpt-setup --import-recommended --force
 ```

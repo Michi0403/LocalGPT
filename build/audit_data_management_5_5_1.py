@@ -23,7 +23,7 @@ def require(ok: bool, explanation: str) -> None:
 
 
 version = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", read("LocalGPT.csproj"))
-require(version is not None and tuple(map(int, version.groups())) == (5, 6, 1), "LocalGPT release version must be 5.6.1")
+require(version is not None and tuple(map(int, version.groups())) == (5, 6, 3), "LocalGPT release version must be 5.6.3")
 require(all(int(slot) < 10 for slot in version.groups()[1:]), "Minor/patch slots must remain single digits")
 
 page = read("Components/Pages/DataManagement.razor")
@@ -90,4 +90,4 @@ helpers = policy["rendererAffineHelperMethods"].get("Components/Pages/DataManage
 require("ReleaseHealthExclusionAsync" in helpers and "LoadSelectedTableCoreAsync" in helpers,
         "Render-affine Data Management handlers must be explicitly reviewed, not exempted globally")
 
-print("LocalGPT 5.6.1 retained Data Management/Council source regression contract passed: domain relations, DevExpress UI, safe one-run approvals, graphical evidence, per-file checklist and all locale keys.")
+print("LocalGPT 5.6.3 retained Data Management/Council source regression contract passed: domain relations, DevExpress UI, safe one-run approvals, graphical evidence, per-file checklist and all locale keys.")

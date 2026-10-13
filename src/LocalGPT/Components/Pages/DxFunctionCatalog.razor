@@ -3,6 +3,7 @@
 @attribute [LocalGptUiLayoutSurface("page", "DX Functions & 1-Wire", "/dx-functions", CanHide = false)]
 @attribute [LocalGptUiLayoutSurface("workbench", "DX Functions · workbench", "/dx-functions")]
 @inject IDxAiFunctionCatalogService Catalog
+@inject IDxAiFunctionWorkbenchService FunctionWorkbench
 @inject ILocalGptVocabularyService Vocabulary
 @inject ILogger<DxFunctionCatalog> Logger
 @inject IComponentActivityService ComponentActivity
@@ -241,6 +242,82 @@
     }
                     </ConfigurationWorkbenchPanel>
 
+                    <ConfigurationWorkbenchPanel SectionKey="workbench" ActiveKey="@_activeSection" AriaLabel="DX function execution workbench">
+                        <DxFormLayout CssClass="razor-section-layout-owner">
+                            <DxFormLayoutItem ColSpanMd="12">
+                                <Template Context="formItemContext008">
+                                    <div class="dx-function-execution-workbench">
+                                        <header class="dx-stage-heading">
+                                            <div>
+                                                <span class="dx-stage-kicker">Live function contract</span>
+                                                <h2>Validate, preview and request execution</h2>
+                                                <p>Same database policy, registry, schema validation and Human Collaboration approval as chat and Council. Preview performs no operation. Parameter values never enter the durable audit.</p>
+                                            </div>
+                                        </header>
+                                        <DxFormLayout CssClass="razor-section-layout-owner">
+                                            <DxFormLayoutItem Caption="Function" ColSpanMd="12">
+                                                <DxComboBox Data="@_workbenchFunctionOptions" @bind-Value="_workbenchFunctionName"
+                                                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption="JSON parameters" ColSpanMd="12">
+                                                <DxMemo @bind-Text="_workbenchParametersJson" Rows="6" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem ColSpanMd="12">
+                                                <div class="d-flex gap-2 flex-wrap">
+                                                    <DxButton Text="Validate and preview" Click="PreviewWorkbenchFunctionAsync"
+                                                              RenderStyle="ButtonRenderStyle.Secondary"
+                                                              Enabled="@(!_busy && !_workbenchBusy && !string.IsNullOrWhiteSpace(_workbenchFunctionName))" />
+                                                    <DxButton Text="Request exact execution" Click="ExecuteWorkbenchFunctionAsync"
+                                                              RenderStyle="ButtonRenderStyle.Primary"
+                                                              Enabled="@(!_busy && !_workbenchBusy && _workbenchPreview?.Succeeded == true && _workbenchPreviewFunctionName == _workbenchFunctionName && _workbenchPreviewParameters == _workbenchParametersJson)" />
+                                                    <DxButton Text="Refresh operation history" Click="RefreshWorkbenchHistoryAsync"
+                                                              RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!_workbenchBusy)" />
+                                                </div>
+                                            </DxFormLayoutItem>
+                                        </DxFormLayout>
+                                        @if (_workbenchPreview is not null)
+                                        {
+                                            <div class="dx-stage-empty" role="status">
+                                                <strong>Preview: @_workbenchPreview.Status</strong>
+                                                @if (!string.IsNullOrWhiteSpace(_workbenchPreview.Error))
+                                                {
+                                                    <span>@_workbenchPreview.Error</span>
+                                                }
+                                                @if (_workbenchPreview.Value is DxAiFunctionInvocationPreview details)
+                                                {
+                                                    <span>Exact call fingerprint: @details.PreviewFingerprint</span>
+                                                    <span>Human approval: @(details.RequiresHumanApproval ? "required; request goes to the inbox" : "not required by current policy")</span>
+                                                    <span>Read-only: @details.IsReadOnly</span>
+                                                    <pre class="dx-function-workbench-schema">@details.ParameterSchemaJson</pre>
+                                                }
+                                            </div>
+                                        }
+                                        @if (_workbenchExecution is not null)
+                                        {
+                                            <div class="alert @(_workbenchExecution.Succeeded ? "alert-info" : "alert-warning")" role="status">
+                                                <strong>@_workbenchExecution.Status</strong> · operation @_workbenchExecution.OperationId
+                                                @if (!string.IsNullOrWhiteSpace(_workbenchExecution.Error))
+                                                {
+                                                    <span>@_workbenchExecution.Error</span>
+                                                }
+                                            </div>
+                                        }
+                                        <h3>Recent function operations (payload-free)</h3>
+                                        <DxGrid Data="@_workbenchHistory" PageSize="15" ShowFilterRow="true">
+                                            <Columns>
+                                                <DxGridDataColumn FieldName="@nameof(DxAiFunctionInvocationAuditEntry.CreatedAtUtc)" Caption="UTC" />
+                                                <DxGridDataColumn FieldName="@nameof(DxAiFunctionInvocationAuditEntry.FunctionName)" Caption="Function" />
+                                                <DxGridDataColumn FieldName="@nameof(DxAiFunctionInvocationAuditEntry.Status)" Caption="Status" />
+                                                <DxGridDataColumn FieldName="@nameof(DxAiFunctionInvocationAuditEntry.OperationId)" Caption="Operation ID" />
+                                            </Columns>
+                                        </DxGrid>
+                                    </div>
+                                </Template>
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </ConfigurationWorkbenchPanel>
+
                     <ConfigurationWorkbenchPanel SectionKey="user-functions" ActiveKey="@_activeSection" AriaLabel="User AI functions">
                         <DxFormLayout CssClass="razor-section-layout-owner">
     <DxFormLayoutItem ColSpanMd="12">
@@ -340,6 +417,16 @@
     /// Stores the in-memory entries collection maintained internally by <see cref="DxFunctionCatalog"/> for its current workflow state.
     /// </summary>
     private List<DxAiFunctionCatalogEntry> _entries = [];
+    private List<LocalGptSelectionOption<string>> _workbenchFunctionOptions = [];
+    private List<DxAiFunctionInvocationAuditEntry> _workbenchHistory = [];
+    private string _workbenchFunctionName = string.Empty;
+    private string _workbenchParametersJson = "{}";
+    private string _workbenchPreviewFunctionName = string.Empty;
+    private string _workbenchPreviewParameters = string.Empty;
+    private DxAiFunctionInvocationResult? _workbenchPreview;
+    private DxAiFunctionInvocationResult? _workbenchExecution;
+    private bool _workbenchBusy;
+
     /// <summary>
     /// Stores the in-memory dirty grid catalog keys collection maintained internally by <see cref="DxFunctionCatalog"/> for its current workflow state.
     /// </summary>
@@ -477,6 +564,16 @@
         {
             _entries = (await Catalog.GetEntriesAsync().ConfigureAwait(true)).Select(Clone).ToList();
             _dirtyGridCatalogKeys.Clear();
+            await RefreshWorkbenchOptionsAsync().ConfigureAwait(true);
+            try
+            {
+                _workbenchHistory = (await FunctionWorkbench.GetRecentAsync().ConfigureAwait(true)).ToList();
+            }
+            catch (Exception historyException)
+            {
+                Logger.LogWarning(historyException, "DX function history is unavailable; the policy catalog remains usable.");
+                _workbenchHistory = [];
+            }
             _status = $"Loaded {_entries.Count} database-backed function and service policies.";
             _hasError = false;
             Notifier.ShowInfo(nameof(DxFunctionCatalog), _status, "DX function catalog");
@@ -502,6 +599,7 @@
         {
             _entries = (await Catalog.SynchronizeAsync().ConfigureAwait(true)).Select(Clone).ToList();
             _dirtyGridCatalogKeys.Clear();
+            await RefreshWorkbenchOptionsAsync().ConfigureAwait(true);
             _status = $"Synchronized {_entries.Count} runtime descriptors. Existing user exposure and confirmation choices were preserved.";
             _hasError = false;
             Notifier.ShowSuccess(nameof(DxFunctionCatalog), _status, "Catalog synchronized");
@@ -782,6 +880,100 @@
     }
 
 
+    /// <summary>Projects the current policy-controlled function choices into DevExpress selection state.</summary>
+    private async Task RefreshWorkbenchOptionsAsync()
+    {
+        try
+        {
+            var functions = new List<DxAiFunctionDiscoveryItem>();
+            var offset = 0;
+            do
+            {
+                var page = await Catalog.DiscoverForAiAsync(new DxAiFunctionDiscoveryRequest
+                {
+                    Skip = offset, Take = 50, IncludeSchemas = false
+                }).ConfigureAwait(true);
+                functions.AddRange(page.Functions);
+                offset += page.Functions.Count;
+                if (offset >= page.Total || page.Functions.Count == 0) break;
+            }
+            while (true);
+            _workbenchFunctionOptions = functions
+                .OrderBy(item => item.FunctionName, StringComparer.OrdinalIgnoreCase)
+                .Select(item => new LocalGptSelectionOption<string>(item.FunctionName, item.FunctionName)).ToList();
+            if (!_workbenchFunctionOptions.Any(item => item.Value == _workbenchFunctionName))
+                _workbenchFunctionName = _workbenchFunctionOptions.FirstOrDefault()?.Value ?? string.Empty;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Refreshing callable policy-controlled DX function workbench choices failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Previews exactly the selected function and JSON parameters without running the handler.</summary>
+    private async Task PreviewWorkbenchFunctionAsync()
+    {
+        _workbenchBusy = true;
+        try
+        {
+            _workbenchExecution = null;
+            _workbenchPreview = await FunctionWorkbench.PreviewAsync(_workbenchFunctionName, _workbenchParametersJson).ConfigureAwait(true);
+            _workbenchPreviewFunctionName = _workbenchFunctionName;
+            _workbenchPreviewParameters = _workbenchParametersJson;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Previewing DX function {FunctionName} from the DevExpress workbench failed.", _workbenchFunctionName);
+            _workbenchPreview = null;
+            _status = "DX function preview failed. Review application diagnostics.";
+            _hasError = true;
+        }
+        finally { _workbenchBusy = false; }
+    }
+
+    /// <summary>Requests the already-previewed invocation through the ordinary registry and Human Collaboration gate.</summary>
+    private async Task ExecuteWorkbenchFunctionAsync()
+    {
+        _workbenchBusy = true;
+        try
+        {
+            if (_workbenchPreview?.Value is not DxAiFunctionInvocationPreview preview ||
+                !string.Equals(_workbenchPreviewFunctionName, _workbenchFunctionName, StringComparison.Ordinal) ||
+                !string.Equals(_workbenchPreviewParameters, _workbenchParametersJson, StringComparison.Ordinal))
+                throw new InvalidOperationException("Validate and preview this exact request before execution.");
+            _workbenchExecution = await FunctionWorkbench.ExecuteAsync(_workbenchFunctionName, _workbenchParametersJson,
+                preview.PreviewFingerprint).ConfigureAwait(true);
+            _workbenchPreview = null;
+            _workbenchHistory = (await FunctionWorkbench.GetRecentAsync().ConfigureAwait(true)).ToList();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "DX function workbench execution request failed for {FunctionName}.", _workbenchFunctionName);
+            _workbenchExecution = null;
+            _status = "DX function execution request failed. Review application diagnostics.";
+            _hasError = true;
+        }
+        finally { _workbenchBusy = false; }
+    }
+
+    /// <summary>Loads sanitized durable invocation history for the DevExpress function workbench.</summary>
+    private async Task RefreshWorkbenchHistoryAsync()
+    {
+        _workbenchBusy = true;
+        try
+        {
+            _workbenchHistory = (await FunctionWorkbench.GetRecentAsync().ConfigureAwait(true)).ToList();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Refreshing DX function operation history failed.");
+            _status = "DX function history refresh failed. Review application diagnostics.";
+            _hasError = true;
+        }
+        finally { _workbenchBusy = false; }
+    }
+
     /// <summary>Computes KindFilterOptions for the render path with component-local diagnostics.</summary>
     /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptSelectionOption<string>> GetKindFilterOptionsForRender()
@@ -809,6 +1001,7 @@
         {
             return [
         new("catalog", "Catalog & exposure", "Browse and mass-edit runtime DXFunction/service policy", _entries.Count.ToString()),
+        new("workbench", "Function workbench", "Preview, invoke and audit enabled functions", _workbenchHistory.Count.ToString()),
         new("user-functions", "User AI functions", "Create JSON/OData sources or advanced pipelines", UserFunctionCount.ToString()),
         new("x-functions", "X Functions & automation", "Open maintained Council X-Round workflow controls")
     ];

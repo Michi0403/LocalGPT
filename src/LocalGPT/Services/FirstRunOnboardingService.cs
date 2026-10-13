@@ -151,15 +151,15 @@ public sealed class FirstRunOnboardingService(
         new(
             "game-low-b",
             "Fast game council",
-            "Small models for low-latency GameDirector, creature and reactive-object council roles.",
-            "LocalGPTInstallerConsole.exe --install-ollama --pull-models --range RTX3060",
+            "Suggested small models for low-latency GameDirector, creature and reactive-object council roles. Install models explicitly under /install.",
+            "LocalGPTInstallerConsole.exe --install-ollama",
             ["qwen3.5:0.8b", "qwen3.5:2b", "llama3.2:1b", "codegemma:2b"],
             ["Michi0403/LocalGPT"]),
         new(
             "development",
             "Development and code-curation council",
-            "Coder and reviewer models plus official .NET, PowerShell, Minecraft, Arduino and ESP documentation sources.",
-            "LocalGPTInstallerConsole.exe --pull-models --range Full --setup-learning-base --import-recommended",
+            "Suggested coder/reviewer models and optional documentation sources; select and download models in /install.",
+            "LocalGPTInstallerConsole.exe --install-ollama --setup-learning-base --import-recommended",
             ["qwen3-coder:30b", "deepseek-coder-v2:16b", "deepseek-coder:6.7b", "codegemma:7b", "qwen3:8b"],
             ["dotnet/docs", "MicrosoftDocs/microsoftgraph-docs-powershell", "Mojang/bedrock-samples", "arduino/docs-content", "espressif/esp-idf", "platformio/platformio-core"]),
         new(

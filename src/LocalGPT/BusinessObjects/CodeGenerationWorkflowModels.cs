@@ -676,6 +676,10 @@ public sealed class DxAiFunctionInvocationRequest
     /// </summary>
     /// <value>The operation identifier value exposed by <see cref="DxAiFunctionInvocationRequest"/>.</value>
     public Guid? OperationId { get; set; }
+    /// <summary>Non-executing validation; bypasses approval and the handler but not policy checks.</summary>
+    public bool PreviewOnly { get; set; }
+    /// <summary>Exact preview token from the same invocation, preventing stale workbench execution.</summary>
+    public string? ExpectedPreviewFingerprint { get; set; }
     /// <summary>
     /// Gets or sets the parameters value that forms part of the DevExpress AI function invocation state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -776,6 +780,8 @@ public sealed class DxAiFunctionInvocationResult
     /// </summary>
     /// <value>The error value exposed by <see cref="DxAiFunctionInvocationResult"/>.</value>
     public string? Error { get; set; }
+    /// <summary>Structured input diagnostics for safe correction (never an automatic mutation retry).</summary>
+    public List<DxAiFunctionValidationIssue> ValidationIssues { get; set; } = [];
     /// <summary>
     /// Gets or sets the stable operation identifier used to identify or correlate this DevExpress AI function invocation instance with related application state.
     /// </summary>

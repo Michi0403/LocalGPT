@@ -71,14 +71,18 @@ public sealed partial class OllamaThinkingChatClient
     private IReadOnlyList<DxaichatFunctionInfo> GetAutomaticFunctions() {
     try
     {
-        return functionRegistry?
-        .GetFunctions()
-        .Where(function => function.AvailableToAi &&
-                           (automaticFunctionAllowList is null || automaticFunctionAllowList.Contains(function.Name)) &&
-                           function.SupportsDirectInvocation &&
-                           function.SupportsAutomaticInvocation)
-        .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
-        .ToList() ?? [];
+        // Without an operator-provided allow-list, expose only coordination broker handlers.
+        // Explicit model/Council allow-lists continue to use their exact registered functions.
+        // The broker always dispatches through the same registry with no forged human confirmation.
+        var available = functionRegistry?.GetFunctions() ?? [];
+        return available
+            .Where(function => function.AvailableToAi &&
+                function.SupportsDirectInvocation && function.SupportsAutomaticInvocation &&
+                (automaticFunctionAllowList is null
+                    ? function.Source == "DxFunctionBroker"
+                    : automaticFunctionAllowList.Contains(function.Name)))
+            .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
     catch (Exception __serviceMethodException)
     {

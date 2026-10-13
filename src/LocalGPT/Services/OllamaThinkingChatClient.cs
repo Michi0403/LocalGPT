@@ -119,7 +119,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     /// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
     /// <param name="enableAutomaticTools">Value indicating whether enable automatic tools should apply to this operation.</param>
     /// <param name="throwOnFailure">Value indicating whether throw on failure should apply to this operation.</param>
-    /// <param name="automaticFunctionAllowList">Optional exact registered-function allow-list. Null or empty preserves the historical policy-approved catalog.</param>
+    /// <param name="automaticFunctionAllowList">Optional exact registered-function allow-list. Null or empty exposes the catalogued discovery/preview/invoke broker; a nonempty list retains the exact operator-selected functions.</param>
     /// <param name="sessionContext">Optional scoped chat/project identity propagated into provider-native automatic DXFunction calls.</param>
     public OllamaThinkingChatClient(
         OllamaCoreOptions options,

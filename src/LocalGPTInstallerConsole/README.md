@@ -4,6 +4,8 @@ Argument-driven C# console variant of the original PowerShell workflow.
 
 ## Ollama install behavior
 
+The default Windows setup installs/detects Ollama and LocalGPT without downloading any AI models. The first-run guide directs users to `/install`, where they choose models and install them through Ollama or LM Studio. The explicit `--pull-models` command and separate `Pull-Models-*.cmd` utilities remain available for intentional manual use. `--all` also does not download models.
+
 This version uses the official Windows EXE installer directly:
 
 ```powershell

@@ -17,6 +17,7 @@ public sealed class DxAiFunctionsController(
     IDxAiFunctionServiceClient functionClient,
     IDxAiFunctionCallRecoveryService recovery,
     IDeferredDxAiInvocationService deferredInvocations,
+    IDxAiFunctionInvocationAuditService audit,
     ILogger<DxAiFunctionsController> logger) : ControllerBase
 {
     /// <summary>
@@ -92,6 +93,40 @@ public sealed class DxAiFunctionsController(
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The HTTP-facing result produced for the caller.</returns>
+    /// <summary>Validates exact function parameters and produces a non-executing, policy-bound fingerprint.</summary>
+    [HttpPost("{functionName}/preview")]
+    public async Task<IResult> PreviewFunction(string functionName,
+        [FromBody] DxAiFunctionInvocationRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            request.PreviewOnly = true;
+            request.UserConfirmed = false;
+            var result = await functionClient.CallAsync(functionName, request, cancellationToken).ConfigureAwait(false);
+            return Results.Json(result, statusCode: result.Succeeded ? 200 : 400);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "DX function preview failed for {FunctionName}.", functionName);
+            return Results.InternalServerError("DX function preview failed. See application diagnostics.");
+        }
+    }
+
+    /// <summary>Returns sanitized durable function execution history without arguments or results.</summary>
+    [HttpGet("history")]
+    public async Task<IResult> GetInvocationHistoryAsync([FromQuery] int take, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await audit.GetRecentAsync(take == 0 ? 30 : take, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading DX function invocation history failed.");
+            return Results.InternalServerError("DX function history is currently unavailable.");
+        }
+    }
+
     [HttpPost("{functionName}/invoke")]
     public async Task<IResult> InvokeFunction(
         string functionName,
@@ -107,6 +142,7 @@ public sealed class DxAiFunctionsController(
             "HumanApprovalDeclined" => StatusCodes.Status403Forbidden,
             "AutomaticInvocationDenied" => StatusCodes.Status403Forbidden,
             "InvalidParameters" => StatusCodes.Status400BadRequest,
+            "StalePreview" => StatusCodes.Status409Conflict,
             "DiscoveryOnly" => StatusCodes.Status405MethodNotAllowed,
             "Failed" => StatusCodes.Status500InternalServerError,
             "Cancelled" => StatusCodes.Status409Conflict,

@@ -1,4 +1,4 @@
-"""Source-only maintenance contract for 5.6.1 terminal, fullscreen and per-model memory repairs.
+"""Source-only maintenance contract for 5.6.3 terminal, fullscreen and per-model memory repairs.
 
 No dotnet, NuGet restore, external service, or shell command execution is required.
 """
@@ -15,7 +15,7 @@ def source(name: str) -> str:
 
 def require(condition: bool, reason: str) -> None:
     if not condition:
-        raise SystemExit(f"LocalGPT 5.6.1 console/memory acceptance failed: {reason}")
+        raise SystemExit(f"LocalGPT 5.6.3 console/memory acceptance failed: {reason}")
 
 
 def section(contents: str, beginning: str, ending: str) -> str:
@@ -23,7 +23,7 @@ def section(contents: str, beginning: str, ending: str) -> str:
     return contents.split(beginning, 1)[1].split(ending, 1)[0]
 
 
-require("<Version>5.6.1</Version>" in source("src/LocalGPT/LocalGPT.csproj"), "version not advanced")
+require("<Version>5.6.3</Version>" in source("src/LocalGPT/LocalGPT.csproj"), "version not advanced")
 console = source("src/LocalGPT/Services/ConsoleCommandService.cs")
 pump = section(console, "private async Task PumpOutputAsync(", "private void PublishOutputFrame(")
 require("pendingCarriageReturn" in pump and "character != '\\n'" in pump, "CRLF still discarded as terminal rewrites")
@@ -61,4 +61,4 @@ for label in ("Per-model memory budget", "PC RAM:", "Dedicated GPU VRAM:", "Unif
     require(label in panel, f"Install does not display {label}")
 require("CanIRunModelRecommendation.MemoryPlanSummary" in panel, "model results grid lacks estimated memory")
 require((ROOT / "RELEASE-CHECKLIST-v5.6.0.md").is_file(), "per-file release checklist missing")
-print("LocalGPT 5.6.1 ASCII console, CRLF output, typed shell selection, compact revision list, fullscreen popup and attributed per-model memory source audit passed.")
+print("LocalGPT 5.6.3 ASCII console, CRLF output, typed shell selection, compact revision list, fullscreen popup and attributed per-model memory source audit passed.")

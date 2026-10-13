@@ -35,6 +35,7 @@ public sealed class DxAiFunctionRegistry(
     IRuntimePluginService runtimePlugins,
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
+    IDxAiFunctionInvocationAuditService audit,
     ILogger<DxAiFunctionRegistry> logger) : IDxAiFunctionRegistry
 {
     // Keep the scoped registry itself on normal constructor injection. Handler construction is delayed until
@@ -90,6 +91,26 @@ public sealed class DxAiFunctionRegistry(
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
+        string functionName,
+        DxAiFunctionInvocationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await InvokeCoreAsync(functionName, request, cancellationToken).ConfigureAwait(false);
+            if (!request.PreviewOnly)
+                await audit.RecordAsync(result, CancellationToken.None).ConfigureAwait(false);
+            return result;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "DX function {FunctionName} failed outside the normal operation result boundary.", functionName);
+            throw;
+        }
+    }
+
+    /// <summary>Shared invocation engine for chat, Council, API and workbench. Previews return before any approval/execution.</summary>
+    private async Task<DxAiFunctionInvocationResult> InvokeCoreAsync(
         string functionName,
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -179,8 +200,9 @@ public sealed class DxAiFunctionRegistry(
             };
         }
 
-        var requiresHumanConfirmation = catalogPolicy?.RequiresFrontendConfirmation
-            ?? descriptor.RequiresHumanConfirmation
+        // Persisted display policy may require *more* approvals, never waive the mandatory
+        // write/safety gate for a live function descriptor.
+        var requiresHumanConfirmation = (catalogPolicy?.RequiresFrontendConfirmation ?? descriptor.RequiresHumanConfirmation)
             || (!descriptor.IsReadOnly && !descriptor.IsCoordinationOnly)
             || (request.AutomaticInvocation && !descriptor.SupportsAutomaticInvocation);
 
@@ -193,7 +215,40 @@ public sealed class DxAiFunctionRegistry(
                 FunctionName = functionName,
                 OperationId = operationId,
                 Status = "InvalidParameters",
-                Error = parameterValidationError
+                Error = parameterValidationError,
+                ValidationIssues = [BuildValidationIssue(parameterValidationError)]
+            };
+        }
+
+        var previewFingerprint = BuildPreviewFingerprint(functionName, descriptor, catalogPolicy, request);
+        if (!string.IsNullOrWhiteSpace(request.ExpectedPreviewFingerprint) &&
+            !string.Equals(request.ExpectedPreviewFingerprint, previewFingerprint, StringComparison.Ordinal))
+        {
+            return new DxAiFunctionInvocationResult
+            {
+                FunctionName = functionName,
+                OperationId = operationId,
+                Status = "StalePreview",
+                Error = "Parameters, function descriptor or saved policy changed after preview. Preview this exact call again."
+            };
+        }
+        if (request.PreviewOnly)
+        {
+            return new DxAiFunctionInvocationResult
+            {
+                FunctionName = functionName,
+                OperationId = operationId,
+                Succeeded = true,
+                Status = "PreviewReady",
+                Value = new DxAiFunctionInvocationPreview
+                {
+                    FunctionName = functionName,
+                    PreviewFingerprint = previewFingerprint,
+                    RequiresHumanApproval = requiresHumanConfirmation,
+                    CanInvoke = true,
+                    IsReadOnly = descriptor.IsReadOnly,
+                    ParameterSchemaJson = descriptor.ParameterSchemaJson
+                }
             };
         }
 
@@ -475,6 +530,46 @@ public sealed class DxAiFunctionRegistry(
     /// <param name="descriptor">Authoritative function descriptor.</param>
     /// <param name="parameters">Proposed function parameters.</param>
     /// <returns>An empty string when valid; otherwise a bounded validation error suitable for the model and local human UI.</returns>
+    private DxAiFunctionValidationIssue BuildValidationIssue(string message)
+    {
+        try
+        {
+        var firstQuote = message.IndexOf('\'');
+        var secondQuote = firstQuote < 0 ? -1 : message.IndexOf('\'', firstQuote + 1);
+        var path = firstQuote >= 0 && secondQuote > firstQuote ? message[(firstQuote + 1)..secondQuote] : "parameters";
+        return new DxAiFunctionValidationIssue
+        {
+            Code = message.StartsWith("Required parameter", StringComparison.Ordinal) ? "Required" : "SchemaMismatch",
+            Path = path,
+            Message = message
+        };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Building a structured DX function schema diagnostic failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Fingerprint includes the complete live descriptor and saved exposure/approval policy, not just arguments.</summary>
+    private string BuildPreviewFingerprint(string functionName, DxaichatFunctionInfo descriptor,
+        DxAiFunctionCatalogEntry? policy, DxAiFunctionInvocationRequest request)
+    {
+        try
+        {
+            var input = BuildInvocationFingerprint(functionName, request) + "|" +
+                JsonSerializer.Serialize(descriptor) + "|" +
+                (policy is null ? "uninitialized" :
+                    $"{policy.DescriptorHash}|{policy.IsAvailable}|{policy.IsEnabled}|{policy.ExposeToAiChat}|{policy.RequiresFrontendConfirmation}|{policy.UpdatedAtUtc.Ticks}");
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(input))).ToLowerInvariant();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Computing a DX function preview fingerprint failed for {FunctionName}.", functionName);
+            throw;
+        }
+    }
+
     private string ValidateInvocationParameters(DxaichatFunctionInfo descriptor, JsonElement parameters)
     {
         try

@@ -12,7 +12,7 @@ APP = ROOT / 'src' / 'LocalGPT'
 
 def require(condition: bool, detail: str) -> None:
     if not condition:
-        raise SystemExit(f"LocalGPT 5.6.1 Game Studio acceptance failed: {detail}")
+        raise SystemExit(f"LocalGPT 5.6.3 Game Studio acceptance failed: {detail}")
 
 
 def source(relative: str) -> str:
@@ -21,7 +21,7 @@ def source(relative: str) -> str:
     return path.read_text(encoding='utf-8-sig')
 
 
-require('<Version>5.6.1</Version>' in source('LocalGPT.csproj'), 'version is not 5.6.1')
+require('<Version>5.6.3</Version>' in source('LocalGPT.csproj'), 'version is not 5.6.3')
 require('EmbeddedResource Include="GameTemplates/GodotSceneRuntime.cs.txt"' in source('LocalGPT.csproj'), 'Godot C# template must be embedded')
 
 models = source('BusinessObjects/GameStudioModels.cs')
@@ -128,8 +128,8 @@ for actor in sample['actors']:
     require(not any(tile['solid'] and (int(actor['x']), int(actor['y'])) == (tile['x'], tile['y'])
                     for tile in sample['tiles']), 'demo art occupies a prohibited solid tile')
 
-require('localgpt-game-studio.js?v=5.6.1' in source('Components/App.razor'), 'pixel-preview script not connected to App')
+require('localgpt-game-studio.js?v=5.6.3' in source('Components/App.razor'), 'pixel-preview script not connected to App')
 require((APP / 'wwwroot/js/localgpt-game-studio.js').is_file(), 'pixel-art browser projection is missing')
 require((ROOT / 'docs/reference/game-studio-revisioned-godot.md').is_file(), 'Godot workflow documentation is missing')
 
-print('LocalGPT 5.6.1 Game Studio acceptance passed: corrected JS interop namespace and typed DevExpress EventCallback, plus retained editable Godot worktree/explicit commits, unique Council art proposals, independent review, fixed world ticks, sprites, collision masks, parallax, palettes, DevExpress/InteractiveServer, version and demo.')
+print('LocalGPT 5.6.3 Game Studio acceptance passed: corrected JS interop namespace and typed DevExpress EventCallback, plus retained editable Godot worktree/explicit commits, unique Council art proposals, independent review, fixed world ticks, sprites, collision masks, parallax, palettes, DevExpress/InteractiveServer, version and demo.')
