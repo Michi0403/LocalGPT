@@ -16,6 +16,27 @@ $product = if ($isLocalGpt) { 'localgpt' } else { 'publisherstudio' }
 $sourceRoot = if ($isLocalGpt) { Join-Path $root 'src/LocalGPT' } else { Join-Path $root 'src/PublisherStudio.Web' }
 $pythonScript = Join-Path $PSScriptRoot 'audit_application_architecture.py'
 
+function Invoke-PythonAudit {
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $python) { $python = Get-Command python3 -ErrorAction SilentlyContinue }
+    if ($python) {
+        $auditOutput = @(& $python.Source $pythonScript --root $root --product $product --mode $Mode 2>&1)
+        $auditExitCode = [int]$LASTEXITCODE
+        foreach ($line in $auditOutput) { Write-Host ([string]$line) }
+        return $auditExitCode
+    }
+
+    $launcher = Get-Command py -ErrorAction SilentlyContinue
+    if ($launcher) {
+        $auditOutput = @(& $launcher.Source -3 $pythonScript --root $root --product $product --mode $Mode 2>&1)
+        $auditExitCode = [int]$LASTEXITCODE
+        foreach ($line in $auditOutput) { Write-Host ([string]$line) }
+        return $auditExitCode
+    }
+
+    return $null
+}
+
 function Remove-NonCode([string]$Text) {
     $withoutRawStrings = [regex]::Replace($Text, '(?s)\$*@?"{3,}.*?"{3,}', { param($match) ' ' * $match.Length })
     $withoutBlockComments = [regex]::Replace($withoutRawStrings, '(?s)/\*.*?\*/', { param($match) ' ' * $match.Length })
@@ -232,5 +253,13 @@ function Invoke-MethodFallback {
     Write-Host 'Maintained operational diagnostics validation passed without a legacy method baseline.'
 }
 
+$pythonExit = Invoke-PythonAudit
+if ($null -ne $pythonExit) {
+    if ($pythonExit -ne 0) { Fail "Python architecture audit exited with code $pythonExit." }
+    exit 0
+}
+
+Write-Warning 'Python was not found; using the bundled Windows PowerShell fallback audit.'
 if ($Mode -in @('static', 'all')) { Invoke-StaticFallback }
+if ($Mode -in @('methods', 'all')) { Invoke-MethodFallback }
 if ($Mode -in @('runtime', 'all')) { Invoke-RuntimeFallback }

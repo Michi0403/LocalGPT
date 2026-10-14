@@ -2,6 +2,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 function Fail([string]$Message) { throw $Message }
 $root = Split-Path -Parent $PSScriptRoot
+$baselinePath = Join-Path $PSScriptRoot 'text-service-ownership-baseline.json'
+if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) { Fail 'Text-service ownership baseline is missing.' }
+$parsedBaseline = [System.IO.File]::ReadAllText($baselinePath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+$known = @{}; foreach ($item in $parsedBaseline) { $known[[string]$item] = $true }
 $failures = New-Object System.Collections.Generic.List[string]
 $sourceRoot = (Join-Path $root 'src/LocalGPT')
 $folders = @('Components','Controllers','Controller')

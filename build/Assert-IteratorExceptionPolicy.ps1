@@ -38,6 +38,10 @@ function Get-MethodRecords([string]$Text) {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
+$baselinePath = Join-Path $PSScriptRoot 'iterator-exception-baseline.json'
+if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) { Fail 'Iterator exception baseline is missing.' }
+$parsedBaseline = [System.IO.File]::ReadAllText($baselinePath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+$known = @{}; foreach ($item in $parsedBaseline) { $known[[string]$item] = $true }
 function Get-BaselineRelativePath([string]$RelativePath) {
     if ($RelativePath -match '^(?<prefix>.+?)(?:\.[^/]+)\.cs$') {
         $candidate = $Matches['prefix'] + '.cs'
@@ -54,6 +58,9 @@ foreach ($file in $files) {
     foreach ($method in Get-MethodRecords $text) {
         $body = [string]$method.Body
         if (-not [regex]::IsMatch($body, '\byield\s+(?:return|break)\b')) { continue }
+        if ([regex]::IsMatch($body, '\bcatch\b')) { $candidate = "${baselineRelative}|$($method.Signature)|iterator contains catch"; if (-not $known.ContainsKey($candidate)) { $failures.Add($candidate) } }
+        if (-not [regex]::IsMatch($body, '\btry\b') -or -not [regex]::IsMatch($body, '\bfinally\b')) { $candidate = "${baselineRelative}|$($method.Signature)|iterator requires try/finally"; if (-not $known.ContainsKey($candidate)) { $failures.Add($candidate) } }
+        if (-not [regex]::IsMatch($body, '\b(?:Logger|logger|_logger)\s*\.\s*Log\w*\s*\(')) { $candidate = "${baselineRelative}|$($method.Signature)|iterator requires logging"; if (-not $known.ContainsKey($candidate)) { $failures.Add($candidate) } }
     }
 }
 if ($failures.Count -gt 0) {

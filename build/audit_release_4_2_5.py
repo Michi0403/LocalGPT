@@ -1,0 +1,977 @@
+from pathlib import Path
+import plistlib
+import re
+import sys
+
+root = Path(__file__).resolve().parents[1]
+failures = []
+
+def read(relative):
+    path = root / relative
+    if not path.is_file():
+        failures.append(f"missing file: {relative}")
+        return ""
+    return path.read_text(encoding="utf-8-sig")
+
+def require(relative, token, label=None):
+    text = read(relative)
+    if token not in text:
+        failures.append(label or f"{relative}: missing {token!r}")
+    return text
+
+
+def method_section(text, name):
+    match = re.search(r"(?m)^\s*(?:private|public|internal|protected)\s+[^\n]+\b" + re.escape(name) + r"\s*\(", text)
+    if not match:
+        return ""
+    next_doc = text.find("\n    /// <summary>", match.start() + 1)
+    return text[match.start(): next_doc if next_doc >= 0 else len(text)]
+
+def version(relative, expected):
+    text = require(relative, f"<Version>{expected}</Version>")
+    match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", text)
+    if not match:
+        failures.append(f"{relative}: semantic version not found")
+        return
+    major, minor, patch = map(int, match.groups())
+    if minor > 9 or patch > 9:
+        failures.append(f"{relative}: version {major}.{minor}.{patch} violates the one-digit minor/patch release rule")
+
+for relative in (
+    "src/LocalGPT/LocalGPT.csproj",
+    "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
+    "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
+):
+    version(relative, "4.2.5")
+
+for relative, token in (
+    ("docs/docfx.json", '"localgptVersion": "4.2.5"'),
+    ("docs/pdf/toc.yml", "LocalGPT-4.2.5.pdf"),
+    ("docs/pdf-cover.html", "LocalGPT 4.2.5 Documentation"),
+    ("docs/index.md", "**Version 4.2.5**"),
+    ("src/LocalGPT/Components/App.razor", "localgpt-chat-ui.js?v=4.2.5"),
+    ("src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs", "LocalGPT/4.2.5"),
+    ("src/LocalGPT/Services/InitialSetupAssistantService.cs", "LocalGPT/4.2.5"),
+    ("docs/reference/ai-provider-installation.md", "LocalGPT/4.2.5"),
+    ("CHANGELOG-v4.2.5-ASCII-BUILD-OWNERSHIP-REPAIR.md", "4.2.5"),
+    ("VALIDATION-v4.2.5-source.md", "4.2.5"),
+    ("CHANGELOG-v4.2.4-ASCII-CHAT-EXPERIENCE.md", "4.2.4"),
+    ("VALIDATION-v4.2.4-source.md", "4.2.4"),
+    ("CHANGELOG-v4.2.3-MACOS-UI-RUNTIME-RECOVERY.md", "4.2.3"),
+    ("VALIDATION-v4.2.3-source.md", "4.2.3"),
+    ("CHANGELOG-v4.2.2-OLLAMA-PROVIDER-IDENTITY-CANONICALIZATION.md", "4.2.2"),
+    ("VALIDATION-v4.2.2-source.md", "4.2.2"),
+    ("CHANGELOG-v4.2.1-METADATA-CONSOLE-IDENTITY.md", "4.2.1"),
+    ("VALIDATION-v4.2.1-source.md", "4.2.1"),
+    ("CHANGELOG-v4.2.0-OLLAMA-LIVE-CATALOG-WORKBENCH.md", "4.2.0"),
+    ("VALIDATION-v4.2.0-source.md", "4.2.0"),
+    ("CHANGELOG-v4.1.9-MACOS-MALLOC-SPAWN-FLOOD.md", "4.1.9"),
+    ("VALIDATION-v4.1.9-source.md", "4.1.9"),
+    ("CHANGELOG-v4.1.8-MODEL-CATALOG-CANIRUN-UI.md", "4.1.8"),
+    ("VALIDATION-v4.1.8-source.md", "4.1.8"),
+    ("CHANGELOG-v4.1.7-RUNTIME-CHURN-PROVIDER-STORAGE-SETUP.md", "4.1.7"),
+    ("VALIDATION-v4.1.7-source.md", "4.1.7"),
+    ("CHANGELOG-v4.1.6-POWERSHELL-INTERPOLATION-PARSER-REPAIR.md", "4.1.6"),
+    ("VALIDATION-v4.1.6-source.md", "4.1.6"),
+    ("CHANGELOG-v4.1.5-DOCUMENTATION-BROWSER-CHUNK-RECOVERY.md", "4.1.5"),
+    ("VALIDATION-v4.1.5-source.md", "4.1.5"),
+    ("CHANGELOG-v4.1.4-CONFIGURATIONROOT-NAMESPACE-COMPILE-REPAIR.md", "4.1.4"),
+    ("VALIDATION-v4.1.4-source.md", "4.1.4"),
+    ("CHANGELOG-v4.1.3-SYSTEM-VARIABLE-GUARD-COMPILE-REPAIR.md", "4.1.3"),
+    ("VALIDATION-v4.1.3-source.md", "4.1.3"),
+    ("CHANGELOG-v4.1.2-ADAPTIVE-LOW-MEMORY-DOCUMENTATION-BUILD.md", "4.1.2"),
+    ("VALIDATION-v4.1.2-source.md", "4.1.2"),
+    ("CHANGELOG-v4.1.1-PROVIDER-RUNTIME-MODEL-STORAGE-MANAGEMENT.md", "4.1.1"),
+    ("VALIDATION-v4.1.1-source.md", "4.1.1"),
+    ("CHANGELOG-v4.1.0-MATRIX-OPERATOR-CONTROL-PLANE.md", "4.1.0"),
+    ("VALIDATION-v4.1.0-source.md", "4.1.0"),
+    ("RELEASE.md", "LocalGPT 4.2.5"),
+):
+    require(relative, token)
+
+entitlements_path = root / "build/assets/mac-apphost-entitlements.plist"
+if not entitlements_path.is_file():
+    failures.append("macOS apphost entitlements asset is missing")
+else:
+    try:
+        with entitlements_path.open("rb") as stream:
+            entitlements = plistlib.load(stream)
+        if entitlements != {"com.apple.security.cs.allow-jit": True}:
+            failures.append(f"unexpected macOS apphost entitlements: {entitlements!r}")
+    except Exception as exc:
+        failures.append(f"macOS apphost entitlements are not parseable: {exc}")
+
+trust = read("build/Initialize-MacReleaseTrust.ps1")
+for token in (
+    "'security','codesign','pkgbuild','hdiutil','xcrun','plutil'",
+    "assets/mac-apphost-entitlements.plist",
+    "& $plutil -lint $entitlementsSourcePath",
+    "macOS apphost entitlements preflight passed",
+):
+    if token not in trust:
+        failures.append(f"Initialize-MacReleaseTrust.ps1: missing early entitlement guard {token!r}")
+
+native = read("build/NativeReleasePackaging.ps1")
+for token in (
+    "$entitlementsSourcePath = Join-Path $PSScriptRoot 'assets/mac-apphost-entitlements.plist'",
+    "& $plutil -convert xml1 -o $entitlementsPath $entitlementsSourcePath",
+    "& $plutil -lint $entitlementsPath",
+    "@('--entitlements',$entitlementsPath)",
+):
+    if token not in native:
+        failures.append(f"NativeReleasePackaging.ps1: missing normalized entitlement signing token {token!r}")
+if "$entitlements = @'" in native:
+    failures.append("NativeReleasePackaging.ps1: inline PowerShell entitlement XML generation remains")
+
+build_docs = read("build/Build-Documentation.ps1")
+for token in (
+    "$pdfCompletedBeforeProcessExit = $false",
+    "$liveStableLengthChecks -ge 4",
+    "Test-LocalGptCompletePdf -Path $PdfPath -MinimumBytes $MinimumBytes",
+    "the lingering renderer was terminated after PDF validation",
+):
+    if token not in build_docs:
+        failures.append(f"Build-Documentation.ps1: missing live PDF completion token {token!r}")
+if "$process.WaitForExit($browserPdfTimeoutMilliseconds)" in build_docs:
+    failures.append("Build-Documentation.ps1: successful browser PDF rendering can still block on the full timeout")
+for token in (
+    "function Remove-LocalGptStaleGeneratedDocumentationPdfs",
+    "Save-LocalGptDocumentationHtmlCache -CacheEntryRoot",
+    "LocalGPT Pages source must contain exactly one current versioned PDF",
+):
+    # Last token is in another file and handled below.
+    if token.startswith("LocalGPT Pages"):
+        continue
+    if token not in build_docs:
+        failures.append(f"4.0.8 documentation hygiene regressed: missing {token!r}")
+
+pages = read("build/Update-GitHubPagesSnapshot.ps1")
+if "LocalGPT Pages source must contain exactly one current versioned PDF" not in pages:
+    failures.append("strict Pages PDF/version guard regressed")
+
+setup_logger = read("src/LocalGPTInstallerConsole/Helper/SetupFileLoggerProvider.cs")
+for token in ("using System;", "using System.IO;", "public IDisposable? BeginScope<TState>(TState state) where TState : notnull"):
+    if token not in setup_logger:
+        failures.append(f"4.0.7 installer compile repair regressed: missing {token!r}")
+
+release_build = read("Build-Release.ps1")
+preflight = release_build.find("Preflighting the LocalGPT installer compile before expensive documentation and native packaging...")
+documentation = release_build.find("Prepare-LocalGptDocumentation", preflight)
+if preflight < 0 or documentation < 0 or preflight > documentation:
+    failures.append("installer compile preflight must remain before documentation generation")
+
+
+# 4.1.0 Matrix operator control-plane contract.
+operator_interface = read("src/LocalGPT/Interfaces/IConsoleOperatorService.cs")
+operator_service = read("src/LocalGPT/Services/ConsoleOperatorService.cs")
+command_interface = read("src/LocalGPT/Interfaces/IConsoleCommandService.cs")
+command_service = read("src/LocalGPT/Services/ConsoleCommandService.cs")
+platform_service = read("src/LocalGPT/Services/LocalConsolePlatformServices.cs")
+game_console = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor")
+registration = read("src/LocalGPT/Program.ServiceRegistration.cs")
+setup_operator = read("src/LocalGPTInstallerConsole/Helper/SetupOperatorConsole.cs")
+setup_program = read("src/LocalGPTInstallerConsole/Program.cs")
+
+for relative, text, tokens in (
+    ("IConsoleOperatorService.cs", operator_interface, ("GetAvailableShells()", "SubmitAsync(LocalConsoleOperatorRequest request")),
+    ("ConsoleOperatorService.cs", operator_service, ("case \"shells\":", "case \"jobs\":", "case \"cancel\":", "case \"signal\":", "case \"cd\":", "case \"clear\":")),
+    ("IConsoleCommandService.cs", command_interface, ("Guid Start(LocalConsoleCommandRequest request)", "GetActiveOperations()", "bool Cancel(Guid operationId)", "SendSignalAsync(Guid operationId", "PublishOperatorMessage(string text)")),
+    ("ConsoleCommandService.cs", command_service, ("ISupervisedTaskRunner", "CreateNoWindow = true", "operation.Cancellation.Cancel()")),
+    ("LocalConsolePlatformServices.cs", platform_service, ("LocalConsoleShellKind.Zsh", "LocalConsoleShellKind.Bash", "LocalConsoleShellKind.Sh", "LocalConsoleShellKind.PowerShell", "LocalConsoleShellKind.Cmd", "SendSignalAsync")),
+    ("ChatGameConsole.razor", game_console, ("@inject IConsoleOperatorService Operator", "MATRIX OPERATOR", "ToggleOperatorModeAsync", "SubmitOperatorLineAsync", "CanSubmitHumanControl && !operatorMode")),
+    ("Program.ServiceRegistration.cs", registration, ("AddSingleton<IConsoleOperatorService, ConsoleOperatorService>()",)),
+    ("SetupOperatorConsole.cs", setup_operator, (":operator on|off", ":shells", ":jobs", ":cancel", ":signal", "pid:", "CreateNoWindow = true", "TrackProcess(Process process", "CancellationToken => cancellation.Token")),
+    ("LocalGPTInstallerConsole/Program.cs", setup_program, ("SetupOperatorConsole.Start(logger)", "SetupOperatorConsole.ThrowIfCancellationRequested()", "WaitForExitAsync(SetupOperatorConsole.CancellationToken)", "CreateLinkedTokenSource(timeout.Token, SetupOperatorConsole.CancellationToken)")),
+):
+    for token in tokens:
+        if token not in text:
+            failures.append(f"4.1.0 operator contract regressed in {relative}: missing {token!r}")
+
+# Cancellation must be a first-class exit path, not swallowed by generic resilience catches.
+for method_name in (
+    "InstallOllamaAsync", "PullModelsAsync", "InstallLocalGptAsync",
+    "ImportGitHubSourceToLearningBaseAsync", "DownloadLatestReleaseAssetAsync",
+    "DownloadGitHubSourceZipAsync", "GetGitHubDefaultBranchCommitShaAsync",
+    "DownloadFileAsync", "MoveFileWithRetryAsync", "RunProcessAsync",
+):
+    body = method_section(setup_program, method_name)
+    if not body:
+        failures.append(f"4.1.0 cancellation guard cannot find {method_name}")
+        continue
+    if "OperationCanceledException" not in body:
+        failures.append(f"4.1.0 cancellation guard: {method_name} does not preserve OperationCanceledException")
+
+if "catch (OperationCanceledException)\n            {\n                throw;\n            }\n            catch (Exception ex)\n            {\n                logger.LogError(ex, $\"Error in Setup:" not in setup_program:
+    failures.append("4.1.0 cancellation guard: setup-level generic catch can still swallow operator cancellation")
+if "Processes.Values.Where(item => !item.IsOperatorJob)" not in setup_operator:
+    failures.append("4.1.0 ownership guard: setup cancellation no longer distinguishes human shell jobs from setup-owned children")
+if "command text was omitted" not in operator_service.lower() and "command text" not in operator_service.lower():
+    failures.append("4.1.0 privacy guard: operator diagnostics no longer state command-text omission")
+
+
+# 4.1.1 provider runtime/model storage management contract.
+models = read("src/LocalGPT/BusinessObjects/ProviderRuntimeManagementModels.cs")
+interface = read("src/LocalGPT/Interfaces/IProviderRuntimeManagementService.cs")
+provider_service = read("src/LocalGPT/Services/ProviderRuntimeManagementService.cs")
+ollama_process = read("src/LocalGPT/Services/OllamaProcessService.cs")
+ollama_platform = read("src/LocalGPT/Services/OllamaPlatformServices.cs")
+provider_ui = read("src/LocalGPT/Components/Shared/ProviderRuntimeManagementPanel.razor")
+provider_ui_code = read("src/LocalGPT/Components/Shared/ProviderRuntimeManagementPanel.razor.cs")
+setup_panel = read("src/LocalGPT/Components/Shared/InitialSetupAssistantPanel.razor")
+registry = read("src/LocalGPT/Services/AiProviderConfigurationRegistryService.cs")
+appsettings = read("src/LocalGPT/appsettings.json")
+appsettings_development = read("src/LocalGPT/appsettings.Development.json")
+provider_docs = read("docs/reference/ai-provider-installation.md")
+localization_en = read("src/LocalGPT/Localization/en-US.json")
+localization_de = read("src/LocalGPT/Localization/de-DE.json")
+
+for relative, text, tokens in (
+    ("ProviderRuntimeManagementModels.cs", models, ("OllamaRuntimeManagementOptions", "LmStudioRuntimeManagementOptions", "ProviderManagedModelInfo", "MaxContextLengthTokens", "DiskFreeBytes")),
+    ("IProviderRuntimeManagementService.cs", interface, ("SaveOllamaRuntimeOptionsAsync", "SaveLmStudioRuntimeOptionsAsync", "UnloadModelAsync", "DeleteModelAsync", "EstimateLmStudioModelAsync", "LoadLmStudioModelAsync", "RestartLmStudioServerAsync")),
+    ("ProviderRuntimeManagementService.cs", provider_service, (
+        '"/api/tags"', '"/api/ps"', 'keep_alive = 0', 'HttpMethod.Delete', '"/api/delete"',
+        '["ls", "--json", "--detailed"]', '["ps", "--json"]', '"--estimate-only"', '"--context-length"', '"--gpu"', '"--ttl"',
+        '"server", "start", "--bind"', '"--port"', 'args.Add("--cors")',
+        'Environment.SpecialFolder.UserProfile', 'SynchronizeLocalOllamaEndpoints', 'SynchronizeLocalLmStudioEndpoints',
+        'baseUri.IsLoopback', '"127.0.0.1" or "0.0.0.0"', 'LM Studio → My Models'
+    )),
+    ("OllamaProcessService.cs", ollama_process, (
+        'OLLAMA_MODELS', 'OLLAMA_HOST', 'OLLAMA_CONTEXT_LENGTH', 'OLLAMA_KEEP_ALIVE', 'OLLAMA_MAX_LOADED_MODELS', 'OLLAMA_NUM_PARALLEL', 'OLLAMA_MAX_QUEUE', 'OLLAMA_NO_CLOUD',
+        'Environment.SpecialFolder.UserProfile'
+    )),
+    ("OllamaPlatformServices.cs", ollama_platform, ('Path.Combine(home, ".ollama", "models")', '"/usr/share/ollama/.ollama/models"')),
+    ("ProviderRuntimeManagementPanel.razor", provider_ui, (
+        '<DxFormLayout', '<DxGrid', '<DxSpinEdit', '<DxComboBox', '<DxCheckBox', '<DxButton', '<LocalPathExplorer',
+        'permanentDeleteConfirmed', 'Remove permanently', 'Delete in LM Studio → My Models', 'Save & restart Ollama', 'Save & restart LM Studio server',
+        '127.0.0.1', '0.0.0.0', 'Max context', 'API Key field'
+    )),
+    ("ProviderRuntimeManagementPanel.razor.cs", provider_ui_code, ("partial class ProviderRuntimeManagementPanel",)),
+    ("InitialSetupAssistantPanel.razor", setup_panel, ('<ProviderRuntimeManagementPanel Profile="@SelectedProvider"',)),
+    ("AiProviderConfigurationRegistryService.cs", registry, ('OllamaRuntime = CloneOllamaRuntime', 'LmStudioRuntime = CloneLmStudioRuntime')),
+    ("Program.ServiceRegistration.cs", registration, ('AddScoped<IProviderRuntimeManagementService, ProviderRuntimeManagementService>()', 'AddHttpClient("LocalGPTProviderRuntime"')),
+    ("appsettings.json", appsettings, ('"OllamaRuntime"', '"LmStudioRuntime"', '"BindAddress": "127.0.0.1"')),
+    ("appsettings.Development.json", appsettings_development, ('"OllamaRuntime"', '"LmStudioRuntime"', '"BindAddress": "127.0.0.1"')),
+    ("ai-provider-installation.md", provider_docs, ('Provider runtime, model storage, and cleanup workbench', 'OLLAMA_MODELS', 'LM Studio → My Models', 'Permanent model removal uses Ollama')),
+    ("en-US.json", localization_en, ('Text.Provider␠runtime,␠storage␠&␠model␠cleanup', 'Text.Remove␠permanently', 'Text.Max␠context')),
+    ("de-DE.json", localization_de, ('Provider-Laufzeit, Speicher & Modellbereinigung', 'Dauerhaft entfernen', 'Maximaler Kontext')),
+):
+    for token in tokens:
+        if token not in text:
+            failures.append(f"4.1.1 provider-management contract regressed in {relative}: missing {token!r}")
+
+# Provider-managed storage must never turn into an implicit migration/deletion routine.
+for forbidden in ("Directory.Move(", "File.Move(", "Directory.Delete("):
+    if forbidden in provider_service:
+        failures.append(f"4.1.1 provider storage safety regressed: ProviderRuntimeManagementService contains {forbidden!r}")
+
+# LM Studio permanent deletion is intentionally not fabricated until its documented CLI/API supports it.
+if "if (!IsOllama(profile))" not in method_section(provider_service, "DeleteModelAsync"):
+    failures.append("4.1.1 provider safety: DeleteModelAsync is no longer Ollama-only")
+if "LM Studio does not document a downloaded-model delete CLI/API" not in provider_service:
+    failures.append("4.1.1 provider safety: LM Studio delete limitation is no longer explicit")
+
+# Destructive model deletion must remain separately acknowledged in the UI and service.
+if 'RequireConfirmation(userConfirmed);' not in method_section(provider_service, "DeleteModelAsync"):
+    failures.append("4.1.1 provider safety: service-side delete confirmation guard is missing")
+if 'Enabled="@(!busy && permanentDeleteConfirmed)"' not in provider_ui:
+    failures.append("4.1.1 provider safety: DevExpress permanent-delete confirmation interlock is missing")
+
+
+
+
+
+# 4.1.6 PowerShell interpolation parser repair.
+interpolation_audit = read("build/audit_powershell_variable_interpolation.py")
+for token in (
+    "PowerShell variable interpolation audit passed",
+    "invalid or ambiguous PowerShell variable reference",
+):
+    if token not in interpolation_audit:
+        failures.append(f"4.1.6 PowerShell interpolation audit missing {token!r}")
+if '"attempt $renderAttempt/${maximumAttempts}: $line"' not in build_docs:
+    failures.append("4.1.6 retry diagnostic does not delimit maximumAttempts before the literal colon")
+if '$maximumAttempts: $line' in build_docs:
+    failures.append("4.1.6 parser regression remains: bare $maximumAttempts: reference found")
+
+# 4.1.5 bounded documentation browser chunk recovery contract.
+for token in (
+    "$browserPdfTimeoutMilliseconds = [Math]::Min($browserPdfTimeoutMilliseconds, 90000)",
+    "$browserPdfPostRenderStabilityMilliseconds = if ($documentationLowMemoryMode) { 15000 } else { 180000 }",
+    "FUTURE2_DOCUMENTATION_BROWSER_PDF_CHUNK_RETRIES",
+    "FUTURE2_DOCUMENTATION_ALLOW_MONOLITHIC_PDF_FALLBACK",
+    "--disk-cache-dir=$profileCacheRoot",
+    "--crash-dumps-dir=$profileCrashRoot",
+    "function Stop-LocalGptDocumentationBrowserProfileProcesses",
+    "function Invoke-LocalGptBrowserPdfWithRetry",
+    "Retrying $ContextLabel with a fresh isolated browser profile",
+    "Stop-LocalGptDocumentationBrowserProfileProcesses -ProfileRoot $profileRoot",
+    "The monolithic DocFX/Playwright fallback is disabled for chunked or low-memory documentation builds",
+    "browserPdfChunkRetries = $browserPdfChunkRetries",
+    "allowMonolithicPdfFallback = $allowMonolithicPdfFallback",
+):
+    if token not in build_docs:
+        failures.append(f"4.1.5 documentation recovery contract missing {token!r}")
+if 'foreach ($headlessMode in $headlessModes)' not in build_docs or '$headlessModes = if ($documentationLowMemoryMode) { @("--headless=new") }' not in build_docs:
+    failures.append("4.1.5 low-memory browser mode must avoid multiplying retries through legacy headless mode")
+if 'if (-not $pdfGenerated -and (($requiresChunkedBrowserPdf -and -not $monolithicPdfFallbackOverride) -or -not $allowMonolithicPdfFallback))' not in build_docs:
+    failures.append("4.1.5 monolithic fallback refusal guard is missing")
+
+# 4.1.4 ConfigurationRoot namespace qualification compile repair.
+qualification_audit = read("build/audit_configuration_root_qualification.py")
+for token in (
+    "LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot",
+    "bare ConfigurationRoot must be qualified or aliased as LocalGptConfigurationRoot",
+):
+    if token not in qualification_audit:
+        failures.append(f"4.1.4 namespace qualification audit missing {token!r}")
+for relative in (
+    "src/LocalGPT/Services/OllamaProcessService.cs",
+    "src/LocalGPT/Services/ProviderRuntimeManagementService.cs",
+    "src/LocalGPT/Services/ProviderModelRuntimeService.cs",
+):
+    service_text = read(relative)
+    if "using LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;" not in service_text:
+        failures.append(f"4.1.4 namespace repair missing explicit alias in {relative}")
+source_root_for_qualification = root / "src/LocalGPT"
+bare_configuration_root = re.compile(r"(?<![.\w])ConfigurationRoot\b")
+for source_path in source_root_for_qualification.rglob("*.cs"):
+    if source_path.name == "ConfigurationRoot.cs" or any(part in {"bin", "obj"} for part in source_path.parts):
+        continue
+    for line_number, line in enumerate(source_path.read_text(encoding="utf-8-sig", errors="replace").splitlines(), 1):
+        if bare_configuration_root.search(line):
+            failures.append(f"4.1.4 namespace repair: bare ConfigurationRoot remains in {source_path.relative_to(root).as_posix()}:{line_number}")
+
+# 4.1.3 system-variable initialization guard repair.
+for token in (
+    'private const string OllamaGenerateRoute = "/api/generate";',
+    'private const string OllamaDeleteRoute = "/api/delete";',
+    'BuildProviderUri(profile, OllamaGenerateRoute)',
+    'BuildProviderUri(profile, OllamaDeleteRoute)',
+):
+    if token not in provider_service:
+        failures.append(f"4.1.3 system-variable guard repair missing {token!r}")
+for forbidden in (
+    'BuildProviderUri(profile, "/api/generate")',
+    'BuildProviderUri(profile, "/api/delete")',
+):
+    if forbidden in provider_service:
+        failures.append(f"4.1.3 system-variable guard repair regressed: constructor route literal remains {forbidden!r}")
+
+# Reproduce the PowerShell guard's source matching in Python so this release cannot ship
+# with a new direct variable-store key or constructor initialization literal.
+import json
+baseline_path = root / "build/system-variable-initialization-baseline.json"
+try:
+    known_initializations = set(str(item) for item in json.loads(baseline_path.read_text(encoding="utf-8-sig")))
+except Exception as exc:
+    known_initializations = set()
+    failures.append(f"4.1.3 system-variable baseline is unreadable: {exc}")
+allowed_initialization_files = {
+    "src/LocalGPT/Program.cs",
+    "src/LocalGPT/Services/Persistence/InitialDataCatalog.cs",
+    "src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs",
+    "src/LocalGPT/Services/Persistence/SystemVariableDefinitionService.cs",
+}
+constructor_pattern = re.compile(r'(?m)^(?P<line>[^\r\n]*(?:=\s*new\s+|Add\w*\s*\(\s*new\s+)[A-Za-z_][\w<>,.?\[\]]*\s*\([^\r\n;]*"(?:[^"\\\r\n]|\\.)*"[^\r\n;]*)$')
+direct_variable_pattern = re.compile(r'(?m)(?:VariableStore|variableStoreService|_variableStoreService)\s*\.\s*(?:GetAsync<[^>]+>|SetAsync)\s*\(\s*"')
+source_root = root / "src/LocalGPT"
+for path in source_root.rglob("*"):
+    if not path.is_file() or path.suffix not in {".cs", ".razor"}:
+        continue
+    relative = path.relative_to(root).as_posix()
+    if any(part in relative for part in ("/bin/", "/obj/", "/Migrations/")) or path.name.endswith(".Designer.cs"):
+        continue
+    text = path.read_text(encoding="utf-8-sig", errors="replace")
+    if direct_variable_pattern.search(text):
+        failures.append(f"4.1.3 system-variable guard emulation: {relative}|direct-system-variable-name")
+    if relative in allowed_initialization_files:
+        continue
+    baseline_relative = relative
+    generated_match = re.match(r'^(?P<prefix>.+?)(?:\.[^/]+)\.cs$', relative)
+    if generated_match:
+        candidate = generated_match.group("prefix") + ".cs"
+        if (root / candidate).is_file():
+            baseline_relative = candidate
+    for match in constructor_pattern.finditer(text):
+        line = " ".join(match.group("line").strip().split())
+        if re.search(r'\bnew\s+[A-Za-z_]*Exception\b', line):
+            continue
+        finding = f"{baseline_relative}|{line}"
+        if finding not in known_initializations:
+            failures.append(f"4.1.3 system-variable guard emulation: {finding}")
+
+# 4.1.2 adaptive low-memory documentation build contract.
+for token in (
+    "function Get-LocalGptDocumentationSystemMemoryBytes",
+    "$documentationSystemMemoryBytes -le 10GB",
+    "$browserPdfChunkPages = 8",
+    "$browserJavaScriptHeapMb = 768",
+    "$documentationNodeHeapMb = 1024",
+    "$docfxBuildMaxParallelism = 1",
+    "FUTURE2_DOCUMENTATION_LOW_MEMORY",
+    "FUTURE2_DOCUMENTATION_BROWSER_PDF_CHUNK_PAGES",
+    "FUTURE2_DOCUMENTATION_BROWSER_JS_HEAP_MB",
+    "FUTURE2_DOCUMENTATION_NODE_HEAP_MB",
+    "FUTURE2_DOCUMENTATION_DOCFX_MAX_PARALLELISM",
+    "FUTURE2_DOCUMENTATION_SERIALIZE_HEAVY_STAGES",
+    "--maxParallelism",
+    "future2-localgpt-publisherstudio-documentation-heavy.lock",
+    "Body = if ($FrontMatterOnly) { '' } else { $body }",
+    "Remove-Item -LiteralPath $htmlPath -Force -ErrorAction SilentlyContinue",
+    "[GC]::Collect(2, [GCCollectionMode]::Optimized, $true, $true)",
+    "documentationSystemMemoryBytes = $documentationSystemMemoryBytes",
+    "documentationSerializeHeavyStages = $documentationSerializeHeavyStages",
+):
+    if token not in build_docs:
+        failures.append(f"4.1.2 low-memory documentation contract missing {token!r}")
+if "Html = $html" in build_docs[build_docs.find("function New-LocalGptHtmlPrintBook"):build_docs.find("function ConvertTo-PortableProcessArgument")]:
+    failures.append("4.1.2 print-book memory repair regressed: page models still retain duplicate full HTML")
+if "$documentationSystemMemoryBytes -le 96GB" not in build_docs or "$browserPdfChunkPages = 100" not in build_docs:
+    failures.append("4.1.2 high-memory policy no longer preserves 100-page chunks for 64 GiB-class hosts")
+
+# Repair the 4.1.1 release-blocking iterator-policy violation without weakening the iterator baseline.
+model_object_helper = method_section(provider_service, "EnumerateModelObjects")
+if not model_object_helper:
+    failures.append("4.1.2 iterator repair cannot find EnumerateModelObjects")
+else:
+    if "yield return" in model_object_helper or "yield break" in model_object_helper:
+        failures.append("4.1.2 iterator repair regressed: EnumerateModelObjects still uses yield")
+    for token in ("IReadOnlyList<JsonElement>", "new List<JsonElement>()", "logger.LogDebug(exception"):
+        if token not in model_object_helper:
+            failures.append(f"4.1.2 iterator repair missing {token!r} in EnumerateModelObjects")
+
+
+# 4.1.8 runtime churn, provider-storage and setup completion contract.
+db_initialization = read("src/LocalGPT/Services/Persistence/DatabaseInitializationService.cs")
+chat_factory = read("src/LocalGPT/Services/ChatClientFactory.cs")
+composite_chat = read("src/LocalGPT/Services/CompositeChatClient.cs")
+live_council = read("src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs")
+ollama_chat_417 = read("src/LocalGPT/Services/OllamaThinkingChatClient.cs")
+method_proxy = read("src/LocalGPT/Diagnostics/ServiceMethodLoggingDispatchProxy.cs")
+hardware_roads = read("src/LocalGPT/Services/Council/Scheduling/CouncilHardwareRoadConfigurationService.cs")
+ollama_interface = read("src/LocalGPT/Interfaces/IOllamaPlatformService.cs")
+ollama_platform_417 = read("src/LocalGPT/Services/OllamaPlatformServices.cs")
+setup_models = read("src/LocalGPT/BusinessObjects/InitialSetupAssistantModels.cs")
+setup_service_417 = read("src/LocalGPT/Services/InitialSetupAssistantService.cs")
+setup_ui_417 = read("src/LocalGPT/Components/Shared/InitialSetupAssistantPanel.razor")
+setup_css_417 = read("src/LocalGPT/Components/Shared/InitialSetupAssistantPanel.razor.css")
+provider_models_417 = read("src/LocalGPT/BusinessObjects/ProviderRuntimeManagementModels.cs")
+provider_service_417 = read("src/LocalGPT/Services/ProviderRuntimeManagementService.cs")
+provider_ui_417 = read("src/LocalGPT/Components/Shared/ProviderRuntimeManagementPanel.razor")
+provider_css_417 = read("src/LocalGPT/Components/Shared/ProviderRuntimeManagementPanel.razor.css")
+console_css_417 = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor.css")
+provider_docs_417 = read("docs/reference/ai-provider-installation.md")
+
+for relative, text417, tokens in (
+    ("DatabaseInitializationService.cs", db_initialization, (
+        "private async Task<bool> InitializeCoreAsync", "var initializedNow = await InitializeCoreAsync", "if (initializedNow)",
+        "Database initialization request reused the already initialized LocalGPT store.", "return false;", "return true;"
+    )),
+    ("ChatClientFactory.cs", chat_factory, ("sessions.Count == 0", "Returning an empty recoverable chat selector", "sessions.ToArray()")),
+    ("CompositeChatClient.cs", composite_chat, ("SelectedSession = AvailableChatClients.FirstOrDefault();",)),
+    ("Chat.LiveCouncil.razor.cs", live_council, ("latest.IsRunning", "latest.UpdatedAtUtc > lastAttachedLiveCouncilUpdatedAtUtc")),
+    ("OllamaThinkingChatClient.cs", ollama_chat_417, ("while (true)", "ReadLineAsync(cancellationToken)", "catch (HttpIOException) when (cancellationToken.IsCancellationRequested)", "throw new OperationCanceledException")),
+    ("CouncilHardwareRoadConfigurationService.cs", hardware_roads, ("existingList.All(IsAlreadyNormalized)", "Council hardware roads are already synchronized", "Synchronized {RouteCount} changed")),
+    ("IOllamaPlatformService.cs", ollama_interface, ("ResolveMountedStorageRoots", "DiscoverModelDirectories")),
+    ("OllamaPlatformServices.cs", ollama_platform_417, ('"/Volumes"', '"/mnt"', '"/media"', '"blobs"', '"manifests"', ".Take(64)", "candidates.Take(1024)")),
+    ("InitialSetupAssistantModels.cs", setup_models, ("IsProviderCatalogKnown", "HardwareCompatibilityNote")),
+    ("InitialSetupAssistantService.cs", setup_service_417, ("GetApproximateParameterBillions", "BuildHardwareCompatibilityNote", '"llama2-uncensored"', '"qwen3.5"', '"gemma3"', '"deepseek-r1"')),
+    ("InitialSetupAssistantPanel.razor", setup_ui_417, ('T("· provider catalog known")', 'T("Hardware-fit evidence")')),
+    ("ProviderRuntimeManagementModels.cs", provider_models_417, ("ProviderDefaultModelDirectory", "InheritedModelDirectory", "EffectiveModelDirectory", "EffectiveModelDirectorySource", "MountedStorageRoots", "DetectedModelDirectories")),
+    ("ProviderRuntimeManagementService.cs", provider_service_417, ("ResolveMountedStorageRoots", "DiscoverModelDirectories", '"LocalGPT override"', '"Filesystem link target"', '"Detected provider-shaped store"')),
+    ("ProviderRuntimeManagementPanel.razor", provider_ui_417, ('T("Storage evidence")', 'T("Detected Ollama stores (blobs + manifests)")', 'T("Mounted storage roots")', 'T("Effective source")')),
+    ("ProviderRuntimeManagementPanel.razor.css", provider_css_417, ("provider-runtime-storage-evidence", "provider-runtime-storage-list", "@media (max-width: 800px)")),
+        ("ChatGameConsole.razor.css", console_css_417, (".ascii-operator-stage", "height: 24rem", "grid-template-rows: minmax(0, 1fr) auto auto")),
+    ("ai-provider-installation.md", provider_docs_417, ('"qwen3.5-0.8b"', '"gemma3-270m"', '"deepseek-r1-1.5b"', '"llama2-uncensored-7b"')),
+):
+    for token in tokens:
+        if token not in text417:
+            failures.append(f"4.1.8 contract regressed in {relative}: missing {token!r}")
+
+if "while (!reader.EndOfStream)" in ollama_chat_417:
+    failures.append("4.1.8 Ollama cancellation race regressed: streaming loop probes EndOfStream before its cancellable read")
+
+# Expected cancellation is still propagated, but the dispatch proxy must not attach a full exception stack to its informational cancellation event.
+cancellation_body = method_section(method_proxy, "LogCancellation")
+if not cancellation_body:
+    failures.append("4.1.8 cancellation audit cannot find LogCancellation")
+elif "LogInformation(\n            exception," in cancellation_body or "LogInformation(exception" in cancellation_body:
+    failures.append("4.1.8 cancellation audit: informational cancellation logging still includes an exception stack")
+
+# Database completion logging must be conditional on the call that actually performed initialization work.
+initialize_body = method_section(db_initialization, "InitializeAsync")
+if "if (initializedNow)" not in initialize_body or "Database migration and deterministic initial data feed completed." not in initialize_body:
+    failures.append("4.1.8 database audit: InitializeAsync no longer conditionally emits the completion event")
+if 'logger.LogDebug("Starting boot-critical LocalGPT database initialization' in initialize_body:
+    failures.append("4.1.8 database audit: idempotent initialization calls still emit the old Debug start event")
+
+# Store discovery is evidence only; it must remain bounded and must never move/delete user model files.
+for forbidden in ("Directory.Move(", "Directory.Delete(", "File.Move(", "File.Delete("):
+    if forbidden in ollama_platform_417:
+        failures.append(f"4.1.8 Ollama discovery safety regressed: {forbidden} found in platform discovery")
+
+# The reconstructed regex must contain the intended word boundary, never a literal backspace control character.
+if "\x08" in setup_service_417:
+    failures.append("4.1.8 model-size parser contains a literal backspace control character")
+if r"(?:\b|$)" not in setup_service_417:
+    failures.append("4.1.8 model-size parser lost its word-boundary suffix")
+
+# English/German parity target from the completed setup/storage evidence work.
+try:
+    localization_en_417 = json.loads(read("src/LocalGPT/Localization/en-US.json"))
+    localization_de_417 = json.loads(read("src/LocalGPT/Localization/de-DE.json"))
+    if set(localization_en_417) != set(localization_de_417):
+        failures.append("4.1.8 localization parity: en-US/de-DE key sets differ")
+    if len(localization_en_417) < 2256 or len(localization_de_417) < 2256:
+        failures.append(f"4.1.8 localization parity: historical baseline requires at least 2256 keys each, got {len(localization_en_417)}/{len(localization_de_417)}")
+except Exception as exc:
+    failures.append(f"4.1.8 localization parity files are unreadable: {exc}")
+
+# InteractiveServer remains governed by the dedicated repository policy; no nested blanket render modes are introduced here.
+render_policy = read("build/Assert-InteractiveServerRenderModes.ps1")
+for token in ("@rendermode InteractiveServer", "Components/Pages/Error.razor", "must inherit MenuIsland's InteractiveServer circuit"):
+    if token not in render_policy:
+        failures.append(f"4.1.8 render-mode policy regressed: missing {token!r}")
+
+
+# 4.1.8 model-catalog, CanIRun comparison and provider-workbench repair contract.
+canirun_420 = read("src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs")
+setup_420 = read("src/LocalGPT/Services/InitialSetupAssistantService.cs")
+bootstrap_420 = read("src/LocalGPT/Services/AiProviderBootstrapService.cs")
+runtime_policy_420 = read("src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs")
+provider_ui_420 = read("src/LocalGPT/Components/Shared/ProviderRuntimeManagementPanel.razor")
+provider_css_420 = read("src/LocalGPT/Components/Shared/ProviderRuntimeManagementPanel.razor.css")
+provider_docs_420 = read("docs/reference/ai-provider-installation.md")
+
+for token in (
+    'new("https://www.canirun.ai/api/models"',
+    'new("https://www.canirun.ai/api/compatibility"',
+    'CanIRunMaximumCatalogCompatibilityRows',
+    'Expanded CanIRun.ai hardware comparison',
+    'Math.Min(2048',
+):
+    if token not in canirun_420:
+        failures.append(f"4.2.0 CanIRun compatibility-catalog contract regressed: missing {token!r}")
+
+for token in (
+    'ProviderCatalogMaximumFamilies = 40',
+    'ProviderCatalogMaximumModelIds = 2048',
+    'ProviderCatalogMaximumConcurrentRequests = 6',
+    'LoadProviderCatalogFamilyModelIdsAsync',
+    'BuildProviderCatalogTagsUri',
+    'TryExtractOllamaCatalogIdentifier',
+    'BuildOllamaCatalogUri',
+    'includeTagsPage: true',
+    'FindProviderCatalogRecommendation',
+    'hardwareRecommendations',
+):
+    if token not in setup_420:
+        failures.append(f"4.2.0 live Ollama catalog contract regressed: missing {token!r}")
+
+for token in (
+    'MaintainedOllamaModelAliases',
+    'if (!profile.ModelAliases.ContainsKey(maintainedAlias.Key))',
+    '["gemma4-e2b"] = "gemma4:e2b"',
+    '["gemma4-e4b"] = "gemma4:e4b"',
+    '["qwen3-vl-8b"] = "qwen3-vl:8b"',
+):
+    if token not in bootstrap_420:
+        failures.append(f"4.2.0 stale-profile Ollama alias fallback regressed: missing {token!r}")
+
+if 'CanIRunMaximumCatalogCompatibilityRows, nameof(LocalGptRuntimeValue.CanIRunMaximumCatalogCompatibilityRows), "1024"' not in runtime_policy_420:
+    failures.append("4.2.0 compatibility-catalog runtime policy default is missing or changed")
+
+for token in (
+    'provider-runtime-settings-grid',
+    'provider-runtime-checkbox-row',
+    '<span>@T("Local-only Ollama: disable cloud features when LocalGPT starts the server")</span>',
+    '<span>@T("I understand that Remove permanently deletes the selected Ollama model files")</span>',
+    'Enabled="@(!busy && permanentDeleteConfirmed)"',
+):
+    if token not in provider_ui_420:
+        failures.append(f"4.2.0 provider workbench layout/label contract regressed: missing {token!r}")
+
+for token in (
+    'grid-template-columns: repeat(2, minmax(0, 1fr))',
+    '@media (max-width: 900px)',
+    '.provider-runtime-checkbox-row',
+    'overflow-wrap: anywhere',
+):
+    if token not in provider_css_420:
+        failures.append(f"4.2.0 provider workbench responsive CSS contract regressed: missing {token!r}")
+
+for token in (
+    '"gemma4-e2b": "gemma4:e2b"',
+    '"gemma4-e4b": "gemma4:e4b"',
+    '"qwen3-vl-8b": "qwen3-vl:8b"',
+    '"llama4-scout": "llama4:scout"',
+    '"llama4-maverick": "llama4:maverick"',
+):
+    if provider_docs_420.count(token) < 3:
+        failures.append(f"maintained Ollama alias set incomplete across platforms: {token!r}")
+
+
+# 4.1.9 macOS release child-process flood repair contract.
+native_419 = read("build/NativeReleasePackaging.ps1")
+for token in (
+    "function Get-MacFileInventory([string]$AppPath)",
+    "$batchSize = 96",
+    "$descriptions = @(& $fileCommand -b @paths 2>$null",
+    "$descriptions.Count -ne $batch.Count",
+    "return @($machOFiles)",
+    "$validatedMachOFiles = @(Assert-MacBundleArchitecture $app $Rid)",
+    "Sign-MacBundle $app -KnownMachOFiles $validatedMachOFiles",
+    "if ($KnownMachOFiles.Count -gt 0)",
+):
+    if token not in native_419:
+        failures.append(f"4.1.9 macOS spawn-flood repair regressed: missing {token!r}")
+
+# The two old per-file `file` probes were the amplification source: one in architecture validation
+# and one again in signing. No native `file` invocation may remain inside a foreach over bundle files.
+for forbidden in (
+    "$description = [string](& $fileCommand $item.FullName 2>$null)",
+    "foreach ($item in Get-ChildItem -LiteralPath $AppPath -File -Recurse -ErrorAction Stop) {\n                $description = [string](& $fileCommand",
+):
+    if forbidden in native_419:
+        failures.append(f"4.1.9 macOS spawn-flood repair still contains per-file native probe {forbidden!r}")
+
+# The optimization must not weaken signing or architecture verification.
+for token in (
+    "Expected Mach-O architecture: $expectedPattern",
+    "without the required architecture",
+    "Developer ID codesign failed for nested Mach-O component",
+    "Developer ID signature verification failed for nested Mach-O component",
+    "Developer ID signature verification failed for $AppPath",
+    "Complete-MacDistributionArtifact $dmg 'dmg'",
+    "Complete-MacDistributionArtifact $pkg 'pkg'",
+):
+    if token not in native_419:
+        failures.append(f"4.1.9 signing/notarization safety regressed: missing {token!r}")
+
+
+# 4.2.3 metadata-backed console identity contract.
+props_421 = read("Directory.Build.props")
+identity_421 = read("src/Shared/ConsoleProductIdentity.cs")
+app_project_421 = read("src/LocalGPT/LocalGPT.csproj")
+setup_project_421 = read("src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj")
+app_program_421 = read("src/LocalGPT/Program.cs")
+setup_program_421 = read("src/LocalGPTInstallerConsole/Program.cs")
+
+for token in (
+    '<Authors>Michael Fleischer (Michi0403)</Authors>',
+    '<RepositoryUrl>https://github.com/Michi0403/LocalGPT</RepositoryUrl>',
+    '<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>',
+    '<AssemblyMetadata Include="RepositoryUrl" Value="$(RepositoryUrl)" />',
+    '<AssemblyMetadata Include="Owner" Value="$(Authors)" />',
+    '<AssemblyMetadata Include="License" Value="$(PackageLicenseExpression)" />',
+):
+    if token not in props_421:
+        failures.append(f"4.2.3 repository/project metadata contract missing {token!r}")
+
+for text, token, label in (
+    (app_project_421, '<Product>LocalGPT</Product>', 'LocalGPT product metadata'),
+    (setup_project_421, '<Product>LocalGPT Setup</Product>', 'LocalGPT Setup product metadata'),
+    (app_project_421, '..\\Shared\\ConsoleProductIdentity.cs', 'LocalGPT shared console identity link'),
+    (setup_project_421, '..\\Shared\\ConsoleProductIdentity.cs', 'LocalGPT Setup shared console identity link'),
+):
+    if token not in text:
+        failures.append(f"4.2.3 {label} is missing")
+
+for token in (
+    'AssemblyInformationalVersionAttribute',
+    'AssemblyProductAttribute',
+    'AssemblyMetadataAttribute',
+    'ResolveMetadata("RepositoryUrl")',
+    'ResolveMetadata("Owner")',
+    'ResolveMetadata("License")',
+    'Console.WriteLine($"{product} {Version}")',
+    'Console.WriteLine($"Repository: {RepositoryUrl}")',
+    'Console.WriteLine($"Owner: {ResolveMetadata("Owner")}")',
+    'Console.WriteLine($"License: {ResolveMetadata("License")}")',
+):
+    if token not in identity_421:
+        failures.append(f"4.2.3 console identity helper missing {token!r}")
+
+for forbidden in (
+    'https://github.com/Michi0403/LocalGPT',
+    'Michael Fleischer',
+    'Apache-2.0',
+    '4.2.3',
+):
+    if forbidden in identity_421:
+        failures.append(f"4.2.3 console identity helper hardcodes project identity value {forbidden!r}")
+
+if 'global::ProjectConsoleIdentity.ConsoleProductIdentity.WriteStartupHeader();' not in app_program_421:
+    failures.append("4.2.3 LocalGPT app startup does not print metadata-backed identity")
+if 'global::ProjectConsoleIdentity.ConsoleProductIdentity.WriteStartupHeader();' not in setup_program_421:
+    failures.append("4.2.3 LocalGPT Setup startup does not print metadata-backed identity")
+if 'private const string LocalGptRepo' in setup_program_421 or '"Michi0403/LocalGPT"' in setup_program_421:
+    failures.append("4.2.3 LocalGPT Setup still duplicates the repository slug instead of deriving it from RepositoryUrl metadata")
+if 'global::ProjectConsoleIdentity.ConsoleProductIdentity.RepositorySlug' not in setup_program_421:
+    failures.append("4.2.3 LocalGPT Setup does not consume the metadata-backed repository slug")
+
+
+# 4.2.3 native-Ollama/OpenAI-compatible facade identity contract.
+runtime_422 = read("src/LocalGPT/Services/ProviderModelRuntimeService.cs")
+identity_422 = read("src/LocalGPT/BusinessObjects/ProviderModelModels.cs")
+for forbidden in (
+    "Native Ollama and its OpenAI-compatible /v1 surface are deliberately separate",
+    "Do not suppress one merely because both share host/port",
+):
+    if forbidden in runtime_422:
+        failures.append(f"4.2.3 provider identity canonicalization still contains obsolete duplicate-provider policy {forbidden!r}")
+for token in (
+    "var ollamaDiscoveries = new Dictionary<string, IReadOnlyList<MultiModelCouncilModelCandidate>>",
+    "identity.IsOllamaOpenAiCompatibilityFacade(entry.Key, probe.Endpoint)",
+    "identity.ModelNamesEquivalent(native.ModelName, candidate.ModelName)",
+    "LocalGPT keeps one canonical provider identity",
+    "var configuredOllama = nativeOllamaModels.FirstOrDefault",
+    "canonicalized to Ollama for scheduling",
+):
+    if token not in runtime_422:
+        failures.append(f"4.2.3 provider runtime alias collapse missing {token!r}")
+for token in (
+    "public bool IsOllamaOpenAiCompatibilityFacade(string? ollamaEndpoint, string? openAiEndpoint)",
+    'string.Equals(compatibilityPath, "/v1", StringComparison.OrdinalIgnoreCase)',
+    "nativeUri.Port == compatibilityUri.Port",
+    "identity.IsOllamaOpenAiCompatibilityFacade(candidate.Endpoint, savedReference.Endpoint)",
+    "identity.ModelNamesEquivalent(savedReference.ModelName, candidate.ModelName)",
+):
+    if token not in identity_422:
+        failures.append(f"4.2.3 provider identity reconciliation missing {token!r}")
+if "ProviderModelKinds.OpenAICompatible" not in runtime_422 or "ProbeOpenAiCompatibleAsync" not in runtime_422:
+    failures.append("4.2.3 accidentally removed independent OpenAI-compatible provider support")
+if "AddCandidate(candidates, candidate);" not in runtime_422:
+    failures.append("4.2.3 no longer preserves unmatched OpenAI-compatible models")
+
+
+# 4.2.3 browser/runtime recovery and protocol-independent runtime identity contract.
+provider_identity_423 = read("src/LocalGPT/BusinessObjects/ProviderModelModels.cs")
+phase_execution_423 = read("src/LocalGPT/Services/MultiModelCouncilService.PhaseExecution.cs")
+run_configuration_423 = read("src/LocalGPT/Services/CouncilRunConfigurationService.cs")
+ollama_process_423 = read("src/LocalGPT/Services/OllamaProcessService.cs")
+ollama_models_423 = read("src/LocalGPT/BusinessObjects/OllamaProcessModels.cs")
+install_ui_423 = read("src/LocalGPT/Components/Pages/Install.razor")
+setup_service_423 = read("src/LocalGPT/Services/InitialSetupAssistantService.cs")
+setup_panel_423 = read("src/LocalGPT/Components/Shared/InitialSetupAssistantPanel.razor")
+console_feed_423 = read("src/LocalGPT/Components/Shared/LocalConsoleFeed.razor")
+console_feed_css_423 = read("src/LocalGPT/Components/Shared/LocalConsoleFeed.razor.css")
+chat_console_423 = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor")
+chat_console_css_423 = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor.css")
+game_console_js_423 = read("src/LocalGPT/wwwroot/js/localgpt-game-console.js")
+for token in (
+    "public string GetRuntimeAuthorityKey(string? endpoint)",
+    'return $"{host}:{uri.Port}";',
+):
+    if token not in provider_identity_423:
+        failures.append(f"4.2.3 runtime authority identity missing {token!r}")
+for relative, text in (("MultiModelCouncilService.PhaseExecution.cs", phase_execution_423), ("CouncilRunConfigurationService.cs", run_configuration_423)):
+    if "identity.GetRuntimeAuthorityKey(reference.Endpoint)" not in text:
+        failures.append(f"4.2.3 {relative} does not use protocol-independent runtime authority")
+    section = method_section(text, "GetCouncilExecutionHostKey")
+    if "endpoint.Host" in section:
+        failures.append(f"4.2.3 {relative} still collapses Council execution identity to host name only")
+for token in (
+    "IHttpClientFactory httpClientFactory",
+    'new Uri(runtimeUri, "/api/tags")',
+    "IsLocalRuntimeResponsiveAsync",
+    "WaitForRuntimeAvailabilityAsync",
+    "explicit Start will recycle the stale local runtime",
+):
+    if token not in ollama_process_423:
+        failures.append(f"4.2.3 Ollama health/recovery contract missing {token!r}")
+if "bool IsResponsive = false" not in ollama_models_423:
+    failures.append("4.2.3 Ollama process status does not expose endpoint responsiveness")
+if "!OllamaProcessStatus.IsResponsive" not in install_ui_423:
+    failures.append("4.2.3 installer/start UI cannot recover a stale unresponsive Ollama process")
+for token in (
+    "BuildMaintainedProviderCatalogFallbackIds",
+    "catch (HttpRequestException exception)",
+    "Maintained offline provider catalog fallback",
+):
+    if token not in setup_service_423:
+        failures.append(f"4.2.3 provider catalog TLS fallback missing {token!r}")
+for forbidden in ("DangerousAcceptAnyServerCertificateValidator", "ServerCertificateCustomValidationCallback", "RemoteCertificateValidationCallback"):
+    if forbidden in setup_service_423:
+        failures.append(f"4.2.3 provider catalog weakens TLS validation via {forbidden}")
+if "<LocalConsoleFeed CssClass=\"initial-setup-console\" MaxLines=\"120\" />" not in setup_panel_423:
+    failures.append("4.2.3 setup console is not isolated from parent workbench rendering")
+for token in ("height: 24rem", "max-height: min(24rem, 52vh)", "overflow: auto"):
+    if token not in console_feed_css_423:
+        failures.append(f"4.2.3 isolated setup console lost bounded scrolling style {token!r}")
+for text, label in ((console_feed_423, "setup console feed"), (chat_console_423, "chat ASCII console")):
+    if "Task.Delay(250" not in text:
+        failures.append(f"4.2.3 {label} does not coalesce high-frequency output")
+for token in ("scheduleGamepadFrame", "cancelGamepadFrame", "gamepadconnected", "gamepaddisconnected", "document.hidden", "windowFocused", "window.addEventListener('blur'", "window.addEventListener('focus'"):
+    if token not in game_console_js_423:
+        failures.append(f"4.2.3 ASCII gamepad demand-driven polling missing {token!r}")
+if "pressedSignature" not in game_console_js_423 or "if (state.pressedSignature === signature) return;" not in game_console_js_423:
+    failures.append("4.2.3 ASCII gamepad visual state still mutates the DOM on unchanged controller frames")
+for token in ("[0,'use']", "[7,'shoot']", "[12,'move-forward']", "pad.axes[0]", "pad.axes[1]"):
+    if token not in game_console_js_423:
+        failures.append(f"4.2.3 ASCII gamepad input mapping regressed: missing {token!r}")
+if 'cursor: wait' in chat_console_css_423:
+    failures.append("4.2.3 ASCII console still requests a native wait cursor from a frequently rerendered control")
+
+
+
+# 4.2.5 replayable ASCII chat and contextual fun capability contract.
+chat_424 = read("src/LocalGPT/Components/Pages/Chat.razor")
+chat_code_424 = read("src/LocalGPT/Components/Pages/Chat.razor.cs")
+chat_console_424 = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor")
+chat_console_code_424 = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor.cs")
+ascii_text_425 = read("src/LocalGPT/Services/AsciiChatTextService.cs")
+chat_console_js_424 = read("src/LocalGPT/wwwroot/js/localgpt-game-console.js")
+ascii_state_424 = read("src/LocalGPT/Services/ChatAsciiExperienceState.cs")
+ascii_interface_424 = read("src/LocalGPT/Interfaces/IChatAsciiExperienceState.cs")
+composite_424 = read("src/LocalGPT/Services/CompositeChatClient.cs")
+factory_424 = read("src/LocalGPT/Services/ChatClientFactory.cs")
+council_424 = read("src/LocalGPT/Services/MultiModelCouncilService.cs")
+council_participant_424 = read("src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs")
+registration_424 = read("src/LocalGPT/Program.ServiceRegistration.cs")
+ascii_dx_424 = read("src/LocalGPT/Services/ChatAsciiDxAiFunctions.cs")
+blueprints_424 = read("src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs")
+game_director_blueprint_424 = read("src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.DevelopmentTemplates.cs")
+dx_catalog_424 = read("src/LocalGPT/Services/DxAiFunctionCatalogService.QueriesAndDiscovery.cs")
+game_dx_424 = read("src/LocalGPT/Services/CouncilGameDxAiFunctions.cs")
+for token in (
+    'Text="@(showGameConsole ? "Hide ASCII terminal" : "Show ASCII terminal")"',
+    'ASCII fun mode (contextual)',
+    'ConversationMessages="@AsciiConversationMessages"',
+    'CouncilParticipantActivities="@AsciiCouncilParticipantActivities"',
+    'AssistantDisplayName="@AsciiAssistantDisplayName"',
+    'FunModeEnabled="@AsciiFunModeEnabled"',
+):
+    if token not in chat_424:
+        failures.append(f"4.2.5 Chat ASCII presentation UI missing {token!r}")
+for token in (
+    'Task.Delay(700, cancellationToken)',
+    'DxAiChat.SaveMessages().ToList()',
+    'CouncilText.CreateMessageSignature(captured, Logger)',
+    'CouncilLiveSessions.GetParticipantActivitiesForDisplay(activeRunId)',
+    'AsciiCouncilParticipantActivities = participantActivities',
+    'IChatAsciiExperienceState AsciiExperience',
+    'AsciiExperience.Update(ActiveConversationId, showGameConsole, asciiFunModeEnabled)',
+):
+    if token not in chat_code_424 and token not in chat_424:
+        failures.append(f"4.2.5 canonical chat mirror/state wiring missing {token!r}")
+for token in (
+    'LOCALGPT // ASCII CHAT',
+    'BuildConversationTranscript',
+    'ExtractSequenceFrames',
+    '[THINK]',
+    '[CALL ',
+    '[RESULT ',
+    '[THINK / FUNCTION TRACE]',
+    '[SAY]',
+    'BuildCouncilParticipantBody',
+    'Shared /chat history · replayable when switching views',
+):
+    if token not in chat_console_424 and token not in chat_console_code_424 and token not in ascii_text_425:
+        failures.append(f"4.2.5 ASCII transcript rendering missing {token!r}")
+for token in (
+    'setSequence(id, frames, delayMilliseconds)',
+    'state.sequenceFrames.length < 2',
+    'document.hidden',
+    'state.windowFocused',
+    'Math.max(250, Math.min(5000, requestedDelay))',
+    '.slice(0, 12)',
+    'cancelSequenceTimer(state)',
+):
+    if token not in chat_console_js_424:
+        failures.append(f"4.2.5 bounded ASCII sequence playback missing {token!r}")
+for token in (
+    'terminal={(open ? "OPEN" : "CLOSED")}',
+    'contextual ASCII fun={(fun ? "ENABLED" : "DISABLED")}',
+    'you MAY occasionally include a small fenced ```ascii block'.replace('you MAY','you MAY'),
+    '```ascii-sequence',
+    "--- frame ---",
+    "Do not force ASCII content into every response",
+    "existing Council game/runtime functions",
+):
+    if token not in ascii_state_424:
+        failures.append(f"4.2.5 model ASCII capability guidance missing {token!r}")
+if 'public interface IChatAsciiExperienceState' not in ascii_interface_424:
+    failures.append("4.2.5 ASCII presentation state interface is missing")
+if 'AddScoped<IChatAsciiExperienceState, ChatAsciiExperienceState>()' not in registration_424:
+    failures.append("4.2.5 ASCII presentation state is not circuit-scoped in DI")
+if '_councilText.AddOptionalSystemMessage(systemMessages, _asciiExperience.BuildModelGuidance(), _logger);' not in composite_424:
+    failures.append("4.2.5 individual provider prompts do not receive ASCII presentation guidance")
+if 'IChatAsciiExperienceState asciiExperience' not in factory_424:
+    failures.append("4.2.5 chat client factory does not supply ASCII presentation state")
+if 'IChatAsciiExperienceState asciiExperience' not in council_424 or 'asciiExperience.BuildModelGuidance()' not in council_participant_424:
+    failures.append("4.2.5 Council participants do not receive the same ASCII presentation guidance")
+if 'requestAnimationFrame(() => renderSequenceFrame' in chat_console_js_424:
+    failures.append("4.2.5 ASCII sequence playback regressed to a per-display-frame animation loop")
+
+for token in (
+    'AddSingleton<AsciiChatTextService>()',
+    '@inject AsciiChatTextService AsciiText',
+    'AsciiText.BuildConversationTranscript(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName)',
+    'AsciiText.ExtractSequenceFrames(ConversationMessages)',
+    'AsciiText.BuildParticipantSignature(participantActivities)',
+    'AsciiText.BuildSequenceSignature(asciiSequenceFrames)',
+):
+    if token not in registration_424 and token not in chat_424 and token not in chat_code_424 and token not in chat_console_424:
+        failures.append(f"4.2.5 ASCII text-service ownership repair missing {token!r}")
+if 'ResolveRoleNickname(ChatMessageRole role' not in ascii_text_425:
+    failures.append("4.2.5 ASCII role mapping does not consume DevExpress ChatMessageRole")
+if 'Microsoft.Extensions.AI' in ascii_text_425:
+    failures.append("4.2.5 ASCII text service unexpectedly depends on Microsoft.Extensions.AI role types")
+
+for locale in ("en-US", "de-DE", "es-ES", "fr-FR", "uk-UA", "ja-JP"):
+    locale_text = read(f"src/LocalGPT/Localization/{locale}.json")
+    for raw_key in ("ASCII fun mode (contextual)", "Show ASCII terminal", "Hide ASCII terminal"):
+        encoded_key = raw_key.replace(" ", "␠")
+        for prefix in ("Phrase.", "Text."):
+            if f'"{prefix}{encoded_key}"' not in locale_text:
+                failures.append(f"4.2.5 ASCII localization missing {prefix}{encoded_key} in {locale}")
+
+for token in (
+    '"localgpt.ascii.surface.get"',
+    'SupportsAutomaticInvocation: true',
+    'supportsAsciiArt = true',
+    'supportsAsciiSequence = true',
+    'supportsCouncilGameRuntime = true',
+    'maximumSequenceFrames = 12',
+):
+    if token not in ascii_dx_424:
+        failures.append(f"4.2.5 ASCII DXFunction capability discovery missing {token!r}")
+if blueprints_424.count('"localgpt.ascii.surface.get"') < 2 or '"localgpt.ascii.surface.get"' not in game_director_blueprint_424:
+    failures.append("4.2.5 shipped ASCII/game Council blueprints do not seed the surface capability")
+if 'registry.GetFunctions().Select(CreateDxEntry)' not in dx_catalog_424 or 'IsSystemSeed = !string.Equals(function.Source, "UserDxFunction"' not in dx_catalog_424:
+    failures.append("4.2.5 ASCII DXFunction is not covered by the normal catalog/system-seed synchronization path")
+for function_name in (
+    'localgpt.game.session.start',
+    'localgpt.game.session.get',
+    'localgpt.game.control.preview',
+    'localgpt.game.control',
+    'localgpt.game.frame.submit',
+    'localgpt.game.control-mode.set',
+    'localgpt.game.input-gate.set',
+):
+    if function_name not in game_dx_424:
+        failures.append(f"4.2.5 existing ASCII game DXFunction regressed: {function_name}")
+if '.Take(12)' not in ascii_text_425 or 'Math.Clamp(frames, 0, 12)' not in ascii_text_425:
+    failures.append("4.2.5 server ASCII sequence projection is not bounded to 12 frames")
+
+for source_path in (root / "src" / "LocalGPT").rglob("*.cs"):
+    source_text = source_path.read_text(encoding="utf-8-sig")
+    for method_name in ("Contains", "StartsWith", "EndsWith"):
+        pattern = rf"\.{method_name}\('(?:[^'\\]|\\.)'\s*,\s*StringComparison\."
+        if re.search(pattern, source_text):
+            failures.append(f"4.2.5 compiler-risk overload remains in {source_path.relative_to(root)}: char + StringComparison {method_name}")
+
+provider_models_424 = read("src/LocalGPT/BusinessObjects/ProviderModelModels.cs")
+ollama_process_424 = read("src/LocalGPT/Services/OllamaProcessService.cs")
+for text, label in ((provider_models_424, "provider runtime authority"), (ollama_process_424, "Ollama health authority")):
+    if "StartsWith('[', StringComparison.Ordinal)" in text:
+        failures.append(f"4.2.5 {label} regressed to the invalid char/StringComparison StartsWith overload")
+    if 'Contains(":", StringComparison.Ordinal)' not in text or 'StartsWith("[", StringComparison.Ordinal)' not in text:
+        failures.append(f"4.2.5 {label} does not retain the compiler-safe IPv6 string overloads")
+
+if failures:
+    print("LocalGPT 4.2.5 release audit FAILED:")
+    print("\n".join(f" - {failure}" for failure in failures))
+    sys.exit(1)
+print("LocalGPT 4.2.5 release audit passed: replayable ASCII chat includes canonical messages plus server-owned Council participant lanes, the ASCII surface capability is exposed through the normal system-seeded DXFunction catalog and preferred by shipped ASCII Council teams, contextual ASCII art/sequences remain opt-in and bounded to 12 frames, browser/gamepad churn is bounded, Ollama health recovery verifies the local API, Council resource identity is protocol-independent and port-aware, TLS catalog failure preserves certificate validation with offline fallback, and prior provider canonicalization protections remain intact.")

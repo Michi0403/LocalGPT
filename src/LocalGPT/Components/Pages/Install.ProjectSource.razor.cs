@@ -147,25 +147,35 @@ public partial class Install
     }
 
     /// <summary>
-    /// Handles the runtime plugin source file changed lifecycle or event notification for <see cref="Install"/>, updating the state required by the surrounding workflow.
+    /// Selects a reviewed project file in the active plugin draft. The renderer owns the selection
+    /// and its generation counter so that an older async project/revision request cannot overwrite it.
     /// </summary>
-    /// <param name="context">Context value supplied to the install operation and used when producing its result.</param>
-    /// <param name="trackedFileId">Identifier of the tracked file to use for this operation.</param>
-    private void OnRuntimePluginSourceFileChanged(RuntimePluginSourceEditContext context, Guid trackedFileId)
+    /// <param name="context">The editing context captured by the ComboBox render that raised the event.</param>
+    /// <param name="trackedFileId">Identifier of the reviewed tracked file, or empty to clear the selection.</param>
+    /// <returns>A task that completes after the selection has been applied to the InteractiveServer renderer.</returns>
+    private async Task OnRuntimePluginSourceFileChangedAsync(RuntimePluginSourceEditContext context, Guid trackedFileId)
     {
         try
         {
-            if (!ReferenceEquals(context, RuntimePluginSourceContext) || context.PluginId != RuntimePluginDraft.Id) return;
-            if (trackedFileId != Guid.Empty && RuntimePluginSourceFiles.All(item => item.TrackedFileId != trackedFileId))
-                throw new InvalidOperationException("The selected file is not an approved tracked source in this revision.");
-            context.TrackedFileId = trackedFileId;
-            context.SelectionVersion++;
+            await InvokeAsync(() =>
+            {
+                if (!ReferenceEquals(context, RuntimePluginSourceContext) || context.PluginId != RuntimePluginDraft.Id) return;
+                if (trackedFileId != Guid.Empty && RuntimePluginSourceFiles.All(item => item.TrackedFileId != trackedFileId))
+                    throw new InvalidOperationException("The selected file is not an approved tracked source in this revision.");
+                context.TrackedFileId = trackedFileId;
+                context.SelectionVersion++;
+                StateHasChanged();
+            }).ConfigureAwait(false);
         }
         catch (Exception exception)
         {
             Logger.LogError(exception, "Choosing curated source file failed; source omitted.");
-            if (!ReferenceEquals(context, RuntimePluginSourceContext)) return;
-            RuntimePluginSourceStatus = "Source file selection failed; refresh reviewed files.";
+            await InvokeAsync(() =>
+            {
+                if (!ReferenceEquals(context, RuntimePluginSourceContext) || context.PluginId != RuntimePluginDraft.Id) return;
+                RuntimePluginSourceStatus = "Source file selection failed; refresh reviewed files.";
+                StateHasChanged();
+            }).ConfigureAwait(false);
         }
     }
 
