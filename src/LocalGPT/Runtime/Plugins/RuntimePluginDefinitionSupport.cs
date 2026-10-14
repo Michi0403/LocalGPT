@@ -9,9 +9,12 @@ using System.Text.Json;
 namespace LocalGPT.Runtime.Plugins;
 
 /// <summary>Provides deterministic validation and copying helpers for persisted runtime-extension definitions.</summary>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the runtime plugin definition support workflow to provide the corresponding application capability.</param>
 public sealed class RuntimePluginDefinitionSupport(ILocalGptRuntimePolicyDataService runtimePolicy)
 {
-    /// <summary>Normalizes and validates one persisted runtime-extension definition.</summary>
+    /// <summary>
+    /// Normalizes and validate for <see cref="RuntimePluginDefinitionSupport"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin definition support workflow.
+    /// </summary>
     /// <param name="definition">Definition to normalize and validate.</param>
     public void NormalizeAndValidate(RuntimePluginDefinition definition)
     {
@@ -26,7 +29,7 @@ public sealed class RuntimePluginDefinitionSupport(ILocalGptRuntimePolicyDataSer
         using var schema = JsonDocument.Parse(definition.ParameterSchemaJson);
         if (schema.RootElement.ValueKind != JsonValueKind.Object)
             throw new ArgumentException("Parameter schema must be a JSON object.");
-        if (definition.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript && string.IsNullOrWhiteSpace(definition.SourceCode))
+        if (definition.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript or RuntimePluginKind.Python && string.IsNullOrWhiteSpace(definition.SourceCode))
             throw new ArgumentException("Script source is required.");
         definition.EntryAssemblyName = Bound(definition.EntryAssemblyName, 260);
         definition.EntryTypeName = Bound(definition.EntryTypeName, 500);
@@ -122,6 +125,13 @@ public sealed class RuntimePluginDefinitionSupport(ILocalGptRuntimePolicyDataSer
         return normalized.Length <= maximum ? normalized : normalized[..maximum];
     }
 
+    /// <summary>
+    /// Performs bound required for <see cref="RuntimePluginDefinitionSupport"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin definition support workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the runtime plugin definition support operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the runtime plugin definition support operation and used when producing its result.</param>
+    /// <param name="label">Label value supplied to the runtime plugin definition support operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BoundRequired(string? value, int maximum, string label)
     {
         var normalized = value?.Trim() ?? string.Empty;

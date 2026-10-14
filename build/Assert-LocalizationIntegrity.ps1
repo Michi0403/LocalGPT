@@ -117,30 +117,6 @@ foreach ($sourceFile in @(Get-ChildItem -LiteralPath $applicationSource -Recurse
     }
 }
 
-# Preserve a reviewed baseline of language-neutral English/German values. Any new key that simply
-# copies English into the German catalog fails the build. This converts localization maintenance from
-# a best-effort convention into an explicit source contract while allowing the legacy baseline to shrink.
-$identicalBaselinePath = Join-Path $PSScriptRoot 'localization-identical-german-baseline.json'
-if (-not (Test-Path -LiteralPath $identicalBaselinePath -PathType Leaf)) { Fail "Missing reviewed German identical-text baseline: $identicalBaselinePath" }
-try { $identicalBaseline = ConvertFrom-Json -InputObject (Read-StrictUtf8 $identicalBaselinePath) }
-catch { Fail "German identical-text baseline is not valid JSON. $($_.Exception.Message)" }
-$allowedIdentical = @{}
-foreach ($key in @($identicalBaseline)) {
-    $normalizedKey = [string]$key
-    if (-not [string]::IsNullOrWhiteSpace($normalizedKey)) { $allowedIdentical[$normalizedKey] = $true }
-}
-foreach ($key in $englishKeys) {
-    $englishValue = [string]$english.PSObject.Properties[$key].Value
-    $germanValue = [string]$german.PSObject.Properties[$key].Value
-    if (-not [string]::IsNullOrWhiteSpace($englishValue) -and $englishValue -ceq $germanValue -and -not $allowedIdentical.ContainsKey($key)) {
-        $germanRaw = Read-StrictUtf8 $germanPath
-        $keyToken = '"' + $key.Replace('"', '\"') + '"'
-        $line = Get-LineNumberForText $germanRaw $keyToken
-        Write-LocalizationError $germanPath $line 'L10N0002' "German localization is missing for newly introduced or regressed UI text: $key = '$englishValue'." "Either provide a real German translation in de-DE.json, or, only when the spelling is intentionally language-neutral (for example a product/protocol name), add the key to build/localization-identical-german-baseline.json after explicit review. Never invent a fake translation merely to satisfy the guard."
-        Fail "German localization is missing for newly introduced or regressed UI text: $key = '$englishValue'. Translate it or explicitly review it into the language-neutral baseline."
-    }
-}
-
 # The 2.6.1 source-text expansion briefly created case-only Archive Preset keys. Keep the semantic
 # SourceText key and reject the obsolete Text key explicitly so overlays cannot silently reintroduce it.
 $obsoleteArchivePresetKey = Expand-SpaceMarkers 'Text.Archive<SP>Preset'

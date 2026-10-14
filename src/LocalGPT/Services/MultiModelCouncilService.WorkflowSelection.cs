@@ -290,6 +290,10 @@ namespace LocalGPT.Services
 
         /// <summary>Reconciles persisted provider-bound role assignments to the canonical participant identities active in the current run.</summary>
         /// <remarks>Equivalent localhost/127.0.0.1, explicit :latest, and canonical Ollama facade identities are accepted without crossing provider hosts.</remarks>
+        /// <param name="roleName">Role name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="configuredModelKeys">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private List<string> ResolveConfiguredRoleParticipantKeys(
             string roleName,
             IReadOnlyList<string> configuredModelKeys,

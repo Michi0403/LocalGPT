@@ -153,7 +153,12 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
-    /// <summary>Reads an optional ASCII color-mode parameter.</summary>
+    /// <summary>
+    /// Performs color mode for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The council ascii color mode produced by the operation.</returns>
     public CouncilAsciiColorMode? ColorMode(JsonElement parameters, string name)
     {
         try
@@ -173,7 +178,12 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
-    /// <summary>Reads optional ASCII text-style metadata.</summary>
+    /// <summary>
+    /// Performs style for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The council ascii text style produced by the operation.</returns>
     public CouncilAsciiTextStyle? Style(JsonElement parameters, string name)
     {
         try
@@ -190,6 +200,9 @@ public sealed class CouncilGameDxParameterReader(
     }
 
     /// <summary>Reads bounded ASCII style runs for a complete frame.</summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<CouncilAsciiStyleRun> StyleRuns(JsonElement parameters, string name)
     {
         try
@@ -206,6 +219,9 @@ public sealed class CouncilGameDxParameterReader(
     }
 
     /// <summary>Reads per-frame ASCII style runs for a pregenerated animation.</summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<IReadOnlyList<CouncilAsciiStyleRun>> StyleRunFrames(JsonElement parameters, string name)
     {
         try
@@ -228,7 +244,9 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
-    /// <summary>Reads an integer parameter with a fallback.</summary>
+    /// <summary>
+    /// Performs integer for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
+    /// </summary>
     /// <param name="parameters">Parameters object supplied to the Council game DXFunction.</param>
     /// <param name="name">Integer property name.</param>
     /// <param name="fallback">Fallback returned when the property is absent or not an integer.</param>
@@ -332,7 +350,10 @@ public sealed class StartCouncilGameFunction(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<StartCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the database-backed game session authoring limits and defaults.</summary>
+    /// <summary>
+    /// Gets the runtime parameters value that forms part of the start council game function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The runtime parameters value exposed by <see cref="StartCouncilGameFunction"/>.</value>
     private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Gets the descriptor value that forms part of the start council game function state consumed or produced by the surrounding workflow.
@@ -659,12 +680,18 @@ public sealed class SubmitCouncilGameFrameFunction(
 }
 
 /// <summary>Ends one ASCII game runtime without closing the surrounding chat, Council/provider sessions or shared terminal.</summary>
+/// <param name="games">Council game session service dependency used by the end council game function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the end council game function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class EndCouncilGameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<EndCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the end council game function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="EndCouncilGameFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.session.close", "POST", "/api/dxai/functions/localgpt.game.session.close/invoke",
         "Ends the active ASCII game only. The chat, Council/provider model sessions and reusable ASCII terminal remain alive.",
@@ -674,6 +701,9 @@ public sealed class EndCouncilGameFunction(
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, IsCoordinationOnly: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{"sessionId":{"type":"string"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Performs invoke for <see cref="EndCouncilGameFunction"/>, keeping the operation consistent with the state and invariants of the surrounding end council game function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
@@ -713,7 +743,10 @@ public sealed class SetCouncilGameControlModeFunction(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<SetCouncilGameControlModeFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the database-backed game session authoring limits and defaults.</summary>
+    /// <summary>
+    /// Gets the runtime parameters value that forms part of the set council game control mode function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The runtime parameters value exposed by <see cref="SetCouncilGameControlModeFunction"/>.</value>
     private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Gets the descriptor value that forms part of the set council game control mode function state consumed or produced by the surrounding workflow.

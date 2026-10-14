@@ -32,6 +32,23 @@ Repository validation scripts must report real failures and never silently rewri
 
 Game development follows the normal Project system. `LocalGptProjectRequirement`, project revisions/workspace data, and the persisted `LocalGptGameProjectProfile` are authoring state. Saving that state and compiling it are separate operations. `ProjectGameDefinition` is a build artifact: GameDirector/runtime may consume it but must not become the owner of editable project design or requirements. Human, ASCII Operator, AI/Council, and future controllers use the shared runtime input/session contracts; ASCII is a renderer/control adapter rather than the source of game state. Add reusable engine behavior only when a requirement cannot remain game-project data, and accompany persisted schema changes with a real migration, matching model snapshot, and existing architecture guards instead of exemptions.
 
+## XML documentation completeness and compiler parity
+
+All maintained C# source and Razor component classes, methods, constructors, members, and
+`@code` declarations require substantive XML documentation. Keep `<summary>` contextual,
+`<param>` and `<typeparam>` tags exactly matched to the declaration (no duplicates/stale
+names), and appropriate `<returns>` and `<value>` descriptions. Use `<inheritdoc/>` only
+where a corresponding inherited contract exists; its required documentation remains part of
+the effective API contract. The checked-in `build/Assert-XmlDocumentationCoverage.ps1`
+source-only gate runs unconditionally during normal LocalGPT builds via
+`AssertLocalGptXmlDocumentationCoverage` in `Directory.Build.targets`. It scans the entire
+`src` tree and must fail with file/line diagnostics for missing, generic, stale, duplicate,
+or malformed docs, including Razor component documentation partials. The C# compiler also
+treats CS1572, CS1573, and CS1591 as errors in LocalGPT, so documentation drift cannot
+silently reach DocFX. No baseline suppressions, generated placeholder stubs, automatic
+rewrites during validation, or normal-build skip switches are permitted. Changes that
+introduce new contracts must update their XML comments in the same change.
+
 ## PowerShell maintenance-guard contract
 
 Build guards are production code for the repository: they must run under Windows PowerShell 5.1 and modern `pwsh`, and failure output must point to the blamed source file/line and explain architectural repair choices rather than suggest bypasses. Under `Set-StrictMode -Version Latest`, never assume a pipeline result is an array merely because several values are possible. If later code uses `.Count`, indexing, or collection-only behavior, materialize the pipeline with an outer `@(...)` or use an explicit generic collection. Likewise, do not wrap `ConvertFrom-Json` itself in `@(...)` when the JSON root may be an array; Windows PowerShell 5.1 can preserve that returned JSON array as one pipeline object, creating a nested collection shape. Assign the parsed JSON first and iterate that value explicitly.

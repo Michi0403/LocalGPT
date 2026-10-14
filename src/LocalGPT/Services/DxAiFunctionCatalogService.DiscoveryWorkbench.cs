@@ -2,9 +2,15 @@ using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Coordinates DevExpress AI function catalog behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
+/// </summary>
 public sealed partial class DxAiFunctionCatalogService
 {
     /// <summary>Two-stage, persisted-policy-aware function discovery. Detail schemas are returned only when explicitly requested.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function discovery result produced by the operation.</returns>
     public async Task<DxAiFunctionDiscoveryResult> DiscoverForAiAsync(DxAiFunctionDiscoveryRequest request, CancellationToken cancellationToken = default)
     {
         try

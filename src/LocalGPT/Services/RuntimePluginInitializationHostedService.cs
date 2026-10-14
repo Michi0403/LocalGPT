@@ -8,6 +8,8 @@ namespace LocalGPT.Services;
 public sealed class RuntimePluginInitializationHostedService(IRuntimePluginService plugins, ILogger<RuntimePluginInitializationHostedService> logger) : IHostedService
 {
     /// <summary>Refreshes persisted descriptors at startup.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
@@ -21,6 +23,8 @@ public sealed class RuntimePluginInitializationHostedService(IRuntimePluginServi
     }
 
     /// <summary>No stop work is required; collectible plugin contexts are process-owned.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public Task StopAsync(CancellationToken cancellationToken)
     {
         try

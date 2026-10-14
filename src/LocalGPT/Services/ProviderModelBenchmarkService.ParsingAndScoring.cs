@@ -81,6 +81,9 @@ namespace LocalGPT.Services
     }
 
     /// <summary>Checks whether an opening brace is plausibly the beginning of a JSON object rather than a brace in prose or source code.</summary>
+    /// <param name="value">Value value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="start">Start value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool LooksLikeJsonObjectStart(string value, int start)
     {
     try
@@ -106,6 +109,11 @@ namespace LocalGPT.Services
 }
 
     /// <summary>Extracts one complete brace-balanced JSON-shaped object without invoking the throwing JSON parser on incomplete model output.</summary>
+    /// <param name="value">Value value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="start">Start value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="candidate">Candidate value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="nextOffset">Next offset value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryExtractBalancedJsonObject(string value, int start, out string candidate, out int nextOffset)
     {
     try

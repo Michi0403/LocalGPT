@@ -38,6 +38,8 @@ namespace LocalGPT.Services
 }
 
     /// <summary>Renders the stable tournament wall before the first engine-owned lineup or exchange movie is available.</summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderKernelTournamentWaiting(CouncilGameSessionState session)
     {
         try
@@ -211,6 +213,10 @@ namespace LocalGPT.Services
 }
 
     /// <summary>Projects visible hostile actors into the deterministic first-person frame.</summary>
+    /// <param name="lines">Lines value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="viewHeight">View height value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="width">Width value supplied to the council game session operation and used when producing its result.</param>
     private void RenderEnemySprites(char[][] lines, CouncilGameSessionState session, int viewHeight, int width)
     {
     try
@@ -265,6 +271,10 @@ namespace LocalGPT.Services
 }
 
     /// <summary>Draws a compact authoritative tactical radar over the first-person scene.</summary>
+    /// <param name="lines">Lines value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="viewHeight">View height value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="width">Width value supplied to the council game session operation and used when producing its result.</param>
     private void RenderRadarOverlay(char[][] lines, CouncilGameSessionState session, int viewHeight, int width)
     {
     try

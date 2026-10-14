@@ -4,6 +4,9 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Lists reviewed direct/GitHub-first local-AI sources independently from provider-bound model hubs.</summary>
+/// <param name="acquisition">Local ai acquisition service dependency used by the list known local AI sources function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the list known local AI sources function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListKnownLocalAiSourcesFunction(ILocalAiAcquisitionService acquisition, IDxAiFunctionJsonService json, ILogger<ListKnownLocalAiSourcesFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the direct local-AI source catalog function.</summary>
@@ -28,6 +31,9 @@ public sealed class ListKnownLocalAiSourcesFunction(ILocalAiAcquisitionService a
 }
 
 /// <summary>Downloads one reviewed local-AI source archive directly over HTTPS after human approval.</summary>
+/// <param name="acquisition">Local ai acquisition service dependency used by the download known local AI source function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the download known local AI source function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DownloadKnownLocalAiSourceFunction(ILocalAiAcquisitionService acquisition, IDxAiFunctionJsonService json, ILogger<DownloadKnownLocalAiSourceFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the confirmation-gated direct source download function.</summary>
@@ -58,6 +64,9 @@ public sealed class DownloadKnownLocalAiSourceFunction(ILocalAiAcquisitionServic
 }
 
 /// <summary>Installs one executable reviewed direct local-AI model through the managed Python environment after human approval.</summary>
+/// <param name="acquisition">Local ai acquisition service dependency used by the install known local AI model function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the install known local AI model function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class InstallKnownLocalAiModelFunction(ILocalAiAcquisitionService acquisition, IDxAiFunctionJsonService json, ILogger<InstallKnownLocalAiModelFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the confirmation-gated direct local-AI installation function.</summary>

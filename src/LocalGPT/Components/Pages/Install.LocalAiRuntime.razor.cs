@@ -3,38 +3,116 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the install Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Install
     {
+        /// <summary>
+        /// Stores the internal local AI status state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private LocalAiRuntimeStatus? LocalAiStatus;
+        /// <summary>
+        /// Stores the internal local AI runtime policy state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private LocalAiRuntimeConfiguration? LocalAiRuntimePolicy;
+        /// <summary>
+        /// Stores the in-memory local AI python candidates collection maintained internally by <see cref="Install"/> for its current workflow state.
+        /// </summary>
         private IReadOnlyList<PythonRuntimeCandidate> LocalAiPythonCandidates = [];
+        /// <summary>
+        /// Stores the in-memory local AI package profiles collection maintained internally by <see cref="Install"/> for its current workflow state.
+        /// </summary>
         private IReadOnlyList<LocalAiPackageProfile> LocalAiPackageProfiles = [];
+        /// <summary>
+        /// Stores the in-memory local AI installed models collection maintained internally by <see cref="Install"/> for its current workflow state.
+        /// </summary>
         private IReadOnlyList<LocalAiModelInstallation> LocalAiInstalledModels = [];
+        /// <summary>
+        /// Stores the in-memory local AI known models collection maintained internally by <see cref="Install"/> for its current workflow state.
+        /// </summary>
         private IReadOnlyList<LocalAiKnownModelDefinition> LocalAiKnownModels = [];
+        /// <summary>
+        /// Stores the in-memory local AI search results collection maintained internally by <see cref="Install"/> for its current workflow state.
+        /// </summary>
         private IReadOnlyList<HuggingFaceModelSearchResult> LocalAiSearchResults = [];
+        /// <summary>
+        /// Stores the internal local AI whisper variant state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private string LocalAiWhisperVariant = "base";
-        private IReadOnlyList<string> LocalAiDeviceOptions { get; } = ["auto", "cpu", "cuda", "mps"];
+        /// <summary>
+        /// Gets the local AI device options collection maintained or exposed by this install instance for downstream processing.
+        /// </summary>
+        /// <value>The local AI device options value exposed by <see cref="Install"/>.</value>
+        private IReadOnlyList<string> LocalAiDeviceOptions { get; } = ["auto", "cpu", "cuda", "cuda:0", "cuda:1", "cuda:2", "mps"];
+        /// <summary>
+        /// Gets the python memory strategy options collection maintained or exposed by this install instance for downstream processing.
+        /// </summary>
+        /// <value>The python memory strategy options value exposed by <see cref="Install"/>.</value>
+        private IReadOnlyList<string> PythonMemoryStrategyOptions { get; } = ["native", "model_cpu_offload", "sequential_cpu_offload", "balanced"];
+        /// <summary>
+        /// Gets the local AI speech task options collection maintained or exposed by this install instance for downstream processing.
+        /// </summary>
+        /// <value>The local AI speech task options value exposed by <see cref="Install"/>.</value>
         private IReadOnlyList<string> LocalAiSpeechTaskOptions { get; } = ["transcribe", "translate"];
+        /// <summary>
+        /// Gets the local AI whisper variant options collection maintained or exposed by this install instance for downstream processing.
+        /// </summary>
+        /// <value>The local AI whisper variant options value exposed by <see cref="Install"/>.</value>
         private IReadOnlyList<string> LocalAiWhisperVariantOptions => LocalAiKnownModels
             .FirstOrDefault(item => item.Key.Equals("openai-whisper", StringComparison.OrdinalIgnoreCase))?.Variants
             .Select(item => item.Key)
             .ToList() ?? ["tiny", "base", "small", "medium", "large-v3", "turbo"];
+        /// <summary>
+        /// Gets the local AI capability options collection maintained or exposed by this install instance for downstream processing.
+        /// </summary>
+        /// <value>The local AI capability options value exposed by <see cref="Install"/>.</value>
         private IReadOnlyList<LocalAiCapability> LocalAiCapabilityOptions { get; } = Enum.GetValues<LocalAiCapability>();
+        /// <summary>
+        /// Stores the internal local AI search capability state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private LocalAiCapability LocalAiSearchCapability = LocalAiCapability.Unknown;
+        /// <summary>
+        /// Stores the internal local AI manual capability state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private LocalAiCapability LocalAiManualCapability = LocalAiCapability.Unknown;
+        /// <summary>
+        /// Stores the internal local AI search query state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private string LocalAiSearchQuery = string.Empty;
+        /// <summary>
+        /// Stores the internal local AI status text state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private string LocalAiStatusText = string.Empty;
+        /// <summary>
+        /// Stores the internal local AI search sort state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private HuggingFaceModelSort LocalAiSearchSort = HuggingFaceModelSort.Downloads;
+        /// <summary>
+        /// Gets the local AI search sort options collection maintained or exposed by this install instance for downstream processing.
+        /// </summary>
+        /// <value>The local AI search sort options value exposed by <see cref="Install"/>.</value>
         private IReadOnlyList<HuggingFaceModelSort> LocalAiSearchSortOptions { get; } = Enum.GetValues<HuggingFaceModelSort>();
+        /// <summary>
+        /// Stores the internal local AI busy state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private bool LocalAiBusy;
+        /// <summary>
+        /// Stores the internal local AI trust remote code state used by <see cref="Install"/> while executing its surrounding workflow.
+        /// </summary>
         private bool LocalAiTrustRemoteCode;
 
+        /// <summary>
+        /// Refreshes local AI runtime for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RefreshLocalAiRuntimeAsync()
         {
             try
             {
                 LocalAiBusy = true;
                 LocalAiStatus = await LocalAiRuntime.GetStatusAsync().ConfigureAwait(false);
+                PythonTaskRows = PythonJobs.ListJobs(100);
                 LocalAiRuntimePolicy = await LocalAiRuntime.GetRuntimeConfigurationAsync().ConfigureAwait(false);
                 LocalAiWhisperVariant = LocalAiRuntimePolicy.DefaultWhisperModel;
                 LocalAiPackageProfiles = LocalAiRuntime.GetPackageProfiles();
@@ -55,6 +133,10 @@ namespace LocalGPT.Components.Pages
         }
 
 
+        /// <summary>
+        /// Persists local AI runtime policy for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task SaveLocalAiRuntimePolicyAsync()
         {
             if (LocalAiRuntimePolicy is null)
@@ -66,6 +148,8 @@ namespace LocalGPT.Components.Pages
                 LocalAiRuntimePolicy = await LocalAiRuntime.UpdateRuntimeConfigurationAsync(new LocalAiRuntimeConfigurationChangeRequest
                 {
                     DefaultDevice = LocalAiRuntimePolicy.DefaultDevice,
+                    DefaultMemoryStrategy = LocalAiRuntimePolicy.DefaultMemoryStrategy,
+                    MaxParallelProcessJobs = LocalAiRuntimePolicy.MaxParallelProcessJobs,
                     DefaultWhisperModel = LocalAiRuntimePolicy.DefaultWhisperModel,
                     DefaultSpeechLanguage = LocalAiRuntimePolicy.DefaultSpeechLanguage,
                     DefaultSpeechTask = LocalAiRuntimePolicy.DefaultSpeechTask,
@@ -96,6 +180,10 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Discovers local AI python for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task DiscoverLocalAiPythonAsync()
         {
             try
@@ -119,6 +207,11 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Performs select local AI python for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <param name="candidate">Candidate value supplied to the install operation and used when producing its result.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task SelectLocalAiPythonAsync(PythonRuntimeCandidate candidate)
         {
             try
@@ -140,6 +233,10 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Creates local AI environment for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task CreateLocalAiEnvironmentAsync()
         {
             try
@@ -162,6 +259,11 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Performs install local AI package profile for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <param name="profileKey">Profile key value supplied to the install operation and used when producing its result.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task InstallLocalAiPackageProfileAsync(string profileKey)
         {
             try
@@ -184,6 +286,10 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Performs probe local AI runtime for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task ProbeLocalAiRuntimeAsync()
         {
             try
@@ -204,6 +310,10 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Performs clear local AI model cache for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task ClearLocalAiModelCacheAsync()
         {
             try
@@ -225,6 +335,11 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Performs download known local AI source for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <param name="sourceKey">Source key value supplied to the install operation and used when producing its result.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task DownloadKnownLocalAiSourceAsync(string sourceKey)
         {
             try
@@ -246,6 +361,11 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Performs install known local AI model for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <param name="sourceKey">Source key value supplied to the install operation and used when producing its result.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task InstallKnownLocalAiModelAsync(string sourceKey)
         {
             try
@@ -273,6 +393,10 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Searches hugging face for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task SearchHuggingFaceAsync()
         {
             try
@@ -301,6 +425,10 @@ namespace LocalGPT.Components.Pages
         }
 
 
+        /// <summary>
+        /// Loads recent liked hugging face for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task LoadRecentLikedHuggingFaceAsync()
         {
             try
@@ -330,6 +458,11 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Performs install hugging face model for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <param name="model">Model value supplied to the install operation and used when producing its result.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task InstallHuggingFaceModelAsync(HuggingFaceModelSearchResult model)
         {
             try
@@ -365,6 +498,11 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Removes local AI model for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <param name="installationId">Identifier of the installation to use for this operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RemoveLocalAiModelAsync(string installationId)
         {
             try
@@ -386,6 +524,11 @@ namespace LocalGPT.Components.Pages
             }
         }
 
+        /// <summary>
+        /// Determines whether install local AI model for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+        /// </summary>
+        /// <param name="model">Model value supplied to the install operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool CanInstallLocalAiModel(HuggingFaceModelSearchResult model)
         {
             try

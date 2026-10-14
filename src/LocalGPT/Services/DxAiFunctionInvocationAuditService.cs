@@ -7,14 +7,29 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>Persists bounded function operation metadata in the existing SystemVariables store; never stores input or output payloads.</summary>
+/// <param name="databaseInitialization">Database initialization service dependency used by the DevExpress AI function invocation audit workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the DevExpress AI function invocation audit workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DxAiFunctionInvocationAuditService(
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ILogger<DxAiFunctionInvocationAuditService> logger) : IDxAiFunctionInvocationAuditService
 {
+    /// <summary>
+    /// Defines the audit data type constant used by <see cref="DxAiFunctionInvocationAuditService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string AuditDataType = "DxAiFunctionInvocationAudit";
+    /// <summary>
+    /// Defines the prefix constant used by <see cref="DxAiFunctionInvocationAuditService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string Prefix = "DxInvocation.";
 
+    /// <summary>
+    /// Performs record as part of the DevExpress AI function invocation audit service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="result">Result value supplied to the DevExpress AI function invocation audit operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task RecordAsync(DxAiFunctionInvocationResult result, CancellationToken cancellationToken = default)
     {
         try
@@ -57,6 +72,12 @@ public sealed class DxAiFunctionInvocationAuditService(
         }
     }
 
+    /// <summary>
+    /// Retrieves recent as part of the DevExpress AI function invocation audit service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="take">Take value supplied to the DevExpress AI function invocation audit operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<DxAiFunctionInvocationAuditEntry>> GetRecentAsync(int take = 30, CancellationToken cancellationToken = default)
     {
         try

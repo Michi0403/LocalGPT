@@ -118,7 +118,9 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         }
     }
 
-    /// <summary>Reads an optional server-side filename or extension filter.</summary>
+    /// <summary>
+    /// Reads string for <see cref="ListChatUploadWorkspaceFilesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list chat upload workspace files function workflow.
+    /// </summary>
     /// <param name="parameters">Function request parameters.</param>
     /// <param name="name">Parameter to read.</param>
     /// <returns>Trimmed value, or null when no filter was provided.</returns>
@@ -556,7 +558,9 @@ public sealed class CurateChatUploadWorkspaceFunction(
     IChatUploadWorkspaceService workspaces,
     ILogger<CurateChatUploadWorkspaceFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the registered read-only DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the curate chat upload workspace function state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The descriptor for deterministic workspace curation.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "chat.upload_workspace_curate",

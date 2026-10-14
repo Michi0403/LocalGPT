@@ -5,14 +5,28 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>Stores Council-host enrollment only after normal 1-Wire trust has already been established.</summary>
+/// <param name="security">One wire runtime security service dependency used by the one wire council host enrollment workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the one wire council host enrollment workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireCouncilHostEnrollmentService(
     IOneWireRuntimeSecurityService security,
     LocalGptCatalogService catalog,
     ILogger<OneWireCouncilHostEnrollmentService> logger) : IOneWireCouncilHostEnrollmentService
 {
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to gate state owned by <see cref="OneWireCouncilHostEnrollmentService"/>.
+    /// </summary>
     private readonly SemaphoreSlim Gate = new(1, 1);
+    /// <summary>
+    /// Stores the internal file path state used by <see cref="OneWireCouncilHostEnrollmentService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string FilePath = Path.Combine(LocalGptApplicationDataPaths.ResolveUserPath("OneWire"), "council-hosts.json");
 
+    /// <summary>
+    /// Performs list as part of the one wire council host enrollment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<OneWireCouncilHostEnrollment>> ListAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -24,6 +38,13 @@ public sealed class OneWireCouncilHostEnrollmentService(
         catch (Exception ex) { logger.LogError(ex, "Listing enrolled 1-Wire Council hosts failed."); throw; }
     }
 
+    /// <summary>
+    /// Performs enroll as part of the one wire council host enrollment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The one wire council host enrollment produced by the operation.</returns>
     public async Task<OneWireCouncilHostEnrollment> EnrollAsync(string peerId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -59,6 +80,13 @@ public sealed class OneWireCouncilHostEnrollmentService(
         }
     }
 
+    /// <summary>
+    /// Performs remove as part of the one wire council host enrollment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public async Task<bool> RemoveAsync(string peerId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -77,6 +105,11 @@ public sealed class OneWireCouncilHostEnrollmentService(
         catch (Exception ex) { logger.LogError(ex, "Removing 1-Wire Council host {PeerId} failed.", peerId); throw; }
     }
 
+    /// <summary>
+    /// Loads unsafe as part of the one wire council host enrollment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<List<OneWireCouncilHostEnrollment>> LoadUnsafeAsync(CancellationToken cancellationToken)
     {
         try
@@ -89,6 +122,12 @@ public sealed class OneWireCouncilHostEnrollmentService(
         catch (Exception ex) { logger.LogError(ex, "Loading 1-Wire Council host enrollment failed."); throw; }
     }
 
+    /// <summary>
+    /// Persists unsafe as part of the one wire council host enrollment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="items">Items value supplied to the one wire council host enrollment operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveUnsafeAsync(List<OneWireCouncilHostEnrollment> items, CancellationToken cancellationToken)
     {
         try

@@ -14,6 +14,12 @@ namespace LocalGPT.Mcp;
 /// Implements the LocalGPT MCP Streamable HTTP JSON-RPC boundary without duplicating the underlying project,
 /// knowledge, toolchain or DX-function business logic. LocalGPT remains authoritative for approvals and data policy.
 /// </summary>
+/// <param name="optionMonitor">Mcp gateway options dependency used by the local GPT mcp endpoint workflow to provide the corresponding application capability.</param>
+/// <param name="accessor">Accessor value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+/// <param name="functions">Devexpress ai function registry dependency used by the local GPT mcp endpoint workflow to provide the corresponding application capability.</param>
+/// <param name="dataProtectionProvider">Data protection provider dependency used by the local GPT mcp endpoint workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the local GPT mcp endpoint workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalGptMcpEndpoint(
     IOptionsMonitor<McpGatewayOptions> optionMonitor,
     LocalGptMcpGatewayAccessor accessor,
@@ -22,14 +28,26 @@ public sealed class LocalGptMcpEndpoint(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalGptMcpEndpoint> logger)
 {
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="LocalGptMcpEndpoint"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = false
     };
+    /// <summary>
+    /// Stores the data protector dependency used by <see cref="LocalGptMcpEndpoint"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IDataProtector ApprovalStateProtector = dataProtectionProvider.CreateProtector("LocalGPT.Mcp.ApprovalMrtr.v1");
+    /// <summary>
+    /// Gets the parameters value that forms part of the local GPT mcp endpoint state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The parameters value exposed by <see cref="LocalGptMcpEndpoint"/>.</value>
     private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>(LocalGptRuntimeValue.McpGatewayRuntimeParametersJson);
 
     /// <summary>Handles one MCP Streamable HTTP POST containing a JSON-RPC request or notification.</summary>
+    /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task HandlePostAsync(HttpContext context)
     {
         var options = optionMonitor.CurrentValue;
@@ -117,6 +135,8 @@ public sealed class LocalGptMcpEndpoint(
     }
 
     /// <summary>Handles GET on a stateless MCP endpoint. LocalGPT deliberately does not open a server-initiated SSE channel.</summary>
+    /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public Task HandleGetAsync(HttpContext context)
     {
         var options = optionMonitor.CurrentValue;
@@ -132,6 +152,8 @@ public sealed class LocalGptMcpEndpoint(
     }
 
     /// <summary>Rejects DELETE because the LocalGPT MCP gateway is stateless and owns no transport sessions.</summary>
+    /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public Task HandleDeleteAsync(HttpContext context)
     {
         var options = optionMonitor.CurrentValue;
@@ -146,6 +168,14 @@ public sealed class LocalGptMcpEndpoint(
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Resolves protocol for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="method">Method value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The mcp protocol context produced by the operation.</returns>
     private McpProtocolContext ResolveProtocol(HttpContext context, string method, JsonElement parameters, McpGatewayOptions options)
     {
         try
@@ -219,6 +249,15 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Performs dispatch for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="method">Method value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="protocol">Protocol value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private async Task<McpDispatchResult> DispatchAsync(
         string method,
         JsonElement parameters,
@@ -255,6 +294,11 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Performs discover for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult Discover(McpGatewayOptions options)
     {
         try
@@ -273,6 +317,12 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Performs initialize for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult Initialize(JsonElement parameters, McpGatewayOptions options)
     {
         try
@@ -299,6 +349,11 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Builds capabilities for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The JSON object produced by the operation.</returns>
     private JsonObject BuildCapabilities(McpGatewayOptions options)
     {
         var capabilities = new JsonObject();
@@ -311,12 +366,21 @@ public sealed class LocalGptMcpEndpoint(
         return capabilities;
     }
 
+    /// <summary>
+    /// Builds server info for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <returns>The JSON object produced by the operation.</returns>
     private JsonObject BuildServerInfo() => new()
     {
         ["name"] = "LocalGPT",
         ["version"] = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "0.0.0"
     };
 
+    /// <summary>
+    /// Builds server instructions for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="modern">Value indicating whether modern should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildServerInstructions(bool modern)
     {
         var approval = modern
@@ -325,6 +389,12 @@ public sealed class LocalGptMcpEndpoint(
         return $"LocalGPT exposes only the projects, knowledge, regex, toolchains, artifacts, prompts and DX functions enabled in Install → MCP gateway. {approval}";
     }
 
+    /// <summary>
+    /// Lists tools for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult ListTools(JsonElement parameters, McpGatewayOptions options)
     {
         try
@@ -377,6 +447,14 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Performs call tool for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="protocol">Protocol value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private async Task<McpDispatchResult> CallToolAsync(
         JsonElement parameters,
         McpProtocolContext protocol,
@@ -489,6 +567,12 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Creates approval input required for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="functionName">Function name value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="operationId">Identifier of the operation to use for this operation.</param>
+    /// <returns>The JSON object produced by the operation.</returns>
     private JsonObject CreateApprovalInputRequired(string functionName, Guid operationId)
     {
         var state = new ApprovalRetryState
@@ -535,6 +619,13 @@ public sealed class LocalGptMcpEndpoint(
         };
     }
 
+    /// <summary>
+    /// Attempts to read approval request state for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="protectedState">Protected state value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="functionName">Function name value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="state">State value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryReadApprovalRequestState(string? protectedState, string functionName, out ApprovalRetryState? state)
     {
         state = null;
@@ -560,6 +651,11 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Performs supports elicitation for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="protocol">Protocol value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool SupportsElicitation(McpProtocolContext protocol)
     {
         if (!protocol.IsModern || string.IsNullOrWhiteSpace(protocol.ClientCapabilitiesJson))
@@ -583,6 +679,11 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Lists resources for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult ListResources(McpGatewayOptions options)
     {
         try
@@ -604,6 +705,11 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Lists resource templates for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult ListResourceTemplates(McpGatewayOptions options)
     {
         try
@@ -627,6 +733,13 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Reads resource for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private async Task<McpDispatchResult> ReadResourceAsync(JsonElement parameters, McpGatewayOptions options, CancellationToken cancellationToken)
     {
         try
@@ -672,6 +785,12 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Reads project resource for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="uri">Uri value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> ReadProjectResourceAsync(Uri uri, CancellationToken cancellationToken)
     {
         try
@@ -700,6 +819,12 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Reads knowledge resource for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="uri">Uri value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> ReadKnowledgeResourceAsync(Uri uri, CancellationToken cancellationToken)
     {
         try
@@ -722,6 +847,10 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Lists prompts for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult ListPrompts()
     {
         try
@@ -742,6 +871,11 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Retrieves prompt for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult GetPrompt(JsonElement parameters)
     {
         try
@@ -777,6 +911,14 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Handles notification for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="method">Method value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="protocol">Protocol value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task HandleNotificationAsync(string method, JsonElement parameters, McpProtocolContext protocol, CancellationToken cancellationToken)
     {
         try
@@ -794,6 +936,13 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Attempts to authorize for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="denialStatus">Denial status value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryAuthorize(HttpContext context, McpGatewayOptions options, out int denialStatus)
     {
         try
@@ -863,6 +1012,11 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Determines whether allowed endpoint for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsAllowedEndpoint(HttpContext context)
     {
         try
@@ -878,6 +1032,13 @@ public sealed class LocalGptMcpEndpoint(
         }
     }
 
+    /// <summary>
+    /// Performs resource for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="uri">Uri value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The JSON object produced by the operation.</returns>
     private JsonObject Resource(string uri, string name, string description) => new()
     {
         ["uri"] = uri,
@@ -886,6 +1047,13 @@ public sealed class LocalGptMcpEndpoint(
         ["mimeType"] = "application/json"
     };
 
+    /// <summary>
+    /// Performs resource template for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="uriTemplate">Uri template value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The JSON object produced by the operation.</returns>
     private JsonObject ResourceTemplate(string uriTemplate, string name, string description) => new()
     {
         ["uriTemplate"] = uriTemplate,
@@ -894,6 +1062,13 @@ public sealed class LocalGptMcpEndpoint(
         ["mimeType"] = "application/json"
     };
 
+    /// <summary>
+    /// Performs prompt descriptor for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="name">Name value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="arguments">Required) dependency used by the local GPT mcp endpoint workflow to provide the corresponding application capability.</param>
+    /// <returns>The JSON object produced by the operation.</returns>
     private JsonObject PromptDescriptor(string name, string description, IEnumerable<(string Name, bool Required)> arguments)
     {
         var values = new JsonArray();
@@ -902,17 +1077,35 @@ public sealed class LocalGptMcpEndpoint(
         return new JsonObject { ["name"] = name, ["description"] = description, ["arguments"] = values };
     }
 
+    /// <summary>
+    /// Builds tool description for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="function">Function value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildToolDescription(DxaichatFunctionInfo function)
     {
         var confirmation = function.RequiresHumanConfirmation || !function.IsReadOnly ? " LocalGPT human approval policy may gate execution." : string.Empty;
         return $"{function.Purpose}{confirmation} Safety: {function.SafetyNotes}".Trim();
     }
 
+    /// <summary>
+    /// Performs argument for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="arguments">Arguments value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Argument(JsonElement arguments, string name, string fallback) =>
         arguments.ValueKind == JsonValueKind.Object && arguments.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString())
             ? value.GetString()!
             : fallback;
 
+    /// <summary>
+    /// Retrieves meta string for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="names">Names value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? GetMetaString(JsonElement parameters, params string[] names)
     {
         if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty("_meta", out var metadata) || metadata.ValueKind != JsonValueKind.Object)
@@ -920,6 +1113,12 @@ public sealed class LocalGptMcpEndpoint(
         return GetArgumentString(metadata, names);
     }
 
+    /// <summary>
+    /// Retrieves modern meta string for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? GetModernMetaString(JsonElement parameters, string name)
     {
         if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty("_meta", out var metadata) || metadata.ValueKind != JsonValueKind.Object)
@@ -927,6 +1126,12 @@ public sealed class LocalGptMcpEndpoint(
         return metadata.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
     }
 
+    /// <summary>
+    /// Retrieves argument string for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="arguments">Arguments value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="names">Names value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? GetArgumentString(JsonElement arguments, params string[] names)
     {
         if (arguments.ValueKind != JsonValueKind.Object)
@@ -940,6 +1145,12 @@ public sealed class LocalGptMcpEndpoint(
         return null;
     }
 
+    /// <summary>
+    /// Attempts to parse optional GUID for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="parsed">Parsed value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryParseOptionalGuid(string? value, out Guid? parsed)
     {
         parsed = null;
@@ -951,6 +1162,12 @@ public sealed class LocalGptMcpEndpoint(
         return true;
     }
 
+    /// <summary>
+    /// Retrieves query value for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="uri">Uri value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="key">Key value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? GetQueryValue(Uri uri, string key)
     {
         var query = uri.Query.TrimStart('?');
@@ -965,6 +1182,12 @@ public sealed class LocalGptMcpEndpoint(
         return null;
     }
 
+    /// <summary>
+    /// Retrieves routing subject for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="method">Method value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? GetRoutingSubject(string method, JsonElement parameters)
     {
         if (parameters.ValueKind != JsonValueKind.Object)
@@ -976,6 +1199,11 @@ public sealed class LocalGptMcpEndpoint(
         return null;
     }
 
+    /// <summary>
+    /// Parses cursor for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ParseCursor(JsonElement parameters)
     {
         if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty("cursor", out var cursor) || cursor.ValueKind == JsonValueKind.Null)
@@ -984,15 +1212,36 @@ public sealed class LocalGptMcpEndpoint(
         return int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var offset) && offset >= 0 ? offset : -1;
     }
 
+    /// <summary>
+    /// Normalizes modern protocol version for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeModernProtocolVersion(string? value) => Parameters.ModernProtocolVersion;
+    /// <summary>
+    /// Normalizes legacy protocol version for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeLegacyProtocolVersion(string? value) => Parameters.LegacyProtocolVersion;
 
+    /// <summary>
+    /// Performs split for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> Split(string? value) => string.IsNullOrWhiteSpace(value)
         ? []
         : value.Split([';', ',', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    /// <summary>
+    /// Builds supported versions for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="includeLegacy">Value indicating whether include legacy should apply to this operation.</param>
+    /// <returns>The JSON array produced by the operation.</returns>
     private JsonArray BuildSupportedVersions(McpGatewayOptions options, bool includeLegacy = true)
     {
         var versions = new JsonArray();
@@ -1003,6 +1252,11 @@ public sealed class LocalGptMcpEndpoint(
         return versions;
     }
 
+    /// <summary>
+    /// Performs required array for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="name">Name value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The JSON array produced by the operation.</returns>
     private JsonArray RequiredArray(string name)
     {
         var values = new JsonArray();
@@ -1010,6 +1264,11 @@ public sealed class LocalGptMcpEndpoint(
         return values;
     }
 
+    /// <summary>
+    /// Creates text content for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="text">Text value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The JSON array produced by the operation.</returns>
     private JsonArray CreateTextContent(string text)
     {
         return new JsonArray
@@ -1018,18 +1277,40 @@ public sealed class LocalGptMcpEndpoint(
         };
     }
 
+    /// <summary>
+    /// Performs protocol error for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="code">Code value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="message">Message value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The mcp protocol context produced by the operation.</returns>
     private McpProtocolContext ProtocolError(int code, string message, McpGatewayOptions options) =>
         new(false, string.Empty, null, null, new McpDispatchResult(null, code, message, new JsonObject
         {
             ["supportedVersions"] = BuildSupportedVersions(options)
         }));
 
+    /// <summary>
+    /// Sets protocol response header for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="protocolVersion">Protocol version value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
     private void SetProtocolResponseHeader(HttpContext context, string protocolVersion)
     {
         if (!string.IsNullOrWhiteSpace(protocolVersion))
             context.Response.Headers["MCP-Protocol-Version"] = protocolVersion;
     }
 
+    /// <summary>
+    /// Writes result for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="result">Result value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="protocol">Protocol value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="method">Method value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task WriteResultAsync(
         HttpContext context,
         JsonNode? id,
@@ -1067,6 +1348,16 @@ public sealed class LocalGptMcpEndpoint(
         await context.Response.WriteAsync(envelope.ToJsonString(JsonOptions), context.RequestAborted).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Writes error for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="code">Code value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="message">Message value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="data">Data value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="httpStatusCode">Http status code value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task WriteErrorAsync(
         HttpContext context,
         JsonNode? id,
@@ -1083,6 +1374,11 @@ public sealed class LocalGptMcpEndpoint(
         await context.Response.WriteAsync(envelope.ToJsonString(JsonOptions), context.RequestAborted).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Determines whether cache hint method for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="method">Method value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsCacheHintMethod(string method) => method is
         "server/discover" or
         "tools/list" or
@@ -1091,23 +1387,87 @@ public sealed class LocalGptMcpEndpoint(
         "resources/templates/list" or
         "resources/read";
 
+    /// <summary>
+    /// Normalizes cache scope for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeCacheScope(string? value) => value?.Trim().Equals("public", StringComparison.OrdinalIgnoreCase) == true ? "public" : "private";
 
+    /// <summary>
+    /// Performs success for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="result">Result value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult Success(JsonNode? result) => new(result, null, null, null);
+    /// <summary>
+    /// Performs error for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="code">Code value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="message">Message value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="data">Data value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult Error(int code, string message, JsonNode? data = null) => new(null, code, message, data);
+    /// <summary>
+    /// Performs method disabled for <see cref="LocalGptMcpEndpoint"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp endpoint workflow.
+    /// </summary>
+    /// <param name="domain">Domain value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <returns>The mcp dispatch result produced by the operation.</returns>
     private McpDispatchResult MethodDisabled(string domain) => Error(-32601, $"The LocalGPT MCP {domain} domain is disabled by gateway policy.");
 
+    /// <summary>
+    /// Represents the outcome of mcp dispatch, carrying the data and status produced by the corresponding application operation.
+    /// </summary>
+    /// <param name="Result">Result value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="ErrorCode">Error code value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="ErrorMessage">Error message value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="ErrorData">Error data value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
     private sealed record McpDispatchResult(JsonNode? Result, int? ErrorCode, string? ErrorMessage, JsonNode? ErrorData);
+    /// <summary>
+    /// Represents a mcp protocol context helper type nested within <see cref="LocalGptMcpEndpoint"/>, grouping the state or behavior used only by that containing workflow.
+    /// </summary>
+    /// <param name="IsModern">Value indicating whether modern should apply to this operation.</param>
+    /// <param name="ProtocolVersion">Protocol version value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="ClientCapabilitiesJson">Client capabilities json value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="ClientInfoJson">Client info json value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
+    /// <param name="ProtocolError">Protocol error value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>
     private sealed record McpProtocolContext(bool IsModern, string ProtocolVersion, string? ClientCapabilitiesJson, string? ClientInfoJson, McpDispatchResult? ProtocolError)
     {
+        /// <summary>
+        /// Gets the error code value that forms part of the mcp protocol context state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The error code value exposed by <see cref="McpProtocolContext"/>.</value>
         public int? ErrorCode => ProtocolError?.ErrorCode;
+        /// <summary>
+        /// Gets the error message value that forms part of the mcp protocol context state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The error message value exposed by <see cref="McpProtocolContext"/>.</value>
         public string? ErrorMessage => ProtocolError?.ErrorMessage;
+        /// <summary>
+        /// Gets the error data value that forms part of the mcp protocol context state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The error data value exposed by <see cref="McpProtocolContext"/>.</value>
         public JsonNode? ErrorData => ProtocolError?.ErrorData;
     }
+    /// <summary>
+    /// Represents approval retry state exchanged or persisted by the surrounding application workflow, with each member describing one part of that state.
+    /// </summary>
     private sealed class ApprovalRetryState
     {
+        /// <summary>
+        /// Gets or sets the function name value that forms part of the approval retry state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The function name value exposed by <see cref="ApprovalRetryState"/>.</value>
         public string FunctionName { get; set; } = string.Empty;
+        /// <summary>
+        /// Gets or sets the stable operation identifier used to identify or correlate this approval retry instance with related application state.
+        /// </summary>
+        /// <value>The operation identifier value exposed by <see cref="ApprovalRetryState"/>.</value>
         public Guid OperationId { get; set; }
+        /// <summary>
+        /// Gets or sets the issued at UTC associated with this approval retry state, using the time semantics implied by the member name.
+        /// </summary>
+        /// <value>The issued at UTC value exposed by <see cref="ApprovalRetryState"/>.</value>
         public DateTimeOffset IssuedAtUtc { get; set; }
     }
 }

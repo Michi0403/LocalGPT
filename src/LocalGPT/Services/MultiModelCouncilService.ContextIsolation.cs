@@ -7,6 +7,8 @@ namespace LocalGPT.Services
     public sealed partial class MultiModelCouncilService
     {
         /// <summary>Returns whether the persisted team explicitly requests role-isolated context.</summary>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool UsesRoleIsolatedContext(OrganicCouncilTeamDefinition team)
         {
             try
@@ -22,6 +24,8 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Builds the deliberately narrow bootstrap supplied to self-contained role workflows.</summary>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildRoleIsolatedBootstrap(OrganicCouncilTeamDefinition team)
         {
             try

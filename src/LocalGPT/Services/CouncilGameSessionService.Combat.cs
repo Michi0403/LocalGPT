@@ -7,6 +7,10 @@ namespace LocalGPT.Services;
 /// <summary>Owns the deterministic ASCII corridor map, hostile actors, combat and pathfinding.</summary>
 public sealed partial class CouncilGameSessionService
 {
+    /// <summary>
+    /// Performs initialize doom world as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
     private void InitializeDoomWorld(CouncilGameSessionState session)
     {
         try
@@ -83,6 +87,7 @@ public sealed partial class CouncilGameSessionService
 
 
     /// <summary>Preserves the pre-campaign deterministic corridor geometry for non-DOOM project corridor definitions.</summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
     private void InitializeLegacyCorridorWorld(CouncilGameSessionState session)
     {
         try
@@ -145,6 +150,11 @@ public sealed partial class CouncilGameSessionService
     }
 
     /// <summary>Builds the deterministic hostile set from the active level's map-size and density settings.</summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="level">Level value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="centers">Y) dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <param name="random">Random value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<CouncilGameEnemyState> BuildLevelEnemies(
         CouncilGameSessionState session,
         CouncilGameLevelProfile level,
@@ -202,6 +212,14 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Performs carve room as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cells">Cells value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="width">Width value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="height">Height value supplied to the council game session operation and used when producing its result.</param>
     private void CarveRoom(char[][] cells, int x, int y, int width, int height)
     {
         try
@@ -218,6 +236,15 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Performs carve corridor as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cells">Cells value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="fromX">From x value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="fromY">From y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="toX">To x value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="toY">To y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="horizontalFirst">Value indicating whether horizontal first should apply to this operation.</param>
     private void CarveCorridor(char[][] cells, int fromX, int fromY, int toX, int toY, bool horizontalFirst)
     {
         try
@@ -249,6 +276,17 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Builds enemy state as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="key">Key value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="glyph">Glyph value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="health">Health value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="contactDamage">Contact damage value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council game enemy state produced by the operation.</returns>
     private CouncilGameEnemyState BuildEnemyState(string key, string name, string glyph, int x, int y, int health, int contactDamage)
     {
         try
@@ -272,6 +310,11 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Retrieves world map as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> GetWorldMap(CouncilGameSessionState session)
     {
         try
@@ -286,6 +329,11 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Retrieves world map as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="snapshot">Snapshot value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> GetWorldMap(CouncilGameSessionSnapshot snapshot)
     {
         try
@@ -300,6 +348,13 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Determines whether walkable as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="map">String dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsWalkable(IReadOnlyList<string> map, int x, int y)
     {
         try
@@ -313,6 +368,14 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Determines whether living enemy at as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="exceptKey">Except key value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsLivingEnemyAt(CouncilGameSessionState session, int x, int y, string? exceptKey = null)
     {
         try
@@ -330,6 +393,13 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Determines whether living enemy at as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="snapshot">Snapshot value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsLivingEnemyAt(CouncilGameSessionSnapshot snapshot, int x, int y)
     {
         try
@@ -344,6 +414,11 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Performs clone enemy as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="enemy">Enemy value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council game enemy snapshot produced by the operation.</returns>
     private CouncilGameEnemySnapshot CloneEnemy(CouncilGameEnemyState enemy)
     {
         try
@@ -368,6 +443,10 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Resolves shot as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
     private void ResolveShot(CouncilGameSessionState session)
     {
         try
@@ -411,6 +490,10 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Performs advance doom world as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
     private void AdvanceDoomWorld(CouncilGameSessionState session)
     {
         try
@@ -479,6 +562,10 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Resolves extraction as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
     private void ResolveExtraction(CouncilGameSessionState session)
     {
         try
@@ -536,6 +623,15 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Determines whether line of sight as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="map">String dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <param name="fromX">From x value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="fromY">From y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="toX">To x value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="toY">To y value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool HasLineOfSight(IReadOnlyList<string> map, int fromX, int fromY, int toX, int toY)
     {
         try
@@ -559,6 +655,17 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Finds shortest path as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="map">String dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <param name="startX">Start x value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="startY">Start y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="targetX">Target x value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="targetY">Target y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="blocked">Blocked value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="allowTargetOccupied">Value indicating whether allow target occupied should apply to this operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<(int X, int Y)> FindShortestPath(
         IReadOnlyList<string> map,
         int startX,
@@ -610,6 +717,12 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Performs signed angle delta as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="from">From value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="to">To value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The double produced by the operation.</returns>
     private double SignedAngleDelta(double from, double to)
     {
         try

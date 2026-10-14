@@ -95,14 +95,33 @@ namespace LocalGPT.Logging
     /// <summary>Serializes LocalGPT file-log writes through one self-healing writer shared by every logging category.</summary>
     internal sealed class FileLoggerSink : IDisposable
     {
+        /// <summary>
+        /// Stores the internal real path state used by <see cref="FileLoggerSink"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly string _realPath;
+        /// <summary>
+        /// Stores the internal fallback path state used by <see cref="FileLoggerSink"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly string _fallbackPath;
+        /// <summary>
+        /// Stores the internal log queue state used by <see cref="FileLoggerSink"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly BlockingCollection<string> _logQueue = new();
+        /// <summary>
+        /// Stores the internal logging thread state used by <see cref="FileLoggerSink"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly Thread _loggingThread;
+        /// <summary>
+        /// Stores the internal disposed state used by <see cref="FileLoggerSink"/> while executing its surrounding workflow.
+        /// </summary>
         private bool _disposed;
+        /// <summary>
+        /// Stores the internal last failure notice UTC state used by <see cref="FileLoggerSink"/> while executing its surrounding workflow.
+        /// </summary>
         private DateTime _lastFailureNoticeUtc = DateTime.MinValue;
 
         /// <summary>Creates the provider-owned file sink and starts its single background writer.</summary>
+        /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
         public FileLoggerSink(FileLoggerCoreOptions options)
         {
             _realPath = ResolveLogPath(options);
@@ -116,6 +135,7 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>Queues one fully formatted entry without allowing logger failures to escape into application code.</summary>
+        /// <param name="message">Message value supplied to the file logger sink operation and used when producing its result.</param>
         public void Enqueue(string message)
         {
             if (_disposed || _logQueue.IsAddingCompleted)
@@ -176,6 +196,8 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>Opens a resilient append writer while allowing diagnostics tools to inspect or copy the live file.</summary>
+        /// <param name="path">Path value supplied to the file logger sink operation and used when producing its result.</param>
+        /// <returns>The stream writer produced by the operation.</returns>
         private StreamWriter OpenWriter(string path)
         {
             var directory = Path.GetDirectoryName(path);
@@ -186,6 +208,7 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>Writes an emergency copy when the configured destination remains unavailable after retries.</summary>
+        /// <param name="message">Message value supplied to the file logger sink operation and used when producing its result.</param>
         private void WriteFallback(string message)
         {
             try
@@ -201,6 +224,8 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>Throttles console diagnostics so a file-system problem cannot create a second logging flood.</summary>
+        /// <param name="exception">Exception value supplied to the file logger sink operation and used when producing its result.</param>
+        /// <param name="path">Path value supplied to the file logger sink operation and used when producing its result.</param>
         private void ReportWriteFailure(Exception exception, string path)
         {
             var now = DateTime.UtcNow;
@@ -211,6 +236,8 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>Resolves the file logger target without consulting the process current directory.</summary>
+        /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string ResolveLogPath(FileLoggerCoreOptions options)
         {
             try

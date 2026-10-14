@@ -11,6 +11,7 @@ namespace LocalGPT.Controller;
 /// <param name="recovery">Devexpress ai function call recovery service dependency used by the DevExpress AI functions workflow to provide the corresponding application capability.</param>
 /// <param name="deferredInvocations">Deferred devexpress ai invocation service dependency used by the DevExpress AI functions workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="audit">Devexpress ai function invocation audit service dependency used by the DevExpress AI functions workflow to provide the corresponding application capability.</param>
 [ApiController]
 [Route("api/dxai/functions")]
 public sealed class DxAiFunctionsController(
@@ -113,6 +114,9 @@ public sealed class DxAiFunctionsController(
     }
 
     /// <summary>Returns sanitized durable function execution history without arguments or results.</summary>
+    /// <param name="take">Take value supplied to the DevExpress AI functions operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("history")]
     public async Task<IResult> GetInvocationHistoryAsync([FromQuery] int take, CancellationToken cancellationToken)
     {
@@ -127,6 +131,13 @@ public sealed class DxAiFunctionsController(
         }
     }
 
+    /// <summary>
+    /// Invokes function for the DevExpress AI functions API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
+    /// </summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress AI functions operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("{functionName}/invoke")]
     public async Task<IResult> InvokeFunction(
         string functionName,

@@ -6,16 +6,17 @@ using DevExpress.Blazor;
 namespace LocalGPT.Components.Shared;
 
 /// <summary>
-/// Shared, database-backed approval, feedback and poll response editor used by Chat and Human Collaboration.
-/// Both surfaces use the same request ID, version check, permission context and decision policy.
+/// Renders the human collaboration request card Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
 /// </summary>
 public partial class HumanCollaborationRequestCard
 {
     /// <summary>Persistent request shown in either review surface.</summary>
+    /// <value>The request value exposed by <see cref="HumanCollaborationRequestCard"/>.</value>
     [Parameter, EditorRequired]
     public HumanCollaborationRequest Request { get; set; } = default!;
 
     /// <summary>Reports a completed or stale decision so a parent may refresh its presentation.</summary>
+    /// <value>The decision saved value exposed by <see cref="HumanCollaborationRequestCard"/>.</value>
     [Parameter]
     public EventCallback DecisionSaved { get; set; }
 
@@ -36,14 +37,18 @@ public partial class HumanCollaborationRequestCard
     /// <summary>The database decision version represented by this form.</summary>
     private int editorDecisionVersion;
     /// <summary>True for a security-sensitive approval instead of a nonapproval response.</summary>
+    /// <value>The is approval value exposed by <see cref="HumanCollaborationRequestCard"/>.</value>
     private bool IsApproval => string.Equals(Request.RequestKind, Vocabulary.Get().HumanRequestApproval, StringComparison.Ordinal);
     /// <summary>Read-only caption for the common DevExpress response editor.</summary>
+    /// <value>The response caption value exposed by <see cref="HumanCollaborationRequestCard"/>.</value>
     private string ResponseCaption => string.IsNullOrWhiteSpace(Request.ResponsePrompt) ? "Your answer or guidance" : Request.ResponsePrompt;
     /// <summary>Identifies an exact request without displaying its full fingerprint in the review card.</summary>
+    /// <value>The fingerprint preview value exposed by <see cref="HumanCollaborationRequestCard"/>.</value>
     private string FingerprintPreview => Request.ParameterFingerprint.Length <= 12
         ? Request.ParameterFingerprint : Request.ParameterFingerprint[..12];
 
     /// <summary>Available persisted exact-request approval scopes.</summary>
+    /// <value>The reuse scopes value exposed by <see cref="HumanCollaborationRequestCard"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<HumanApprovalReuseScope>> ReuseScopes { get; } =
     [
         new(HumanApprovalReuseScope.ExactRequestOnce, "Exact request once"),

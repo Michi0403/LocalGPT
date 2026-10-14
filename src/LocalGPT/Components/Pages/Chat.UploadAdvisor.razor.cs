@@ -3,7 +3,9 @@ using Microsoft.JSInterop;
 
 namespace LocalGPT.Components.Pages
 {
-    /// <summary>Bridges the upload-processing advisor into the existing Chat and Council submission workflows.</summary>
+    /// <summary>
+    /// Renders the chat Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Chat
     {
         /// <summary>Sends an advisory upload-processing prompt through the normal DevExpress Chat composer bridge.</summary>

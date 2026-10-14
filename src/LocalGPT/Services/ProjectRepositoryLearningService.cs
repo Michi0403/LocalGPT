@@ -10,6 +10,12 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services;
 
 /// <summary>Builds review-required Knowledge and regex candidates from immutable source revision evidence and its delta from the previous revision.</summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+/// <param name="knowledge">Council knowledge service dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+/// <param name="regexPatterns">Regex pattern service dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+/// <param name="regexCurator">Regex curator service dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProjectRepositoryLearningService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ICouncilKnowledgeService knowledge,
@@ -18,6 +24,9 @@ public sealed class ProjectRepositoryLearningService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ProjectRepositoryLearningService> logger) : IProjectRepositoryLearningService
 {
+    /// <summary>
+    /// Performs stage candidates as part of the project repository learning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<IReadOnlyList<ProjectRepositoryLearningResult>> StageCandidatesAsync(
         IReadOnlyList<LearningProjectSyncResult> synchronizedProjects,
@@ -45,6 +54,12 @@ public sealed class ProjectRepositoryLearningService(
         }
     }
 
+    /// <summary>
+    /// Performs stage one as part of the project repository learning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="synchronized">Synchronized value supplied to the project repository learning operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project repository learning result produced by the operation.</returns>
     private async Task<ProjectRepositoryLearningResult> StageOneAsync(LearningProjectSyncResult synchronized, CancellationToken cancellationToken)
     {
         try
@@ -150,6 +165,13 @@ public sealed class ProjectRepositoryLearningService(
         }
     }
 
+    /// <summary>
+    /// Performs stage repository regex as part of the project repository learning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="synchronized">Synchronized value supplied to the project repository learning operation and used when producing its result.</param>
+    /// <param name="files">Local gpt project tracked file dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<string>> StageRepositoryRegexAsync(
         LearningProjectSyncResult synchronized,
         IReadOnlyList<LocalGptProjectTrackedFile> files,
@@ -195,6 +217,15 @@ public sealed class ProjectRepositoryLearningService(
         }
     }
 
+    /// <summary>
+    /// Builds revision summary as part of the project repository learning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="synchronized">Synchronized value supplied to the project repository learning operation and used when producing its result.</param>
+    /// <param name="added">String dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+    /// <param name="changed">String dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+    /// <param name="removed">String dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+    /// <param name="hasParent">Value indicating whether has parent should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildRevisionSummary(
         LearningProjectSyncResult synchronized,
         IReadOnlyList<string> added,
@@ -215,6 +246,12 @@ public sealed class ProjectRepositoryLearningService(
         }
     }
 
+    /// <summary>
+    /// Builds snapshot knowledge as part of the project repository learning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="synchronized">Synchronized value supplied to the project repository learning operation and used when producing its result.</param>
+    /// <param name="files">Local gpt project tracked file dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildSnapshotKnowledge(LearningProjectSyncResult synchronized, IReadOnlyList<LocalGptProjectTrackedFile> files)
     {
         try
@@ -241,6 +278,13 @@ public sealed class ProjectRepositoryLearningService(
         }
     }
 
+    /// <summary>
+    /// Builds delta knowledge as part of the project repository learning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="added">String dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+    /// <param name="changed">String dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+    /// <param name="removed">String dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildDeltaKnowledge(IReadOnlyList<string> added, IReadOnlyList<string> changed, IReadOnlyList<string> removed)
     {
         try
@@ -259,6 +303,12 @@ public sealed class ProjectRepositoryLearningService(
         }
     }
 
+    /// <summary>
+    /// Performs append delta group as part of the project repository learning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="builder">Builder value supplied to the project repository learning operation and used when producing its result.</param>
+    /// <param name="heading">Heading value supplied to the project repository learning operation and used when producing its result.</param>
+    /// <param name="paths">String dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
     private void AppendDeltaGroup(StringBuilder builder, string heading, IReadOnlyList<string> paths)
     {
         try
@@ -276,6 +326,11 @@ public sealed class ProjectRepositoryLearningService(
         }
     }
 
+    /// <summary>
+    /// Performs deterministic GUID as part of the project repository learning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the project repository learning operation and used when producing its result.</param>
+    /// <returns>The GUID produced by the operation.</returns>
     private Guid DeterministicGuid(string value)
     {
         try
@@ -290,6 +345,12 @@ public sealed class ProjectRepositoryLearningService(
         }
     }
 
+    /// <summary>
+    /// Performs bound as part of the project repository learning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the project repository learning operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the project repository learning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Bound(string value, int maximum)
     {
         try

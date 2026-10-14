@@ -6,6 +6,11 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Classifies bounded repository evidence from reviewed data rules and authoritative repository markers without executing uploaded content.</summary>
+/// <param name="regexCurator">Regex curator service dependency used by the project evidence classifier workflow to provide the corresponding application capability.</param>
+/// <param name="regexPatterns">Regex pattern service dependency used by the project evidence classifier workflow to provide the corresponding application capability.</param>
+/// <param name="councilText">Council text service dependency used by the project evidence classifier workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the project evidence classifier workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProjectEvidenceClassifierService(
     IRegexCuratorService regexCurator,
     IRegexPatternService regexPatterns,
@@ -13,9 +18,18 @@ public sealed class ProjectEvidenceClassifierService(
     LocalGptCatalogService catalog,
     ILogger<ProjectEvidenceClassifierService> logger) : IProjectEvidenceClassifierService
 {
+    /// <summary>
+    /// Defines the evidence rule prefix constant used by <see cref="ProjectEvidenceClassifierService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string EvidenceRulePrefix = "project.evidence::";
+    /// <summary>
+    /// Defines the maximum project marker bytes constant used by <see cref="ProjectEvidenceClassifierService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaximumProjectMarkerBytes = 256_000;
 
+    /// <summary>
+    /// Performs classify as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<ProjectEvidenceClassification> ClassifyAsync(string rootPath, CancellationToken cancellationToken = default)
     {
@@ -81,6 +95,11 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Performs collect evidence paths as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="rootPath">Root path value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> CollectEvidencePaths(string rootPath)
     {
         try
@@ -119,6 +138,12 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Performs detect repository identities as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="rootPath">Root path value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<RepositoryEvidenceIdentity> DetectRepositoryIdentities(string rootPath, CancellationToken cancellationToken)
     {
         try
@@ -183,6 +208,13 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Builds identity as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="paths">String dependency used by the project evidence classifier workflow to provide the corresponding application capability.</param>
+    /// <param name="readVersion">Read version value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <param name="sourceHint">Source hint value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The repository evidence identity produced by the operation.</returns>
     private RepositoryEvidenceIdentity? BuildIdentity(IEnumerable<string> paths, Func<string, string> readVersion, string sourceHint)
     {
         try
@@ -244,6 +276,12 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Finds marker as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="paths">String dependency used by the project evidence classifier workflow to provide the corresponding application capability.</param>
+    /// <param name="suffix">Suffix value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? FindMarker(IReadOnlyList<string> paths, string suffix)
     {
         try
@@ -257,6 +295,11 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Performs repository name from marker as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="marker">Marker value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RepositoryNameFromMarker(string marker)
     {
         try
@@ -273,6 +316,12 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Builds root hint as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sourceHint">Source hint value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <param name="marker">Marker value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildRootHint(string sourceHint, string marker)
     {
         try
@@ -302,6 +351,11 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Reads project version as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ReadProjectVersion(string path)
     {
         try
@@ -319,6 +373,11 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Reads project version as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ReadProjectVersion(ZipArchiveEntry entry)
     {
         try
@@ -335,6 +394,11 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Reads version XML as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="stream">Stream value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ReadVersionXml(Stream stream)
     {
         try
@@ -349,6 +413,11 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Normalizes archive path as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeArchivePath(string value)
     {
         try
@@ -362,6 +431,11 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Parses rule name as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="name">Name value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>The string domain string project kind string toolchain produced by the operation.</returns>
     private (string Domain, string ProjectKind, string Toolchain)? ParseRuleName(string name)
     {
         try
@@ -378,6 +452,12 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Determines whether excluded as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <param name="root">Root value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsExcluded(string path, string root)
     {
         try
@@ -392,6 +472,11 @@ public sealed class ProjectEvidenceClassifierService(
         }
     }
 
+    /// <summary>
+    /// Adds unique as part of the project evidence classifier service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="values">Values value supplied to the project evidence classifier operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the project evidence classifier operation and used when producing its result.</param>
     private void AddUnique(List<string> values, string value)
     {
         try

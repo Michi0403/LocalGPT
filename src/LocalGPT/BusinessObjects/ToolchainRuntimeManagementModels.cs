@@ -26,13 +26,17 @@ public sealed class ToolchainEnvironmentOptions
 /// <summary>Describes one visible environment-variable value and the scope that supplied it.</summary>
 public sealed class ToolchainEnvironmentEntry
 {
-    /// <summary>Gets or sets the variable name.</summary>
+    /// <summary>
+    /// Gets or sets the name value that forms part of the toolchain environment state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The environment-variable name.</value>
     public string Name { get; set; } = string.Empty;
     /// <summary>Gets or sets the value shown to the local operator, which may be redacted for credential-like names.</summary>
     /// <value>The visible environment-variable value.</value>
     public string Value { get; set; } = string.Empty;
-    /// <summary>Gets or sets the scope represented by this row.</summary>
+    /// <summary>
+    /// Gets or sets the scope value that forms part of the toolchain environment state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The environment scope.</value>
     public ToolchainEnvironmentScope Scope { get; set; }
     /// <summary>Gets or sets the optional registered toolchain installation associated with this row.</summary>
@@ -55,13 +59,17 @@ public sealed class ToolchainEnvironmentEntry
 /// <summary>Collects environment-variable rows for the current process and supported persistent scopes.</summary>
 public sealed class ToolchainEnvironmentSnapshot
 {
-    /// <summary>Gets or sets the detected platform label.</summary>
+    /// <summary>
+    /// Gets or sets the platform value that forms part of the toolchain environment snapshot state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The runtime platform label.</value>
     public string Platform { get; set; } = string.Empty;
     /// <summary>Gets or sets whether user and machine environment scopes can be mutated through the current runtime.</summary>
     /// <value><see langword="true"/> when persistent operating-system scopes are supported.</value>
     public bool SupportsPersistentOperatingSystemScopes { get; set; }
-    /// <summary>Gets or sets the visible environment rows.</summary>
+    /// <summary>
+    /// Gets or sets the entries collection maintained or exposed by this toolchain environment snapshot instance for downstream processing.
+    /// </summary>
     /// <value>The bounded, sorted environment rows.</value>
     public List<ToolchainEnvironmentEntry> Entries { get; set; } = [];
 }
@@ -69,13 +77,17 @@ public sealed class ToolchainEnvironmentSnapshot
 /// <summary>Requests one explicit environment-variable change through the toolchain environment service.</summary>
 public sealed class ToolchainEnvironmentChangeRequest
 {
-    /// <summary>Gets or sets the variable name to mutate.</summary>
+    /// <summary>
+    /// Gets or sets the name value that forms part of the toolchain environment change state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The requested environment-variable name.</value>
     public string Name { get; set; } = string.Empty;
     /// <summary>Gets or sets the replacement value. It is ignored when <see cref="Remove"/> is true.</summary>
     /// <value>The requested environment-variable value.</value>
     public string Value { get; set; } = string.Empty;
-    /// <summary>Gets or sets the writable scope to mutate.</summary>
+    /// <summary>
+    /// Gets or sets the scope value that forms part of the toolchain environment change state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The requested environment-variable scope.</value>
     public ToolchainEnvironmentScope Scope { get; set; } = ToolchainEnvironmentScope.Application;
     /// <summary>Gets or sets the optional registered toolchain installation that owns this override.</summary>
@@ -92,16 +104,24 @@ public sealed class ToolchainEnvironmentChangeRequest
 /// <summary>Describes one reviewed direct-download source for a compiler, runtime, SDK, or build tool.</summary>
 public sealed class ToolchainAcquisitionSource
 {
-    /// <summary>Gets or sets the stable catalog key.</summary>
+    /// <summary>
+    /// Gets or sets the stable key used to identify or correlate this toolchain acquisition source instance with related application state.
+    /// </summary>
     /// <value>The source key used by controller and DXFunction calls.</value>
     public string Key { get; set; } = string.Empty;
-    /// <summary>Gets or sets the matching local discovery profile key.</summary>
+    /// <summary>
+    /// Gets or sets the stable profile key used to identify or correlate this toolchain acquisition source instance with related application state.
+    /// </summary>
     /// <value>The toolchain knowledge profile key.</value>
     public string ProfileKey { get; set; } = string.Empty;
-    /// <summary>Gets or sets the human-readable tool name.</summary>
+    /// <summary>
+    /// Gets or sets the display name value that forms part of the toolchain acquisition source state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The display name.</value>
     public string DisplayName { get; set; } = string.Empty;
-    /// <summary>Gets or sets the publisher or upstream project.</summary>
+    /// <summary>
+    /// Gets or sets the publisher value that forms part of the toolchain acquisition source state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The publisher label.</value>
     public string Publisher { get; set; } = string.Empty;
     /// <summary>Gets or sets the pinned or channel version described by the source.</summary>
@@ -113,7 +133,9 @@ public sealed class ToolchainAcquisitionSource
     /// <summary>Gets or sets the HTTPS download URI selected by the reviewed catalog.</summary>
     /// <value>The direct download URI.</value>
     public string DownloadUri { get; set; } = string.Empty;
-    /// <summary>Gets or sets the local file name used after download.</summary>
+    /// <summary>
+    /// Gets or sets the file name used by this toolchain acquisition source instance to locate the associated file-system resource.
+    /// </summary>
     /// <value>The bounded output file name.</value>
     public string FileName { get; set; } = string.Empty;
     /// <summary>Gets or sets the operating-system family for which this catalog row is intended.</summary>
@@ -130,7 +152,9 @@ public sealed class ToolchainAcquisitionSource
 /// <summary>Requests a reviewed direct toolchain download by stable catalog key.</summary>
 public sealed class ToolchainAcquisitionDownloadRequest
 {
-    /// <summary>Gets or sets the stable source key to download.</summary>
+    /// <summary>
+    /// Gets or sets the stable source key used to identify or correlate this toolchain acquisition download instance with related application state.
+    /// </summary>
     /// <value>The reviewed catalog key.</value>
     public string SourceKey { get; set; } = string.Empty;
     /// <summary>Gets or sets whether the human operator explicitly approved the network download.</summary>
@@ -141,13 +165,19 @@ public sealed class ToolchainAcquisitionDownloadRequest
 /// <summary>Reports the result of one reviewed direct toolchain download.</summary>
 public sealed class ToolchainAcquisitionDownloadResult
 {
-    /// <summary>Gets or sets the stable source key that was downloaded.</summary>
+    /// <summary>
+    /// Gets or sets the stable source key used to identify or correlate this toolchain acquisition download instance with related application state.
+    /// </summary>
     /// <value>The reviewed catalog key.</value>
     public string SourceKey { get; set; } = string.Empty;
-    /// <summary>Gets or sets the local downloaded file path.</summary>
+    /// <summary>
+    /// Gets or sets the local path used by this toolchain acquisition download instance to locate the associated file-system resource.
+    /// </summary>
     /// <value>The managed download path.</value>
     public string LocalPath { get; set; } = string.Empty;
-    /// <summary>Gets or sets the number of bytes written.</summary>
+    /// <summary>
+    /// Gets or sets the bytes value that forms part of the toolchain acquisition download state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The downloaded byte count.</value>
     public long Bytes { get; set; }
     /// <summary>Gets or sets the SHA-256 digest of the downloaded bytes.</summary>
@@ -164,7 +194,9 @@ public sealed class ToolchainAcquisitionDownloadResult
 /// <summary>Identifies how a persisted toolchain execution profile starts its configured process.</summary>
 public enum ToolchainExecutionKind
 {
-    /// <summary>Starts the registered toolchain executable directly.</summary>
+    /// <summary>
+    /// Selects the toolchain executable option for <see cref="ToolchainExecutionKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     ToolchainExecutable,
     /// <summary>Starts a module through the registered runtime, for example <c>python -m whisper</c>.</summary>
     Module,
@@ -177,94 +209,177 @@ public enum ToolchainExecutionKind
 /// <summary>Database-backed, runtime-agnostic process profile owned by the Toolchains subsystem.</summary>
 public sealed class ToolchainExecutionProfile
 {
-    /// <summary>Gets or sets the stable profile identifier.</summary>
+    /// <summary>
+    /// Gets or sets the stable identifier used to identify or correlate this toolchain execution profile instance with related application state.
+    /// </summary>
+    /// <value>The identifier value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public Guid Id { get; set; } = Guid.NewGuid();
-    /// <summary>Gets or sets the stable user-facing profile key.</summary>
+    /// <summary>
+    /// Gets or sets the stable profile key used to identify or correlate this toolchain execution profile instance with related application state.
+    /// </summary>
+    /// <value>The profile key value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public string ProfileKey { get; set; } = string.Empty;
-    /// <summary>Gets or sets the display name.</summary>
+    /// <summary>
+    /// Gets or sets the name value that forms part of the toolchain execution profile state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The name value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public string Name { get; set; } = string.Empty;
-    /// <summary>Gets or sets the optional toolchain installation backing this process.</summary>
+    /// <summary>
+    /// Gets or sets the stable toolchain installation identifier used to identify or correlate this toolchain execution profile instance with related application state.
+    /// </summary>
+    /// <value>The toolchain installation identifier value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public Guid? ToolchainInstallationId { get; set; }
     /// <summary>Gets or sets the capability exposed by this profile, for example <c>speech.transcribe</c>.</summary>
+    /// <value>The capability key value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public string CapabilityKey { get; set; } = string.Empty;
-    /// <summary>Gets or sets the process start strategy.</summary>
+    /// <summary>
+    /// Gets or sets the execution kind value that forms part of the toolchain execution profile state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The execution kind value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public ToolchainExecutionKind ExecutionKind { get; set; } = ToolchainExecutionKind.ToolchainExecutable;
     /// <summary>Gets or sets the module, script, or executable entry point.</summary>
+    /// <value>The entry point value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public string EntryPoint { get; set; } = string.Empty;
-    /// <summary>Gets or sets the JSON array containing default process arguments.</summary>
+    /// <summary>
+    /// Gets or sets the arguments JSON value that forms part of the toolchain execution profile state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The arguments JSON value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public string ArgumentsJson { get; set; } = "[]";
-    /// <summary>Gets or sets the optional working directory.</summary>
+    /// <summary>
+    /// Gets or sets the working directory used by this toolchain execution profile instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The working directory value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public string WorkingDirectory { get; set; } = string.Empty;
     /// <summary>Gets or sets the JSON object containing profile-local environment overrides.</summary>
+    /// <value>The environment variables JSON value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public string EnvironmentVariablesJson { get; set; } = "{}";
     /// <summary>Gets or sets arbitrary profile configuration owned by the capability adapter.</summary>
+    /// <value>The configuration JSON value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public string ConfigurationJson { get; set; } = "{}";
-    /// <summary>Gets or sets whether this profile is enabled.</summary>
+    /// <summary>
+    /// Gets or sets a value indicating whether enabled applies to the toolchain execution profile state.
+    /// </summary>
+    /// <value>The is enabled value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public bool IsEnabled { get; set; } = true;
     /// <summary>Gets or sets whether this profile is the default for its capability.</summary>
+    /// <value>The is default for capability value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public bool IsDefaultForCapability { get; set; }
     /// <summary>Gets or sets whether execution requires explicit human approval unless user policy pre-authorizes the function.</summary>
+    /// <value>The requires approval value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public bool RequiresApproval { get; set; } = true;
-    /// <summary>Gets or sets the creation timestamp.</summary>
+    /// <summary>
+    /// Gets or sets the created at UTC associated with this toolchain execution profile state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The created at UTC value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
-    /// <summary>Gets or sets the last update timestamp.</summary>
+    /// <summary>
+    /// Gets or sets the updated at UTC associated with this toolchain execution profile state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The updated at UTC value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
-    /// <summary>Gets or sets the actor that last changed the profile.</summary>
+    /// <summary>
+    /// Gets or sets the updated by value that forms part of the toolchain execution profile state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The updated by value exposed by <see cref="ToolchainExecutionProfile"/>.</value>
     public string UpdatedBy { get; set; } = "CurrentUser";
 }
 
 /// <summary>Persists one LocalGPT-controlled environment mutation so UI policy and operating-system state remain auditable together.</summary>
 public sealed class ToolchainEnvironmentOverrideRecord
 {
-    /// <summary>Gets or sets the stable record identifier.</summary>
+    /// <summary>
+    /// Gets or sets the stable identifier used to identify or correlate this toolchain environment override instance with related application state.
+    /// </summary>
+    /// <value>The identifier value exposed by <see cref="ToolchainEnvironmentOverrideRecord"/>.</value>
     public Guid Id { get; set; } = Guid.NewGuid();
     /// <summary>Gets or sets the optional toolchain installation this override belongs to.</summary>
+    /// <value>The toolchain installation identifier value exposed by <see cref="ToolchainEnvironmentOverrideRecord"/>.</value>
     public Guid? ToolchainInstallationId { get; set; }
-    /// <summary>Gets or sets the environment-variable name.</summary>
+    /// <summary>
+    /// Gets or sets the name value that forms part of the toolchain environment override state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The name value exposed by <see cref="ToolchainEnvironmentOverrideRecord"/>.</value>
     public string Name { get; set; } = string.Empty;
-    /// <summary>Gets or sets the controlled scope.</summary>
+    /// <summary>
+    /// Gets or sets the scope value that forms part of the toolchain environment override state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The scope value exposed by <see cref="ToolchainEnvironmentOverrideRecord"/>.</value>
     public ToolchainEnvironmentScope Scope { get; set; } = ToolchainEnvironmentScope.Application;
     /// <summary>Gets or sets the stored value. It is never returned through AI-facing inventory functions.</summary>
+    /// <value>The value value exposed by <see cref="ToolchainEnvironmentOverrideRecord"/>.</value>
     public string Value { get; set; } = string.Empty;
     /// <summary>Gets or sets whether the override should be applied when LocalGPT starts.</summary>
+    /// <value>The apply on startup value exposed by <see cref="ToolchainEnvironmentOverrideRecord"/>.</value>
     public bool ApplyOnStartup { get; set; }
-    /// <summary>Gets or sets when LocalGPT last changed this scope.</summary>
+    /// <summary>
+    /// Gets or sets the updated at UTC associated with this toolchain environment override state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The updated at UTC value exposed by <see cref="ToolchainEnvironmentOverrideRecord"/>.</value>
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
-    /// <summary>Gets or sets who last changed the record.</summary>
+    /// <summary>
+    /// Gets or sets the updated by value that forms part of the toolchain environment override state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The updated by value exposed by <see cref="ToolchainEnvironmentOverrideRecord"/>.</value>
     public string UpdatedBy { get; set; } = "CurrentUser";
 }
 
 /// <summary>Requests persistence of one reusable toolchain execution profile.</summary>
 public sealed class SaveToolchainExecutionProfileRequest
 {
-    /// <summary>Gets or sets the profile being saved.</summary>
+    /// <summary>
+    /// Gets or sets the profile value that forms part of the save toolchain execution profile state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The profile value exposed by <see cref="SaveToolchainExecutionProfileRequest"/>.</value>
     public ToolchainExecutionProfile Profile { get; set; } = new();
     /// <summary>Gets or sets whether the consequential configuration mutation has been approved.</summary>
+    /// <value>The user confirmed value exposed by <see cref="SaveToolchainExecutionProfileRequest"/>.</value>
     public bool UserConfirmed { get; set; }
 }
 
 /// <summary>Requests execution of a persisted toolchain profile without invoking a shell.</summary>
 public sealed class ToolchainProcessExecutionRequest
 {
-    /// <summary>Gets or sets the persisted profile key.</summary>
+    /// <summary>
+    /// Gets or sets the stable profile key used to identify or correlate this toolchain process execution instance with related application state.
+    /// </summary>
+    /// <value>The profile key value exposed by <see cref="ToolchainProcessExecutionRequest"/>.</value>
     public string ProfileKey { get; set; } = string.Empty;
-    /// <summary>Gets or sets additional argument values appended after persisted arguments.</summary>
+    /// <summary>
+    /// Gets or sets the arguments collection maintained or exposed by this toolchain process execution instance for downstream processing.
+    /// </summary>
+    /// <value>The arguments value exposed by <see cref="ToolchainProcessExecutionRequest"/>.</value>
     public List<string> Arguments { get; set; } = [];
     /// <summary>Gets or sets whether the process execution has explicit user approval.</summary>
+    /// <value>The user confirmed value exposed by <see cref="ToolchainProcessExecutionRequest"/>.</value>
     public bool UserConfirmed { get; set; }
 }
 
 /// <summary>Reports the bounded output of one persisted toolchain process execution.</summary>
 public sealed class ToolchainProcessExecutionResult
 {
-    /// <summary>Gets or sets the profile key that ran.</summary>
+    /// <summary>
+    /// Gets or sets the stable profile key used to identify or correlate this toolchain process execution instance with related application state.
+    /// </summary>
+    /// <value>The profile key value exposed by <see cref="ToolchainProcessExecutionResult"/>.</value>
     public string ProfileKey { get; set; } = string.Empty;
-    /// <summary>Gets or sets the process exit code.</summary>
+    /// <summary>
+    /// Gets or sets the exit code value that forms part of the toolchain process execution state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The exit code value exposed by <see cref="ToolchainProcessExecutionResult"/>.</value>
     public int ExitCode { get; set; }
-    /// <summary>Gets or sets bounded standard output.</summary>
+    /// <summary>
+    /// Gets or sets the standard output value that forms part of the toolchain process execution state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The standard output value exposed by <see cref="ToolchainProcessExecutionResult"/>.</value>
     public string StandardOutput { get; set; } = string.Empty;
-    /// <summary>Gets or sets bounded standard error.</summary>
+    /// <summary>
+    /// Gets or sets the standard error value that forms part of the toolchain process execution state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The standard error value exposed by <see cref="ToolchainProcessExecutionResult"/>.</value>
     public string StandardError { get; set; } = string.Empty;
-    /// <summary>Gets or sets the UTC completion time.</summary>
+    /// <summary>
+    /// Gets or sets the completed at UTC associated with this toolchain process execution state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The completed at UTC value exposed by <see cref="ToolchainProcessExecutionResult"/>.</value>
     public DateTime CompletedAtUtc { get; set; } = DateTime.UtcNow;
 }

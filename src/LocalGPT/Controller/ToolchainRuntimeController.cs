@@ -62,6 +62,9 @@ public sealed class ToolchainRuntimeController(
         catch (Exception exception) { logger.LogError(exception, "Toolchain acquisition download API failed; URL and path were omitted from logs."); return Results.InternalServerError("Toolchain download failed. Review LocalGPT logs."); }
     }
     /// <summary>Lists database-backed reusable toolchain process profiles.</summary>
+    /// <param name="capability">Capability value supplied to the toolchain runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("profiles")]
     public async Task<IResult> ProfilesAsync([FromQuery] string? capability, CancellationToken cancellationToken)
     {
@@ -69,7 +72,12 @@ public sealed class ToolchainRuntimeController(
         catch (Exception exception) { logger.LogError(exception, "Toolchain execution profile API failed."); return Results.InternalServerError("Toolchain profiles could not be loaded. Review LocalGPT logs."); }
     }
 
-    /// <summary>Saves one reusable toolchain process profile after normal human approval.</summary>
+    /// <summary>
+    /// Persists profile for the toolchain runtime API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("profiles")]
     [HumanApprovalRequired("toolchain.profile.save", "Save toolchain process profile", "Save a reusable runtime/compiler process definition and capability binding in the LocalGPT database.", "High", "Toolchain profile reviewer")]
     public async Task<IResult> SaveProfileAsync([FromBody] SaveToolchainExecutionProfileRequest request, CancellationToken cancellationToken)
@@ -79,6 +87,9 @@ public sealed class ToolchainRuntimeController(
     }
 
     /// <summary>Runs one persisted process profile without a command shell after normal human approval.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("profiles/execute")]
     [HumanApprovalRequired("toolchain.profile.execute", "Run toolchain process profile", "Run one persisted toolchain process profile with bounded output and no command shell.", "High", "Toolchain execution reviewer")]
     public async Task<IResult> ExecuteProfileAsync([FromBody] ToolchainProcessExecutionRequest request, CancellationToken cancellationToken)

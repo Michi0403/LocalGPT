@@ -40,9 +40,15 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     private readonly ILocalGptVocabularyService vocabulary;
     /// <summary>Provides database-backed spooler retention, paging and persistence timing.</summary>
     private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
-    /// <summary>Gets database-backed read and retention limits for the spooler.</summary>
+    /// <summary>
+    /// Gets the query parameters value that forms part of the council spooler state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The query parameters value exposed by <see cref="CouncilSpoolerService"/>.</value>
     private ServiceQueryRuntimeParameters QueryParameters => runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson);
-    /// <summary>Gets database-backed service timing for spooler persistence.</summary>
+    /// <summary>
+    /// Gets the timing parameters value that forms part of the council spooler state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The timing parameters value exposed by <see cref="CouncilSpoolerService"/>.</value>
     private ServiceTimingRuntimeParameters TimingParameters => runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson);
     /// <summary>
     /// Stores the cancellation source used by <see cref="CouncilSpoolerService"/> to stop its current background or asynchronous operation.

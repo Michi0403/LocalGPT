@@ -10,6 +10,7 @@ namespace LocalGPT.Services;
 public sealed class GetLearningFileChecklistFunction(ILearningRoundService learning, ILogger<GetLearningFileChecklistFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Policy-approved read-only function contract.</summary>
+    /// <value>The descriptor value exposed by <see cref="GetLearningFileChecklistFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.learning.files", "POST", "/api/dxai/functions/localgpt.learning.files/invoke",
         "Lists a bounded page of source-revision files, persisted read/review status, blockers and exact unfinished counts. A successful hash alone does not mean learned.",
@@ -56,6 +57,7 @@ public sealed class GetLearningFileChecklistFunction(ILearningRoundService learn
 public sealed class ReadLearningFileChunkFunction(ILearningRoundService learning, ILogger<ReadLearningFileChunkFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Read-only source-backed function contract.</summary>
+    /// <value>The descriptor value exposed by <see cref="ReadLearningFileChunkFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.learning.file.read", "POST", "/api/dxai/functions/localgpt.learning.file.read/invoke",
         "Reads the next chunk of an approved project's tracked text file. Stores the actually read cursor, checks source hash, and returns HasMore; never marks semantic review complete.",
@@ -67,7 +69,9 @@ public sealed class ReadLearningFileChunkFunction(ILearningRoundService learning
         {"type":"object","properties":{"projectId":{"type":"string","format":"uuid"},"revisionId":{"type":"string","format":"uuid"},"fileId":{"type":"string","format":"uuid"},"maximumCharacters":{"type":"integer","minimum":1,"maximum":16000}},"additionalProperties":false}
         """, IsCoordinationOnly: true);
 
-    /// <summary>Reads one resumable source chunk without source mutation.</summary>
+    /// <summary>
+    /// Performs invoke for <see cref="ReadLearningFileChunkFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read learning file chunk function workflow.
+    /// </summary>
     /// <param name="request">Function arguments and active project.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Content and continuation cursor.</returns>
@@ -102,6 +106,7 @@ public sealed class ReadLearningFileChunkFunction(ILearningRoundService learning
 public sealed class ReviewLearningFileFunction(ILearningRoundService learning, ILogger<ReviewLearningFileFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Coordination-only model-suggested review function contract.</summary>
+    /// <value>The descriptor value exposed by <see cref="ReviewLearningFileFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.learning.file.review", "POST", "/api/dxai/functions/localgpt.learning.file.review/invoke",
         "Records source-backed model findings after a complete tracked-file read, or an explicit blocker when source cannot be reviewed.",

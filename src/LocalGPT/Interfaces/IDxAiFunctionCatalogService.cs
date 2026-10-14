@@ -8,6 +8,9 @@ namespace LocalGPT.Interfaces;
 public interface IDxAiFunctionCatalogService
 {
     /// <summary>Searches callable, policy-allowed AI functions with optional expanded schemas.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function discovery result produced by the operation.</returns>
     Task<DxAiFunctionDiscoveryResult> DiscoverForAiAsync(DxAiFunctionDiscoveryRequest request, CancellationToken cancellationToken = default);
     /// <summary>
     /// Performs synchronize as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -63,4 +66,9 @@ public interface IPublicServiceMethodInvoker
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The object produced by the operation.</returns>
     Task<object?> InvokeAsync(PublicServiceMethodInvocationRequest request, CancellationToken cancellationToken = default);
+    /// <summary>Invokes a catalogued service method after the controller's exact-action HumanApprovalRequired gate has authorized it. This is not the AI/peer invocation path.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The object produced by the operation.</returns>
+    Task<object?> InvokeLocallyApprovedAsync(PublicServiceMethodInvocationRequest request, CancellationToken cancellationToken = default);
 }

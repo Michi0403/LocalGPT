@@ -316,6 +316,9 @@ internal readonly struct ProviderModelIdentity
 
     /// <summary>Determines whether two saved/current model keys can safely identify the same concrete model selection.</summary>
     /// <remarks>Provider-qualified keys keep host/provider boundaries intact. Legacy bare model names are accepted only as candidate matches; callers that resolve a set must still reject ambiguity.</remarks>
+    /// <param name="left">Left value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <param name="right">Right value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool AreEquivalentSelectionKeys(string? left, string? right)
     {
         if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))

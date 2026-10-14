@@ -291,7 +291,16 @@ public sealed class CouncilGameController(
         }
     }
 
-    /// <summary>Reads a full or cropped authoritative Council ASCII display.</summary>
+    /// <summary>
+    /// Returns the display projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+    /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+    /// <param name="x">X value supplied to the council game operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game operation and used when producing its result.</param>
+    /// <param name="width">Width value supplied to the council game operation and used when producing its result.</param>
+    /// <param name="height">Height value supplied to the council game operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("display/{sessionId:guid}")]
     public async Task<ActionResult<CouncilGameDisplaySnapshot>> Display(Guid sessionId, [FromQuery] int x, [FromQuery] int y, [FromQuery] int width, [FromQuery] int height, CancellationToken cancellationToken)
     {
@@ -299,31 +308,56 @@ public sealed class CouncilGameController(
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException) { logger.LogWarning(ex, "Council display read was rejected for session {GameSessionId}.", sessionId); return BadRequest(new { error = ex.Message }); }
     }
 
-    /// <summary>Writes clipped text to the Council ASCII display.</summary>
+    /// <summary>
+    /// Returns the display text projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("display/text")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> DisplayText([FromBody] WriteCouncilGameTextRequest request, CancellationToken cancellationToken)
         => await RunDisplayMutationAsync(request.SessionId, () => games.WriteTextAsync(request, cancellationToken)).ConfigureAwait(false);
 
-    /// <summary>Writes one Council ASCII display cell.</summary>
+    /// <summary>
+    /// Returns the display cell projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("display/cell")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> DisplayCell([FromBody] SetCouncilGameCellRequest request, CancellationToken cancellationToken)
         => await RunDisplayMutationAsync(request.SessionId, () => games.SetCellAsync(request, cancellationToken)).ConfigureAwait(false);
 
     /// <summary>Fills one clipped Council ASCII display rectangle.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("display/fill")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> DisplayFill([FromBody] FillCouncilGameRegionRequest request, CancellationToken cancellationToken)
         => await RunDisplayMutationAsync(request.SessionId, () => games.FillRegionAsync(request, cancellationToken)).ConfigureAwait(false);
 
     /// <summary>Blits a multiline ASCII block into the Council display.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("display/blit")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> DisplayBlit([FromBody] BlitCouncilGameRegionRequest request, CancellationToken cancellationToken)
         => await RunDisplayMutationAsync(request.SessionId, () => games.BlitRegionAsync(request, cancellationToken)).ConfigureAwait(false);
 
     /// <summary>Submits pregenerated ASCII animation frames for local client-side playback.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("animation")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Animation([FromBody] SubmitCouncilGameAnimationRequest request, CancellationToken cancellationToken)
         => await RunDisplayMutationAsync(request.SessionId, () => games.SubmitAnimationAsync(request, cancellationToken)).ConfigureAwait(false);
 
+    /// <summary>
+    /// Returns the run display mutation projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+    /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+    /// <param name="operation">Operation value supplied to the council game operation and used when producing its result.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     private async Task<ActionResult<CouncilGameSessionSnapshot>> RunDisplayMutationAsync(Guid sessionId, Func<Task<CouncilGameSessionSnapshot>> operation)
     {
         try { return Ok(await operation().ConfigureAwait(false)); }

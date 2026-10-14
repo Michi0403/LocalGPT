@@ -145,7 +145,11 @@ namespace LocalGPT.Services
     }
 }
 
-    /// <summary>Creates an independent tournament fighter snapshot.</summary>
+    /// <summary>
+    /// Performs clone tournament fighter as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council kernel tournament fighter state produced by the operation.</returns>
     private CouncilKernelTournamentFighterState CloneTournamentFighter(CouncilKernelTournamentFighterState source)
     {
         try
@@ -182,7 +186,11 @@ namespace LocalGPT.Services
 
 
 
-    /// <summary>Creates an independent tournament creature snapshot.</summary>
+    /// <summary>
+    /// Performs clone tournament creature as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council kernel tournament creature state produced by the operation.</returns>
     private CouncilKernelTournamentCreatureState CloneTournamentCreature(CouncilKernelTournamentCreatureState source)
     {
         try
@@ -211,7 +219,11 @@ namespace LocalGPT.Services
         }
     }
 
-    /// <summary>Creates an independent persistent ASCII actor rig snapshot.</summary>
+    /// <summary>
+    /// Performs clone ascii actor rig as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council ascii actor rig produced by the operation.</returns>
     private CouncilAsciiActorRig CloneAsciiActorRig(CouncilAsciiActorRig source)
     {
         try
@@ -239,7 +251,11 @@ namespace LocalGPT.Services
         }
     }
 
-    /// <summary>Creates an independent tournament timeline snapshot.</summary>
+    /// <summary>
+    /// Performs clone tournament timeline entry as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council kernel tournament timeline entry produced by the operation.</returns>
     private CouncilKernelTournamentTimelineEntry CloneTournamentTimelineEntry(CouncilKernelTournamentTimelineEntry source)
     {
         try

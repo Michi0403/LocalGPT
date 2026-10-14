@@ -127,9 +127,11 @@ public sealed class LearningRegexInput
     public string Flags { get; set; } = "c";
 
     /// <summary>Explains the concrete source-backed purpose of the suggested pattern.</summary>
+    /// <value>The description value exposed by <see cref="LearningRegexInput"/>.</value>
     public string Description { get; set; } = string.Empty;
 
     /// <summary>Optional literal source excerpt against which the proposed pattern must match.</summary>
+    /// <value>The sample text value exposed by <see cref="LearningRegexInput"/>.</value>
     public string SampleText { get; set; } = string.Empty;
 }
 
@@ -174,6 +176,15 @@ public sealed record LearningMaintenanceResult(
     IReadOnlyList<LearningProjectSyncResult> ProjectsSynchronized);
 
 /// <summary>One bounded file-checklist row; a scan or hash never constitutes a semantic review.</summary>
+/// <param name="FileId">Identifier of the file to use for this operation.</param>
+/// <param name="RelativePath">Relative path value supplied to the learning file checklist item operation and used when producing its result.</param>
+/// <param name="ContentHash">Content hash value supplied to the learning file checklist item operation and used when producing its result.</param>
+/// <param name="Status">Status value supplied to the learning file checklist item operation and used when producing its result.</param>
+/// <param name="ReadCharacters">Read characters value supplied to the learning file checklist item operation and used when producing its result.</param>
+/// <param name="ReadComplete">Value indicating whether read complete should apply to this operation.</param>
+/// <param name="Evidence">Evidence value supplied to the learning file checklist item operation and used when producing its result.</param>
+/// <param name="BlockReason">Block reason value supplied to the learning file checklist item operation and used when producing its result.</param>
+/// <param name="UpdatedAtUtc">Updated at utc value supplied to the learning file checklist item operation and used when producing its result.</param>
 public sealed record LearningFileChecklistItem(
     Guid FileId,
     string RelativePath,
@@ -186,6 +197,17 @@ public sealed record LearningFileChecklistItem(
     DateTime? UpdatedAtUtc);
 
 /// <summary>Database-grounded progress counters and a bounded, resumable window of file tasks.</summary>
+/// <param name="ProjectId">Identifier of the project to use for this operation.</param>
+/// <param name="RevisionId">Identifier of the revision to use for this operation.</param>
+/// <param name="Total">Total value supplied to the learning file checklist snapshot operation and used when producing its result.</param>
+/// <param name="Pending">Pending value supplied to the learning file checklist snapshot operation and used when producing its result.</param>
+/// <param name="Reading">Reading value supplied to the learning file checklist snapshot operation and used when producing its result.</param>
+/// <param name="NeedsReview">Value indicating whether review should apply to this operation.</param>
+/// <param name="Blocked">Blocked value supplied to the learning file checklist snapshot operation and used when producing its result.</param>
+/// <param name="Completed">Completed value supplied to the learning file checklist snapshot operation and used when producing its result.</param>
+/// <param name="SkippedWithReason">Skipped with reason value supplied to the learning file checklist snapshot operation and used when producing its result.</param>
+/// <param name="Offset">Offset value supplied to the learning file checklist snapshot operation and used when producing its result.</param>
+/// <param name="Files">Learning file checklist item dependency used by the learning file checklist snapshot workflow to provide the corresponding application capability.</param>
 public sealed record LearningFileChecklistSnapshot(
     Guid ProjectId,
     Guid? RevisionId,
@@ -200,6 +222,15 @@ public sealed record LearningFileChecklistSnapshot(
     IReadOnlyList<LearningFileChecklistItem> Files);
 
 /// <summary>A single verified source chunk and its durable read-continuation cursor.</summary>
+/// <param name="FileId">Identifier of the file to use for this operation.</param>
+/// <param name="RelativePath">Relative path value supplied to the learning file read operation and used when producing its result.</param>
+/// <param name="ContentHash">Content hash value supplied to the learning file read operation and used when producing its result.</param>
+/// <param name="OffsetCharacters">Offset characters value supplied to the learning file read operation and used when producing its result.</param>
+/// <param name="NextOffsetCharacters">Next offset characters value supplied to the learning file read operation and used when producing its result.</param>
+/// <param name="HasMore">Value indicating whether more should apply to this operation.</param>
+/// <param name="Content">Content value supplied to the learning file read operation and used when producing its result.</param>
+/// <param name="Status">Status value supplied to the learning file read operation and used when producing its result.</param>
+/// <param name="BlockReason">Block reason value supplied to the learning file read operation and used when producing its result.</param>
 public sealed record LearningFileReadResult(
     Guid FileId,
     string RelativePath,
@@ -212,6 +243,10 @@ public sealed record LearningFileReadResult(
     string BlockReason);
 
 /// <summary>Result of storing a model-suggested per-file review, never user-approved knowledge.</summary>
+/// <param name="FileId">Identifier of the file to use for this operation.</param>
+/// <param name="ContentHash">Content hash value supplied to the learning file review operation and used when producing its result.</param>
+/// <param name="Status">Status value supplied to the learning file review operation and used when producing its result.</param>
+/// <param name="ReadComplete">Value indicating whether read complete should apply to this operation.</param>
 public sealed record LearningFileReviewResult(
     Guid FileId,
     string ContentHash,
@@ -222,16 +257,22 @@ public sealed record LearningFileReviewResult(
 public sealed class LearningFileCursorRequest
 {
     /// <summary>Selected project, falling back to the active chat project if omitted.</summary>
+    /// <value>The project identifier value exposed by <see cref="LearningFileCursorRequest"/>.</value>
     public Guid? ProjectId { get; set; }
     /// <summary>Selected revision or the project's base files.</summary>
+    /// <value>The revision identifier value exposed by <see cref="LearningFileCursorRequest"/>.</value>
     public Guid? RevisionId { get; set; }
     /// <summary>Optional specific file identity for continuation.</summary>
+    /// <value>The file identifier value exposed by <see cref="LearningFileCursorRequest"/>.</value>
     public Guid? FileId { get; set; }
     /// <summary>Bounded checklist-page offset.</summary>
+    /// <value>The offset value exposed by <see cref="LearningFileCursorRequest"/>.</value>
     public int Offset { get; set; }
     /// <summary>Bounded result size.</summary>
+    /// <value>The take value exposed by <see cref="LearningFileCursorRequest"/>.</value>
     public int Take { get; set; } = 100;
     /// <summary>Maximum content characters in one read step.</summary>
+    /// <value>The maximum characters value exposed by <see cref="LearningFileCursorRequest"/>.</value>
     public int MaximumCharacters { get; set; } = 6000;
 }
 
@@ -239,10 +280,13 @@ public sealed class LearningFileCursorRequest
 public sealed class LearningFileReviewRequest
 {
     /// <summary>Source-backed file identity.</summary>
+    /// <value>The file identifier value exposed by <see cref="LearningFileReviewRequest"/>.</value>
     public Guid FileId { get; set; }
     /// <summary>Concise findings or reason for an unresolved blocker.</summary>
+    /// <value>The evidence value exposed by <see cref="LearningFileReviewRequest"/>.</value>
     public string Evidence { get; set; } = string.Empty;
     /// <summary>True when no credible semantic review is possible.</summary>
+    /// <value>The blocked value exposed by <see cref="LearningFileReviewRequest"/>.</value>
     public bool Blocked { get; set; }
 }
 
@@ -282,6 +326,14 @@ public sealed record RepositoryKnowledgeRefreshResult(
     IReadOnlyList<LearningProjectSyncResult> ProjectsSynchronized);
 
 /// <summary>Reports review-required Knowledge and regex candidates staged from one synchronized source revision.</summary>
+/// <param name="ProjectId">Identifier of the project to use for this operation.</param>
+/// <param name="RevisionId">Identifier of the revision to use for this operation.</param>
+/// <param name="ProjectName">Project name value supplied to the project repository learning operation and used when producing its result.</param>
+/// <param name="AddedFiles">Added files value supplied to the project repository learning operation and used when producing its result.</param>
+/// <param name="ChangedFiles">Changed files value supplied to the project repository learning operation and used when producing its result.</param>
+/// <param name="RemovedFiles">Removed files value supplied to the project repository learning operation and used when producing its result.</param>
+/// <param name="KnowledgeIds">Guid dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
+/// <param name="RegexNames">String dependency used by the project repository learning workflow to provide the corresponding application capability.</param>
 public sealed record ProjectRepositoryLearningResult(
     Guid ProjectId,
     Guid RevisionId,

@@ -10,6 +10,18 @@ using Microsoft.Extensions.Options;
 namespace LocalGPT.Services;
 
 /// <summary>Coordinates LocalGPT-managed Python environments, specialized local models and media inference.</summary>
+/// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+/// <param name="configurationWriter">Configuration writer dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="toolchainDiscovery">Toolchain discovery service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="toolchainProfiles">Toolchain execution profile service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="projectMaintenance">Project maintenance service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="python">Python net runtime coordinator dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="artifacts">Local ai artifact service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="uploads">Chat upload workspace service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="platform">Platform runtime service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="environment">Web host environment dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed partial class LocalAiRuntimeService(
     IOptionsMonitor<LocalGptConfigurationRoot> options,
     IConfigurationWriter configurationWriter,
@@ -24,8 +36,18 @@ public sealed partial class LocalAiRuntimeService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalAiRuntimeService> logger) : ILocalAiRuntimeService
 {
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="LocalAiRuntimeService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Gets the parameters value that forms part of the local AI runtime state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The parameters value exposed by <see cref="LocalAiRuntimeService"/>.</value>
     private LocalAiRuntimeParameters Parameters => runtimePolicy.GetJson<LocalAiRuntimeParameters>(LocalGptRuntimeValue.LocalAiRuntimeParametersJson);
+    /// <summary>
+    /// Stores the in-memory executable capabilities collection maintained internally by <see cref="LocalAiRuntimeService"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<LocalAiCapability> ExecutableCapabilities =
     [
         LocalAiCapability.ImageGeneration,
@@ -34,12 +56,32 @@ public sealed partial class LocalAiRuntimeService(
         LocalAiCapability.ImageToVideo,
         LocalAiCapability.SpeechRecognition
     ];
+    /// <summary>
+    /// Defines the runtime policy profile key constant used by <see cref="LocalAiRuntimeService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string RuntimePolicyProfileKey = "localai.runtime-policy";
+    /// <summary>
+    /// Stores the internal configured override state used by <see cref="LocalAiRuntimeService"/> while executing its surrounding workflow.
+    /// </summary>
     private PythonCoreOptions? configuredOverride;
+    /// <summary>
+    /// Stores the internal runtime policy restart required state used by <see cref="LocalAiRuntimeService"/> while executing its surrounding workflow.
+    /// </summary>
     private bool runtimePolicyRestartRequired;
+    /// <summary>
+    /// Stores the internal runtime policy loaded state used by <see cref="LocalAiRuntimeService"/> while executing its surrounding workflow.
+    /// </summary>
     private bool runtimePolicyLoaded;
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to runtime policy load gate state owned by <see cref="LocalAiRuntimeService"/>.
+    /// </summary>
     private readonly SemaphoreSlim runtimePolicyLoadGate = new(1, 1);
 
+    /// <summary>
+    /// Discovers python as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<PythonRuntimeCandidate>> DiscoverPythonAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -70,6 +112,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Retrieves status as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime status produced by the operation.</returns>
     public async Task<LocalAiRuntimeStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -106,6 +153,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs probe as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime status produced by the operation.</returns>
     public async Task<LocalAiRuntimeStatus> ProbeAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -141,6 +193,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Retrieves runtime configuration as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime configuration produced by the operation.</returns>
     public async Task<LocalAiRuntimeConfiguration> GetRuntimeConfigurationAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -161,6 +218,13 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Updates runtime configuration as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime configuration produced by the operation.</returns>
     public async Task<LocalAiRuntimeConfiguration> UpdateRuntimeConfigurationAsync(LocalAiRuntimeConfigurationChangeRequest request, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -170,6 +234,8 @@ public sealed partial class LocalAiRuntimeService(
             cancellationToken.ThrowIfCancellationRequested();
 
             var device = NormalizeRuntimeDevice(request.DefaultDevice);
+            var memoryStrategy = NormalizeMemoryStrategy(request.DefaultMemoryStrategy);
+            if (request.MaxParallelProcessJobs is < 1 or > 16) throw new ArgumentOutOfRangeException(nameof(request), "Process worker count must be between 1 and 16.");
             var whisperModel = NormalizeWhisperVariant(request.DefaultWhisperModel);
             var speechTask = NormalizeSpeechTask(request.DefaultSpeechTask);
             if (request.DefaultSpeechLanguage?.Length > 40)
@@ -191,6 +257,8 @@ public sealed partial class LocalAiRuntimeService(
             var previous = CurrentConfig();
             var updated = ClonePythonCore(previous);
             updated.DefaultDevice = device;
+            updated.DefaultMemoryStrategy = memoryStrategy;
+            updated.MaxParallelProcessJobs = request.MaxParallelProcessJobs;
             updated.DefaultWhisperModel = whisperModel;
             updated.DefaultSpeechLanguage = (request.DefaultSpeechLanguage ?? string.Empty).Trim();
             updated.DefaultSpeechTask = speechTask;
@@ -208,6 +276,8 @@ public sealed partial class LocalAiRuntimeService(
             var persistedPolicy = new LocalAiRuntimeConfigurationChangeRequest
             {
                 DefaultDevice = updated.DefaultDevice,
+                DefaultMemoryStrategy = updated.DefaultMemoryStrategy,
+                MaxParallelProcessJobs = updated.MaxParallelProcessJobs,
                 DefaultWhisperModel = updated.DefaultWhisperModel,
                 DefaultSpeechLanguage = updated.DefaultSpeechLanguage,
                 DefaultSpeechTask = updated.DefaultSpeechTask,
@@ -252,6 +322,12 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Performs configure python as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="candidate">Candidate value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task ConfigurePythonAsync(PythonRuntimeCandidate candidate, CancellationToken cancellationToken = default)
     {
     try
@@ -308,6 +384,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Creates managed environment as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task CreateManagedEnvironmentAsync(bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -348,6 +430,13 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs install package profile as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="profileKey">Profile key value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task InstallPackageProfileAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -369,6 +458,10 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Retrieves package profiles as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<LocalAiPackageProfile> GetPackageProfiles() {
     try
     {
@@ -395,6 +488,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs format package list as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="packages">String dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string FormatPackageList(IEnumerable<string> packages)
     {
         try
@@ -412,6 +510,11 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Performs format capabilities as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="capabilities">Local ai capability dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string FormatCapabilities(IEnumerable<LocalAiCapability> capabilities)
     {
         try
@@ -430,6 +533,10 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Retrieves installed models as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<LocalAiModelInstallation> GetInstalledModels()
     {
         var modelRoot = ResolveModelRoot(CurrentConfig());
@@ -453,6 +560,13 @@ public sealed partial class LocalAiRuntimeService(
         return result.OrderByDescending(item => item.InstalledAtUtc).ToList();
     }
 
+    /// <summary>
+    /// Performs install model as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI model installation produced by the operation.</returns>
     public async Task<LocalAiModelInstallation> InstallModelAsync(LocalAiModelInstallRequest request, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         await EnsureRuntimePolicyLoadedAsync(cancellationToken).ConfigureAwait(false);
@@ -540,6 +654,14 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Performs install open AI whisper as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sourceArchivePath">Source archive path value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="variant">Variant value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI model installation produced by the operation.</returns>
     public async Task<LocalAiModelInstallation> InstallOpenAiWhisperAsync(string sourceArchivePath, string variant, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -644,6 +766,13 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Removes model as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="installationId">Identifier of the installation to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task RemoveModelAsync(string installationId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         await EnsureRuntimePolicyLoadedAsync(cancellationToken).ConfigureAwait(false);
@@ -676,6 +805,11 @@ public sealed partial class LocalAiRuntimeService(
         logger.LogInformation("Removed managed local-AI model {InstallationId}; model identity and path were omitted from logs.", installationId);
     }
 
+    /// <summary>
+    /// Performs clear model cache as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task ClearModelCacheAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -702,6 +836,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Generates image as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     public async Task<LocalAiRuntimeJobResult> GenerateImageAsync(LocalAiImageGenerationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -722,6 +862,7 @@ public sealed partial class LocalAiRuntimeService(
                     ["trust_remote_code"] = model.TrustRemoteCode,
                     ["cache_models"] = config.CacheModels,
                     ["device"] = config.DefaultDevice,
+                    ["memory_strategy"] = config.DefaultMemoryStrategy,
                     ["prompt"] = request.Prompt,
                     ["negative_prompt"] = request.NegativePrompt,
                     ["width"] = Math.Clamp(request.Width, Parameters.MinimumImageDimension, Parameters.MaximumImageDimension),
@@ -744,6 +885,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs edit workspace image as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     public async Task<LocalAiRuntimeJobResult> EditWorkspaceImageAsync(LocalAiImageEditRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -775,6 +922,7 @@ public sealed partial class LocalAiRuntimeService(
                         ["trust_remote_code"] = model.TrustRemoteCode,
                         ["cache_models"] = config.CacheModels,
                         ["device"] = config.DefaultDevice,
+                    ["memory_strategy"] = config.DefaultMemoryStrategy,
                         ["input_path"] = privateCopy,
                         ["maximum_input_bytes"] = maximumBytes,
                         ["maximum_image_pixels"] = Math.Clamp(config.MaximumImagePixels, Parameters.MinimumImagePixels, Parameters.MaximumImagePixels),
@@ -805,6 +953,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Generates video as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     public async Task<LocalAiRuntimeJobResult> GenerateVideoAsync(LocalAiVideoGenerationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -825,6 +979,7 @@ public sealed partial class LocalAiRuntimeService(
                     ["trust_remote_code"] = model.TrustRemoteCode,
                     ["cache_models"] = config.CacheModels,
                     ["device"] = config.DefaultDevice,
+                    ["memory_strategy"] = config.DefaultMemoryStrategy,
                     ["prompt"] = request.Prompt,
                     ["width"] = Math.Clamp(request.Width, Parameters.MinimumImageDimension, Parameters.MaximumVideoWidth),
                     ["height"] = Math.Clamp(request.Height, Parameters.MinimumImageDimension, Parameters.MaximumVideoHeight),
@@ -848,6 +1003,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Generates video from workspace image as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     public async Task<LocalAiRuntimeJobResult> GenerateVideoFromWorkspaceImageAsync(LocalAiImageToVideoRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -877,6 +1038,7 @@ public sealed partial class LocalAiRuntimeService(
                         ["trust_remote_code"] = model.TrustRemoteCode,
                         ["cache_models"] = config.CacheModels,
                         ["device"] = config.DefaultDevice,
+                    ["memory_strategy"] = config.DefaultMemoryStrategy,
                         ["input_path"] = privateCopy,
                         ["maximum_input_bytes"] = maximumBytes,
                         ["maximum_image_pixels"] = Math.Clamp(config.MaximumImagePixels, Parameters.MinimumImagePixels, Parameters.MaximumImagePixels),
@@ -908,6 +1070,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs transcribe workspace audio as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     public async Task<LocalAiRuntimeJobResult> TranscribeWorkspaceAudioAsync(LocalAiSpeechRecognitionRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -971,6 +1139,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Resolves workspace input as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="workspaceName">Workspace name value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="relativePath">Relative path value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveWorkspaceInput(string workspaceName, string relativePath)
     {
     try
@@ -993,6 +1167,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Ensures input size as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sourcePath">Source path value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="maximumBytes">Maximum bytes value supplied to the local AI runtime operation and used when producing its result.</param>
     private void EnsureInputSize(string sourcePath, long maximumBytes)
     {
     try
@@ -1012,6 +1191,13 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs copy private input as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sourcePath">Source path value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="privateCopy">Private copy value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CopyPrivateInputAsync(string sourcePath, string privateCopy, CancellationToken cancellationToken)
     {
     try
@@ -1035,6 +1221,14 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs run bridge process as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="operation">Operation value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="timeout">Timeout value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     private async Task<LocalAiRuntimeJobResult> RunBridgeProcessAsync(
         string operation,
         Dictionary<string, object?> parameters,
@@ -1116,6 +1310,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs install packages as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="profile">Profile value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task InstallPackagesAsync(LocalAiPackageProfile profile, CancellationToken cancellationToken)
     {
     try
@@ -1146,6 +1346,13 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs probe python candidate as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="executablePath">Executable path value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="discoverySource">Discovery source value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The python runtime candidate produced by the operation.</returns>
     private async Task<PythonRuntimeCandidate?> ProbePythonCandidateAsync(string executablePath, string discoverySource, CancellationToken cancellationToken)
     {
         try
@@ -1182,6 +1389,14 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Resolves python runtime library as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="home">Home value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="version">Version value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="libDirectory">Lib directory value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="libraryName">Library name value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolvePythonRuntimeLibrary(string home, string version, string libDirectory, string libraryName)
     {
     try
@@ -1221,6 +1436,13 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Publishes generated artifact as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="result">Result value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="fileName">File name value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     private async Task<LocalAiRuntimeJobResult> PublishGeneratedArtifactAsync(LocalAiRuntimeJobResult result, string fileName, CancellationToken cancellationToken)
     {
     try
@@ -1259,6 +1481,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs require capability as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="installationId">Identifier of the installation to use for this operation.</param>
+    /// <param name="capability">Capability value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The local AI model installation produced by the operation.</returns>
     private LocalAiModelInstallation RequireCapability(string installationId, LocalAiCapability capability)
     {
     try
@@ -1279,6 +1507,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Finds installation as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="installationId">Identifier of the installation to use for this operation.</param>
+    /// <returns>The local AI model installation produced by the operation.</returns>
     private LocalAiModelInstallation FindInstallation(string installationId) {
     try
     {
@@ -1295,6 +1528,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Persists manifest as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="modelRoot">Model root value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="installation">Installation value supplied to the local AI runtime operation and used when producing its result.</param>
     private void SaveManifest(string modelRoot, LocalAiModelInstallation installation)
     {
     try
@@ -1317,6 +1555,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs manifest path as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="modelRoot">Model root value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="installationId">Identifier of the installation to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ManifestPath(string modelRoot, string installationId) {
     try
     {
@@ -1332,6 +1576,12 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Builds installation identifier as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="modelId">Identifier of the model to use for this operation.</param>
+    /// <param name="revision">Revision value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildInstallationId(string modelId, string revision)
     {
     try
@@ -1350,6 +1600,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs infer adapter as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="capabilities">Local ai capability dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string InferAdapter(IReadOnlyCollection<LocalAiCapability> capabilities)
     {
     try
@@ -1370,6 +1625,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Parses python version as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The version produced by the operation.</returns>
     private Version ParsePythonVersion(string value) {
     try
     {
@@ -1385,6 +1645,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Builds runtime configuration as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="config">Config value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The local AI runtime configuration produced by the operation.</returns>
     private LocalAiRuntimeConfiguration BuildRuntimeConfiguration(PythonCoreOptions config)
     {
         try
@@ -1392,6 +1657,8 @@ public sealed partial class LocalAiRuntimeService(
             return new LocalAiRuntimeConfiguration
             {
                 DefaultDevice = NormalizeRuntimeDevice(config.DefaultDevice),
+                DefaultMemoryStrategy = NormalizeMemoryStrategy(config.DefaultMemoryStrategy),
+                MaxParallelProcessJobs = Math.Clamp(config.MaxParallelProcessJobs, 1, 16),
                 DefaultWhisperModel = NormalizeWhisperVariant(config.DefaultWhisperModel),
                 DefaultSpeechLanguage = config.DefaultSpeechLanguage ?? string.Empty,
                 DefaultSpeechTask = NormalizeSpeechTask(config.DefaultSpeechTask),
@@ -1419,12 +1686,40 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Normalizes memory strategy as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
+    private string NormalizeMemoryStrategy(string? value)
+    {
+        try
+        {
+            var strategy = (value ?? "native").Trim().ToLowerInvariant();
+            if (strategy is not ("native" or "model_cpu_offload" or "sequential_cpu_offload" or "balanced"))
+                throw new ArgumentException("Memory strategy must be native, model_cpu_offload, sequential_cpu_offload or balanced.");
+            return strategy;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Validating the diffusion memory strategy failed; requested value omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Normalizes runtime device as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeRuntimeDevice(string? value)
     {
         try
         {
             var normalized = (value ?? "auto").Trim().ToLowerInvariant();
-            return normalized is "auto" or "cpu" or "cuda" or "mps" ? normalized : throw new ArgumentException("Device must be auto, cpu, cuda or mps.");
+            return normalized is "auto" or "cpu" or "cuda" or "mps"
+                || (normalized.StartsWith("cuda:", StringComparison.Ordinal) && int.TryParse(normalized[5..], out var index) && index is >= 0 and < 32)
+                ? normalized : throw new ArgumentException("Device must be auto, cpu, cuda, cuda:N or mps.");
         }
         catch (Exception exception)
         {
@@ -1433,6 +1728,11 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Normalizes speech task as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeSpeechTask(string? value)
     {
         try
@@ -1447,6 +1747,11 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Normalizes whisper variant as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeWhisperVariant(string? value)
     {
         try
@@ -1463,6 +1768,11 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Ensures runtime policy loaded as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnsureRuntimePolicyLoadedAsync(CancellationToken cancellationToken)
     {
         var lockTaken = false;
@@ -1483,6 +1793,8 @@ public sealed partial class LocalAiRuntimeService(
                 {
                     var config = ClonePythonCore(configuredOverride ?? options.CurrentValue.PythonCore ?? new PythonCoreOptions());
                     config.DefaultDevice = NormalizeRuntimeDevice(persisted.DefaultDevice);
+                    config.DefaultMemoryStrategy = NormalizeMemoryStrategy(persisted.DefaultMemoryStrategy);
+                    config.MaxParallelProcessJobs = Math.Clamp(persisted.MaxParallelProcessJobs, 1, 16);
                     config.DefaultWhisperModel = NormalizeWhisperVariant(persisted.DefaultWhisperModel);
                     config.DefaultSpeechLanguage = (persisted.DefaultSpeechLanguage ?? string.Empty).Trim();
                     config.DefaultSpeechTask = NormalizeSpeechTask(persisted.DefaultSpeechTask);
@@ -1515,6 +1827,10 @@ public sealed partial class LocalAiRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Performs current config as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The python core options produced by the operation.</returns>
     private PythonCoreOptions CurrentConfig() {
     try
     {
@@ -1529,6 +1845,11 @@ public sealed partial class LocalAiRuntimeService(
         throw;
     }
 }
+    /// <summary>
+    /// Resolves environment path as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="config">Config value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveEnvironmentPath(PythonCoreOptions config) {
     try
     {
@@ -1543,6 +1864,11 @@ public sealed partial class LocalAiRuntimeService(
         throw;
     }
 }
+    /// <summary>
+    /// Resolves model root as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="config">Config value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveModelRoot(PythonCoreOptions config) {
     try
     {
@@ -1557,6 +1883,11 @@ public sealed partial class LocalAiRuntimeService(
         throw;
     }
 }
+    /// <summary>
+    /// Resolves artifact root as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="config">Config value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveArtifactRoot(PythonCoreOptions config) {
     try
     {
@@ -1572,6 +1903,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Resolves environment python as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="environmentPath">Environment path value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveEnvironmentPython(string environmentPath) {
     try
     {
@@ -1588,6 +1924,12 @@ public sealed partial class LocalAiRuntimeService(
 }
 
 
+    /// <summary>
+    /// Performs require existing file as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="label">Label value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RequireExistingFile(string? path, string label)
     {
     try
@@ -1607,6 +1949,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs require confirmation as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="operation">Operation value supplied to the local AI runtime operation and used when producing its result.</param>
     private void RequireConfirmation(bool userConfirmed, string operation)
     {
     try
@@ -1625,6 +1972,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Ensures process success as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="result">Result value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the local AI runtime operation and used when producing its result.</param>
     private void EnsureProcessSuccess(ProcessResult result, string operation)
     {
     try
@@ -1646,6 +1998,15 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs run process as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="executable">Executable value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="arguments">String dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+    /// <param name="workingDirectory">Working directory value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="timeout">Timeout value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The process result produced by the operation.</returns>
     private async Task<ProcessResult> RunProcessAsync(string executable, IEnumerable<string> arguments, string? workingDirectory, TimeSpan timeout, CancellationToken cancellationToken)
     {
     try
@@ -1694,6 +2055,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs trim output as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string TrimOutput(string value) {
     try
     {
@@ -1708,6 +2074,10 @@ public sealed partial class LocalAiRuntimeService(
         throw;
     }
 }
+    /// <summary>
+    /// Attempts to delete directory as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the local AI runtime operation and used when producing its result.</param>
     private void TryDeleteDirectory(string path) {
     try
     {
@@ -1723,6 +2093,11 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Performs clone configuration as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The local GPT configuration root produced by the operation.</returns>
     private LocalGptConfigurationRoot CloneConfiguration(LocalGptConfigurationRoot source) {
     try
     {
@@ -1737,6 +2112,11 @@ public sealed partial class LocalAiRuntimeService(
         throw;
     }
 }
+    /// <summary>
+    /// Performs clone python core as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <returns>The python core options produced by the operation.</returns>
     private PythonCoreOptions ClonePythonCore(PythonCoreOptions source) {
     try
     {
@@ -1751,5 +2131,11 @@ public sealed partial class LocalAiRuntimeService(
         throw;
     }
 }
+    /// <summary>
+    /// Represents the outcome of process, carrying the data and status produced by the corresponding application operation.
+    /// </summary>
+    /// <param name="ExitCode">Exit code value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="StdOut">Std out value supplied to the local AI runtime operation and used when producing its result.</param>
+    /// <param name="StdErr">Std err value supplied to the local AI runtime operation and used when producing its result.</param>
     private sealed record ProcessResult(int ExitCode, string StdOut, string StdErr);
 }

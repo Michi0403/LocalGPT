@@ -8,9 +8,11 @@ namespace LocalGPT.BusinessObjects;
 public sealed record DataManagementRelation(string ChildTable, string ParentTable, string ChildColumn, string ParentColumn)
 {
     /// <summary>UI label for navigating to the declared parent table.</summary>
+    /// <value>The parent navigation label value exposed by <see cref="DataManagementRelation"/>.</value>
     public string ParentNavigationLabel => $"↑ {ParentTable} · {ChildColumn}";
 
     /// <summary>UI label for navigating from a principal row to dependent records.</summary>
+    /// <value>The child navigation label value exposed by <see cref="DataManagementRelation"/>.</value>
     public string ChildNavigationLabel => $"↓ {ChildTable} · {ChildColumn}";
 }
 
@@ -30,5 +32,6 @@ public sealed record DataManagementTableInfo(
     IReadOnlyList<DataManagementRelation> Children)
 {
     /// <summary>Concise relational summary for the DevExpress navigation grid.</summary>
+    /// <value>The relations value exposed by <see cref="DataManagementTableInfo"/>.</value>
     public string Relations => $"{Parents.Count} parents · {Children.Count} children";
 }

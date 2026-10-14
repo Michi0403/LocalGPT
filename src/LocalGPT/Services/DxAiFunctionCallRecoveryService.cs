@@ -148,6 +148,8 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>Rejects incomplete JSON-shaped model text before it reaches the throwing JSON parser.</summary>
+    /// <param name="value">Value value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool LooksLikeCompleteJsonCarrier(string value)
     {
     try

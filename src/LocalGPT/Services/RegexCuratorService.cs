@@ -5,15 +5,33 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>Persists regex provenance and review state separately from the database-backed pattern text.</summary>
+/// <param name="regexPatterns">Regex pattern service dependency used by the regex curator workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Ambient local gpt context dependency used by the regex curator workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the regex curator workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RegexCuratorService(
     IRegexPatternService regexPatterns,
     IAmbientLocalGptContext ambientContext,
     LocalGptCatalogService catalog,
     ILogger<RegexCuratorService> logger) : IRegexCuratorService
 {
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to gate state owned by <see cref="RegexCuratorService"/>.
+    /// </summary>
     private readonly SemaphoreSlim Gate = new(1, 1);
+    /// <summary>
+    /// Stores the internal catalog path state used by <see cref="RegexCuratorService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string CatalogPath = Path.Combine(LocalGptApplicationDataPaths.ResolveUserPath("RegexCurator"), "curator.json");
 
+    /// <summary>
+    /// Performs mark suggested as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="name">Name value supplied to the regex curator operation and used when producing its result.</param>
+    /// <param name="provenance">Provenance value supplied to the regex curator operation and used when producing its result.</param>
+    /// <param name="usageScope">Usage scope value supplied to the regex curator operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task MarkSuggestedAsync(string name, string provenance, string usageScope, CancellationToken cancellationToken = default)
     {
         try
@@ -46,6 +64,12 @@ public sealed class RegexCuratorService(
         }
     }
 
+    /// <summary>
+    /// Performs review as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The regex curator entry produced by the operation.</returns>
     public async Task<RegexCuratorEntry> ReviewAsync(RegexCuratorReviewRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -86,6 +110,14 @@ public sealed class RegexCuratorService(
         }
     }
 
+    /// <summary>
+    /// Sets user approval as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="name">Name value supplied to the regex curator operation and used when producing its result.</param>
+    /// <param name="approved">Value indicating whether approved should apply to this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The regex curator entry produced by the operation.</returns>
     public async Task<RegexCuratorEntry> SetUserApprovalAsync(string name, bool approved, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -116,6 +148,11 @@ public sealed class RegexCuratorService(
         }
     }
 
+    /// <summary>
+    /// Performs list as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<RegexCuratorEntry>> ListAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -132,6 +169,11 @@ public sealed class RegexCuratorService(
         catch (Exception ex) { logger.LogError(ex, "Listing regex curator entries failed."); throw; }
     }
 
+    /// <summary>
+    /// Lists approved patterns as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<RegexPattern>> ListApprovedPatternsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -148,6 +190,12 @@ public sealed class RegexCuratorService(
         }
     }
 
+    /// <summary>
+    /// Ensures legacy entries unsafe as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="entries">Entries value supplied to the regex curator operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnsureLegacyEntriesUnsafeAsync(List<RegexCuratorEntry> entries, CancellationToken cancellationToken)
     {
         try
@@ -165,6 +213,11 @@ public sealed class RegexCuratorService(
         catch (Exception ex) { logger.LogError(ex, "Ensuring legacy regex curator entries failed."); throw; }
     }
 
+    /// <summary>
+    /// Loads unsafe as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<List<RegexCuratorEntry>> LoadUnsafeAsync(CancellationToken cancellationToken)
     {
         try
@@ -178,6 +231,12 @@ public sealed class RegexCuratorService(
         catch (Exception ex) { logger.LogError(ex, "Loading regex curator metadata failed."); throw; }
     }
 
+    /// <summary>
+    /// Persists unsafe as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="entries">Entries value supplied to the regex curator operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveUnsafeAsync(List<RegexCuratorEntry> entries, CancellationToken cancellationToken)
     {
         try
@@ -191,6 +250,10 @@ public sealed class RegexCuratorService(
         catch (Exception ex) { logger.LogError(ex, "Saving regex curator metadata failed."); throw; }
     }
 
+    /// <summary>
+    /// Performs reviewer identity as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The string identity string kind produced by the operation.</returns>
     private (string Identity, string Kind) ReviewerIdentity()
     {
         var current = ambientContext.Current;
@@ -204,6 +267,13 @@ public sealed class RegexCuratorService(
         return (Bound(identity, 300, "LocalGPT:System"), Bound(current.ActorKind, 80, "System"));
     }
 
+    /// <summary>
+    /// Performs bound as part of the regex curator service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the regex curator operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the regex curator operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the regex curator operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Bound(string? value, int maxLength, string fallback)
     {
         try

@@ -41,25 +41,41 @@ namespace LocalGPT.Components.Pages
     /// <summary>Short-lived user-visible continuation upload stage, cleared as soon as the message is queued.</summary>
     private string liveCouncilUploadStatus = string.Empty;
 
-    // Completed Council lanes remain cheap until the developer explicitly asks to inspect one.
-    // Running lanes still stream immediately.
+    // DevExpress AIChat owns and may cache the message template. A popup placed outside the
+    // template therefore owns post-run inspection state independently of message rendering.
     /// <summary>
-    /// Stores the in-memory revealed completed council activity evidence collection maintained internally by <see cref="Chat"/> for its current workflow state.
+    /// Stores the internal council evidence popup visible state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly HashSet<string> revealedCompletedCouncilActivityEvidence = new(StringComparer.Ordinal);
+    private bool CouncilEvidencePopupVisible;
+    /// <summary>
+    /// Stores the internal inspected council activity state used by <see cref="Chat"/> while executing its surrounding workflow.
+    /// </summary>
+    private CouncilLiveParticipantActivitySnapshot? InspectedCouncilActivity;
 
-    /// <summary>Reveals or hides completed lane evidence while keeping heavy content lazy until requested.</summary>
-    /// <param name="activityKey">Unique live participant activity key.</param>
-    private void ToggleCompletedCouncilActivityEvidence(string activityKey)
+    /// <summary>
+    /// Performs toggle completed council activity evidence for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="activity">Activity value supplied to the chat operation and used when producing its result.</param>
+    private void ToggleCompletedCouncilActivityEvidence(CouncilLiveParticipantActivitySnapshot activity)
     {
         try
         {
-            if (!revealedCompletedCouncilActivityEvidence.Add(activityKey))
-                revealedCompletedCouncilActivityEvidence.Remove(activityKey);
+            ArgumentNullException.ThrowIfNull(activity);
+            if (CouncilEvidencePopupVisible && InspectedCouncilActivity?.ActivityKey == activity.ActivityKey)
+            {
+                CouncilEvidencePopupVisible = false;
+                InspectedCouncilActivity = null;
+            }
+            else
+            {
+                InspectedCouncilActivity = activity;
+                CouncilEvidencePopupVisible = true;
+            }
+            StateHasChanged();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Toggling completed Council participant evidence failed.");
+            Logger.LogError(ex, "Inspecting completed Council participant evidence failed.");
             Notifier.ShowError("ChatToasts", "Council member evidence could not be opened. See local logs.", "Council evidence");
         }
     }
@@ -82,6 +98,7 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Shows recent decisions from the same persistent queue underneath the Chat review controls.</summary>
+    /// <value>The recent chat review decisions value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<HumanCollaborationRequest> RecentChatReviewDecisions => collaborationSnapshot.Requests
         .Where(request => request.DecidedAtUtc is not null)
         .OrderByDescending(request => request.DecidedAtUtc)

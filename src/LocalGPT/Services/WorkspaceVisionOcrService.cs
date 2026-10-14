@@ -8,6 +8,12 @@ using LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 namespace LocalGPT.Services;
 
 /// <summary>Owns safe workspace-image resolution and Ollama capability probing before delegating inference to the shared local vision OCR service.</summary>
+/// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+/// <param name="workspaces">Chat upload workspace service dependency used by the workspace vision OCR workflow to provide the corresponding application capability.</param>
+/// <param name="ocr">Local vision ocr service dependency used by the workspace vision OCR workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the workspace vision OCR workflow to provide the corresponding application capability.</param>
+/// <param name="councilRuntime">Council runtime service dependency used by the workspace vision OCR workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class WorkspaceVisionOcrService(
     IOptionsMonitor<LocalGptConfigurationRoot> options,
     IChatUploadWorkspaceService workspaces,
@@ -16,12 +22,21 @@ public sealed class WorkspaceVisionOcrService(
     CouncilRuntimeService councilRuntime,
     ILogger<WorkspaceVisionOcrService> logger) : IWorkspaceVisionOcrService
 {
+    /// <summary>
+    /// Stores the internal deep seek OCR minimum Ollama version state used by <see cref="WorkspaceVisionOcrService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly Version deepSeekOcrMinimumOllamaVersion = new(0, 13, 0);
+    /// <summary>
+    /// Stores the in-memory image extensions collection maintained internally by <see cref="WorkspaceVisionOcrService"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> imageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"
     };
 
+    /// <summary>
+    /// Retrieves capability as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<LocalVisionOcrCapability> GetCapabilityAsync(string? requestedModel = null, CancellationToken cancellationToken = default)
     {
@@ -55,6 +70,9 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Performs recognize workspace image as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<WorkspaceImageOcrResult> RecognizeWorkspaceImageAsync(WorkspaceImageOcrRequest request, CancellationToken cancellationToken = default)
     {
@@ -120,6 +138,13 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Performs probe host as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="host">Host value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <param name="requestedModel">Requested model value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local vision OCR capability produced by the operation.</returns>
     private async Task<LocalVisionOcrCapability> ProbeHostAsync(string host, string requestedModel, CancellationToken cancellationToken)
     {
         try
@@ -177,6 +202,10 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Performs configured Ollama hosts as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> ConfiguredOllamaHosts()
     {
         try
@@ -196,6 +225,11 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Reads installed model names as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="root">Root value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> ReadInstalledModelNames(JsonElement root)
     {
         try
@@ -219,6 +253,12 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Performs runtime compatible as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="modelName">Model name value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <param name="versionText">Version text value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool RuntimeCompatible(string modelName, string versionText)
     {
         try
@@ -235,6 +275,12 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Performs model matches as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="installed">Installed value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <param name="requested">Requested value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool ModelMatches(string installed, string requested)
     {
         try
@@ -249,6 +295,11 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Removes model tag as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="modelName">Model name value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RemoveModelTag(string modelName)
     {
         try
@@ -263,6 +314,11 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Determines whether deep seek OCR as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="modelName">Model name value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsDeepSeekOcr(string modelName)
     {
         try
@@ -276,6 +332,11 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Performs requirement for as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="modelName">Model name value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RequirementFor(string modelName)
     {
         try
@@ -289,6 +350,14 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Performs unavailable as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="modelName">Model name value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <param name="reason">Reason value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <param name="providerUri">Provider uri value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <param name="ollamaVersion">Ollama version value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <returns>The local vision OCR capability produced by the operation.</returns>
     private LocalVisionOcrCapability Unavailable(string modelName, string reason, string providerUri = "", string ollamaVersion = "")
     {
         try
@@ -312,6 +381,11 @@ public sealed class WorkspaceVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Performs media type as part of the workspace vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="extension">Extension value supplied to the workspace vision OCR operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string MediaType(string extension)
     {
         try

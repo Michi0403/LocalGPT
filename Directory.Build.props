@@ -18,6 +18,9 @@
 
     <!-- High and critical advisories block owner-side builds; lower severities remain visible. -->
     <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+    <!-- Signature XML warnings must fail the LocalGPT compilation even if a source declaration
+         is outside the static scanner's coverage (for example a compiler-generated member). -->
+    <WarningsAsErrors Condition="'$(MSBuildProjectName)' == 'LocalGPT'">$(WarningsAsErrors);CS1572;CS1573;CS1591</WarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <AssemblyMetadata Include="RepositoryUrl" Value="$(RepositoryUrl)" />

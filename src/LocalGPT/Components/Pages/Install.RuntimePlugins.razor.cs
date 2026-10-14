@@ -5,13 +5,23 @@ using LocalGPT.Runtime.Plugins;
 
 namespace LocalGPT.Components.Pages;
 
+/// <summary>
+/// Renders the install Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+/// </summary>
 public partial class Install
 {
-    /// <summary>Gets the runtime extension kinds available in the editor.</summary>
+    /// <summary>
+    /// Gets the runtime plugin kinds collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The runtime plugin kinds value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<RuntimePluginKind> RuntimePluginKinds { get; } = Enum.GetValues<RuntimePluginKind>();
-    /// <summary>Stores persisted runtime extension definitions displayed by Setup.</summary>
+    /// <summary>
+    /// Stores the in-memory runtime plugin definitions collection maintained internally by <see cref="Install"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<RuntimePluginDefinition> RuntimePluginDefinitions = Array.Empty<RuntimePluginDefinition>();
-    /// <summary>Stores the current runtime extension editor draft.</summary>
+    /// <summary>
+    /// Stores the internal runtime plugin draft state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private RuntimePluginDefinition RuntimePluginDraft = new();
     /// <summary>Stores DevExpress HTML-editor markup separately from the persisted plain executable source.</summary>
     private string RuntimePluginSourceMarkup = string.Empty;
@@ -23,10 +33,13 @@ public partial class Install
     private bool RuntimePluginEditorVisible;
     /// <summary>Tracks runtime extension persistence/build activity.</summary>
     private bool RuntimePluginBusy;
-    /// <summary>Stores the latest runtime extension status message.</summary>
+    /// <summary>
+    /// Stores the internal runtime plugin status state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string RuntimePluginStatus = string.Empty;
 
     /// <summary>Gets validated compiler/runtime candidates appropriate to the selected extension kind.</summary>
+    /// <value>The runtime plugin compiler installations value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<ProjectCompilerInstallation> RuntimePluginCompilerInstallations => RuntimePluginDraft.Kind switch
     {
         RuntimePluginKind.CSharpScript => CompilerInstallations
@@ -36,6 +49,11 @@ public partial class Install
             .ToList(),
         RuntimePluginKind.JavaScript => CompilerInstallations
             .Where(item => item.IsEnabled && (string.Equals(item.KnowledgeProfileKey, "node", StringComparison.OrdinalIgnoreCase) || string.Equals(item.Language, "JavaScript", StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(item => item.LastValidationSucceeded)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList(),
+        RuntimePluginKind.Python => CompilerInstallations
+            .Where(item => item.IsEnabled && (string.Equals(item.KnowledgeProfileKey, "python", StringComparison.OrdinalIgnoreCase) || string.Equals(item.Language, "Python", StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(item => item.LastValidationSucceeded)
             .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
             .ToList(),
@@ -107,6 +125,7 @@ public partial class Install
     }
 
     /// <summary>Loads persisted runtime extensions for the Setup workbench.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshRuntimePluginsAsync()
     {
         try
@@ -114,6 +133,7 @@ public partial class Install
             RuntimePluginBusy = true;
             RuntimePluginDefinitions = await RuntimePlugins.ListAsync().ConfigureAwait(false);
             RuntimePluginStatus = $"{RuntimePluginDefinitions.Count} persisted runtime extension(s).";
+            await RefreshRuntimePluginSourceProjectsAsync().ConfigureAwait(false);
         }
         catch (Exception exception)
         {
@@ -127,12 +147,18 @@ public partial class Install
         }
     }
 
-    /// <summary>Starts a new runtime extension draft.</summary>
+    /// <summary>
+    /// Performs new runtime plugin for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     private void NewRuntimePlugin()
     {
         try
         {
         RuntimePluginDraft = NewPluginDraft();
+        RuntimePluginSourceContext = new RuntimePluginSourceEditContext { PluginId = RuntimePluginDraft.Id };
+        RuntimePluginSourceRevisions = [];
+        RuntimePluginSourceFiles = [];
+        RuntimePluginSourceStatus = string.Empty;
         SyncRuntimePluginEditorFromDraft();
         RuntimePluginEditorVisible = true;
     
@@ -151,6 +177,10 @@ public partial class Install
         try
         {
         RuntimePluginDraft = ClonePlugin(plugin);
+        RuntimePluginSourceContext = new RuntimePluginSourceEditContext { PluginId = RuntimePluginDraft.Id };
+        RuntimePluginSourceRevisions = [];
+        RuntimePluginSourceFiles = [];
+        RuntimePluginSourceStatus = string.Empty;
         SyncRuntimePluginEditorFromDraft();
         RuntimePluginEditorVisible = true;
     
@@ -162,7 +192,9 @@ public partial class Install
         }
     }
 
-    /// <summary>Closes the runtime extension editor without execution.</summary>
+    /// <summary>
+    /// Closes runtime plugin editor for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     private void CloseRuntimePluginEditor()
     {
         try
@@ -197,8 +229,7 @@ public partial class Install
     {
         try
         {
-        if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript)
-            RuntimePluginDraft.SourceCode = RuntimePluginDefinitionSupport.FromEditorMarkup(RuntimePluginSourceMarkup);
+        RuntimePluginDraft.SourceCode = RuntimePluginDefinitionSupport.FromEditorMarkup(RuntimePluginSourceMarkup);
     
         }
         catch (Exception __componentMethodException)
@@ -245,6 +276,7 @@ public partial class Install
     }
 
     /// <summary>Persists the current runtime extension definition after explicit local action.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveRuntimePluginAsync()
     {
         try
@@ -254,6 +286,8 @@ public partial class Install
             SyncRuntimePluginDraftFromEditor();
             var saved = await RuntimePlugins.SaveAsync(new SaveRuntimePluginRequest { Plugin = RuntimePluginDraft, UserConfirmed = true }).ConfigureAwait(false);
             RuntimePluginDraft = ClonePlugin(saved);
+            RuntimePluginSourceContext.PluginId = RuntimePluginDraft.Id;
+            RuntimePluginSourceContext.SelectionVersion++;
             SyncRuntimePluginEditorFromDraft();
             RuntimePluginDefinitions = await RuntimePlugins.ListAsync().ConfigureAwait(false);
             RuntimePluginStatus = $"Saved runtime extension {saved.FunctionName}. Build/load remains a separate explicit action.";
@@ -273,6 +307,7 @@ public partial class Install
     }
 
     /// <summary>Saves the current definition and immediately performs the separate explicit build/load action.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveAndBuildRuntimePluginAsync()
     {
         try
@@ -283,6 +318,8 @@ public partial class Install
             var saved = await RuntimePlugins.SaveAsync(new SaveRuntimePluginRequest { Plugin = RuntimePluginDraft, UserConfirmed = true }).ConfigureAwait(false);
             var result = await RuntimePlugins.BuildAndLoadAsync(saved.Id, userConfirmed: true).ConfigureAwait(false);
             RuntimePluginDraft = ClonePlugin((await RuntimePlugins.ListAsync().ConfigureAwait(false)).First(item => item.Id == saved.Id));
+            RuntimePluginSourceContext.PluginId = RuntimePluginDraft.Id;
+            RuntimePluginSourceContext.SelectionVersion++;
             SyncRuntimePluginEditorFromDraft();
             RuntimePluginDefinitions = await RuntimePlugins.ListAsync().ConfigureAwait(false);
             RuntimePluginStatus = $"{result.Status}: {result.Message}";
@@ -306,6 +343,7 @@ public partial class Install
 
     /// <summary>Builds/materializes and activates one explicitly selected runtime extension.</summary>
     /// <param name="id">Persisted runtime extension identifier.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task BuildRuntimePluginAsync(Guid id)
     {
         try
@@ -333,8 +371,11 @@ public partial class Install
         }
     }
 
-    /// <summary>Deletes one explicitly selected runtime extension definition.</summary>
+    /// <summary>
+    /// Deletes runtime plugin for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     /// <param name="id">Persisted runtime extension identifier.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DeleteRuntimePluginAsync(Guid id)
     {
         try

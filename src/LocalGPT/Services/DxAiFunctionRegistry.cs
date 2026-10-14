@@ -23,6 +23,7 @@ namespace LocalGPT.Services;
 /// <param name="runtimePlugins">Runtime plugin service dependency used to expose persisted runtime-extension functions through the central DevExpress AI function registry.</param>
 /// <param name="databaseInitialization">Database initialization dependency used to read persisted function policy without creating a registry/catalog dependency cycle.</param>
 /// <param name="dbContextFactory">Database context factory used to read persisted function policy without resolving the catalog service from the scoped service provider.</param>
+/// <param name="audit">Devexpress ai function invocation audit service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 public sealed class DxAiFunctionRegistry(
     IHumanCollaborationService humanCollaboration,
     IDeferredDxAiInvocationService deferredInvocations,
@@ -110,6 +111,10 @@ public sealed class DxAiFunctionRegistry(
     }
 
     /// <summary>Shared invocation engine for chat, Council, API and workbench. Previews return before any approval/execution.</summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     private async Task<DxAiFunctionInvocationResult> InvokeCoreAsync(
         string functionName,
         DxAiFunctionInvocationRequest request,
@@ -526,10 +531,11 @@ public sealed class DxAiFunctionRegistry(
         }
     }
 
-    /// <summary>Validates the registered JSON-schema subset needed by LocalGPT function descriptors before an approval request can be created.</summary>
-    /// <param name="descriptor">Authoritative function descriptor.</param>
-    /// <param name="parameters">Proposed function parameters.</param>
-    /// <returns>An empty string when valid; otherwise a bounded validation error suitable for the model and local human UI.</returns>
+    /// <summary>
+    /// Turns a schema validation message into a structured issue with a parameter path and machine-readable error code.
+    /// </summary>
+    /// <param name="message">Human-readable schema validation failure emitted by the existing validator.</param>
+    /// <returns>The structured validation issue shown by the workbench and returned to the calling model.</returns>
     private DxAiFunctionValidationIssue BuildValidationIssue(string message)
     {
         try
@@ -552,6 +558,11 @@ public sealed class DxAiFunctionRegistry(
     }
 
     /// <summary>Fingerprint includes the complete live descriptor and saved exposure/approval policy, not just arguments.</summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="descriptor">Descriptor value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="policy">Policy value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildPreviewFingerprint(string functionName, DxaichatFunctionInfo descriptor,
         DxAiFunctionCatalogEntry? policy, DxAiFunctionInvocationRequest request)
     {
@@ -570,6 +581,12 @@ public sealed class DxAiFunctionRegistry(
         }
     }
 
+    /// <summary>
+    /// Validates invocation parameters in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="descriptor">Descriptor value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ValidateInvocationParameters(DxaichatFunctionInfo descriptor, JsonElement parameters)
     {
         try

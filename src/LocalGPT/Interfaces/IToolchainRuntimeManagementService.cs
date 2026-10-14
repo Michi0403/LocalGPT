@@ -17,7 +17,9 @@ public interface IToolchainEnvironmentService
     /// <returns>The bounded filtered environment entries.</returns>
     IReadOnlyList<ToolchainEnvironmentEntry> FilterEntries(IReadOnlyCollection<ToolchainEnvironmentEntry> entries, string? searchText, int maximumResults = 300);
 
-    /// <summary>Applies one explicitly confirmed environment-variable change.</summary>
+    /// <summary>
+    /// Performs change as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="request">The requested name, value, scope, and removal state.</param>
     /// <param name="cancellationToken">Cancellation token that stops persistence.</param>
     /// <returns>The refreshed redacted environment snapshot.</returns>
@@ -48,11 +50,25 @@ public interface IToolchainAcquisitionService
 public interface IToolchainExecutionProfileService
 {
     /// <summary>Lists enabled persisted profiles, optionally filtered by capability.</summary>
+    /// <param name="capabilityKey">Capability key value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<ToolchainExecutionProfile>> GetProfilesAsync(string? capabilityKey = null, CancellationToken cancellationToken = default);
     /// <summary>Returns one persisted profile by stable key.</summary>
+    /// <param name="profileKey">Profile key value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The toolchain execution profile produced by the operation.</returns>
     Task<ToolchainExecutionProfile?> GetProfileAsync(string profileKey, CancellationToken cancellationToken = default);
-    /// <summary>Saves one explicitly approved persisted profile.</summary>
+    /// <summary>
+    /// Persists profile as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The toolchain execution profile produced by the operation.</returns>
     Task<ToolchainExecutionProfile> SaveProfileAsync(SaveToolchainExecutionProfileRequest request, CancellationToken cancellationToken = default);
     /// <summary>Runs one profile without a command shell after required human approval.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The toolchain process execution result produced by the operation.</returns>
     Task<ToolchainProcessExecutionResult> ExecuteAsync(ToolchainProcessExecutionRequest request, CancellationToken cancellationToken = default);
 }

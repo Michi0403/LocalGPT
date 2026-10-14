@@ -6,6 +6,21 @@ namespace LocalGPT.Services
     public sealed partial class OrganicCouncilBlueprintSeedDataService
     {
         /// <summary>Creates a resilient workflow step whose required role slot may be taken over by another saved member after provider failure.</summary>
+        /// <param name="key">Key value supplied to the organic council blueprint seed operation and used when producing its result.</param>
+        /// <param name="displayName">Display name value supplied to the organic council blueprint seed operation and used when producing its result.</param>
+        /// <param name="sortOrder">Sort order value supplied to the organic council blueprint seed operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the organic council blueprint seed operation and used when producing its result.</param>
+        /// <param name="role">Role value supplied to the organic council blueprint seed operation and used when producing its result.</param>
+        /// <param name="prompt">Prompt value supplied to the organic council blueprint seed operation and used when producing its result.</param>
+        /// <param name="executionMode">Execution mode value supplied to the organic council blueprint seed operation and used when producing its result.</param>
+        /// <param name="canUseOrganicFunctions">Value indicating whether can use organic functions should apply to this operation.</param>
+        /// <param name="producesFinalAnswer">Value indicating whether produces final answer should apply to this operation.</param>
+        /// <param name="requiresHumanCheckpoint">Value indicating whether requires human checkpoint should apply to this operation.</param>
+        /// <param name="enableRolePeerReview">Value indicating whether enable role peer review should apply to this operation.</param>
+        /// <param name="summarizeRoleResults">Value indicating whether summarize role results should apply to this operation.</param>
+        /// <param name="includePriorTranscript">Value indicating whether include prior transcript should apply to this operation.</param>
+        /// <param name="allowedAutomaticFunctions">String dependency used by the organic council blueprint seed workflow to provide the corresponding application capability.</param>
+        /// <returns>The council workflow step definition produced by the operation.</returns>
         private CouncilWorkflowStepDefinition ResilientStep(
             string key,
             string displayName,
@@ -59,6 +74,7 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Creates the preseeded repository reconstruction and compiler Council requested for interactive Chat maintenance.</summary>
+        /// <returns>The organic council team definition produced by the operation.</returns>
         private OrganicCouncilTeamDefinition CreateProgramCompilerTeam()
         {
             try
@@ -201,6 +217,7 @@ Return the concrete result of the requested coding task: generated solution/proj
         }
 
         /// <summary>Creates the preseeded multi-node project maintenance and cross-platform publishing Council.</summary>
+        /// <returns>The organic council team definition produced by the operation.</returns>
         private OrganicCouncilTeamDefinition CreateProjectReleaseOrchestrationTeam()
         {
             try

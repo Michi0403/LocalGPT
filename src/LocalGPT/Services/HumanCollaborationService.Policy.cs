@@ -129,6 +129,11 @@ namespace LocalGPT.Services
     /// Session and persistent approval scopes deliberately cover later parameter sets for the same operation key;
     /// pending, non-approval, and exact-once decisions remain bound to the original request fingerprint/correlation.
     /// </summary>
+    /// <param name="saved">Saved value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="requestKind">Request kind value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="parameterFingerprint">Parameter fingerprint value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsReusableDecisionForRequest(
         HumanCollaborationRequest saved,
         string requestKind,

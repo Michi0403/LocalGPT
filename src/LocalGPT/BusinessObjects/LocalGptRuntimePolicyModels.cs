@@ -1109,11 +1109,17 @@ public enum LocalGptRuntimePattern
     /// Selects the toolchain environment token option for <see cref="LocalGptRuntimePattern"/>, giving callers a named value for that supported mode or state.
     /// </summary>
     ToolchainEnvironmentToken,
-    /// <summary>Validates persisted Remote Control connector and pipeline keys.</summary>
+    /// <summary>
+    /// Selects the remote control key option for <see cref="LocalGptRuntimePattern"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     RemoteControlKey,
-    /// <summary>Parses bounded Remote Control template expressions.</summary>
+    /// <summary>
+    /// Selects the remote control template expression option for <see cref="LocalGptRuntimePattern"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     RemoteControlTemplateExpression,
-    /// <summary>Validates user-owned DXFunction names.</summary>
+    /// <summary>
+    /// Selects the user DevExpress AI function name option for <see cref="LocalGptRuntimePattern"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     UserDxAiFunctionName,
     /// <summary>Matches .NET solution file extensions.</summary>
     SolutionFileExtension,

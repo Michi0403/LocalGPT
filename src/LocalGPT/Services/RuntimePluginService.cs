@@ -20,9 +20,18 @@ public sealed class RuntimePluginService(
     RuntimePluginDefinitionSupport definitionSupport,
     ILogger<RuntimePluginService> logger) : IRuntimePluginService
 {
+    /// <summary>
+    /// Stores the internal cache gate state used by <see cref="RuntimePluginService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly object cacheGate = new();
+    /// <summary>
+    /// Stores the in-memory cached definitions collection maintained internally by <see cref="RuntimePluginService"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyDictionary<string, RuntimePluginDefinition> cachedDefinitions = new Dictionary<string, RuntimePluginDefinition>(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs refresh as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
@@ -49,6 +58,9 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Performs list as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<IReadOnlyList<RuntimePluginDefinition>> ListAsync(CancellationToken cancellationToken = default)
     {
@@ -70,6 +82,9 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Performs save as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<RuntimePluginDefinition> SaveAsync(SaveRuntimePluginRequest request, CancellationToken cancellationToken = default)
     {
@@ -114,6 +129,9 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Performs delete as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<bool> DeleteAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default)
     {
@@ -145,6 +163,9 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Builds and load as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<RuntimePluginBuildResult> BuildAndLoadAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default)
     {
@@ -161,6 +182,7 @@ public sealed class RuntimePluginService(
             {
                 RuntimePluginKind.CSharpScript => await executionHost.BuildCSharpAsync(row, await ResolveCompilerAsync(db, row, "DotNet", "dotnet-sdk", cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false),
                 RuntimePluginKind.JavaScript => await executionHost.ValidateJavaScriptRuntimeAsync(row, await ResolveCompilerAsync(db, row, "JavaScript", "node", cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false),
+                RuntimePluginKind.Python => await executionHost.ValidatePythonRuntimeAsync(row, await ResolveCompilerAsync(db, row, "Python", "python", cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false),
                 RuntimePluginKind.CompiledAssembly => await executionHost.LoadCompiledPackageAsync(row, cancellationToken).ConfigureAwait(false),
                 _ => throw new InvalidOperationException($"Unsupported runtime extension kind '{row.Kind}'.")
             };
@@ -186,6 +208,9 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Retrieves descriptors as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public IReadOnlyList<DxaichatFunctionInfo> GetDescriptors()
     {
@@ -201,6 +226,9 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Attempts to retrieve descriptor as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public bool TryGetDescriptor(string functionName, out DxaichatFunctionInfo descriptor)
     {
@@ -224,6 +252,9 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Performs invoke as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(string functionName, DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
@@ -247,6 +278,13 @@ public sealed class RuntimePluginService(
                 var compiler = await ResolveCompilerAsync(db, definition, "JavaScript", "node", cancellationToken).ConfigureAwait(false);
                 value = await executionHost.InvokeJavaScriptAsync(definition, compiler, parameters, cancellationToken).ConfigureAwait(false);
             }
+            else if (definition.Kind == RuntimePluginKind.Python)
+            {
+                await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var compiler = await ResolveCompilerAsync(db, definition, "Python", "python", cancellationToken).ConfigureAwait(false);
+                value = await executionHost.InvokePythonAsync(definition, compiler, parameters, cancellationToken).ConfigureAwait(false);
+            }
             else
             {
                 value = await executionHost.InvokeLoadedAsync(definition, parameters, cancellationToken).ConfigureAwait(false);
@@ -266,6 +304,9 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Retrieves template as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public string GetTemplate(RuntimePluginKind kind)
     {
@@ -274,6 +315,7 @@ public sealed class RuntimePluginService(
             var template = kind switch
             {
                 RuntimePluginKind.CSharpScript => "var name = parameters.TryGetProperty(\"name\", out var value) ? value.GetString() : \"world\";\nreturn $\"Hello {name} from a LocalGPT runtime extension.\";",
+                RuntimePluginKind.Python => "import json\nimport sys\n\n# Input arrives from the approved DXFunction request.\nparameters = json.load(sys.stdin)\nprint(json.dumps({\"ok\": True, \"parameters\": parameters}))",
                 RuntimePluginKind.JavaScript => "let input = '';\nprocess.stdin.setEncoding('utf8');\nprocess.stdin.on('data', chunk => input += chunk);\nprocess.stdin.on('end', () => {\n  const parameters = input ? JSON.parse(input) : {};\n  process.stdout.write(JSON.stringify({ ok: true, parameters }));\n});",
                 RuntimePluginKind.CompiledAssembly => string.Empty,
                 _ => string.Empty
@@ -288,6 +330,15 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Resolves compiler as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="db">Database value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <param name="definition">Definition value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <param name="language">Language value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <param name="profileKey">Profile key value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project compiler installation produced by the operation.</returns>
     private async Task<ProjectCompilerInstallation> ResolveCompilerAsync(LocalGptMemoryDbContext db, RuntimePluginDefinition definition, string language, string profileKey, CancellationToken cancellationToken)
     {
         try
@@ -336,6 +387,11 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Performs to descriptor as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="definition">Definition value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <returns>The dxaichat function info produced by the operation.</returns>
     private DxaichatFunctionInfo ToDescriptor(RuntimePluginDefinition definition)
     {
         try
@@ -367,6 +423,11 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Parses parameters as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="parameters">Parameters value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <returns>The JSON element produced by the operation.</returns>
     private JsonElement ParseParameters(JsonElement parameters)
     {
         try
@@ -387,6 +448,11 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Parses value as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <returns>The object produced by the operation.</returns>
     private object? ParseValue(string value)
     {
         try
@@ -404,6 +470,13 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Performs success as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="functionName">Function name value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="value">Value value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     private DxAiFunctionInvocationResult Success(string functionName, DxAiFunctionInvocationRequest request, object? value)
     {
         try
@@ -418,6 +491,14 @@ public sealed class RuntimePluginService(
         }
     }
 
+    /// <summary>
+    /// Performs failure as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="functionName">Function name value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="status">Status value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <param name="error">Error value supplied to the runtime plugin operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     private DxAiFunctionInvocationResult Failure(string functionName, DxAiFunctionInvocationRequest request, string status, string error)
     {
         try

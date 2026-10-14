@@ -149,7 +149,10 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IArtifactBuildExecutor, ArtifactBuildExecutor>();
                 builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();
                 builder.Services.AddSingleton<IChatUploadWorkspaceService, ChatUploadWorkspaceService>();
-                builder.Services.AddSingleton<IPythonNetRuntimeCoordinator, PythonNetRuntimeCoordinator>();
+                builder.Services.AddSingleton<PythonNetRuntimeCoordinator>();
+                builder.Services.AddSingleton<PythonTaskOrchestrationService>();
+                builder.Services.AddSingleton<IPythonNetRuntimeCoordinator>(provider => provider.GetRequiredService<PythonTaskOrchestrationService>());
+                builder.Services.AddSingleton<IPythonJobOrchestrationService>(provider => provider.GetRequiredService<PythonTaskOrchestrationService>());
                 builder.Services.AddSingleton<ILocalAiArtifactService, LocalAiArtifactService>();
                 builder.Services.AddScoped<ILocalAiRuntimeService, LocalAiRuntimeService>();
                 builder.Services.AddScoped<ILocalAiAcquisitionService, LocalAiAcquisitionService>();
@@ -280,6 +283,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IToolchainExecutionProfileService, ToolchainExecutionProfileService>();
                 builder.Services.AddScoped<IToolchainAcquisitionService, ToolchainAcquisitionService>();
                 builder.Services.AddScoped<IProjectMaintenanceService, ProjectMaintenanceService>();
+                builder.Services.AddScoped<IProjectSourceNavigationService, ProjectSourceNavigationService>();
                 builder.Services.AddScoped<IFeaturePersistenceService, FeaturePersistenceService>();
                 builder.Services.AddSingleton<IEmbeddedHardwareCatalogService, EmbeddedHardwareCatalogService>();
                 builder.Services.AddSingleton<IEmbeddedWiringService, EmbeddedWiringService>();
@@ -335,6 +339,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IDxAiFunctionWorkbenchService, DxAiFunctionWorkbenchService>();
                 builder.Services.AddScoped<ICouncilDxFunctionOrchestrator, CouncilDxFunctionOrchestrator>();
                 builder.Services.AddScoped<IPublicServiceMethodInvoker, PublicServiceMethodInvoker>();
+                builder.Services.AddScoped<IPublicServiceMethodDirectoryService, PublicServiceMethodDirectoryService>();
                 builder.Services.AddHostedService<DxAiFunctionCatalogHostedService>();
                 builder.Services.AddScoped<IChatSessionContext, ChatSessionContext>();
                 builder.Services.AddScoped<IDxAiFunctionServiceClient, DxAiFunctionServiceClient>();

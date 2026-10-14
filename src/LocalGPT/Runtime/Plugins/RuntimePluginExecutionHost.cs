@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.PluginContracts;
+using LocalGPT.Interfaces;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Compression;
@@ -10,11 +11,19 @@ namespace LocalGPT.Runtime.Plugins;
 
 /// <summary>Materializes, builds, loads, unloads, and invokes executable runtime-extension payloads.</summary>
 /// <param name="definitionSupport">Validation and bounded-text helpers shared with the persistence service.</param>
-public sealed class RuntimePluginExecutionHost(RuntimePluginDefinitionSupport definitionSupport)
+/// <param name="pythonJobs">Python job orchestration service dependency used by the runtime plugin execution host workflow to provide the corresponding application capability.</param>
+public sealed class RuntimePluginExecutionHost(RuntimePluginDefinitionSupport definitionSupport, IPythonJobOrchestrationService pythonJobs)
 {
+    /// <summary>
+    /// Stores the in-memory loaded plugins collection maintained internally by <see cref="RuntimePluginExecutionHost"/> for its current workflow state.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, LoadedRuntimePlugin> loadedPlugins = new();
 
     /// <summary>Builds a persisted C# script through the selected configured .NET toolchain and loads its generated assembly.</summary>
+    /// <param name="definition">Definition value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="compiler">Compiler value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The runtime plugin build result produced by the operation.</returns>
     public async Task<RuntimePluginBuildResult> BuildCSharpAsync(RuntimePluginDefinition definition, ProjectCompilerInstallation compiler, CancellationToken cancellationToken)
     {
         var root = PrepareRoot(definition.Id);
@@ -63,6 +72,9 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
     }
 
     /// <summary>Materializes and loads a user-supplied compiled plugin ZIP into an isolated collectible load context.</summary>
+    /// <param name="definition">Definition value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The runtime plugin build result produced by the operation.</returns>
     public async Task<RuntimePluginBuildResult> LoadCompiledPackageAsync(RuntimePluginDefinition definition, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(definition.PackagePayloadBase64))
@@ -103,6 +115,10 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
     }
 
     /// <summary>Validates that the configured JavaScript runtime can start before the script is exposed for invocation.</summary>
+    /// <param name="definition">Definition value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="compiler">Compiler value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The runtime plugin build result produced by the operation.</returns>
     public async Task<RuntimePluginBuildResult> ValidateJavaScriptRuntimeAsync(RuntimePluginDefinition definition, ProjectCompilerInstallation compiler, CancellationToken cancellationToken)
     {
         var root = PrepareRoot(definition.Id);
@@ -114,7 +130,46 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
             : Failure(definition.Id, "RuntimeValidationFailed", definitionSupport.Bound(run.StandardError, 4000));
     }
 
+    /// <summary>Validates approved Python source without running it; subsequent execution is isolated and monitored.</summary>
+    /// <param name="definition">Definition value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="compiler">Compiler value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The runtime plugin build result produced by the operation.</returns>
+    public async Task<RuntimePluginBuildResult> ValidatePythonRuntimeAsync(RuntimePluginDefinition definition, ProjectCompilerInstallation compiler, CancellationToken cancellationToken)
+    {
+        var root = PrepareRoot(definition.Id);
+        var script = Path.Combine(root, "plugin.py");
+        await File.WriteAllTextAsync(script, definition.SourceCode, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+        var run = await RunProcessAsync(compiler, root, ["-m", "py_compile", script], string.Empty, cancellationToken).ConfigureAwait(false);
+        return run.ExitCode == 0
+            ? Success(definition.Id, "Ready", "Python source syntax checked through the selected validated toolchain. Execution still requires normal DXFunction approval.")
+            : Failure(definition.Id, "SyntaxInvalid", definitionSupport.Bound(run.StandardError, 4000));
+    }
+
+    /// <summary>Runs only the saved, explicitly approved Python plugin through the shared supervised process lane.</summary>
+    /// <param name="definition">Definition value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="compiler">Compiler value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
+    public async Task<string> InvokePythonAsync(RuntimePluginDefinition definition, ProjectCompilerInstallation compiler, JsonElement parameters, CancellationToken cancellationToken)
+    {
+        var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "RuntimePlugins", definition.Id.ToString("N"));
+        var script = Path.Combine(root, "plugin.py");
+        if (!File.Exists(script) || definition.ContentHash != definitionSupport.HashContent(definition)
+            || !string.Equals(File.ReadAllText(script), definition.SourceCode, StringComparison.Ordinal))
+            throw new InvalidOperationException("This Python plugin has changed since validation. Build/load and approve the current revision before invocation.");
+        var run = await pythonJobs.RunApprovedPythonPluginAsync(compiler, script, parameters, cancellationToken).ConfigureAwait(false);
+        if (run.ExitCode != 0)
+            throw new InvalidOperationException("The approved Python process exited unsuccessfully. Review the Python tasks workbench for its status.");
+        return run.Output.Trim();
+    }
+
     /// <summary>Invokes a loaded .NET runtime extension.</summary>
+    /// <param name="definition">Definition value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> InvokeLoadedAsync(RuntimePluginDefinition definition, JsonElement parameters, CancellationToken cancellationToken)
     {
         if (!loadedPlugins.TryGetValue(definition.Id, out var loaded))
@@ -123,6 +178,11 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
     }
 
     /// <summary>Invokes a persisted JavaScript extension through its selected configured runtime.</summary>
+    /// <param name="definition">Definition value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="compiler">Compiler value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> InvokeJavaScriptAsync(RuntimePluginDefinition definition, ProjectCompilerInstallation compiler, JsonElement parameters, CancellationToken cancellationToken)
     {
         var root = PrepareRoot(definition.Id);
@@ -136,12 +196,19 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
     }
 
     /// <summary>Unloads one materialized .NET extension if it is currently active.</summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
     public void Unload(Guid id)
     {
         if (loadedPlugins.TryRemove(id, out var loaded))
             loaded.Context.Unload();
     }
 
+    /// <summary>
+    /// Loads assembly for <see cref="RuntimePluginExecutionHost"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin execution host workflow.
+    /// </summary>
+    /// <param name="definition">Definition value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="assemblyPath">Assembly path value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="typeName">Type name value supplied to the runtime plugin execution host operation and used when producing its result.</param>
     private void LoadAssembly(RuntimePluginDefinition definition, string assemblyPath, string typeName)
     {
         Unload(definition.Id);
@@ -164,6 +231,11 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
         }
     }
 
+    /// <summary>
+    /// Performs prepare root for <see cref="RuntimePluginExecutionHost"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin execution host workflow.
+    /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string PrepareRoot(Guid id)
     {
         var baseRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -176,6 +248,15 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
         return root;
     }
 
+    /// <summary>
+    /// Performs run process for <see cref="RuntimePluginExecutionHost"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin execution host workflow.
+    /// </summary>
+    /// <param name="compiler">Compiler value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="workingDirectory">Working directory value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="arguments">String dependency used by the runtime plugin execution host workflow to provide the corresponding application capability.</param>
+    /// <param name="standardInput">Standard input value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The process result produced by the operation.</returns>
     private async Task<ProcessResult> RunProcessAsync(ProjectCompilerInstallation compiler, string workingDirectory, IReadOnlyList<string> arguments, string standardInput, CancellationToken cancellationToken)
     {
         if (!File.Exists(compiler.ExecutablePath))
@@ -215,6 +296,11 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
         return new ProcessResult(process.ExitCode, definitionSupport.Bound(await outputTask.ConfigureAwait(false), 16000), definitionSupport.Bound(await errorTask.ConfigureAwait(false), 16000));
     }
 
+    /// <summary>
+    /// Applies environment for <see cref="RuntimePluginExecutionHost"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin execution host workflow.
+    /// </summary>
+    /// <param name="start">Start value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="json">Json value supplied to the runtime plugin execution host operation and used when producing its result.</param>
     private void ApplyEnvironment(ProcessStartInfo start, string json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -226,6 +312,11 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
             start.Environment[property.Name] = property.Value.GetString() ?? string.Empty;
     }
 
+    /// <summary>
+    /// Performs split arguments for <see cref="RuntimePluginExecutionHost"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin execution host workflow.
+    /// </summary>
+    /// <param name="text">Text value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> SplitArguments(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -248,14 +339,45 @@ public sealed class LocalGptUserRuntimePlugin : ILocalGptRuntimePlugin
         return result;
     }
 
+    /// <summary>
+    /// Performs indent for <see cref="RuntimePluginExecutionHost"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin execution host workflow.
+    /// </summary>
+    /// <param name="source">Source value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="spaces">Spaces value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Indent(string source, int spaces)
     {
         var prefix = new string(' ', spaces);
         return string.Join(Environment.NewLine, (source ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').Select(line => prefix + line));
     }
 
+    /// <summary>
+    /// Performs success for <see cref="RuntimePluginExecutionHost"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin execution host workflow.
+    /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="status">Status value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="message">Message value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <returns>The runtime plugin build result produced by the operation.</returns>
     private RuntimePluginBuildResult Success(Guid id, string status, string message) => new() { PluginId = id, Succeeded = true, Status = status, Message = message };
+    /// <summary>
+    /// Performs failure for <see cref="RuntimePluginExecutionHost"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin execution host workflow.
+    /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="status">Status value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="message">Message value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <returns>The runtime plugin build result produced by the operation.</returns>
     private RuntimePluginBuildResult Failure(Guid id, string status, string message) => new() { PluginId = id, Status = status, Message = message };
+    /// <summary>
+    /// Represents a loaded runtime plugin helper type nested within <see cref="RuntimePluginExecutionHost"/>, grouping the state or behavior used only by that containing workflow.
+    /// </summary>
+    /// <param name="Context">Context value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="Instance">Local gpt runtime plugin dependency used by the runtime plugin execution host workflow to provide the corresponding application capability.</param>
     private sealed record LoadedRuntimePlugin(RuntimePluginLoadContext Context, ILocalGptRuntimePlugin Instance);
+    /// <summary>
+    /// Represents the outcome of process, carrying the data and status produced by the corresponding application operation.
+    /// </summary>
+    /// <param name="ExitCode">Exit code value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="StandardOutput">Standard output value supplied to the runtime plugin execution host operation and used when producing its result.</param>
+    /// <param name="StandardError">Standard error value supplied to the runtime plugin execution host operation and used when producing its result.</param>
     private sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);
 }

@@ -4,10 +4,15 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Routes semantic ASCII/game controls through the authoritative Council game-session service.</summary>
+/// <param name="games">Council game session service dependency used by the ascii semantic action workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class AsciiSemanticActionService(
     ICouncilGameSessionService games,
     ILogger<AsciiSemanticActionService> logger) : IAsciiSemanticActionService
 {
+    /// <summary>
+    /// Stores the in-memory actions collection maintained internally by <see cref="AsciiSemanticActionService"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<AsciiSemanticActionDescriptor> Actions =
     [
         new() { Key = "move-forward", DisplayName = "move forward", Description = "Move forward / choice up", Category = "Movement" },
@@ -24,6 +29,10 @@ public sealed class AsciiSemanticActionService(
         new() { Key = "choice-3", DisplayName = "choice 3", Description = "Choose option 3", Category = "Choice" }
     ];
 
+    /// <summary>
+    /// Lists actions as part of the ascii semantic action service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<AsciiSemanticActionDescriptor> ListActions()
     {
         try
@@ -38,6 +47,12 @@ public sealed class AsciiSemanticActionService(
         }
     }
 
+    /// <summary>
+    /// Performs invoke as part of the ascii semantic action service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     public async Task<CouncilGameSessionSnapshot> InvokeAsync(AsciiSemanticActionRequest request, CancellationToken cancellationToken = default)
     {
         try

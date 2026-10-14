@@ -27,6 +27,9 @@ namespace LocalGPT.Interfaces
         /// <returns>The collection produced by the operation.</returns>
         Task<IReadOnlyList<CouncilKnowledgeEntry>> GetEntriesAsync(bool includeArchived = false, int take = 100, CancellationToken cancellationToken = default);
         /// <summary>Retrieves one persisted knowledge entry by its stable identifier.</summary>
+        /// <param name="id">Identifier of the resource to use for this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The council knowledge entry produced by the operation.</returns>
         Task<CouncilKnowledgeEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default);
         /// <summary>
         /// Persists entry as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.

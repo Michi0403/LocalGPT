@@ -5,13 +5,22 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Owns LocalGPT's reviewed direct/GitHub-first local-AI source catalog and delegates executable installation to the managed Python runtime.</summary>
+/// <param name="httpClientFactory">Http client factory dependency used by the local AI acquisition workflow to provide the corresponding application capability.</param>
+/// <param name="runtime">Local ai runtime service dependency used by the local AI acquisition workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalAiAcquisitionService(
     IHttpClientFactory httpClientFactory,
     ILocalAiRuntimeService runtime,
     ILogger<LocalAiAcquisitionService> logger) : ILocalAiAcquisitionService
 {
+    /// <summary>
+    /// Defines the maximum source bytes constant used by <see cref="LocalAiAcquisitionService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const long MaximumSourceBytes = 2_147_483_648;
 
+    /// <summary>
+    /// Retrieves known models as part of the local AI acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public IReadOnlyList<LocalAiKnownModelDefinition> GetKnownModels()
     {
@@ -29,6 +38,9 @@ public sealed class LocalAiAcquisitionService(
         }
     }
 
+    /// <summary>
+    /// Performs download source as part of the local AI acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<LocalAiSourceDownloadResult> DownloadSourceAsync(string sourceKey, bool userConfirmed, CancellationToken cancellationToken = default)
     {
@@ -100,6 +112,9 @@ public sealed class LocalAiAcquisitionService(
         }
     }
 
+    /// <summary>
+    /// Performs install known model as part of the local AI acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<LocalAiModelInstallation> InstallKnownModelAsync(LocalAiKnownModelInstallRequest request, CancellationToken cancellationToken = default)
     {
@@ -130,6 +145,11 @@ public sealed class LocalAiAcquisitionService(
         }
     }
 
+    /// <summary>
+    /// Performs require source as part of the local AI acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sourceKey">Source key value supplied to the local AI acquisition operation and used when producing its result.</param>
+    /// <returns>The local AI known model definition produced by the operation.</returns>
     private LocalAiKnownModelDefinition RequireSource(string sourceKey)
     {
         try
@@ -144,6 +164,10 @@ public sealed class LocalAiAcquisitionService(
         }
     }
 
+    /// <summary>
+    /// Builds catalog as part of the local AI acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private List<LocalAiKnownModelDefinition> BuildCatalog()
     {
         try

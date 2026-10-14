@@ -39,8 +39,14 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     /// Stores database-backed runtime token bounds so benchmark limits adapt to maintained configuration rather than one developer machine.
     /// </summary>
     private readonly LocalGptCatalogService catalog;
+    /// <summary>
+    /// Stores the local GPT runtime policy data service dependency used by <see cref="ProviderModelBenchmarkService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
-    /// <summary>Gets database-backed provider benchmark operational parameters.</summary>
+    /// <summary>
+    /// Gets the benchmark parameters value that forms part of the provider model benchmark state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The benchmark parameters value exposed by <see cref="ProviderModelBenchmarkService"/>.</value>
     private ModelBenchmarkRuntimeParameters BenchmarkParameters => runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>(LocalGptRuntimeValue.ModelBenchmarkRuntimeParametersJson);
     /// <summary>Normalizes provider thinking/status markup so benchmark scoring uses only the visible final answer.</summary>
     private readonly CouncilTextService councilText;

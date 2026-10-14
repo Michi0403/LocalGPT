@@ -91,6 +91,9 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Retrieves one persisted knowledge entry by its stable identifier.</summary>
+        /// <param name="id">Identifier of the resource to use for this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The council knowledge entry produced by the operation.</returns>
         public async Task<CouncilKnowledgeEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default)
         {
             try

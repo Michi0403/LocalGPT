@@ -117,27 +117,51 @@ public interface ICouncilGameSessionService
         CancellationToken cancellationToken = default);
 
     /// <summary>Returns the shared ASCII palette contract and compact model-facing authoring guidance.</summary>
+    /// <returns>The council ascii palette snapshot produced by the operation.</returns>
     CouncilAsciiPaletteSnapshot GetAsciiPalette();
 
-    /// <summary>Reads the full or cropped authoritative ASCII display.</summary>
+    /// <summary>
+    /// Retrieves display as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game display snapshot produced by the operation.</returns>
     Task<CouncilGameDisplaySnapshot> GetDisplayAsync(ReadCouncilGameDisplayRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>Writes text into the authoritative ASCII display for the renderer that owns the turn.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     Task<CouncilGameSessionSnapshot> WriteTextAsync(WriteCouncilGameTextRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>Writes one cell into the authoritative ASCII display for the renderer that owns the turn.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     Task<CouncilGameSessionSnapshot> SetCellAsync(SetCouncilGameCellRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>Fills a clipped rectangular region of the authoritative ASCII display.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     Task<CouncilGameSessionSnapshot> FillRegionAsync(FillCouncilGameRegionRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>Blits multiline ASCII content into the authoritative display.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     Task<CouncilGameSessionSnapshot> BlitRegionAsync(BlitCouncilGameRegionRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>Submits pregenerated full-screen frames for local client-side animation.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     Task<CouncilGameSessionSnapshot> SubmitAnimationAsync(SubmitCouncilGameAnimationRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>Initializes or advances exactly one deterministic Kernel Creature Tournament exchange.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council kernel tournament resolution produced by the operation.</returns>
     Task<CouncilKernelTournamentResolution> AdvanceKernelTournamentAsync(
         CouncilKernelTournamentAdvanceRequest request,
         CancellationToken cancellationToken = default);

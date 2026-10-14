@@ -6,13 +6,27 @@ using Microsoft.Extensions.Options;
 namespace LocalGPT.Services;
 
 /// <summary>Publishes generated local-AI media under a bounded per-user artifact root.</summary>
+/// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+/// <param name="platform">Platform runtime service dependency used by the local AI artifact workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalAiArtifactService(
     IOptionsMonitor<LocalGptConfigurationRoot> options,
     IPlatformRuntimeService platform,
     ILogger<LocalAiArtifactService> logger) : ILocalAiArtifactService
 {
+    /// <summary>
+    /// Gets the artifact root value that forms part of the local AI artifact state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The artifact root value exposed by <see cref="LocalAiArtifactService"/>.</value>
     public string ArtifactRoot => ResolveArtifactRoot();
 
+    /// <summary>
+    /// Performs publish as part of the local AI artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sourcePath">Source path value supplied to the local AI artifact operation and used when producing its result.</param>
+    /// <param name="preferredFileName">Preferred file name value supplied to the local AI artifact operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI artifact descriptor produced by the operation.</returns>
     public async Task<LocalAiArtifactDescriptor> PublishAsync(string sourcePath, string preferredFileName, CancellationToken cancellationToken = default)
     {
     try
@@ -60,6 +74,12 @@ public sealed class LocalAiArtifactService(
     }
 }
 
+    /// <summary>
+    /// Performs resolve as part of the local AI artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="artifactId">Identifier of the artifact to use for this operation.</param>
+    /// <param name="fileName">File name value supplied to the local AI artifact operation and used when producing its result.</param>
+    /// <returns>The local AI artifact descriptor produced by the operation.</returns>
     public LocalAiArtifactDescriptor? Resolve(string artifactId, string fileName)
     {
     try
@@ -94,6 +114,10 @@ public sealed class LocalAiArtifactService(
     }
 }
 
+    /// <summary>
+    /// Resolves artifact root as part of the local AI artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveArtifactRoot()
     {
     try
@@ -114,6 +138,11 @@ public sealed class LocalAiArtifactService(
     }
 }
 
+    /// <summary>
+    /// Performs sanitize file name as part of the local AI artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="fileName">File name value supplied to the local AI artifact operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SanitizeFileName(string fileName)
     {
     try
@@ -134,6 +163,11 @@ public sealed class LocalAiArtifactService(
     }
 }
 
+    /// <summary>
+    /// Performs content type for as part of the local AI artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="fileName">File name value supplied to the local AI artifact operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ContentTypeFor(string fileName) {
     try
     {

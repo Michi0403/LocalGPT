@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using LocalGPT.Security;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
@@ -22,6 +23,7 @@ public sealed class DxAiFunctionCatalogController(
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The HTTP-facing result produced for the caller.</returns>
     /// <summary>Policy-filtered, paged two-stage discovery used by UI and AI clients.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     [HttpPost("discover")]
     public async Task<IResult> DiscoverAsync([FromBody] DxAiFunctionDiscoveryRequest request, CancellationToken cancellationToken)
     {
@@ -36,6 +38,11 @@ public sealed class DxAiFunctionCatalogController(
         }
     }
 
+    /// <summary>
+    /// Returns the get projection for the DevExpress AI function catalog API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet]
     public async Task<IResult> GetAsync(CancellationToken cancellationToken)
     {
@@ -76,6 +83,7 @@ public sealed class DxAiFunctionCatalogController(
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPut("policy")]
+    [HumanApprovalRequired("dxai.catalog.policy.save", "Update DX function exposure", "Change the saved visibility and remote execution policy for an AI or public-service capability.", "High", "DX function policy reviewer", requiredBeforeCompletion: true)]
     public async Task<IResult> SavePolicyAsync([FromBody] DxAiFunctionCatalogSaveRequest request, CancellationToken cancellationToken)
     {
         try

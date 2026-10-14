@@ -15,6 +15,9 @@ public sealed class InitialDataFeedService(
     IPlatformRuntimeService platform,
     ILogger<InitialDataFeedService> logger) : IInitialDataFeedService
 {
+    /// <summary>
+    /// Loads knowledge feed as part of the initial data feed service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<IReadOnlyList<InitialDataFeedEntry>> LoadKnowledgeFeedAsync(CancellationToken cancellationToken = default)
     {

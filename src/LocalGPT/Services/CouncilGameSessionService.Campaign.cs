@@ -9,18 +9,31 @@ namespace LocalGPT.Services;
 /// <summary>Owns configurable ASCII DOOM campaign profiles resolved from database-backed runtime classes.</summary>
 public sealed partial class CouncilGameSessionService
 {
+    /// <summary>
+    /// Carries the configurable doom campaign settings used to control the associated application behavior without hard-coding policy in consumers.
+    /// </summary>
+    /// <param name="RuntimeClassKey">Runtime class key value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="Levels">Council game level profile dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <param name="StartingLevelIndex">Starting level index value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="AutoAdvanceLevels">Value indicating whether auto advance levels should apply to this operation.</param>
     private sealed record DoomCampaignSettings(
         string RuntimeClassKey,
         IReadOnlyList<CouncilGameLevelProfile> Levels,
         int StartingLevelIndex,
         bool AutoAdvanceLevels);
 
+    /// <summary>
+    /// Stores the internal campaign JSON options state used by <see cref="CouncilGameSessionService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions campaignJsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 
     /// <summary>Resolves one copyable runtime-class campaign, preferring an explicit override and then the campaign assigned to the selected Council team.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The doom campaign settings produced by the operation.</returns>
     private async Task<DoomCampaignSettings> ResolveDoomCampaignAsync(
         StartCouncilGameRequest request,
         CancellationToken cancellationToken)
@@ -142,6 +155,8 @@ public sealed partial class CouncilGameSessionService
     }
 
     /// <summary>Recognizes the maintained field contract instead of inventing game difficulty from arbitrary State classes.</summary>
+    /// <param name="definition">Definition value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsDoomCampaignDefinition(CouncilRuntimeClassDefinition definition)
     {
         try
@@ -164,6 +179,8 @@ public sealed partial class CouncilGameSessionService
     }
 
     /// <summary>Normalizes user-edited runtime-class level profiles into deterministic, bounded engine inputs.</summary>
+    /// <param name="source">Council game level profile dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<CouncilGameLevelProfile> NormalizeLevelProfiles(IEnumerable<CouncilGameLevelProfile> source)
     {
         try
@@ -204,6 +221,8 @@ public sealed partial class CouncilGameSessionService
     }
 
     /// <summary>Creates an independent level-profile copy so runtime state never mutates stored class definitions.</summary>
+    /// <param name="source">Source value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council game level profile produced by the operation.</returns>
     private CouncilGameLevelProfile CloneLevelProfile(CouncilGameLevelProfile source)
     {
         try
@@ -232,6 +251,8 @@ public sealed partial class CouncilGameSessionService
     }
 
     /// <summary>Gets the active normalized level profile, falling back to the first starter level for legacy sessions.</summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council game level profile produced by the operation.</returns>
     private CouncilGameLevelProfile GetCurrentLevelProfile(CouncilGameSessionState session)
     {
         try
@@ -249,6 +270,9 @@ public sealed partial class CouncilGameSessionService
     }
 
     /// <summary>Derives a stable per-level map seed from the campaign seed, level number and optional scenario.</summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="level">Level value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int DeriveLevelSeed(CouncilGameSessionState session, CouncilGameLevelProfile level)
     {
         try

@@ -103,7 +103,9 @@ public sealed class ProviderManagedModelInfo
     /// <summary>Gets or sets the concrete local model-store root that supplied filesystem inventory for this row.</summary>
     /// <value>The local Ollama model-store path, or an empty string when the provider did not expose one.</value>
     public string StorageRoot { get; set; } = string.Empty;
-    /// <summary>Gets or sets the drive or mount root that owns <see cref="StorageRoot"/>.</summary>
+    /// <summary>
+    /// Gets or sets the storage drive value that forms part of the provider managed model info state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The owning drive/mount root, or an empty string when it cannot be resolved.</value>
     public string StorageDrive { get; set; } = string.Empty;
     /// <summary>Gets or sets whether the row came from the provider API, filesystem manifests, or both.</summary>
@@ -114,36 +116,59 @@ public sealed class ProviderManagedModelInfo
 /// <summary>Describes one detected Ollama model-store path and its physical blob usage.</summary>
 public sealed class ProviderModelStoreInfo
 {
-    /// <summary>Gets or sets the model-store path.</summary>
+    /// <summary>
+    /// Gets or sets the path used by this provider model store info instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The path value exposed by <see cref="ProviderModelStoreInfo"/>.</value>
     public string Path { get; set; } = string.Empty;
     /// <summary>Gets or sets the drive or mount root containing the store.</summary>
+    /// <value>The drive root value exposed by <see cref="ProviderModelStoreInfo"/>.</value>
     public string DriveRoot { get; set; } = string.Empty;
     /// <summary>Gets or sets whether LocalGPT resolved this store as the active/effective Ollama store.</summary>
+    /// <value>The is effective value exposed by <see cref="ProviderModelStoreInfo"/>.</value>
     public bool IsEffective { get; set; }
     /// <summary>Gets or sets the number of readable model manifests in this store.</summary>
+    /// <value>The model count value exposed by <see cref="ProviderModelStoreInfo"/>.</value>
     public int ModelCount { get; set; }
     /// <summary>Gets or sets the bytes occupied by physical blob files in this store.</summary>
+    /// <value>The physical bytes value exposed by <see cref="ProviderModelStoreInfo"/>.</value>
     public long PhysicalBytes { get; set; }
 }
 
 /// <summary>Describes storage capacity and Ollama-store usage for one filesystem volume.</summary>
 public sealed class ProviderStorageVolumeInfo
 {
-    /// <summary>Gets or sets the drive or mount root.</summary>
+    /// <summary>
+    /// Gets or sets the root path used by this provider storage volume info instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The root path value exposed by <see cref="ProviderStorageVolumeInfo"/>.</value>
     public string RootPath { get; set; } = string.Empty;
     /// <summary>Gets or sets the volume label when the platform reports one.</summary>
+    /// <value>The volume label value exposed by <see cref="ProviderStorageVolumeInfo"/>.</value>
     public string VolumeLabel { get; set; } = string.Empty;
-    /// <summary>Gets or sets the platform drive type.</summary>
+    /// <summary>
+    /// Gets or sets the drive type value that forms part of the provider storage volume info state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The drive type value exposed by <see cref="ProviderStorageVolumeInfo"/>.</value>
     public string DriveType { get; set; } = string.Empty;
-    /// <summary>Gets or sets total bytes on this volume.</summary>
+    /// <summary>
+    /// Gets or sets the total bytes value that forms part of the provider storage volume info state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The total bytes value exposed by <see cref="ProviderStorageVolumeInfo"/>.</value>
     public long? TotalBytes { get; set; }
-    /// <summary>Gets or sets currently available free bytes on this volume.</summary>
+    /// <summary>
+    /// Gets or sets the free bytes value that forms part of the provider storage volume info state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The free bytes value exposed by <see cref="ProviderStorageVolumeInfo"/>.</value>
     public long? FreeBytes { get; set; }
     /// <summary>Gets or sets the physical blob bytes summed across detected Ollama stores on this volume.</summary>
+    /// <value>The model store bytes value exposed by <see cref="ProviderStorageVolumeInfo"/>.</value>
     public long ModelStoreBytes { get; set; }
     /// <summary>Gets or sets the number of detected Ollama stores on this volume.</summary>
+    /// <value>The model store count value exposed by <see cref="ProviderStorageVolumeInfo"/>.</value>
     public int ModelStoreCount { get; set; }
     /// <summary>Gets or sets whether the effective model store resides on this volume.</summary>
+    /// <value>The is effective model volume value exposed by <see cref="ProviderStorageVolumeInfo"/>.</value>
     public bool IsEffectiveModelVolume { get; set; }
 }
 

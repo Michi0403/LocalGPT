@@ -27,7 +27,10 @@ namespace LocalGPT.Services
         /// <value>The workspace root value exposed by <see cref="ChatUploadWorkspaceService"/>.</value>
         public string WorkspaceRoot { get; } = LocalGptApplicationDataPaths.ResolveUserPath("ChatUploadWorkspaces");
 
-        /// <summary>Gets the current database-backed upload-workspace operational parameter set.</summary>
+        /// <summary>
+        /// Gets the parameters value that forms part of the chat upload workspace state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The parameters value exposed by <see cref="ChatUploadWorkspaceService"/>.</value>
         private ChatUploadWorkspaceRuntimeParameters Parameters => catalog.GetRuntimeParameters<ChatUploadWorkspaceRuntimeParameters>(LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson);
 
         /// <summary>
@@ -342,6 +345,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Copies a stream while enforcing the configured quarantine byte cap.</summary>
+        /// <param name="source">Source value supplied to the chat upload workspace operation and used when producing its result.</param>
+        /// <param name="destination">Destination value supplied to the chat upload workspace operation and used when producing its result.</param>
+        /// <param name="maximumBytes">Maximum bytes value supplied to the chat upload workspace operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The long produced by the operation.</returns>
         private async Task<long> CopyBoundedStreamAsync(Stream source, Stream destination, long maximumBytes, CancellationToken cancellationToken)
         {
             try

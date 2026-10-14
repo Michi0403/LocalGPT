@@ -7,12 +7,15 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>localgpt-release-packaging</ToolCommandName>
     <PackageId>LocalGPT.ReleasePackaging</PackageId>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <Authors>Michi0403</Authors>
     <Description>Repository-owned deterministic release packaging primitives shared by LocalGPT and PublisherStudio.</Description>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="PDFsharp" Version="6.2.4" />
+    <PackageReference Include="PDFsharp" Version="6.5.0" />
+    <!-- PDFsharp 6.2.4 permits Pkcs >= 8.0.1; pin the .NET 10 security-serviced
+         dependency so a fresh restore never selects the vulnerable minimum. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 </Project>

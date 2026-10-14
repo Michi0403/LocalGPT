@@ -7,6 +7,9 @@ namespace LocalGPT.Services
     /// <summary>Owns deterministic Kernel Creature Tournament bracket progression and one-shot arena presentation.</summary>
     public sealed partial class CouncilGameSessionService
     {
+        /// <summary>
+        /// Performs advance kernel tournament as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
         /// <inheritdoc />
         public Task<CouncilKernelTournamentResolution> AdvanceKernelTournamentAsync(
             CouncilKernelTournamentAdvanceRequest request,
@@ -1058,7 +1061,13 @@ namespace LocalGPT.Services
             }
         }
 
-        /// <summary>Builds the transcript-visible authoritative tournament scoreboard and continuation marker.</summary>
+        /// <summary>
+        /// Builds tournament summary as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="consequence">Consequence value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="initialized">Value indicating whether initialized should apply to this operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildTournamentSummary(CouncilGameSessionState session, string consequence, bool initialized)
         {
             try
@@ -1113,6 +1122,8 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Returns a short model label for the transcript summary without exposing endpoint noise.</summary>
+        /// <param name="value">Value value supplied to the council game session operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string ShortSummaryModel(string value)
         {
             try

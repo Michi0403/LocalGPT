@@ -7,12 +7,25 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Persists user-owned DevExpress page/section layout overrides under the LocalGPT per-user data root.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalGptUiLayoutService(ILogger<LocalGptUiLayoutService> logger) : ILocalGptUiLayoutService
 {
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to gate state owned by <see cref="LocalGptUiLayoutService"/>.
+    /// </summary>
     private readonly SemaphoreSlim gate = new(1, 1);
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="LocalGptUiLayoutService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores the in-memory cache collection maintained internally by <see cref="LocalGptUiLayoutService"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<LocalGptUiLayoutSurface>? cache;
 
+    /// <summary>
+    /// Retrieves all as part of the local GPT UI layout service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<IReadOnlyList<LocalGptUiLayoutSurface>> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -109,6 +122,9 @@ public sealed class LocalGptUiLayoutService(ILogger<LocalGptUiLayoutService> log
         }
     }
 
+    /// <summary>
+    /// Performs resolve as part of the local GPT UI layout service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<LocalGptUiLayoutSurface> ResolveAsync(Type componentType, string sectionName, CancellationToken cancellationToken = default)
     {
@@ -148,6 +164,9 @@ public sealed class LocalGptUiLayoutService(ILogger<LocalGptUiLayoutService> log
         }
     }
 
+    /// <summary>
+    /// Performs save as part of the local GPT UI layout service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<LocalGptUiLayoutSurface> SaveAsync(LocalGptUiLayoutSurface surface, CancellationToken cancellationToken = default)
     {
@@ -225,6 +244,9 @@ public sealed class LocalGptUiLayoutService(ILogger<LocalGptUiLayoutService> log
         }
     }
 
+    /// <summary>
+    /// Performs reset as part of the local GPT UI layout service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task ResetAsync(string key, CancellationToken cancellationToken = default)
     {
@@ -266,6 +288,8 @@ public sealed class LocalGptUiLayoutService(ILogger<LocalGptUiLayoutService> log
     }
 
     /// <summary>Normalizes the persisted DevExpress layout envelope while keeping old documents compatible.</summary>
+    /// <param name="value">Value value supplied to the local GPT UI layout operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeLayoutType(string? value)
     {
         try
@@ -289,6 +313,9 @@ public sealed class LocalGptUiLayoutService(ILogger<LocalGptUiLayoutService> log
     }
 
     /// <summary>Normalizes orientation and migrates the two 5.0.2 stack aliases without discarding saved intent.</summary>
+    /// <param name="value">Value value supplied to the local GPT UI layout operation and used when producing its result.</param>
+    /// <param name="legacyInnerLayout">Legacy inner layout value supplied to the local GPT UI layout operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeOrientation(string? value, string? legacyInnerLayout)
     {
         try
@@ -306,6 +333,9 @@ public sealed class LocalGptUiLayoutService(ILogger<LocalGptUiLayoutService> log
         }
     }
 
+    /// <summary>
+    /// Retrieves storage path as part of the local GPT UI layout service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public string GetStoragePath()
     {

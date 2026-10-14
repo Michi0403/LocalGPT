@@ -7,6 +7,15 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>Combines curator-approved file evidence, approved knowledge and available Council teams into one advisory upload-processing recommendation.</summary>
+/// <param name="ingestion">Project ingestion service dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+/// <param name="workspaces">Chat upload workspace service dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+/// <param name="knowledge">Council knowledge service dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+/// <param name="teams">Council team configuration service dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+/// <param name="chatClientFactory">Chat client factory dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+/// <param name="processingCapabilities">Upload file processing capability service dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class UploadProcessingRecommendationService(
     IProjectIngestionService ingestion,
     IChatUploadWorkspaceService workspaces,
@@ -18,6 +27,9 @@ public sealed class UploadProcessingRecommendationService(
     LocalGptCatalogService catalog,
     ILogger<UploadProcessingRecommendationService> logger) : IUploadProcessingRecommendationService
 {
+    /// <summary>
+    /// Performs recommend as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<UploadProcessingRecommendation> RecommendAsync(UploadProcessingRecommendationRequest request, CancellationToken cancellationToken = default)
     {
@@ -77,6 +89,9 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Performs get as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<UploadProcessingRecommendation?> GetAsync(string workspaceName, CancellationToken cancellationToken = default)
     {
@@ -102,6 +117,12 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Performs select knowledge as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="gate">Gate value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="entries">Council knowledge entry dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<CouncilKnowledgeEntry> SelectKnowledge(ProjectIngestionGateRecord gate, IReadOnlyList<CouncilKnowledgeEntry> entries)
     {
         try
@@ -137,6 +158,12 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Performs rank teams as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="gate">Gate value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="availableTeams">Organic council team definition dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<OrganicCouncilTeamDefinition> RankTeams(ProjectIngestionGateRecord gate, IReadOnlyList<OrganicCouncilTeamDefinition> availableTeams)
     {
         try
@@ -169,6 +196,15 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Builds fallback as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="gate">Gate value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="relevantKnowledge">Council knowledge entry dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+    /// <param name="teamCandidates">Organic council team definition dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+    /// <param name="processingRoutes">Upload file processing route dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+    /// <returns>The upload processing recommendation produced by the operation.</returns>
     private UploadProcessingRecommendation BuildFallback(
         UploadProcessingRecommendationRequest request,
         ProjectIngestionGateRecord gate,
@@ -232,6 +268,15 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Builds prompt as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="gate">Gate value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="relevantKnowledge">Council knowledge entry dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+    /// <param name="teamCandidates">Organic council team definition dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+    /// <param name="processingRoutes">Upload file processing route dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildPrompt(
         UploadProcessingRecommendationRequest request,
         ProjectIngestionGateRecord gate,
@@ -276,6 +321,11 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Validates suggested team as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="recommendation">Recommendation value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="candidates">Organic council team definition dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
     private void ValidateSuggestedTeam(UploadProcessingRecommendation recommendation, IReadOnlyList<OrganicCouncilTeamDefinition> candidates)
     {
         try
@@ -307,6 +357,12 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Parses recommendation as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="text">Text value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <returns>The upload processing recommendation produced by the operation.</returns>
     private UploadProcessingRecommendation ParseRecommendation(string text, UploadProcessingRecommendation fallback)
     {
         try
@@ -338,6 +394,12 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Performs persist as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="recommendation">Recommendation value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The upload processing recommendation produced by the operation.</returns>
     private async Task<UploadProcessingRecommendation> PersistAsync(UploadProcessingRecommendation recommendation, CancellationToken cancellationToken)
     {
         try
@@ -358,6 +420,12 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Builds suggested prompt as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="gate">Gate value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildSuggestedPrompt(UploadProcessingRecommendationRequest request, ProjectIngestionGateRecord gate)
     {
         try
@@ -375,6 +443,11 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Performs clone processing route as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <returns>The upload file processing route produced by the operation.</returns>
     private UploadFileProcessingRoute CloneProcessingRoute(UploadFileProcessingRoute source)
     {
         try
@@ -395,6 +468,11 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Performs clone repository as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <returns>The repository evidence identity produced by the operation.</returns>
     private RepositoryEvidenceIdentity CloneRepository(RepositoryEvidenceIdentity source)
     {
         try
@@ -416,6 +494,12 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Performs bound as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Bound(string? value, int maximum)
     {
         try
@@ -430,24 +514,52 @@ public sealed class UploadProcessingRecommendationService(
         }
     }
 
+    /// <summary>
+    /// Reads int as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="root">Root value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ReadInt(JsonElement root, string name, int fallback)
     {
         try { return root.TryGetProperty(name, out var value) && value.TryGetInt32(out var parsed) ? Math.Clamp(parsed, 0, 100) : fallback; }
         catch (Exception ex) { logger.LogError(ex, "Reading upload-advisor integer failed."); return fallback; }
     }
 
+    /// <summary>
+    /// Reads string as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="root">Root value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ReadString(JsonElement root, string name, string fallback)
     {
         try { return root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? Bound(value.GetString(), 4000) : fallback; }
         catch (Exception ex) { logger.LogError(ex, "Reading upload-advisor text failed."); return fallback; }
     }
 
+    /// <summary>
+    /// Reads bool as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="root">Root value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="fallback">Value indicating whether fallback should apply to this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool ReadBool(JsonElement root, string name, bool fallback)
     {
         try { return root.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.GetBoolean() : fallback; }
         catch (Exception ex) { logger.LogError(ex, "Reading upload-advisor boolean failed."); return fallback; }
     }
 
+    /// <summary>
+    /// Reads strings as part of the upload processing recommendation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="root">Root value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the upload processing recommendation operation and used when producing its result.</param>
+    /// <param name="fallback">String dependency used by the upload processing recommendation workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> ReadStrings(JsonElement root, string name, IReadOnlyList<string> fallback)
     {
         try

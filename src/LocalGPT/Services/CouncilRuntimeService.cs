@@ -33,7 +33,9 @@ namespace LocalGPT.Services
         /// Stores the local GPT catalog service dependency used by <see cref="CouncilRuntimeService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly LocalGptCatalogService catalog;
-        /// <summary>Stores database-backed runtime prompt and regex policy.</summary>
+        /// <summary>
+        /// Stores the local GPT runtime policy data service dependency used by <see cref="CouncilRuntimeService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
         /// <summary>Compiles dynamic database-backed regex templates through the shared bounded regex service.</summary>
         private readonly IRegexCompilationService regexCompilation;
@@ -316,6 +318,8 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Escapes raw control characters that providers occasionally place inside JSON string tokens.</summary>
+        /// <param name="raw">Raw value supplied to the council runtime operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string EscapeUnescapedJsonControlCharacters(string raw)
         {
             try

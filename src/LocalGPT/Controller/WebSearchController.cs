@@ -12,7 +12,9 @@ namespace LocalGPT.Controller;
 [Route("api/web-search")]
 public sealed class WebSearchController(IWebSearchService search, ILogger<WebSearchController> logger) : ControllerBase
 {
-    /// <summary>Searches the configured public provider after explicit LocalGPT approval.</summary>
+    /// <summary>
+    /// Returns the search projection for the web search API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+    /// </summary>
     /// <param name="request">Validated query and provider selection.</param>
     /// <param name="cancellationToken">Cancellation token for the outbound request.</param>
     /// <returns>Bounded attributed search evidence.</returns>

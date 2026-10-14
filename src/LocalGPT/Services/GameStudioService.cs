@@ -5,15 +5,27 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Maintains the live Godot working tree as editable Project artifacts; only explicit CloseRevision creates a durable commit.</summary>
+/// <param name="projects">Local gpt project service dependency used by the game studio workflow to provide the corresponding application capability.</param>
+/// <param name="architecture">Project architecture service dependency used by the game studio workflow to provide the corresponding application capability.</param>
+/// <param name="engine">Engine value supplied to the game studio operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GameStudioService(
     ILocalGptProjectService projects,
     IProjectArchitectureService architecture,
     GameSceneEngine engine,
     ILogger<GameStudioService> logger) : IGameStudioService
 {
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="GameStudioService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
-    /// <summary>Reads the current worktree without starting or committing anything.</summary>
+    /// <summary>
+    /// Retrieves draft as part of the game studio service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game studio draft produced by the operation.</returns>
     public async Task<GameStudioDraft?> GetDraftAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
         try
@@ -30,6 +42,10 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Opens a mutable worktree from the last explicitly closed scene, without creating a Project revision.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game studio draft produced by the operation.</returns>
     public async Task<GameStudioDraft> OpenDraftAsync(Guid projectId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -69,6 +85,11 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Updates an existing draft's scene; semantic art violations cannot silently become approved game data.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draft">Draft value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game studio draft produced by the operation.</returns>
     public async Task<GameStudioDraft> SaveDraftAsync(Guid projectId, GameStudioDraft draft, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -92,6 +113,11 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Reads one editable Godot source file from the selected open worktree.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="path">Path value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> ReadFileAsync(Guid projectId, Guid draftId, string path, CancellationToken cancellationToken = default)
     {
         try
@@ -111,6 +137,13 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Edits a Godot file in place in the OPEN draft; a file save never commits or replaces a completed revision.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="path">Path value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="content">Content value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game studio draft produced by the operation.</returns>
     public async Task<GameStudioDraft> SaveFileAsync(Guid projectId, Guid draftId, string path, string content, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -137,6 +170,10 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Lists unaccepted AI artwork revisions for the current worktree.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<GameSceneProposal>> GetProposalsAsync(Guid projectId, Guid draftId, CancellationToken cancellationToken = default)
     {
         try
@@ -155,6 +192,12 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Stores an AI's just-in-time visual candidate separately from the playable world; acceptance is human-controlled.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="proposal">Proposal value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game scene proposal produced by the operation.</returns>
     public async Task<GameSceneProposal> ProposeSceneAsync(Guid projectId, Guid draftId, GameSceneProposal proposal, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -182,6 +225,14 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Merges a small upsert-only artistic patch into an isolated candidate, leaving the current playable draft untouched.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="patch">Patch value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="artist">Artist value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game scene proposal produced by the operation.</returns>
     public async Task<GameSceneProposal> ProposePatchAsync(Guid projectId, Guid draftId, GameScenePatch patch, string artist, string description, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -238,6 +289,11 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Exposes one exact candidate to an independent reviewing model without requiring the entire scene-proposal history.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="proposalId">Identifier of the proposal to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game scene proposal produced by the operation.</returns>
     public async Task<GameSceneProposal?> GetProposalAsync(Guid projectId, Guid draftId, Guid proposalId, CancellationToken cancellationToken = default)
     {
         try
@@ -253,6 +309,12 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Stores a distinct curator's explicit acceptance/rejection with independently recomputed semantic diagnostics.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="review">Review value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game scene review produced by the operation.</returns>
     public async Task<GameSceneReview> ReviewProposalAsync(Guid projectId, Guid draftId, GameSceneReview review, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -283,6 +345,11 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Reads the persisted curator decision for a proposal and its exact worktree identity.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="proposalId">Identifier of the proposal to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game scene review produced by the operation.</returns>
     public async Task<GameSceneReview?> GetReviewAsync(Guid projectId, Guid draftId, Guid proposalId, CancellationToken cancellationToken = default)
     {
         try
@@ -300,6 +367,12 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Applies only a semantically curated proposal, leaving all previously saved project revisions untouched.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="proposalId">Identifier of the proposal to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game studio draft produced by the operation.</returns>
     public async Task<GameStudioDraft> AcceptProposalAsync(Guid projectId, Guid draftId, Guid proposalId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -324,6 +397,13 @@ public sealed class GameStudioService(
     }
 
     /// <summary>Commit: freezes the scene plus every editable file as revision-scoped artifacts before closing this worktree.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="revisionName">Revision name value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="summary">Summary value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local GPT project revision produced by the operation.</returns>
     public async Task<LocalGptProjectRevision> CloseRevisionAsync(Guid projectId, Guid draftId, string revisionName, string summary, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -369,6 +449,12 @@ public sealed class GameStudioService(
         }
     }
 
+    /// <summary>
+    /// Performs require game project as part of the game studio service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local GPT project details produced by the operation.</returns>
     private async Task<LocalGptProjectDetails> RequireGameProjectAsync(Guid projectId, CancellationToken cancellationToken)
     {
         try
@@ -386,6 +472,13 @@ public sealed class GameStudioService(
         }
     }
 
+    /// <summary>
+    /// Performs require open draft as part of the game studio service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game studio draft produced by the operation.</returns>
     private async Task<GameStudioDraft> RequireOpenDraftAsync(Guid projectId, Guid draftId, CancellationToken cancellationToken)
     {
         try
@@ -402,6 +495,13 @@ public sealed class GameStudioService(
         }
     }
 
+    /// <summary>
+    /// Persists draft artifact as part of the game studio service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draft">Draft value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveDraftArtifactAsync(Guid projectId, GameStudioDraft draft, CancellationToken cancellationToken)
     {
         try
@@ -423,6 +523,15 @@ public sealed class GameStudioService(
         }
     }
 
+    /// <summary>
+    /// Persists file artifact as part of the game studio service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="path">Path value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="content">Content value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveFileArtifactAsync(Guid projectId, Guid draftId, string path, string content, CancellationToken cancellationToken)
     {
         try
@@ -441,6 +550,10 @@ public sealed class GameStudioService(
         }
     }
 
+    /// <summary>
+    /// Validates path as part of the game studio service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the game studio operation and used when producing its result.</param>
     private void ValidatePath(string path)
     {
         try
@@ -460,6 +573,10 @@ public sealed class GameStudioService(
         }
     }
 
+    /// <summary>
+    /// Performs require approval as part of the game studio service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     private void RequireApproval(bool userConfirmed)
     {
         try

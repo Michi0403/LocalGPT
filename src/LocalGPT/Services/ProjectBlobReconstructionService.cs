@@ -8,14 +8,29 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>Reconstructs ordered base64 chunks into a hash-verified archive that enters the normal quarantine workflow.</summary>
+/// <param name="workspaces">Chat upload workspace service dependency used by the project blob reconstruction workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the project blob reconstruction workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProjectBlobReconstructionService(
     IChatUploadWorkspaceService workspaces,
     LocalGptCatalogService catalog,
     ILogger<ProjectBlobReconstructionService> logger) : IProjectBlobReconstructionService
 {
+    /// <summary>
+    /// Stores the internal root state used by <see cref="ProjectBlobReconstructionService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string Root = LocalGptApplicationDataPaths.ResolveUserPath("BlobReconstruction");
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to gate state owned by <see cref="ProjectBlobReconstructionService"/>.
+    /// </summary>
     private readonly SemaphoreSlim Gate = new(1, 1);
 
+    /// <summary>
+    /// Performs start as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="manifest">Manifest value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project blob session snapshot produced by the operation.</returns>
     public async Task<ProjectBlobSessionSnapshot> StartAsync(ProjectBlobManifest manifest, CancellationToken cancellationToken = default)
     {
         try
@@ -52,6 +67,15 @@ public sealed class ProjectBlobReconstructionService(
         }
     }
 
+    /// <summary>
+    /// Adds chunk as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+    /// <param name="relativePath">Relative path value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <param name="chunkIndex">Chunk index value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <param name="base64Data">Base64 data value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project blob session snapshot produced by the operation.</returns>
     public async Task<ProjectBlobSessionSnapshot> AddChunkAsync(Guid sessionId, string relativePath, int chunkIndex, string base64Data, CancellationToken cancellationToken = default)
     {
         try
@@ -86,6 +110,12 @@ public sealed class ProjectBlobReconstructionService(
         }
     }
 
+    /// <summary>
+    /// Performs finalize as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project blob session snapshot produced by the operation.</returns>
     public async Task<ProjectBlobSessionSnapshot> FinalizeAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         try
@@ -143,6 +173,12 @@ public sealed class ProjectBlobReconstructionService(
         }
     }
 
+    /// <summary>
+    /// Performs load as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string dir project blob manifest manifest project blob session snapshot snapshot produced by the operation.</returns>
     private async Task<(string Dir, ProjectBlobManifest Manifest, ProjectBlobSessionSnapshot Snapshot)> LoadAsync(Guid sessionId, CancellationToken cancellationToken)
     {
         var dir = Path.Combine(Root, sessionId.ToString("N"));
@@ -152,6 +188,13 @@ public sealed class ProjectBlobReconstructionService(
         return (dir, manifest, snapshot);
     }
 
+    /// <summary>
+    /// Persists snapshot as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="dir">Dir value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <param name="snapshot">Snapshot value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveSnapshotAsync(string dir, ProjectBlobSessionSnapshot snapshot, CancellationToken cancellationToken)
     {
         try
@@ -166,6 +209,11 @@ public sealed class ProjectBlobReconstructionService(
         }
     }
 
+    /// <summary>
+    /// Determines whether onical manifest as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="manifest">Manifest value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string CanonicalManifest(ProjectBlobManifest manifest)
     {
         try
@@ -178,6 +226,11 @@ public sealed class ProjectBlobReconstructionService(
         catch (Exception ex) { logger.LogError(ex, "Building canonical blob manifest failed."); throw; }
     }
 
+    /// <summary>
+    /// Determines whether SHA-256 as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsSha256(string value)
     {
         try
@@ -189,6 +242,11 @@ public sealed class ProjectBlobReconstructionService(
         catch (Exception ex) { logger.LogError(ex, "Validating SHA-256 manifest field failed."); throw; }
     }
 
+    /// <summary>
+    /// Performs normalize as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Normalize(string path)
     {
         try
@@ -200,6 +258,10 @@ public sealed class ProjectBlobReconstructionService(
         catch (Exception ex) { logger.LogError(ex, "Normalizing blob path failed."); throw; }
     }
 
+    /// <summary>
+    /// Validates relative path as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the project blob reconstruction operation and used when producing its result.</param>
     private void ValidateRelativePath(string path)
     {
         try
@@ -212,6 +274,11 @@ public sealed class ProjectBlobReconstructionService(
         catch (Exception ex) { logger.LogError(ex, "Validating blob relative path failed."); throw; }
     }
 
+    /// <summary>
+    /// Performs sanitize archive name as part of the project blob reconstruction service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="name">Name value supplied to the project blob reconstruction operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SanitizeArchiveName(string name)
     {
         try

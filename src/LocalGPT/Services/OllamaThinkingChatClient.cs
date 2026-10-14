@@ -19,7 +19,13 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     // DXAIChat reparses the accumulated Markdown snapshot for every streamed update.
     // Coalescing very small provider deltas into a ~20 FPS presentation cadence prevents
     // long answers from building a render backlog while preserving genuinely live output.
+    /// <summary>
+    /// Defines the streaming presentation batch characters constant used by <see cref="OllamaThinkingChatClient"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int StreamingPresentationBatchCharacters = 96;
+    /// <summary>
+    /// Defines the streaming presentation max latency milliseconds constant used by <see cref="OllamaThinkingChatClient"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int StreamingPresentationMaxLatencyMilliseconds = 45;
     /// <summary>Gets the operator-configured automatic tool-loop ceiling from database-backed runtime policy.</summary>
     /// <value>The max automatic tool rounds value exposed by <see cref="OllamaThinkingChatClient"/>.</value>

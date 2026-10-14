@@ -170,6 +170,13 @@ namespace LocalGPT.Services
 }
 
     /// <summary>Selects one legal turn/move/shoot action from an authoritative path.</summary>
+    /// <param name="snapshot">Snapshot value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="path">Y) dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <param name="facing">Facing value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="targetX">Target x value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="targetY">Target y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="targetIsEnemy">Value indicating whether target is enemy should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SelectAutoplayPathAction(
         CouncilGameSessionSnapshot snapshot,
         IReadOnlyList<(int X, int Y)> path,

@@ -36,6 +36,8 @@ public sealed class AsciiChatTextService
     private const int ParticipantFinalCharacters = 16384;
 
     /// <summary>One content-free cache signature and its bounded terminal projection.</summary>
+    /// <param name="Signature">Signature value supplied to the ascii chat text operation and used when producing its result.</param>
+    /// <param name="Body">Body value supplied to the ascii chat text operation and used when producing its result.</param>
     private sealed record ParticipantProjectionCacheEntry(string Signature, string Body);
 
     /// <summary>Matches one bounded fenced ASCII animation block inside canonical chat content.</summary>

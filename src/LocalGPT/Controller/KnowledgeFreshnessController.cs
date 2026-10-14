@@ -6,12 +6,20 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>Exposes stale-knowledge reporting and reviewed exact-source refresh through the API boundary.</summary>
+/// <param name="freshness">Knowledge freshness review service dependency used by the knowledge freshness workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/knowledge/freshness")]
 public sealed class KnowledgeFreshnessController(
     IKnowledgeFreshnessReviewService freshness,
     ILogger<KnowledgeFreshnessController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Returns the report projection for the knowledge freshness API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("report")]
     public async Task<ActionResult<KnowledgeFreshnessReviewResult>> Report([FromBody] KnowledgeFreshnessReportRequest request, CancellationToken cancellationToken)
     {
@@ -26,6 +34,12 @@ public sealed class KnowledgeFreshnessController(
         }
     }
 
+    /// <summary>
+    /// Returns the refresh projection for the knowledge freshness API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("refresh")]
     [HumanApprovalRequired(
         "knowledge.freshness.refresh",

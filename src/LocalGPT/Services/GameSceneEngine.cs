@@ -4,9 +4,12 @@ using LocalGPT.BusinessObjects;
 namespace LocalGPT.Services;
 
 /// <summary>Scene-data-driven two-dimensional world simulation and console projection, independent of FPS and game identity.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GameSceneEngine(ILogger<GameSceneEngine> logger)
 {
     /// <summary>Checks bounded world geometry, AI art occupancy, clocks, parallax and palette data before a scene is accepted.</summary>
+    /// <param name="scene">Scene value supplied to the game scene engine operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<GameSceneFinding> Curate(GameSceneDocument scene)
     {
         try
@@ -110,6 +113,11 @@ public sealed class GameSceneEngine(ILogger<GameSceneEngine> logger)
     }
 
     /// <summary>Advances exact fixed ticks, retaining any unprocessed backlog; neither rendering FPS nor UI latency controls world speed.</summary>
+    /// <param name="scene">Scene value supplied to the game scene engine operation and used when producing its result.</param>
+    /// <param name="state">State value supplied to the game scene engine operation and used when producing its result.</param>
+    /// <param name="elapsedRealSeconds">Elapsed real seconds value supplied to the game scene engine operation and used when producing its result.</param>
+    /// <param name="takeTurn">Value indicating whether take turn should apply to this operation.</param>
+    /// <returns>The game scene clock produced by the operation.</returns>
     public GameSceneClock Advance(GameSceneDocument scene, GameSceneClock state, double elapsedRealSeconds, bool takeTurn = false)
     {
         try
@@ -151,6 +159,9 @@ public sealed class GameSceneEngine(ILogger<GameSceneEngine> logger)
     }
 
     /// <summary>Projects open-world chunks, row parallax and actors into a bounded ASCII preview without selecting a specific game's renderer.</summary>
+    /// <param name="scene">Scene value supplied to the game scene engine operation and used when producing its result.</param>
+    /// <param name="state">State value supplied to the game scene engine operation and used when producing its result.</param>
+    /// <returns>The game scene preview produced by the operation.</returns>
     public GameScenePreview Preview(GameSceneDocument scene, GameSceneClock state)
     {
         try

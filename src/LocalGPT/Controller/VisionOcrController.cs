@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>Exposes bounded local OCR capability and workspace-image recognition without accepting arbitrary server file paths.</summary>
+/// <param name="ocr">Workspace vision ocr service dependency used by the vision OCR workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/vision-ocr")]
 public sealed class VisionOcrController(
@@ -12,6 +14,9 @@ public sealed class VisionOcrController(
     ILogger<VisionOcrController> logger) : ControllerBase
 {
     /// <summary>Reports whether the requested local OCR model is installed and runtime-compatible on a configured Ollama host.</summary>
+    /// <param name="modelName">Model name value supplied to the vision OCR operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("capability")]
     public async Task<ActionResult<LocalVisionOcrCapability>> Capability([FromQuery] string? modelName, CancellationToken cancellationToken)
     {
@@ -27,6 +32,9 @@ public sealed class VisionOcrController(
     }
 
     /// <summary>Recognizes text in one image already contained by a chat-upload workspace.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("workspace")]
     public async Task<ActionResult<WorkspaceImageOcrResult>> Workspace([FromBody] WorkspaceImageOcrRequest request, CancellationToken cancellationToken)
     {

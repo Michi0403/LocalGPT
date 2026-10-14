@@ -7,6 +7,12 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Produces editable Godot C# projects, safely exports to a user-chosen project root and imports manual Godot edits.</summary>
+/// <param name="projects">Local gpt project service dependency used by the game godot workspace workflow to provide the corresponding application capability.</param>
+/// <param name="studio">Game studio service dependency used by the game godot workspace workflow to provide the corresponding application capability.</param>
+/// <param name="architecture">Project architecture service dependency used by the game godot workspace workflow to provide the corresponding application capability.</param>
+/// <param name="engine">Engine value supplied to the game godot workspace operation and used when producing its result.</param>
+/// <param name="platform">Platform runtime service dependency used by the game godot workspace workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GameGodotWorkspaceService(
     ILocalGptProjectService projects,
     IGameStudioService studio,
@@ -15,9 +21,17 @@ public sealed class GameGodotWorkspaceService(
     IPlatformRuntimeService platform,
     ILogger<GameGodotWorkspaceService> logger) : IGameGodotWorkspaceService
 {
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="GameGodotWorkspaceService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     /// <summary>Creates baseline Godot project, .NET script, scene and editable scene data if those worktree paths are not already present.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game studio draft produced by the operation.</returns>
     public async Task<GameStudioDraft> SeedGodotFilesAsync(Guid projectId, Guid draftId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -46,6 +60,11 @@ public sealed class GameGodotWorkspaceService(
     }
 
     /// <summary>Explicitly publishes the currently curated scene document into its editable Godot scene.json source file.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game studio draft produced by the operation.</returns>
     public async Task<GameStudioDraft> UpdateSceneResourceAsync(Guid projectId, Guid draftId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -64,6 +83,11 @@ public sealed class GameGodotWorkspaceService(
     }
 
     /// <summary>Writes a complete draft to the user's configured project root, with preflight conflicts for all externally changed files.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<string>> ExportAsync(Guid projectId, Guid draftId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -105,6 +129,11 @@ public sealed class GameGodotWorkspaceService(
     }
 
     /// <summary>Reimports real changes made with Godot or a code editor into the open draft without closing its revision.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<string>> ImportChangedAsync(Guid projectId, Guid draftId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -187,6 +216,13 @@ public sealed class GameGodotWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// Performs require open as part of the game godot workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The game studio draft produced by the operation.</returns>
     private async Task<GameStudioDraft> RequireOpenAsync(Guid projectId, Guid draftId, CancellationToken cancellationToken)
     {
         try
@@ -203,6 +239,12 @@ public sealed class GameGodotWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// Resolves root as part of the game godot workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> ResolveRootAsync(Guid projectId, CancellationToken cancellationToken)
     {
         try
@@ -223,6 +265,12 @@ public sealed class GameGodotWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// Performs checked full path as part of the game godot workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="root">Root value supplied to the game godot workspace operation and used when producing its result.</param>
+    /// <param name="path">Path value supplied to the game godot workspace operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string CheckedFullPath(string root, string path)
     {
         try
@@ -246,6 +294,13 @@ public sealed class GameGodotWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// Reads receipts as part of the game godot workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The dictionary string string produced by the operation.</returns>
     private async Task<Dictionary<string, string>> ReadReceiptsAsync(Guid projectId, Guid draftId, CancellationToken cancellationToken)
     {
         try
@@ -261,6 +316,14 @@ public sealed class GameGodotWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// Persists receipts as part of the game godot workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="draftId">Identifier of the draft to use for this operation.</param>
+    /// <param name="hashes">Hashes value supplied to the game godot workspace operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveReceiptsAsync(Guid projectId, Guid draftId, Dictionary<string, string> hashes, CancellationToken cancellationToken)
     {
         try
@@ -279,6 +342,10 @@ public sealed class GameGodotWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// Reads godot template as part of the game godot workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private string ReadGodotTemplate()
     {
         try
@@ -295,6 +362,11 @@ public sealed class GameGodotWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// Determines whether h as part of the game godot workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="content">Content value supplied to the game godot workspace operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Hash(string content)
     {
         try
@@ -308,6 +380,10 @@ public sealed class GameGodotWorkspaceService(
         }
     }
 
+    /// <summary>
+    /// Performs require approval as part of the game godot workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     private void RequireApproval(bool userConfirmed)
     {
         try

@@ -384,12 +384,16 @@ public sealed class CanIRunModelRecommendation
     /// <value>The required vram gi b value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
     public double? RequiredVramGiB { get; set; }
     /// <summary>Service-estimated dedicated GPU VRAM allocation for this host and model; not a runtime measurement.</summary>
+    /// <value>The estimated GPU vram gi b value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
     public double? EstimatedGpuVramGiB { get; set; }
     /// <summary>Service-estimated system RAM allocation; includes a possible GPU-offload spill, not application overhead.</summary>
+    /// <value>The estimated system ram gi b value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
     public double? EstimatedSystemRamGiB { get; set; }
     /// <summary>Service-estimated shared GPU allocation from the unified/system pool, never additional to system RAM capacity.</summary>
+    /// <value>The estimated unified memory gi b value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
     public double? EstimatedUnifiedMemoryGiB { get; set; }
     /// <summary>Explains how the model working-set estimate maps onto the reviewed host, or why no numeric estimate is available.</summary>
+    /// <value>The memory plan summary value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
     public string MemoryPlanSummary { get; set; } = string.Empty;
     /// <summary>Gets or sets the model provider/publisher reported by CanIRun.ai.</summary>
     /// <value>The publisher value exposed by <see cref="CanIRunModelRecommendation"/>.</value>
@@ -487,10 +491,14 @@ public sealed class AiProviderBootstrapProfile
 /// <summary>Describes one configured local-AI provider host independently from current reachability.</summary>
 public sealed class InitialSetupConfiguredProviderHost
 {
-    /// <summary>Gets or sets the canonical LocalGPT provider kind.</summary>
+    /// <summary>
+    /// Gets or sets the provider kind value that forms part of the initial setup configured provider host state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <value>The provider kind, such as Ollama or OpenAICompatible.</value>
     public string ProviderKind { get; set; } = string.Empty;
-    /// <summary>Gets or sets the normalized endpoint stored in LocalGPT configuration.</summary>
+    /// <summary>
+    /// Gets or sets the endpoint that identifies the network or application endpoint associated with this initial setup configured provider host state.
+    /// </summary>
     /// <value>The configured provider endpoint.</value>
     public string Endpoint { get; set; } = string.Empty;
     /// <summary>Gets or sets the preferred model associated with this host binding.</summary>

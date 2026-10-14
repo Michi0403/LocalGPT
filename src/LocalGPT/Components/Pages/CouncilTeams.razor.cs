@@ -153,17 +153,25 @@ namespace LocalGPT.Components.Pages
         new(CouncilRoleLanguageMode.SenderLanguage, "Match latest human sender"),
         new(CouncilRoleLanguageMode.English, "English")
     ];
-    /// <summary>Gets team choices for the DevExpress team selector.</summary>
+    /// <summary>
+    /// Gets the team selection options collection maintained or exposed by this council teams instance for downstream processing.
+    /// </summary>
+    /// <value>The team selection options value exposed by <see cref="CouncilTeams"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> TeamSelectionOptions => _teams
         .Select(team => new LocalGptSelectionOption<string>(team.Key, $"{team.DisplayName} ({team.Key})"))
         .ToList();
 
-    /// <summary>Gets supplied templates for the DevExpress reset selector.</summary>
+    /// <summary>
+    /// Gets the reset template options collection maintained or exposed by this council teams instance for downstream processing.
+    /// </summary>
+    /// <value>The reset template options value exposed by <see cref="CouncilTeams"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> ResetTemplateOptions => _defaultTemplates
         .Select(template => new LocalGptSelectionOption<string>(template.Key, $"{template.DisplayName} ({template.Key})"))
         .ToList();
 
     /// <summary>Gets the fixed invocation count when the role's minimum and maximum match.</summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int? ExactRoleInvocationCount(OrganicCouncilRoleDefinition role)
     {
         try
@@ -178,6 +186,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Gets provider-qualified model choices for an assigned workflow step.</summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptSelectionOption<string>> WorkflowAssignedModelOptions(CouncilWorkflowStepDefinition step)
     {
         try
@@ -191,7 +201,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    /// <summary>Gets provider-qualified model choices for role-result synthesis.</summary>
+    /// <summary>
+    /// Performs role result synthesis model options for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptSelectionOption<string>> RoleResultSynthesisModelOptions(CouncilWorkflowStepDefinition step)
     {
         try
@@ -206,6 +220,10 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Builds a provider-qualified workflow-model choice list while preserving unavailable saved bindings.</summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="selectedValue">Selected value value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="emptyLabel">Empty label value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptSelectionOption<string>> WorkflowModelOptions(CouncilWorkflowStepDefinition step, string? selectedValue, string emptyLabel)
     {
         try
@@ -226,6 +244,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Gets legal revisit targets up to and including the current workflow step.</summary>
+    /// <param name="stepIndex">Step index value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptSelectionOption<string>> XRevisitTargetOptions(int stepIndex)
     {
         try
@@ -242,6 +262,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Gets child-Council choices while preserving a saved unavailable team key.</summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptSelectionOption<string>> XChildCouncilTeamOptions(CouncilWorkflowStepDefinition step)
     {
         try
@@ -262,6 +284,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Gets single-model X child choices while preserving a saved unavailable provider binding.</summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptSelectionOption<string>> XChildModelOptions(CouncilWorkflowStepDefinition step)
     {
         try

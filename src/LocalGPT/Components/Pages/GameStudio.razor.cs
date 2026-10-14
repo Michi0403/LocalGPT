@@ -4,37 +4,143 @@ using Microsoft.JSInterop;
 
 namespace LocalGPT.Components.Pages;
 
-/// <summary>InteractiveServer DevExpress editing surface for game scenes, AI proposals and mutable Godot C# revision worktrees.</summary>
+/// <summary>
+/// Renders the game studio Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+/// </summary>
 public partial class GameStudio
 {
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="GameStudio"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Gets or sets the game projects collection maintained or exposed by this game studio instance for downstream processing.
+    /// </summary>
+    /// <value>The game projects value exposed by <see cref="GameStudio"/>.</value>
     private IReadOnlyList<LocalGptProjectSummary> GameProjects { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the stable selected project identifier used to identify or correlate this game studio instance with related application state.
+    /// </summary>
+    /// <value>The selected project identifier value exposed by <see cref="GameStudio"/>.</value>
     private Guid SelectedProjectId { get; set; }
+    /// <summary>
+    /// Gets or sets the draft value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The draft value exposed by <see cref="GameStudio"/>.</value>
     private GameStudioDraft? Draft { get; set; }
+    /// <summary>
+    /// Gets or sets the active section value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The active section value exposed by <see cref="GameStudio"/>.</value>
     private string ActiveSection { get; set; } = "world";
+    /// <summary>
+    /// Gets or sets a value indicating whether busy applies to the game studio state.
+    /// </summary>
+    /// <value>The busy value exposed by <see cref="GameStudio"/>.</value>
     private bool Busy { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether confirm close applies to the game studio state.
+    /// </summary>
+    /// <value>The confirm close value exposed by <see cref="GameStudio"/>.</value>
     private bool ConfirmClose { get; set; }
+    /// <summary>
+    /// Gets a value indicating whether edit applies to the game studio state.
+    /// </summary>
+    /// <value>The can edit value exposed by <see cref="GameStudio"/>.</value>
     private bool CanEdit => !Busy && Draft is not null && Draft.ClosedRevisionId is null;
+    /// <summary>
+    /// Gets or sets the status value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The status value exposed by <see cref="GameStudio"/>.</value>
     private string Status { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the scene JSON value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The scene JSON value exposed by <see cref="GameStudio"/>.</value>
     private string SceneJson { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the file path used by this game studio instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The file path value exposed by <see cref="GameStudio"/>.</value>
     private string FilePath { get; set; } = "scene.json";
+    /// <summary>
+    /// Gets or sets the file content value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The file content value exposed by <see cref="GameStudio"/>.</value>
     private string FileContent { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the revision name value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The revision name value exposed by <see cref="GameStudio"/>.</value>
     private string RevisionName { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the revision summary value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The revision summary value exposed by <see cref="GameStudio"/>.</value>
     private string RevisionSummary { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the proposal JSON value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The proposal JSON value exposed by <see cref="GameStudio"/>.</value>
     private string ProposalJson { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the patch JSON value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The patch JSON value exposed by <see cref="GameStudio"/>.</value>
     private string PatchJson { get; set; } = "{}";
+    /// <summary>
+    /// Gets or sets the proposal artist value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The proposal artist value exposed by <see cref="GameStudio"/>.</value>
     private string ProposalArtist { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the proposal curator value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The proposal curator value exposed by <see cref="GameStudio"/>.</value>
     private string ProposalCurator { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the proposal description value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The proposal description value exposed by <see cref="GameStudio"/>.</value>
     private string ProposalDescription { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the review critique value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The review critique value exposed by <see cref="GameStudio"/>.</value>
     private string ReviewCritique { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets a value indicating whether review approved applies to the game studio state.
+    /// </summary>
+    /// <value>The review approved value exposed by <see cref="GameStudio"/>.</value>
     private bool ReviewApproved { get; set; }
+    /// <summary>
+    /// Gets or sets the stable selected proposal identifier used to identify or correlate this game studio instance with related application state.
+    /// </summary>
+    /// <value>The selected proposal identifier value exposed by <see cref="GameStudio"/>.</value>
     private Guid SelectedProposalId { get; set; }
+    /// <summary>
+    /// Gets or sets the proposals collection maintained or exposed by this game studio instance for downstream processing.
+    /// </summary>
+    /// <value>The proposals value exposed by <see cref="GameStudio"/>.</value>
     private IReadOnlyList<GameSceneProposal> Proposals { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the findings collection maintained or exposed by this game studio instance for downstream processing.
+    /// </summary>
+    /// <value>The findings value exposed by <see cref="GameStudio"/>.</value>
     private IReadOnlyList<GameSceneFinding> Findings { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the clock value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The clock value exposed by <see cref="GameStudio"/>.</value>
     private GameSceneClock Clock { get; set; } = new();
+    /// <summary>
+    /// Gets or sets the preview value that forms part of the game studio state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The preview value exposed by <see cref="GameStudio"/>.</value>
     private GameScenePreview? Preview { get; set; }
 
     /// <summary>Initializes project choices in the maintained InteractiveServer circuit.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
         try
@@ -49,6 +155,8 @@ public partial class GameStudio
     }
 
     /// <summary>Draws pixel-sprite and per-row parallax projection only after Blazor has materialized the canvas.</summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         try
@@ -63,6 +171,7 @@ public partial class GameStudio
     }
 
     /// <summary>Refreshes selectable durable Game projects without implicitly editing them.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ReloadAsync()
     {
         if (Busy) return;
@@ -86,6 +195,8 @@ public partial class GameStudio
     }
 
     /// <summary>Changes the current game project and reloads its open/closed working copy.</summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectProjectAsync(Guid id)
     {
         if (Busy) return;
@@ -106,7 +217,10 @@ public partial class GameStudio
         }
     }
 
-    /// <summary>Reads the durable worktree and refreshes the deterministic console preview.</summary>
+    /// <summary>
+    /// Loads project core for <see cref="GameStudio"/>, keeping the operation consistent with the state and invariants of the surrounding game studio workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadProjectCoreAsync()
     {
         try
@@ -124,6 +238,7 @@ public partial class GameStudio
     }
 
     /// <summary>Creates a mutable worktree only through an explicit UI button.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OpenDraftAsync()
     {
         try
@@ -143,6 +258,7 @@ public partial class GameStudio
     }
 
     /// <summary>Switches DevExpress hierarchy areas while keeping the editable scene as one project-owned document.</summary>
+    /// <param name="section">Section value supplied to the game studio operation and used when producing its result.</param>
     private void ChangeSection(string section)
     {
         try
@@ -159,6 +275,7 @@ public partial class GameStudio
     }
 
     /// <summary>Validates and saves the strongly typed scene model without creating a project revision.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveSceneAsync()
     {
         try
@@ -178,6 +295,7 @@ public partial class GameStudio
     }
 
     /// <summary>Validates the entire JSON scene, including actors, world chunks, art masks, scrolling and palette timelines.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveSceneJsonAsync()
     {
         try
@@ -200,6 +318,7 @@ public partial class GameStudio
     }
 
     /// <summary>Prepares editable C# and scene files without destroying pre-existing human edits.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SeedAsync()
     {
         try
@@ -220,6 +339,7 @@ public partial class GameStudio
     }
 
     /// <summary>Publishes the curated scene document to the Godot draft's editable scene resource.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PublishSceneAsync()
     {
         try
@@ -239,6 +359,7 @@ public partial class GameStudio
     }
 
     /// <summary>Exports files after checking external hashes; an existing human edit is never silently overwritten.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ExportAsync()
     {
         try
@@ -258,6 +379,7 @@ public partial class GameStudio
     }
 
     /// <summary>Imports files modified by Godot into the draft while retaining the still-open revision.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ImportAsync()
     {
         try
@@ -279,6 +401,8 @@ public partial class GameStudio
     }
 
     /// <summary>Loads a tracked Godot file into the DevExpress source editor.</summary>
+    /// <param name="path">Path value supplied to the game studio operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectFileAsync(string path)
     {
         try
@@ -296,6 +420,7 @@ public partial class GameStudio
     }
 
     /// <summary>Saves one source file as another change of the open worktree; does not create a revision.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveFileAsync()
     {
         try
@@ -314,6 +439,7 @@ public partial class GameStudio
     }
 
     /// <summary>Stores artist-proposed scene art for independent review without changing the active world.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SubmitProposalAsync()
     {
         try
@@ -340,6 +466,7 @@ public partial class GameStudio
     }
 
     /// <summary>Lets a smaller local AI or human propose only changed objects while preserving all untouched scene fields.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SubmitPatchAsync()
     {
         try
@@ -361,6 +488,7 @@ public partial class GameStudio
     }
 
     /// <summary>Persists an independent curator review and repeats non-negotiable scene placement validation.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ReviewProposalAsync()
     {
         try
@@ -385,6 +513,7 @@ public partial class GameStudio
     }
 
     /// <summary>Applies a candidate only after independent curator identity and semantic validations pass.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task AcceptProposalAsync()
     {
         try
@@ -405,6 +534,7 @@ public partial class GameStudio
     }
 
     /// <summary>Creates the next closed revision only on explicit human approval, then freezes the editor.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CloseAsync()
     {
         try
@@ -489,6 +619,7 @@ public partial class GameStudio
     }
 
     /// <summary>Refreshes curation, preview, source JSON and associated AI candidates.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshDocumentAsync()
     {
         try
@@ -507,6 +638,9 @@ public partial class GameStudio
     }
 
     /// <summary>Owns busy-state and bounded UI feedback for asynchronous Game Studio edits.</summary>
+    /// <param name="action">Action value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="handler">Handler value supplied to the game studio operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunAsync(string action, Func<Task> handler)
     {
         if (Busy) return;
@@ -531,6 +665,8 @@ public partial class GameStudio
     }
 
     /// <summary>Logs errors locally and shows a concise human-actionable notification.</summary>
+    /// <param name="exception">Exception value supplied to the game studio operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the game studio operation and used when producing its result.</param>
     private void ReportFailure(Exception exception, string operation)
     {
         try

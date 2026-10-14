@@ -70,10 +70,13 @@ public sealed class LocalGptGameProjectProfile
     /// <value>The frame height in character cells.</value>
     public int FrameHeight { get; set; } = 25;
     /// <summary>Selects the shared ASCII presentation palette used by built sessions.</summary>
+    /// <value>The ascii color mode value exposed by <see cref="LocalGptGameProjectProfile"/>.</value>
     public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
     /// <summary>Stores the default foreground palette index for explicit palette modes.</summary>
+    /// <value>The default foreground color value exposed by <see cref="LocalGptGameProjectProfile"/>.</value>
     public int DefaultForegroundColor { get; set; } = 46;
     /// <summary>Stores the default background palette index for explicit palette modes.</summary>
+    /// <value>The default background color value exposed by <see cref="LocalGptGameProjectProfile"/>.</value>
     public int DefaultBackgroundColor { get; set; }
     /// <summary>Stores a deterministic map seed when project authoring requests one.</summary>
     /// <value>The positive map seed or zero for runtime derivation.</value>
@@ -90,6 +93,7 @@ public sealed class LocalGptGameProjectProfile
 public sealed class ProjectGameDefinition
 {
     /// <summary>Curated scene from the last explicitly completed project revision, if that revision contains a Game Studio world.</summary>
+    /// <value>The scene value exposed by <see cref="ProjectGameDefinition"/>.</value>
     public GameSceneDocument? Scene { get; set; }
     /// <summary>Identifies the durable LocalGPT project that owns this compiled game definition.</summary>
     /// <value>The non-empty project identifier captured by the build.</value>
@@ -140,10 +144,13 @@ public sealed class ProjectGameDefinition
     /// <value>A bounded display height from 8 through 100 cells.</value>
     public int FrameHeight { get; set; } = 25;
     /// <summary>Selects the shared ASCII presentation palette compiled into this project build.</summary>
+    /// <value>The ascii color mode value exposed by <see cref="ProjectGameDefinition"/>.</value>
     public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
     /// <summary>Defines the default foreground palette index for explicit palette modes.</summary>
+    /// <value>The default foreground color value exposed by <see cref="ProjectGameDefinition"/>.</value>
     public int DefaultForegroundColor { get; set; } = 46;
     /// <summary>Defines the default background palette index for explicit palette modes.</summary>
+    /// <value>The default background color value exposed by <see cref="ProjectGameDefinition"/>.</value>
     public int DefaultBackgroundColor { get; set; }
     /// <summary>Provides a deterministic map seed for compatible runtime profiles, with zero requesting runtime derivation.</summary>
     /// <value>The positive project-selected seed or zero.</value>
@@ -195,10 +202,13 @@ public sealed class SaveGameProjectProfileRequest
     /// <value>A height clamped to 8 through 100 cells.</value>
     public int FrameHeight { get; set; } = 25;
     /// <summary>Selects terminal-default, ANSI-16, or indexed-256 presentation for later builds.</summary>
+    /// <value>The ascii color mode value exposed by <see cref="SaveGameProjectProfileRequest"/>.</value>
     public CouncilAsciiColorMode AsciiColorMode { get; set; } = CouncilAsciiColorMode.TerminalDefault;
     /// <summary>Requests the default foreground palette index.</summary>
+    /// <value>The default foreground color value exposed by <see cref="SaveGameProjectProfileRequest"/>.</value>
     public int DefaultForegroundColor { get; set; } = 46;
     /// <summary>Requests the default background palette index.</summary>
+    /// <value>The default background color value exposed by <see cref="SaveGameProjectProfileRequest"/>.</value>
     public int DefaultBackgroundColor { get; set; }
     /// <summary>Optionally requests a deterministic map seed for runtime profiles that use one.</summary>
     /// <value>A positive deterministic seed, or <c>null</c> to let the runtime derive one.</value>
@@ -255,10 +265,17 @@ public sealed class LaunchProjectGameRequest
 }
 
 /// <summary>A completed, approved Game Studio revision available for direct play in the shared Chat game surface.</summary>
+/// <param name="ProjectId">Identifier of the project to use for this operation.</param>
+/// <param name="RevisionId">Identifier of the revision to use for this operation.</param>
+/// <param name="ProjectName">Project name value supplied to the project game revision choice operation and used when producing its result.</param>
+/// <param name="RevisionName">Revision name value supplied to the project game revision choice operation and used when producing its result.</param>
+/// <param name="ProjectVersion">Project version value supplied to the project game revision choice operation and used when producing its result.</param>
+/// <param name="IsCurrent">Value indicating whether current should apply to this operation.</param>
 public sealed record ProjectGameRevisionChoice(Guid ProjectId, Guid RevisionId, string ProjectName,
     string RevisionName, string ProjectVersion, bool IsCurrent)
 {
     /// <summary>Shows project identity and its exact immutable revision without hiding the revision boundary.</summary>
+    /// <value>The display name value exposed by <see cref="ProjectGameRevisionChoice"/>.</value>
     public string DisplayName => $"{ProjectName} · {RevisionName} [{RevisionId.ToString("N")[..8]}]{(IsCurrent ? " · current" : string.Empty)}";
 }
 

@@ -55,12 +55,18 @@ namespace LocalGPT.Components.Pages
         new("architecture", Localization.Get("Chat.Configuration.Architecture", fallback: "Architecture"), Localization.GetText("Optional implementation decisions for the next Council answer."))
     ];
 
-    /// <summary>Gets provider choices for the DevExpress chat provider selector.</summary>
+    /// <summary>
+    /// Gets the provider session options collection maintained or exposed by this chat instance for downstream processing.
+    /// </summary>
+    /// <value>The provider session options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> ProviderSessionOptions => ModelsList
         .Select(session => new LocalGptSelectionOption<string>(session.Name, ProviderOptionLabel(session)))
         .ToList();
 
-    /// <summary>Gets the supported Ollama acceleration policies for the DevExpress selector.</summary>
+    /// <summary>
+    /// Gets the Ollama acceleration options collection maintained or exposed by this chat instance for downstream processing.
+    /// </summary>
+    /// <value>The Ollama acceleration options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> OllamaAccelerationOptions =>
     [
         new(Catalog.OllamaModeAutoGpu, "Auto GPU"),
@@ -69,6 +75,7 @@ namespace LocalGPT.Components.Pages
     ];
 
     /// <summary>Gets the Council hardware-road scheduling policies for the DevExpress selector.</summary>
+    /// <value>The council scheduling options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> CouncilSchedulingOptions =>
     [
         new("host-balanced", "Host-balanced · different AI hosts parallel"),
@@ -76,31 +83,43 @@ namespace LocalGPT.Components.Pages
     ];
 
     /// <summary>Gets persisted hardware-performance presets including the explicit custom state.</summary>
+    /// <value>The hardware performance preset options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> HardwarePerformancePresetOptions =>
         [new(string.Empty, L("Chat.HardwarePerformancePreset.Custom", "Custom hardware settings")),
          .. HardwarePerformancePresetItems.Select(preset => new LocalGptSelectionOption<string>(preset.Id.ToString(), $"{preset.Name}{(preset.IsDefault ? " (default)" : string.Empty)}"))];
 
     /// <summary>Gets model presets including the explicit custom-selection state.</summary>
+    /// <value>The model preset options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> ModelPresetOptions =>
         [new(string.Empty, "Custom selection"),
          .. ModelPresets.Select(preset => new LocalGptSelectionOption<string>(preset.Id.ToString(), $"{preset.Name}{(preset.IsDefault ? " (default)" : string.Empty)}"))];
 
-    /// <summary>Gets configured Council teams for the DevExpress selector.</summary>
+    /// <summary>
+    /// Gets the council team options collection maintained or exposed by this chat instance for downstream processing.
+    /// </summary>
+    /// <value>The council team options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> CouncilTeamOptions => CouncilTeams
         .Select(team => new LocalGptSelectionOption<string>(team.Key, team.DisplayName))
         .ToList();
 
-    /// <summary>Gets saved conversations for the memory selector.</summary>
+    /// <summary>
+    /// Gets the saved conversation options collection maintained or exposed by this chat instance for downstream processing.
+    /// </summary>
+    /// <value>The saved conversation options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> SavedConversationOptions => SavedConversations
         .Select(conversation => new LocalGptSelectionOption<string>(conversation.Id.ToString(), conversation.DisplayName))
         .ToList();
 
-    /// <summary>Gets projects including the explicit no-project context.</summary>
+    /// <summary>
+    /// Gets the chat project options collection maintained or exposed by this chat instance for downstream processing.
+    /// </summary>
+    /// <value>The chat project options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> ChatProjectOptions =>
         [new(string.Empty, "No project"),
          .. ChatProjects.Select(project => new LocalGptSelectionOption<string>(project.Id.ToString(), project.DisplayName))];
 
     /// <summary>Gets versions for the selected project including the unspecified/current context.</summary>
+    /// <value>The chat project version options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> ChatProjectVersionOptions =>
         [new(string.Empty, "Current / unspecified"),
          .. (SelectedChatProjectDetails?.Versions.OrderByDescending(item => item.CreatedAtUtc)
@@ -108,6 +127,7 @@ namespace LocalGPT.Components.Pages
              ?? Enumerable.Empty<LocalGptSelectionOption<string>>())];
 
     /// <summary>Gets live Council sessions with current round/phase context for rejoin.</summary>
+    /// <value>The running council session options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> RunningCouncilSessionOptions => RunningLiveCouncilSessions
         .Select(session =>
         {
@@ -119,7 +139,10 @@ namespace LocalGPT.Components.Pages
         })
         .ToList();
 
-    /// <summary>Gets assistant response feedback targets for the DevExpress selector.</summary>
+    /// <summary>
+    /// Gets the feedback target options collection maintained or exposed by this chat instance for downstream processing.
+    /// </summary>
+    /// <value>The feedback target options value exposed by <see cref="Chat"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> FeedbackTargetOptions => FeedbackTargets
         .Select(target => new LocalGptSelectionOption<string>(target.SortOrder.ToString(CultureInfo.InvariantCulture), target.Label))
         .ToList();
@@ -244,6 +267,10 @@ namespace LocalGPT.Components.Pages
         ? "localgpt-rounded-action localgpt-action-primary"
         : "localgpt-rounded-action localgpt-action-neutral";
 
+    /// <summary>
+    /// Gets or sets a value indicating whether ascii fun mode enabled applies to the chat state.
+    /// </summary>
+    /// <value>The ascii fun mode enabled value exposed by <see cref="Chat"/>.</value>
     bool AsciiFunModeEnabled
     {
         get => asciiFunModeEnabled;
@@ -1093,6 +1120,7 @@ namespace LocalGPT.Components.Pages
 
 
     /// <summary>Indicates that the selected workflow or the terminal itself has an ASCII game surface available.</summary>
+    /// <value>The is ascii game hint available value exposed by <see cref="Chat"/>.</value>
     private bool IsAsciiGameHintAvailable
     {
         get
@@ -1106,26 +1134,32 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Gets the primary ASCII-terminal action text, including an explicit game-ready hint.</summary>
+    /// <value>The ascii terminal button text value exposed by <see cref="Chat"/>.</value>
     private string AsciiTerminalButtonText => showGameConsole
         ? "Hide ASCII terminal"
         : IsAsciiGameHintAvailable ? "GAME READY · Open ASCII terminal" : "Show ASCII terminal";
 
     /// <summary>Gets the DevExpress render style used to call out an available game without changing non-game chat behavior.</summary>
+    /// <value>The ascii terminal button render style value exposed by <see cref="Chat"/>.</value>
     private ButtonRenderStyle AsciiTerminalButtonRenderStyle => IsAsciiGameHintAvailable
         ? ButtonRenderStyle.Success
         : ButtonRenderStyle.Secondary;
 
     /// <summary>Gets the terminal button CSS classes used by the maintained rounded-action presentation.</summary>
+    /// <value>The ascii terminal button CSS class value exposed by <see cref="Chat"/>.</value>
     private string AsciiTerminalButtonCssClass => IsAsciiGameHintAvailable
         ? "localgpt-rounded-action localgpt-action-success chat-ascii-game-ready"
         : "localgpt-rounded-action localgpt-action-neutral";
 
     /// <summary>Gets the accessible terminal-button hint shown while a game surface is available.</summary>
+    /// <value>The ascii terminal button title value exposed by <see cref="Chat"/>.</value>
     private string AsciiTerminalButtonTitle => IsAsciiGameHintAvailable
         ? "An ASCII game/view is available for this chat. Open the terminal to play or watch it."
         : "Open the shared ASCII chat, game and operator terminal.";
 
     /// <summary>Receives authoritative game availability from the mounted shared ASCII terminal.</summary>
+    /// <param name="available">Value indicating whether available should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnAsciiGameAvailabilityChangedAsync(bool available)
     {
         try
@@ -1617,6 +1651,7 @@ namespace LocalGPT.Components.Pages
 
     /// <summary>Applies a user-selected Council team and refreshes its connected pre-prompts.</summary>
     /// <param name="args">Select change event containing the requested team key.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnCouncilTeamChanged(ChangeEventArgs args)
     {
         try

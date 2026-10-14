@@ -14,6 +14,9 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, IAsyncDisposable
 {
+    /// <summary>
+    /// Stores the in-memory allowed operations collection maintained internally by <see cref="PythonNetRuntimeCoordinator"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> AllowedOperations = new(StringComparer.Ordinal)
     {
         "runtime_probe",
@@ -27,21 +30,70 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
         "cache_clear"
     };
 
+    /// <summary>
+    /// Stores the options monitor dependency used by <see cref="PythonNetRuntimeCoordinator"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IOptionsMonitor<LocalGptConfigurationRoot> options;
+    /// <summary>
+    /// Stores the web host environment dependency used by <see cref="PythonNetRuntimeCoordinator"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IWebHostEnvironment environment;
+    /// <summary>
+    /// Stores the logger used by <see cref="PythonNetRuntimeCoordinator"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger<PythonNetRuntimeCoordinator> logger;
+    /// <summary>
+    /// Stores the internal queue state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly Channel<QueuedJob> queue;
+    /// <summary>
+    /// Stores the cancellation source used by <see cref="PythonNetRuntimeCoordinator"/> to stop its current background or asynchronous operation.
+    /// </summary>
     private readonly CancellationTokenSource shutdown = new();
+    /// <summary>
+    /// Stores the internal worker state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly Task worker;
+    /// <summary>
+    /// Stores the internal python assembly state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private Assembly? pythonAssembly;
+    /// <summary>
+    /// Stores the internal python engine type state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private Type? pythonEngineType;
+    /// <summary>
+    /// Stores the internal py type state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private Type? pyType;
+    /// <summary>
+    /// Stores the internal initialized fingerprint state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private string initializedFingerprint = string.Empty;
+    /// <summary>
+    /// Stores the internal initialized state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private volatile bool initialized;
+    /// <summary>
+    /// Stores the internal restart required state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private volatile bool restartRequired;
+    /// <summary>
+    /// Stores the internal bridge module loaded state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private bool bridgeModuleLoaded;
+    /// <summary>
+    /// Stores the internal queue length state used by <see cref="PythonNetRuntimeCoordinator"/> while executing its surrounding workflow.
+    /// </summary>
     private int queueLength;
 
+    /// <summary>
+    /// Initializes a new <see cref="PythonNetRuntimeCoordinator"/> instance and captures the dependencies or initial state required by its python net runtime workflow.
+    /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="environment">Web host environment dependency used by the python net runtime workflow to provide the corresponding application capability.</param>
+    /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the python net runtime workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public PythonNetRuntimeCoordinator(
         IOptionsMonitor<LocalGptConfigurationRoot> options,
         IWebHostEnvironment environment,
@@ -78,10 +130,28 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
         worker = Task.Run(() => WorkerAsync(shutdown.Token));
     }
 
+    /// <summary>
+    /// Gets a value indicating whether initialized applies to the python net runtime state.
+    /// </summary>
+    /// <value>The is initialized value exposed by <see cref="PythonNetRuntimeCoordinator"/>.</value>
     public bool IsInitialized => initialized;
+    /// <summary>
+    /// Gets a value indicating whether restart required applies to the python net runtime state.
+    /// </summary>
+    /// <value>The restart required value exposed by <see cref="PythonNetRuntimeCoordinator"/>.</value>
     public bool RestartRequired => restartRequired;
+    /// <summary>
+    /// Gets the queue length that quantifies the associated python net runtime data.
+    /// </summary>
+    /// <value>The queue length value exposed by <see cref="PythonNetRuntimeCoordinator"/>.</value>
     public int QueueLength => Volatile.Read(ref queueLength);
 
+    /// <summary>
+    /// Performs execute for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     public async Task<LocalAiRuntimeJobResult> ExecuteAsync(LocalAiRuntimeJobRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -120,6 +190,11 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Performs worker for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task WorkerAsync(CancellationToken cancellationToken)
     {
         try
@@ -171,6 +246,12 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
         }
     }
 
+    /// <summary>
+    /// Executes one for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     private LocalAiRuntimeJobResult ExecuteOne(LocalAiRuntimeJobRequest request, CancellationToken cancellationToken)
     {
     try
@@ -235,6 +316,9 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Ensures initialized for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
     private void EnsureInitialized()
     {
     try
@@ -293,6 +377,10 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Performs acquire gil for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <returns>The i disposable produced by the operation.</returns>
     private IDisposable AcquireGil()
     {
     try
@@ -313,6 +401,12 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Executes bridge for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="requestPath">Request path value supplied to the python net runtime operation and used when producing its result.</param>
+    /// <param name="resultPath">Result path value supplied to the python net runtime operation and used when producing its result.</param>
+    /// <param name="cancelPath">Cancel path value supplied to the python net runtime operation and used when producing its result.</param>
     private void ExecuteBridge(string requestPath, string resultPath, string cancelPath)
     {
     try
@@ -334,6 +428,9 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Ensures bridge module loaded for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
     private void EnsureBridgeModuleLoaded()
     {
     try
@@ -360,6 +457,10 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Executes fixed python for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="code">Code value supplied to the python net runtime operation and used when producing its result.</param>
     private void ExecuteFixedPython(string code)
     {
     try
@@ -390,6 +491,12 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Builds invocation arguments for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="method">Method value supplied to the python net runtime operation and used when producing its result.</param>
+    /// <param name="firstValue">First value value supplied to the python net runtime operation and used when producing its result.</param>
+    /// <returns>The object produced by the operation.</returns>
     private object?[] BuildInvocationArguments(MethodInfo method, string firstValue)
     {
     try
@@ -412,6 +519,11 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Invokes optional static for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="type">Type value supplied to the python net runtime operation and used when producing its result.</param>
+    /// <param name="methodName">Method name value supplied to the python net runtime operation and used when producing its result.</param>
     private void InvokeOptionalStatic(Type type, string methodName)
     {
     try
@@ -438,6 +550,12 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Reads result for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="jobId">Identifier of the job to use for this operation.</param>
+    /// <param name="resultPath">Result path value supplied to the python net runtime operation and used when producing its result.</param>
+    /// <returns>The local AI runtime job result produced by the operation.</returns>
     private LocalAiRuntimeJobResult ReadResult(Guid jobId, string resultPath)
     {
     try
@@ -475,6 +593,11 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
 }
 
 
+    /// <summary>
+    /// Finds site packages for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="environmentPath">Environment path value supplied to the python net runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? FindSitePackages(string environmentPath)
     {
     try
@@ -498,6 +621,10 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Attempts to delete directory for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.
+    /// </summary>
+    /// <param name="path">Path value supplied to the python net runtime operation and used when producing its result.</param>
     private void TryDeleteDirectory(string path)
     {
     try
@@ -515,6 +642,10 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Releases resources owned by <see cref="PythonNetRuntimeCoordinator"/> and leaves the python net runtime workflow in a safely disposed state.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async ValueTask DisposeAsync()
     {
     try
@@ -535,10 +666,27 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     }
 }
 
+    /// <summary>
+    /// Represents a queued job helper type nested within <see cref="PythonNetRuntimeCoordinator"/>, grouping the state or behavior used only by that containing workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     private sealed class QueuedJob(LocalAiRuntimeJobRequest request, CancellationToken cancellationToken)
     {
+        /// <summary>
+        /// Gets the request value that forms part of the queued job state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The request value exposed by <see cref="QueuedJob"/>.</value>
         public LocalAiRuntimeJobRequest Request { get; } = request;
+        /// <summary>
+        /// Gets the cancellation token value that forms part of the queued job state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The cancellation token value exposed by <see cref="QueuedJob"/>.</value>
         public CancellationToken CancellationToken { get; } = cancellationToken;
+        /// <summary>
+        /// Gets the completion value that forms part of the queued job state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The completion value exposed by <see cref="QueuedJob"/>.</value>
         public TaskCompletionSource<LocalAiRuntimeJobResult> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }

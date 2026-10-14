@@ -7,6 +7,7 @@ namespace LocalGPT.Services
     public sealed partial class CouncilGameSessionService
     {
         /// <summary>Returns the bidirectional display functions available to Council renderers for this session surface.</summary>
+        /// <returns>The collection produced by the operation.</returns>
         private IReadOnlyList<string> GetSupportedDisplayMethods()
         {
             try
@@ -30,6 +31,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Retrieves display as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
         /// <inheritdoc />
         public Task<CouncilGameDisplaySnapshot> GetDisplayAsync(ReadCouncilGameDisplayRequest request, CancellationToken cancellationToken = default)
         {
@@ -81,6 +85,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Writes text as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
         /// <inheritdoc />
         public Task<CouncilGameSessionSnapshot> WriteTextAsync(WriteCouncilGameTextRequest request, CancellationToken cancellationToken = default)
         {
@@ -104,6 +111,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Sets cell as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
         /// <inheritdoc />
         public Task<CouncilGameSessionSnapshot> SetCellAsync(SetCouncilGameCellRequest request, CancellationToken cancellationToken = default)
         {
@@ -126,6 +136,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Performs fill region as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
         /// <inheritdoc />
         public Task<CouncilGameSessionSnapshot> FillRegionAsync(FillCouncilGameRegionRequest request, CancellationToken cancellationToken = default)
         {
@@ -154,6 +167,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Performs blit region as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
         /// <inheritdoc />
         public Task<CouncilGameSessionSnapshot> BlitRegionAsync(BlitCouncilGameRegionRequest request, CancellationToken cancellationToken = default)
         {
@@ -177,6 +193,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Performs submit animation as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
         /// <inheritdoc />
         public Task<CouncilGameSessionSnapshot> SubmitAnimationAsync(SubmitCouncilGameAnimationRequest request, CancellationToken cancellationToken = default)
         {
@@ -229,6 +248,15 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Performs mutate display as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+        /// <param name="turn">Turn value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="rendererName">Renderer name value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="mutation">Mutation value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The council game session snapshot produced by the operation.</returns>
         private Task<CouncilGameSessionSnapshot> MutateDisplayAsync(Guid sessionId, long turn, string rendererName, Action<CouncilGameSessionState, char[][]> mutation, CancellationToken cancellationToken)
         {
             try
@@ -261,6 +289,12 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Performs claim renderer as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="turn">Turn value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="rendererName">Renderer name value supplied to the council game session operation and used when producing its result.</param>
         private void ClaimRenderer(CouncilGameSessionState session, long turn, string rendererName)
         {
             try
@@ -285,6 +319,13 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Performs to cells as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <param name="frame">Frame value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="width">Width value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="height">Height value supplied to the council game session operation and used when producing its result.</param>
+        /// <returns>The char produced by the operation.</returns>
         private char[][] ToCells(string frame, int width, int height)
         {
             try
@@ -301,6 +342,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Normalizes input lines as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <param name="text">Text value supplied to the council game session operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string[] NormalizeInputLines(string? text)
         {
             try
@@ -317,6 +363,13 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Writes line as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <param name="cells">Cells value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="text">Text value supplied to the council game session operation and used when producing its result.</param>
         private void WriteLine(char[][] cells, int x, int y, string text)
         {
             try
@@ -335,6 +388,11 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Performs first glyph as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <param name="value">Value value supplied to the council game session operation and used when producing its result.</param>
+        /// <returns>The char produced by the operation.</returns>
         private char FirstGlyph(string? value)
         {
             try
@@ -348,6 +406,12 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Performs safe add as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <param name="left">Left value supplied to the council game session operation and used when producing its result.</param>
+        /// <param name="right">Right value supplied to the council game session operation and used when producing its result.</param>
+        /// <returns>The int produced by the operation.</returns>
         private int SafeAdd(int left, int right)
         {
             try

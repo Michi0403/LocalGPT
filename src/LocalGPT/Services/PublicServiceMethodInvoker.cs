@@ -13,10 +13,12 @@ namespace LocalGPT.Services;
 /// <param name="serviceProvider">Service provider dependency used by the public service method invoker workflow to provide the corresponding application capability.</param>
 /// <param name="catalog">Devexpress ai function catalog service dependency used by the public service method invoker workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="ambientContext">Ambient local gpt context dependency used by the public service method invoker workflow to provide the corresponding application capability.</param>
 public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabulary,
     
     IServiceProvider serviceProvider,
     IDxAiFunctionCatalogService catalog,
+    IAmbientLocalGptContext ambientContext,
     ILogger<PublicServiceMethodInvoker> logger) : IPublicServiceMethodInvoker
 {
     /// <summary>
@@ -32,12 +34,47 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
     /// <returns>The object produced by the operation.</returns>
     public async Task<object?> InvokeAsync(PublicServiceMethodInvocationRequest request, CancellationToken cancellationToken = default)
     {
+        try { return await InvokeCoreAsync(request, localApproved: false, cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception) { logger.LogError(exception, "Catalogued AI/peer service invocation failed; arguments omitted."); throw; }
+    }
+
+    /// <summary>
+    /// Invokes locally approved for <see cref="PublicServiceMethodInvoker"/>, keeping the operation consistent with the state and invariants of the surrounding public service method invoker workflow.
+    /// </summary>
+    /// <inheritdoc />
+    public async Task<object?> InvokeLocallyApprovedAsync(PublicServiceMethodInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // This capability is granted only by the exact controller action's HumanApprovalRequired filter.
+            var context = ambientContext.Current;
+            if (!context.HasHumanApproval(vocabulary.Get()) ||
+                !string.Equals(context.Source, "Controller approval: localgpt.public_service.invoke", StringComparison.Ordinal))
+                throw new UnauthorizedAccessException("The exact public-service controller approval is required.");
+            return await InvokeCoreAsync(request, localApproved: true, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception) { logger.LogError(exception, "Approved local service invocation failed; arguments omitted."); throw; }
+    }
+
+    /// <summary>
+    /// Invokes core for <see cref="PublicServiceMethodInvoker"/>, keeping the operation consistent with the state and invariants of the surrounding public service method invoker workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="localApproved">Value indicating whether local approved should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The object produced by the operation.</returns>
+    private async Task<object?> InvokeCoreAsync(PublicServiceMethodInvocationRequest request, bool localApproved, CancellationToken cancellationToken)
+    {
+        try
+        {
         ArgumentNullException.ThrowIfNull(request);
         var entry = await catalog.GetEntryAsync(request.CatalogKey, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException($"Public service catalog entry '{request.CatalogKey}' was not found.");
         if (entry.Kind != vocabulary.Get().CatalogPublicServiceMethod || !entry.IsAvailable || !entry.IsEnabled)
             throw new InvalidOperationException("The selected public service method is unavailable or disabled.");
-        if (!entry.AllowRemoteInvocation && !entry.ExposeToAiChat)
+        if (!localApproved && !entry.AllowRemoteInvocation && !entry.ExposeToAiChat)
             throw new InvalidOperationException("The selected public service method is discovery-only until the local user enables invocation in the DX Function Catalog.");
 
         var assembly = typeof(Program).Assembly;
@@ -67,6 +104,9 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
         {
             throw ex.InnerException;
         }
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception) { logger.LogError(exception, "Executing catalogued service method failed; source parameters omitted."); throw; }
     }
 
     /// <summary>
@@ -182,7 +222,7 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.public_service.invoke",
         "POST",
-        "/api/dxai/public-service/invoke",
+        "/api/dxai/functions/localgpt.public_service.invoke/invoke",
         "Invokes one public service method that the local user explicitly enabled in the database-backed DX Function Catalog.",
         "catalogKey is required; parameters is an object matching the selected method signature.",
         "The catalog entry controls exposure. Frontend confirmation is required before this generic bridge executes a configured service method.",

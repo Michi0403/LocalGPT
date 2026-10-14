@@ -9,6 +9,17 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>Owns quarantine inspection, reviewed promotion and automatic project synchronization for uploaded source material.</summary>
+/// <param name="workspaces">Chat upload workspace service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="regexCurator">Regex curator service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="regexPatterns">Regex pattern service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="knowledge">Council knowledge service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="classifier">Project evidence classifier service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Ambient local gpt context dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="scopeFactory">Service scope factory dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="councilText">Council text service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="councilRuntime">Council runtime service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProjectIngestionService(
     IChatUploadWorkspaceService workspaces,
     IRegexCuratorService regexCurator,
@@ -22,8 +33,17 @@ public sealed class ProjectIngestionService(
     LocalGptCatalogService catalog,
     ILogger<ProjectIngestionService> logger) : IProjectIngestionService
 {
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to gate state owned by <see cref="ProjectIngestionService"/>.
+    /// </summary>
     private readonly SemaphoreSlim Gate = new(1, 1);
 
+    /// <summary>
+    /// Performs inspect as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="workspaceName">Workspace name value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project ingestion gate record produced by the operation.</returns>
     public async Task<ProjectIngestionGateRecord> InspectAsync(string workspaceName, CancellationToken cancellationToken = default)
     {
         try
@@ -111,6 +131,12 @@ public sealed class ProjectIngestionService(
         }
     }
 
+    /// <summary>
+    /// Performs get as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="workspaceName">Workspace name value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project ingestion gate record produced by the operation.</returns>
     public async Task<ProjectIngestionGateRecord?> GetAsync(string workspaceName, CancellationToken cancellationToken = default)
     {
         try
@@ -126,6 +152,12 @@ public sealed class ProjectIngestionService(
         catch (Exception ex) { logger.LogError(ex, "Loading ingestion gate for workspace {WorkspaceName} failed.", workspaceName); throw; }
     }
 
+    /// <summary>
+    /// Performs review as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project ingestion gate record produced by the operation.</returns>
     public async Task<ProjectIngestionGateRecord> ReviewAsync(ProjectIngestionReviewRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -164,6 +196,13 @@ public sealed class ProjectIngestionService(
         }
     }
 
+    /// <summary>
+    /// Performs promote as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="workspaceName">Workspace name value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project ingestion gate record produced by the operation.</returns>
     public async Task<ProjectIngestionGateRecord> PromoteAsync(string workspaceName, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         try
@@ -233,6 +272,12 @@ public sealed class ProjectIngestionService(
         }
     }
 
+    /// <summary>
+    /// Performs inspect ZIP as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="evidence">Evidence value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="rejectionReasons">Rejection reasons value supplied to the project ingestion operation and used when producing its result.</param>
     private void InspectZip(string path, ProjectIngestionFileEvidence evidence, List<string> rejectionReasons)
     {
         try
@@ -260,6 +305,15 @@ public sealed class ProjectIngestionService(
         }
     }
 
+    /// <summary>
+    /// Performs extract approved ZIP as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="zipPath">Zip path value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="destinationRoot">Destination root value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="totalEntries">Total entries value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="totalBytes">Total bytes value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The int total entries long total bytes produced by the operation.</returns>
     private async Task<(int TotalEntries, long TotalBytes)> ExtractApprovedZipAsync(string zipPath, string destinationRoot, int totalEntries, long totalBytes, CancellationToken cancellationToken)
     {
         using var archive = ZipFile.OpenRead(zipPath);
@@ -285,6 +339,13 @@ public sealed class ProjectIngestionService(
         return (totalEntries, totalBytes);
     }
 
+    /// <summary>
+    /// Performs copy file as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="destination">Destination value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CopyFileAsync(string source, string destination, CancellationToken cancellationToken)
     {
         try
@@ -299,6 +360,12 @@ public sealed class ProjectIngestionService(
         catch (Exception ex) { logger.LogError(ex, "Copying one approved quarantine file failed."); throw; }
     }
 
+    /// <summary>
+    /// Determines whether h file as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> HashFileAsync(string path, CancellationToken cancellationToken)
     {
         try
@@ -312,6 +379,11 @@ public sealed class ProjectIngestionService(
         catch (Exception ex) { logger.LogError(ex, "Hashing one quarantined project file failed."); throw; }
     }
 
+    /// <summary>
+    /// Performs reviewer identity as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="current">Current value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ReviewerIdentity(AmbientLocalGptContextSnapshot current)
     {
         try
@@ -323,6 +395,13 @@ public sealed class ProjectIngestionService(
         catch (Exception ex) { logger.LogError(ex, "Resolving ambient project-ingestion reviewer identity failed."); throw; }
     }
 
+    /// <summary>
+    /// Performs bound as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Bound(string? value, int maxLength, string fallback)
     {
         try
@@ -335,6 +414,13 @@ public sealed class ProjectIngestionService(
         catch (Exception ex) { logger.LogError(ex, "Bounding ingestion metadata failed."); throw; }
     }
 
+    /// <summary>
+    /// Persists record as part of the project ingestion service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="root">Root value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="record">Record value supplied to the project ingestion operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveRecordAsync(string root, ProjectIngestionGateRecord record, CancellationToken cancellationToken)
     {
         try

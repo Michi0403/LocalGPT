@@ -11,7 +11,10 @@ namespace LocalGPT.Migrations;
 [Migration("20260924170000_AddRuntimePlugins")]
 public partial class AddRuntimePlugins : Migration
 {
-    /// <summary>Creates the persisted runtime extension table.</summary>
+    /// <summary>
+    /// Applies the schema changes defined by the <see cref="AddRuntimePlugins"/> Entity Framework Core migration to move the database forward.
+    /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add runtime plugins operation and used when producing its result.</param>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.CreateTable(
@@ -56,7 +59,10 @@ public partial class AddRuntimePlugins : Migration
             columns: new[] { "IsEnabled", "AvailableToAi", "UpdatedAtUtc" });
     }
 
-    /// <summary>Removes the runtime extension persistence table.</summary>
+    /// <summary>
+    /// Reverts the schema changes defined by the <see cref="AddRuntimePlugins"/> Entity Framework Core migration to return the database to its preceding shape.
+    /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add runtime plugins operation and used when producing its result.</param>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(name: "RuntimePluginDefinitions");

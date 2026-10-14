@@ -4,29 +4,60 @@ using System.Net;
 
 namespace LocalGPT
 {
+    /// <summary>
+    /// Represents a program application type, grouping the state and behavior that belong to that domain concept.
+    /// </summary>
     public static partial class Program
     {
+        /// <summary>
+        /// Stores the internal runtime mcp port state used by <see cref="Program"/> while executing its surrounding workflow.
+        /// </summary>
         private static int runtimeMcpPort;
+        /// <summary>
+        /// Stores the internal runtime mcp enabled state used by <see cref="Program"/> while executing its surrounding workflow.
+        /// </summary>
         private static bool runtimeMcpEnabled;
+        /// <summary>
+        /// Stores the internal runtime mcp dedicated listener enabled state used by <see cref="Program"/> while executing its surrounding workflow.
+        /// </summary>
         private static bool runtimeMcpDedicatedListenerEnabled;
+        /// <summary>
+        /// Stores the internal runtime mcp expose on primary endpoint state used by <see cref="Program"/> while executing its surrounding workflow.
+        /// </summary>
         private static bool runtimeMcpExposeOnPrimaryEndpoint;
+        /// <summary>
+        /// Stores the internal runtime mcp address state used by <see cref="Program"/> while executing its surrounding workflow.
+        /// </summary>
         private static string runtimeMcpAddress = "127.0.0.1";
+        /// <summary>
+        /// Stores the internal runtime mcp path state used by <see cref="Program"/> while executing its surrounding workflow.
+        /// </summary>
         private static string runtimeMcpPath = "/mcp";
 
         /// <summary>Gets whether the MCP gateway was enabled when the current host listeners were created.</summary>
+        /// <value>The mcp enabled value exposed by <see cref="Program"/>.</value>
         public static bool McpEnabled => System.Threading.Volatile.Read(ref runtimeMcpEnabled);
         /// <summary>Gets the dedicated MCP port selected for this process, or zero when no dedicated listener exists.</summary>
+        /// <value>The mcp port value exposed by <see cref="Program"/>.</value>
         public static int McpPort => System.Threading.Volatile.Read(ref runtimeMcpPort);
         /// <summary>Gets whether the dedicated MCP-only listener was enabled when Kestrel was configured.</summary>
+        /// <value>The mcp dedicated listener enabled value exposed by <see cref="Program"/>.</value>
         public static bool McpDedicatedListenerEnabled => System.Threading.Volatile.Read(ref runtimeMcpDedicatedListenerEnabled);
         /// <summary>Gets whether the MCP route was admitted on the primary LocalGPT loopback listener at startup.</summary>
+        /// <value>The mcp expose on primary endpoint value exposed by <see cref="Program"/>.</value>
         public static bool McpExposeOnPrimaryEndpoint => System.Threading.Volatile.Read(ref runtimeMcpExposeOnPrimaryEndpoint);
         /// <summary>Gets the configured dedicated MCP bind address selected for this process.</summary>
+        /// <value>The mcp address value exposed by <see cref="Program"/>.</value>
         public static string McpAddress => runtimeMcpAddress;
-        /// <summary>Gets the normalized MCP Streamable HTTP path.</summary>
+        /// <summary>
+        /// Gets the mcp path used by this program instance to locate the associated file-system resource.
+        /// </summary>
+        /// <value>The mcp path value exposed by <see cref="Program"/>.</value>
         public static string McpPath => runtimeMcpPath;
 
         /// <summary>Updates the runtime-only dedicated MCP listener state after the isolated MCP host starts or stops.</summary>
+        /// <param name="enabled">Value indicating whether enabled should apply to this operation.</param>
+        /// <param name="port">Port value supplied to the program operation and used when producing its result.</param>
         internal static void SetMcpDedicatedListenerState(bool enabled, int port)
         {
             System.Threading.Volatile.Write(ref runtimeMcpDedicatedListenerEnabled, enabled);
@@ -34,13 +65,22 @@ namespace LocalGPT
         }
 
         /// <summary>Updates primary-endpoint MCP exposure for this process without rewriting persisted configuration.</summary>
+        /// <param name="enabled">Value indicating whether enabled should apply to this operation.</param>
         internal static void SetMcpPrimaryExposureForRun(bool enabled) =>
             System.Threading.Volatile.Write(ref runtimeMcpExposeOnPrimaryEndpoint, enabled);
 
         /// <summary>Updates whether the MCP gateway remains available for this process after listener startup recovery.</summary>
+        /// <param name="enabled">Value indicating whether enabled should apply to this operation.</param>
         internal static void SetMcpEnabledForRun(bool enabled) =>
             System.Threading.Volatile.Write(ref runtimeMcpEnabled, enabled);
 
+        /// <summary>
+        /// Resolves mcp gateway options for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+        /// </summary>
+        /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+        /// <param name="contentRootPath">Content root path value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The mcp gateway options produced by the operation.</returns>
         private static McpGatewayOptions ResolveMcpGatewayOptions(IConfiguration configuration, string contentRootPath, ILogger logger)
         {
             try
@@ -120,6 +160,11 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Determines whether loopback mcp address for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+        /// </summary>
+        /// <param name="addressText">Address text value supplied to the program operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private static bool IsLoopbackMcpAddress(string addressText)
         {
             if (!IPAddress.TryParse(addressText, out var address))
@@ -127,6 +172,11 @@ namespace LocalGPT
             return IPAddress.IsLoopback(address);
         }
 
+        /// <summary>
+        /// Validates mcp port contract for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+        /// </summary>
+        /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+        /// <param name="remote">Remote value supplied to the program operation and used when producing its result.</param>
         private static void ValidateMcpPortContract(McpGatewayOptions options, RemoteWebEndpointOptions? remote)
         {
             if (!options.Enabled || !options.DedicatedListenerEnabled)
@@ -137,6 +187,11 @@ namespace LocalGPT
                 throw new InvalidOperationException($"MCP port {options.Port} conflicts with the configured remote web endpoint. Choose a separate MCP TCP port in /install.");
         }
 
+        /// <summary>
+        /// Performs map mcp gateway for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+        /// </summary>
+        /// <param name="app">App value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void MapMcpGateway(WebApplication app, ILogger logger)
         {
             try
@@ -161,6 +216,11 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Normalizes mcp path for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+        /// </summary>
+        /// <param name="value">Value value supplied to the program operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private static string NormalizeMcpPath(string? value)
         {
             var path = string.IsNullOrWhiteSpace(value) ? "/mcp" : value.Trim();

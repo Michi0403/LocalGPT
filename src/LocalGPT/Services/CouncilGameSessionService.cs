@@ -29,7 +29,10 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         private readonly ISupervisedTaskRunner taskRunner;
         /// <summary>Provides database-backed operational limits and defaults for game sessions.</summary>
         private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
-        /// <summary>Gets the current database-backed Council game parameters.</summary>
+        /// <summary>
+        /// Gets the runtime parameters value that forms part of the council game session state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The runtime parameters value exposed by <see cref="CouncilGameSessionService"/>.</value>
         private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
 
         /// <summary>Initializes the type with its dependency-injected collaborators.</summary>

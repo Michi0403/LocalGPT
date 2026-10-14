@@ -5,11 +5,18 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>Searches user-approved DX function descriptors in small pages, with schemas only when requested.</summary>
+/// <param name="json">Devexpress ai function json service dependency used by the discover DevExpress AI functions function workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Devexpress ai function catalog service dependency used by the discover DevExpress AI functions function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DiscoverDxAiFunctionsFunction(
     IDxAiFunctionJsonService json,
     IDxAiFunctionCatalogService catalog,
     ILogger<DiscoverDxAiFunctionsFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets the descriptor value that forms part of the discover DevExpress AI functions function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="DiscoverDxAiFunctionsFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "dxai.tools.discover", "POST", "/api/dxai/functions/dxai.tools.discover/invoke",
         "Search currently enabled and AI-exposed LocalGPT functions by purpose or name. First discover names, then request exact parameter schemas.",
@@ -21,6 +28,12 @@ public sealed class DiscoverDxAiFunctionsFunction(
         {"type":"object","properties":{"query":{"type":"string","maxLength":500},"skip":{"type":"integer","minimum":0},"take":{"type":"integer","minimum":1,"maximum":50},"includeSchemas":{"type":"boolean"}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Performs invoke for <see cref="DiscoverDxAiFunctionsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding discover DevExpress AI functions function workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -39,11 +52,18 @@ public sealed class DiscoverDxAiFunctionsFunction(
 }
 
 /// <summary>Allows small Council models to validate one proposed tool call without creating an approval or executing it.</summary>
+/// <param name="json">Devexpress ai function json service dependency used by the preview DevExpress AI function function workflow to provide the corresponding application capability.</param>
+/// <param name="registry">Devexpress ai function registry dependency used by the preview DevExpress AI function function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class PreviewDxAiFunctionFunction(
     IDxAiFunctionJsonService json,
     IDxAiFunctionRegistry registry,
     ILogger<PreviewDxAiFunctionFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets the descriptor value that forms part of the preview DevExpress AI function function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="PreviewDxAiFunctionFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "dxai.tools.preview", "POST", "/api/dxai/functions/dxai.tools.preview/invoke",
         "Validate one exact DXFunction call against the current schema and saved policy without executing it, and return a preview fingerprint.",
@@ -55,6 +75,12 @@ public sealed class PreviewDxAiFunctionFunction(
         {"type":"object","properties":{"functionName":{"type":"string","minLength":1},"parameters":{"type":"object"}},"required":["functionName","parameters"],"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Performs invoke for <see cref="PreviewDxAiFunctionFunction"/>, keeping the operation consistent with the state and invariants of the surrounding preview DevExpress AI function function workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -89,11 +115,18 @@ public sealed class PreviewDxAiFunctionFunction(
 }
 
 /// <summary>AI broker for an exact previously previewed function, using the unchanged registry and approval boundary.</summary>
+/// <param name="json">Devexpress ai function json service dependency used by the invoke discovered DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="registry">Devexpress ai function registry dependency used by the invoke discovered DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class InvokeDiscoveredDxAiFunction(
     IDxAiFunctionJsonService json,
     IDxAiFunctionRegistry registry,
     ILogger<InvokeDiscoveredDxAiFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets the descriptor value that forms part of the invoke discovered DevExpress AI function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="InvokeDiscoveredDxAiFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "dxai.tools.invoke", "POST", "/api/dxai/functions/dxai.tools.invoke/invoke",
         "Request execution of one exact function previously discovered and previewed. The underlying function keeps its own saved policy and human approval requirements.",
@@ -105,6 +138,12 @@ public sealed class InvokeDiscoveredDxAiFunction(
         {"type":"object","properties":{"functionName":{"type":"string","minLength":1},"parameters":{"type":"object"},"previewFingerprint":{"type":"string","minLength":64,"maxLength":64}},"required":["functionName","parameters","previewFingerprint"],"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Performs invoke for <see cref="InvokeDiscoveredDxAiFunction"/>, keeping the operation consistent with the state and invariants of the surrounding invoke discovered DevExpress AI function workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try

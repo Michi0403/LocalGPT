@@ -6,6 +6,11 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>Routes upload evidence through LocalGPT-native processors first and connected PublisherStudio capabilities only where required.</summary>
+/// <param name="peers">One wire peer registry dependency used by the upload file processing capability workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the upload file processing capability workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the upload file processing capability workflow to provide the corresponding application capability.</param>
+/// <param name="localAiRuntime">Local ai runtime service dependency used by the upload file processing capability workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class UploadFileProcessingCapabilityService(
     IOneWirePeerRegistry peers,
     IOneWireConnectionRegistry connections,
@@ -15,27 +20,42 @@ public sealed class UploadFileProcessingCapabilityService(
 {
     // Compatibility fallbacks are used only with older PublisherStudio peers that advertise the capability key
     // but predate the format-family metadata extension. Current peers are routed from their advertised contract.
+    /// <summary>
+    /// Stores the in-memory publisher document compatibility extensions collection maintained internally by <see cref="UploadFileProcessingCapabilityService"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> publisherDocumentCompatibilityExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".docx", ".xlsx", ".xlsm", ".xls"
     };
 
+    /// <summary>
+    /// Stores the in-memory publisher media compatibility extensions collection maintained internally by <see cref="UploadFileProcessingCapabilityService"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> publisherMediaCompatibilityExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".mp4", ".m4v", ".webm", ".ogv", ".ogg", ".mov", ".mkv", ".avi", ".mxf", ".mts", ".m2ts", ".vob",
         ".mp3", ".m4a", ".aac", ".wav", ".flac", ".oga", ".opus"
     };
 
+    /// <summary>
+    /// Stores the in-memory local speech extensions collection maintained internally by <see cref="UploadFileProcessingCapabilityService"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> localSpeechExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".oga", ".opus", ".webm", ".mp4", ".m4v", ".mov", ".mkv"
     };
 
+    /// <summary>
+    /// Stores the in-memory local image extensions collection maintained internally by <see cref="UploadFileProcessingCapabilityService"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> localImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"
     };
 
+    /// <summary>
+    /// Performs evaluate as part of the upload file processing capability service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public IReadOnlyList<UploadFileProcessingRoute> Evaluate(IReadOnlyList<ProjectIngestionFileEvidence> files)
     {
@@ -72,6 +92,13 @@ public sealed class UploadFileProcessingCapabilityService(
         }
     }
 
+    /// <summary>
+    /// Performs route as part of the upload file processing capability service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="file">File value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <param name="publisherFormatCapabilities">One wire capability descriptor dependency used by the upload file processing capability workflow to provide the corresponding application capability.</param>
+    /// <param name="publisherMediaRuntimeAvailable">Value indicating whether publisher media runtime available should apply to this operation.</param>
+    /// <returns>The upload file processing route produced by the operation.</returns>
     private UploadFileProcessingRoute Route(
         ProjectIngestionFileEvidence file,
         IReadOnlyList<OneWireCapabilityDescriptor> publisherFormatCapabilities,
@@ -119,6 +146,13 @@ public sealed class UploadFileProcessingCapabilityService(
         }
     }
 
+    /// <summary>
+    /// Reads publisher format route as part of the upload file processing capability service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="extension">Extension value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <param name="capabilities">One wire capability descriptor dependency used by the upload file processing capability workflow to provide the corresponding application capability.</param>
+    /// <param name="publisherMediaRuntimeAvailable">Value indicating whether publisher media runtime available should apply to this operation.</param>
+    /// <returns>The bool available string capability key string reason produced by the operation.</returns>
     private (bool Available, string CapabilityKey, string Reason)? ReadPublisherFormatRoute(
         string extension,
         IReadOnlyList<OneWireCapabilityDescriptor> capabilities,
@@ -171,6 +205,12 @@ public sealed class UploadFileProcessingCapabilityService(
         }
     }
 
+    /// <summary>
+    /// Finds online capability as part of the upload file processing capability service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="peer">Peer value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <param name="key">Key value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <returns>The one wire capability descriptor produced by the operation.</returns>
     private OneWireCapabilityDescriptor? FindOnlineCapability(OneWirePeerAdvertisement peer, string key)
     {
         try
@@ -187,6 +227,14 @@ public sealed class UploadFileProcessingCapabilityService(
         }
     }
 
+    /// <summary>
+    /// Performs available as part of the upload file processing capability service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="file">File value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <param name="processor">Processor value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <param name="capability">Capability value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <param name="reason">Reason value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <returns>The upload file processing route produced by the operation.</returns>
     private UploadFileProcessingRoute Available(ProjectIngestionFileEvidence file, string processor, string capability, string reason)
     {
         try
@@ -207,6 +255,14 @@ public sealed class UploadFileProcessingCapabilityService(
         }
     }
 
+    /// <summary>
+    /// Performs unavailable as part of the upload file processing capability service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="file">File value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <param name="processor">Processor value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <param name="capability">Capability value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <param name="reason">Reason value supplied to the upload file processing capability operation and used when producing its result.</param>
+    /// <returns>The upload file processing route produced by the operation.</returns>
     private UploadFileProcessingRoute Unavailable(ProjectIngestionFileEvidence file, string processor, string capability, string reason)
     {
         try

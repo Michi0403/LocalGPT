@@ -43,6 +43,10 @@ def _require_not_cancelled(cancel_path: str) -> None:
 def _auto_device(torch, requested: str) -> str:
     requested = (requested or "auto").strip().lower()
     if requested not in ("", "auto"):
+        if requested.startswith("cuda:"):
+            index = int(requested[5:])
+            if index < 0 or not torch.cuda.is_available() or index >= torch.cuda.device_count():
+                raise ValueError("Requested CUDA/ROCm device is not available in this Python environment.")
         return requested
     if bool(getattr(torch.cuda, "is_available", lambda: False)()):
         return "cuda"
@@ -53,15 +57,15 @@ def _auto_device(torch, requested: str) -> str:
 
 
 def _dtype_for(torch, device: str):
-    if device == "cuda":
+    if device.startswith("cuda"):
         return getattr(torch, "bfloat16", torch.float16)
     if device == "mps":
         return torch.float16
     return torch.float32
 
 
-def _cache_key(kind: str, model_path: str, trust_remote_code: bool, device: str) -> str:
-    return f"{kind}|{Path(model_path).resolve()}|{int(bool(trust_remote_code))}|{device}"
+def _cache_key(kind: str, model_path: str, trust_remote_code: bool, device: str, strategy: str = "native") -> str:
+    return f"{kind}|{Path(model_path).resolve()}|{int(bool(trust_remote_code))}|{device}|{strategy}"
 
 
 def _release_device_cache(torch=None) -> None:
@@ -85,25 +89,41 @@ def _release_device_cache(torch=None) -> None:
         pass
 
 
-def _get_or_load_pipeline(kind: str, model_path: str, trust_remote_code: bool, device: str, cache_models: bool):
+def _get_or_load_pipeline(kind: str, model_path: str, trust_remote_code: bool, device: str, cache_models: bool, memory_strategy: str = "native"):
     import torch
-    key = _cache_key(kind, model_path, trust_remote_code, device)
+    if memory_strategy not in ("native", "model_cpu_offload", "sequential_cpu_offload", "balanced"):
+        raise ValueError("Unrecognized Diffusers memory strategy.")
+    key = _cache_key(kind, model_path, trust_remote_code, device, memory_strategy)
     if cache_models and key in _MODEL_CACHE:
         return _MODEL_CACHE[key], torch
 
     if kind in ("image", "image-edit", "video", "image-to-video"):
         from diffusers import DiffusionPipeline
-        pipe = DiffusionPipeline.from_pretrained(
-            model_path,
-            torch_dtype=_dtype_for(torch, device),
-            use_safetensors=True,
-            local_files_only=True,
-            trust_remote_code=bool(trust_remote_code),
-        )
-        pipe = pipe.to(device)
+        if memory_strategy == "balanced":
+            if not device.startswith("cuda") or torch.cuda.device_count() < 2:
+                raise ValueError("Balanced placement requires at least two visible devices within one compatible CUDA or ROCm PyTorch environment.")
+            # Diffusers decides per-component placement; incompatible pipelines reject this explicitly.
+            # AMD ROCm and NVIDIA CUDA runtimes must not be mixed inside this worker.
+            pipe = DiffusionPipeline.from_pretrained(
+                model_path, torch_dtype=_dtype_for(torch, device), use_safetensors=True,
+                local_files_only=True, trust_remote_code=bool(trust_remote_code), device_map="balanced")
+        else:
+            pipe = DiffusionPipeline.from_pretrained(
+                model_path, torch_dtype=_dtype_for(torch, device), use_safetensors=True,
+                local_files_only=True, trust_remote_code=bool(trust_remote_code))
+            if memory_strategy == "native":
+                pipe = pipe.to(device)
+            else:
+                if not device.startswith("cuda"):
+                    raise ValueError("Diffusers CPU offload requires a CUDA-compatible GPU worker (including ROCm via torch.cuda).")
+                gpu_id = int(device.split(":", 1)[1]) if ":" in device else 0
+                method = getattr(pipe, "enable_model_cpu_offload" if memory_strategy == "model_cpu_offload" else "enable_sequential_cpu_offload", None)
+                if method is None:
+                    raise ValueError("This Diffusers pipeline does not support the selected CPU offload method.")
+                method(gpu_id=gpu_id)
     elif kind == "asr":
         from transformers import pipeline
-        pipeline_device = 0 if device == "cuda" else "mps" if device == "mps" else -1
+        pipeline_device = int(device.split(":", 1)[1]) if device.startswith("cuda:") else 0 if device == "cuda" else "mps" if device == "mps" else -1
         pipe = pipeline(
             "automatic-speech-recognition",
             model=model_path,
@@ -139,13 +159,13 @@ def _runtime_probe(parameters: dict, cancel_path: str) -> dict:
         import torch
         result["torch_version"] = str(getattr(torch, "__version__", ""))
         result["device"] = _auto_device(torch, str(parameters.get("device", "auto")))
-        if result["device"] == "cuda":
+        if result["device"].startswith("cuda"):
             hip_version = str(getattr(getattr(torch, "version", None), "hip", "") or "")
             cuda_version = str(getattr(getattr(torch, "version", None), "cuda", "") or "")
             result["backend"] = "rocm" if hip_version else "cuda"
             result["backend_version"] = hip_version or cuda_version
             try:
-                result["device_name"] = torch.cuda.get_device_name(0)
+                result["device_name"] = torch.cuda.get_device_name(int(result["device"].split(":", 1)[1]) if ":" in result["device"] else 0)
             except Exception:
                 pass
         elif result["device"] == "mps":
@@ -249,7 +269,7 @@ def _image_generate(parameters: dict, cancel_path: str) -> dict:
     cache_models = bool(parameters.get("cache_models", True))
     import torch
     device = _auto_device(torch, str(parameters.get("device", "auto")))
-    pipe, torch = _get_or_load_pipeline("image", model_path, trust_remote_code, device, cache_models)
+    pipe, torch = _get_or_load_pipeline("image", model_path, trust_remote_code, device, cache_models, str(parameters.get("memory_strategy", "native")))
     kwargs = {
         "prompt": prompt,
         "num_inference_steps": int(parameters.get("steps", 28)),
@@ -305,7 +325,7 @@ def _image_edit(parameters: dict, cancel_path: str) -> dict:
     cache_models = bool(parameters.get("cache_models", True))
     import torch
     device = _auto_device(torch, str(parameters.get("device", "auto")))
-    pipe, torch = _get_or_load_pipeline("image-edit", model_path, trust_remote_code, device, cache_models)
+    pipe, torch = _get_or_load_pipeline("image-edit", model_path, trust_remote_code, device, cache_models, str(parameters.get("memory_strategy", "native")))
     kwargs = {
         "prompt": prompt,
         "image": source_image,
@@ -351,7 +371,7 @@ def _video_generate(parameters: dict, cancel_path: str) -> dict:
     cache_models = bool(parameters.get("cache_models", True))
     import torch
     device = _auto_device(torch, str(parameters.get("device", "auto")))
-    pipe, torch = _get_or_load_pipeline("video", model_path, trust_remote_code, device, cache_models)
+    pipe, torch = _get_or_load_pipeline("video", model_path, trust_remote_code, device, cache_models, str(parameters.get("memory_strategy", "native")))
     kwargs = {
         "prompt": prompt,
         "num_inference_steps": int(parameters.get("steps", 30)),
@@ -412,7 +432,7 @@ def _image_to_video(parameters: dict, cancel_path: str) -> dict:
     cache_models = bool(parameters.get("cache_models", True))
     import torch
     device = _auto_device(torch, str(parameters.get("device", "auto")))
-    pipe, torch = _get_or_load_pipeline("image-to-video", model_path, trust_remote_code, device, cache_models)
+    pipe, torch = _get_or_load_pipeline("image-to-video", model_path, trust_remote_code, device, cache_models, str(parameters.get("memory_strategy", "native")))
     kwargs = {
         "prompt": prompt,
         "image": source_image,

@@ -32,7 +32,10 @@ public sealed class LearningProjectWorkspaceSyncService(
         .GetCollection(LocalGptRuntimeCollection.ExcludedDirectoryNames)
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets the current database-backed upload-workspace synchronization limits.</summary>
+    /// <summary>
+    /// Gets the parameters value that forms part of the learning project workspace sync state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The parameters value exposed by <see cref="LearningProjectWorkspaceSyncService"/>.</value>
     private LearningProjectWorkspaceSyncRuntimeParameters Parameters => runtimePolicy.GetJson<LearningProjectWorkspaceSyncRuntimeParameters>(LocalGptRuntimeValue.LearningProjectWorkspaceSyncRuntimeParametersJson);
 
     /// <summary>
@@ -595,6 +598,11 @@ public sealed class LearningProjectWorkspaceSyncService(
         }
     }
 
+    /// <summary>
+    /// Determines whether repository marker as part of the learning project workspace sync service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the learning project workspace sync operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsRepositoryMarker(string path)
     {
         try
@@ -619,6 +627,11 @@ public sealed class LearningProjectWorkspaceSyncService(
         }
     }
 
+    /// <summary>
+    /// Performs determine project type as part of the learning project workspace sync service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="markerFiles">String dependency used by the learning project workspace sync workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string DetermineProjectType(IReadOnlyList<string> markerFiles)
     {
         try
@@ -646,6 +659,11 @@ public sealed class LearningProjectWorkspaceSyncService(
         }
     }
 
+    /// <summary>
+    /// Performs determine toolchains as part of the learning project workspace sync service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="markerFiles">String dependency used by the learning project workspace sync workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> DetermineToolchains(IReadOnlyList<string> markerFiles)
     {
         try
@@ -676,6 +694,12 @@ public sealed class LearningProjectWorkspaceSyncService(
         }
     }
 
+    /// <summary>
+    /// Reads generic project identity as part of the learning project workspace sync service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="preferred">Preferred value supplied to the learning project workspace sync operation and used when producing its result.</param>
+    /// <param name="repositoryRoot">Repository root value supplied to the learning project workspace sync operation and used when producing its result.</param>
+    /// <returns>The string name string version produced by the operation.</returns>
     private (string Name, string Version) ReadGenericProjectIdentity(string preferred, string repositoryRoot)
     {
         var name = Path.GetFileName(repositoryRoot);

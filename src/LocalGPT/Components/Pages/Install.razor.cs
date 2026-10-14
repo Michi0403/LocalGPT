@@ -223,16 +223,24 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private bool IsSavingHostHardware;
     /// <summary>Accepted MIME types for deterministic HWiNFO text imports.</summary>
+    /// <value>The hw info accepted types value exposed by <see cref="Install"/>.</value>
     private List<string> HwInfoAcceptedTypes { get; } = ["text/plain"];
     /// <summary>Accepted filename extensions for deterministic HWiNFO text imports.</summary>
+    /// <value>The hw info allowed extensions value exposed by <see cref="Install"/>.</value>
     private List<string> HwInfoAllowedExtensions { get; } = [".txt"];
     /// <summary>Accepted MIME types for LocalGPT localization-catalog imports.</summary>
+    /// <value>The localization accepted types value exposed by <see cref="Install"/>.</value>
     private List<string> LocalizationAcceptedTypes { get; } = ["application/json", "text/json"];
     /// <summary>Accepted filename extensions for LocalGPT localization-catalog imports.</summary>
+    /// <value>The localization allowed extensions value exposed by <see cref="Install"/>.</value>
     private List<string> LocalizationAllowedExtensions { get; } = [".json"];
-    /// <summary>Gets whether a long-running setup action is active.</summary>
+    /// <summary>
+    /// Gets a value indicating whether active install operation applies to the install state.
+    /// </summary>
+    /// <value>The has active install operation value exposed by <see cref="Install"/>.</value>
     private bool HasActiveInstallOperation => IsDiscovering || IsConnectivityChecking || IsSaving || IsOllamaProcessBusy || IsOnboardingLoading || IsLocalizationImporting || IsToolchainBusy || RuntimePluginBusy || ToolchainRuntimeBusy || LocalAiBusy || IsSavingHostHardware || IsCertificateBusy;
     /// <summary>Gets the human-visible operation text rendered beside the DevExpress wait indicator.</summary>
+    /// <value>The current install operation text value exposed by <see cref="Install"/>.</value>
     private string CurrentInstallOperationText =>
         IsSaving ? "Saving provider and setup configuration…" :
         IsDiscovering ? "Discovering configured AI providers and models…" :

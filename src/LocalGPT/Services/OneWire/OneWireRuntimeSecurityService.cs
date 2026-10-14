@@ -20,6 +20,9 @@ public sealed partial class OneWireRuntimeSecurityService : IOneWireRuntimeSecur
     private readonly ILogger<OneWireRuntimeSecurityService> logger;
     /// <summary>Stores host-specific secret-file permission handling behind an injected boundary.</summary>
     private readonly IRuntimeSecretFileProtectionService secretFileProtection;
+    /// <summary>
+    /// Stores the local GPT runtime policy data service dependency used by <see cref="OneWireRuntimeSecurityService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
 
     /// <summary>Initializes the type with its dependency-injected collaborators.</summary>

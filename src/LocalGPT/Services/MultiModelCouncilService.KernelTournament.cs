@@ -9,6 +9,12 @@ namespace LocalGPT.Services
         /// Narrows live battle turns to the two trainer/creature kernels that the deterministic engine says are in the current legal match.
         /// Opening/selection steps still use the complete configured role pool, while a damaged or incomplete match projection safely falls back to that pool.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleParticipants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private async Task<IReadOnlyList<string>> LimitKernelTournamentRoundParticipantsAsync(
             MultiModelCouncilResult result,
             OrganicCouncilTeamDefinition team,
@@ -60,6 +66,19 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Performs run kernel tournament system step as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="rolePairings">Council participant pairing dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="initializeOnly">Value indicating whether initialize only should apply to this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The multi model council step produced by the operation.</returns>
         private async Task<MultiModelCouncilStep> RunKernelTournamentSystemStepAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,

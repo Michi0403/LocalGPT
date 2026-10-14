@@ -5,8 +5,14 @@ namespace LocalGPT.Services;
 /// <summary>Owns presentation-only color normalization and semantic styling for the shared ASCII surface.</summary>
 public sealed partial class CouncilGameSessionService
 {
+    /// <summary>
+    /// Defines the maximum ascii style runs constant used by <see cref="CouncilGameSessionService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaximumAsciiStyleRuns = 4096;
 
+    /// <summary>
+    /// Retrieves ascii palette as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public CouncilAsciiPaletteSnapshot GetAsciiPalette()
     {
@@ -46,6 +52,11 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Normalizes ascii color mode as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="mode">Mode value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council ascii color mode produced by the operation.</returns>
     private CouncilAsciiColorMode NormalizeAsciiColorMode(CouncilAsciiColorMode mode)
     {
         try
@@ -59,6 +70,13 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Normalizes ascii color index as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="mode">Mode value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="foreground">Value indicating whether foreground should apply to this operation.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int NormalizeAsciiColorIndex(CouncilAsciiColorMode mode, int value, bool foreground)
     {
         try
@@ -77,6 +95,12 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Normalizes ascii style as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="style">Style value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="sessionMode">Session mode value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council ascii text style produced by the operation.</returns>
     private CouncilAsciiTextStyle? NormalizeAsciiStyle(CouncilAsciiTextStyle? style, CouncilAsciiColorMode sessionMode)
     {
         try
@@ -104,6 +128,14 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Normalizes ascii style runs as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="runs">Council ascii style run dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <param name="frameWidth">Frame width value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="frameHeight">Frame height value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="sessionMode">Session mode value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<CouncilAsciiStyleRun> NormalizeAsciiStyleRuns(
         IEnumerable<CouncilAsciiStyleRun>? runs,
         int frameWidth,
@@ -137,6 +169,11 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Performs clone ascii style runs as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="runs">Council ascii style run dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<CouncilAsciiStyleRun> CloneAsciiStyleRuns(IEnumerable<CouncilAsciiStyleRun>? runs)
     {
         try
@@ -166,6 +203,15 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Performs crop ascii style runs as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="runs">Council ascii style run dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="width">Width value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="height">Height value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<CouncilAsciiStyleRun> CropAsciiStyleRuns(
         IEnumerable<CouncilAsciiStyleRun>? runs,
         int x,
@@ -205,6 +251,14 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Applies ascii style range as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="length">Length value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="style">Style value supplied to the council game session operation and used when producing its result.</param>
     private void ApplyAsciiStyleRange(
         CouncilGameSessionState session,
         int y,
@@ -247,6 +301,12 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Resolves frame style runs as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="frame">Frame value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<CouncilAsciiStyleRun> ResolveFrameStyleRuns(CouncilGameSessionState session, string frame)
     {
         try
@@ -262,6 +322,15 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Builds semantic ascii style runs as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="gameKey">Game key value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="runtimeProfile">Runtime profile value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="frame">Frame value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="frameWidth">Frame width value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="frameHeight">Frame height value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<CouncilAsciiStyleRun> BuildSemanticAsciiStyleRuns(
         string gameKey,
         CouncilGameRuntimeProfile runtimeProfile,
@@ -318,6 +387,14 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Adds token style run as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="runs">Runs value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="line">Line value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="row">Row value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="token">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="style">Style value supplied to the council game session operation and used when producing its result.</param>
     private void AddTokenStyleRun(List<CouncilAsciiStyleRun> runs, string line, int row, string token, CouncilAsciiTextStyle style)
     {
         try
@@ -339,6 +416,14 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Adds character style runs as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="runs">Runs value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="line">Line value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="row">Row value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="characters">Characters value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="style">Style value supplied to the council game session operation and used when producing its result.</param>
     private void AddCharacterStyleRuns(List<CouncilAsciiStyleRun> runs, string line, int row, string characters, CouncilAsciiTextStyle style)
     {
         try
@@ -365,6 +450,13 @@ public sealed partial class CouncilGameSessionService
         }
     }
 
+    /// <summary>
+    /// Adds non blank line run as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="runs">Runs value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="line">Line value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="row">Row value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="style">Style value supplied to the council game session operation and used when producing its result.</param>
     private void AddNonBlankLineRun(List<CouncilAsciiStyleRun> runs, string line, int row, CouncilAsciiTextStyle style)
     {
         try

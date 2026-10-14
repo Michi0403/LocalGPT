@@ -7,7 +7,13 @@ namespace LocalGPT.Runtime.Plugins;
 /// <summary>Isolated load context for one trusted compiled runtime plugin.</summary>
 internal sealed class RuntimePluginLoadContext : AssemblyLoadContext
 {
+    /// <summary>
+    /// Stores the assembly dependency resolver dependency used by <see cref="RuntimePluginLoadContext"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly AssemblyDependencyResolver resolver;
+    /// <summary>
+    /// Stores the internal contract assembly name state used by <see cref="RuntimePluginLoadContext"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string ContractAssemblyName = typeof(ILocalGptRuntimePlugin).Assembly.GetName().Name ?? "LocalGPT.PluginContracts";
 
     /// <summary>Creates a collectible plugin load context for the supplied entry assembly.</summary>
@@ -28,7 +34,9 @@ internal sealed class RuntimePluginLoadContext : AssemblyLoadContext
         return string.IsNullOrWhiteSpace(path) ? null : LoadFromAssemblyPath(path);
     }
 
-    /// <summary>Resolves unmanaged plugin dependencies relative to the plugin package.</summary>
+    /// <summary>
+    /// Loads unmanaged dll for <see cref="RuntimePluginLoadContext"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin load context workflow.
+    /// </summary>
     /// <param name="unmanagedDllName">Native library name requested by the plugin.</param>
     /// <returns>A native library handle, or zero when the default resolver should continue.</returns>
     protected override nint LoadUnmanagedDll(string unmanagedDllName)

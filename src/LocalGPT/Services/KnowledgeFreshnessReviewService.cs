@@ -11,6 +11,13 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>Turns stale-knowledge reports into durable human review and exact-source refresh operations.</summary>
+/// <param name="knowledge">Council knowledge service dependency used by the knowledge freshness review workflow to provide the corresponding application capability.</param>
+/// <param name="remoteImporter">Remote knowledge import service dependency used by the knowledge freshness review workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the knowledge freshness review workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the knowledge freshness review workflow to provide the corresponding application capability.</param>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the knowledge freshness review workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the knowledge freshness review workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class KnowledgeFreshnessReviewService(
     ICouncilKnowledgeService knowledge,
     IRemoteKnowledgeImportService remoteImporter,
@@ -20,11 +27,29 @@ public sealed class KnowledgeFreshnessReviewService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<KnowledgeFreshnessReviewService> logger) : IKnowledgeFreshnessReviewService
 {
+    /// <summary>
+    /// Defines the review operation prefix constant used by <see cref="KnowledgeFreshnessReviewService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string ReviewOperationPrefix = "knowledge.freshness.review:";
+    /// <summary>
+    /// Defines the refresh operation prefix constant used by <see cref="KnowledgeFreshnessReviewService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string RefreshOperationPrefix = "knowledge.freshness.refresh:";
+    /// <summary>
+    /// Defines the maximum approval source URL length constant used by <see cref="KnowledgeFreshnessReviewService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaximumApprovalSourceUrlLength = 1200;
+    /// <summary>
+    /// Stores the internal URL regex state used by <see cref="KnowledgeFreshnessReviewService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly Regex UrlRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ExternalHttpUrl);
 
+    /// <summary>
+    /// Performs report as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The knowledge freshness review result produced by the operation.</returns>
     public async Task<KnowledgeFreshnessReviewResult> ReportAsync(KnowledgeFreshnessReportRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -98,6 +123,12 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Refreshes approved source as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The knowledge freshness review result produced by the operation.</returns>
     public async Task<KnowledgeFreshnessReviewResult> RefreshApprovedSourceAsync(KnowledgeSourceRefreshRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -162,6 +193,13 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Applies human decision as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="submission">Submission value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task ApplyHumanDecisionAsync(HumanCollaborationRequest request, HumanDecisionSubmission submission, CancellationToken cancellationToken = default)
     {
         try
@@ -229,6 +267,14 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Performs inspect and queue follow up as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="sourceUrl">Source url value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task InspectAndQueueFollowUpAsync(CouncilKnowledgeEntry entry, string sourceUrl, Guid? councilRunId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(sourceUrl))
@@ -278,6 +324,14 @@ public sealed class KnowledgeFreshnessReviewService(
         }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs queue refresh approval as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="sourceUrl">Source url value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task QueueRefreshApprovalAsync(CouncilKnowledgeEntry entry, string sourceUrl, Guid? councilRunId, CancellationToken cancellationToken)
     {
         try
@@ -320,6 +374,12 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Ensures pending request as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="candidate">Candidate value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human collaboration request produced by the operation.</returns>
     private async Task<HumanCollaborationRequest> EnsurePendingRequestAsync(HumanCollaborationRequest candidate, CancellationToken cancellationToken)
     {
         try
@@ -351,6 +411,12 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Performs require knowledge as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council knowledge entry produced by the operation.</returns>
     private async Task<CouncilKnowledgeEntry> RequireKnowledgeAsync(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -368,6 +434,12 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Parses knowledge identifier as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="operationKey">Operation key value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="prefix">Prefix value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <returns>The GUID produced by the operation.</returns>
     private Guid ParseKnowledgeId(string operationKey, string prefix)
     {
         try
@@ -383,6 +455,12 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Resolves request source URL as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="entry">Entry value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveRequestSourceUrl(HumanCollaborationRequest request, CouncilKnowledgeEntry entry)
     {
         try
@@ -409,6 +487,12 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Normalizes source URL as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="explicitUrl">Explicit url value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="entry">Entry value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeSourceUrl(string? explicitUrl, CouncilKnowledgeEntry entry)
     {
         try
@@ -440,6 +524,11 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Determines whether clearly local source as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="sourceUrl">Source url value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsClearlyLocalSource(string sourceUrl)
     {
         try
@@ -466,6 +555,12 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Performs fingerprint as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="knowledgeId">Identifier of the knowledge to use for this operation.</param>
+    /// <param name="sourceUrl">Source url value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Fingerprint(Guid knowledgeId, string sourceUrl)
     {
         try
@@ -479,6 +574,13 @@ public sealed class KnowledgeFreshnessReviewService(
         }
     }
 
+    /// <summary>
+    /// Performs compact as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the knowledge freshness review operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Compact(string? value, int maximum, string fallback = "")
     {
         try

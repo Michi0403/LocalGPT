@@ -150,10 +150,18 @@ namespace LocalGPT.Components.Pages
     /// <value>The selected topic value value exposed by <see cref="ModelCouncil"/>.</value>
     string SelectedTopicValue => Request.ProjectTopicId?.ToString() ?? string.Empty;
 
+    /// <summary>
+    /// Gets the project selection options collection maintained or exposed by this model council instance for downstream processing.
+    /// </summary>
+    /// <value>The project selection options value exposed by <see cref="ModelCouncil"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> ProjectSelectionOptions => ProjectSummaries
         .Select(project => new LocalGptSelectionOption<string>(project.Id.ToString(), project.DisplayName))
         .ToArray();
 
+    /// <summary>
+    /// Gets the topic selection options collection maintained or exposed by this model council instance for downstream processing.
+    /// </summary>
+    /// <value>The topic selection options value exposed by <see cref="ModelCouncil"/>.</value>
     IReadOnlyList<LocalGptSelectionOption<string>> TopicSelectionOptions => SelectedProjectDetails?.Topics
         .Select(topic => new LocalGptSelectionOption<string>(topic.Id.ToString(), topic.Name))
         .ToArray() ?? [];

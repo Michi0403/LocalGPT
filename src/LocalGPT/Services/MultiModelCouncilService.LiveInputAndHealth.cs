@@ -282,6 +282,8 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Returns provider/model identities that the selected team explicitly requires for one of its configured roles or model-bound workflow steps.</summary>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private IReadOnlyList<string> GetConfiguredTeamModelBindings(OrganicCouncilTeamDefinition team)
         {
             try

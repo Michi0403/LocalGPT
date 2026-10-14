@@ -4,6 +4,9 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Lists visible toolchain environment names and scope metadata without exposing values to AI callers.</summary>
+/// <param name="environment">Toolchain environment service dependency used by the list toolchain environment function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the list toolchain environment function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListToolchainEnvironmentFunction(IToolchainEnvironmentService environment, IDxAiFunctionJsonService json, ILogger<ListToolchainEnvironmentFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the read-only environment inventory function.</summary>
@@ -37,6 +40,9 @@ public sealed class ListToolchainEnvironmentFunction(IToolchainEnvironmentServic
 }
 
 /// <summary>Changes one toolchain environment value after the existing DXFunction human-approval flow completes.</summary>
+/// <param name="environment">Toolchain environment service dependency used by the change toolchain environment function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the change toolchain environment function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ChangeToolchainEnvironmentFunction(IToolchainEnvironmentService environment, IDxAiFunctionJsonService json, ILogger<ChangeToolchainEnvironmentFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the confirmation-gated environment mutation function.</summary>
@@ -50,7 +56,9 @@ public sealed class ChangeToolchainEnvironmentFunction(IToolchainEnvironmentServ
         SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["name","scope"],"properties":{"name":{"type":"string","minLength":1,"maxLength":256},"value":{"type":"string","maxLength":32768},"scope":{"type":"integer","minimum":1,"maximum":4},"remove":{"type":"boolean"}},"additionalProperties":false}""");
 
-    /// <summary>Applies one approved environment-variable change.</summary>
+    /// <summary>
+    /// Performs invoke for <see cref="ChangeToolchainEnvironmentFunction"/>, keeping the operation consistent with the state and invariants of the surrounding change toolchain environment function workflow.
+    /// </summary>
     /// <param name="request">DXFunction request.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The standard invocation result.</returns>
@@ -70,6 +78,9 @@ public sealed class ChangeToolchainEnvironmentFunction(IToolchainEnvironmentServ
 }
 
 /// <summary>Lists LocalGPT's reviewed direct toolchain download catalog.</summary>
+/// <param name="acquisition">Toolchain acquisition service dependency used by the list toolchain acquisition catalog function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the list toolchain acquisition catalog function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListToolchainAcquisitionCatalogFunction(IToolchainAcquisitionService acquisition, IDxAiFunctionJsonService json, ILogger<ListToolchainAcquisitionCatalogFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the read-only toolchain acquisition catalog function.</summary>
@@ -94,6 +105,9 @@ public sealed class ListToolchainAcquisitionCatalogFunction(IToolchainAcquisitio
 }
 
 /// <summary>Downloads one reviewed toolchain artifact after DXFunction human approval.</summary>
+/// <param name="acquisition">Toolchain acquisition service dependency used by the download toolchain acquisition function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the download toolchain acquisition function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DownloadToolchainAcquisitionFunction(IToolchainAcquisitionService acquisition, IDxAiFunctionJsonService json, ILogger<DownloadToolchainAcquisitionFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the confirmation-gated direct toolchain download function.</summary>
@@ -126,9 +140,13 @@ public sealed class DownloadToolchainAcquisitionFunction(IToolchainAcquisitionSe
 }
 
 /// <summary>Lists reusable database-backed toolchain process profiles so low-B models can select a known workflow instead of reconstructing command lines.</summary>
+/// <param name="profiles">Toolchain execution profile service dependency used by the list toolchain execution profiles function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the list toolchain execution profiles function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListToolchainExecutionProfilesFunction(IToolchainExecutionProfileService profiles, IDxAiFunctionJsonService json, ILogger<ListToolchainExecutionProfilesFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the read-only profile inventory.</summary>
+    /// <value>The descriptor value exposed by <see cref="ListToolchainExecutionProfilesFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "toolchain.profile.list", "POST", "/api/dxai/functions/toolchain.profile.list/invoke",
         "Lists reusable database-backed toolchain process profiles and capability bindings.",
@@ -136,6 +154,9 @@ public sealed class ListToolchainExecutionProfilesFunction(IToolchainExecutionPr
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, IsCoordinationOnly: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{"capabilityKey":{"type":"string","maxLength":160}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Performs invoke for <see cref="ListToolchainExecutionProfilesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list toolchain execution profiles function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
@@ -153,9 +174,13 @@ public sealed class ListToolchainExecutionProfilesFunction(IToolchainExecutionPr
 }
 
 /// <summary>Saves a reusable toolchain process profile through the standard LocalGPT human approval inbox.</summary>
+/// <param name="profiles">Toolchain execution profile service dependency used by the save toolchain execution profile function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the save toolchain execution profile function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SaveToolchainExecutionProfileFunction(IToolchainExecutionProfileService profiles, IDxAiFunctionJsonService json, ILogger<SaveToolchainExecutionProfileFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the profile mutation function.</summary>
+    /// <value>The descriptor value exposed by <see cref="SaveToolchainExecutionProfileFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "toolchain.profile.save", "POST", "/api/dxai/functions/toolchain.profile.save/invoke",
         "Creates or updates a reusable database-backed toolchain process profile for Python, .NET, Java, Node.js, C/C++, Go or other registered executables.",
@@ -164,6 +189,9 @@ public sealed class SaveToolchainExecutionProfileFunction(IToolchainExecutionPro
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["profile"],"properties":{"profile":{"type":"object"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Performs invoke for <see cref="SaveToolchainExecutionProfileFunction"/>, keeping the operation consistent with the state and invariants of the surrounding save toolchain execution profile function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
@@ -180,9 +208,13 @@ public sealed class SaveToolchainExecutionProfileFunction(IToolchainExecutionPro
 }
 
 /// <summary>Runs a persisted toolchain process profile after approval so models do not need shell access or bespoke runtime code.</summary>
+/// <param name="profiles">Toolchain execution profile service dependency used by the execute toolchain profile function workflow to provide the corresponding application capability.</param>
+/// <param name="json">Devexpress ai function json service dependency used by the execute toolchain profile function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ExecuteToolchainProfileFunction(IToolchainExecutionProfileService profiles, IDxAiFunctionJsonService json, ILogger<ExecuteToolchainProfileFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Describes the profile execution function.</summary>
+    /// <value>The descriptor value exposed by <see cref="ExecuteToolchainProfileFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "toolchain.profile.execute", "POST", "/api/dxai/functions/toolchain.profile.execute/invoke",
         "Runs one database-backed toolchain process profile without a shell and returns bounded stdout/stderr.",
@@ -191,6 +223,9 @@ public sealed class ExecuteToolchainProfileFunction(IToolchainExecutionProfileSe
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["profileKey"],"properties":{"profileKey":{"type":"string","minLength":1,"maxLength":96},"arguments":{"type":"array","maxItems":256,"items":{"type":"string","maxLength":8192}}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Performs invoke for <see cref="ExecuteToolchainProfileFunction"/>, keeping the operation consistent with the state and invariants of the surrounding execute toolchain profile function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {

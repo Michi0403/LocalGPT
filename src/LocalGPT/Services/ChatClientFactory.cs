@@ -57,7 +57,10 @@ namespace LocalGPT.Services
         IChatSessionContext sessionContext,
         ILocalGptRuntimePolicyDataService runtimePolicy) : IChatClientFactory
     {
-        /// <summary>Gets the current database-backed provider defaults.</summary>
+        /// <summary>
+        /// Gets the provider parameters value that forms part of the chat client state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The provider parameters value exposed by <see cref="ChatClientFactory"/>.</value>
         private ProviderModelRuntimeParameters ProviderParameters => runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
 
         /// <summary>

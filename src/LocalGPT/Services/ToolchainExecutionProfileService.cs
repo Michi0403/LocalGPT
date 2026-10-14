@@ -9,17 +9,38 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>Owns database-backed reusable toolchain execution profiles and bounded shell-free process execution.</summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the toolchain execution profile workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the toolchain execution profile workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ToolchainExecutionProfileService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<ToolchainExecutionProfileService> logger) : IToolchainExecutionProfileService
 {
+    /// <summary>
+    /// Defines the data type constant used by <see cref="ToolchainExecutionProfileService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string DataType = "toolchain.profile";
+    /// <summary>
+    /// Defines the storage prefix constant used by <see cref="ToolchainExecutionProfileService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string StoragePrefix = "toolchain:profile:";
+    /// <summary>
+    /// Defines the maximum captured characters constant used by <see cref="ToolchainExecutionProfileService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaximumCapturedCharacters = 1_000_000;
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="ToolchainExecutionProfileService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to gate state owned by <see cref="ToolchainExecutionProfileService"/>.
+    /// </summary>
     private readonly SemaphoreSlim gate = new(1, 1);
 
+    /// <summary>
+    /// Retrieves profiles as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<IReadOnlyList<ToolchainExecutionProfile>> GetProfilesAsync(string? capabilityKey = null, CancellationToken cancellationToken = default)
     {
@@ -51,6 +72,9 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Retrieves profile as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<ToolchainExecutionProfile?> GetProfileAsync(string profileKey, CancellationToken cancellationToken = default)
     {
@@ -78,6 +102,9 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Persists profile as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<ToolchainExecutionProfile> SaveProfileAsync(SaveToolchainExecutionProfileRequest request, CancellationToken cancellationToken = default)
     {
@@ -155,6 +182,9 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Performs execute as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<ToolchainProcessExecutionResult> ExecuteAsync(ToolchainProcessExecutionRequest request, CancellationToken cancellationToken = default)
     {
@@ -241,6 +271,11 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Normalizes profile as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="source">Source value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The toolchain execution profile produced by the operation.</returns>
     private ToolchainExecutionProfile NormalizeProfile(ToolchainExecutionProfile source)
     {
         try
@@ -276,6 +311,12 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Resolves executable as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="profile">Profile value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="installation">Installation value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveExecutable(ToolchainExecutionProfile profile, ProjectCompilerInstallation? installation)
     {
         try
@@ -293,6 +334,12 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Builds arguments as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="profile">Profile value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="extra">String dependency used by the toolchain execution profile workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> BuildArguments(ToolchainExecutionProfile profile, IReadOnlyCollection<string> extra)
     {
         try
@@ -318,6 +365,13 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Resolves working directory as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="profile">Profile value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="installation">Installation value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="executable">Executable value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveWorkingDirectory(ToolchainExecutionProfile profile, ProjectCompilerInstallation? installation, string executable)
     {
         try
@@ -335,6 +389,12 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Reads database environment as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="toolchainInstallationId">Identifier of the toolchain installation to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The dictionary string string produced by the operation.</returns>
     private async Task<Dictionary<string, string>> ReadDatabaseEnvironmentAsync(Guid? toolchainInstallationId, CancellationToken cancellationToken)
     {
         try
@@ -371,6 +431,11 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Performs deserialize environment override as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The toolchain environment override record produced by the operation.</returns>
     private ToolchainEnvironmentOverrideRecord? DeserializeEnvironmentOverride(string value)
     {
         try
@@ -389,6 +454,11 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Reads environment as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="json">Json value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The dictionary string string produced by the operation.</returns>
     private Dictionary<string, string> ReadEnvironment(string? json)
     {
         try
@@ -405,6 +475,12 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Reads bounded as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="reader">Reader value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> ReadBoundedAsync(StreamReader reader, CancellationToken cancellationToken)
     {
         try
@@ -432,6 +508,11 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Performs deserialize as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The toolchain execution profile produced by the operation.</returns>
     private ToolchainExecutionProfile? Deserialize(string value)
     {
         try
@@ -450,6 +531,11 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Builds storage name as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="key">Key value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildStorageName(string key)
     {
         try
@@ -463,6 +549,11 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Normalizes key as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeKey(string value)
     {
         try
@@ -479,6 +570,13 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Performs require text as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RequireText(string value, int maximum, string name)
     {
         try
@@ -495,6 +593,12 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Performs trim as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Trim(string? value, int maximum)
     {
         try
@@ -509,6 +613,11 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Normalizes array JSON as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeArrayJson(string? value)
     {
         try
@@ -526,6 +635,11 @@ public sealed class ToolchainExecutionProfileService(
         }
     }
 
+    /// <summary>
+    /// Normalizes object JSON as part of the toolchain execution profile service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the toolchain execution profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeObjectJson(string? value)
     {
         try

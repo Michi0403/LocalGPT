@@ -15,6 +15,7 @@ public sealed class RemoteControlPollingHostedService(
     /// <summary>
     /// Stores the internal scan interval state used by <see cref="RemoteControlPollingHostedService"/> while executing its surrounding workflow.
     /// </summary>
+    /// <value>The scan interval value exposed by <see cref="RemoteControlPollingHostedService"/>.</value>
     private TimeSpan ScanInterval => TimeSpan.FromSeconds(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).RemoteControlPollingSeconds);
 
     /// <summary>

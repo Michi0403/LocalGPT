@@ -399,20 +399,28 @@ public sealed class LocalGptProjectTrackedFile
     public bool IsUserApproved { get; set; }
 
     /// <summary>Durable learning state for this exact file and revision; scanning never means reviewed.</summary>
+    /// <value>The learning status value exposed by <see cref="LocalGptProjectTrackedFile"/>.</value>
     [Required, MaxLength(32)] public string LearningStatus { get; set; } = "Pending";
     /// <summary>Character position proven by the source-backed learning reader.</summary>
+    /// <value>The learning read characters value exposed by <see cref="LocalGptProjectTrackedFile"/>.</value>
     public long LearningReadCharacters { get; set; }
     /// <summary>Whether the source-backed reader reached EOF for the stored hash.</summary>
+    /// <value>The learning read complete value exposed by <see cref="LocalGptProjectTrackedFile"/>.</value>
     public bool LearningReadComplete { get; set; }
     /// <summary>Hash whose complete contents were verified before the review was committed.</summary>
+    /// <value>The learning reviewed hash value exposed by <see cref="LocalGptProjectTrackedFile"/>.</value>
     [Required, MaxLength(128)] public string LearningReviewedHash { get; set; } = string.Empty;
     /// <summary>Bounded model-suggested review evidence, never treated as user approval.</summary>
+    /// <value>The learning evidence value exposed by <see cref="LocalGptProjectTrackedFile"/>.</value>
     [Column(TypeName = "TEXT")] public string LearningEvidence { get; set; } = string.Empty;
     /// <summary>Reason why the file cannot currently be completed.</summary>
+    /// <value>The learning block reason value exposed by <see cref="LocalGptProjectTrackedFile"/>.</value>
     [Column(TypeName = "TEXT")] public string LearningBlockReason { get; set; } = string.Empty;
     /// <summary>Last learning-state mutation for resumable Council processing.</summary>
+    /// <value>The learning updated at UTC value exposed by <see cref="LocalGptProjectTrackedFile"/>.</value>
     public DateTime? LearningUpdatedAtUtc { get; set; }
     /// <summary>Completion timestamp for this exact source hash.</summary>
+    /// <value>The learning completed at UTC value exposed by <see cref="LocalGptProjectTrackedFile"/>.</value>
     public DateTime? LearningCompletedAtUtc { get; set; }
 }
 

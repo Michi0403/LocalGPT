@@ -9,6 +9,9 @@ namespace LocalGPT.Services;
 /// <param name="logger">Logger used for safe operational diagnostics.</param>
 public sealed class WebSearchFunction(IWebSearchService search, IDxAiFunctionJsonService json, ILogger<WebSearchFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets the descriptor value that forms part of the web search function state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.web.search", "POST", "/api/dxai/functions/localgpt.web.search/invoke",
@@ -19,6 +22,9 @@ public sealed class WebSearchFunction(IWebSearchService search, IDxAiFunctionJso
         SupportsAutomaticInvocation: false, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["query"],"properties":{"query":{"type":"string","minLength":1,"maxLength":500},"provider":{"type":"string","default":"duckduckgo","enum":["duckduckgo"]},"maximumResults":{"type":"integer","minimum":1,"maximum":20,"default":8}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Performs invoke for <see cref="WebSearchFunction"/>, keeping the operation consistent with the state and invariants of the surrounding web search function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {

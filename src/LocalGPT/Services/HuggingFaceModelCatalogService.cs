@@ -7,13 +7,25 @@ using Microsoft.Extensions.Options;
 
 namespace LocalGPT.Services;
 
-/// <summary>Searches Hugging Face model metadata without executing repository code.</summary>
+/// <summary>
+/// Coordinates hugging face model catalog behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
+/// </summary>
+/// <param name="httpClientFactory">Http client factory dependency used by the hugging face model catalog workflow to provide the corresponding application capability.</param>
+/// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the hugging face model catalog workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class HuggingFaceModelCatalogService(
     IHttpClientFactory httpClientFactory,
     IOptionsMonitor<LocalGptConfigurationRoot> options,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<HuggingFaceModelCatalogService> logger) : IHuggingFaceModelCatalogService
 {
+    /// <summary>
+    /// Performs search as part of the hugging face model catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<HuggingFaceModelSearchResult>> SearchAsync(HuggingFaceModelSearchRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -109,6 +121,13 @@ public sealed class HuggingFaceModelCatalogService(
     }
 }
 
+    /// <summary>
+    /// Performs detect capabilities as part of the hugging face model catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="modelId">Identifier of the model to use for this operation.</param>
+    /// <param name="pipelineTag">Pipeline tag value supplied to the hugging face model catalog operation and used when producing its result.</param>
+    /// <param name="tags">String dependency used by the hugging face model catalog workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<LocalAiCapability> DetectCapabilities(string modelId, string pipelineTag, IReadOnlyCollection<string> tags)
     {
     try
@@ -148,6 +167,12 @@ public sealed class HuggingFaceModelCatalogService(
     }
 }
 
+    /// <summary>
+    /// Retrieves string as part of the hugging face model catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="element">Element value supplied to the hugging face model catalog operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the hugging face model catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetString(JsonElement element, string name) {
     try
     {
@@ -162,6 +187,12 @@ public sealed class HuggingFaceModelCatalogService(
         throw;
     }
 }
+    /// <summary>
+    /// Retrieves boolean as part of the hugging face model catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="element">Element value supplied to the hugging face model catalog operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the hugging face model catalog operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool GetBoolean(JsonElement element, string name) {
     try
     {
@@ -176,6 +207,12 @@ public sealed class HuggingFaceModelCatalogService(
         throw;
     }
 }
+    /// <summary>
+    /// Retrieves int64 as part of the hugging face model catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="element">Element value supplied to the hugging face model catalog operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the hugging face model catalog operation and used when producing its result.</param>
+    /// <returns>The long produced by the operation.</returns>
     private long GetInt64(JsonElement element, string name) {
     try
     {

@@ -4,9 +4,14 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Returns the compact shared ASCII palette contract for local renderers and small models.</summary>
+/// <param name="games">Council game session service dependency used by the get council game display palette function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetCouncilGameDisplayPaletteFunction(ICouncilGameSessionService games, ILogger<GetCouncilGameDisplayPaletteFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the get council game display palette function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetCouncilGameDisplayPaletteFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.display.palette.get", "POST", "/api/dxai/functions/localgpt.game.display.palette.get/invoke",
         "Returns LocalGPT ASCII palette modes, named ANSI-16 indexes, indexed-256 bounds and compact safe authoring rules. Tiny models should read this instead of guessing terminal color conventions.",
@@ -15,6 +20,9 @@ public sealed class GetCouncilGameDisplayPaletteFunction(ICouncilGameSessionServ
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "CouncilGameDisplayDxAiFunctions",
         ParameterSchemaJson: """{"type":"object","properties":{},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Performs invoke for <see cref="GetCouncilGameDisplayPaletteFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get council game display palette function workflow.
+    /// </summary>
     /// <inheritdoc />
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
@@ -32,9 +40,15 @@ public sealed class GetCouncilGameDisplayPaletteFunction(ICouncilGameSessionServ
 }
 
 /// <summary>Reads full or cropped Council ASCII display cells for continuity-aware rendering.</summary>
+/// <param name="games">Council game session service dependency used by the get council game display function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the get council game display function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetCouncilGameDisplayFunction(ICouncilGameSessionService games, CouncilGameDxParameterReader parameters, ILogger<GetCouncilGameDisplayFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the get council game display function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetCouncilGameDisplayFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.display.get", "POST", "/api/dxai/functions/localgpt.game.display.get/invoke",
         "Reads the current fixed-cell Council ASCII display, including its live dimensions, so a renderer can continue an existing scene without redrawing blindly.",
@@ -43,6 +57,9 @@ public sealed class GetCouncilGameDisplayFunction(ICouncilGameSessionService gam
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "CouncilGameDisplayDxAiFunctions",
         ParameterSchemaJson: """{"type":"object","properties":{"sessionId":{"type":"string"},"x":{"type":"integer","minimum":0},"y":{"type":"integer","minimum":0},"width":{"type":"integer","minimum":0,"maximum":240},"height":{"type":"integer","minimum":0,"maximum":100}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Performs invoke for <see cref="GetCouncilGameDisplayFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get council game display function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
@@ -67,15 +84,24 @@ public sealed class GetCouncilGameDisplayFunction(ICouncilGameSessionService gam
 }
 
 /// <summary>Writes simple text into a Council ASCII display.</summary>
+/// <param name="games">Council game session service dependency used by the write council game display text function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the write council game display text function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class WriteCouncilGameDisplayTextFunction(ICouncilGameSessionService games, CouncilGameDxParameterReader parameters, ILogger<WriteCouncilGameDisplayTextFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the write council game display text function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="WriteCouncilGameDisplayTextFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.display.text.write", "POST", "/api/dxai/functions/localgpt.game.display.text.write/invoke",
         "Writes clipped single- or multi-line text at display-cell coordinates. Prefer this over a full frame when only labels, reactions or small text areas changed.",
         "rendererName, x, y and text required; sessionId and turn optional and resolve to the current conversation game/turn when available, otherwise the current active game/turn.", "Display-only mutation; one renderer owns a turn and authoritative game state is unchanged.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, IsCoordinationOnly: true, Source: "CouncilGameDisplayDxAiFunctions",
         ParameterSchemaJson: """{"type":"object","required":["rendererName","x","y","text"],"properties":{"sessionId":{"type":"string"},"turn":{"type":"integer"},"rendererName":{"type":"string"},"x":{"type":"integer"},"y":{"type":"integer"},"text":{"type":"string"},"style":{"$ref":"#/$defs/style"}},"$defs":{"style":{"type":"object","properties":{"colorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"foregroundColor":{"type":"integer","minimum":0,"maximum":255},"backgroundColor":{"type":"integer","minimum":0,"maximum":255},"bold":{"type":"boolean"},"dim":{"type":"boolean"},"invert":{"type":"boolean"}},"additionalProperties":false}},"additionalProperties":false}""");
+    /// <summary>
+    /// Performs invoke for <see cref="WriteCouncilGameDisplayTextFunction"/>, keeping the operation consistent with the state and invariants of the surrounding write council game display text function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
@@ -84,15 +110,26 @@ public sealed class WriteCouncilGameDisplayTextFunction(ICouncilGameSessionServi
     }
 }
 
-/// <summary>Writes one Council ASCII display cell.</summary>
+/// <summary>
+/// Represents a set council game display cell function application type, grouping the state and behavior that belong to that domain concept.
+/// </summary>
+/// <param name="games">Council game session service dependency used by the set council game display cell function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the set council game display cell function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SetCouncilGameDisplayCellFunction(ICouncilGameSessionService games, CouncilGameDxParameterReader parameters, ILogger<SetCouncilGameDisplayCellFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the set council game display cell function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SetCouncilGameDisplayCellFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.display.cell.set", "POST", "/api/dxai/functions/localgpt.game.display.cell.set/invoke",
         "Changes one display cell for tiny reactions, cursor-like markers or surgical frame edits.", "rendererName, x, y and glyph required; sessionId and turn optional and resolve to the current conversation game/turn when available, otherwise the current active game/turn.", "Display-only mutation; clipped to the configured terminal cells.",
         IsReadOnly:false, AvailableToAi:true, RequiresHumanConfirmation:false, SupportsDirectInvocation:true, SupportsAutomaticInvocation:true, IsCoordinationOnly:true, Source:"CouncilGameDisplayDxAiFunctions",
         ParameterSchemaJson:"""{"type":"object","required":["rendererName","x","y","glyph"],"properties":{"sessionId":{"type":"string"},"turn":{"type":"integer"},"rendererName":{"type":"string"},"x":{"type":"integer"},"y":{"type":"integer"},"glyph":{"type":"string","minLength":1},"style":{"$ref":"#/$defs/style"}},"$defs":{"style":{"type":"object","properties":{"colorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"foregroundColor":{"type":"integer","minimum":0,"maximum":255},"backgroundColor":{"type":"integer","minimum":0,"maximum":255},"bold":{"type":"boolean"},"dim":{"type":"boolean"},"invert":{"type":"boolean"}},"additionalProperties":false}},"additionalProperties":false}""");
+    /// <summary>
+    /// Performs invoke for <see cref="SetCouncilGameDisplayCellFunction"/>, keeping the operation consistent with the state and invariants of the surrounding set council game display cell function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request,CancellationToken cancellationToken=default)
     {
@@ -102,14 +139,23 @@ public sealed class SetCouncilGameDisplayCellFunction(ICouncilGameSessionService
 }
 
 /// <summary>Fills a Council ASCII display rectangle with one glyph.</summary>
+/// <param name="games">Council game session service dependency used by the fill council game display region function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the fill council game display region function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class FillCouncilGameDisplayRegionFunction(ICouncilGameSessionService games, CouncilGameDxParameterReader parameters, ILogger<FillCouncilGameDisplayRegionFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the fill council game display region function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="FillCouncilGameDisplayRegionFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.display.region.fill", "POST", "/api/dxai/functions/localgpt.game.display.region.fill/invoke",
         "Fills a clipped rectangular cell region with one glyph; useful for clears, panels, floors and repeated texture without generating every character.", "rendererName, x, y, width, height and glyph required; sessionId and turn optional and resolve to the current conversation game/turn when available, otherwise the current active game/turn.", "Display-only mutation; width/height are bounded.",
         IsReadOnly:false,AvailableToAi:true,RequiresHumanConfirmation:false,SupportsDirectInvocation:true,SupportsAutomaticInvocation:true,IsCoordinationOnly:true,Source:"CouncilGameDisplayDxAiFunctions",
         ParameterSchemaJson:"""{"type":"object","required":["rendererName","x","y","width","height","glyph"],"properties":{"sessionId":{"type":"string"},"turn":{"type":"integer"},"rendererName":{"type":"string"},"x":{"type":"integer"},"y":{"type":"integer"},"width":{"type":"integer","minimum":1,"maximum":240},"height":{"type":"integer","minimum":1,"maximum":100},"glyph":{"type":"string","minLength":1},"style":{"$ref":"#/$defs/style"}},"$defs":{"style":{"type":"object","properties":{"colorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"foregroundColor":{"type":"integer","minimum":0,"maximum":255},"backgroundColor":{"type":"integer","minimum":0,"maximum":255},"bold":{"type":"boolean"},"dim":{"type":"boolean"},"invert":{"type":"boolean"}},"additionalProperties":false}},"additionalProperties":false}""");
+    /// <summary>
+    /// Performs invoke for <see cref="FillCouncilGameDisplayRegionFunction"/>, keeping the operation consistent with the state and invariants of the surrounding fill council game display region function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request,CancellationToken cancellationToken=default)
     {
@@ -119,14 +165,23 @@ public sealed class FillCouncilGameDisplayRegionFunction(ICouncilGameSessionServ
 }
 
 /// <summary>Blits a multiline ASCII block into a Council display.</summary>
+/// <param name="games">Council game session service dependency used by the blit council game display region function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the blit council game display region function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class BlitCouncilGameDisplayRegionFunction(ICouncilGameSessionService games, CouncilGameDxParameterReader parameters, ILogger<BlitCouncilGameDisplayRegionFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the blit council game display region function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="BlitCouncilGameDisplayRegionFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.display.region.blit", "POST", "/api/dxai/functions/localgpt.game.display.region.blit/invoke",
         "Blits a multiline ASCII sprite, panel or art block at display-cell coordinates. Prefer this for medium changes and reusable generated shapes.", "rendererName, x, y and text required; sessionId and turn optional and resolve to the current conversation game/turn when available, otherwise the current active game/turn.", "Display-only mutation; content is clipped to the live display dimensions.",
         IsReadOnly:false,AvailableToAi:true,RequiresHumanConfirmation:false,SupportsDirectInvocation:true,SupportsAutomaticInvocation:true,IsCoordinationOnly:true,Source:"CouncilGameDisplayDxAiFunctions",
         ParameterSchemaJson:"""{"type":"object","required":["rendererName","x","y","text"],"properties":{"sessionId":{"type":"string"},"turn":{"type":"integer"},"rendererName":{"type":"string"},"x":{"type":"integer"},"y":{"type":"integer"},"text":{"type":"string"},"style":{"$ref":"#/$defs/style"}},"$defs":{"style":{"type":"object","properties":{"colorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"foregroundColor":{"type":"integer","minimum":0,"maximum":255},"backgroundColor":{"type":"integer","minimum":0,"maximum":255},"bold":{"type":"boolean"},"dim":{"type":"boolean"},"invert":{"type":"boolean"}},"additionalProperties":false}},"additionalProperties":false}""");
+    /// <summary>
+    /// Performs invoke for <see cref="BlitCouncilGameDisplayRegionFunction"/>, keeping the operation consistent with the state and invariants of the surrounding blit council game display region function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request,CancellationToken cancellationToken=default)
     {
@@ -136,14 +191,23 @@ public sealed class BlitCouncilGameDisplayRegionFunction(ICouncilGameSessionServ
 }
 
 /// <summary>Submits a pregenerated ASCII movie for local non-blocking playback.</summary>
+/// <param name="games">Council game session service dependency used by the submit council game animation function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the submit council game animation function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SubmitCouncilGameAnimationFunction(ICouncilGameSessionService games, CouncilGameDxParameterReader parameters, ILogger<SubmitCouncilGameAnimationFunction> logger) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the submit council game animation function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SubmitCouncilGameAnimationFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.animation.submit", "POST", "/api/dxai/functions/localgpt.game.animation.submit/invoke",
         "Submits 2-12 complete pregenerated ASCII frames. Generate the frames fluently in one normal text-generation step, then let the browser play them locally so chat/council flow never waits on per-frame AI calls.", "rendererName and frames required; sessionId and turn optional and resolve to the current conversation game/turn when available, otherwise the current active game/turn; delayMilliseconds and caption optional.", "Display presentation only; does not mutate authoritative world state or transcript history.",
         IsReadOnly:false,AvailableToAi:true,RequiresHumanConfirmation:false,SupportsDirectInvocation:true,SupportsAutomaticInvocation:true,IsCoordinationOnly:true,Source:"CouncilGameDisplayDxAiFunctions",
         ParameterSchemaJson:"""{"type":"object","required":["rendererName","frames"],"properties":{"sessionId":{"type":"string"},"turn":{"type":"integer"},"rendererName":{"type":"string"},"frames":{"type":"array","minItems":2,"maxItems":12,"items":{"type":"string"}},"delayMilliseconds":{"type":"integer","minimum":250,"maximum":5000},"caption":{"type":"string"},"subtitle":{"type":"string","maxLength":360},"subtitleHoldMilliseconds":{"type":"integer","minimum":500,"maximum":10000},"asciiColorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"defaultForegroundColor":{"type":"integer","minimum":0,"maximum":255},"defaultBackgroundColor":{"type":"integer","minimum":0,"maximum":255},"frameStyleRuns":{"type":"array","maxItems":12,"items":{"type":"array","maxItems":4096,"items":{"$ref":"#/$defs/run"}}},"subtitleStyle":{"$ref":"#/$defs/style"}},"$defs":{"style":{"type":"object","properties":{"colorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"foregroundColor":{"type":"integer","minimum":0,"maximum":255},"backgroundColor":{"type":"integer","minimum":0,"maximum":255},"bold":{"type":"boolean"},"dim":{"type":"boolean"},"invert":{"type":"boolean"}},"additionalProperties":false},"run":{"type":"object","required":["y","x","length","style"],"properties":{"y":{"type":"integer","minimum":0},"x":{"type":"integer"},"length":{"type":"integer","minimum":1},"style":{"$ref":"#/$defs/style"}},"additionalProperties":false}},"additionalProperties":false}""");
+    /// <summary>
+    /// Performs invoke for <see cref="SubmitCouncilGameAnimationFunction"/>, keeping the operation consistent with the state and invariants of the surrounding submit council game animation function workflow.
+    /// </summary>
     /// <inheritdoc />
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request,CancellationToken cancellationToken=default)
     {

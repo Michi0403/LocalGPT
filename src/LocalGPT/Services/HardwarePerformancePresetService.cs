@@ -655,6 +655,14 @@ public sealed class HardwarePerformancePresetService(
         }
     }
 
+    /// <summary>
+    /// Builds benchmark tier route as part of the hardware performance preset service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="target">Target value supplied to the hardware performance preset operation and used when producing its result.</param>
+    /// <param name="successfulProfiles">Provider model benchmark profile result dependency used by the hardware performance preset workflow to provide the corresponding application capability.</param>
+    /// <param name="profileIndex">Profile index value supplied to the hardware performance preset operation and used when producing its result.</param>
+    /// <param name="tierName">Tier name value supplied to the hardware performance preset operation and used when producing its result.</param>
+    /// <returns>The one wire council model route produced by the operation.</returns>
     private OneWireCouncilModelRoute BuildBenchmarkTierRoute(
         ProviderModelBenchmarkTargetResult target,
         IReadOnlyList<ProviderModelBenchmarkProfileResult> successfulProfiles,

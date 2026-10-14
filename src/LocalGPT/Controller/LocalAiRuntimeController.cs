@@ -8,10 +8,12 @@ namespace LocalGPT.Controller;
 /// <summary>Exposes bounded LocalGPT-managed Python runtime policy and readiness operations without exposing arbitrary Python execution.</summary>
 /// <param name="runtime">Local AI runtime service.</param>
 /// <param name="logger">Logger used for controller diagnostics.</param>
+/// <param name="pythonJobs">Python job orchestration service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
 [ApiController]
 [Route("api/local-ai/runtime")]
 public sealed class LocalAiRuntimeController(
     ILocalAiRuntimeService runtime,
+    IPythonJobOrchestrationService pythonJobs,
     ILogger<LocalAiRuntimeController> logger) : ControllerBase
 {
     /// <summary>Returns the current runtime policy and restart state.</summary>
@@ -52,6 +54,26 @@ public sealed class LocalAiRuntimeController(
     {
         try { return Results.Ok(await runtime.GetStatusAsync(cancellationToken).ConfigureAwait(false)); }
         catch (Exception exception) { logger.LogError(exception, "Local AI runtime status API failed."); return Results.InternalServerError("Local AI runtime status could not be loaded. Review LocalGPT logs."); }
+    }
+
+    /// <summary>Returns the bounded, payload-free queue and worker history.</summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
+    [HttpGet("jobs")]
+    public IResult Jobs()
+    {
+        try { return Results.Ok(pythonJobs.ListJobs(100)); }
+        catch (Exception exception) { logger.LogError(exception, "Python task listing failed."); return Results.InternalServerError("Python task listing unavailable."); }
+    }
+
+    /// <summary>Requests cancellation of one specific Python task; does not run any source code.</summary>
+    /// <param name="jobId">Identifier of the job to use for this operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
+    [HttpPost("jobs/{jobId:guid}/cancel")]
+    [HumanApprovalRequired("localai.python.jobs.cancel", "Cancel Python task", "Stop one already-running local Python or media job.", "Medium", "Local AI task reviewer")]
+    public IResult CancelJob(Guid jobId)
+    {
+        try { return pythonJobs.CancelJob(jobId) ? Results.Ok(new { CancelRequested = true, JobId = jobId }) : Results.NotFound(); }
+        catch (Exception exception) { logger.LogError(exception, "Cancelling Python task failed."); return Results.InternalServerError("Python task cancellation failed."); }
     }
 
     /// <summary>Runs the fixed Python.NET readiness probe without accepting arbitrary Python code.</summary>

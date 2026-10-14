@@ -12,6 +12,9 @@ public sealed class OperationalActivityFeedService(
     IComponentActivityService activity,
     ILogger<OperationalActivityFeedService> logger) : IOperationalActivityFeedService
 {
+    /// <summary>
+    /// Builds display text as part of the operational activity feed service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public string BuildDisplayText(string? localText, int consoleLines = 120, int activityEntries = 30)
     {

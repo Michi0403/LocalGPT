@@ -4,38 +4,144 @@ using System.Globalization;
 
 namespace LocalGPT.Components.Pages;
 
-/// <summary>DevExpress workbench for navigating the maintained data domain and its live SQLite relationships.</summary>
+/// <summary>
+/// Renders the data management Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+/// </summary>
 public partial class DataManagement
 {
+    /// <summary>
+    /// Defines the toast name constant used by <see cref="DataManagement"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string ToastName = "DataManagementToasts";
+    /// <summary>
+    /// Gets or sets a value indicating whether busy applies to the data management state.
+    /// </summary>
+    /// <value>The busy value exposed by <see cref="DataManagement"/>.</value>
     private bool Busy { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether delete confirmed applies to the data management state.
+    /// </summary>
+    /// <value>The delete confirmed value exposed by <see cref="DataManagement"/>.</value>
     private bool DeleteConfirmed { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether protected fields confirmed applies to the data management state.
+    /// </summary>
+    /// <value>The protected fields confirmed value exposed by <see cref="DataManagement"/>.</value>
     private bool ProtectedFieldsConfirmed { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether preference save confirmed applies to the data management state.
+    /// </summary>
+    /// <value>The preference save confirmed value exposed by <see cref="DataManagement"/>.</value>
     private bool PreferenceSaveConfirmed { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether preference is sensitive applies to the data management state.
+    /// </summary>
+    /// <value>The preference is sensitive value exposed by <see cref="DataManagement"/>.</value>
     private bool PreferenceIsSensitive { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether preference requires approval applies to the data management state.
+    /// </summary>
+    /// <value>The preference requires approval value exposed by <see cref="DataManagement"/>.</value>
     private bool PreferenceRequiresApproval { get; set; }
+    /// <summary>
+    /// Gets or sets the preference kind value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The preference kind value exposed by <see cref="DataManagement"/>.</value>
     private string PreferenceKind { get; set; } = "Automatic";
+    /// <summary>
+    /// Gets or sets the status text value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The status text value exposed by <see cref="DataManagement"/>.</value>
     private string StatusText { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the active group value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The active group value exposed by <see cref="DataManagement"/>.</value>
     private string ActiveGroup { get; set; } = "councils";
+    /// <summary>
+    /// Gets or sets the row limit value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The row limit value exposed by <see cref="DataManagement"/>.</value>
     private int RowLimit { get; set; } = 100;
+    /// <summary>
+    /// Gets or sets the active page size that quantifies the associated data management data.
+    /// </summary>
+    /// <value>The active page size value exposed by <see cref="DataManagement"/>.</value>
     private int ActivePageSize { get; set; } = 100;
+    /// <summary>
+    /// Gets or sets the row offset value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The row offset value exposed by <see cref="DataManagement"/>.</value>
     private int RowOffset { get; set; }
+    /// <summary>
+    /// Gets or sets the relation column value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The relation column value exposed by <see cref="DataManagement"/>.</value>
     private string? RelationColumn { get; set; }
+    /// <summary>
+    /// Gets or sets the relation value value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The relation value value exposed by <see cref="DataManagement"/>.</value>
     private string? RelationValue { get; set; }
+    /// <summary>
+    /// Gets or sets the all tables collection maintained or exposed by this data management instance for downstream processing.
+    /// </summary>
+    /// <value>The all tables value exposed by <see cref="DataManagement"/>.</value>
     private IReadOnlyList<DataManagementTableInfo> AllTables { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the selected table value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected table value exposed by <see cref="DataManagement"/>.</value>
     private DataManagementTableInfo? SelectedTable { get; set; }
+    /// <summary>
+    /// Gets or sets the current table value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The current table value exposed by <see cref="DataManagement"/>.</value>
     private SqliteTableSnapshot? CurrentTable { get; set; }
+    /// <summary>
+    /// Gets or sets the selected row value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected row value exposed by <see cref="DataManagement"/>.</value>
     private SqliteRowSnapshot? SelectedRow { get; set; }
+    /// <summary>
+    /// Gets or sets the selected preference column value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected preference column value exposed by <see cref="DataManagement"/>.</value>
     private SqliteColumnSummary? SelectedPreferenceColumn { get; set; }
+    /// <summary>
+    /// Gets or sets the edit values collection maintained or exposed by this data management instance for downstream processing.
+    /// </summary>
+    /// <value>The edit values value exposed by <see cref="DataManagement"/>.</value>
     private Dictionary<string, string?> EditValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets or sets the editor overrides collection maintained or exposed by this data management instance for downstream processing.
+    /// </summary>
+    /// <value>The editor overrides value exposed by <see cref="DataManagement"/>.</value>
     private IReadOnlyDictionary<string, SqliteEditorFieldOverride> EditorOverrides { get; set; } =
         new Dictionary<string, SqliteEditorFieldOverride>(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets or sets the active model health exclusions collection maintained or exposed by this data management instance for downstream processing.
+    /// </summary>
+    /// <value>The active model health exclusions value exposed by <see cref="DataManagement"/>.</value>
     private IReadOnlyList<HumanCollaborationRequest> ActiveModelHealthExclusions { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the selected health exclusion value that forms part of the data management state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected health exclusion value exposed by <see cref="DataManagement"/>.</value>
     private HumanCollaborationRequest? SelectedHealthExclusion { get; set; }
+    /// <summary>
+    /// Gets the boolean options collection maintained or exposed by this data management instance for downstream processing.
+    /// </summary>
+    /// <value>The boolean options value exposed by <see cref="DataManagement"/>.</value>
     private IReadOnlyList<string> BooleanOptions { get; } = ["1", "0", "[null]"];
+    /// <summary>
+    /// Gets the editor kind options collection maintained or exposed by this data management instance for downstream processing.
+    /// </summary>
+    /// <value>The editor kind options value exposed by <see cref="DataManagement"/>.</value>
     private IReadOnlyList<string> EditorKindOptions { get; } = ["Automatic", "Text", "LongText", "Number", "Boolean", "DateTime", "Guid", "Json", "Secret"];
 
     /// <summary>Projects live catalog metadata into the established vertical DevExpress navigation.</summary>
+    /// <value>The domain groups value exposed by <see cref="DataManagement"/>.</value>
     private IReadOnlyList<WorkbenchNavItem> DomainGroups =>
     [
         new("councils", T("DataManagement.Councils", "Council & models"), T("DataManagement.CouncilsHelp", "Teams, model profiles and runtime presets"), CountGroup("councils")),
@@ -47,19 +153,23 @@ public partial class DataManagement
     ];
 
     /// <summary>Groups all live tables without omitting entities that lack declared foreign keys.</summary>
+    /// <value>The visible tables value exposed by <see cref="DataManagement"/>.</value>
     private IReadOnlyList<DataManagementTableInfo> VisibleTables => AllTables
         .Where(table => table.GroupKey == ActiveGroup)
         .ToList();
 
     /// <summary>Protects EF migration bookkeeping from the generic editor.</summary>
+    /// <value>The can edit current table value exposed by <see cref="DataManagement"/>.</value>
     private bool CanEditCurrentTable => SelectedTable is not null &&
         !SelectedTable.Name.Equals("__EFMigrationsHistory", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Shows further pages when the live table count is known or a relationship page is full.</summary>
+    /// <value>The has next page value exposed by <see cref="DataManagement"/>.</value>
     private bool HasNextPage => CurrentTable is not null && CurrentTable.Rows.Count >= ActivePageSize
         && (RelationColumn is not null || (SelectedTable?.RowCount ?? 0) > RowOffset + CurrentTable.Rows.Count);
 
     /// <summary>Requires a fresh explicit UI confirmation when a protected persisted field is actually changed.</summary>
+    /// <value>The requires protected field approval value exposed by <see cref="DataManagement"/>.</value>
     private bool RequiresProtectedFieldApproval => CurrentTable is not null && CurrentTable.Columns.Any(column =>
         EditorOverrides.TryGetValue(column.Name, out var preference) && preference.RequireHumanApproval
         && (SelectedRow is null
@@ -67,6 +177,7 @@ public partial class DataManagement
             : !string.Equals(SelectedRow.Values.GetValueOrDefault(column.Name), GetEditValue(column.Name), StringComparison.Ordinal)));
 
     /// <summary>Starts a fresh catalog read in the non-prerendered interactive server circuit.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
         try
@@ -81,6 +192,7 @@ public partial class DataManagement
     }
 
     /// <summary>Refreshes table metadata, decisions and the selected relational slice.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ReloadAsync()
     {
         if (Busy) return;
@@ -111,6 +223,8 @@ public partial class DataManagement
     }
 
     /// <summary>Selects one logical domain and its first available entity.</summary>
+    /// <param name="key">Key value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectGroupAsync(string key)
     {
         if (Busy) return;
@@ -137,6 +251,8 @@ public partial class DataManagement
     }
 
     /// <summary>Opens the selected entity without carrying a previous table's relation filter.</summary>
+    /// <param name="table">Table value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectTableAsync(DataManagementTableInfo table)
     {
         if (Busy) return;
@@ -162,6 +278,8 @@ public partial class DataManagement
     }
 
     /// <summary>Opens a child table from the schema tree without implying a record-specific relationship filter.</summary>
+    /// <param name="tableName">Table name value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OpenTableFromTreeAsync(string tableName)
     {
         if (Busy) return;
@@ -180,6 +298,7 @@ public partial class DataManagement
     }
 
     /// <summary>Reloads the current table or its bounded relationship slice.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadSelectedTableAsync()
     {
         if (Busy) return;
@@ -202,6 +321,7 @@ public partial class DataManagement
     }
 
     /// <summary>Loads older records without truncating the table to the latest configured page size.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task NextPageAsync()
     {
         if (Busy || !HasNextPage) return;
@@ -226,6 +346,7 @@ public partial class DataManagement
     }
 
     /// <summary>Returns to newer records in the same table or relational slice.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PreviousPageAsync()
     {
         if (Busy || RowOffset <= 0) return;
@@ -244,6 +365,8 @@ public partial class DataManagement
     }
 
     /// <summary>Materializes data before rendering; the Grid never queries services from render paths.</summary>
+    /// <param name="preferredRowId">Identifier of the preferred row to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadSelectedTableCoreAsync(long? preferredRowId = null)
     {
         try
@@ -278,6 +401,9 @@ public partial class DataManagement
     }
 
     /// <summary>Opens a live foreign-key parent or child using the currently selected record's key value.</summary>
+    /// <param name="relation">Relation value supplied to the data management operation and used when producing its result.</param>
+    /// <param name="toParent">Value indicating whether to parent should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task NavigateRelationAsync(DataManagementRelation relation, bool toParent)
     {
         if (Busy) return;
@@ -326,6 +452,7 @@ public partial class DataManagement
     }
 
     /// <summary>Removes only the current slice filter, retaining table and group selection.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ClearRelationFilterAsync()
     {
         try
@@ -343,6 +470,7 @@ public partial class DataManagement
     }
 
     /// <summary>Selects one row without persisting until the user explicitly saves.</summary>
+    /// <param name="row">Row value supplied to the data management operation and used when producing its result.</param>
     private void SelectRow(SqliteRowSnapshot row)
     {
         try
@@ -384,6 +512,7 @@ public partial class DataManagement
     }
 
     /// <summary>Persists the edit through the pre-existing validated, parameterized SQLite table editor.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveRowAsync()
     {
         if (Busy || !CanEditCurrentTable || CurrentTable is null || (RequiresProtectedFieldApproval && !ProtectedFieldsConfirmed)) return;
@@ -425,6 +554,7 @@ public partial class DataManagement
     }
 
     /// <summary>Deletes only the explicitly selected, separately confirmed record.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DeleteRowAsync()
     {
         if (Busy || !CanEditCurrentTable || !DeleteConfirmed || CurrentTable is null || SelectedRow is null) return;
@@ -456,6 +586,7 @@ public partial class DataManagement
     }
 
     /// <summary>Selects a persisted one-run exclusion without changing its approval state.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     private void SelectHealthExclusion(HumanCollaborationRequest request)
     {
         try
@@ -470,6 +601,7 @@ public partial class DataManagement
     }
 
     /// <summary>Releases only the selected approved model-health decision through its owning business service.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ReleaseHealthExclusionAsync()
     {
         if (Busy || SelectedHealthExclusion is null) return;
@@ -501,6 +633,7 @@ public partial class DataManagement
     }
 
     /// <summary>Loads one existing field's persisted editor configuration without changing business data.</summary>
+    /// <param name="column">Column value supplied to the data management operation and used when producing its result.</param>
     private void SelectPreferenceColumn(SqliteColumnSummary? column)
     {
         try
@@ -528,6 +661,7 @@ public partial class DataManagement
     }
 
     /// <summary>Persists one user-confirmed field editor setting through the existing EF-backed preference service.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SavePreferenceAsync()
     {
         if (Busy || !PreferenceSaveConfirmed || CurrentTable is null || SelectedPreferenceColumn is null) return;
@@ -564,6 +698,8 @@ public partial class DataManagement
     }
 
     /// <summary>Returns the current buffered value of an editor column.</summary>
+    /// <param name="name">Name value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? GetEditValue(string name)
     {
         try { return EditValues.TryGetValue(name, out var value) ? value : null; }
@@ -571,6 +707,8 @@ public partial class DataManagement
     }
 
     /// <summary>Updates a scalar field buffer without writing during a renderer event.</summary>
+    /// <param name="name">Name value supplied to the data management operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the data management operation and used when producing its result.</param>
     private void SetEditValue(string name, string? value)
     {
         try
@@ -585,6 +723,9 @@ public partial class DataManagement
     }
 
     /// <summary>Uses persisted user editor preferences before the service's inferred control kind.</summary>
+    /// <param name="column">Column value supplied to the data management operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetEditorKind(SqliteColumnSummary column, string? value)
     {
         try
@@ -599,13 +740,20 @@ public partial class DataManagement
     }
 
     /// <summary>Counts already-loaded entities in one navigation domain.</summary>
+    /// <param name="key">Key value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string CountGroup(string key)
     {
         try { return AllTables.Count(table => table.GroupKey == key).ToString(CultureInfo.CurrentCulture); }
         catch (Exception ex) { Logger.LogError(ex, "Counting data domain entities failed."); throw; }
     }
 
-    /// <summary>Resolves a localized page label with a defined English fallback.</summary>
+    /// <summary>
+    /// Performs t for <see cref="DataManagement"/>, keeping the operation consistent with the state and invariants of the surrounding data management workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the data management operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string T(string key, string fallback)
     {
         try { return Localization.Get(key, fallback: fallback); }
@@ -613,6 +761,8 @@ public partial class DataManagement
     }
 
     /// <summary>Converts SQLite's invariant decimal representation for DevExpress numeric editing.</summary>
+    /// <param name="value">Value value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>The decimal produced by the operation.</returns>
     private decimal? ParseDecimal(string? value)
     {
         try { return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) ? parsed : null; }
@@ -620,6 +770,8 @@ public partial class DataManagement
     }
 
     /// <summary>Formats numeric values for the maintained SQLite converter.</summary>
+    /// <param name="value">Value value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FormatDecimal(decimal? value)
     {
         try { return value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty; }
@@ -627,6 +779,8 @@ public partial class DataManagement
     }
 
     /// <summary>Converts an optional SQLite date value for DevExpress date editing.</summary>
+    /// <param name="value">Value value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>The date time produced by the operation.</returns>
     private DateTime? ParseDate(string? value)
     {
         try { return DateTimeOffset.TryParse(value, out var parsed) ? parsed.LocalDateTime : null; }
@@ -634,6 +788,8 @@ public partial class DataManagement
     }
 
     /// <summary>Formats an optional date for the SQLite editor's existing parser.</summary>
+    /// <param name="value">Value value supplied to the data management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FormatDate(DateTime? value)
     {
         try { return value?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty; }

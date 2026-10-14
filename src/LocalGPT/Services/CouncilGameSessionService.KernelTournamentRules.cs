@@ -9,6 +9,9 @@ namespace LocalGPT.Services;
 public sealed partial class CouncilGameSessionService
 {
     /// <summary>Resolves the explicit/team-assigned tournament rules class before a session starts.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council kernel tournament rules produced by the operation.</returns>
     private async Task<CouncilKernelTournamentRules> ResolveKernelTournamentRulesAsync(
         StartCouncilGameRequest request,
         CancellationToken cancellationToken)
@@ -81,6 +84,8 @@ public sealed partial class CouncilGameSessionService
     }
 
     /// <summary>Recognizes copied tournament rule classes by their persisted field contract rather than by key alone.</summary>
+    /// <param name="definition">Definition value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsKernelTournamentRulesDefinition(CouncilRuntimeClassDefinition definition)
     {
         try
@@ -108,6 +113,12 @@ public sealed partial class CouncilGameSessionService
     }
 
     /// <summary>Reads one bounded integer from a persisted runtime-class default value.</summary>
+    /// <param name="fields">Runtime class field definition dependency used by the council game session workflow to provide the corresponding application capability.</param>
+    /// <param name="name">Name value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="minimum">Minimum value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ReadTournamentRule(
         IReadOnlyDictionary<string, RuntimeClassFieldDefinition> fields,
         string name,

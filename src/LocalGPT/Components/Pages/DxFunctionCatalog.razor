@@ -417,14 +417,41 @@
     /// Stores the in-memory entries collection maintained internally by <see cref="DxFunctionCatalog"/> for its current workflow state.
     /// </summary>
     private List<DxAiFunctionCatalogEntry> _entries = [];
+    /// <summary>
+    /// Stores the in-memory workbench function options collection maintained internally by <see cref="DxFunctionCatalog"/> for its current workflow state.
+    /// </summary>
     private List<LocalGptSelectionOption<string>> _workbenchFunctionOptions = [];
+    /// <summary>
+    /// Stores the in-memory workbench history collection maintained internally by <see cref="DxFunctionCatalog"/> for its current workflow state.
+    /// </summary>
     private List<DxAiFunctionInvocationAuditEntry> _workbenchHistory = [];
+    /// <summary>
+    /// Stores the internal workbench function name state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private string _workbenchFunctionName = string.Empty;
+    /// <summary>
+    /// Stores the internal workbench parameters JSON state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private string _workbenchParametersJson = "{}";
+    /// <summary>
+    /// Stores the internal workbench preview function name state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private string _workbenchPreviewFunctionName = string.Empty;
+    /// <summary>
+    /// Stores the internal workbench preview parameters state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private string _workbenchPreviewParameters = string.Empty;
+    /// <summary>
+    /// Stores the internal workbench preview state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private DxAiFunctionInvocationResult? _workbenchPreview;
+    /// <summary>
+    /// Stores the internal workbench execution state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private DxAiFunctionInvocationResult? _workbenchExecution;
+    /// <summary>
+    /// Stores the internal workbench busy state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _workbenchBusy;
 
     /// <summary>
@@ -881,6 +908,7 @@
 
 
     /// <summary>Projects the current policy-controlled function choices into DevExpress selection state.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshWorkbenchOptionsAsync()
     {
         try
@@ -912,6 +940,7 @@
     }
 
     /// <summary>Previews exactly the selected function and JSON parameters without running the handler.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PreviewWorkbenchFunctionAsync()
     {
         _workbenchBusy = true;
@@ -933,6 +962,7 @@
     }
 
     /// <summary>Requests the already-previewed invocation through the ordinary registry and Human Collaboration gate.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ExecuteWorkbenchFunctionAsync()
     {
         _workbenchBusy = true;
@@ -958,6 +988,7 @@
     }
 
     /// <summary>Loads sanitized durable invocation history for the DevExpress function workbench.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshWorkbenchHistoryAsync()
     {
         _workbenchBusy = true;

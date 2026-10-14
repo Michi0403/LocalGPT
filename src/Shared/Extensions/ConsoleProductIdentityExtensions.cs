@@ -11,7 +11,7 @@ namespace ProjectConsoleIdentity.Extensions;
 internal static class ConsoleProductIdentityExtensions
 {
     /// <summary>
-    /// Resolves the product identity described by one executable assembly.
+    /// Performs to console product identity for <see cref="ConsoleProductIdentityExtensions"/>, keeping the operation consistent with the state and invariants of the surrounding console product identity extensions workflow.
     /// </summary>
     /// <param name="assembly">Assembly whose generated project metadata owns the identity.</param>
     /// <returns>An immutable business object containing the resolved identity.</returns>
@@ -52,6 +52,9 @@ internal static class ConsoleProductIdentityExtensions
     /// <summary>
     /// Reads one required project metadata value without inventing fallback repository identity.
     /// </summary>
+    /// <param name="assembly">Assembly value supplied to the console product identity extensions operation and used when producing its result.</param>
+    /// <param name="key">Key value supplied to the console product identity extensions operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string ResolveMetadata(Assembly assembly, string key)
     {
         var value = assembly
@@ -68,6 +71,8 @@ internal static class ConsoleProductIdentityExtensions
     /// <summary>
     /// Converts an assembly version into the three-slot semantic identity used by LocalGPT release packaging.
     /// </summary>
+    /// <param name="version">Version value supplied to the console product identity extensions operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string ToSemanticVersion(Version? version) =>
         version is null ? "0.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
 }

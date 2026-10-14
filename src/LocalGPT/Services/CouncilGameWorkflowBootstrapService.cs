@@ -8,6 +8,9 @@ namespace LocalGPT.Services;
 /// game runtime-class family owns one authoritative game session before model workflow execution starts.
 /// Persisted team/runtime-class configuration remains the source of truth for game behavior and difficulty.
 /// </summary>
+/// <param name="teams">Council team configuration service dependency used by the council game workflow bootstrap workflow to provide the corresponding application capability.</param>
+/// <param name="games">Council game session service dependency used by the council game workflow bootstrap workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilGameWorkflowBootstrapService(
     ICouncilTeamConfigurationService teams,
     ICouncilGameSessionService games,
@@ -94,6 +97,8 @@ public sealed class CouncilGameWorkflowBootstrapService(
     }
 
     /// <summary>Maps declared runtime-class namespaces to the deterministic game runtime that owns those classes.</summary>
+    /// <param name="runtimeClassKeys">String dependency used by the council game workflow bootstrap workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? ResolveGameKey(IEnumerable<string> runtimeClassKeys)
     {
         try

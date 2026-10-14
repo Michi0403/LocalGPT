@@ -12,6 +12,7 @@ namespace LocalGPT.Migrations;
 public partial class AddGameProjectAsciiColor : Migration
 {
     /// <summary>Adds presentation metadata without moving game state into persistence.</summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add game project ascii color operation and used when producing its result.</param>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.AddColumn<int>(
@@ -36,7 +37,10 @@ public partial class AddGameProjectAsciiColor : Migration
             defaultValue: 0);
     }
 
-    /// <summary>Removes only the palette metadata introduced by this migration.</summary>
+    /// <summary>
+    /// Reverts the schema changes defined by the <see cref="AddGameProjectAsciiColor"/> Entity Framework Core migration to return the database to its preceding shape.
+    /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add game project ascii color operation and used when producing its result.</param>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropColumn(name: "AsciiColorMode", table: "LocalGptGameProjectProfiles");

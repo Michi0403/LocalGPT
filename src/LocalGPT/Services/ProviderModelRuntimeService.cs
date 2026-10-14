@@ -47,7 +47,10 @@ public sealed class ProviderModelRuntimeService(
     /// </summary>
     private readonly ConcurrentDictionary<string, ProviderModelReference> referenceCache = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets the current database-backed provider discovery and session defaults.</summary>
+    /// <summary>
+    /// Gets the runtime parameters value that forms part of the provider model runtime state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The runtime parameters value exposed by <see cref="ProviderModelRuntimeService"/>.</value>
     private ProviderModelRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
 
     /// <summary>

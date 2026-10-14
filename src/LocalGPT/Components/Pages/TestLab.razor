@@ -1397,6 +1397,11 @@
 
 
     /// <summary>Appends one diagnostic operation to the visible Test Lab history without discarding earlier evidence.</summary>
+    /// <param name="existing">Existing value supplied to the test lab operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the test lab operation and used when producing its result.</param>
+    /// <param name="status">Status value supplied to the test lab operation and used when producing its result.</param>
+    /// <param name="payload">Payload value supplied to the test lab operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string AppendDiagnosticResult(string existing, string operation, string status, string payload)
     {
         try
@@ -1416,6 +1421,9 @@
     }
 
     /// <summary>Merges newly discovered artifact links with links preserved from earlier Test Lab operations.</summary>
+    /// <param name="existing">Test lab download link dependency used by the test lab workflow to provide the corresponding application capability.</param>
+    /// <param name="current">Test lab download link dependency used by the test lab workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<TestLabDownloadLink> MergeDownloadLinks(IEnumerable<TestLabDownloadLink> existing, IEnumerable<TestLabDownloadLink> current)
     {
         try

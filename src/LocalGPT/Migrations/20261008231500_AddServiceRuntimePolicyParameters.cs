@@ -11,7 +11,9 @@ namespace LocalGPT.Migrations;
 [Migration("20261008231500_AddServiceRuntimePolicyParameters")]
 public partial class AddServiceRuntimePolicyParameters : Migration
 {
-    /// <summary>Adds missing service parameter rows without overwriting user-edited values.</summary>
+    /// <summary>
+    /// Applies the schema changes defined by the <see cref="AddServiceRuntimePolicyParameters"/> Entity Framework Core migration to move the database forward.
+    /// </summary>
     /// <param name="migrationBuilder">Migration builder used to update persisted runtime parameters.</param>
     protected override void Up(MigrationBuilder migrationBuilder)
     {

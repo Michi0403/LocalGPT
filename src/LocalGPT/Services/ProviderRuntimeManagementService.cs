@@ -37,8 +37,10 @@ public sealed class ProviderRuntimeManagementService(
     /// <summary>Ollama model deletion route used only after explicit destructive-action confirmation.</summary>
     private const string OllamaDeleteRoute = "/api/delete";
     /// <summary>Filesystem path comparer supplied by the host platform boundary.</summary>
+    /// <value>The path comparer value exposed by <see cref="ProviderRuntimeManagementService"/>.</value>
     private StringComparer PathComparer => platform.PathComparer;
     /// <summary>Filesystem path comparison supplied by the host platform boundary.</summary>
+    /// <value>The path comparison value exposed by <see cref="ProviderRuntimeManagementService"/>.</value>
     private StringComparison PathComparison => platform.PathComparison;
     /// <summary>Maximum retained manifests inspected before direct blob cleanup is deliberately disabled.</summary>
     private const int MaximumManifestReferenceScan = 4096;
@@ -475,6 +477,7 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Resolves the effective local Ollama store without treating other detected drives as interchangeable.</summary>
+    /// <param name="snapshot">Snapshot value supplied to the provider runtime management operation and used when producing its result.</param>
     private void ResolveEffectiveOllamaStore(ProviderRuntimeManagementSnapshot snapshot)
     {
         try
@@ -518,6 +521,8 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Reads local Ollama manifests from one explicit store without probing unrelated stores for model identity.</summary>
+    /// <param name="storeRoot">Store root value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<ProviderManagedModelInfo> ReadOllamaFilesystemModels(string storeRoot)
     {
         var result = new List<ProviderManagedModelInfo>();
@@ -571,6 +576,9 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Builds a provider model identifier from one Ollama manifest path.</summary>
+    /// <param name="manifestsRoot">Manifests root value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <param name="manifestPath">Manifest path value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildOllamaModelId(string manifestsRoot, string manifestPath)
     {
         try
@@ -595,7 +603,12 @@ public sealed class ProviderRuntimeManagementService(
         }
     }
 
-    /// <summary>Reads all sha256 digests referenced by an Ollama manifest.</summary>
+    /// <summary>
+    /// Attempts to read manifest digests as part of the provider runtime management service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="manifestPath">Manifest path value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <param name="digests">Digests value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryReadManifestDigests(string manifestPath, out HashSet<string> digests)
     {
         var collectedDigests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -637,6 +650,9 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Maps an Ollama digest to its provider blob filename.</summary>
+    /// <param name="storeRoot">Store root value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <param name="digest">Digest value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetOllamaBlobPath(string storeRoot, string digest)
     {
         try
@@ -651,6 +667,7 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Collects per-store physical usage and per-volume capacity without conflating multiple drives.</summary>
+    /// <param name="snapshot">Snapshot value supplied to the provider runtime management operation and used when producing its result.</param>
     private void PopulateOllamaStorageEvidence(ProviderRuntimeManagementSnapshot snapshot)
     {
         try
@@ -753,6 +770,8 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Resolves a store directory to its physical final link target when the store itself is a symbolic link.</summary>
+    /// <param name="path">Path value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolvePhysicalDirectoryPath(string path)
     {
         try
@@ -771,6 +790,8 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Resolves the ready drive or mount with the longest root prefix for one path.</summary>
+    /// <param name="path">Path value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveStorageRoot(string path)
     {
         try
@@ -792,6 +813,9 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Compares normalized filesystem roots using the current host path semantics.</summary>
+    /// <param name="left">Left value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <param name="right">Right value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool PathsEqual(string? left, string? right)
     {
         try
@@ -808,6 +832,9 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Deletes an exact local Ollama manifest and only blobs proven unreferenced by every retained readable manifest.</summary>
+    /// <param name="profile">Profile value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <param name="modelId">Identifier of the model to use for this operation.</param>
+    /// <returns>The provider model management result produced by the operation.</returns>
     private ProviderModelManagementResult DeleteOllamaModelFromLocalStore(AiProviderBootstrapProfile profile, string modelId)
     {
         if (!Uri.TryCreate(profile.Endpoint, UriKind.Absolute, out var endpoint) || !endpoint.IsLoopback)
@@ -874,6 +901,9 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Compares Ollama identifiers while treating an omitted tag as the provider's conventional latest tag.</summary>
+    /// <param name="left">Left value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <param name="right">Right value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool OllamaIdsEqual(string left, string right)
     {
         try
@@ -895,6 +925,8 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Prunes empty manifest directories without walking above the model store's manifest root.</summary>
+    /// <param name="directory">Directory value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <param name="manifestsRoot">Manifests root value supplied to the provider runtime management operation and used when producing its result.</param>
     private void PruneEmptyManifestDirectories(string? directory, string manifestsRoot)
     {
         try
@@ -927,6 +959,8 @@ public sealed class ProviderRuntimeManagementService(
     }
 
     /// <summary>Normalizes provider endpoint text for display without changing provider routing behavior.</summary>
+    /// <param name="endpoint">Endpoint value supplied to the provider runtime management operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeProviderEndpoint(string? endpoint)
     {
         try

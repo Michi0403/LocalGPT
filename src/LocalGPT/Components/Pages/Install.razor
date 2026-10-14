@@ -31,12 +31,16 @@
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 @inject ILocalGptApplicationPathService ApplicationPaths
 @inject ILocalAiRuntimeService LocalAiRuntime
+@inject IPythonJobOrchestrationService PythonJobs
 @inject ILocalAiAcquisitionService LocalAiAcquisition
 @inject IHuggingFaceModelCatalogService HuggingFaceCatalog
 @inject IToolchainEnvironmentService ToolchainEnvironment
 @inject IToolchainAcquisitionService ToolchainAcquisition
 @inject IToolchainExecutionProfileService ToolchainExecutionProfiles
 @inject IRuntimePluginService RuntimePlugins
+@inject IProjectSourceNavigationService ProjectSourceNavigation
+@inject ILocalGptProjectService LocalProjects
+@inject IProjectArchitectureService ProjectArchitecture
 @inject LocalGPT.Runtime.Plugins.RuntimePluginDefinitionSupport RuntimePluginDefinitionSupport
 @inject LocalGPT.Mcp.LocalGptMcpConfigurationPolicy McpGatewayPolicy
 
@@ -1280,7 +1284,7 @@
                                             Value="@RuntimePluginDraft.Kind"
                                             ValueChanged="@((RuntimePluginKind kind) => RuntimePluginKindChanged(kind))" />
                             </DxFormLayoutItem>
-                            @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript)
+                            @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript or RuntimePluginKind.Python)
                             {
                                 <DxFormLayoutItem Caption="Compiler/runtime" ColSpanMd="3">
                                     <DxComboBox Data="@RuntimePluginCompilerInstallations"
@@ -1301,7 +1305,50 @@
                                 <DxMemo @bind-Text="RuntimePluginDraft.ParameterSchemaJson" Rows="4" />
                             </DxFormLayoutItem>
 
-                            @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript)
+                            @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript or RuntimePluginKind.Python)
+                            {
+                                // Capture this render's editing context, not the DxPopup template context.
+                                var currentSourceContext = RuntimePluginSourceContext;
+                                <DxFormLayoutGroup @key="currentSourceContext" Caption="Project source · versioned, regex-curated publication" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Project" ColSpanMd="4">
+                                        <DxComboBox Data="@RuntimePluginSourceProjects" Enabled="@(!RuntimePluginBusy)"
+                                                    TextFieldName="@nameof(LocalGptProjectSummary.DisplayName)"
+                                                    ValueFieldName="@nameof(LocalGptProjectSummary.Id)"
+                                                    Value="@currentSourceContext.ProjectId"
+                                                    ValueChanged="@((Guid selectedProjectId) => OnRuntimePluginSourceProjectChangedAsync(currentSourceContext, selectedProjectId))"
+                                                    ValueExpression="@(() => currentSourceContext.ProjectId)"
+                                                    NullText="Select an existing project" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Revision" ColSpanMd="4">
+                                        <DxComboBox Data="@RuntimePluginSourceRevisions" Enabled="@(!RuntimePluginBusy)"
+                                                    TextFieldName="@nameof(LocalGptProjectRevision.RevisionName)"
+                                                    ValueFieldName="@nameof(LocalGptProjectRevision.Id)"
+                                                    Value="@currentSourceContext.RevisionId"
+                                                    ValueChanged="@((Guid selectedRevisionId) => OnRuntimePluginSourceRevisionChangedAsync(currentSourceContext, selectedRevisionId))"
+                                                    ValueExpression="@(() => currentSourceContext.RevisionId)"
+                                                    NullText="Current/unversioned scanned files" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Curated source file" ColSpanMd="4">
+                                        <DxComboBox Data="@RuntimePluginSourceFiles" Enabled="@(!RuntimePluginBusy)"
+                                                    TextFieldName="@nameof(ProjectSourceFileMatch.RelativePath)"
+                                                    ValueFieldName="@nameof(ProjectSourceFileMatch.TrackedFileId)"
+                                                    Value="@currentSourceContext.TrackedFileId"
+                                                    ValueChanged="@((Guid selectedFileId) => OnRuntimePluginSourceFileChanged(currentSourceContext, selectedFileId))"
+                                                    ValueExpression="@(() => currentSourceContext.TrackedFileId)"
+                                                    NullText="Only approved tracked files" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem ColSpanMd="12">
+                                        <p class="field-help">A selected project file is the editable source of truth. Its current hash must be fully read, reviewed and approved before a separate executable snapshot is published. Curator-approved regex patterns and exact compiler profiles are discoverable through project.source.navigate. Edit and rescan the project file to change it; the editor below remains available for existing legacy definitions.</p>
+                                        <DxButton Text="Refresh project sources" Enabled="@(!RuntimePluginBusy)" Click="RefreshRuntimePluginSourceProjectsAsync" />
+                                        <DxButton Text="Publish reviewed file as function" Enabled="@(!RuntimePluginBusy && currentSourceContext.ProjectId != Guid.Empty && currentSourceContext.TrackedFileId != Guid.Empty && currentSourceContext.PluginId == RuntimePluginDraft.Id)" Click="PublishRuntimePluginProjectSourceAsync" RenderStyle="ButtonRenderStyle.Primary" />
+                                        @if (!string.IsNullOrWhiteSpace(RuntimePluginSourceStatus))
+                                        {
+                                            <div class="toolchain-validation-message">@RuntimePluginSourceStatus</div>
+                                        }
+                                    </DxFormLayoutItem>
+                                </DxFormLayoutGroup>
+                            }
+                            @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript or RuntimePluginKind.Python)
                             {
                                 <DxFormLayoutItem Caption="Script source" ColSpanMd="12">
                                     <DxHtmlEditor @key="_runtimePluginEditorRevision"
@@ -1322,7 +1369,7 @@
                                         }
                                         else
                                         {
-                                            <div class="field-help">The JavaScript file receives validated parameters JSON on stdin and returns text or JSON on stdout. It runs through a validated configured Node-compatible runtime.</div>
+                                            <div class="field-help">The JavaScript or Python file receives validated parameters JSON on stdin and returns text or JSON on stdout. It runs in a separate process through the selected validated toolchain. Python.NET is never used to execute user plugin source.</div>
                                         }
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem ColSpanMd="12">
@@ -1429,6 +1476,34 @@
                 }
             }
 
+            <DxFormLayout CssClass="razor-section-layout-owner">
+                <DxFormLayoutItem ColSpanMd="12">
+                    <Template Context="pythonJobsTemplate">
+                        <div class="installer-card-heading">
+                            <div><strong>Python task monitor</strong><p>Embedded Python.NET is serialized. Separate approved Python plugin processes share bounded process slots and GPU resource lanes. No script source, prompts or media are shown here.</p></div>
+                            <DxButton Text="Refresh tasks" Click="RefreshPythonTaskRows" />
+                        </div>
+                        <DxGrid Data="@PythonTaskRows" ShowFilterRow="true" PageSize="10" KeyFieldName="JobId">
+                            <Columns>
+                                <DxGridDataColumn FieldName="Operation" Caption="Operation" />
+                                <DxGridDataColumn FieldName="Lane" Caption="Resource lane" />
+                                <DxGridDataColumn FieldName="Status" Caption="Status" />
+                                <DxGridDataColumn FieldName="CreatedAtUtc" Caption="Submitted UTC" />
+                                <DxGridDataColumn FieldName="CancellationRequested" Caption="Cancel requested" />
+                                <DxGridDataColumn Caption="Action" Width="110px">
+                                    <CellDisplayTemplate Context="pythonJobCell">
+                                        @if (pythonJobCell.DataItem is PythonJobSnapshot row && row.CompletedAtUtc is null)
+                                        {
+                                            <DxButton Text="Cancel" RenderStyle="ButtonRenderStyle.Danger" Click="@(() => CancelPythonTaskAsync(row.JobId))" />
+                                        }
+                                    </CellDisplayTemplate>
+                                </DxGridDataColumn>
+                            </Columns>
+                        </DxGrid>
+                    </Template>
+                </DxFormLayoutItem>
+            </DxFormLayout>
+
             @if (LocalAiRuntimePolicy is not null)
             {
                 <details class="provider-install-guide" open>
@@ -1437,6 +1512,12 @@
                     <div class="local-ai-runtime-policy-grid">
                         <label>Default device
                             <DxComboBox Data="@LocalAiDeviceOptions" @bind-Value="LocalAiRuntimePolicy.DefaultDevice" />
+                        </label>
+                        <label>Diffusers memory strategy
+                            <DxComboBox Data="@PythonMemoryStrategyOptions" @bind-Value="LocalAiRuntimePolicy.DefaultMemoryStrategy" />
+                        </label>
+                        <label>Concurrent isolated Python processes (live policy)
+                            <DxSpinEdit @bind-Value="LocalAiRuntimePolicy.MaxParallelProcessJobs" Min="1" Max="16" />
                         </label>
                         <label>Preferred managed Whisper model
                             <DxComboBox Data="@LocalAiWhisperVariantOptions" @bind-Value="LocalAiRuntimePolicy.DefaultWhisperModel" />

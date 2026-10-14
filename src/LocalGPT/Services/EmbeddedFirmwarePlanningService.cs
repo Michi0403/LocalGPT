@@ -23,6 +23,9 @@ public sealed partial class EmbeddedFirmwarePlanningService : IEmbeddedFirmwareP
     /// Stores the embedded telemetry bridge service dependency used by <see cref="EmbeddedFirmwarePlanningService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly IEmbeddedTelemetryBridgeService telemetryBridge;
+    /// <summary>
+    /// Stores the local GPT runtime policy data service dependency used by <see cref="EmbeddedFirmwarePlanningService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
     /// <summary>
     /// Stores the logger used by <see cref="EmbeddedFirmwarePlanningService"/> to record operational diagnostics without coupling callers to logging details.

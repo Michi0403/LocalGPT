@@ -27,15 +27,24 @@
 
 @code {
     /// <summary>Gets the localized culture options exposed by the interactive language island.</summary>
+    /// <value>The language options value exposed by <see cref="LanguageSwitcher"/>.</value>
     private IReadOnlyList<LocalGptSelectionOption<string>> LanguageOptions => GetLanguageOptionsForRender();
 
-    /// <summary>Gets the currently active UI culture.</summary>
+    /// <summary>
+    /// Gets the current culture value that forms part of the language switcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The current culture value exposed by <see cref="LanguageSwitcher"/>.</value>
     private string CurrentCulture => GetCurrentCultureForRender();
 
-    /// <summary>Gets the localized accessible label for the language selector.</summary>
+    /// <summary>
+    /// Gets the language label value that forms part of the language switcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The language label value exposed by <see cref="LanguageSwitcher"/>.</value>
     private string LanguageLabel => GetLanguageLabelForRender();
 
     /// <summary>Handles a user-selected UI culture and reloads the document through the canonical culture route.</summary>
+    /// <param name="cultureObject">Culture object value supplied to the language switcher operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnCultureChanged(object cultureObject)
     {
         try
@@ -61,6 +70,8 @@
     }
 
     /// <summary>Builds the native-language label for one configured culture.</summary>
+    /// <param name="culture">Culture value supplied to the language switcher operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string CultureLabel(string culture)
     {
         try
@@ -76,6 +87,7 @@
     }
 
     /// <summary>Computes the configured language options for the render path.</summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptSelectionOption<string>> GetLanguageOptionsForRender()
     {
         try
@@ -92,6 +104,7 @@
     }
 
     /// <summary>Computes the current configured UI culture for the render path.</summary>
+    /// <returns>The string produced by the operation.</returns>
     private string GetCurrentCultureForRender()
     {
         try
@@ -106,6 +119,7 @@
     }
 
     /// <summary>Computes the selector label for the render path.</summary>
+    /// <returns>The string produced by the operation.</returns>
     private string GetLanguageLabelForRender()
     {
         try

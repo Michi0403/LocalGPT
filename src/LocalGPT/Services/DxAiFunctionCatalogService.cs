@@ -45,7 +45,9 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
     private readonly IOrganicAddonManifestService addonManifests;
     /// <summary>Stores the user-owned dynamic DXFunction service used to refresh runtime descriptors before catalog synchronization.</summary>
     private readonly IUserDxAiFunctionService userFunctions;
-    /// <summary>Stores database-backed runtime regex/text policy.</summary>
+    /// <summary>
+    /// Stores the local GPT runtime policy data service dependency used by <see cref="DxAiFunctionCatalogService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
     /// <summary>
     /// Stores the logger used by <see cref="DxAiFunctionCatalogService"/> to record operational diagnostics without coupling callers to logging details.

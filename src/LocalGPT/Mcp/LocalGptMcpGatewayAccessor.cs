@@ -12,22 +12,46 @@ namespace LocalGPT.Mcp;
 /// Applies the LocalGPT MCP gateway's data-domain allow-list and result-shaping rules. This adapter intentionally
 /// sits above the database schema so MCP clients consume stable project/knowledge concepts rather than raw tables.
 /// </summary>
+/// <param name="optionMonitor">Mcp gateway options dependency used by the local GPT mcp gateway accessor workflow to provide the corresponding application capability.</param>
+/// <param name="dbFactory">Local gpt memory database context dependency used by the local GPT mcp gateway accessor workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the local GPT mcp gateway accessor workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalGptMcpGatewayAccessor(
     IOptionsMonitor<McpGatewayOptions> optionMonitor,
     IDbContextFactory<LocalGptMemoryDbContext> dbFactory,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalGptMcpGatewayAccessor> logger)
 {
+    /// <summary>
+    /// Gets the options value that forms part of the local GPT mcp gateway accessor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The options value exposed by <see cref="LocalGptMcpGatewayAccessor"/>.</value>
     private McpGatewayOptions Options => optionMonitor.CurrentValue;
+    /// <summary>
+    /// Gets the parameters value that forms part of the local GPT mcp gateway accessor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The parameters value exposed by <see cref="LocalGptMcpGatewayAccessor"/>.</value>
     private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>(LocalGptRuntimeValue.McpGatewayRuntimeParametersJson);
+    /// <summary>
+    /// Gets the max list items value that forms part of the local GPT mcp gateway accessor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The max list items value exposed by <see cref="LocalGptMcpGatewayAccessor"/>.</value>
     private int MaxListItems => Math.Clamp(Options.MaxListItems, Parameters.MinimumListItems, Parameters.MaximumListItems);
+    /// <summary>
+    /// Gets the max result characters value that forms part of the local GPT mcp gateway accessor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The max result characters value exposed by <see cref="LocalGptMcpGatewayAccessor"/>.</value>
     private int MaxResultCharacters => Math.Clamp(Options.MaxResultCharacters, Parameters.MinimumResultCharacters, Parameters.MaximumResultCharacters);
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="LocalGptMcpGatewayAccessor"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
     };
 
     /// <summary>Returns a non-secret snapshot of the effective gateway policy.</summary>
+    /// <returns>The string produced by the operation.</returns>
     public string GetGatewayStatus()
     {
         try
@@ -87,6 +111,8 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Filters the LocalGPT DX function catalog according to the MCP gateway's explicit exposure policy.</summary>
+    /// <param name="functions">Dxaichat function info dependency used by the local GPT mcp gateway accessor workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<DxaichatFunctionInfo> FilterFunctions(IEnumerable<DxaichatFunctionInfo> functions)
     {
         try
@@ -119,6 +145,10 @@ public sealed class LocalGptMcpGatewayAccessor(
 
 
     /// <summary>Checks project allow-list boundaries before an exposed DX function is invoked through MCP.</summary>
+    /// <param name="function">Function value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="denialReason">Denial reason value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool IsFunctionInvocationAllowed(DxaichatFunctionInfo function, JsonElement arguments, out string denialReason)
     {
         try
@@ -153,6 +183,8 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Determines whether a project identifier passes the configured gateway allow-list.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool IsProjectAllowed(Guid projectId)
     {
         try
@@ -167,6 +199,9 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Lists project metadata without exposing file-system paths unless explicitly enabled.</summary>
+    /// <param name="search">Search value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> ListProjectsAsync(string? search, CancellationToken cancellationToken)
     {
         if (!Options.ExposeProjects)
@@ -216,6 +251,9 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Returns one project and compact counts for its structured LocalGPT data domain.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> GetProjectAsync(Guid projectId, CancellationToken cancellationToken)
     {
         if (!Options.ExposeProjects)
@@ -265,6 +303,9 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Lists persisted project revisions, including structural JSON but redacting source paths by default.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> ListProjectRevisionsAsync(Guid projectId, CancellationToken cancellationToken)
     {
         if (!Options.ExposeProjects)
@@ -313,6 +354,9 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Lists project artifact metadata and only exposes persisted artifact values when explicitly enabled.</summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> ListProjectArtifactsAsync(Guid projectId, CancellationToken cancellationToken)
     {
         if (!Options.ExposeProjects || !Options.ExposeArtifacts)
@@ -359,6 +403,9 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Searches Council knowledge while respecting archived/content exposure settings.</summary>
+    /// <param name="search">Search value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> SearchKnowledgeAsync(string? search, CancellationToken cancellationToken)
     {
         if (!Options.ExposeKnowledge)
@@ -409,6 +456,9 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Returns one Council knowledge record.</summary>
+    /// <param name="knowledgeId">Identifier of the knowledge to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> GetKnowledgeAsync(Guid knowledgeId, CancellationToken cancellationToken)
     {
         if (!Options.ExposeKnowledge)
@@ -455,6 +505,9 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Lists reusable regex records used by LocalGPT project/knowledge recognition.</summary>
+    /// <param name="search">Search value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> ListRegexAsync(string? search, CancellationToken cancellationToken)
     {
         if (!Options.ExposeRegex)
@@ -483,6 +536,9 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Lists persisted compiler/runtime/toolchain installations with path and environment redaction controls.</summary>
+    /// <param name="language">Language value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> ListToolchainsAsync(string? language, CancellationToken cancellationToken)
     {
         if (!Options.ExposeToolchains)
@@ -532,6 +588,9 @@ public sealed class LocalGptMcpGatewayAccessor(
     }
 
     /// <summary>Shapes an arbitrary DX function result according to MCP path/download-result policy.</summary>
+    /// <param name="result">Result value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="function">Function value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string SerializeInvocationResult(DxAiFunctionInvocationResult result, DxaichatFunctionInfo? function = null)
     {
         try
@@ -559,6 +618,14 @@ public sealed class LocalGptMcpGatewayAccessor(
         }
     }
 
+    /// <summary>
+    /// Performs redact node for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="node">Node value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="artifactResult">Value indicating whether artifact result should apply to this operation.</param>
+    /// <param name="knowledgeResult">Value indicating whether knowledge result should apply to this operation.</param>
+    /// <param name="toolchainResult">Value indicating whether toolchain result should apply to this operation.</param>
+    /// <returns>The JSON node produced by the operation.</returns>
     private JsonNode? RedactNode(JsonNode? node, bool artifactResult, bool knowledgeResult, bool toolchainResult)
     {
         if (node is JsonValue scalar && scalar.TryGetValue<string>(out var scalarText))
@@ -621,17 +688,43 @@ public sealed class LocalGptMcpGatewayAccessor(
         return node;
     }
 
+    /// <summary>
+    /// Normalizes key for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeKey(string value) => value.Replace("_", string.Empty, StringComparison.Ordinal)
         .Replace("-", string.Empty, StringComparison.Ordinal)
         .ToLowerInvariant();
 
+    /// <summary>
+    /// Determines whether environment payload key for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="normalized">Normalized value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsEnvironmentPayloadKey(string normalized) => normalized.Contains("environmentvariable", StringComparison.Ordinal) ||
         normalized is "env" or "envvars" or "environment" or "environmentjson";
 
+    /// <summary>
+    /// Determines whether payload value key for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="normalized">Normalized value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsPayloadValueKey(string normalized) => normalized is "value" or "content" or "data" or "payload" or "body" or "text" or "bytes";
 
+    /// <summary>
+    /// Determines whether knowledge content key for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="normalized">Normalized value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsKnowledgeContentKey(string normalized) => normalized is "content" or "body" or "text" or "value" or "payload";
 
+    /// <summary>
+    /// Determines whether download key for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="normalized">Normalized value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsDownloadKey(string normalized, JsonNode? value)
     {
         if (normalized.Contains("downloadurl", StringComparison.Ordinal) || normalized.Contains("downloaduri", StringComparison.Ordinal))
@@ -639,6 +732,11 @@ public sealed class LocalGptMcpGatewayAccessor(
         return normalized is "url" or "uri" && value is JsonValue scalar && scalar.TryGetValue<string>(out var text) && LooksLikeDownloadUrl(text);
     }
 
+    /// <summary>
+    /// Performs looks like download URL for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool LooksLikeDownloadUrl(string? value)
     {
         if (string.IsNullOrWhiteSpace(value) || !Uri.TryCreate(value, UriKind.Absolute, out var uri) || !(uri.Scheme is "http" or "https"))
@@ -648,6 +746,11 @@ public sealed class LocalGptMcpGatewayAccessor(
                uri.Query.Contains("download", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Performs serialize for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Serialize(object? value)
     {
         var json = JsonSerializer.Serialize(value, JsonOptions);
@@ -664,11 +767,37 @@ public sealed class LocalGptMcpGatewayAccessor(
         }, JsonOptions);
     }
 
+    /// <summary>
+    /// Performs disabled for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="domain">Domain value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Disabled(string domain) => Serialize(new { error = "mcp_domain_disabled", domain });
+    /// <summary>
+    /// Performs denied for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="reason">Reason value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Denied(string reason) => Serialize(new { error = "mcp_access_denied", reason });
+    /// <summary>
+    /// Performs not found for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="kind">Kind value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NotFound(string kind, Guid id) => Serialize(new { error = "not_found", kind, id });
+    /// <summary>
+    /// Performs serialize error for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="code">Code value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="message">Message value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SerializeError(string code, string message) => Serialize(new { error = code, message });
 
+    /// <summary>
+    /// Parses project allow list for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <returns>The hash set GUID produced by the operation.</returns>
     private HashSet<Guid> ParseProjectAllowList()
     {
         var values = Split(Options.AllowedProjectIds);
@@ -682,12 +811,22 @@ public sealed class LocalGptMcpGatewayAccessor(
         return result;
     }
 
+    /// <summary>
+    /// Performs split for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> Split(string? value) => string.IsNullOrWhiteSpace(value)
         ? []
         : value.Split([';', ',', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    /// <summary>
+    /// Finds project identifiers for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="arguments">Arguments value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<Guid> FindProjectIds(JsonElement arguments)
     {
         var result = new List<Guid>();
@@ -708,14 +847,37 @@ public sealed class LocalGptMcpGatewayAccessor(
         return result;
     }
 
+    /// <summary>
+    /// Performs matches prefix for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="function">Function value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="prefixes">String dependency used by the local GPT mcp gateway accessor workflow to provide the corresponding application capability.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool MatchesPrefix(DxaichatFunctionInfo function, IReadOnlyCollection<string> prefixes) =>
         prefixes.Any(prefix => function.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || function.Route.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Performs matches category for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="function">Function value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool MatchesCategory(DxaichatFunctionInfo function, string value) =>
         function.Name.Contains(value, StringComparison.OrdinalIgnoreCase) || function.Route.Contains(value, StringComparison.OrdinalIgnoreCase) || function.Source.Contains(value, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs matches any category for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="function">Function value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <param name="values">Values value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool MatchesAnyCategory(DxaichatFunctionInfo function, params string[] values) => values.Any(value => MatchesCategory(function, value));
 
+    /// <summary>
+    /// Performs looks like system path for <see cref="LocalGptMcpGatewayAccessor"/>, keeping the operation consistent with the state and invariants of the surrounding local GPT mcp gateway accessor workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local GPT mcp gateway accessor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool LooksLikeSystemPath(string? value)
     {
         if (string.IsNullOrWhiteSpace(value) || Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")

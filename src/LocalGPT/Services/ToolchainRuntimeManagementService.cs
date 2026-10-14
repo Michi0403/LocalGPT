@@ -9,6 +9,11 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>Owns database-backed LocalGPT environment overrides and exposes redacted process/user/machine views for the Toolchains workbench.</summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the toolchain environment workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the toolchain environment workflow to provide the corresponding application capability.</param>
+/// <param name="platform">Platform runtime service dependency used by the toolchain environment workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the toolchain environment workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ToolchainEnvironmentService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -16,11 +21,26 @@ public sealed class ToolchainEnvironmentService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ToolchainEnvironmentService> logger) : IToolchainEnvironmentService
 {
+    /// <summary>
+    /// Defines the data type constant used by <see cref="ToolchainEnvironmentService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string DataType = "toolchain.environment";
+    /// <summary>
+    /// Defines the storage prefix constant used by <see cref="ToolchainEnvironmentService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string StoragePrefix = "toolchain:environment:";
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="ToolchainEnvironmentService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to mutation gate state owned by <see cref="ToolchainEnvironmentService"/>.
+    /// </summary>
     private readonly SemaphoreSlim mutationGate = new(1, 1);
 
+    /// <summary>
+    /// Applies application overrides as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task ApplyApplicationOverridesAsync(CancellationToken cancellationToken = default)
     {
@@ -47,6 +67,9 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Retrieves snapshot as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<ToolchainEnvironmentSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
     {
@@ -98,6 +121,9 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Performs filter entries as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public IReadOnlyList<ToolchainEnvironmentEntry> FilterEntries(IReadOnlyCollection<ToolchainEnvironmentEntry> entries, string? searchText, int maximumResults = 300)
     {
@@ -123,6 +149,9 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Performs change as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<ToolchainEnvironmentSnapshot> ChangeAsync(ToolchainEnvironmentChangeRequest request, CancellationToken cancellationToken = default)
     {
@@ -185,6 +214,13 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Persists record as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="name">Name value supplied to the toolchain environment operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PersistRecordAsync(ToolchainEnvironmentChangeRequest request, string name, CancellationToken cancellationToken)
     {
         try
@@ -231,6 +267,11 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Retrieves stored records as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<ToolchainEnvironmentOverrideRecord>> GetStoredRecordsAsync(CancellationToken cancellationToken)
     {
         try
@@ -255,6 +296,11 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Performs deserialize record as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the toolchain environment operation and used when producing its result.</param>
+    /// <returns>The toolchain environment override record produced by the operation.</returns>
     private ToolchainEnvironmentOverrideRecord? DeserializeRecord(string value)
     {
         try
@@ -273,6 +319,11 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Builds storage name as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildStorageName(Guid id)
     {
         try
@@ -286,6 +337,11 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Reads scope as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="target">Target value supplied to the toolchain environment operation and used when producing its result.</param>
+    /// <returns>The dictionary string string produced by the operation.</returns>
     private Dictionary<string, string> ReadScope(EnvironmentVariableTarget target)
     {
         try
@@ -306,6 +362,16 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Adds rows as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="rows">Rows value supplied to the toolchain environment operation and used when producing its result.</param>
+    /// <param name="values">String dependency used by the toolchain environment workflow to provide the corresponding application capability.</param>
+    /// <param name="scope">Scope value supplied to the toolchain environment operation and used when producing its result.</param>
+    /// <param name="source">Source value supplied to the toolchain environment operation and used when producing its result.</param>
+    /// <param name="writable">Value indicating whether writable should apply to this operation.</param>
+    /// <param name="effective">String dependency used by the toolchain environment workflow to provide the corresponding application capability.</param>
+    /// <param name="toolchainInstallationId">Identifier of the toolchain installation to use for this operation.</param>
     private void AddRows(List<ToolchainEnvironmentEntry> rows, IReadOnlyDictionary<string, string> values, ToolchainEnvironmentScope scope, string source, bool writable, IReadOnlyDictionary<string, string> effective, Guid? toolchainInstallationId)
     {
         try
@@ -334,6 +400,11 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Validates name as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the toolchain environment operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ValidateName(string value)
     {
         try
@@ -350,6 +421,11 @@ public sealed class ToolchainEnvironmentService(
         }
     }
 
+    /// <summary>
+    /// Determines whether sensitive name as part of the toolchain environment service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="name">Name value supplied to the toolchain environment operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsSensitiveName(string name)
     {
         try
@@ -366,13 +442,22 @@ public sealed class ToolchainEnvironmentService(
 }
 
 /// <summary>Downloads only pre-seeded toolchain artifacts selected by stable catalog key and never executes them automatically.</summary>
+/// <param name="httpClientFactory">Http client factory dependency used by the toolchain acquisition workflow to provide the corresponding application capability.</param>
+/// <param name="platform">Platform runtime service dependency used by the toolchain acquisition workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ToolchainAcquisitionService(
     IHttpClientFactory httpClientFactory,
     IPlatformRuntimeService platform,
     ILogger<ToolchainAcquisitionService> logger) : IToolchainAcquisitionService
 {
+    /// <summary>
+    /// Defines the maximum download bytes constant used by <see cref="ToolchainAcquisitionService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const long MaximumDownloadBytes = 1_073_741_824;
 
+    /// <summary>
+    /// Retrieves catalog as part of the toolchain acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public Task<IReadOnlyList<ToolchainAcquisitionSource>> GetCatalogAsync(CancellationToken cancellationToken = default)
     {
@@ -398,6 +483,9 @@ public sealed class ToolchainAcquisitionService(
         }
     }
 
+    /// <summary>
+    /// Performs download as part of the toolchain acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<ToolchainAcquisitionDownloadResult> DownloadAsync(ToolchainAcquisitionDownloadRequest request, CancellationToken cancellationToken = default)
     {
@@ -475,6 +563,10 @@ public sealed class ToolchainAcquisitionService(
         }
     }
 
+    /// <summary>
+    /// Builds catalog as part of the toolchain acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private List<ToolchainAcquisitionSource> BuildCatalog()
     {
         try
@@ -503,6 +595,20 @@ public sealed class ToolchainAcquisitionService(
         }
     }
 
+    /// <summary>
+    /// Performs source as part of the toolchain acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="key">Key value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <param name="profileKey">Profile key value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <param name="publisher">Publisher value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <param name="version">Version value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <param name="kind">Kind value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <param name="uri">Uri value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <param name="fileName">File name value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <param name="platform">Platform value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <param name="hint">Hint value supplied to the toolchain acquisition operation and used when producing its result.</param>
+    /// <returns>The toolchain acquisition source produced by the operation.</returns>
     private ToolchainAcquisitionSource Source(string key, string profileKey, string name, string publisher, string version, string kind, string uri, string fileName, string platform, string hint)
     {
         try
@@ -528,6 +634,10 @@ public sealed class ToolchainAcquisitionService(
         }
     }
 
+    /// <summary>
+    /// Performs current platform as part of the toolchain acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private string CurrentPlatform()
     {
         try
@@ -543,11 +653,15 @@ public sealed class ToolchainAcquisitionService(
 }
 
 /// <summary>Applies persisted LocalGPT application environment overrides as the host starts, before interactive toolchain work begins.</summary>
+/// <param name="environment">Toolchain environment service dependency used by the toolchain environment initialization workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ToolchainEnvironmentInitializationHostedService(
     IToolchainEnvironmentService environment,
     ILogger<ToolchainEnvironmentInitializationHostedService> logger) : IHostedService
 {
-    /// <summary>Applies persisted application overrides to the current process.</summary>
+    /// <summary>
+    /// Performs start as part of the toolchain environment initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="cancellationToken">Cancellation token supplied by the host.</param>
     /// <returns>A task that completes after initialization.</returns>
     public async Task StartAsync(CancellationToken cancellationToken)

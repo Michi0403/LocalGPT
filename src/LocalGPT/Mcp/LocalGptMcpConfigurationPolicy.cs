@@ -6,11 +6,17 @@ namespace LocalGPT.Mcp;
 /// <summary>
 /// Owns MCP gateway draft cloning and normalization so UI components only coordinate presentation and persistence.
 /// </summary>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the local GPT mcp configuration policy workflow to provide the corresponding application capability.</param>
 public sealed class LocalGptMcpConfigurationPolicy(ILocalGptRuntimePolicyDataService runtimePolicy)
 {
-    /// <summary>Gets the current database-backed MCP operational parameter set.</summary>
+    /// <summary>
+    /// Gets the parameters value that forms part of the local GPT mcp configuration policy state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The parameters value exposed by <see cref="LocalGptMcpConfigurationPolicy"/>.</value>
     private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>(LocalGptRuntimeValue.McpGatewayRuntimeParametersJson);
     /// <summary>Creates a detached MCP gateway option copy for editable UI state.</summary>
+    /// <param name="source">Source value supplied to the local GPT mcp configuration policy operation and used when producing its result.</param>
+    /// <returns>The mcp gateway options produced by the operation.</returns>
     public McpGatewayOptions Clone(McpGatewayOptions? source)
     {
         source ??= new McpGatewayOptions();
@@ -71,6 +77,8 @@ public sealed class LocalGptMcpConfigurationPolicy(ILocalGptRuntimePolicyDataSer
     }
 
     /// <summary>Normalizes and bounds an editable MCP gateway draft before persistence or preview.</summary>
+    /// <param name="source">Source value supplied to the local GPT mcp configuration policy operation and used when producing its result.</param>
+    /// <returns>The mcp gateway options produced by the operation.</returns>
     public McpGatewayOptions NormalizeDraft(McpGatewayOptions source)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -108,12 +116,15 @@ public sealed class LocalGptMcpConfigurationPolicy(ILocalGptRuntimePolicyDataSer
     }
 
     /// <summary>Creates a cryptographically random API key using the database-backed MCP key-size policy.</summary>
+    /// <returns>The string produced by the operation.</returns>
     public string GenerateApiKey()
     {
         return Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(Parameters.ApiKeyBytes));
     }
 
     /// <summary>Normalizes an MCP HTTP route and keeps it under the MCP route namespace.</summary>
+    /// <param name="value">Value value supplied to the local GPT mcp configuration policy operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizePath(string? value)
     {
         var rootPath = Parameters.RootPath;

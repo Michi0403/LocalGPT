@@ -15,7 +15,10 @@ public sealed class CouncilGameDirectorService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilGameDirectorService> logger) : ICouncilGameDirectorService
 {
-    /// <summary>Gets the database-backed Council game operational parameters.</summary>
+    /// <summary>
+    /// Gets the runtime parameters value that forms part of the council game director state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The runtime parameters value exposed by <see cref="CouncilGameDirectorService"/>.</value>
     private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Gets the actor directors collection maintained or exposed by this council game director instance for downstream processing.
@@ -97,7 +100,10 @@ public sealed class CreatureCouncilGameSubdirector(
     ICouncilGameActorRuntimeFactory actorFactory,
     ILocalGptRuntimePolicyDataService runtimePolicy) : ICouncilGameSubdirector
 {
-    /// <summary>Gets the database-backed Council game operational parameters.</summary>
+    /// <summary>
+    /// Gets the runtime parameters value that forms part of the creature council game subdirector state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The runtime parameters value exposed by <see cref="CreatureCouncilGameSubdirector"/>.</value>
     private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Gets the stable key used to identify or correlate this creature council game subdirector instance with related application state.
@@ -205,7 +211,10 @@ public sealed class CouncilGameActorRuntimeFactory(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilGameActorRuntimeFactory> logger) : ICouncilGameActorRuntimeFactory
 {
-    /// <summary>Gets the database-backed Council game operational parameters.</summary>
+    /// <summary>
+    /// Gets the runtime parameters value that forms part of the council game actor runtime state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The runtime parameters value exposed by <see cref="CouncilGameActorRuntimeFactory"/>.</value>
     private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
     /// <summary>
     /// Creates actors using the configuration and dependencies owned by <see cref="CouncilGameActorRuntimeFactory"/>.
