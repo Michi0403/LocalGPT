@@ -63,23 +63,7 @@ if ($councilSeedSql -match '(?im)^\s*(?:UPDATE|DELETE|DROP|ALTER|REPLACE)\b') {
 }
 Write-Host 'Council knowledge SQL seed preflight: executable idempotent INSERT statements and current schema fields are present.' -ForegroundColor DarkGreen
 
-$python = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($null -eq $python) { $python = Get-Command python3 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 }
-if ($null -eq $python) {
-    throw 'Python 3 was not found on PATH. It is required for LocalGPT documentation accessibility/link validation and GitHub Pages snapshot preparation.'
-}
-& $python.Source -c "import sys; raise SystemExit(0 if sys.version_info.major >= 3 else 1)"
-if ($LASTEXITCODE -ne 0) { throw 'The resolved Python executable is not Python 3.' }
-Write-Host "Documentation Python preflight: using $($python.Source)." -ForegroundColor DarkGreen
-
-$councilSeedAudit = Join-Path $repositoryRoot 'build/audit_council_sql_seed.py'
-if (-not (Test-Path -LiteralPath $councilSeedAudit -PathType Leaf)) {
-    throw "The Council knowledge SQL seed audit is missing: $councilSeedAudit"
-}
-& $python.Source $councilSeedAudit
-if ($LASTEXITCODE -ne 0) {
-    throw 'The Council knowledge SQL seed failed executable/current-schema validation.'
-}
+# SQL seed integrity is validated above using PowerShell; Python is not a build prerequisite.
 
 & (Join-Path $repositoryRoot 'build/Initialize-DevExpressLicense.ps1') -Require:(-not $AllowMissingDevExpressLicense)
 

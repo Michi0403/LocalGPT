@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
+using PdfSharp.Pdf.Filters;
 
 namespace LocalGPT.ReleasePackaging;
 
@@ -28,7 +29,7 @@ internal static class Program
     {
         try
         {
-            if (args.Length == 0) throw new ArgumentException("A command is required: capabilities, tar, deb, sha256, pdf-merge, or pdf-optimize.");
+            if (args.Length == 0) throw new ArgumentException("A command is required: capabilities, tar, deb, sha256, pdf-merge, pdf-verify, or pdf-optimize.");
             var command = args[0].ToLowerInvariant();
             var values = Parse(args.Skip(1).ToArray());
             switch (command)
@@ -41,6 +42,7 @@ internal static class Program
                 case "deb": CreateDeb(values); break;
                 case "sha256": CreateSha256(Required(values, "directory"), Required(values, "output")); break;
                 case "pdf-merge": MergePdf(values); break;
+                case "pdf-verify": VerifyPdf(values); break;
                 case "pdf-optimize": OptimizePdf(values); break;
                 default: throw new ArgumentException($"Unknown packaging command '{command}'.");
             }
@@ -327,26 +329,102 @@ internal static class Program
         if (inputPaths.Length == 0 || inputPaths.Any(string.IsNullOrWhiteSpace))
             throw new ArgumentException("At least one non-empty PDF input path is required.");
         var inputs = inputPaths.Select(Path.GetFullPath).ToArray();
-        foreach (var input in inputs) if (!File.Exists(input)) throw new FileNotFoundException("PDF input was not found.", input);
+        foreach (var input in inputs)
+        {
+            if (!File.Exists(input)) throw new FileNotFoundException("PDF input was not found.", input);
+            if (string.Equals(input, output, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                throw new ArgumentException("The PDF output must not overwrite one of the input chunks.");
+        }
 
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
         var temporary = output + ".tmp-" + Guid.NewGuid().ToString("N") + ".pdf";
         try
         {
+            long expectedPages = 0;
             using (var destination = new PdfDocument())
             {
+                // Documentation PDFs are distributable artifacts even when Visual Studio builds Debug.
+                destination.Options.Layout = PdfWriterLayout.Compact;
+                destination.Options.CompressContentStreams = true;
+                destination.Options.FlateEncodeMode = PdfFlateEncodeMode.BestCompression;
                 foreach (var input in inputs)
                 {
                     using var source = PdfReader.Open(input, PdfDocumentOpenMode.Import);
+                    if (source.Pages.Count == 0) throw new InvalidDataException($"PDF merge input contains no pages: {input}");
+                    expectedPages += source.Pages.Count;
                     foreach (var page in source.Pages) destination.AddPage(page);
                 }
+                var savedBytes = CompressImportedPdfStreams(destination);
+                if (savedBytes > 0) Console.WriteLine($"PDFsharp merged-stream compression saved {savedBytes} byte(s) before compact serialization.");
                 destination.Save(temporary);
             }
-            if (!LooksLikePdf(temporary)) throw new InvalidDataException("Merged PDF output is invalid or empty.");
+            // Verify a fully written, closed file rather than trusting its signature or save call.
+            // All imported pages must be represented by a document that PDFsharp can reopen.
+            var verifiedPages = ReadPdfPageCount(temporary);
+            if (verifiedPages != expectedPages)
+                throw new InvalidDataException($"Merged PDF page count mismatch: expected {expectedPages}, found {verifiedPages}. The existing output was not replaced.");
+            var verifiedBytes = new FileInfo(temporary).Length;
             CommitTemporaryFile(temporary, output);
+            Console.WriteLine($"PDFsharp merge verified {inputs.Length} parts, {verifiedPages} pages, {verifiedBytes} bytes.");
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
         Console.WriteLine(output);
+    }
+
+    /// <summary>
+    /// Validates a complete PDF via the PDFsharp import reader and reports its page count and size.
+    /// </summary>
+    private static void VerifyPdf(Dictionary<string, List<string>> values)
+    {
+        var input = Path.GetFullPath(Required(values, "input"));
+        var pageCount = ReadPdfPageCount(input);
+        var expected = Optional(values, "expected-pages", string.Empty);
+        if (!string.IsNullOrWhiteSpace(expected))
+        {
+            if (!long.TryParse(expected, NumberStyles.None, CultureInfo.InvariantCulture, out var expectedCount) || expectedCount < 1)
+                throw new ArgumentException("--expected-pages must be a positive integer.");
+            if (pageCount != expectedCount) throw new InvalidDataException($"PDF page count mismatch: expected {expectedCount}, found {pageCount}.");
+        }
+        Console.WriteLine($"pages={pageCount};bytes={new FileInfo(input).Length};file={input}");
+    }
+
+    /// <summary>
+    /// Parses a PDF's cross references and page tree rather than trusting its byte length.
+    /// </summary>
+    private static int ReadPdfPageCount(string path)
+    {
+        if (!LooksLikePdf(path)) throw new InvalidDataException($"PDF is missing its signature or final EOF marker: {path}");
+        using var document = PdfReader.Open(path, PdfDocumentOpenMode.Import);
+        var pages = document.Pages.Count;
+        if (pages < 1) throw new InvalidDataException($"PDF contains no pages: {path}");
+        return pages;
+    }
+
+    /// <summary>
+    /// Losslessly compresses unfiltered imported PDF streams when deflating actually saves space.
+    /// Already filtered streams (including browser JPEGs) and decode parameters are left untouched.
+    /// </summary>
+    /// <param name="document">Merged PDF document containing imported page resources.</param>
+    /// <returns>The total number of stream bytes removed, excluding dictionary serialization overhead.</returns>
+    private static long CompressImportedPdfStreams(PdfDocument document)
+    {
+        var encoder = new FlateDecode();
+        long savedBytes = 0;
+        foreach (var item in document.Internals.GetAllObjects())
+        {
+            if (item is not PdfDictionary dictionary || dictionary.Stream is null ||
+                dictionary.Elements.ContainsKey("/Filter") || dictionary.Elements.ContainsKey("/DecodeParms")) continue;
+
+            var raw = dictionary.Stream.Value;
+            if (raw.Length < 256) continue;
+            var compressed = encoder.Encode(raw, PdfFlateEncodeMode.BestCompression);
+            // Account for the additional /Filter name so incompressible data is not inflated.
+            if (compressed.Length + 40 >= raw.Length) continue;
+            dictionary.Stream.Value = compressed;
+            dictionary.Elements["/Filter"] = new PdfName("/FlateDecode");
+            savedBytes += raw.Length - compressed.Length;
+        }
+        return savedBytes;
     }
 
     /// <summary>
@@ -358,6 +436,7 @@ internal static class Program
         var input = Path.GetFullPath(Required(values, "input"));
         var output = Path.GetFullPath(Required(values, "output"));
         if (!File.Exists(input)) throw new FileNotFoundException("PDF input was not found.", input);
+        var expectedPages = ReadPdfPageCount(input);
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
 
         var candidates = new List<(string Path, string Mode)> { (input, "original") };
@@ -370,7 +449,7 @@ internal static class Program
             {
                 var qpdfOut = Path.Combine(work, "qpdf.pdf");
                 var qpdfArgs = new[] { "--compress-streams=y", "--decode-level=generalized", "--recompress-flate", "--compression-level=9", "--object-streams=generate", "--optimize-images", "--jpeg-quality=82", input, qpdfOut };
-                if (RunTool(qpdf, qpdfArgs) == 0 && LooksLikePdf(qpdfOut)) candidates.Add((qpdfOut, "qpdf"));
+                if (RunTool(qpdf, qpdfArgs) == 0 && HasMatchingPdfPages(qpdfOut, expectedPages)) candidates.Add((qpdfOut, "qpdf"));
             }
 
             var smallestBeforeGs = candidates.OrderBy(x => new FileInfo(x.Path).Length).First();
@@ -386,7 +465,7 @@ internal static class Program
                     "-dDownsampleGrayImages=true", "-dGrayImageResolution=150", "-dAutoFilterGrayImages=false", "-dGrayImageFilter=/DCTEncode",
                     "-dDownsampleMonoImages=true", "-dMonoImageResolution=300", $"-sOutputFile={gsOut}", smallestBeforeGs.Path
                 };
-                if (RunTool(ghostscript, gsArgs) == 0 && LooksLikePdf(gsOut)) candidates.Add((gsOut, smallestBeforeGs.Mode == "qpdf" ? "qpdf+ghostscript" : "ghostscript"));
+                if (RunTool(ghostscript, gsArgs) == 0 && HasMatchingPdfPages(gsOut, expectedPages)) candidates.Add((gsOut, smallestBeforeGs.Mode == "qpdf" ? "qpdf+ghostscript" : "ghostscript"));
             }
 
             var best = candidates.OrderBy(x => new FileInfo(x.Path).Length).First();
@@ -396,6 +475,24 @@ internal static class Program
             Console.WriteLine($"mode={best.Mode};before={new FileInfo(input).Length};after={new FileInfo(output).Length};output={output}");
         }
         finally { try { Directory.Delete(work, true); } catch { } }
+    }
+
+    /// <summary>
+    /// Rejects lossy optimizer results that are unreadable or silently lose pages.
+    /// </summary>
+    private static bool HasMatchingPdfPages(string candidate, int expectedPages)
+    {
+        try
+        {
+            var actualPages = ReadPdfPageCount(candidate);
+            if (actualPages == expectedPages) return true;
+            Console.Error.WriteLine($"PDF optimizer output rejected: expected {expectedPages} pages, found {actualPages} in '{candidate}'.");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"PDF optimizer output rejected: '{candidate}' could not be read ({ex.Message}).");
+        }
+        return false;
     }
 
     /// <summary>
@@ -454,17 +551,23 @@ internal static class Program
     }
 
     /// <summary>
-    /// Performs a lightweight PDF signature/size check before a generated artifact is committed.
+    /// Performs a bounded-memory PDF signature and final EOF check, even for multi-gigabyte outputs.
     /// </summary>
     /// <param name="path">Path to the candidate PDF file to validate.</param>
-    /// <returns><see langword="true"/> when the file exists, has a plausible size, and begins with the PDF signature; otherwise <see langword="false"/>.</returns>
+    /// <returns><see langword="true"/> when the file has a PDF header and an EOF marker near its end.</returns>
     private static bool LooksLikePdf(string path)
     {
         var info = new FileInfo(path);
         if (!info.Exists || info.Length < 1024) return false;
-        Span<byte> header = stackalloc byte[5];
         using var stream = File.OpenRead(path);
-        return stream.Read(header) == header.Length && header.SequenceEqual("%PDF-"u8);
+        Span<byte> header = stackalloc byte[5];
+        stream.ReadExactly(header);
+        if (!header.SequenceEqual("%PDF-"u8)) return false;
+        var tailLength = (int)Math.Min(info.Length, 65536L);
+        var tail = new byte[tailLength];
+        stream.Seek(-tailLength, SeekOrigin.End);
+        stream.ReadExactly(tail);
+        return tail.AsSpan().LastIndexOf("%%EOF"u8) >= 0;
     }
 
     /// <summary>

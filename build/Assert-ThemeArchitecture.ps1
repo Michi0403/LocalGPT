@@ -66,7 +66,7 @@ foreach ($token in @(
     'InitialComponentThemeName',
     'ThemeApplicationTarget target',
     '"readThemeState"',
-    '"applyThemeState"')) {
+    '"applyThemeState"', 'InvokeAsync(() => NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true))')) {
     if (-not (Test-ContainsOrdinal $dispatcher $token)) {
         $errors.Add("ThemeJsChangeDispatcher must retain '$token'.")
     }
@@ -103,7 +103,7 @@ foreach ($forbidden in @('bs-theme-link', 'dx-theme-link', 'GetThemeCssUrl(Theme
 }
 
 $controller = Read-RequiredText 'src/LocalGPT/wwwroot/switcher-resources/theme-controller.js'
-foreach ($required in @('readThemeState', 'applyThemeState', 'persistThemeState', 'data-bs-theme', 'data-localgpt-shell-theme', 'data-localgpt-component-theme', 'ActiveShellTheme', 'ActiveComponentTheme')) {
+foreach ($required in @('readThemeState', 'applyThemeState', 'persistThemeState', 'data-bs-theme', 'data-localgpt-shell-theme', 'data-localgpt-component-theme', 'ActiveShellTheme', 'ActiveComponentTheme', 'export function resetFusionRoute(shellThemeName, componentThemeName)')) {
     if (-not (Test-ContainsOrdinal $controller $required)) {
         $errors.Add("theme-controller.js must retain '$required'.")
     }
@@ -111,6 +111,13 @@ foreach ($required in @('readThemeState', 'applyThemeState', 'persistThemeState'
 
 $persistIndex = $controller.IndexOf('persistThemeState(shellThemeName, componentThemeName);', [StringComparison]::Ordinal)
 $highlightIndex = $controller.IndexOf('await updateHighlightTheme(highlightUrl, signal);', [StringComparison]::Ordinal)
+$resetFunctionStart = $controller.IndexOf('export function resetFusionRoute(', [StringComparison]::Ordinal)
+$resetFunctionEnd = $controller.IndexOf('export async function applyThemeState(', [StringComparison]::Ordinal)
+if ($resetFunctionStart -lt 0 -or $resetFunctionEnd -le $resetFunctionStart -or
+    $controller.Substring($resetFunctionStart, $resetFunctionEnd - $resetFunctionStart) -match 'location\.reload\(') {
+    $errors.Add('Theme reset must return from JS interop before a Blazor-owned reload; doing both in one JS call cancels its awaited response.')
+}
+
 if ($persistIndex -lt 0 -or $highlightIndex -lt 0 -or $persistIndex -gt $highlightIndex) {
     $errors.Add('theme-controller.js must persist and apply both theme names before asynchronous highlight stylesheet loading.')
 }
@@ -128,7 +135,54 @@ foreach ($token in @('--localgpt-body-bg', '--localgpt-border-color', '--localgp
     }
 }
 
+# Navigation follows the independently selected SHELL palette; DevExpress theme selection
+# must not reintroduce a dark hard-coded drawer into light themes such as Office White.
+foreach ($token in @(
+    '--localgpt-navigation-bg: var(--localgpt-shell-surface-bg, var(--localgpt-surface-raised-bg));',
+    '--localgpt-navigation-color: var(--localgpt-shell-foreground, var(--localgpt-body-color));',
+    '--localgpt-navigation-hover-bg: color-mix(',
+    'html[data-localgpt-shell-theme="office-white"]',
+    '--bs-secondary-bg: #f2f3f5;')) {
+    if (-not (Test-ContainsOrdinal $contract $token)) {
+        $errors.Add("Navigation must follow the selected shell palette: $token")
+    }
+}
+# Literal independent shell tokens protect mixed DevExpress/Bootstrap theme selection.
+$blocks = [regex]::Matches($contract, 'html\[data-localgpt-shell-theme="(?<name>[^"]+)"\]\s*\{(?<rules>[^}]+)\}')
+if ($blocks.Count -lt 21) { $errors.Add('Shell palette coverage is incomplete.') }
+foreach ($block in $blocks) {
+    foreach ($token in @('accent','accent-contrast','foreground','background','surface-bg','border')) {
+        if ($block.Groups['rules'].Value -notmatch ('--localgpt-shell-' + $token + ':\s*#[0-9a-fA-F]{6};')) {
+            $errors.Add("Shell theme $($block.Groups['name'].Value) lacks literal $token palette.")
+        }
+    }
+}
+$microphoneCss = Read-RequiredText 'src/LocalGPT/Components/Shared/ChatMicrophone.razor.css'
+foreach ($token in @('--localgpt-shell-foreground', '--localgpt-shell-surface-bg', '.chat-microphone.is-recording')) {
+    if (-not (Test-ContainsOrdinal $microphoneCss $token)) { $errors.Add("Microphone lost mixed-theme contrast protection: $token") }
+}
+$drawerCss = Read-RequiredText 'src/LocalGPT/Components/Layout/Drawer.razor.css'
+foreach ($token in @('--localgpt-navigation-bg', '--localgpt-navigation-color')) {
+    if (-not (Test-ContainsOrdinal $drawerCss $token)) {
+        $errors.Add("Navigation drawer lost its shell palette binding: $token")
+    }
+}
+
+$switcherCss = Read-RequiredText 'src/LocalGPT/wwwroot/switcher-resources/css/theme-switcher.css'
+foreach ($token in @('position: static;', 'position: relative;', 'background-color: var(--localgpt-body-bg);', 'grid-column: 1 / -1;', '.list-group > .razor-component-boundary')) {
+    if (-not (Test-ContainsOrdinal $switcherCss $token)) {
+        $errors.Add("Theme selector must remain shell-colored and viewport-contained: $token")
+    }
+}
+if ((Test-ContainsOrdinal $switcherCss 'width: min(1920px, 78vw);') -or
+    (Test-ContainsOrdinal $switcherCss 'min-width: min(960px, 96vw);') -or
+    (Test-ContainsOrdinal $switcherCss 'position: fixed;')) {
+    $errors.Add('Theme selector must not restore its oversized 78vw or forced 960px popup.')
+}
 $themeSwitcher = Read-RequiredText 'src/LocalGPT/Components/Layout/ThemeSwitcher.razor'
+if (-not (Test-ContainsOrdinal $themeSwitcher '"themeswitcher-button theme-settings is-open"')) {
+    $errors.Add('Theme selector must retain semantic open-state styling (not a literal True/False class).')
+}
 foreach ($token in @('IHttpContextAccessor HttpContextAccessor', 'LegacyThemeCookieName', 'ShellThemeCookieName', 'ComponentThemeCookieName', 'Themes.InitializeThemes', 'Themes.GetThemeLayerCssClass')) {
     if (-not (Test-ContainsOrdinal $themeSwitcher $token)) {
         $errors.Add("ThemeSwitcher must retain '$token'.")
@@ -147,7 +201,7 @@ if (-not (Test-ContainsOrdinal $themeLoadNotifier 'namespace LocalGPT.Interfaces
 }
 
 $themeSwitcherContainer = Read-RequiredText 'src/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor'
-foreach ($token in @('await InvokeAsync(async () =>', 'await ShownChanged.InvokeAsync(shown)', 'await ShellThemeNameChanged.InvokeAsync(theme.Name)', 'await ComponentThemeNameChanged.InvokeAsync(theme.Name)', 'ThemeApplicationTarget.Shell', 'ThemeApplicationTarget.Components')) {
+foreach ($token in @('<DxPopup Visible="@Shown"', 'VisibleChanged="ToggleThemeSwitcherPanel"', 'Width="min(1360px, 96vw)"', 'await InvokeAsync(async () =>', 'await ShownChanged.InvokeAsync(shown)', 'await ShellThemeNameChanged.InvokeAsync(theme.Name)', 'await ComponentThemeNameChanged.InvokeAsync(theme.Name)', 'ThemeApplicationTarget.Shell', 'ThemeApplicationTarget.Components')) {
     if (-not (Test-ContainsOrdinal $themeSwitcherContainer $token)) {
         $errors.Add("ThemeSwitcherContainer must retain dispatcher-safe token '$token'.")
     }

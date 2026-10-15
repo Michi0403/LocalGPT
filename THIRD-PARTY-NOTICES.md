@@ -36,6 +36,19 @@ LocalGPT is not affiliated with, endorsed by, or sponsored by id Software, ZeniM
 
 ## Release-documentation PDF tooling
 
-- **PDFsharp 6.2.4** — MIT license. Used by the repository-owned `LocalGPT.ReleasePackaging` .NET tool to merge bounded browser-rendered documentation PDF chunks cross-platform. It is a build/release dependency, not a DevExpress component.
+- **PDFsharp 6.2.4 (vendored MIT source)** — original empira Software GmbH source in `third_party/PDFsharp` with full MIT `LICENSE` and provenance notice. The local .NET 10 `PdfSharp`, `PdfSharp.Shared`, and `PdfSharp.System` projects are referenced by `LocalGPT.ReleasePackaging` to merge bounded browser-rendered documentation PDF chunks. No PDFsharp 6.5+ NuGet dependency or PDFsharp license activation is required. It is build/release tooling, not a DevExpress component.
 - **qpdf** — Apache-2.0 license. Optional external build-time PDF optimizer when installed; not bundled with LocalGPT.
 - **Ghostscript** — AGPL-3.0-or-later. Optional external build-time PDF optimizer when installed; not bundled with LocalGPT. The normal browser-chunk/PDFsharp merge path does not require it.
+
+
+## Release notice distribution (5.7.7)
+
+`THIRD-PARTY-NOTICES.txt` is the single consolidated, human-readable notice copied
+into the application and installer publish payloads and the versioned release
+folder, and packed in `LocalGPT.ReleasePackaging.nupkg` under `licenses/`.
+The original upstream licenses remain in their source locations. The release
+bundle includes the project `LICENSE.MD` separately. The NuGet package
+identifies the tool's project-owned code as Apache-2.0 and includes PDFsharp's
+original MIT license as a separate NuGet archive entry.
+These are distribution safeguards, not certification of all commercial runtime
+or transitive asset obligations; review changed dependencies before each release.

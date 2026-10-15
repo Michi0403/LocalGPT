@@ -7,15 +7,21 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>localgpt-release-packaging</ToolCommandName>
     <PackageId>LocalGPT.ReleasePackaging</PackageId>
-    <Version>1.0.5</Version>
+    <Version>1.1.0</Version>
     <Authors>Michi0403</Authors>
     <Description>Repository-owned deterministic release packaging primitives shared by LocalGPT and PublisherStudio.</Description>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="PDFsharp" Version="6.2.4" />
-    <!-- PDFsharp 6.2.4 permits Pkcs >= 8.0.1; pin the .NET 10 security-serviced
-         dependency so a fresh restore never selects the vulnerable minimum. -->
+    <None Include="..\..\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="licenses/THIRD-PARTY-NOTICES.txt" />
+    <None Include="..\..\third_party\PDFsharp\LICENSE" Pack="true" PackagePath="licenses/PDFsharp-6.2.4-MIT-LICENSE.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Keep the .NET 10 security-serviced PKCS version pinned. -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\third_party\PDFsharp\src\foundation\src\PDFsharp\src\PdfSharp\PdfSharp.csproj" GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />
   </ItemGroup>
 </Project>

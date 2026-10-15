@@ -169,9 +169,8 @@
     }
 }
 
-.language-switcher { margin-left: auto; display: inline-flex; align-items: center; width: min(22rem, 45vw); max-width: min(22rem, 45vw); }
-.language-switcher ::deep .localgpt-language-select { width: 100%; min-width: 12rem; max-width: 100%; font-weight: 650; }
-.language-switcher ::deep .localgpt-language-select .dxbl-edit-input { min-height: 2.5rem; color: var(--bs-body-color); }
+/* LanguageSwitcher is an interactive child component; its sizing belongs to its own
+   scoped stylesheet, not MainLayout (whose CSS scope cannot match the child's nodes). */
 
 
 /* final15: collaboration and Council tools live in a dedicated edge rail. The rail itself

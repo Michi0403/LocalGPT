@@ -147,12 +147,11 @@ public partial class Install
     }
 
     /// <summary>
-    /// Selects a reviewed project file in the active plugin draft. The renderer owns the selection
-    /// and its generation counter so that an older async project/revision request cannot overwrite it.
+    /// Handles the runtime plugin source file changed lifecycle or event notification for <see cref="Install"/>, updating the state required by the surrounding workflow.
     /// </summary>
-    /// <param name="context">The editing context captured by the ComboBox render that raised the event.</param>
-    /// <param name="trackedFileId">Identifier of the reviewed tracked file, or empty to clear the selection.</param>
-    /// <returns>A task that completes after the selection has been applied to the InteractiveServer renderer.</returns>
+    /// <param name="context">Context value supplied to the install operation and used when producing its result.</param>
+    /// <param name="trackedFileId">Identifier of the tracked file to use for this operation.</param>
+    /// <returns>A task that completes after the render-affine file selection is applied.</returns>
     private async Task OnRuntimePluginSourceFileChangedAsync(RuntimePluginSourceEditContext context, Guid trackedFileId)
     {
         try

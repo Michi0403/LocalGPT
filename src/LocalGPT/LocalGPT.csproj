@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>5.7.0</Version>
+    <Version>5.8.0</Version>
     <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
@@ -53,30 +53,30 @@
 	<ItemGroup>
 		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 		<Content Include="..\..\SECURITY.md" Link="SECURITY.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\index.md" Link="docs\index.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\system-overview.md" Link="docs\architecture\system-overview.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\ai-host.md" Link="docs\architecture\ai-host.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\council-runtime.md" Link="docs\architecture\council-runtime.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\project-data.md" Link="docs\architecture\project-data.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\onewire-security.md" Link="docs\architecture\onewire-security.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\frontend-and-themes.md" Link="docs\architecture\frontend-and-themes.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\engineering\build-validation.md" Link="docs\engineering\build-validation.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\reference\capability-map.md" Link="docs\reference\capability-map.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\reference\toolchain-discovery.md" Link="docs\reference\toolchain-discovery.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\reference\runtime-path-layout.md" Link="docs\reference\runtime-path-layout.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\reference\local-ai-runtime.md" Link="docs\reference\local-ai-runtime.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\reference\ai-provider-installation.md" Link="docs\reference\ai-provider-installation.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\reference\ascii-game-authoring.md" Link="docs\reference\ascii-game-authoring.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\reference\canonical-repositories.md" Link="docs\reference\canonical-repositories.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\reference\design-evolution.md" Link="docs\reference\design-evolution.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\guide\embedded-and-games.md" Link="docs\guide\embedded-and-games.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\COUNCIL_KNOWLEDGE_SEED.sql" Link="docs\COUNCIL_KNOWLEDGE_SEED.sql" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\index.md" Link="docs\index.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/index.md')" />
+		<Content Include="..\..\docs\architecture\system-overview.md" Link="docs\architecture\system-overview.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/architecture/system-overview.md')" />
+		<Content Include="..\..\docs\architecture\ai-host.md" Link="docs\architecture\ai-host.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/architecture/ai-host.md')" />
+		<Content Include="..\..\docs\architecture\council-runtime.md" Link="docs\architecture\council-runtime.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/architecture/council-runtime.md')" />
+		<Content Include="..\..\docs\architecture\project-data.md" Link="docs\architecture\project-data.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/architecture/project-data.md')" />
+		<Content Include="..\..\docs\architecture\onewire-security.md" Link="docs\architecture\onewire-security.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/architecture/onewire-security.md')" />
+		<Content Include="..\..\docs\architecture\frontend-and-themes.md" Link="docs\architecture\frontend-and-themes.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/architecture/frontend-and-themes.md')" />
+		<Content Include="..\..\docs\engineering\build-validation.md" Link="docs\engineering\build-validation.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/engineering/build-validation.md')" />
+		<Content Include="..\..\docs\reference\capability-map.md" Link="docs\reference\capability-map.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/capability-map.md')" />
+		<Content Include="..\..\docs\reference\toolchain-discovery.md" Link="docs\reference\toolchain-discovery.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/toolchain-discovery.md')" />
+		<Content Include="..\..\docs\reference\runtime-path-layout.md" Link="docs\reference\runtime-path-layout.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/runtime-path-layout.md')" />
+		<Content Include="..\..\docs\reference\local-ai-runtime.md" Link="docs\reference\local-ai-runtime.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/local-ai-runtime.md')" />
+		<Content Include="..\..\docs\reference\ai-provider-installation.md" Link="docs\reference\ai-provider-installation.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ai-provider-installation.md')" />
+		<Content Include="..\..\docs\reference\ascii-game-authoring.md" Link="docs\reference\ascii-game-authoring.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ascii-game-authoring.md')" />
+		<Content Include="..\..\docs\reference\canonical-repositories.md" Link="docs\reference\canonical-repositories.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/canonical-repositories.md')" />
+		<Content Include="..\..\docs\reference\design-evolution.md" Link="docs\reference\design-evolution.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/design-evolution.md')" />
+		<Content Include="..\..\docs\guide\embedded-and-games.md" Link="docs\guide\embedded-and-games.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/guide/embedded-and-games.md')" />
+		<Content Include="..\..\docs\COUNCIL_KNOWLEDGE_SEED.sql" Link="docs\COUNCIL_KNOWLEDGE_SEED.sql" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/COUNCIL_KNOWLEDGE_SEED.sql')" />
 		<Content Include="Runtime\Python\localgpt_runtime_bridge.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-		<EmbeddedResource Include="..\..\docs\reference\ai-provider-installation.md" LogicalName="LocalGPT.Knowledge.ai-provider-installation.md" />
-		<EmbeddedResource Include="..\..\docs\reference\ascii-game-authoring.md" LogicalName="LocalGPT.Knowledge.ascii-game-authoring.md" />
-		<EmbeddedResource Include="..\..\docs\reference\toolchain-discovery.md" LogicalName="LocalGPT.Knowledge.toolchain-discovery.md" />
-		<EmbeddedResource Include="..\..\docs\reference\runtime-path-layout.md" LogicalName="LocalGPT.Knowledge.runtime-path-layout.md" />
-		<EmbeddedResource Include="..\..\docs\reference\local-ai-runtime.md" LogicalName="LocalGPT.Knowledge.local-ai-runtime.md" />
+		<EmbeddedResource Include="..\..\docs\reference\ai-provider-installation.md" LogicalName="LocalGPT.Knowledge.ai-provider-installation.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ai-provider-installation.md')" />
+		<EmbeddedResource Include="..\..\docs\reference\ascii-game-authoring.md" LogicalName="LocalGPT.Knowledge.ascii-game-authoring.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ascii-game-authoring.md')" />
+		<EmbeddedResource Include="..\..\docs\reference\toolchain-discovery.md" LogicalName="LocalGPT.Knowledge.toolchain-discovery.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/toolchain-discovery.md')" />
+		<EmbeddedResource Include="..\..\docs\reference\runtime-path-layout.md" LogicalName="LocalGPT.Knowledge.runtime-path-layout.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/runtime-path-layout.md')" />
+		<EmbeddedResource Include="..\..\docs\reference\local-ai-runtime.md" LogicalName="LocalGPT.Knowledge.local-ai-runtime.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/local-ai-runtime.md')" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -92,15 +92,16 @@
 	</ItemGroup>
 	
   <ItemGroup>
-    <PackageReference Include="Azure.Core" Version="1.49.0" />
+    <Content Include="..\..\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <PackageReference Include="Azure.Core" Version="1.63.0" />
     <PackageReference Include="DevExpress.Blazor" Version="$(DevExpressVersion)" />
     <PackageReference Include="DevExpress.Blazor.de" Version="$(DevExpressVersion)" />
     <PackageReference Include="DevExpress.Blazor.RichEdit" Version="$(DevExpressVersion)" />
     <PackageReference Include="DevExpress.Blazor.RichEdit.de" Version="$(DevExpressVersion)" />
     <PackageReference Include="DevExpress.Blazor.PivotTable" Version="$(DevExpressVersion)" />
     <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="$(DevExpressVersion)" />
-    <PackageReference Include="Markdig" Version="1.3.2" />
-    <PackageReference Include="MessagePack" Version="3.1.8" />
+    <PackageReference Include="Markdig" Version="1.4.0" />
+    <PackageReference Include="MessagePack" Version="3.1.12" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
 	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.13" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
@@ -108,15 +109,15 @@
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
-	  <PackageReference Include="Microsoft.Extensions.AI" Version="10.9.0" />
-	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
-	  <PackageReference Include="OllamaSharp" Version="5.4.30" />
-	  <PackageReference Include="OpenAI" Version="2.12.0" />
-	  <PackageReference Include="pythonnet" Version="3.1.0" />
+	  <PackageReference Include="Microsoft.Extensions.AI" Version="10.11.0" />
+	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.11.0" />
+	  <PackageReference Include="OllamaSharp" Version="5.5.0" />
+	  <PackageReference Include="OpenAI" Version="2.14.0" />
+	  <PackageReference Include="pythonnet" Version="3.2.1" />
 	  <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
 	  <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
 	  <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="3.0.5" />
-	  <PackageReference Include="System.ClientModel" Version="1.15.0" />
+	  <PackageReference Include="System.ClientModel" Version="1.16.0" />
 	  <!--<PackageReference Include="SourceGear.sqlite3" Version="3.50.4.5" />-->
 	  <PackageReference Include="System.CodeDom" Version="10.0.13" />
 	  <PackageReference Include="Azure.AI.OpenAI" Version="2.5.0-beta.1" />

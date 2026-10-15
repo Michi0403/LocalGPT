@@ -249,9 +249,8 @@ export function resetFusionRoute(shellThemeName, componentThemeName) {
         if (!removeStoredValue(fusionRouteStorageKey))
             throw new Error("The browser rejected Theme Fusion route removal.");
 
-        // Reloading is deliberate: it removes runtime theme resources accumulated by the old
-        // selection route while retaining the currently selected Base Theme and Style Layer.
-        window.setTimeout(() => window.location.reload(), 0);
+        // Return the persisted result to the Blazor caller before requesting a reload.
+        // Reloading inside this JS interop call canceled its own SignalR response.
         return true;
     } catch (error) {
         diagnostics.report("theme-controller.resetFusionRoute", error);

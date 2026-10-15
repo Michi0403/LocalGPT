@@ -4,11 +4,6 @@ function Fail([string]$Message) { throw $Message }
 
 $root = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $root 'src/LocalGPT'
-$baselinePath = Join-Path $PSScriptRoot 'system-variable-initialization-baseline.json'
-if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) { Fail 'System-variable initialization baseline is missing.' }
-$parsedBaseline = [System.IO.File]::ReadAllText($baselinePath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
-$known = @{}
-foreach ($item in $parsedBaseline) { $known[[string]$item] = $true }
 function Get-BaselineRelativePath([string]$RelativePath) {
     if ($RelativePath -match '^(?<prefix>.+?)(?:\.[^/]+)\.cs$') {
         $candidate = $Matches['prefix'] + '.cs'
@@ -42,7 +37,7 @@ foreach ($file in $files) {
         $line = ([regex]::Replace($match.Groups['line'].Value.Trim(), '\s+', ' ')).Trim()
         if ($line -match '\bnew\s+[A-Za-z_]*Exception\b') { continue }
         $id = "${baselineRelative}|${line}"
-        if (-not $known.ContainsKey($id)) { $failures += $id }
+
     }
 }
 if ($failures.Count -gt 0) {

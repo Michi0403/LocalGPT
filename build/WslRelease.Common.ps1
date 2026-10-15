@@ -93,7 +93,6 @@ printf 'home=%s\n' "$HOME"
 command -v pwsh >/dev/null 2>&1; printf 'pwsh=%s\n' "$?"
 command -v dotnet >/dev/null 2>&1; dotnet_cmd=$?; printf 'dotnet=%s\n' "$dotnet_cmd"
 if [ "$dotnet_cmd" -eq 0 ]; then dotnet --list-sdks 2>/dev/null | grep -q '^10[.]'; printf 'dotnet10=%s\n' "$?"; else printf 'dotnet10=1\n'; fi
-command -v python3 >/dev/null 2>&1; printf 'python3=%s\n' "$?"
 command -v rpmbuild >/dev/null 2>&1; printf 'rpmbuild=%s\n' "$?"
 command -v appimagetool >/dev/null 2>&1; printf 'appimagetool=%s\n' "$?"
 test -s "$HOME/.config/DevExpress/DevExpress_License.txt"; printf 'devexpressFile=%s\n' "$?"
@@ -112,12 +111,12 @@ test -s "$HOME/.config/DevExpress/DevExpress_License.txt"; printf 'devexpressFil
     $pwshReady = $values.ContainsKey('pwsh') -and [string]$values['pwsh'] -eq '0'
     $dotnetReady = $values.ContainsKey('dotnet') -and [string]$values['dotnet'] -eq '0'
     $dotnet10Ready = $values.ContainsKey('dotnet10') -and [string]$values['dotnet10'] -eq '0'
-    $pythonReady = $values.ContainsKey('python3') -and [string]$values['python3'] -eq '0'
+    $pythonReady = $false # Optional application runtime; never a release build prerequisite.
     $linuxReady = [string]::Equals($linuxName, 'Linux', [StringComparison]::OrdinalIgnoreCase)
     $wsl2Ready = $values.ContainsKey('wsl2') -and [string]$values['wsl2'] -eq '0'
     return [pscustomobject]@{
         Available = $true
-        CoreReady = ($linuxReady -and $wsl2Ready -and $pwshReady -and $dotnetReady -and $dotnet10Ready -and $pythonReady)
+        CoreReady = ($linuxReady -and $wsl2Ready -and $pwshReady -and $dotnetReady -and $dotnet10Ready)
         Linux = $linuxName
         Architecture = $(if ($values.ContainsKey('arch')) { [string]$values['arch'] } else { '' })
         Kernel = $(if ($values.ContainsKey('kernel')) { [string]$values['kernel'] } else { '' })

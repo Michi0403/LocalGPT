@@ -1,0 +1,7 @@
+<Project>
+  <Import Project="../../Directory.Build.targets" />
+  <PropertyGroup>
+    <!-- Upstream PDFsharp 6.2.4 compile-time compatibility flags. -->
+    <DefineConstants>$(DefineConstants);USE_LONG_SIZE;TEST_CODE_xxx</DefineConstants>
+  </PropertyGroup>
+</Project>

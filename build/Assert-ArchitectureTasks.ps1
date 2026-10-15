@@ -16,7 +16,7 @@ Need 'build/Assert-DatabaseMigrationBootstrap.ps1' @('Database migration bootstr
 Need 'docs/architecture/system-overview.md' @('Mutable application state must not be hidden in static fields', 'Hosted services', 'Cancellation')
 Need 'build/Assert-ServiceArchitecture.ps1' @('Service lifecycle, static-state, and asynchronous supervision contracts verified.', 'Mutable collection state must not be stored in static service fields')
 Need 'build/Assert-RuntimeTextOwnership.ps1' @('Configurable runtime text/regex ownership validation failed', 'do not baseline, suppress, or hardcode around the guard')
-Need 'build/audit_runtime_text_ownership.py' @('PROMPT001', 'REGEX001', 'baseline-free', 'Ordinary UI, status and diagnostic prose')
+Need 'build/Assert-RuntimeTextOwnership.ps1' @('Configurable runtime text/regex ownership validation failed', 'do not baseline, suppress, or hardcode around the guard')
 Need 'src/LocalGPT/Interfaces/IPromptConfigService.cs' @('Task<string> GetPromptAsync', 'Task UpdatePromptAsync', 'Task<IEnumerable<PromptConfig>> ListPromptsAsync')
 Need 'src/LocalGPT/BusinessObjects/PromptConfig.cs' @('public string Key', 'public string Text', 'public DateTime LastUpdated')
 Need 'src/LocalGPT/Services/Persistence/DatabaseInitializationService.SeedCore.cs' @('foreach (var item in catalog.Prompts)', 'db.Prompts.Add(new PromptConfig')

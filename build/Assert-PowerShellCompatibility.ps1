@@ -270,6 +270,15 @@ if ((Test-Path -LiteralPath $buildStorageHelperPath -PathType Leaf) -and
     }
 }
 
+# Protect the cross-platform Pages path fix during early release preflight.
+$pagesScript = Join-Path $root 'build/Assert-PagesArtifact.ps1'
+if (Test-Path -LiteralPath $pagesScript -PathType Leaf) {
+    $pagesSource = [IO.File]::ReadAllText($pagesScript)
+    if ($pagesSource.IndexOf('TrimStart([char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar))', [StringComparison]::Ordinal) -lt 0) {
+        $failures.Add('Pages artifact paths must use host-aware directory separators in Join-Path.')
+    }
+}
+
 if ($failures.Count -gt 0) {
     throw "PowerShell compatibility validation failed:`n - $($failures -join "`n - ")"
 }

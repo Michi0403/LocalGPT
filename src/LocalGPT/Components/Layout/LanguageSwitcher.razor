@@ -15,7 +15,7 @@
                             Value="@CurrentCulture"
                             ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
                             TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
-                            ValueChanged="async (string value) => await OnCultureChanged(value).ConfigureAwait(false)"
+                            ValueChanged="async (string value) => await OnCultureChanged(value).ConfigureAwait(true)"
                             InputId="localgpt-language-select"
                             CssClass="localgpt-language-select"
                             ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Never" />

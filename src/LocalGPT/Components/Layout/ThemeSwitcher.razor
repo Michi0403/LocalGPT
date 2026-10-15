@@ -143,7 +143,9 @@
     {
         try
         {
-            return "themeswitcher-button theme-settings " + _open;
+            return _open
+                ? "themeswitcher-button theme-settings is-open"
+                : "themeswitcher-button theme-settings";
         }
         catch (Exception __componentPropertyException)
         {

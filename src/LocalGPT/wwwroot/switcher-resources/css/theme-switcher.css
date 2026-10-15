@@ -1,7 +1,7 @@
 .dxbl-image.theme-icon {
     width: 1rem;
     height: 1rem;
-    background-color: var(--bs-body-color);
+    background-color: var(--localgpt-shell-foreground, var(--bs-body-color));
     mask-image: url("../../switcher-resources/theme.svg");
     -webkit-mask-image: url("../../switcher-resources/theme.svg");
     mask-repeat: no-repeat;
@@ -95,11 +95,13 @@
     color: var(--bs-white, #fff);
 }
 
+/* Keep the theme trigger in the drawer's own layout instead of pinning a zero-height
+   absolute button to the viewport (which put it above the logo on Office White). */
 .themeswitcher-button {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    height: 0;
+    position: static;
+    top: auto;
+    left: auto;
+    min-height: 2.125rem;
 }
 
 .themeswitcher-container,
@@ -123,64 +125,43 @@
 }
 
 .themeswitcher-container .blazor-themes .themeswitcher-item.active {
-    color: var(--localgpt-primary-contrast, #fff);
-    -webkit-text-fill-color: var(--localgpt-primary-contrast, #fff);
-    background-color: var(--localgpt-primary, var(--bs-primary, #0d6efd));
+    color: var(--localgpt-shell-accent-contrast, #fff);
+    -webkit-text-fill-color: var(--localgpt-shell-accent-contrast, #fff);
+    background-color: var(--localgpt-shell-accent, var(--bs-primary, #0d6efd));
 }
 
+/* The popup is portaled by DxPopup. A fixed child of the transformed drawer
+   panel used the drawer as its containing block and was visibly clipped. */
 .themeswitcher-container {
-    background-color: var(--bs-body-bg);
-    position: fixed;
-    top: calc(3.5rem + 1px);
-    left: 0;
-    width: 320px;
-    height: 0;
-    max-height: calc(100vh - 3.5rem);
-    z-index: 1029;
+    color: var(--localgpt-body-color);
+    background-color: var(--localgpt-body-bg);
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    height: min(76dvh, 47rem);
+    max-height: calc(92dvh - 7rem);
+    overflow: hidden;
+    border-radius: var(--localgpt-radius-lg, .5rem);
+    box-shadow: var(--localgpt-shadow-raised);
 }
 
-.themeswitcher-container-shown,
-.themeswitcher-container-hidden {
-    transition: height 0.2s ease-in-out;
-}
+/* Popup visibility and animation are owned by DevExpress, not CSS height transitions. */
 
 .themeswitcher-container-hidden {
     height: 0 !important;
+    visibility: hidden;
+    pointer-events: none;
+    box-shadow: none;
     overflow: hidden;
 }
 
 
 .themeswitcher-container-shown {
-    height: calc(100vh - 3.5rem);
+    visibility: visible;
+    pointer-events: auto;
+    border: 1px solid var(--localgpt-border-color);
 }
 
-/*@media (max-width: 1199.98px) {
-    .themeswitcher-container {
-        background-color: var(--bs-body-bg);
-        position: fixed;
-        top: calc(3.5rem + 1px);
-        left: 0;
-        width: 320px;
-        height: 0;
-        max-height: calc(100vh - 3.5rem);
-        z-index: 1029;
-        pointer-events: none;*/ /* prevent interaction when hidden */
-    /*}
-
-    .themeswitcher-container-shown,
-    .themeswitcher-container-hidden {
-        transition: transform 0.3s ease-in-out;
-    }
-
-    .themeswitcher-container-hidden {
-        height: 0 !important;
-        overflow: hidden;
-    }
-
-    .themeswitcher-container-shown {
-        height: calc(100vh - 3.5rem);
-    }
-}*/
 
 .theme-settings {
     margin-right: .5rem;
@@ -200,11 +181,7 @@
     display: flex;
 }
 
-/* Explicit dual-layer theme selection. The switcher is one interactive island, so both
-   columns share one scoped ThemeService and cannot race each other back to the default. */
-.themeswitcher-container {
-    width: min(760px, 96vw);
-}
+/* The existing dual-layer selector remains one shared interactive island. */
 
 .theme-layer-toolbar {
     display: flex;
@@ -224,6 +201,65 @@
     gap: 0;
     height: calc(100% - 3.25rem);
     overflow: auto;
+}
+/* The real grid children are DevExpress form layouts, not their nested sections. */
+.themeswitcher-container .blazor-themes > .dxbl-fl,
+.themeswitcher-container .blazor-themes > dxbl-form-layout {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    align-self: stretch;
+}
+.themeswitcher-container .blazor-themes > .dxbl-fl > .dxbl-row,
+.themeswitcher-container .blazor-themes > dxbl-form-layout > .dxbl-row,
+.themeswitcher-container .theme-layer-section .dxbl-fl,
+.themeswitcher-container .theme-layer-section .dxbl-fl-item,
+.themeswitcher-container .theme-layer-section .dxbl-fl-ctrl {
+    min-width: 0;
+    width: 100%;
+}
+/* Every theme choice is wrapped by a Razor boundary plus a DevExpress form item. */
+.themeswitcher-container .theme-layer-section .list-group > .razor-component-boundary {
+    flex: 0 0 50%;
+    width: 50%;
+    min-width: 0;
+}
+.themeswitcher-container .theme-layer-section .list-group > .razor-component-boundary > dxbl-form-layout,
+.themeswitcher-container .theme-layer-section .list-group > .razor-component-boundary > .dxbl-fl {
+    width: 100%;
+    min-width: 0;
+}
+.themeswitcher-container .theme-layer-section .list-group > .themeswitcher-group {
+    flex: 0 0 100%;
+    width: 100%;
+}
+.themeswitcher-container .theme-layer-section .themeswitcher-item {
+    /* The ancestor theme grid already allocates 50% to each Razor wrapper. The
+       legacy .list-group-item-action 50% maximum must not halve it again. */
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    width: 100%;
+    max-width: none;
+    min-height: 2.6rem;
+    padding: .45rem .5rem;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.themeswitcher-container .theme-layer-section .themeswitcher-item::before {
+    display: inline-block;
+    flex: 0 0 1.1rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    margin: 0;
+    padding: 0;
+}
+.themeswitcher-container .theme-layer-section .themeswitcher-item > span {
+    min-width: 0;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .theme-layer-section {
@@ -272,8 +308,8 @@
 
 /* Theme Fusion route: the intentionally order-sensitive selection path is visible and resettable. */
 .themeswitcher-container {
-    width: min(1920px, 78vw);
-    min-width: min(960px, 96vw);
+    width: 100%;
+    min-width: 0;
 }
 
 .theme-layer-toolbar-title {
@@ -410,8 +446,8 @@
 }
 
 .theme-route-target-style {
-    color: var(--localgpt-primary-contrast, #fff);
-    background: var(--localgpt-primary, var(--bs-primary, #0d6efd));
+    color: var(--localgpt-shell-accent-contrast, #fff);
+    background: var(--localgpt-shell-accent, var(--bs-primary, #0d6efd));
 }
 
 .theme-route-theme {
@@ -442,17 +478,18 @@
 }
 
 @media (max-width: 1200px) {
-    .themeswitcher-container {
-        width: 96vw;
-        min-width: 0;
-    }
-
     .themeswitcher-container .blazor-themes {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .theme-route-section {
+    /* The third DevExpress form layout is the grid item, not theme-route-section. */
+    .themeswitcher-container .blazor-themes > dxbl-form-layout:nth-of-type(3),
+    .themeswitcher-container .blazor-themes > .dxbl-fl:nth-of-type(3) {
         grid-column: 1 / -1;
+    }
+
+    .theme-route-section {
+        grid-column: auto;
         min-height: auto;
         border-top: 1px solid var(--localgpt-border-color, #dee2e6);
     }
@@ -463,12 +500,13 @@
 }
 
 @media (max-width: 760px) {
-    .themeswitcher-container {
-        width: 100vw;
-    }
-
     .themeswitcher-container .blazor-themes {
         grid-template-columns: 1fr;
+    }
+
+    .themeswitcher-container .blazor-themes > dxbl-form-layout:nth-of-type(3),
+    .themeswitcher-container .blazor-themes > .dxbl-fl:nth-of-type(3) {
+        grid-column: auto;
     }
 
     .theme-route-section {
@@ -477,5 +515,12 @@
 
     .theme-route-step {
         grid-template-columns: 2rem 3.25rem minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 760px) {
+    .themeswitcher-container {
+        height: min(78dvh, 44rem);
+        max-height: calc(92dvh - 7rem);
     }
 }

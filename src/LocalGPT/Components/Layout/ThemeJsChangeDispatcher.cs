@@ -258,18 +258,22 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         try
         {
             await EnsureModuleAsync().ConfigureAwait(false);
-            Themes.ResetFusionRouteToCurrentSelection();
             await _module!
                 .InvokeVoidAsync(
                     "resetFusionRoute",
                     Themes.ActiveShellTheme.Name,
                     Themes.ActiveComponentTheme.Name).ConfigureAwait(false)
                 ;
+            Themes.ResetFusionRouteToCurrentSelection();
 
             ComponentActivity.RecordInformation(
                 nameof(ThemeJsChangeDispatcher),
                 nameof(ResetFusionRouteAsync),
                 "Theme Fusion route reset to the current Base Theme and Style Layer; a clean reload was requested.");
+
+            // The browser-side reset has returned successfully before navigating. Performing
+            // the reload inside the JS interop call canceled the very response being awaited.
+            await InvokeAsync(() => NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true)).ConfigureAwait(false);
         }
         catch (JSDisconnectedException)
         {

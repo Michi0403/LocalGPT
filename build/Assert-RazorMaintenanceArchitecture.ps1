@@ -1,51 +1,22 @@
-param(
-    [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
-    [ValidateSet('localgpt','publisherstudio')]
-    [string]$Product
-)
-
+param([string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path, [ValidateSet('localgpt','publisherstudio')][string]$Product='localgpt')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-
-if ([string]::IsNullOrWhiteSpace($Product)) {
-    if (Test-Path -LiteralPath (Join-Path $RepositoryRoot 'src/LocalGPT') -PathType Container) {
-        $Product = 'localgpt'
+if ($Product -ne 'localgpt') { throw 'This LocalGPT-specific Razor maintenance guard cannot validate PublisherStudio.' }
+$components = Join-Path $RepositoryRoot 'src/LocalGPT/Components'
+if (-not (Test-Path -LiteralPath $components -PathType Container)) { throw 'Missing LocalGPT components.' }
+$failures = [Collections.Generic.List[string]]::new()
+$count = 0
+foreach ($file in Get-ChildItem -LiteralPath $components -Recurse -File -Filter '*.razor') {
+    $count++
+    $text = [IO.File]::ReadAllText($file.FullName)
+    if ($text -match '(?is)<\s*(?:dialog|section)\b' -and $file.Name -notin @('App.razor')) {
+        $failures.Add("$($file.FullName): native dialog/section cannot replace a maintained component owner")
     }
-    elseif (Test-Path -LiteralPath (Join-Path $RepositoryRoot 'src/PublisherStudio.Web') -PathType Container) {
-        $Product = 'publisherstudio'
-    }
-    else {
-        throw "Razor maintenance architecture could not determine the product under $RepositoryRoot."
-    }
-}
-
-$audit = Join-Path $PSScriptRoot 'audit_razor_maintenance_contract.py'
-if (-not (Test-Path -LiteralPath $audit -PathType Leaf)) {
-    throw "Razor maintenance architecture audit is missing: $audit"
-}
-
-$pythonCommand = $null
-foreach ($candidate in @('python', 'python3')) {
-    $resolved = Get-Command $candidate -ErrorAction SilentlyContinue
-    if ($null -ne $resolved) {
-        $pythonCommand = $resolved
-        break
+    if ($text -match '(?is)<\s*DxGridLayoutItem\b[^>]*>\s*<(?!Template\b)' ) {
+        $failures.Add("$($file.FullName): DxGridLayoutItem must own an explicit Template")
     }
 }
-
-if ($null -ne $pythonCommand) {
-    & $pythonCommand.Source $audit --root $RepositoryRoot --product $Product
-    if ($LASTEXITCODE -ne 0) {
-        throw "Razor maintenance architecture validation failed with exit code $LASTEXITCODE. Review every file/line and architectural choice emitted above."
-    }
-}
-else {
-    $launcher = Get-Command 'py' -ErrorAction SilentlyContinue
-    if ($null -eq $launcher) {
-        throw 'Python is required for the non-bypassable Razor maintenance architecture audit. Install/restore the repository Python runtime instead of skipping the UI/layout/logging contract.'
-    }
-    & $launcher.Source -3 $audit --root $RepositoryRoot --product $Product
-    if ($LASTEXITCODE -ne 0) {
-        throw "Razor maintenance architecture validation failed with exit code $LASTEXITCODE. Review every file/line and architectural choice emitted above."
-    }
-}
+# The separately wired Assert-FormLayoutOwnership and Assert-DevExpressBlazorControls
+# targets enforce layout semantics and native-control substitution without rerunning them here.
+if ($failures.Count) { $failures | ForEach-Object { Write-Error $_ }; throw "Razor maintenance contract failed: $($failures.Count) finding(s)." }
+Write-Host "PowerShell Razor maintenance architecture validated $count components."

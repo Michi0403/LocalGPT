@@ -1315,7 +1315,7 @@
                                                     TextFieldName="@nameof(LocalGptProjectSummary.DisplayName)"
                                                     ValueFieldName="@nameof(LocalGptProjectSummary.Id)"
                                                     Value="@currentSourceContext.ProjectId"
-                                                    ValueChanged="@(async (Guid selectedProjectId) => await OnRuntimePluginSourceProjectChangedAsync(currentSourceContext, selectedProjectId).ConfigureAwait(false))"
+                                                    ValueChanged="@(async (Guid selectedProjectId) => await OnRuntimePluginSourceProjectChangedAsync(currentSourceContext, selectedProjectId).ConfigureAwait(true))"
                                                     ValueExpression="@(() => currentSourceContext.ProjectId)"
                                                     NullText="Select an existing project" />
                                     </DxFormLayoutItem>
@@ -1324,7 +1324,7 @@
                                                     TextFieldName="@nameof(LocalGptProjectRevision.RevisionName)"
                                                     ValueFieldName="@nameof(LocalGptProjectRevision.Id)"
                                                     Value="@currentSourceContext.RevisionId"
-                                                    ValueChanged="@(async (Guid selectedRevisionId) => await OnRuntimePluginSourceRevisionChangedAsync(currentSourceContext, selectedRevisionId).ConfigureAwait(false))"
+                                                    ValueChanged="@(async (Guid selectedRevisionId) => await OnRuntimePluginSourceRevisionChangedAsync(currentSourceContext, selectedRevisionId).ConfigureAwait(true))"
                                                     ValueExpression="@(() => currentSourceContext.RevisionId)"
                                                     NullText="Current/unversioned scanned files" />
                                     </DxFormLayoutItem>
@@ -1333,7 +1333,7 @@
                                                     TextFieldName="@nameof(ProjectSourceFileMatch.RelativePath)"
                                                     ValueFieldName="@nameof(ProjectSourceFileMatch.TrackedFileId)"
                                                     Value="@currentSourceContext.TrackedFileId"
-                                                    ValueChanged="@(async (Guid selectedFileId) => await OnRuntimePluginSourceFileChangedAsync(currentSourceContext, selectedFileId).ConfigureAwait(false))"
+                                                    ValueChanged="@(async (Guid selectedFileId) => await OnRuntimePluginSourceFileChangedAsync(currentSourceContext, selectedFileId).ConfigureAwait(true))"
                                                     ValueExpression="@(() => currentSourceContext.TrackedFileId)"
                                                     NullText="Only approved tracked files" />
                                     </DxFormLayoutItem>

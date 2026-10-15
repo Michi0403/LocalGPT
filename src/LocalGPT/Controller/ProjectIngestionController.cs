@@ -28,9 +28,6 @@ public sealed class ProjectIngestionController(
     public async Task<ActionResult<ProjectIngestionGateRecord>> Get(string workspaceName, CancellationToken cancellationToken)
     {
         var record = await ingestion.GetAsync(workspaceName, cancellationToken).ConfigureAwait(false);
-        /// <summary>
-        /// Represents an is helper type nested within <see cref="ProjectIngestionController"/>, grouping the state or behavior used only by that containing workflow.
-        /// </summary>
         return record is null ? NotFound() : Ok(record);
     }
 

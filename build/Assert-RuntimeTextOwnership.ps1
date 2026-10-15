@@ -1,48 +1,33 @@
-param(
-    [string]$ReportPath = ''
-)
-
+param([string]$ReportPath = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-
-function Fail([string]$Message) { throw $Message }
-
-$root = Split-Path -Parent $PSScriptRoot
-$script = Join-Path $PSScriptRoot 'audit_runtime_text_ownership.py'
-if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
-    Fail "Runtime text ownership audit is missing: $script"
-}
-
-$arguments = @($script, '--root', $root)
-if (-not [string]::IsNullOrWhiteSpace($ReportPath)) {
-    $arguments += @('--report', $ReportPath)
-}
-
-$python = Get-Command python -ErrorAction SilentlyContinue
-if ($null -ne $python) {
-    $output = @(& $python.Source @arguments 2>&1)
-    $exitCode = [int]$LASTEXITCODE
-}
-else {
-    $python3 = Get-Command python3 -ErrorAction SilentlyContinue
-    if ($null -ne $python3) {
-        $output = @(& $python3.Source @arguments 2>&1)
-        $exitCode = [int]$LASTEXITCODE
-    }
-    else {
-        $launcher = Get-Command py -ErrorAction SilentlyContinue
-        if ($null -eq $launcher) {
-            Fail 'Configurable runtime text/regex ownership validation requires Python 3 so all source findings can be reported deterministically.'
+$root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$source = Join-Path $root 'src/LocalGPT'
+$failures = [Collections.Generic.List[string]]::new()
+$patterns = @(
+    @{ Regex = '(?m)\[GeneratedRegex\s*\('; Message = 'GeneratedRegex bypasses the persisted RegexPatternService.' },
+    @{ Regex = '(?m)\bnew\s+Regex\s*\(\s*@?"'; Message = 'Literal Regex construction bypasses the approved regex curator.' },
+    @{ Regex = '(?m)\bnew\s+Regex\s*\(\s*\$@?"'; Message = 'Interpolated literal Regex construction bypasses curator ownership.' }
+)
+$allowed = @('Services/Persistence/LocalGptRuntimePolicyDataService.cs','Services/Persistence/CouncilTextPatternDataService.cs','Services/Persistence/RegexPatternService.cs','Services/RegexCompilationService.cs')
+$count = 0
+foreach ($file in Get-ChildItem -LiteralPath $source -Recurse -File -Filter '*.cs' | Where-Object { $_.FullName -notmatch '[\\/](?:obj|bin|Migrations)[\\/]' }) {
+    $count++
+    $relative = $file.FullName.Substring($source.Length).TrimStart([char[]]@('/', '\')).Replace('\','/')
+    $text = [IO.File]::ReadAllText($file.FullName)
+    $withoutComments = [regex]::Replace($text, '(?s)/\*.*?\*/|(?m)//[^\r\n]*', '')
+    foreach ($item in $patterns) {
+        if ($allowed -contains $relative) { continue }
+        foreach ($match in [regex]::Matches($withoutComments, $item.Regex)) {
+            $line = @($withoutComments.Substring(0,$match.Index).ToCharArray() | Where-Object { $_ -eq "`n" }).Count + 1
+            $failures.Add("$relative($line): $($item.Message)")
         }
-        $output = @(& $launcher.Source -3 @arguments 2>&1)
-        $exitCode = [int]$LASTEXITCODE
     }
 }
-
-foreach ($line in $output) {
-    Write-Host ([string]$line)
+& (Join-Path $PSScriptRoot 'Invoke-ArchitectureAudit.ps1') -Mode runtime
+if ($ReportPath) {
+    New-Item -ItemType Directory -Path (Split-Path -Parent ([IO.Path]::GetFullPath($ReportPath))) -Force | Out-Null
+    [IO.File]::WriteAllText([IO.Path]::GetFullPath($ReportPath), ($failures -join [Environment]::NewLine))
 }
-
-if ($exitCode -ne 0) {
-    Fail "Configurable runtime text/regex ownership validation failed with exit code $exitCode. Fix the reported source ownership findings; do not baseline, suppress, or hardcode around the guard."
-}
+if ($failures.Count) { $failures | ForEach-Object { Write-Error $_ }; throw "Configurable runtime text/regex ownership validation failed: $($failures.Count) findings; do not baseline, suppress, or hardcode around the guard." }
+Write-Host "PowerShell runtime text/regex ownership audit passed across $count C# files; no Python or baseline required."

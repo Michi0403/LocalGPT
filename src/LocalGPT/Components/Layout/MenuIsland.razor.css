@@ -1,0 +1,22 @@
+/* Navigation controls live below the drawer header, not under the logo in the
+   overlapped page toolbar. Their layout must remain independent of page themes. */
+.menu-island-theme {
+    display: flex;
+    align-items: center;
+    padding: .2rem .75rem;
+    min-width: 0;
+}
+
+.menu-island-language {
+    padding: .25rem .75rem .75rem;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.menu-island-language ::deep .LanguageSwitcher,
+.menu-island-language ::deep .LanguageSwitcher > .dxbl-row,
+.menu-island-language ::deep .LanguageSwitcher .dxbl-fl-ctrl {
+    min-width: 0;
+    width: 100%;
+}

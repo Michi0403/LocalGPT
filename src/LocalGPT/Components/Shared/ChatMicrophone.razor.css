@@ -22,6 +22,19 @@
     opacity: 1 !important;
 }
 
+/* Stable contrast for light shell with dark DevExpress component selection. */
+.chat-microphone ::deep .chat-microphone-trigger,
+.chat-microphone ::deep .chat-microphone-options-trigger {
+    --dxbl-btn-color: var(--localgpt-shell-foreground, #212529);
+    --dxbl-btn-hover-color: var(--localgpt-shell-foreground, #212529);
+    color: var(--localgpt-shell-foreground, #212529) !important;
+    background-color: var(--localgpt-shell-surface-bg, #f2f3f5) !important;
+    border-color: var(--localgpt-shell-border, #dee2e6) !important;
+}
+.chat-microphone.is-recording ::deep .chat-microphone-trigger {
+    color: var(--localgpt-danger, #dc3545) !important;
+}
+
 .chat-microphone ::deep .chat-microphone-trigger {
     min-width: 2.75rem;
     width: 2.75rem;
@@ -40,7 +53,7 @@
     width: 1.35rem;
     height: 1.35rem;
     flex: 0 0 1.35rem;
-    background: currentColor;
+    background-color: currentColor !important;
     visibility: visible !important;
     opacity: 1 !important;
 }

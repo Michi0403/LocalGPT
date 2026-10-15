@@ -1,0 +1,16 @@
+<Project>
+  <Import Project="../../Directory.Build.props" />
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Version>6.2.4</Version>
+    <Product>PDFsharp</Product>
+    <Authors>PDFsharp Team (empira Software GmbH)</Authors>
+    <Company>empira Software GmbH</Company>
+    <Copyright>Copyright (c) 2001-2026 empira Software GmbH</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <IsPackable>false</IsPackable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>

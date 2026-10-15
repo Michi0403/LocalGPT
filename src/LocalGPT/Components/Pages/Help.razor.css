@@ -54,6 +54,33 @@
     font-weight: 750;
 }
 
+/* DevExpress button tokens can come from a separately selected dark Style Layer.
+   The secondary documentation actions must use readable shell contrast. */
+.help-actions ::deep .localgpt-help-secondary-button {
+    --dxbl-btn-color: var(--localgpt-body-color);
+    --dxbl-btn-hover-color: var(--localgpt-body-color);
+    --dxbl-btn-active-color: var(--localgpt-body-color);
+    color: var(--localgpt-body-color) !important;
+    -webkit-text-fill-color: var(--localgpt-body-color) !important;
+    background-color: var(--localgpt-surface-raised-bg) !important;
+    border: 1px solid var(--localgpt-border-color) !important;
+    min-height: 2.8rem;
+    font-weight: 750;
+}
+
+.help-actions ::deep .localgpt-help-secondary-button:hover,
+.help-actions ::deep .localgpt-help-secondary-button:focus-visible {
+    color: var(--localgpt-body-color) !important;
+    -webkit-text-fill-color: var(--localgpt-body-color) !important;
+    background-color: color-mix(in srgb, var(--localgpt-surface-raised-bg) 85%, var(--localgpt-primary) 15%) !important;
+    border-color: var(--localgpt-primary) !important;
+}
+
+.help-actions ::deep .localgpt-help-secondary-button * {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+}
+
 .help-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));

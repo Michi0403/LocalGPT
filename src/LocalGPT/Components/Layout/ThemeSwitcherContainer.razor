@@ -10,6 +10,14 @@
 <DxFormLayout CssClass="razor-component-layout-owner ThemeSwitcherContainer">
     <DxFormLayoutItem ColSpanMd="12">
         <Template Context="formItemContext001">
+<DxPopup Visible="@Shown"
+         VisibleChanged="ToggleThemeSwitcherPanel"
+         HeaderText='@T("Theme Fusion")'
+         Width="min(1360px, 96vw)"
+         Height="min(900px, 92dvh)"
+         MaxHeight="94dvh"
+         CloseOnOutsideClick="true">
+    <BodyContentTemplate Context="themeFusionPopupContext">
 <div class="themeswitcher-container shadow @StateCssClass">
     <ToastWrapper Name="@toastName" />
     @if (IsLoaded)
@@ -130,6 +138,8 @@
         </div>
     }
 </div>
+    </BodyContentTemplate>
+</DxPopup>
     </Template>
     </DxFormLayoutItem>
 </DxFormLayout>

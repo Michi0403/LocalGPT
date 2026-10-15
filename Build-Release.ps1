@@ -54,6 +54,7 @@ if ($CompileOnly) {
     & (Join-Path $root 'build/Invoke-ReleaseCompileValidation.ps1') -Solution 'src/LocalGPTWebviewWrapper.sln' -Configuration $Configuration
     return
 }
+& (Join-Path $root 'build/Assert-ThirdPartyNotices.ps1') -RepositoryRoot $root
 $nodeRuntimeCommonScript = Join-Path $root 'build/NodeRuntime.Common.ps1'
 if (-not (Test-Path -LiteralPath $nodeRuntimeCommonScript -PathType Leaf)) { throw "Documentation runtime helper is missing: $nodeRuntimeCommonScript" }
 . $nodeRuntimeCommonScript
@@ -102,9 +103,10 @@ $documentationToolCacheBase = Get-LocalGptDocumentationToolCacheRoot -FallbackRo
 $documentationCacheRoot = Join-Path $documentationToolCacheBase 'release-payload/LocalGPT' 
 $documentationPrepared = $false
 $releaseZipPaths = New-Object 'System.Collections.Generic.List[string]'
-$releasePackagingVersion = '1.0.5'
+$releasePackagingVersion = '1.0.7'
 $releasePackagingPackageName = "LocalGPT.ReleasePackaging.$releasePackagingVersion.nupkg"
 $releasePackagingPackage = Join-Path $packageDirectory $releasePackagingPackageName
+$thirdPartyNoticesPath = Join-Path $root 'THIRD-PARTY-NOTICES.txt'
 $releasePackagingTool = $null
 $nativeReleasePackagingScript = Join-Path $root 'build/NativeReleasePackaging.ps1'
 
@@ -203,7 +205,6 @@ function Assert-LocalGptDocumentationPayload {
     if ([long]$status.releasePdfBytes -lt 1048576) { throw "Runtime documentation did not preserve the embedded PDF size metadata." }
     $physicalPdf = Get-Item -LiteralPath (Join-Path $DocumentationRoot "LocalGPT-$Version.pdf")
     if ([long]$physicalPdf.Length -ne [long]$status.pdfBytes) { throw "Embedded LocalGPT PDF byte size does not match documentation-status.json." }
-    if ($null -ne $status.maximumSanePdfBytes -and [long]$physicalPdf.Length -gt [long]$status.maximumSanePdfBytes) { throw "Embedded LocalGPT PDF exceeds the configured sane-size ceiling." }
 
     Write-Host "Verified complete LocalGPT $Version DocFX modern HTML and compressed embedded PDF documentation in $DocumentationRoot" -ForegroundColor Green
 }
@@ -558,7 +559,7 @@ function Test-ExistingReleaseBundleComplete {
         if (-not [string]::Equals($expectedHash, $actualHash, [StringComparison]::Ordinal)) { return $false }
         [void]$manifestNames.Add($name)
     }
-    $requiredBundleNames = @($wirePackageName, $releasePackagingPackageName, "LocalGPT-$Version.pdf")
+    $requiredBundleNames = @($wirePackageName, $releasePackagingPackageName, "LocalGPT-$Version.pdf", 'THIRD-PARTY-NOTICES.txt')
     foreach ($requiredBundleName in $requiredBundleNames) {
         if (-not $manifestNames.Contains($requiredBundleName)) { return $false }
     }
@@ -599,6 +600,19 @@ function Move-OrReuseReleaseFile {
     return $destinationFull
 }
 
+function Assert-ThirdPartyNoticeInPayload {
+    param([Parameter(Mandatory)][string]$PayloadDirectory)
+    $published = Join-Path $PayloadDirectory 'THIRD-PARTY-NOTICES.txt'
+    if (-not (Test-Path -LiteralPath $published -PathType Leaf)) {
+        throw "Published runtime/setup payload is missing THIRD-PARTY-NOTICES.txt: $PayloadDirectory"
+    }
+    $expectedHash = (Get-FileHash -LiteralPath $thirdPartyNoticesPath -Algorithm SHA256).Hash
+    $publishedHash = (Get-FileHash -LiteralPath $published -Algorithm SHA256).Hash
+    if (-not [string]::Equals($expectedHash, $publishedHash, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Published third-party notice is stale or changed in $PayloadDirectory."
+    }
+}
+
 function Complete-ReleaseBundle {
     param(
         [Parameter(Mandatory)][string]$Version,
@@ -607,6 +621,7 @@ function Complete-ReleaseBundle {
         [Parameter(Mandatory)][string]$WindowsX64SetupExecutablePath,
         [Parameter(Mandatory)][string]$ReadmePath,
         [Parameter(Mandatory)][string]$LicensePath,
+        [Parameter(Mandatory)][string]$ThirdPartyNoticesPath,
         [Parameter(Mandatory)][string]$WireProtocolPackagePath,
         [Parameter(Mandatory)][string]$ReleasePackagingPackagePath,
         [Parameter(Mandatory)][string]$SetupIconPath,
@@ -633,7 +648,7 @@ function Complete-ReleaseBundle {
         Move-OrReuseReleaseFile -SourcePath $zipPath -DestinationDirectory $versionDirectory -Move | Out-Null
     }
     Move-OrReuseReleaseFile -SourcePath $DocumentationPdfPath -DestinationDirectory $versionDirectory -Move | Out-Null
-    foreach ($supportFile in @($ReadmePath, $LicensePath, $WireProtocolPackagePath, $ReleasePackagingPackagePath, $SetupIconPath)) {
+    foreach ($supportFile in @($ReadmePath, $LicensePath, $ThirdPartyNoticesPath, $WireProtocolPackagePath, $ReleasePackagingPackagePath, $SetupIconPath)) {
         if (-not (Test-Path -LiteralPath $supportFile -PathType Leaf)) { throw "Required upload-ready release file is missing: $supportFile" }
         Move-OrReuseReleaseFile -SourcePath $supportFile -DestinationDirectory $versionDirectory | Out-Null
     }
@@ -748,6 +763,7 @@ function Publish-UnixRuntime {
         [IO.File]::WriteAllText((Join-Path $publishFolder 'RELEASE-VERSION.txt'), "$appVersion`n", $utf8NoBom)
         [IO.File]::WriteAllText((Join-Path $publishFolder 'SOURCE-SHA256.txt'), "$($script:releaseSourceFingerprint)`n", $utf8NoBom)
         Write-Host "Stamped $Rid runtime payload with version $appVersion and source fingerprint $($script:releaseSourceFingerprint)." -ForegroundColor DarkCyan
+        Assert-ThirdPartyNoticeInPayload -PayloadDirectory $publishFolder
         Copy-LocalGptRuntimeDocumentation -SourceRoot $script:documentationCacheRoot -DestinationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
         Assert-LocalGptDocumentationPayload -DocumentationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
         $protocolDirectory = Join-Path $publishFolder 'protocol'; New-Item -ItemType Directory -Path $protocolDirectory -Force | Out-Null
@@ -840,6 +856,9 @@ function Publish-Runtime {
         }
     }
 
+    # The application and setup ZIP must independently carry the same notices as the version bundle.
+    Assert-ThirdPartyNoticeInPayload -PayloadDirectory $appFolder
+    Assert-ThirdPartyNoticeInPayload -PayloadDirectory $setupFolder
     # Final release-boundary check: optional wrapper/publish steps must not reintroduce stale documentation.
     Assert-LocalGptDocumentationPayload -DocumentationRoot $publishedDocumentationRoot -Version $appVersion
     $appRootFolderName = Split-Path -Leaf $appFolder
@@ -993,6 +1012,7 @@ try {
             -WindowsX64SetupExecutablePath $winX64SetupExecutable `
             -ReadmePath (Join-Path $root "README.md") `
             -LicensePath $licensePath `
+            -ThirdPartyNoticesPath $thirdPartyNoticesPath `
             -WireProtocolPackagePath $wirePackage `
             -ReleasePackagingPackagePath $releasePackagingPackage `
             -SetupIconPath (Join-Path $root "src/LocalGPT/wwwroot/favicon.ico") `

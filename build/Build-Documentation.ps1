@@ -286,13 +286,9 @@ if ($documentationSystemMemoryGiB -gt 0) {
     Write-Host ("LocalGPT documentation memory policy: {0:n1} GiB system RAM -> {1} PDF page(s)/chunk, Chromium JS heap {2} MiB, Node heap {3} MiB, DocFX max parallelism {4}, browser timeout {5} ms, chunk retries {6}. Low-memory mode={7}; monolithic fallback={8}." -f $documentationSystemMemoryGiB,$browserPdfChunkPages,$browserJavaScriptHeapMb,$documentationNodeHeapMb,$docfxBuildMaxParallelism,$browserPdfTimeoutMilliseconds,$browserPdfChunkRetries,$documentationLowMemoryMode,$allowMonolithicPdfFallback) -ForegroundColor DarkCyan
 }
 $pdfCompressionTriggerBytes = 134217728L
-# A standalone handbook larger than 256 MiB is already too large for a sane desktop-app release.
-# The PDF is embedded for offline help, so a pathological handbook would directly bloat every self-contained package.
-$maximumSanePdfBytes = 268435456L
-$configuredPdfMaxBytes = 0L
-if ([long]::TryParse([string]$env:FUTURE2_DOCUMENTATION_PDF_MAX_BYTES, [ref]$configuredPdfMaxBytes) -and $configuredPdfMaxBytes -gt 0) {
-    $maximumSanePdfBytes = $configuredPdfMaxBytes
-}
+# Documentation completeness, PDF integrity and available disk/memory determine success.
+# Never reject complete user documentation merely for exceeding an arbitrary file-size budget.
+# The compression threshold only controls whether optional optimization is attempted.
 
 if (-not (Test-Path -LiteralPath $AssemblyPath)) { throw "Documentation assembly was not found: $AssemblyPath" }
 if (-not (Test-Path -LiteralPath $XmlDocumentationPath)) { throw "XML documentation file was not found: $XmlDocumentationPath" }
@@ -767,24 +763,10 @@ function Get-LocalGptRelativePath {
 function Assert-LocalGptGeneratedHtmlPreflight {
     param([Parameter(Mandatory)][string]$SiteRoot)
 
-    $validator = Join-Path $RepositoryRoot ".github/scripts/prepare-pages-artifact.py"
-    if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
-        throw "The LocalGPT documentation HTML preflight validator was not found: $validator"
-    }
-
-    $python = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -eq $python) {
-        $python = Get-Command python3 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    }
-    if ($null -eq $python) {
-        throw "Python 3 is required to validate generated documentation HTML before the long PDF render."
-    }
-
-    Write-Host "Validating generated DocFX HTML accessibility and local links before the long PDF render..." -ForegroundColor DarkCyan
-    & $python.Source $validator --source $SiteRoot --html-only
-    if ($LASTEXITCODE -ne 0) {
-        throw "Generated DocFX HTML failed the pre-PDF accessibility/link validation. PDF rendering was skipped so the release fails fast."
-    }
+    $validator = Join-Path $RepositoryRoot 'build/Assert-PagesArtifact.ps1'
+    if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) { throw "Documentation validation script is missing: $validator" }
+    Write-Host 'Validating generated DocFX HTML accessibility and local links before the long PDF render...' -ForegroundColor DarkCyan
+    & $validator -Source $SiteRoot -HtmlOnly
 
     Write-Host "Generated DocFX HTML preflight passed before PDF rendering." -ForegroundColor DarkGreen
 }
@@ -2486,7 +2468,11 @@ function Invoke-LocalGptChunkedBrowserPdf {
         $mergeArguments = @('pdf-merge', '--output', $PdfPath, '--input-list', $mergeInputListPath)
         Write-Host "Merging $($chunkPdfs.Count) durable PDF part(s) with LocalGPT.ReleasePackaging ($reusedChunks reused, $renderedChunks rendered this run)..." -ForegroundColor DarkCyan
         $mergeExitCode = -1
+        $previousErrorActionPreference = $ErrorActionPreference
         try {
+            # Windows PowerShell 5.1 represents redirected native stderr as ErrorRecord objects.
+            # Diagnostics alone must not interrupt a successful helper before LASTEXITCODE is read.
+            $ErrorActionPreference = 'Continue'
             $mergeOutput = @(& $PackagingTool @mergeArguments 2>&1)
             $mergeExitCode = [int]$LASTEXITCODE
         }
@@ -2494,6 +2480,7 @@ function Invoke-LocalGptChunkedBrowserPdf {
             $diagnostics.Add("Managed PDF merge invocation failed: $($_.Exception.Message). Durable chunks were retained for the next attempt.")
             return [pscustomobject]@{ Succeeded = $false; ExitCode = $mergeExitCode; Diagnostics = @($diagnostics); RenderMode = ''; AccessibilityMode = 'unavailable'; ChunkCount = $chunkPdfs.Count; RenderedChunkCount = $renderedChunks; ReusedChunkCount = $reusedChunks }
         }
+        finally { $ErrorActionPreference = $previousErrorActionPreference }
         foreach ($line in $mergeOutput) { if (-not [string]::IsNullOrWhiteSpace([string]$line)) { $diagnostics.Add([string]$line) } }
         if ($mergeExitCode -ne 0 -or -not (Test-LocalGptCompletePdf -Path $PdfPath -MinimumBytes $MinimumBytes)) {
             $diagnostics.Add("Managed PDF merge failed or produced an incomplete PDF (exit=$mergeExitCode). Durable chunks were retained for the next attempt.")
@@ -2678,7 +2665,7 @@ function Optimize-LocalGptPdf {
 
     $ghostscript = Ensure-LocalGptGhostscript
     if ([string]::IsNullOrWhiteSpace($ghostscript)) {
-        return [pscustomobject]@{ Applied = $false; Mode = "none"; BeforeBytes = [long]$source.Length; AfterBytes = [long]$source.Length; SavedBytes = 0L; Diagnostic = "Ghostscript is required for oversized documentation-PDF compression. On macOS install Homebrew ghostscript (`brew install ghostscript`) or provide the compressor override." }
+        return [pscustomobject]@{ Applied = $false; Mode = "none"; BeforeBytes = [long]$source.Length; AfterBytes = [long]$source.Length; SavedBytes = 0L; Diagnostic = "No optional native PDF compressor was found. The PDFsharp merger already applied managed compression; qpdf or Ghostscript can provide additional optimization when installed." }
     }
 
     $temporary = Join-Path $source.DirectoryName ("." + $source.Name + ".optimized.pdf")
@@ -3662,14 +3649,10 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                 $pdfCompressionMode = "browser-native"
                 $pdfCompressionSavedBytes = 0
             }
-            if ($pdfFileSize -gt $maximumSanePdfBytes) {
-                throw "Documentation PDF remained $pdfFileSize bytes after the compression stage, above the sane release limit of $maximumSanePdfBytes bytes. Refusing to publish a multi-gigabyte documentation payload."
-            }
         }
     }
-    # A durable cache entry can have been produced by an older build policy. Re-apply the
-    # current size policy before trusting it so a historic multi-gigabyte DocFX PDF cannot
-    # bypass compression simply because its HTML cache key still matches.
+    # Preserve prior durable PDF cache reuse. Re-optimization is optional and never a
+    # requirement for publishing a complete (even multi-gigabyte) documentation PDF.
     if ($pdfGenerated -and $RequirePdf -and [string]::Equals($pdfCompressionMode, "cached-validated-pdf", [StringComparison]::Ordinal)) {
         $pdfFileSize = (Get-Item -LiteralPath $pdfPath).Length
         $pdfBytesBeforeCompression = $pdfFileSize
@@ -3681,7 +3664,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                 $pdfFileSize = [long]$compression.AfterBytes
                 $pdfCompressionMode = "cached-$([string]$compression.Mode)"
                 $pdfAccessibilityMode = "html-accessibility-fallback"
-                Write-Host "Re-compressed the cached documentation PDF from $pdfBytesBeforeCompression to $pdfFileSize bytes under the current release policy." -ForegroundColor Green
+                Write-Host "Optimized the cached documentation PDF from $pdfBytesBeforeCompression to $pdfFileSize bytes." -ForegroundColor Green
             }
             else {
                 $pdfCompressionMode = "cached-validated-pdf"
@@ -3689,9 +3672,28 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                 $pdfFileSize = (Get-Item -LiteralPath $pdfPath).Length
             }
         }
-        if ($pdfFileSize -gt $maximumSanePdfBytes) {
-            throw "Cached documentation PDF is $pdfFileSize bytes after the compression stage, above the sane release limit of $maximumSanePdfBytes bytes. Delete the stale cache entry or install Ghostscript; the build will not publish a giant handbook."
+    }
+
+    if ($pdfGenerated -and $RequirePdf) {
+        # Validate the complete PDF structure and page tree even when the document came from
+        # the durable cache. A header and %%EOF marker alone do not guarantee readable pages.
+        if (-not [string]::IsNullOrWhiteSpace($PackagingTool)) {
+            $pdfVerificationExitCode = -1
+            $previousErrorActionPreference = $ErrorActionPreference
+            try {
+                # Native stderr may be diagnostic; the executable exit code is authoritative.
+                $ErrorActionPreference = 'Continue'
+                $pdfVerificationOutput = @(& $PackagingTool 'pdf-verify' '--input' $pdfPath 2>&1)
+                $pdfVerificationExitCode = [int]$LASTEXITCODE
+            }
+            finally { $ErrorActionPreference = $previousErrorActionPreference }
+            if ($pdfVerificationExitCode -ne 0) {
+                $pdfVerificationTail = @($pdfVerificationOutput | Select-Object -Last 8) -join ' | '
+                throw "LocalGPT documentation PDF failed managed structural validation (exit $pdfVerificationExitCode): $pdfVerificationTail"
+            }
+            Write-Host ("LocalGPT PDF structural verification: {0}" -f (@($pdfVerificationOutput) -join '; ')) -ForegroundColor DarkGreen
         }
+        Write-Host ("Validated LocalGPT documentation PDF: {0:N1} MiB ({1:N0} bytes), {2} source HTML pages. No arbitrary PDF size ceiling." -f ($pdfFileSize / 1MB), $pdfFileSize, $pdfSourcePageCount) -ForegroundColor DarkCyan
     }
 
     if ($pdfGenerated -and $RequirePdf -and -not [string]::Equals($pdfCompressionMode, "cached-validated-pdf", [StringComparison]::Ordinal)) {
@@ -3831,7 +3833,7 @@ foreach ($publishRoot in $publishRoots) {
         documentationNodeHeapMb = $documentationNodeHeapMb
         docfxBuildMaxParallelism = $docfxBuildMaxParallelism
         documentationCacheRoot = $documentationToolCacheRoot
-        maximumSanePdfBytes = $maximumSanePdfBytes
+        pdfSizeLimitEnforced = $false
         completeApiReference = $documentationMode -eq "docfx" -and $apiYamlCount -gt 1 -and $apiHtmlCount -gt 1 -and $unresolvedAssemblyReferences.Count -eq 0
         unresolvedAssemblyReferenceCount = $unresolvedAssemblyReferences.Count
         unresolvedAssemblyReferences = @($unresolvedAssemblyReferences)
@@ -3882,8 +3884,8 @@ if ($RequirePdf -or $pdfGenerated) {
         throw "Embedded LocalGPT documentation PDF was not published into the runtime help-docs tree: $sourcePdfPath"
     }
     $sourcePdfBytes = [long](Get-Item -LiteralPath $sourcePdfPath).Length
-    if ($sourcePdfBytes -gt $maximumSanePdfBytes) {
-        throw "Embedded LocalGPT documentation PDF is $sourcePdfBytes bytes, above the configured sane-size ceiling of $maximumSanePdfBytes bytes."
+    if (-not (Test-LocalGptCompletePdf -Path $sourcePdfPath -MinimumBytes $minimumCompletePdfBytes)) {
+        throw "Embedded LocalGPT documentation PDF is missing, truncated or incomplete: $sourcePdfPath"
     }
     $sourceStatusPath = Join-Path $sourceWebRoot 'documentation-status.json'
     if (Test-Path -LiteralPath $sourceStatusPath -PathType Leaf) {

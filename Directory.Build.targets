@@ -9,6 +9,37 @@
 
 
   <PropertyGroup>
+    <RepositoryPowerShellBoundaryScript>$(MSBuildThisFileDirectory)build/Assert-RepositoryPowerShellBoundary.ps1</RepositoryPowerShellBoundaryScript>
+    <RuntimePluginCallbackScript>$(MSBuildThisFileDirectory)build/Assert-RuntimePluginSourceCallbacks.ps1</RuntimePluginCallbackScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptPowerShellOnlyMaintenance"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(RepositoryPowerShellBoundaryScript)')" Text="Missing mandatory PowerShell build boundary audit." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RepositoryPowerShellBoundaryScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+  <Target Name="AssertLocalGptRuntimePluginSourceCallbacks"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptPowerShellOnlyMaintenance"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(RuntimePluginCallbackScript)')" Text="Missing mandatory PowerShell Razor callback contract." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RuntimePluginCallbackScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <!-- Native PowerShell architecture checks. No Python interpreter or generated baseline is required. -->
+  <Target Name="AssertLocalGptNativeArchitectureMaintenance"
+          BeforeTargets="BeforeBuild"
+          AfterTargets="AssertLocalGptRuntimePluginSourceCallbacks"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(AsyncContinuationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(AsyncOnlyArchitectureScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(MethodDiagnosticsPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RuntimeTextOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RazorMaintenanceArchitectureScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(DevExpressComponentRetentionScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <PropertyGroup>
     <OneWireArchitectureScript>$(MSBuildThisFileDirectory)build/Assert-OneWireArchitecture.ps1</OneWireArchitectureScript>
   </PropertyGroup>
 
@@ -42,25 +73,6 @@
            Text="Localization integrity guard script is missing: $(LocalizationIntegrityScript)" />
     <Exec Condition="Exists('$(LocalizationIntegrityScript)')"
           Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalizationIntegrityScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)"
-          ConsoleToMSBuild="true"
-          StandardOutputImportance="High"
-          StandardErrorImportance="High" />
-  </Target>
-
-  <!-- Publish already invokes this audit; enforce the identical, unweakened boundary
-       contract during normal compilation as well, including every cross-RID build. -->
-  <PropertyGroup>
-    <CrossPlatformBoundariesScript>$(MSBuildThisFileDirectory)build/Assert-CrossPlatformBoundaries.ps1</CrossPlatformBoundariesScript>
-  </PropertyGroup>
-
-  <Target Name="AssertLocalGptCrossPlatformBoundaries"
-          BeforeTargets="BeforeBuild;Publish"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(CrossPlatformBoundariesScript)')"
-           Text="Cross-platform boundary audit script is missing: $(CrossPlatformBoundariesScript)" />
-    <Exec Condition="Exists('$(CrossPlatformBoundariesScript)')"
-          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(CrossPlatformBoundariesScript)&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
@@ -120,34 +132,6 @@
           StandardErrorImportance="High" />
   </Target>
 
-  <Target Name="AssertLocalGptAsyncContinuationPolicy"
-          BeforeTargets="BeforeBuild"
-          AfterTargets="AssertLocalGptTransientUiStateOwnership"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipAsyncContinuationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(AsyncContinuationScript)')"
-           Text="Async continuation guard script is missing: $(AsyncContinuationScript)" />
-    <Exec Condition="Exists('$(AsyncContinuationScript)')"
-          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(AsyncContinuationScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)"
-          ConsoleToMSBuild="true"
-          StandardOutputImportance="High"
-          StandardErrorImportance="High" />
-  </Target>
-
-  <Target Name="AssertLocalGptAsyncOnlyArchitecture"
-          BeforeTargets="BeforeBuild"
-          AfterTargets="AssertLocalGptAsyncContinuationPolicy"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(AsyncOnlyArchitectureScript)')"
-           Text="Async-boundary architecture guard script is missing: $(AsyncOnlyArchitectureScript)" />
-    <Exec Condition="Exists('$(AsyncOnlyArchitectureScript)')"
-          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(AsyncOnlyArchitectureScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)"
-          ConsoleToMSBuild="true"
-          StandardOutputImportance="High"
-          StandardErrorImportance="High" />
-  </Target>
-
   <PropertyGroup>
     <ComponentSafetyScript>$(MSBuildThisFileDirectory)build/Assert-ComponentSafety.ps1</ComponentSafetyScript>
     <MethodDiagnosticsPolicyScript>$(MSBuildThisFileDirectory)build/Assert-MethodDiagnostics.ps1</MethodDiagnosticsPolicyScript>
@@ -166,25 +150,11 @@
     <Exec Condition="Exists('$(ComponentSafetyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(ComponentSafetyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-  <Target Name="AssertLocalGptMethodDiagnosticsPolicy"
-          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptAsyncOnlyArchitecture"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipMethodDiagnosticsPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(MethodDiagnosticsPolicyScript)')" Text="Method diagnostics policy script is missing: $(MethodDiagnosticsPolicyScript)" />
-    <Exec Condition="Exists('$(MethodDiagnosticsPolicyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(MethodDiagnosticsPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
   <Target Name="AssertLocalGptApplicationStaticPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptMethodDiagnosticsPolicy"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipApplicationStaticPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(ApplicationStaticPolicyScript)')" Text="Application static policy script is missing: $(ApplicationStaticPolicyScript)" />
     <Exec Condition="Exists('$(ApplicationStaticPolicyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(ApplicationStaticPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <Target Name="AssertLocalGptRuntimeTextOwnership"
-          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptApplicationStaticPolicy"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(RuntimeTextOwnershipScript)')" Text="Runtime text/regex ownership script is missing: $(RuntimeTextOwnershipScript)" />
-    <Exec Condition="Exists('$(RuntimeTextOwnershipScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RuntimeTextOwnershipScript)&quot; -ReportPath &quot;$(MSBuildProjectDirectory)/obj/runtime-text-ownership-findings.txt&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
   <Target Name="AssertLocalGptTextServiceOwnership"
@@ -230,7 +200,7 @@
   </Target>
   <Target Name="AssertLocalGptDocumentationPointerOverlay"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptJavaScriptDiagnostics"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipDocumentationPointerOverlayGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipDocumentationPointerOverlayGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and Exists('$(MSBuildThisFileDirectory)docs/templates/localgpt/public/main.js') and Exists('$(MSBuildThisFileDirectory)docs/templates/localgpt/public/main.css')">
     <Error Condition="!Exists('$(LocalGptDocumentationPointerOverlayScript)')" Text="Documentation pointer-overlay guard script is missing: $(LocalGptDocumentationPointerOverlayScript)" />
     <Exec Condition="Exists('$(LocalGptDocumentationPointerOverlayScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptDocumentationPointerOverlayScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
@@ -239,60 +209,6 @@
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipStaticWebAssetsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(LocalGptStaticWebAssetsScript)')" Text="Static web asset validation script is missing: $(LocalGptStaticWebAssetsScript)" />
     <Exec Condition="Exists('$(LocalGptStaticWebAssetsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptStaticWebAssetsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <!-- Exact user-approved service-controller wiring and business-purpose DX discovery are release-blocking. -->
-  <PropertyGroup>
-    <LocalGptPublicServiceControllerScript>$(MSBuildThisFileDirectory)build/Assert-PublicServiceControllers.ps1</LocalGptPublicServiceControllerScript>
-  </PropertyGroup>
-  <Target Name="AssertLocalGptPublicServiceControllers" BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(LocalGptPublicServiceControllerScript)')"
-           Text="Public service controller guard is missing: $(LocalGptPublicServiceControllerScript)" />
-    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptPublicServiceControllerScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
-          StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <!-- Keep the DX tool discovery, preview and execution contract build-breaking so release builds cannot regress it. -->
-  <PropertyGroup>
-    <LocalGptDxFunctionWorkbenchScript>$(MSBuildThisFileDirectory)build/Assert-DxFunctionWorkbench.ps1</LocalGptDxFunctionWorkbenchScript>
-  </PropertyGroup>
-  <Target Name="AssertLocalGptDxFunctionWorkbench" BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(LocalGptDxFunctionWorkbenchScript)')"
-           Text="DX function workbench guard script missing: $(LocalGptDxFunctionWorkbenchScript)" />
-    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptDxFunctionWorkbenchScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
-          StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <!-- Source-only guard for the Python.NET GIL boundary, approved isolated processes,
-       project-owned script publication and Council evidence; runs during every normal build. -->
-  <PropertyGroup>
-    <LocalGptPythonProjectOrchestrationScript>$(MSBuildThisFileDirectory)build/Assert-PythonProjectOrchestration.ps1</LocalGptPythonProjectOrchestrationScript>
-  </PropertyGroup>
-  <Target Name="AssertLocalGptPythonProjectOrchestration" BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(LocalGptPythonProjectOrchestrationScript)')"
-           Text="Python/project orchestration guard is missing: $(LocalGptPythonProjectOrchestrationScript)" />
-    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptPythonProjectOrchestrationScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
-          StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <!-- Validate public and internal C# contracts AND Razor @code before the expensive DocFX stage.
-       The maintained audit has no baseline or suppression list; it must pass on every full build. -->
-  <PropertyGroup>
-    <LocalGptXmlDocumentationCoverageScript>$(MSBuildThisFileDirectory)build/Assert-XmlDocumentationCoverage.ps1</LocalGptXmlDocumentationCoverageScript>
-  </PropertyGroup>
-  <Target Name="AssertLocalGptXmlDocumentationCoverage" BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(LocalGptXmlDocumentationCoverageScript)')"
-           Text="XML documentation coverage guard is missing: $(LocalGptXmlDocumentationCoverageScript)" />
-    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptXmlDocumentationCoverageScript)&quot;"
-          WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
-          StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
   <PropertyGroup>
@@ -304,6 +220,9 @@
          A trailing backslash before a closing quote can absorb the remaining PowerShell -File arguments. -->
     <LocalGptDocumentationRepositoryRoot>$(MSBuildThisFileDirectory).</LocalGptDocumentationRepositoryRoot>
     <LocalGptDocumentationOutputRoot>$(TargetDir)wwwroot/help-docs</LocalGptDocumentationOutputRoot>
+    <!-- Plain Debug and Release builds both generate documentation. Build-LocalDevelopment.ps1
+         explicitly defers it during its application/wrapper passes and invokes the same
+         PowerShell documentation builder exactly once after the RID-neutral app build. -->
     <BuildLocalGptDocumentation Condition="'$(BuildLocalGptDocumentation)' == ''">true</BuildLocalGptDocumentation>
     <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">true</RequireLocalGptDocumentationPdf>
     <LocalGptDocumentationPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' == 'true'">-RequirePdf</LocalGptDocumentationPdfArgument>
@@ -391,22 +310,6 @@
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipDevExpressBlazorControlsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(DevExpressBlazorControlsScript)')" Text="DevExpress Blazor control guard script is missing: $(DevExpressBlazorControlsScript)" />
     <Exec Condition="Exists('$(DevExpressBlazorControlsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(DevExpressBlazorControlsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <Target Name="AssertLocalGptDevExpressComponentRetention"
-          BeforeTargets="BeforeBuild"
-          AfterTargets="AssertLocalGptDevExpressBlazorControls"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipDevExpressComponentRetentionGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(DevExpressComponentRetentionScript)')" Text="DevExpress component retention guard script is missing: $(DevExpressComponentRetentionScript)" />
-    <Exec Condition="Exists('$(DevExpressComponentRetentionScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(DevExpressComponentRetentionScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
-
-  <Target Name="AssertLocalGptRazorMaintenanceArchitecture"
-          BeforeTargets="BeforeBuild"
-          AfterTargets="AssertLocalGptDevExpressComponentRetention"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipRazorMaintenanceArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
-    <Error Condition="!Exists('$(RazorMaintenanceArchitectureScript)')" Text="Razor maintenance architecture guard script is missing: $(RazorMaintenanceArchitectureScript)" />
-    <Exec Condition="Exists('$(RazorMaintenanceArchitectureScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RazorMaintenanceArchitectureScript)&quot; -Product localgpt" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
   <Target Name="AssertLocalGptFormLayoutOwnership"

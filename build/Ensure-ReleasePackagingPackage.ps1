@@ -1,6 +1,6 @@
 param(
     [string]$Configuration = "Release",
-    [string]$Version = "1.0.5"
+    [string]$Version = "1.1.0"
 )
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
@@ -20,6 +20,8 @@ if (-not (Test-Path -LiteralPath $package -PathType Leaf)) {
     }
     $package = [string]$packageOutput[0]
 }
+# Reject stale cached packages even when license entries have the expected names.
+& (Join-Path $root 'build/Assert-ReleasePackagingPackageNotices.ps1') -RepositoryRoot $root -PackagePath $package
 $toolRoot = Join-Path $root "artifacts/release-tools"
 Remove-Item -LiteralPath $toolRoot -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $toolRoot -Force | Out-Null

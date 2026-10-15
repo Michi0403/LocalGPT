@@ -8,8 +8,11 @@
 }
 
 ::deep .navigation-drawer > .dxbl-drawer-panel {
-    color: var(--localgpt-navigation-color);
-    background-color: var(--localgpt-navigation-bg);
+    /* Do not re-resolve shell colors against a separately chosen component theme. */
+    --localgpt-navigation-bg: var(--localgpt-shell-surface-bg, var(--localgpt-navigation-bg));
+    --localgpt-navigation-color: var(--localgpt-shell-foreground, var(--localgpt-navigation-color));
+    color: var(--localgpt-navigation-color) !important;
+    background-color: var(--localgpt-navigation-bg) !important;
     background-image: linear-gradient(180deg, color-mix(in srgb, var(--localgpt-navigation-bg) 92%, var(--localgpt-navigation-color) 8%) 0%, var(--localgpt-navigation-bg) 100%);
 }
 
