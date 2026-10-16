@@ -524,3 +524,30 @@
         max-height: calc(92dvh - 7rem);
     }
 }
+
+/* 5.8.1: Keep glass surfaces readable while theme choices scroll behind separate layers.
+   Section headings move with their sections instead of sticking over theme rows. */
+.themeswitcher-container .theme-layer-section,
+.themeswitcher-container .theme-route-section {
+    isolation: isolate;
+    background: color-mix(in srgb, var(--localgpt-surface-bg, var(--bs-body-bg, #fff)) 96%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.themeswitcher-container .theme-layer-heading,
+.themeswitcher-container .theme-route-heading {
+    position: static;
+    z-index: auto;
+    background: color-mix(in srgb, var(--localgpt-surface-raised-bg, var(--bs-body-bg, #fff)) 98%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.themeswitcher-container .theme-layer-section .list-group,
+.themeswitcher-container .theme-route-content {
+    position: relative;
+    z-index: 1;
+}
+.themeswitcher-container .theme-route-reset {
+    background: color-mix(in srgb, var(--localgpt-surface-bg, var(--bs-body-bg, #fff)) 98%, transparent);
+    backdrop-filter: blur(8px);
+}

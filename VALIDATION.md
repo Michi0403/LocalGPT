@@ -1,3 +1,5 @@
-# LocalGPT 5.5.0 validation
+# LocalGPT 5.8.3 source validation
 
-See `VALIDATION-v5.5.0-source.md` for documentation PDF merge source checks and the required Windows/.NET 10 build acceptance test; the preceding Learning Council, DevExpress and per-file checklist acceptance tests remain documented in `VALIDATION-v5.4.9-source.md`. The .NET build/restore/publish stages were not executed.
+Static review and ZIP integrity only. See `VALIDATION-v5.8.3-source.md` and `CHANGELOG-v5.8.3-RAZOR-XML-BUILD-REPAIR.md`.
+
+The original 5.8.2 Windows build log shows a Razor maintenance guard failure followed by three CS1573 documentation failures. This release corrects both identified causes. Compilation, local PowerShell execution, and a live Council run still require Windows/.NET verification; no .NET build or GitHub access was used.

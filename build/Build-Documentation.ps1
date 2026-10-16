@@ -1742,9 +1742,12 @@ function New-LocalGptHtmlPrintBook {
     foreach ($cssFile in @(Get-ChildItem -LiteralPath $SiteRoot -Filter "*.css" -File -Recurse -ErrorAction SilentlyContinue | Sort-Object FullName)) {
         [void]$builder.AppendLine('<link rel="stylesheet" href="' + (ConvertTo-LocalGptFileUri -Path $cssFile.FullName) + '" />')
     }
+    # Front matter (cover and full index) remains landscape; documentation pages use portrait.
+    # The two books are rendered separately by the existing durable-chunk workflow.
+    $printPageOrientation = if ($SuppressFrontMatter) { 'portrait' } else { 'landscape' }
     $printStyles = @'
 <style>
-@page { size: A4 landscape; margin: 9mm 10mm 11mm; }
+@page { size: A4 __PAGE_ORIENTATION__; margin: 9mm 10mm 11mm; }
 html, body { background: linear-gradient(180deg, #fff6fb, #fff0f8) !important; color: #4b2159 !important; font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif !important; font-size: 9.35pt; line-height: 1.38; }
 body { margin: 0 !important; max-width: none !important; }
 .localgpt-print-cover { min-height: 178mm; display: flex; flex-direction: column; justify-content: center; break-after: page; }
@@ -1956,7 +1959,7 @@ html, body { background: #fff0f8 !important; color: #51285d !important; }
 }
 </style>
 '@
-    [void]$builder.AppendLine($printStyles)
+    [void]$builder.AppendLine($printStyles.Replace('__PAGE_ORIENTATION__', $printPageOrientation))
     [void]$builder.AppendLine('</head><body class="localgpt-print-book">')
     if (-not $SuppressFrontMatter) {
     [void]$builder.AppendLine('<section class="localgpt-print-cover">')
@@ -2165,6 +2168,29 @@ function Stop-LocalGptDocumentationBrowserProfileProcesses {
     catch { }
 }
 
+# The browser's native Win32 file writer does not consistently honor long-path opt-in, even
+# when PowerShell/.NET can create the directory. Fail before an 8-minute browser timeout if
+# an Edge output/profile path has no safe room for its internally generated cache filenames.
+function Assert-LocalGptBrowserPdfPaths {
+    param(
+        [Parameter(Mandatory)][string]$PdfPath,
+        [Parameter(Mandatory)][string]$ProfileCacheRoot
+    )
+
+    $fullPdfPath = [IO.Path]::GetFullPath($PdfPath)
+    $pdfParent = [IO.Path]::GetDirectoryName($fullPdfPath)
+    if (-not (Test-Path -LiteralPath $pdfParent -PathType Container)) {
+        throw "Browser PDF output directory does not exist: $pdfParent"
+    }
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) {
+        # Edge may append 80+ characters under its profile cache. Its --print-to-pdf
+        # writer also fails above classic MAX_PATH despite a successful process exit.
+        if ($fullPdfPath.Length -gt 240 -or $ProfileCacheRoot.Length -gt 170) {
+            throw "Browser PDF path preflight failed on Windows (output=$($fullPdfPath.Length) chars, profile cache=$($ProfileCacheRoot.Length) chars). Move the repository/build cache to a shorter path or set FUTURE2_BUILD_STORAGE_ROOT / FUTURE2_DOCUMENTATION_CACHE_ROOT before the build. Output: $fullPdfPath"
+        }
+    }
+}
+
 function Invoke-LocalGptBrowserPdf {
     param(
         [Parameter(Mandatory)][string]$BrowserPath,
@@ -2177,7 +2203,7 @@ function Invoke-LocalGptBrowserPdf {
     Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
     $inputUri = ConvertTo-LocalGptFileUri -Path $HtmlPath
     $diagnostics = [System.Collections.Generic.List[string]]::new()
-    $profileParentRoot = Join-Path $documentationToolCacheRoot 'browser-profiles'
+    $profileParentRoot = Join-Path $documentationToolCacheRoot 'bp'
     New-Item -ItemType Directory -Path $profileParentRoot -Force | Out-Null
     $lastExitCode = -1
     $renderProfiles = @(
@@ -2194,12 +2220,13 @@ function Invoke-LocalGptBrowserPdf {
             # Keep Chromium's volatile profile outside the print-book directory. Chromium child
             # processes can retire profile files asynchronously, which makes recursive Remove-Item
             # race with disappearing files on Windows PowerShell.
-            $profileRoot = Join-Path $profileParentRoot ("browser-profile-" + [Guid]::NewGuid().ToString('N'))
-            $profileCacheRoot = Join-Path $profileRoot 'cache'
-            $profileCrashRoot = Join-Path $profileRoot 'crash'
+            $profileRoot = Join-Path $profileParentRoot ("p" + [Guid]::NewGuid().ToString('N'))
+            $profileCacheRoot = Join-Path $profileRoot 'c'
+            $profileCrashRoot = Join-Path $profileRoot 'd'
             New-Item -ItemType Directory -Path $profileCacheRoot -Force | Out-Null
             New-Item -ItemType Directory -Path $profileCrashRoot -Force | Out-Null
             try {
+                Assert-LocalGptBrowserPdfPaths -PdfPath $PdfPath -ProfileCacheRoot $profileCacheRoot
                 $arguments = @(
                     $headlessMode,
                     "--disable-gpu",
@@ -2393,7 +2420,7 @@ function Invoke-LocalGptChunkedBrowserPdf {
     $chunkRoot = Join-Path $WorkingRoot 'browser-chunks'
     Remove-LocalGptTemporaryPath -Path $chunkRoot
     New-Item -ItemType Directory -Path $chunkRoot -Force | Out-Null
-    $durableChunkRoot = Join-Path $ChunkCacheRoot ("pages-{0}-total-{1}" -f $ChunkPages,$TotalPageCount)
+    $durableChunkRoot = Join-Path $ChunkCacheRoot ("v2-p{0}-n{1}" -f $ChunkPages,$TotalPageCount)
     New-Item -ItemType Directory -Path $durableChunkRoot -Force | Out-Null
     $chunkPdfs = [System.Collections.Generic.List[string]]::new()
     $renderedChunks = 0
@@ -3489,7 +3516,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                         }
                         else {
                             Write-Host "Printing $pdfSourcePageCount DocFX HTML pages in adaptive chunks of up to $browserPdfChunkPages pages with $($browser.Name); LocalGPT.ReleasePackaging will merge the chunks without a commercial PDF dependency." -ForegroundColor Cyan
-                            $browserChunkCacheRoot = Join-Path $documentationCacheEntryRoot 'browser-pdf-chunks'
+                            $browserChunkCacheRoot = Join-Path $documentationCacheEntryRoot 'p'
                             $browserResult = Invoke-LocalGptChunkedBrowserPdf -BrowserPath $browser.Path -SiteRoot $siteRoot -PdfPath $pdfPath -WorkingRoot $printBookRoot -PackagingTool $PackagingTool -TotalPageCount $pdfSourcePageCount -ChunkPages $browserPdfChunkPages -ChunkCacheRoot $browserChunkCacheRoot -MinimumBytes $minimumCompletePdfBytes
                             $pdfCandidateCount = if (Test-Path -LiteralPath $pdfPath -PathType Leaf) { 1 } else { 0 }
                             if ($browserResult.Succeeded) {

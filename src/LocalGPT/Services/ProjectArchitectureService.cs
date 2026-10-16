@@ -26,12 +26,14 @@ public sealed class ProjectArchitectureService(
     /// <param name="title">Title value supplied to the project architecture operation and used when producing its result.</param>
     /// <param name="prompt">Prompt value supplied to the project architecture operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="asGameProject">Whether the Council run should create a Game project rather than a general .NET solution project.</param>
     /// <returns>The LocalGPT project project LocalGPT project revision revision produced by the operation.</returns>
     public async Task<(LocalGptProject Project, LocalGptProjectRevision Revision)> EnsureCouncilRunProjectAsync(
         Guid councilRunId,
         string? title,
         string prompt,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool asGameProject = false)
     {
         await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
         var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -51,7 +53,8 @@ public sealed class ProjectArchitectureService(
         {
             Name = projectName,
             Purpose = Trim(prompt, 8000),
-            CurrentVersion = "council-run",
+            ProjectType = asGameProject ? "Game" : "DotNetSolution",
+            CurrentVersion = asGameProject ? "0.1.0" : "council-run",
             Status = "CouncilActive",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -66,7 +69,7 @@ public sealed class ProjectArchitectureService(
             Summary = "Database-first project created for an explicit DXChat AI Council run.",
             ProjectStructureJson = JsonSerializer.Serialize(new
             {
-                kind = "council-run",
+                kind = asGameProject ? "game-project" : "council-run",
                 councilRunId,
                 files = Array.Empty<string>(),
                 note = "Project structure is stored in the database and may later become CodeDOM input after user approval."

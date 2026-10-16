@@ -680,7 +680,19 @@ namespace LocalGPT.Services
         {
             try
             {
-                return catalog.TextExtensions.Contains(Path.GetExtension(path));
+                // Source archives contain text configuration files without familiar extensions.
+                // Probe only a bounded prefix; never load or execute an unknown binary to classify it.
+                if (catalog.TextExtensions.Contains(Path.GetExtension(path)))
+                    return true;
+                if (IsZip(path, logger) || catalog.BinaryDiagnosticExtensions.Contains(Path.GetExtension(path)) || !File.Exists(path))
+                    return false;
+
+                using var stream = File.OpenRead(path);
+                var sample = new byte[(int)Math.Min(8192L, stream.Length)];
+                var read = stream.Read(sample, 0, sample.Length);
+                if (read != sample.Length)
+                    Array.Resize(ref sample, read);
+                return LooksLikeText(sample, logger);
             }
             catch (Exception ex)
             {

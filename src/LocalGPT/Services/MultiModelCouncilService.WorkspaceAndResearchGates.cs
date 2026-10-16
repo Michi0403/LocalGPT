@@ -15,6 +15,7 @@ namespace LocalGPT.Services
         /// <param name="round">Current Council round.</param>
         /// <param name="phase">Current Council phase.</param>
         /// <param name="bootstrap">Current bootstrap evidence, including the fresh upload-workspace identity when attachments are present.</param>
+        /// <param name="requireProjectSourceCuration">Enforces one source-curation gate for Game-project development even with an existing user-edited workflow template.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the operation.</param>
         /// <returns>Bounded deterministic curation evidence to add to the gated role's prompt.</returns>
         private async Task<string> PrepareUploadWorkspaceCurationGateAsync(
@@ -24,11 +25,12 @@ namespace LocalGPT.Services
             int round,
             string phase,
             string bootstrap,
+            bool requireProjectSourceCuration,
             CancellationToken cancellationToken)
         {
             try
             {
-                if (!definition.RequiresCompleteUploadWorkspaceCuration)
+                if (!definition.RequiresCompleteUploadWorkspaceCuration && !requireProjectSourceCuration)
                     return string.Empty;
 
                 var parameters = runtimePolicy.GetJson<ChatUploadWorkspaceRuntimeParameters>(LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson);
@@ -36,18 +38,19 @@ namespace LocalGPT.Services
                 var candidateWorkspaces = uploadWorkspaces.ListWorkspaces(parameters.DefaultWorkspaceListCount);
                 if (candidateWorkspaces.Count == 0)
                 {
-                    if (evidenceText.Contains("chat-upload-", StringComparison.OrdinalIgnoreCase))
+                    if (request.AttachedWorkspaceNames.Count > 0 || evidenceText.Contains("chat-upload-", StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("The Council references an upload workspace, but no upload workspaces are available for curation.");
                     return string.Empty;
                 }
 
                 var referencedWorkspaces = candidateWorkspaces
-                    .Where(workspace => evidenceText.Contains(workspace.WorkspaceName, StringComparison.OrdinalIgnoreCase))
+                    .Where(workspace => request.AttachedWorkspaceNames.Contains(workspace.WorkspaceName, StringComparer.OrdinalIgnoreCase) ||
+                        evidenceText.Contains(workspace.WorkspaceName, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(workspace => workspace.CreatedAtUtc)
                     .ToList();
                 if (referencedWorkspaces.Count == 0)
                 {
-                    if (evidenceText.Contains("chat-upload-", StringComparison.OrdinalIgnoreCase))
+                    if (request.AttachedWorkspaceNames.Count > 0 || evidenceText.Contains("chat-upload-", StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("The referenced DXAiChat upload workspace was not found in the bounded current workspace catalog. The curator cannot authorize this Council step without the actual uploaded evidence.");
                     return string.Empty;
                 }
@@ -94,6 +97,29 @@ namespace LocalGPT.Services
             catch (Exception __serviceMethodException)
             {
                 logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(PrepareUploadWorkspaceCurationGateAsync)} failed.");
+                throw;
+            }
+        }
+
+        /// <summary>Recognizes successful native-provider and recovered DX gateway result traces without accepting an AI's unsupported prose claim as completion.</summary>
+        /// <param name="result">Council steps containing the service-owned function result traces.</param>
+        /// <param name="functionName">Exact registered DXFunction name to verify.</param>
+        /// <returns>Whether a completed function result is present in the Council evidence.</returns>
+        private bool HasVerifiedCouncilFunctionResult(MultiModelCouncilResult result, string functionName)
+        {
+            try
+            {
+                var gatewayPrefix = $"{functionName} -> Completed";
+                var nativeResultMarker = $"<summary>Function result · {functionName} · Completed</summary>";
+                return result.Steps.Any(step =>
+                    string.IsNullOrWhiteSpace(step.Error) &&
+                    (string.Equals(step.ModelName, "LocalGPT DXFunction gateway", StringComparison.Ordinal)
+                        ? step.VisibleContent.StartsWith(gatewayPrefix, StringComparison.OrdinalIgnoreCase)
+                        : step.Content.Contains(nativeResultMarker, StringComparison.OrdinalIgnoreCase)));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not verify the Council's DXFunction result trace for {FunctionName}.", functionName);
                 throw;
             }
         }

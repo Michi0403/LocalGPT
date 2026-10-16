@@ -124,10 +124,14 @@ public enum CouncilAutomaticFunctionPolicyMode
     Disabled = 1,
     /// <summary>Exposes every function that passes LocalGPT's normal registered-function policy.</summary>
     AllPolicyApproved = 2,
-    /// <summary>Uses the team's user-edited automatic-function allow-list.</summary>
+    /// <summary>Prefers the team's named functions; saved games.* runtimes retain the historical strict interpretation.</summary>
     TeamAllowList = 3,
-    /// <summary>Uses the workflow step's user-edited exact automatic-function allow-list.</summary>
-    ExactAllowList = 4
+    /// <summary>Prefers the workflow step's named functions; saved games.* runtimes still treat this as an exact allow-list.</summary>
+    ExactAllowList = 4,
+    /// <summary>Restricts automatic/native tools exclusively to the team's configured names, regardless of team category.</summary>
+    StrictTeamAllowList = 5,
+    /// <summary>Restricts automatic/native tools exclusively to this workflow step's configured names, regardless of team category.</summary>
+    StrictStepAllowList = 6
 }
 
 /// <summary>Defines how a configured Council step consumes intermediate results returned by the text DXFunction gateway.</summary>
@@ -142,12 +146,14 @@ public enum CouncilToolResultContinuationMode
 
 /// <summary>Represents the normalized automatic/native function policy resolved from one persisted Council team and workflow step.</summary>
 /// <param name="Enabled">Whether automatic/native provider tools may be attached.</param>
-/// <param name="AutomaticFunctionAllowList">Exact registered-function allow-list, or <see langword="null"/> when every policy-approved registered function may be exposed.</param>
+/// <param name="AutomaticFunctionAllowList">Native function names to attach, or <see langword="null"/> for broker-only exposure. When <paramref name="IsStrict"/> is true, this is the exclusive allow-list.</param>
 /// <param name="Description">Human-readable policy description used by Council diagnostics and capability briefing.</param>
+/// <param name="IsStrict">Whether the configured native function names are an exclusive permission boundary rather than direct-tool preferences.</param>
 public sealed record CouncilAutomaticFunctionPolicyResolution(
     bool Enabled,
     IReadOnlyList<string>? AutomaticFunctionAllowList,
-    string Description);
+    string Description,
+    bool IsStrict = false);
 
 /// <summary>Defines one editable LocalGPT Council team, its roles, workflow and architecture contracts.</summary>
 [DocumentationUpdated("2.1.20")]
@@ -487,7 +493,7 @@ public sealed class CouncilWorkflowStepDefinition
     /// <value>The persisted policy that determines whether no functions, the team list, an exact step list, or the complete policy-approved catalog is exposed.</value>
     public CouncilAutomaticFunctionPolicyMode AutomaticFunctionPolicyMode { get; set; } = CouncilAutomaticFunctionPolicyMode.Legacy;
     /// <summary>Gets or sets step-level automatic provider function guidance, enforced as an exact allow-list for live game runtimes.</summary>
-    /// <value>Registered DXFunction names preferred by ordinary workflows and strictly allowed when a <c>games.*</c> runtime uses <see cref="CouncilAutomaticFunctionPolicyMode.ExactAllowList"/>.</value>
+    /// <value>Registered DXFunction names preferred by ordinary workflows, and allowed exclusively only by an explicit strict mode or the existing <c>games.*</c> runtime compatibility rule.</value>
     public List<string> AllowedAutomaticFunctions { get; set; } = [];
     /// <summary>Gets or sets how LocalGPT returns intermediate text-gateway function results to this workflow step's assigned model.</summary>
     /// <value>The bounded continuation policy used after the step emitted one or more registered DXFunction requests.</value>

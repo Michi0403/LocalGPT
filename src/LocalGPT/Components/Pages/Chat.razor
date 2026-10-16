@@ -701,7 +701,7 @@
                                                 {
                                                     <DxButton CssClass="localgpt-live-participant-evidence-button"
                                                               RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline"
-                                                              Click="@(() => ToggleCompletedCouncilActivityEvidence(activity))">
+                                                              Click="@(() => ToggleCompletedCouncilActivityEvidence(liveCouncilMessage.RunId, activity))">
                                                         @(CouncilEvidencePopupVisible && InspectedCouncilActivity?.ActivityKey == activity.ActivityKey
                                                             ? "Hide answer and provider evidence" : "Inspect answer, thinking and provider evidence")
                                                     </DxButton>
@@ -763,8 +763,9 @@
             </DxAIChat>
             <DxPopup @bind-Visible="CouncilEvidencePopupVisible"
                      HeaderText="Council answer · provider evidence"
-                     Width="min(98rem, 96vw)"
-                     MaxHeight="95dvh"
+                     Width="90vw"
+                     Height="90dvh"
+                     MaxHeight="90dvh"
                      CloseOnOutsideClick="true">
                 <BodyContentTemplate Context="councilEvidencePopupContext">
                     @if (InspectedCouncilActivity is { } inspectedActivity)
@@ -772,20 +773,36 @@
                         <DxFormLayout CssClass="razor-section-layout-owner">
                             <DxFormLayoutItem ColSpanMd="12">
                                 <Template Context="councilEvidenceBodyContext">
-                                    <strong>@inspectedActivity.ModelName</strong>
-                                    <p>@inspectedActivity.Phase · @inspectedActivity.Role · @inspectedActivity.StatusMessage</p>
-                                    <div class="localgpt-live-participant-final" data-localgpt-details-host data-localgpt-copyable="true">
-                                        <strong>Completed answer</strong>
-                                        @(new MarkupString(ChatContentRenderer.Render(inspectedActivity.FinalContent)))
-                                    </div>
-                                    @if (!string.IsNullOrWhiteSpace(inspectedActivity.Content))
-                                    {
-                                        <div class="localgpt-live-participant-content" data-localgpt-details-host data-localgpt-copyable="true">
-                                            <strong>Thinking, function calls and provider stream</strong>
-                                            @(new MarkupString(ChatContentRenderer.Render(inspectedActivity.Content)))
+                                    <div class="localgpt-council-evidence-layout">
+                                        <header class="localgpt-council-evidence-heading">
+                                            <strong>@inspectedActivity.ModelName</strong>
+                                            <small>@inspectedActivity.Phase · @inspectedActivity.Role · @inspectedActivity.StatusMessage</small>
+                                        </header>
+                                        <div class="localgpt-council-evidence-panes">
+                                            <div class="localgpt-council-evidence-pane" role="region" aria-label="Complete Council member answer">
+                                                <header>Completed answer</header>
+                                                <div class="localgpt-live-participant-final" data-localgpt-details-host data-localgpt-copyable="true">
+                                                    @(new MarkupString(ChatContentRenderer.Render(inspectedActivity.FinalContent)))
+                                                </div>
+                                            </div>
+                                            <div class="localgpt-council-evidence-pane" role="region" aria-label="Council member provider stream">
+                                                <header>Thinking, function calls and provider stream</header>
+                                                @if (!string.IsNullOrWhiteSpace(inspectedActivity.Content))
+                                                {
+                                                    <div class="localgpt-live-participant-content" data-localgpt-details-host data-localgpt-copyable="true">
+                                                        @(new MarkupString(ChatContentRenderer.Render(inspectedActivity.Content)))
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <p class="localgpt-live-participant-waiting">No provider stream was recorded for this member.</p>
+                                                }
+                                            </div>
                                         </div>
-                                    }
-                                    <DxButton Text="Close inspection" Click="@(() => CouncilEvidencePopupVisible = false)" />
+                                        <footer class="localgpt-council-evidence-footer">
+                                            <DxButton Text="Close inspection" Click="@(() => CouncilEvidencePopupVisible = false)" />
+                                        </footer>
+                                    </div>
                                 </Template>
                             </DxFormLayoutItem>
                         </DxFormLayout>

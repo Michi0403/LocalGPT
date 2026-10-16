@@ -569,18 +569,24 @@
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.ProducesAsciiFrame" CssClass="localgpt-check" /><span>Produces one AI-owned ASCII frame</span></label>
                         </div>
                         <p class="hint">Function results are intermediate evidence. Bounded continuation sends text-gateway results back to the same assigned model so it can analyze web, compiler, formula, file, or other function evidence instead of presenting the raw payload as the task result.</p>
-                        @if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.TeamAllowList)
+                        <p class="hint">Normal workflows can discover, preview and invoke any policy-approved function. Lists prioritize native callable tools but do not restrict the catalog; choose a strict mode only for an intentional isolation boundary. Existing games.* runtime lists remain strict for compatibility. Function-specific permission and human approval requirements always apply.</p>
+                        @if (step.AutomaticFunctionPolicyMode is CouncilAutomaticFunctionPolicyMode.TeamAllowList or CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList)
                         {
-                            <p class="hint">Preferred team functions outside games; hard allow-list inside <code>games.*</code> runtime teams: @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? CouncilText.FormatInlineNameList(_editor.AllowedAutomaticFunctions) : "no functions selected")</p>
+                            <p class="hint">Team tools (@(step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList ? "exclusive" : "preferred; exclusive in games.* runtimes")): @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? CouncilText.FormatInlineNameList(_editor.AllowedAutomaticFunctions) : "no functions selected")</p>
                         }
-                        else if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.ExactAllowList)
+                        else if (step.AutomaticFunctionPolicyMode is CouncilAutomaticFunctionPolicyMode.ExactAllowList or CouncilAutomaticFunctionPolicyMode.StrictStepAllowList)
                         {
                             <label class="wide">
-                                <span>Preferred step function names · hard allow-list in games · one per line</span>
+                                <span>@(step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.StrictStepAllowList ? "Strict step function allow-list" : "Preferred step function names (strict in games.* runtime teams)") · one per line</span>
                                 <DxMemo Text="@CouncilText.FormatMultilineNameList(step.AllowedAutomaticFunctions)"
                                         TextChanged="@((string value) => SetStepAutomaticFunctions(step, new ChangeEventArgs { Value = value }))"
                                         CssClass="localgpt-editor council-script" Rows="4" />
                             </label>
+                        }
+                        @if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.AllPolicyApproved &&
+                            (step.AllowedAutomaticFunctions.Count > 0 || _editor.AllowedAutomaticFunctions.Count > 0))
+                        {
+                            <p class="hint">Direct-tool preferences: step @(CouncilText.FormatInlineNameList(step.AllowedAutomaticFunctions)); team @(CouncilText.FormatInlineNameList(_editor.AllowedAutomaticFunctions)). All other policy-approved functions remain available through the broker.</p>
                         }
                         <details class="council-advanced-section">
                             <summary>Member result recovery · @step.MemberFailureRecoveryAttempts round repair turn(s) · @step.RoleComplianceRetryCount role retry(s) · final-answer recovery @(step.FinalAnswerRecoveryEnabled ? "on" : "off")</summary>

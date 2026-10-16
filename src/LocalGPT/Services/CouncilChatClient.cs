@@ -297,7 +297,22 @@ public sealed partial class CouncilChatClient(
         try
         {
             var request = requestFactory();
-            request.Prompt = councilRuntime.BuildPrompt(messages, logger);
+            var history = messages.ToList();
+            request.Prompt = councilRuntime.BuildPrompt(history, logger);
+            // The bounded history intentionally strips system messages. Preserve the
+            // exact, service-generated upload identity separately so the Council curator
+            // can resolve the current attachment without guessing the latest workspace.
+            request.AttachedWorkspaceNames = history
+                .Where(message => message.Role == ChatRole.System &&
+                    message.Text?.Contains("LocalGPT DXAiChat native paperclip attachment workspace", StringComparison.Ordinal) == true)
+                .SelectMany(message => (message.Text ?? string.Empty).Split('\n'))
+                .Select(line => line.Trim())
+                .Where(line => line.StartsWith("Workspace name: chat-upload-", StringComparison.OrdinalIgnoreCase))
+                .Select(line => line["Workspace name: ".Length..].Trim())
+                .Where(name => name.StartsWith("chat-upload-", StringComparison.OrdinalIgnoreCase) &&
+                    !name.Any(char.IsWhiteSpace))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             return request;
         }
         catch (Exception ex)

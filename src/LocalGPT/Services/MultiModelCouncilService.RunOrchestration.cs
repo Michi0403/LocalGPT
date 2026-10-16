@@ -95,27 +95,40 @@ namespace LocalGPT.Services
                 humanCollaboration.BeginCouncilRun(result.RunId, collaborationMembers);
                 councilSpooler.Begin(result);
 
-                if (request.CreateProjectForRun && !string.Equals(request.CouncilTeamKey, "learning-round", StringComparison.OrdinalIgnoreCase))
+                var gameDevelopmentTeam = string.Equals(organicTeam.Key, "game-project-development", StringComparison.OrdinalIgnoreCase);
+                var createGameProject = gameDevelopmentTeam && request.ProjectId is null;
+                if ((request.CreateProjectForRun || createGameProject) && !string.Equals(request.CouncilTeamKey, "learning-round", StringComparison.OrdinalIgnoreCase))
                 {
                     var created = await projectArchitecture.EnsureCouncilRunProjectAsync(
                         result.RunId,
                         request.Title,
                         request.Prompt,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        asGameProject: gameDevelopmentTeam).ConfigureAwait(false);
                     result.ProjectId = created.Project.Id;
                     result.ProjectRevisionId = created.Revision.Id;
                     if (request.ProjectId is Guid sourceProjectId)
                         result.Warnings.Add($"A new database-first project was created for this council run. The previously selected project {sourceProjectId} remains unchanged and can be linked later through a requirement or project artifact.");
+                    if (gameDevelopmentTeam)
+                    {
+                        request.ProjectId = created.Project.Id;
+                        request.ProjectRevisionId = created.Revision.Id;
+                        request.ProgressMessage?.Invoke($"Game-project development bound Game project {created.Project.Id} and revision {created.Revision.Id} before source review.");
+                    }
                 }
                 else if (request.ProjectId is Guid requestedProjectId)
                 {
                     var project = await projectService.GetProjectAsync(requestedProjectId, cancellationToken).ConfigureAwait(false);
                     if (project is null || project.Project.IsArchived)
                     {
+                        if (gameDevelopmentTeam)
+                            throw new InvalidOperationException($"The selected Game project {requestedProjectId} is missing or archived. Select an active Game project or clear the selection to create a new one before the Council starts.");
                         result.Warnings.Add($"The selected project {requestedProjectId} was not found or is archived. The council run will continue without project context.");
                     }
                     else
                     {
+                        if (gameDevelopmentTeam && !project.Project.IsGameProject)
+                            throw new InvalidOperationException($"The selected project {requestedProjectId} is not a Game project. Select a Game project or clear the selection to create one.");
                         result.ProjectId = requestedProjectId;
                         result.ProjectRevisionId = request.ProjectRevisionId ?? project.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id;
                         if (request.ProjectTopicId is Guid requestedTopicId)
@@ -186,6 +199,17 @@ namespace LocalGPT.Services
                     bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Mandatory database, regex, function and hardware preflight", preflight.PromptContext, logger);
                     var dxFunctionPolicy = await councilDxPolicy.GetPolicyAsync(cancellationToken).ConfigureAwait(false);
                     bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, nameof(CouncilDxFunctionPolicy), dxFunctionPolicy.PromptInstruction, logger);
+                }
+
+                if (gameDevelopmentTeam && result.ProjectId is Guid gameProjectId)
+                {
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap,
+                        "Authoritative Game project identity and execution prerequisites",
+                        $"Game ProjectId: {gameProjectId:D}; ProjectRevisionId: {result.ProjectRevisionId?.ToString("D") ?? "not yet assigned"}. " +
+                        "These are the database-assigned IDs for project.architecture.get, project.game.profile.get/save, project.game.build/get/start and project.requirement.save. " +
+                        "Do not attempt project.list (the registered listing function is localgpt.projects.list). " +
+                        "Source-archive curation verifies bytes, NOT model comprehension. Read actual relevant files via chat.upload_workspace_files and chat.upload_workspace_file before designing; follow HasMore. " +
+                        "Never assert source coverage, a built game, a playtest or an artifact without the corresponding successful function evidence.", logger);
                 }
 
                 if (!roleIsolatedContext && result.ProjectId is Guid projectId)
@@ -600,6 +624,29 @@ namespace LocalGPT.Services
                     .Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     await QueueModelHealthExclusionReviewAsync(result, failedModel, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (gameDevelopmentTeam)
+                {
+                    // Successful model prose is not proof of a persisted Game build or a launched playtest.
+                    // Count only results emitted by LocalGPT's DXFunction gateway, never model assertions.
+                    var curatedUploadedSources = result.Steps.Any(step =>
+                        string.Equals(step.ModelName, "LocalGPT: workspace curator gate", StringComparison.Ordinal));
+                    var verifiedSourceRead = !curatedUploadedSources || HasVerifiedCouncilFunctionResult(result, "chat.upload_workspace_file");
+                    var verifiedBuild = HasVerifiedCouncilFunctionResult(result, "project.game.build");
+                    var verifiedPlaytest = HasVerifiedCouncilFunctionResult(result, "project.game.start");
+                    if (!verifiedSourceRead || !verifiedBuild || !verifiedPlaytest)
+                    {
+                        var missing = string.Join(", ", new[]
+                        {
+                            verifiedSourceRead ? null : "successful chat.upload_workspace_file source read",
+                            verifiedBuild ? null : "successful project.game.build",
+                            verifiedPlaytest ? null : "successful project.game.start"
+                        }.Where(value => value is not null));
+                        var warning = $"Game development is INCOMPLETE: no successful native or DX gateway function-result evidence for {missing}. Project {result.ProjectId} remains available for the next approved development step.";
+                        result.Warnings.Add(warning);
+                        result.FinalAnswer = $"## Game development incomplete{Environment.NewLine}{warning}{Environment.NewLine}{Environment.NewLine}{result.FinalAnswer}";
+                    }
                 }
 
                 result.UserPoll = councilRuntime.MultiModelCouncilServiceBuildUserPoll(result, logger);

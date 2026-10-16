@@ -19,6 +19,9 @@ namespace LocalGPT.BusinessObjects
         /// <value>The prompt value exposed by <see cref="MultiModelCouncilRequest"/>.</value>
         public string Prompt { get; set; } = string.Empty;
 
+        /// <summary>Exact LocalGPT-generated attachment workspace identities attached to this request; these are source provenance, not model claims.</summary>
+        public List<string> AttachedWorkspaceNames { get; set; } = [];
+
         /// <summary>
         /// Gets or sets the model names collection maintained or exposed by this multi model council instance for downstream processing.
         /// </summary>

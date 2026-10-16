@@ -657,7 +657,12 @@ namespace LocalGPT.Services
                         : "Use supplied local/project evidence when present. Pretrained knowledge is allowed, but authoritative local evidence wins when the two conflict.");
                 assignmentBriefing.Append("- Organic/DX tool availability for this step: ")
                     .Append(automaticFunctionPolicy.Description)
-                    .AppendLine(". Call an available tool only when it materially improves grounding or is required to complete this role task.");
+                    .AppendLine(". Call an available tool when it materially improves grounding, verification, or task completion.");
+                if (automaticFunctionPolicy.Enabled && !automaticFunctionPolicy.IsStrict)
+                {
+                    assignmentBriefing.AppendLine("- Tool initiative: when the current user request involves software, code, a database, an error, or a workspace, proactively inspect the relevant local state and use appropriate available DXFunctions to diagnose and verify instead of guessing or asking the user to run a tool you can run yourself. A listed preferred function is not an exclusive list; discover other registered tools through dxai.tools.discover (take <= 50), then preview/invoke as appropriate.");
+                    assignmentBriefing.AppendLine("- Repair boundary: when the user has requested repair or maintenance, proceed with safe authorized work, confirm the real result, and report changes. Never bypass a function's human approval, policy, access, or database migration boundaries; when approval is required, queue the exact action and await the result rather than claiming completion.");
+                }
                 if (team.PreferredCapabilities.Count > 0)
                     assignmentBriefing.Append("- Team preferred capabilities: ").AppendLine(string.Join(", ", team.PreferredCapabilities));
                 if (!string.IsNullOrWhiteSpace(externalProjectContext))

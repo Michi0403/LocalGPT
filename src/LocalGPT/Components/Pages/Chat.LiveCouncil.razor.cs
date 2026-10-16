@@ -55,8 +55,9 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Performs toggle completed council activity evidence for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
+    /// <param name="runId">Identifier of the Council run whose participant evidence is inspected.</param>
     /// <param name="activity">Activity value supplied to the chat operation and used when producing its result.</param>
-    private void ToggleCompletedCouncilActivityEvidence(CouncilLiveParticipantActivitySnapshot activity)
+    private void ToggleCompletedCouncilActivityEvidence(Guid runId, CouncilLiveParticipantActivitySnapshot activity)
     {
         try
         {
@@ -68,7 +69,10 @@ namespace LocalGPT.Components.Pages
             }
             else
             {
-                InspectedCouncilActivity = activity;
+                // Live lane cards intentionally carry shortened projections. Inspection requests
+                // the authoritative available server-side snapshot only on user interaction.
+                InspectedCouncilActivity = CouncilLiveSessions.GetParticipantActivities(runId)
+                    .FirstOrDefault(candidate => candidate.ActivityKey == activity.ActivityKey) ?? activity;
                 CouncilEvidencePopupVisible = true;
             }
             StateHasChanged();

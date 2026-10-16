@@ -121,6 +121,45 @@ namespace LocalGPT.Services
                         nextExecutionIsReconsideration = false;
                         nextXRoundCause = string.Empty;
 
+                        // A deterministic hash pass is not a model source review. Do not allow
+                        // later implementation roles to invent mechanics from a file manifest alone.
+                        if (string.Equals(team.Key, "game-project-development", StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(firstStep.Key, "game-development-baseline", StringComparison.OrdinalIgnoreCase) &&
+                            result.Steps.Any(step => string.Equals(step.ModelName, "LocalGPT: workspace curator gate", StringComparison.Ordinal)) &&
+                            !HasVerifiedCouncilFunctionResult(result, "chat.upload_workspace_file"))
+                        {
+                            request.ProgressMessage?.Invoke("Game-project source review used no successful file reads; retrying the same read-only architect step once before implementation.");
+                            state = await ExecuteConfiguredWorkflowDefinitionAsync(
+                                result,
+                                request,
+                                team,
+                                firstStep,
+                                baseUri,
+                                participants,
+                                bootstrap,
+                                modelRoutes,
+                                maxParallelModels,
+                                keepAlive,
+                                ollamaNumGpu,
+                                maxContextTokens,
+                                modelTimeoutSeconds,
+                                leaderModel,
+                                roleAssignments,
+                                rolePairings,
+                                state,
+                                loopGroup: string.Empty,
+                                loopIteration: 1,
+                                loopMaximumIterations: 1,
+                                workflowRevision: revision + 1,
+                                xRoundCause: "Read actual uploaded source using chat.upload_workspace_file; hash-only inspection is insufficient",
+                                suppressOrganicFunctions: false,
+                                cancellationToken: cancellationToken).ConfigureAwait(false);
+                            if (!HasVerifiedCouncilFunctionResult(result, "chat.upload_workspace_file"))
+                                throw new InvalidOperationException(
+                                    "Game-project development source review failed twice without a successful chat.upload_workspace_file result. " +
+                                    "The Council will not invent source-derived mechanics. Uploaded files and partial steps remain available for another run.");
+                        }
+
                         var resolution = await ResolveConfiguredXDirectiveAsync(
                             result,
                             request,

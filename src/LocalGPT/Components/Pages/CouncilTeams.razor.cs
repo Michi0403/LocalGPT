@@ -69,9 +69,11 @@ namespace LocalGPT.Components.Pages
     private readonly IReadOnlyList<LocalGptSelectionOption<CouncilAutomaticFunctionPolicyMode>> AutomaticFunctionPolicyModes =
     [
         new(CouncilAutomaticFunctionPolicyMode.Disabled, "Disabled — expose no automatic/native tools"),
-        new(CouncilAutomaticFunctionPolicyMode.AllPolicyApproved, "All registered functions allowed by LocalGPT safety policy"),
-        new(CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Prefer this team's list · strict only for games"),
-        new(CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Prefer this step's list · strict only for games")
+        new(CouncilAutomaticFunctionPolicyMode.AllPolicyApproved, "All policy-approved functions · listed names preferred"),
+        new(CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Prefer team functions · others available via broker"),
+        new(CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Prefer step functions · others available via broker"),
+        new(CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList, "Strict team allow-list · no other tools"),
+        new(CouncilAutomaticFunctionPolicyMode.StrictStepAllowList, "Strict step allow-list · no other tools")
     ];
     /// <summary>Stores the user-editable policies that control whether text-gateway function evidence is returned to the same model.</summary>
     private readonly IReadOnlyList<LocalGptSelectionOption<CouncilToolResultContinuationMode>> ToolResultContinuationModes =

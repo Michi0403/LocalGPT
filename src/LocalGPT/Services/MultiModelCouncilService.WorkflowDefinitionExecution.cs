@@ -162,6 +162,8 @@ namespace LocalGPT.Services
                         round,
                         phase,
                         bootstrap,
+                        string.Equals(team.Key, "game-project-development", StringComparison.OrdinalIgnoreCase) &&
+                        !result.Steps.Any(step => string.Equals(step.ModelName, "LocalGPT: workspace curator gate", StringComparison.Ordinal)),
                         cancellationToken).ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(curationEvidence))
                         sourceAuthority = string.IsNullOrWhiteSpace(sourceAuthority)

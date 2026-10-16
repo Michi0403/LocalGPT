@@ -46,39 +46,61 @@ public sealed class CouncilAutomaticFunctionPolicyService(
 
             var teamList = Normalize(team.AllowedAutomaticFunctions);
             var stepList = Normalize(step.AllowedAutomaticFunctions);
-            if (!IsStrictGameRuntimeTeam(team))
+            var strictGameRuntime = IsStrictGameRuntimeTeam(team);
+            var strictTeam = mode == CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList ||
+                             (strictGameRuntime && mode == CouncilAutomaticFunctionPolicyMode.TeamAllowList);
+            var strictStep = mode == CouncilAutomaticFunctionPolicyMode.StrictStepAllowList ||
+                             (strictGameRuntime && mode == CouncilAutomaticFunctionPolicyMode.ExactAllowList);
+
+            // Strictness is an explicit workflow choice for ordinary teams. Retain the
+            // existing hard boundary for saved games.* runtime Team/Exact modes.
+            // No broker is attached to an exclusive list: it would defeat that boundary.
+            if (strictTeam || strictStep)
             {
-                var preferred = mode == CouncilAutomaticFunctionPolicyMode.TeamAllowList
-                    ? teamList
-                    : mode == CouncilAutomaticFunctionPolicyMode.ExactAllowList
-                        ? stepList
-                        : [];
-                var description = preferred.Count > 0
-                    ? $"available from the complete registered policy-approved catalog; configured names are preferred guidance outside game runtimes: {string.Join(", ", preferred)}"
-                    : "available from the complete registered policy-approved catalog";
-                return new CouncilAutomaticFunctionPolicyResolution(true, null, description);
+                // Broker entrypoints cannot be present in an exclusive allow-list:
+                // exposing dxai.tools.invoke would indirectly grant access to the
+                // entire catalog and negate the saved strict policy.
+                var allowed = (strictTeam ? teamList : stepList)
+                    .Where(name => !IsBrokerTool(name))
+                    .ToList();
+                var scope = strictTeam ? "team" : "step";
+                return new CouncilAutomaticFunctionPolicyResolution(
+                    allowed.Count > 0,
+                    allowed,
+                    allowed.Count > 0
+                        ? $"strict {scope} function allow-list: {string.Join(", ", allowed)}"
+                        : $"strict {scope} function allow-list is empty; native tools are disabled",
+                    IsStrict: true);
             }
 
-            return mode switch
+            // In normal software, research and learning workflows the saved names are
+            // *preferences*, never an execution boundary. Promote them as native Ollama
+            // metadata while the normal broker exposes every other registered,
+            // policy-approved DXFunction on demand without sending thousands of schemas.
+            IReadOnlyList<string> preferred = mode switch
             {
-                CouncilAutomaticFunctionPolicyMode.TeamAllowList => new(
-                    teamList.Count > 0,
-                    teamList,
-                    teamList.Count > 0
-                        ? $"game runtime restricted to the team allow-list: {string.Join(", ", teamList)}"
-                        : "game runtime disabled because the selected team allow-list is empty"),
-                CouncilAutomaticFunctionPolicyMode.ExactAllowList => new(
-                    stepList.Count > 0,
-                    stepList,
-                    stepList.Count > 0
-                        ? $"game runtime restricted to this step's exact allow-list: {string.Join(", ", stepList)}"
-                        : "game runtime disabled because this step's exact allow-list is empty"),
-                CouncilAutomaticFunctionPolicyMode.AllPolicyApproved => new(
+                CouncilAutomaticFunctionPolicyMode.TeamAllowList => teamList,
+                CouncilAutomaticFunctionPolicyMode.ExactAllowList => stepList,
+                CouncilAutomaticFunctionPolicyMode.AllPolicyApproved => Normalize(stepList.Concat(teamList)),
+                _ => []
+            };
+            if (preferred.Count == 0)
+            {
+                return new CouncilAutomaticFunctionPolicyResolution(
                     true,
                     null,
-                    "game runtime explicitly allows the complete registered policy-approved catalog"),
-                _ => new(false, [], "disabled because the configured policy mode is unsupported")
-            };
+                    "full policy-approved DXFunction catalog available via discovery/preview/invoke; no native direct-tool preferences");
+            }
+
+            var exposed = preferred
+                .Concat(["dxai.tools.discover", "dxai.tools.preview", "dxai.tools.invoke"])
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return new CouncilAutomaticFunctionPolicyResolution(
+                true,
+                exposed,
+                $"preferred native tools: {string.Join(", ", preferred)}; full policy-approved catalog remains available through discovery/preview/invoke");
         }
         catch (Exception exception)
         {
@@ -86,6 +108,14 @@ public sealed class CouncilAutomaticFunctionPolicyService(
             throw;
         }
     }
+
+    /// <summary>Checks whether a function name is one of the unrestricted DXFunction broker entrypoints.</summary>
+    /// <param name="name">Registered function name to inspect.</param>
+    /// <returns>Whether that name permits catalog-wide discovery or invocation.</returns>
+    private static bool IsBrokerTool(string name) =>
+        name.Equals("dxai.tools.discover", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("dxai.tools.preview", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("dxai.tools.invoke", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Determines whether the selected team owns a live game runtime and therefore keeps hard tool allow-list semantics.</summary>
     /// <param name="team">Council team whose role runtime classes are inspected.</param>

@@ -239,10 +239,20 @@ if ((Test-Path -LiteralPath $buildStorageHelperPath -PathType Leaf) -and
     # Search source text literally. Do not use a double-quoted string containing a source-code
     # variable name here: under StrictMode PowerShell would try to resolve that variable in this
     # maintenance script instead of looking for its literal text.
-    $browserProfileNeedle = 'Join-Path $documentationToolCacheRoot ''browser-profiles'''
+    $browserProfileNeedle = 'Join-Path $documentationToolCacheRoot ''bp'''
     if ($documentationEntryText.IndexOf($browserProfileNeedle, [System.StringComparison]::Ordinal) -lt 0 -or
         $documentationEntryText.IndexOf('DocumentationBrowserProfiles', [System.StringComparison]::Ordinal) -ge 0) {
-        $failures.Add('build/Build-Documentation.ps1 must place isolated browser profiles inside the repository-owned documentation cache. Architectural repair: use $documentationToolCacheRoot/browser-profiles instead of the operating-system temp directory.')
+        $failures.Add('build/Build-Documentation.ps1 must place isolated browser profiles inside the repository-owned documentation cache. Architectural repair: use the short $documentationToolCacheRoot/bp directory instead of the operating-system temp directory.')
+    }
+
+    foreach ($requiredPdfToken in @(
+        'Assert-LocalGptBrowserPdfPaths -PdfPath $PdfPath -ProfileCacheRoot $profileCacheRoot',
+        'Join-Path $documentationCacheEntryRoot ''p''',
+        '"v2-p{0}-n{1}"'
+    )) {
+        if ($documentationEntryText.IndexOf($requiredPdfToken, [System.StringComparison]::Ordinal) -lt 0) {
+            $failures.Add("build/Build-Documentation.ps1 lost a Windows-safe browser PDF path invariant: $requiredPdfToken")
+        }
     }
 
     $defaultStorageNeedle = 'Join-Path $repository ''artifacts/.build-storage'''

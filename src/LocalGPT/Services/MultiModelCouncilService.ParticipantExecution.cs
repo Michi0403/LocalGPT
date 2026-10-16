@@ -212,8 +212,15 @@ namespace LocalGPT.Services
                         streamUpdate?.Invoke($"<details class=\"council-step council-live\" data-localgpt-stream-id=\"{streamId}\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} {continuationLabel}")}</summary>\n\n");
                         if (liveInputRestarts == 0)
                         {
+                            var toolAvailability = !enableAutomaticTools
+                                ? "disabled for this workflow step"
+                                : automaticFunctionAllowList is not { Count: > 0 }
+                                    ? "complete policy-approved catalog via broker"
+                                    : automaticFunctionAllowList.Contains("dxai.tools.invoke", StringComparer.OrdinalIgnoreCase)
+                                        ? $"preferred direct tools {string.Join(", ", automaticFunctionAllowList.Where(name => !name.StartsWith("dxai.tools.", StringComparison.OrdinalIgnoreCase)))}; full catalog via broker"
+                                        : $"strictly restricted to {string.Join(", ", automaticFunctionAllowList)}";
                             streamUpdate?.Invoke(
-                                $"> **Knowledge & capability state:** automatic/native tools are **{(enableAutomaticTools ? automaticFunctionAllowList is { Count: > 0 } ? $"restricted to {string.Join(", ", automaticFunctionAllowList)}" : "available when policy allows" : "disabled for this workflow step")}**. " +
+                                $"> **Knowledge & capability state:** automatic/native tools are **{toolAvailability}**. " +
                                 "Local/project/role evidence already supplied in the prompt is passive context and does not create a function-call event. Any active DX/native function call is rendered in this same provider stream.\n\n");
                         }
 
