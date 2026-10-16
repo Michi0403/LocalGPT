@@ -89,7 +89,7 @@ public sealed class CouncilAutomaticFunctionPolicyService(
                 return new CouncilAutomaticFunctionPolicyResolution(
                     true,
                     null,
-                    "full policy-approved DXFunction catalog available via discovery/preview/invoke; no native direct-tool preferences");
+                    "all registered policy-approved automatic DXFunctions available as native tools; no preference list");
             }
 
             var exposed = preferred

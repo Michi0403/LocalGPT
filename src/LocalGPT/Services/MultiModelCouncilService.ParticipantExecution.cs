@@ -215,7 +215,7 @@ namespace LocalGPT.Services
                             var toolAvailability = !enableAutomaticTools
                                 ? "disabled for this workflow step"
                                 : automaticFunctionAllowList is not { Count: > 0 }
-                                    ? "complete policy-approved catalog via broker"
+                                    ? "all registered policy-approved automatic functions directly"
                                     : automaticFunctionAllowList.Contains("dxai.tools.invoke", StringComparer.OrdinalIgnoreCase)
                                         ? $"preferred direct tools {string.Join(", ", automaticFunctionAllowList.Where(name => !name.StartsWith("dxai.tools.", StringComparison.OrdinalIgnoreCase)))}; full catalog via broker"
                                         : $"strictly restricted to {string.Join(", ", automaticFunctionAllowList)}";

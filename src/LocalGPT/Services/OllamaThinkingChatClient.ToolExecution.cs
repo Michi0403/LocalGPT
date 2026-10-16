@@ -164,13 +164,40 @@ public sealed partial class OllamaThinkingChatClient
     {
         var functions = GetAutomaticFunctions();
         ValidateUniqueAutomaticToolNames(functions);
-        return functions
-            // Some providers echo the canonical dotted name even though the advertised Ollama
-            // tool name was transport-sanitized. Both forms must resolve through the same
-            // policy-filtered registry list, never through an unrestricted registry lookup.
-            .FirstOrDefault(function => function.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase) ||
-                ToOllamaToolName(function.Name).Equals(toolName, StringComparison.OrdinalIgnoreCase))
-            ?.Name;
+        // First resolve exactly what this request advertised. Strict step/team lists
+        // must never escape this branch, including when a model invents a tool name.
+        var directMatch = functions.FirstOrDefault(function =>
+            function.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase) ||
+            ToOllamaToolName(function.Name).Equals(toolName, StringComparison.OrdinalIgnoreCase));
+        if (directMatch is not null)
+            return directMatch.Name;
+
+        // A NORMAL Council step publishes preferred tools plus the DXFunction broker.
+        // The preferences are not a permission boundary: an eligible tool already
+        // known to the model can still be resolved directly, without requiring it to
+        // be advertised a second time. This is deliberately disabled for strict
+        // lists, which have no broker entrypoints, and for disabled function access.
+        if (automaticFunctionAllowList is null ||
+            !automaticFunctionAllowList.Contains("dxai.tools.invoke") ||
+            functionRegistry is null)
+            return null;
+
+        var eligible = functionRegistry.GetFunctions()
+            .Where(function => function.AvailableToAi &&
+                function.SupportsDirectInvocation && function.SupportsAutomaticInvocation)
+            .ToList();
+        var canonical = eligible.FirstOrDefault(function =>
+            function.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));
+        if (canonical is not null)
+            return canonical.Name;
+
+        // A sanitized transport name can be ambiguous. Never dispatch it if more
+        // than one canonical name maps to the same model-facing spelling.
+        var transportMatches = eligible
+            .Where(function => ToOllamaToolName(function.Name).Equals(toolName, StringComparison.OrdinalIgnoreCase))
+            .Take(2)
+            .ToList();
+        return transportMatches.Count == 1 ? transportMatches[0].Name : null;
     }
     catch (Exception __serviceMethodException)
     {

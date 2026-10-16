@@ -146,7 +146,7 @@ public enum CouncilToolResultContinuationMode
 
 /// <summary>Represents the normalized automatic/native function policy resolved from one persisted Council team and workflow step.</summary>
 /// <param name="Enabled">Whether automatic/native provider tools may be attached.</param>
-/// <param name="AutomaticFunctionAllowList">Native function names to attach, or <see langword="null"/> for broker-only exposure. When <paramref name="IsStrict"/> is true, this is the exclusive allow-list.</param>
+/// <param name="AutomaticFunctionAllowList">Native function names to attach, or <see langword="null"/> for all registered policy-approved automatic functions (the original 5.5.0 contract). When <paramref name="IsStrict"/> is true, this is the exclusive allow-list.</param>
 /// <param name="Description">Human-readable policy description used by Council diagnostics and capability briefing.</param>
 /// <param name="IsStrict">Whether the configured native function names are an exclusive permission boundary rather than direct-tool preferences.</param>
 public sealed record CouncilAutomaticFunctionPolicyResolution(

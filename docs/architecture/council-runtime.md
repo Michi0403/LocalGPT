@@ -80,3 +80,34 @@ Council knowledge is persistent but curated. Automatic context uses reviewed, ac
 ## GameDirector reuse
 
 GameDirector uses the same Council machinery for role-assigned world actors while retaining a deterministic authoritative resolver. This is an example of the intended architecture: generative proposals inside a strict application-owned state machine.
+
+## Native automatic functions and the Council tool contract
+
+The DXFunction handler registry and the per-provider *advertised function list* are different runtime contracts. Handler registration means a function exists, not that an Ollama participant can call it in its current workflow step. When diagnosing `The requested automatic function is not registered`, inspect `OllamaThinkingChatClient.ResolveRegistryFunctionName` **before** assuming that the upload workspace or DI service disappeared.
+
+- **Unrestricted** (`automaticFunctionAllowList == null`): as in LocalGPT 5.5.0, all registered functions marked `AvailableToAi`, `SupportsDirectInvocation`, and `SupportsAutomaticInvocation` are offered as native functions. The central registry still enforces function policy and approvals.
+- **Preferred tools** (normal team, nonempty list plus `dxai.tools.invoke`): named functions are offered directly; discovery/preview/invoke exposes the broader policy-approved catalog without advertising all schemas. The resolver also accepts an eligible known function name even if it wasn't preferred, as a direct-call compatibility path; registry validation is unchanged.
+- **Strict tool allowlist** (explicit strict team/step or live game runtime): only the saved names can be called. The unrestricted broker is excluded from strict lists and the resolver cannot fall back to other names.
+- **Disabled**: no native automatic functions are attached and no automatic function result should be dispatched. Neither an upload manifest nor a curator receipt constitutes a model-performed source-file read.
+
+```mermaid
+sequenceDiagram
+    participant M as Council model
+    participant O as Ollama tool adapter
+    participant R as Scoped DXFunction registry
+    participant W as Upload workspace service
+    M->>O: Call chat.upload_workspace_files
+    O->>O: Resolve current tool policy and canonical name
+    alt Tool permitted
+        O->>R: InvokeAsync(name, parameters, automatic=true)
+        R->>R: Validate saved policy / approval
+        R->>W: QueryFiles(workspace, pagination)
+        W-->>R: Exact source paths
+        R-->>O: Structured result
+        O-->>M: Tool result (not a proposed call)
+    else Strict or disabled tool
+        O-->>M: Policy-scoped NotFound
+    end
+```
+
+**Migration note:** Between the provided 5.6.1 and 5.7.1 source versions, a `null` tool list was reinterpreted as *broker-only*. LocalGPT 5.9.1 restores the unrestricted 5.5.0 behavior. Existing persisted Council team/step choices remain authoritative; no saved preferences or strict settings are rewritten during migration.
