@@ -12,3 +12,5 @@
   href: onewire-security.md
 - name: "Frontend and themes"
   href: frontend-and-themes.md
+- name: "Reactive lifecycle and process equivalence (UML)"
+  href: reactive-lifecycle-and-process-equivalence.md

@@ -1446,9 +1446,6 @@ namespace LocalGPT.Components.Pages
                 RejoinCouncilRunId = requestedRunId;
             }
 
-            HumanCollaboration.Changed += OnHumanCollaborationChanged;
-            CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
-            CouncilRunConfigurations.Changed += OnCouncilRunConfigurationChanged;
 
             ArchitectureLanguageToolchain = Catalog.ArchitectureLanguageToolchainOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureUiStack = Catalog.ArchitectureUiStackOptions.FirstOrDefault() ?? string.Empty;

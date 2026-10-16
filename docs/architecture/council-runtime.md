@@ -6,6 +6,8 @@ A chat session combines a selected provider route, protocol profile, formatter, 
 
 Protocol profiles are stateless. They detect provider/model families and normalize only their own control markers. The response formatter owns presentation of thinking, final content, tools, code, and structured sections.
 
+A Blazor circuit is a presentation adapter, not the lifetime of a Council run. [Reactive lifecycle and process equivalence](reactive-lifecycle-and-process-equivalence.md) records the UI attachment/unsubscription sequence and the boundary with server-owned Council work.
+
 ## Council orchestration
 
 A Council request is decomposed into explicit workflow steps. The runtime owns:

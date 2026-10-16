@@ -44,6 +44,8 @@ namespace LocalGPT.Components.Pages
     private Guid? lastReconnectCouncilRunId;
     /// <summary>Tracks whether the reconnect bridge has received its initial null/non-null run value.</summary>
     private bool reconnectCouncilRunPublished;
+    /// <summary>Records that live Council service notifications belong to this interactive component instance, not its prerender instance.</summary>
+    private bool interactiveCouncilSubscriptionsAttached;
 
     /// <summary>
     /// Handles the after render async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
@@ -60,6 +62,7 @@ namespace LocalGPT.Components.Pages
             if (firstRender)
             {
                 interactiveAttached = true;
+                AttachInteractiveCouncilSubscriptions();
                 chatInteropReference ??= DotNetObjectReference.Create(this);
                 if (AutoStartCouncilStarter || !string.IsNullOrWhiteSpace(RequestedCouncilStarterKey))
                     await JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").ConfigureAwait(true);
@@ -117,6 +120,42 @@ namespace LocalGPT.Components.Pages
             ComponentActivity.RecordFailure(nameof(Chat), "InteractiveAttach", ex);
             if (firstRender)
                 Notifier.ShowError(toastName, "Chat could not finish attaching to the interactive UI. See local logs for details.", "Chat attach error");
+        }
+    }
+
+    /// <summary>
+    /// Attaches live Council notifications only after the interactive renderer exists.
+    /// Prerendering may call OnInitializedAsync on a separate instance; that preparatory
+    /// pass must not subscribe to circuit-driven notifications or trigger background work.
+    /// </summary>
+    private void AttachInteractiveCouncilSubscriptions()
+    {
+        if (interactiveCouncilSubscriptionsAttached || isDisposed || !interactiveAttached)
+            return;
+
+        var collaborationAttached = false;
+        var liveSessionAttached = false;
+        try
+        {
+            HumanCollaboration.Changed += OnHumanCollaborationChanged;
+            collaborationAttached = true;
+            CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
+            liveSessionAttached = true;
+            CouncilRunConfigurations.Changed += OnCouncilRunConfigurationChanged;
+            interactiveCouncilSubscriptionsAttached = true;
+            Logger.LogDebug("Chat interactive circuit attached the Council service notifications.");
+        }
+        catch (Exception exception)
+        {
+            // Roll back a partially attached subscription set; the next interactive render
+            // may safely retry rather than leaving the component listening twice.
+            if (liveSessionAttached)
+                CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
+            if (collaborationAttached)
+                HumanCollaboration.Changed -= OnHumanCollaborationChanged;
+            Logger.LogError(exception, "Chat could not attach the interactive Council service notifications.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(AttachInteractiveCouncilSubscriptions), exception);
+            throw;
         }
     }
 

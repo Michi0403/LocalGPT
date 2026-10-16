@@ -110,4 +110,52 @@ if (-not $program.Contains('AddInteractiveServerRenderMode()')) { Fail 'Program 
 if (-not $program.Contains('AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>()')) { Fail 'Program partials no longer register circuit diagnostics.' }
 if (-not $imports.Contains('@using static Microsoft.AspNetCore.Components.Web.RenderMode')) { Fail 'Components/_Imports.razor no longer imports RenderMode.' }
 
+# Lifecycle/process separation: prerender and interactive renders use independent Chat
+# component instances. Event subscriptions and preparation persistence must be owned
+# by the attached interactive instance. Keep this check inside the existing PowerShell
+# render-mode guard rather than creating a competing maintenance subsystem.
+$chatSource = [System.IO.File]::ReadAllText((Join-Path $appRoot 'Components/Pages/Chat.razor.cs'), $utf8)
+$chatLifecycle = [System.IO.File]::ReadAllText((Join-Path $appRoot 'Components/Pages/Chat.Lifecycle.razor.cs'), $utf8)
+$chatDisposal = [System.IO.File]::ReadAllText((Join-Path $appRoot 'Components/Pages/Chat.LiveCouncil.razor.cs'), $utf8)
+$notifications = @(
+    'HumanCollaboration.Changed += OnHumanCollaborationChanged;',
+    'CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;',
+    'CouncilRunConfigurations.Changed += OnCouncilRunConfigurationChanged;'
+)
+foreach ($notification in $notifications) {
+    if ($chatSource.Contains($notification)) { Fail "Chat.OnInitializedAsync must not subscribe to $notification during prerender." }
+    if (-not $chatLifecycle.Contains($notification)) { Fail "Chat lacks its interactive notification attachment: $notification" }
+}
+foreach ($required in @(
+    'if (firstRender)',
+    'interactiveAttached = true;',
+    'AttachInteractiveCouncilSubscriptions();',
+    'private void AttachInteractiveCouncilSubscriptions()',
+    'if (interactiveCouncilSubscriptionsAttached || isDisposed || !interactiveAttached)',
+    'interactiveCouncilSubscriptionsAttached = true;'
+)) {
+    if (-not $chatLifecycle.Contains($required)) { Fail "Chat interactive lifecycle is missing: $required" }
+}
+foreach ($required in @(
+    'if (interactiveAttached)',
+    'if (initialStateReady)',
+    'SavePreparationConfiguration();',
+    'UpdateAsciiExperienceState();',
+    'if (interactiveCouncilSubscriptionsAttached)',
+    'HumanCollaboration.Changed -= OnHumanCollaborationChanged;',
+    'CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;',
+    'CouncilRunConfigurations.Changed -= OnCouncilRunConfigurationChanged;'
+)) {
+    if (-not $chatDisposal.Contains($required)) { Fail "Chat interactive disposal contract is missing: $required" }
+}
+$umlDocPath = Join-Path $root 'docs/architecture/reactive-lifecycle-and-process-equivalence.md'
+$architectureTocPath = Join-Path $root 'docs/architecture/toc.yml'
+if (-not (Test-Path -LiteralPath $umlDocPath -PathType Leaf)) { Fail 'UML lifecycle architecture chapter is missing.' }
+$umlDoc = [System.IO.File]::ReadAllText($umlDocPath, $utf8)
+if (([regex]::Matches($umlDoc, '```mermaid')).Count -lt 4) { Fail 'UML lifecycle architecture chapter must retain its four Mermaid diagrams.' }
+if (-not ([System.IO.File]::ReadAllText($architectureTocPath, $utf8)).Contains('reactive-lifecycle-and-process-equivalence.md')) {
+    Fail 'DocFX architecture TOC must include the UML lifecycle chapter.'
+}
+Write-Host 'InteractiveServer Chat lifecycle/process ownership and UML documentation validated.'
+
 Write-Host "InteractiveServer render-mode validation passed for $($expected.Count) explicit islands/pages and $($inheritedThemeChildren.Count) inherited theme children."

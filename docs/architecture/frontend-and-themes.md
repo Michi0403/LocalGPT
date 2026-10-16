@@ -6,6 +6,10 @@ Bootstrap v5 owns responsive layout, spacing, breakpoints, and the application s
 
 Razor components present state and call services. They do not own provider protocols, command execution, database initialization, or file policy.
 
+## Lifecycle and process contract
+
+Component lifecycle callbacks are not the domain process: `OnInitializedAsync` may run in separate prerender and interactive instances, whereas `OnAfterRenderAsync` requires an interactive renderer. Live event subscriptions and browser-dependent activation belong to the interactive instance; durable Council and database work belongs to application services. The reviewed runtime states, class responsibilities, and UML sequence diagrams are documented in [Reactive lifecycle and process equivalence](reactive-lifecycle-and-process-equivalence.md).
+
 ## Component contract
 
 Maintained components use explicit injected dependencies for logging, notification, and bounded activity reporting. Long operations support cancellation and show progress. Dialogs have one internal scroll owner and remain usable at ordinary browser zoom.

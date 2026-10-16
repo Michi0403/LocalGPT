@@ -1125,13 +1125,26 @@ namespace LocalGPT.Components.Pages
             if (isDisposed)
                 return;
 
-            SavePreparationConfiguration();
-            showGameConsole = false;
-            UpdateAsciiExperienceState();
+            // A prerender-only instance has never owned an interactive Council session.
+            // Do not persist uninitialized UI settings or change circuit-scoped ASCII
+            // presentation state when that preparatory instance is disposed.
+            if (interactiveAttached)
+            {
+                // Incomplete interactive initialization must not replace saved choices
+                // with defaults simply because the user navigated away early.
+                if (initialStateReady)
+                    SavePreparationConfiguration();
+                showGameConsole = false;
+                UpdateAsciiExperienceState();
+            }
             isDisposed = true;
-            HumanCollaboration.Changed -= OnHumanCollaborationChanged;
-            CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
-            CouncilRunConfigurations.Changed -= OnCouncilRunConfigurationChanged;
+            if (interactiveCouncilSubscriptionsAttached)
+            {
+                interactiveCouncilSubscriptionsAttached = false;
+                HumanCollaboration.Changed -= OnHumanCollaborationChanged;
+                CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
+                CouncilRunConfigurations.Changed -= OnCouncilRunConfigurationChanged;
+            }
             componentLifetimeCts.Cancel();
             if (interactiveAttached && DxAiChat is not null)
             {

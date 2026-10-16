@@ -10,6 +10,7 @@ LocalGPT is a modular monolith: one deployable local application with explicit s
 4. [Projects, workspaces, and persistence](project-data.md)
 5. [Organic 1-Wire and security](onewire-security.md)
 6. [Frontend, DevExpress, and themes](frontend-and-themes.md)
+7. [Reactive lifecycle and process equivalence (UML)](reactive-lifecycle-and-process-equivalence.md)
 
 ## Dependency direction
 
