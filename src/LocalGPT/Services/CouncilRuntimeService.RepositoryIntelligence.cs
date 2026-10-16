@@ -448,26 +448,7 @@ namespace LocalGPT.Services
         /// <returns>The resulting sequence.</returns>
         public IEnumerable<string> EnumerateNestedArchitectureRoots(string rootPath, ILogger logger)
         {
-            try
-            {
-                var stack = new Stack<DirectoryInfo>(SafeEnumerateDirectoryInfos(rootPath, logger).Reverse());
-                while (stack.Count > 0)
-                {
-                    var current = stack.Pop();
-                    if (catalog.ExcludedDirectoryNames.Contains(current.Name))
-                        continue;
-
-                    if (LooksLikeArchitectureRoot(current.FullName, logger))
-                        yield return current.FullName;
-
-                    foreach (var child in SafeEnumerateDirectoryInfos(current.FullName, logger).Reverse())
-                        stack.Push(child);
-                }
-            }
-            finally
-            {
-                logger.LogInformation($"Ended EnumerateNestedArchitectureRoots rootPath {rootPath?.ToString()}");
-            }
+            return text.EnumerateNestedArchitectureRoots(rootPath, logger);
         }
         /// <summary>Executes the safe enumerate directories operation.</summary>
         /// <param name="rootPath">Input value for rootPath.</param>
@@ -475,15 +456,7 @@ namespace LocalGPT.Services
         /// <returns>The resulting sequence.</returns>
         public IEnumerable<string> SafeEnumerateDirectories(string rootPath, ILogger logger)
         {
-            try
-            {
-                return Directory.EnumerateDirectories(rootPath).Order(StringComparer.OrdinalIgnoreCase).ToArray();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in SafeEnumerateDirectories rootPath {rootPath?.ToString()}");
-                return new List<string>();
-            }
+            return text.SafeEnumerateDirectories(rootPath, logger);
         }
         /// <summary>Executes the safe enumerate directory infos operation.</summary>
         /// <param name="rootPath">Input value for rootPath.</param>
@@ -491,19 +464,7 @@ namespace LocalGPT.Services
         /// <returns>The resulting sequence.</returns>
         public IEnumerable<DirectoryInfo> SafeEnumerateDirectoryInfos(string rootPath, ILogger logger)
         {
-            try
-            {
-                return new DirectoryInfo(rootPath)
-                    .EnumerateDirectories()
-                    .Where(directory => !catalog.ExcludedDirectoryNames.Contains(directory.Name))
-                    .OrderBy(directory => directory.FullName, StringComparer.OrdinalIgnoreCase)
-                    .ToArray();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in SafeEnumerateDirectoryInfos rootPath {rootPath?.ToString()}");
-                return new List<DirectoryInfo>();
-            }
+            return text.SafeEnumerateDirectoryInfos(rootPath, logger);
         }
         /// <summary>Executes the looks like windows dev docs root operation.</summary>
         /// <param name="rootPath">Input value for rootPath.</param>
@@ -575,39 +536,7 @@ namespace LocalGPT.Services
         /// <returns>The operation result.</returns>
         public bool LooksLikeArchitectureRoot(string rootPath, ILogger logger)
         {
-            try
-            {
-                var directory = new DirectoryInfo(rootPath);
-                if (!directory.Exists)
-                    return false;
-
-                if (directory.GetFiles().Any(file => text.IsProjectRootFile(file.Name, file.Extension, logger)))
-                    return true;
-
-                var childNames = directory.GetDirectories()
-                    .Select(child => child.Name)
-                    .ToArray();
-                var distinctiveChildren = childNames.Count(name =>
-                    name.Equals("api", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("server", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("cmd", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("llm", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("runner", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("manifest", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("BlazorDemo.ServerSide", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("BlazorDemo.Wasm", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("VideoShredGUI", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("python-midi", StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals("JessiferBlazorWASM", StringComparison.OrdinalIgnoreCase));
-                return distinctiveChildren >= 2;
-
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in LooksLikeArchitectureRoot rootPath {rootPath?.ToString()}");
-                return false;
-            }
-
+            return text.LooksLikeArchitectureRoot(rootPath, logger);
         }
         /// <summary>Executes the create stable guid operation.</summary>
         /// <param name="value">Input value for value.</param>

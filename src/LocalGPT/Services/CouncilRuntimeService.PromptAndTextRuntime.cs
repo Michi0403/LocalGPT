@@ -407,19 +407,7 @@ namespace LocalGPT.Services
         /// <returns>The operation result.</returns>
         public string SanitizeForPrompt(string text, ILogger logger)
         {
-            try
-            {
-                var userName = Environment.UserName;
-                if (!string.IsNullOrWhiteSpace(userName))
-                    text = text.Replace(userName, "%USER%", StringComparison.OrdinalIgnoreCase);
-
-                return text.Replace("\0", string.Empty, StringComparison.Ordinal);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Could not sanitize text for a prompt.");
-                return string.Empty;
-            }
+            return this.text.SanitizeForPrompt(text, logger);
         }
         /// <summary>Executes the analyze bytes operation.</summary>
         /// <param name="relativePath">Input value for relativePath.</param>

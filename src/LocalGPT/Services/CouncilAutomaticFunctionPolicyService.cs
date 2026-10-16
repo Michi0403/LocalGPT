@@ -112,10 +112,21 @@ public sealed class CouncilAutomaticFunctionPolicyService(
     /// <summary>Checks whether a function name is one of the unrestricted DXFunction broker entrypoints.</summary>
     /// <param name="name">Registered function name to inspect.</param>
     /// <returns>Whether that name permits catalog-wide discovery or invocation.</returns>
-    private static bool IsBrokerTool(string name) =>
-        name.Equals("dxai.tools.discover", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("dxai.tools.preview", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("dxai.tools.invoke", StringComparison.OrdinalIgnoreCase);
+    private bool IsBrokerTool(string name)
+    {
+        try
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+            return name.Equals("dxai.tools.discover", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("dxai.tools.preview", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("dxai.tools.invoke", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Classifying Council DXFunction broker entrypoint {FunctionName} failed.", name);
+            throw;
+        }
+    }
 
     /// <summary>Determines whether the selected team owns a live game runtime and therefore keeps hard tool allow-list semantics.</summary>
     /// <param name="team">Council team whose role runtime classes are inspected.</param>
