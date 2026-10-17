@@ -127,6 +127,8 @@ $documentationCachedPdfPath = ""
 $documentationCacheManifestPath = ""
 $documentationCacheManifestData = $null
 $documentationHtmlCacheReused = $false
+$sameVersionPublishedPdf = $null
+$forcePdfRebuild = [string]::Equals([string]$env:FUTURE2_DOCUMENTATION_FORCE_PDF_REBUILD, '1', [StringComparison]::Ordinal)
 $sharedPdfLockStream = $null
 $sharedDocumentationResourceLockStream = $null
 $documentationCoreSucceeded = $false
@@ -983,6 +985,64 @@ function Test-LocalGptCompletePdf {
     finally {
         $stream.Dispose()
     }
+}
+
+function Find-LocalGptPublishedSameVersionPdf {
+    param(
+        [Parameter(Mandatory)][System.Collections.Generic.List[string]]$PublishRoots,
+        [Parameter(Mandatory)][string]$VersionValue,
+        [Parameter(Mandatory)][string]$PdfName,
+        [Parameter(Mandatory)][int]$SourcePageCount,
+        [Parameter(Mandatory)][string]$PackagingTool
+    )
+
+    # The content-addressed cache is preferable, but rebuilding a DLL can change its hash
+    # without changing the public handbook version. Recover an already published handbook
+    # only when its own publication manifest confirms the same version and source-page set.
+    foreach ($root in $PublishRoots) {
+        $candidate = Join-Path $root $PdfName
+        $statusPath = Join-Path $root 'documentation-status.json'
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+        if (-not (Test-Path -LiteralPath $statusPath -PathType Leaf)) {
+            Write-Host "Skipping ${PdfName}: no publication status is available to confirm the same-version PDF." -ForegroundColor DarkCyan
+            continue
+        }
+
+        try {
+            $status = Get-Content -LiteralPath $statusPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if (-not [string]::Equals([string]$status.version, $VersionValue, [StringComparison]::Ordinal) -or
+                -not [string]::Equals([string]$status.pdfFileName, $PdfName, [StringComparison]::Ordinal) -or
+                -not [bool]$status.pdfAvailable -or
+                -not [string]::Equals([string]$status.documentationMode, 'docfx', [StringComparison]::Ordinal) -or
+                [int]$status.pdfSourcePageCount -ne $SourcePageCount -or
+                $SourcePageCount -le 0) {
+                Write-Host "Skipping published ${PdfName}: version, PDF status or source-page count differs from this build (current source pages=$SourcePageCount)." -ForegroundColor DarkCyan
+                continue
+            }
+            if (-not (Test-LocalGptCompletePdf -Path $candidate -MinimumBytes $minimumCompletePdfBytes)) { continue }
+
+            # Header and EOF checks are not structural verification. A broken same-version
+            # publication must fall back to rendering, not become the next cached PDF.
+            $previousErrorActionPreference = $ErrorActionPreference
+            $verificationExitCode = -1
+            try {
+                $ErrorActionPreference = 'Continue'
+                $verificationOutput = @(& $PackagingTool 'pdf-verify' '--input' $candidate 2>&1)
+                $verificationExitCode = [int]$LASTEXITCODE
+            }
+            finally { $ErrorActionPreference = $previousErrorActionPreference }
+            if ($verificationExitCode -ne 0) {
+                Write-Warning "Ignoring damaged same-version documentation PDF at '$candidate' (pdf-verify exit=$verificationExitCode)."
+                continue
+            }
+
+            return [pscustomobject]@{ Path = $candidate; Status = $status }
+        }
+        catch {
+            Write-Warning "Ignoring unusable same-version PDF at '$candidate': $($_.Exception.Message)"
+        }
+    }
+    return $null
 }
 
 function ConvertTo-LocalGptFileUri {
@@ -2413,7 +2473,8 @@ function Invoke-LocalGptChunkedBrowserPdf {
         [Parameter(Mandatory)][int]$TotalPageCount,
         [Parameter(Mandatory)][int]$ChunkPages,
         [Parameter(Mandatory)][string]$ChunkCacheRoot,
-        [long]$MinimumBytes = 1048576
+        [long]$MinimumBytes = 1048576,
+        [switch]$ForceRebuild
     )
 
     $diagnostics = [System.Collections.Generic.List[string]]::new()
@@ -2431,7 +2492,7 @@ function Invoke-LocalGptChunkedBrowserPdf {
         $frontMatterHtml = Join-Path $chunkRoot 'front-matter.html'
         $frontMatterPdf = Join-Path $durableChunkRoot 'front-matter.pdf'
         $indexedPages = New-LocalGptHtmlPrintBook -SiteRoot $SiteRoot -DestinationPath $frontMatterHtml -FrontMatterOnly
-        if (Test-LocalGptCompletePdf -Path $frontMatterPdf -MinimumBytes 65536) {
+        if (-not $ForceRebuild -and (Test-LocalGptCompletePdf -Path $frontMatterPdf -MinimumBytes 65536)) {
             $reusedChunks++
             Write-Host "Reusing durable documentation PDF cover/index for $indexedPages source pages." -ForegroundColor DarkGreen
         }
@@ -2461,7 +2522,7 @@ function Invoke-LocalGptChunkedBrowserPdf {
             $htmlPath = Join-Path $chunkRoot ("chunk-{0:D3}.html" -f $chunkNumber)
             $chunkPdf = Join-Path $durableChunkRoot ("chunk-{0:D3}.pdf" -f $chunkNumber)
             $writtenPages = New-LocalGptHtmlPrintBook -SiteRoot $SiteRoot -DestinationPath $htmlPath -StartIndex $start -MaximumPages $ChunkPages -SuppressFrontMatter
-            if (Test-LocalGptCompletePdf -Path $chunkPdf -MinimumBytes 65536) {
+            if (-not $ForceRebuild -and (Test-LocalGptCompletePdf -Path $chunkPdf -MinimumBytes 65536)) {
                 $reusedChunks++
                 Write-Host "Reusing durable documentation PDF chunk $chunkNumber ($writtenPages source pages; start $start of $TotalPageCount)." -ForegroundColor DarkGreen
             }
@@ -3456,6 +3517,34 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         Write-Host "Cached validated LocalGPT DocFX HTML outside bin/obj so a failed PDF attempt can resume without rebuilding the API site." -ForegroundColor Green
     }
 
+    # Published PDFs live under the roots about to be replaced by the fresh HTML site.
+    # Recover the same-version artifact BEFORE clearing those roots. Require matching
+    # publication metadata, source-page count, complete PDF markers and managed verification.
+    # Operators may force regeneration when intentionally changing docs inside a version.
+    if ($RequirePdf -and $docfxBuildSucceeded -and -not $forcePdfRebuild -and
+        -not ($documentationHtmlCacheReused -and
+            (Test-Path -LiteralPath $documentationCachedPdfPath -PathType Leaf) -and
+            (Test-LocalGptCompletePdf -Path $documentationCachedPdfPath -MinimumBytes $minimumCompletePdfBytes) -and
+            -not [string]::IsNullOrWhiteSpace([string]$documentationCacheManifestData.pdfMode) -and
+            -not [string]::IsNullOrWhiteSpace([string]$documentationCacheManifestData.pdfAccessibilityMode))) {
+        $publishedSourcePageCount = @(Get-LocalGptPrintPageFiles -SiteRoot $siteRoot).Count
+        $sameVersionPublishedPdf = Find-LocalGptPublishedSameVersionPdf `
+            -PublishRoots $publishRoots `
+            -VersionValue $Version `
+            -PdfName $pdfName `
+            -SourcePageCount $publishedSourcePageCount `
+            -PackagingTool $PackagingTool
+        if ($null -ne $sameVersionPublishedPdf) {
+            # Staging under the current generated site keeps the source safe when the early
+            # HTML publication clears the old help-docs directory.
+            Copy-Item -LiteralPath $sameVersionPublishedPdf.Path -Destination (Join-Path $siteRoot $pdfName) -Force
+            Write-Host "Preserved structurally verified same-version LocalGPT PDF before refreshing published HTML; browser printing can be skipped." -ForegroundColor Green
+        }
+    }
+    if ($forcePdfRebuild -and $RequirePdf) {
+        Write-Host 'Explicit PDF refresh requested (FUTURE2_DOCUMENTATION_FORCE_PDF_REBUILD=1); same-version and durable cached PDFs will not be reused.' -ForegroundColor DarkCyan
+    }
+
     # Publish the current HTML tree before the long PDF render. This prevents a failed or
     # interrupted PDF step from leaving the running LocalGPT application with stale, blank,
     # or unthemed help content. The final publication pass below adds status and PDF metadata.
@@ -3469,7 +3558,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
     $xmlMemberCount = @($xmlForCount.SelectNodes("/doc/members/member")).Count
     $pdfPath = Join-Path $siteRoot $pdfName
     $pdfGenerated = $false
-    if ($docfxBuildSucceeded -and $RequirePdf -and $documentationHtmlCacheReused -and
+    if ($docfxBuildSucceeded -and $RequirePdf -and -not $forcePdfRebuild -and $documentationHtmlCacheReused -and
         (Test-Path -LiteralPath $documentationCachedPdfPath -PathType Leaf) -and
         (Test-LocalGptCompletePdf -Path $documentationCachedPdfPath -MinimumBytes $minimumCompletePdfBytes)) {
         $cachedPdfMode = [string]$documentationCacheManifestData.pdfMode
@@ -3488,6 +3577,26 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
             $pdfGeneratedSourcePath = "durable-cache/$documentationCacheKey/$pdfName"
             $pdfCandidateCount = 1
             Write-Host "Reused validated cached LocalGPT PDF ($pdfFileSize bytes); no browser/Playwright render was needed." -ForegroundColor Green
+        }
+    }
+
+    if ($docfxBuildSucceeded -and $RequirePdf -and -not $pdfGenerated -and
+        -not $forcePdfRebuild -and $null -ne $sameVersionPublishedPdf) {
+        $publishedPdfPath = Join-Path $siteRoot $pdfName
+        if (Test-LocalGptCompletePdf -Path $publishedPdfPath -MinimumBytes $minimumCompletePdfBytes) {
+            $publishedPdfStatus = $sameVersionPublishedPdf.Status
+            $pdfGenerated = $true
+            $pdfMode = [string]$publishedPdfStatus.pdfMode
+            $pdfAccessibilityMode = [string]$publishedPdfStatus.pdfAccessibilityMode
+            $pdfRenderer = [string]$publishedPdfStatus.pdfRenderer
+            $pdfSourcePageCount = [int]$publishedPdfStatus.pdfSourcePageCount
+            $pdfFileSize = [long](Get-Item -LiteralPath $publishedPdfPath).Length
+            $pdfBytesBeforeCompression = $pdfFileSize
+            $pdfCompressionMode = 'published-validated-pdf'
+            $pdfCompressionSavedBytes = 0
+            $pdfGeneratedSourcePath = 'same-version-published-pdf'
+            $pdfCandidateCount = 1
+            Write-Host "Reused previously published LocalGPT $Version PDF ($pdfFileSize bytes) with matching version and source-page count; no browser printing was needed." -ForegroundColor Green
         }
     }
 
@@ -3517,7 +3626,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                         else {
                             Write-Host "Printing $pdfSourcePageCount DocFX HTML pages in adaptive chunks of up to $browserPdfChunkPages pages with $($browser.Name); LocalGPT.ReleasePackaging will merge the chunks without a commercial PDF dependency." -ForegroundColor Cyan
                             $browserChunkCacheRoot = Join-Path $documentationCacheEntryRoot 'p'
-                            $browserResult = Invoke-LocalGptChunkedBrowserPdf -BrowserPath $browser.Path -SiteRoot $siteRoot -PdfPath $pdfPath -WorkingRoot $printBookRoot -PackagingTool $PackagingTool -TotalPageCount $pdfSourcePageCount -ChunkPages $browserPdfChunkPages -ChunkCacheRoot $browserChunkCacheRoot -MinimumBytes $minimumCompletePdfBytes
+                            $browserResult = Invoke-LocalGptChunkedBrowserPdf -BrowserPath $browser.Path -SiteRoot $siteRoot -PdfPath $pdfPath -WorkingRoot $printBookRoot -PackagingTool $PackagingTool -TotalPageCount $pdfSourcePageCount -ChunkPages $browserPdfChunkPages -ChunkCacheRoot $browserChunkCacheRoot -MinimumBytes $minimumCompletePdfBytes -ForceRebuild:$forcePdfRebuild
                             $pdfCandidateCount = if (Test-Path -LiteralPath $pdfPath -PathType Leaf) { 1 } else { 0 }
                             if ($browserResult.Succeeded) {
                                 $pdfGenerated = Test-LocalGptCompletePdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
@@ -3723,7 +3832,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         Write-Host ("Validated LocalGPT documentation PDF: {0:N1} MiB ({1:N0} bytes), {2} source HTML pages. No arbitrary PDF size ceiling." -f ($pdfFileSize / 1MB), $pdfFileSize, $pdfSourcePageCount) -ForegroundColor DarkCyan
     }
 
-    if ($pdfGenerated -and $RequirePdf -and -not [string]::Equals($pdfCompressionMode, "cached-validated-pdf", [StringComparison]::Ordinal)) {
+    if ($pdfGenerated -and $RequirePdf -and $pdfCompressionMode -notin @('cached-validated-pdf', 'published-validated-pdf')) {
         Save-LocalGptDocumentationPdfCache `
             -CacheEntryRoot $documentationCacheEntryRoot `
             -PdfPath $pdfPath `

@@ -44,3 +44,11 @@ Stop and report clearly when:
 - the PDF is incomplete;
 - release assets do not contain the complete docs tree;
 - publishing credentials/permissions are unavailable.
+
+### Reusing a previously printed handbook
+
+A rebuild with the **same LocalGPT version** first prefers the validated content-addressed DocFX/PDF cache. This exact cache uses hashes of the compiled assembly, XML comments, documentation sources, and documentation script; rebuilding the assembly can therefore change the key even when the handbook version is unchanged.
+
+If the exact cache misses, `Build-Documentation.ps1` can recover the last **published PDF for that same version** from `src/LocalGPT/wwwroot/help-docs` or the supplied output web root **before replacing the published HTML**. Recovery requires a matching `documentation-status.json` declaring that exact version/PDF name, a successful DocFX publication, and the same current count of printable HTML source pages. The PDF must pass both complete-file checks and `LocalGPT.ReleasePackaging pdf-verify`. Unverified, stale-version, or different-page-count artifacts are not reused. The existing HTML can still be regenerated when its source-input key changes; reusing the PDF does not mean the HTML is reused.
+
+The **version is the publication identity** for this secondary recovery route. If documentation text or API semantics changed without a version change *but the printable page count remained identical*, the recovered PDF might be older than the new HTML. Therefore increment the project version when changing published content, or explicitly set `FUTURE2_DOCUMENTATION_FORCE_PDF_REBUILD=1` for a fresh PDF in the same version. This override bypasses the complete-PDF cache, same-version recovery, and existing browser chunks; it does not change the repository-local storage architecture. An initial build of a **new version** still has to print a new PDF once. Interrupted runs continue to reuse valid chunks normally when this override is not set.

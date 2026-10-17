@@ -9,6 +9,19 @@ $releaseScripts = @(
 )
 foreach ($file in $releaseScripts) {
     $source = [IO.File]::ReadAllText($file.FullName)
+    # Visual Studio invokes this boundary directly, bypassing the standalone
+    # Assert-PowerShellCompatibility.ps1 used by Build-LocalDevelopment.ps1.
+    # Parse the repository's build/publish scripts with the current Windows
+    # PowerShell parser BEFORE compiling or launching the expensive PDF render.
+    # This detects invalid variable-colon interpolation, among other syntax
+    # errors, without executing a script or requiring Python / new tooling.
+    $tokens = $null
+    $parseErrors = $null
+    [void][System.Management.Automation.Language.Parser]::ParseInput(
+        $source, [ref]$tokens, [ref]$parseErrors)
+    foreach ($parseError in $parseErrors) {
+        $violations.Add("$($file.FullName):$($parseError.Extent.StartLineNumber): PowerShell syntax error: $($parseError.Message)")
+    }
     foreach ($match in [regex]::Matches($source, '(?im)^\s*(?!#)(?:&\s*)?(?:python(?:3)?|py\s+-3)\s+(?:["\x27]?[^\s"\x27]+\.py\b|\$)|Get-Command\s+(?:python3?|py)\b|\.py["\x27]?\s+(?:--(?:root|source|archive|output|product)|2>&1)')) {
         $violations.Add("$($file.FullName): Python architecture/build invocation: $($match.Value.Trim())")
     }
