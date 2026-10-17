@@ -40,6 +40,27 @@ foreach ($group in @($xml.Project.PropertyGroup)) {
         }
     }
 }
+# Release and local-development entrypoints must not invoke scripts that have
+# disappeared from the source archive. This would otherwise fail only after
+# lengthy release prerequisites (or when a Windows developer never exercises
+# the macOS/Linux publish path).
+foreach ($entry in @('Build-Release.ps1', 'Build-LocalDevelopment.ps1')) {
+    $entryPath = Join-Path $root $entry
+    if (-not (Test-Path -LiteralPath $entryPath -PathType Leaf)) {
+        $violations.Add("Missing repository entrypoint: $entry")
+        continue
+    }
+    $entrySource = [IO.File]::ReadAllText($entryPath)
+    $directCalls = [regex]::Matches(
+        $entrySource,
+        '(?im)&\s*\(\s*Join-Path\s+\$root\s+[''"](?<script>build/[^''"]+\.ps1)[''"]\s*\)')
+    foreach ($call in $directCalls) {
+        $relative = $call.Groups['script'].Value
+        if (-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)) {
+            $violations.Add("$entry directly invokes missing PowerShell script: $relative")
+        }
+    }
+}
 $prerequisite = [IO.File]::ReadAllText((Join-Path $root 'build/Initialize-BuildPrerequisites.ps1'))
 if ($prerequisite -match '(?i)Python 3 was not found|python preflight') { $violations.Add('Build prerequisite still demands a Python interpreter.') }
 $workflowPath = Join-Path $root '.github/workflows/publish-shipped-docs.yml'
