@@ -10,7 +10,7 @@ if (-not (Test-Path -LiteralPath $projectFile -PathType Leaf)) { throw "LocalGPT
 if (-not (Test-Path -LiteralPath $webRoot -PathType Container)) { throw "LocalGPT wwwroot is missing: $webRoot" }
 
 [xml]$project = Get-Content -LiteralPath $projectFile -Raw
-$required = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+$requiredAssets = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 
 # Use XPath instead of dynamic XML properties. With Set-StrictMode enabled, reading
 # $itemGroup.Content throws PropertyNotFoundStrict for perfectly valid ItemGroup nodes
@@ -37,7 +37,7 @@ foreach ($content in $contentNodes) {
             'wwwroot/apple-touch-icon.png',
             'wwwroot/css/site.css'
         )) {
-        [void]$required.Add($normalized)
+        [void]$requiredAssets.Add($normalized)
     }
 }
 
@@ -48,11 +48,11 @@ foreach ($relative in @(
     'wwwroot/images/TacosLogos.svg',
     'wwwroot/images/Information.svg'
 )) {
-    [void]$required.Add($relative)
+    [void]$requiredAssets.Add($relative)
 }
 
 $missing = [System.Collections.Generic.List[string]]::new()
-foreach ($relative in ($required | Sort-Object)) {
+foreach ($relative in ($requiredAssets | Sort-Object)) {
     $full = Join-Path $projectRoot $relative
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
         $missing.Add($relative)
@@ -62,5 +62,18 @@ foreach ($relative in ($required | Sort-Object)) {
 if ($missing.Count -gt 0) {
     throw "LocalGPT static-web-asset validation failed. Missing $($missing.Count) maintained asset(s): $($missing -join ', ')"
 }
+# Council evidence uses DevExpress portal/FormLayout wrappers. Its native content grid
+# can only occupy the popup's 90dvh height when the entire intermediate layout stretches.
+$siteCssPath = Join-Path $webRoot 'css/site.css'
+$siteCss = [IO.File]::ReadAllText($siteCssPath)
+foreach ($requiredCssContract in @(
+    'dxbl-modal-dialog.dxbl-popup:has(.localgpt-council-evidence-layout) .dxbl-modal-body',
+    '.localgpt-council-evidence-panes',
+    'grid-template-rows: minmax(0, 1fr);',
+    '.localgpt-council-evidence-pane > .localgpt-live-participant-waiting')) {
+    if (-not $siteCss.Contains($requiredCssContract)) {
+        throw "Council evidence popup no longer stretches/scrolls within the DevExpress viewport: $requiredCssContract"
+    }
+}
 
-Write-Host "Static web asset validation passed for $($required.Count) maintained LocalGPT files." -ForegroundColor Green
+Write-Host "Static web asset validation passed for $($requiredAssets.Count) maintained LocalGPT files." -ForegroundColor Green

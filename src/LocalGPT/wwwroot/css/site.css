@@ -982,6 +982,32 @@ dxbl-popup-root:not(:fullscreen) > dxbl-popup-cell > dxbl-modal dxbl-modal-dialo
     scrollbar-gutter: auto !important;
 }
 
+/* 5.9.2: DevExpress popup bodies wrap their Razor content in form-layout hosts.
+   Make each intermediate box participate in the popup's actual available height;
+   otherwise the right-hand stream pane can stop short of the bottom edge. */
+dxbl-popup-root > dxbl-popup-cell > dxbl-modal dxbl-modal-dialog.dxbl-popup:has(.localgpt-council-evidence-layout) .dxbl-modal-body {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    scrollbar-gutter: auto !important;
+}
+dxbl-popup-root > dxbl-popup-cell > dxbl-modal dxbl-modal-dialog.dxbl-popup:has(.localgpt-council-evidence-layout) .dxbl-modal-body :is(
+    .razor-component-boundary,
+    dxbl-form-layout,
+    dxbl-form-layout-item,
+    .dxbl-fl-ctrl) {
+    min-height: 0 !important;
+    max-height: 100% !important;
+    min-width: 0 !important;
+}
+dxbl-popup-root > dxbl-popup-cell > dxbl-modal dxbl-modal-dialog.dxbl-popup:has(.localgpt-council-evidence-layout) .dxbl-modal-body > .razor-component-boundary,
+dxbl-popup-root > dxbl-popup-cell > dxbl-modal dxbl-modal-dialog.dxbl-popup:has(.localgpt-council-evidence-layout) .dxbl-modal-body > dxbl-form-layout {
+    display: flex !important;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0 !important;
+}
 /* 5.8.1: DevExpress portals Council evidence outside Chat's CSS-isolation scope.
    Keep both complete answers and provider evidence readable without a nested 22rem clamp. */
 .localgpt-council-evidence-layout {
@@ -990,8 +1016,10 @@ dxbl-popup-root:not(:fullscreen) > dxbl-popup-cell > dxbl-modal dxbl-modal-dialo
     gap: .75rem;
     width: 100%;
     min-width: 0;
-    height: calc(90dvh - 5rem);
-    max-height: calc(90dvh - 5rem);
+    flex: 1 1 auto;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
     box-sizing: border-box;
     padding: .65rem .8rem;
     color: var(--localgpt-body-color, var(--bs-body-color, #212529));
@@ -1011,6 +1039,8 @@ dxbl-popup-root:not(:fullscreen) > dxbl-popup-cell > dxbl-modal dxbl-modal-dialo
 .localgpt-council-evidence-panes {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
     flex: 1 1 auto;
     min-height: 0;
     gap: .8rem;
@@ -1020,6 +1050,8 @@ dxbl-popup-root:not(:fullscreen) > dxbl-popup-cell > dxbl-modal dxbl-modal-dialo
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+    height: 100%;
+    align-self: stretch;
     overflow: hidden;
     border: 1px solid var(--localgpt-border-color, var(--bs-border-color, #dee2e6));
     border-radius: .55rem;
@@ -1038,10 +1070,15 @@ dxbl-popup-root:not(:fullscreen) > dxbl-popup-cell > dxbl-modal dxbl-modal-dialo
     min-width: 0;
     min-height: 0;
     max-height: none;
+    height: 100%;
     overflow: auto;
     overflow-wrap: anywhere;
     padding: .8rem 1rem;
     background: transparent;
+}
+.localgpt-council-evidence-pane > .localgpt-live-participant-waiting {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 .localgpt-council-evidence-pane pre { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
 .localgpt-council-evidence-footer {

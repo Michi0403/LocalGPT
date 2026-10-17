@@ -25,6 +25,20 @@ foreach ($file in Get-ChildItem -LiteralPath $source -Recurse -File -Filter '*.c
     }
 }
 & (Join-Path $PSScriptRoot 'Invoke-ArchitectureAudit.ps1') -Mode runtime
+# Council display normalization is invoked on every streamed snapshot. A whole-stream
+# wildcard regex or repeated exception-driven JSON discovery can stall the Blazor circuit.
+$assessmentTranslatorPath = Join-Path $source 'Services/Formatting/StructuredTextTranslationService.cs'
+if (-not (Test-Path -LiteralPath $assessmentTranslatorPath -PathType Leaf)) {
+    $failures.Add('Required structured-text translation service is missing.')
+} else {
+    $assessmentTranslator = [IO.File]::ReadAllText($assessmentTranslatorPath)
+    foreach ($required in @('TryFindAssessmentTag(', 'LooksLikeCompleteAssessmentJson(', 'HasRejectedAssessmentJson(', 'RememberRejectedAssessmentJson(', 'ReportInvalidAssessment(')) {
+        if (-not $assessmentTranslator.Contains($required)) { $failures.Add("Assessment streaming guard lost $required") }
+    }
+    if ($assessmentTranslator -match 'selfAssessmentBlockRegex\s*\.\s*(?:Replace|Matches|Match)\s*\(') {
+        $failures.Add('Self-assessment parsing must not apply a wildcard regex to whole Council transcripts.')
+    }
+}
 if ($ReportPath) {
     New-Item -ItemType Directory -Path (Split-Path -Parent ([IO.Path]::GetFullPath($ReportPath))) -Force | Out-Null
     [IO.File]::WriteAllText([IO.Path]::GetFullPath($ReportPath), ($failures -join [Environment]::NewLine))

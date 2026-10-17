@@ -132,6 +132,30 @@ In LocalGPT **5.9.0**, `Chat.razor.cs` keeps `OnInitializedAsync` side-effect-li
 
 This is a *runtime-process* separation, not a merger of three Council business services. The services remain distinct because collaboration decisions, session progress, and run configuration carry different business contracts.
 
+## Council streaming-format reaction: complete versus incomplete evidence
+
+The self-assessment display formatter is an adapter, not the owner of a Council result. Each growing provider snapshot is an event. Parsing must react differently depending on whether the fixed assessment envelope is complete. The authoritative JSON parser only receives a complete, structurally plausible object or array; malformed or in-progress evidence remains readable as **inert escaped source**.
+
+```mermaid
+stateDiagram-v2
+    [*] --> NoAssessmentTag
+    NoAssessmentTag --> AwaitingClosingTag: opening tag received
+    NoAssessmentTag --> DisplayOriginal: ordinary transcript
+    AwaitingClosingTag --> AwaitingClosingTag: streaming chunks arrive
+    AwaitingClosingTag --> CandidateComplete: recognized closing tag
+    CandidateComplete --> InertPayload: not a complete JSON container
+    CandidateComplete --> JsonValidation: balanced container
+    JsonValidation --> StructuredDisplay: valid JSON
+    JsonValidation --> InertPayload: syntax invalid
+    InertPayload --> InertPayload: repeated snapshot uses bounded rejection fingerprint
+    StructuredDisplay --> [*]
+    DisplayOriginal --> [*]
+```
+
+In 5.9.2, protocol-tag recognition is a deterministic forward scan, not a regex with multi-line wildcard backtracking on the entire transcript. The preflight rejects non-JSON payloads (including a leading `i`), incomplete containers and unbalanced strings before parsing. A bounded, thread-safe negative cache stores **fingerprints, not private text**, so repeated malformed complete payloads do not repeatedly throw first-chance JSON exceptions. Rejection diagnostics are sampled and report reason, lengths, and JSON line/byte position when available. No tool output is trusted or executed by this presentation layer.
+
+The Council inspection popup is another lifecycle-sensitive adapter: the portal, DevExpress modal body, FormLayout and pane grid must all inherit the available viewport height. The final-answer and provider-stream panes independently own their scroll positions. They do not control Council execution or retention.
+
 ## Future consolidation decision record
 
 When analyzing apparently duplicated services, record:

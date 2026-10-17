@@ -35,7 +35,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     /// Defines the JSON scalar pattern name constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string JsonScalarPatternName = "builtin.json-scalar-pattern";
-    /// <summary>Defines the database-overridable display-recognition pattern used for LocalGPT self-assessment envelopes.</summary>
+    /// <summary>Legacy catalog identifier retained for stored regex compatibility; fixed assessment protocol tags now use deterministic scanning.</summary>
     public const string SelfAssessmentBlockPatternName = "builtin.localgpt-self-assessment-block-pattern";
 
     /// <summary>
@@ -58,11 +58,12 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     /// Stores the internal key token regex state used by <see cref="StructuredTextTranslationService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex keyTokenRegex;
-    /// <summary>
-    /// Matches the two LocalGPT self-assessment envelope spellings emitted by Council prompts, whether
-    /// the model-owned tag brackets are still HTML-encoded or already literal.
-    /// </summary>
-    private readonly Regex selfAssessmentBlockRegex;
+    /// <summary>Number of invalid assessment payloads observed; diagnostics are sampled so streaming snapshots cannot flood logs.</summary>
+    private long invalidAssessmentCount;
+    /// <summary>Only fingerprints, never private payload text, are retained to suppress repeat parse exceptions across streamed snapshots.</summary>
+    private readonly HashSet<(ulong Fingerprint, int Length)> rejectedAssessmentJson = new();
+    /// <summary>Protects the bounded negative cache from concurrent model/rendering threads.</summary>
+    private readonly object rejectedAssessmentJsonGate = new();
     /// <summary>
     /// Stores the logger used by <see cref="StructuredTextTranslationService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -124,12 +125,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
             "CultureInvariant|Compiled",
             runtimePolicy.RegexTimeout);
 
-        selfAssessmentBlockRegex = CreateCatalogRegex(
-            initialDataCatalog.RegexPatterns,
-            SelfAssessmentBlockPatternName,
-            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredSelfAssessmentEnvelope).ToString(),
-            "IgnoreCase|Singleline|Compiled|CultureInvariant",
-            runtimePolicy.RegexTimeout);
+        // Assessment envelopes are protocol tags, not an unbounded regex over a live stream.
+        // The legacy catalog key stays available for persisted data compatibility, but the
+        // streaming renderer resolves these fixed tags with a linear scan below.
     }
 
     /// <summary>
@@ -177,6 +175,8 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
                 continue;
             }
 
+            if (!LooksLikeCompleteAssessmentJson(candidate.Json))
+                continue;
             try
             {
                 using var document = JsonDocument.Parse(candidate.Json, documentOptions);
@@ -244,71 +244,272 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         if (string.IsNullOrWhiteSpace(text))
             return text ?? string.Empty;
 
+        // Most Council snapshots have no assessment envelope at all. Do not run a multi-line
+        // wildcard regex over the entire (growing) transcript on every Blazor render.
+        if (text.IndexOf("<localgpt-self-", StringComparison.OrdinalIgnoreCase) < 0 &&
+            text.IndexOf("&lt;localgpt-self-", StringComparison.OrdinalIgnoreCase) < 0)
+            return text;
+
         try
         {
-            return selfAssessmentBlockRegex.Replace(text, match =>
+            StringBuilder? output = null;
+            var cursor = 0;
+            while (TryFindAssessmentTag(text, cursor, closing: false, out var openStart, out var openEnd, out var tag))
             {
-                var tag = match.Groups["tag"].Value;
+                if (!TryFindAssessmentTag(text, openEnd, closing: true, out var closeStart, out var closeEnd, out _))
+                    break; // Incomplete live stream: keep the original text until the tag closes.
 
-                // Both LocalGPT assessment envelope spellings carry the same structured-data contract.
-                // Local models occasionally mix the two names between opening and closing tags; accepting
-                // either recognized closing spelling repairs display formatting without trusting arbitrary tags.
-                // Model-visible content is HTML-encoded by ChatResponseFormatter. Decode exactly once
-                // inside this recognized data envelope, then encode again at the final controlled HTML boundary.
-                var jsonText = System.Net.WebUtility.HtmlDecode(match.Groups["json"].Value).Trim();
-                if (jsonText.Length > 1 && jsonText[^1] == '\\' && jsonText[^2] is '}' or ']')
-                    jsonText = jsonText[..^1].TrimEnd();
-                if (jsonText.Length == 0 || jsonText.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumJsonDocumentCharacters)))
-                    return BuildTaggedPayloadCodeBlock(tag, jsonText, isValidJson: false);
+                // The original protocol accepts either recognized closing spelling for both
+                // assessment kinds. HTML-encoded and literal brackets are equally recognized.
+                output ??= new StringBuilder(text.Length);
+                var replaceStart = GetAssessmentHeadingStart(text, cursor, openStart);
+                output.Append(text, cursor, replaceStart - cursor);
+                var payload = System.Net.WebUtility.HtmlDecode(text[openEnd..closeStart]).Trim();
+                if (payload.Length > 1 && payload[^1] == '\\' && payload[^2] is '}' or ']')
+                    payload = payload[..^1].TrimEnd();
 
-                try
+                if (payload.Length == 0 ||
+                    payload.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumJsonDocumentCharacters)))
                 {
-                    using var document = JsonDocument.Parse(jsonText, documentOptions);
-                    if (document.RootElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
-                        return BuildTaggedPayloadCodeBlock(tag, jsonText, isValidJson: false);
-
-                    var markdown = RenderElement(document.RootElement, 0, null);
-                    var normalizedJson = JsonSerializer.Serialize(
-                        document.RootElement,
-                        new JsonSerializerOptions
+                    ReportInvalidAssessment("EmptyOrOverPolicyLimit", payload.Length, text.Length, null);
+                    output.Append(BuildTaggedPayloadCodeBlock(tag, payload, isValidJson: false));
+                }
+                else if (!LooksLikeCompleteAssessmentJson(payload))
+                {
+                    ReportInvalidAssessment("NotACompleteJsonContainer", payload.Length, text.Length, null);
+                    output.Append(BuildTaggedPayloadCodeBlock(tag, payload, isValidJson: false));
+                }
+                else if (HasRejectedAssessmentJson(payload))
+                {
+                    ReportInvalidAssessment("PreviouslyRejectedJsonSyntax", payload.Length, text.Length, null);
+                    output.Append(BuildTaggedPayloadCodeBlock(tag, payload, isValidJson: false));
+                }
+                else
+                {
+                    try
+                    {
+                        using var document = JsonDocument.Parse(payload, documentOptions);
+                        if (document.RootElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
                         {
-                            WriteIndented = true,
-                            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                        });
-                    var label = tag.Contains("annotated", StringComparison.OrdinalIgnoreCase)
-                        ? "Self-annotated assessment"
-                        : "Self-assessment";
-                    return new StringBuilder()
-                        .AppendLine("<details class=\"localgpt-json-translation\" open>")
-                        .Append("<summary>").Append(label).AppendLine(" · structured data</summary>")
-                        .AppendLine()
-                        .AppendLine(markdown)
-                        .AppendLine()
-                        .AppendLine("<details class=\"localgpt-json-source\">")
-                        .AppendLine("<summary>Raw JSON</summary>")
-                        .Append("<pre><code class=\"language-json\">")
-                        .Append(Encode(normalizedJson))
-                        .AppendLine("</code></pre>")
-                        .AppendLine("</details>")
-                        .Append("</details>")
-                        .ToString();
+                            ReportInvalidAssessment("UnexpectedJsonRoot", payload.Length, text.Length, null);
+                            output.Append(BuildTaggedPayloadCodeBlock(tag, payload, isValidJson: false));
+                        }
+                        else
+                        {
+                            var markdown = RenderElement(document.RootElement, 0, null);
+                            var normalizedJson = JsonSerializer.Serialize(
+                                document.RootElement,
+                                new JsonSerializerOptions
+                                {
+                                    WriteIndented = true,
+                                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                                });
+                            var label = tag.Contains("annotated", StringComparison.OrdinalIgnoreCase)
+                                ? "Self-annotated assessment"
+                                : "Self-assessment";
+                            output.AppendLine("<details class=\"localgpt-json-translation\" open>")
+                                .Append("<summary>").Append(label).AppendLine(" · structured data</summary>")
+                                .AppendLine()
+                                .AppendLine(markdown)
+                                .AppendLine()
+                                .AppendLine("<details class=\"localgpt-json-source\">")
+                                .AppendLine("<summary>Raw JSON</summary>")
+                                .Append("<pre><code class=\"language-json\">")
+                                .Append(Encode(normalizedJson))
+                                .AppendLine("</code></pre>")
+                                .AppendLine("</details>")
+                                .AppendLine("</details>");
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        RememberRejectedAssessmentJson(payload);
+                        ReportInvalidAssessment("JsonSyntax", payload.Length, text.Length, ex);
+                        output.Append(BuildTaggedPayloadCodeBlock(tag, payload, isValidJson: false));
+                    }
                 }
-                catch (JsonException)
-                {
-                    return BuildTaggedPayloadCodeBlock(tag, jsonText, isValidJson: false);
-                }
-            });
-        }
-        catch (RegexMatchTimeoutException ex)
-        {
-            logger.LogWarning(ex, "LocalGPT self-assessment display normalization timed out; the original text will remain visible.");
-            return text;
+                cursor = closeEnd;
+            }
+
+            if (output is null)
+                return text;
+            output.Append(text, cursor, text.Length - cursor);
+            return output.ToString();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "LocalGPT self-assessment display normalization failed; payload content was omitted from logs.");
+            logger.LogError(ex, "LocalGPT self-assessment display normalization failed; the original text remains visible and payload content was omitted from logs.");
             return text;
         }
+    }
+
+    /// <summary>Consumes an optional Markdown heading prefix immediately before an assessment tag, preserving legacy formatting.</summary>
+    private int GetAssessmentHeadingStart(string text, int cursor, int openStart)
+    {
+        var lineStart = text.LastIndexOf('\n', Math.Max(0, openStart - 1)) + 1;
+        if (lineStart < cursor || openStart - lineStart > 8)
+            return openStart;
+        var pos = lineStart;
+        while (pos < openStart && pos - lineStart < 6 && text[pos] == '#') pos++;
+        if (pos == lineStart || pos == openStart || text[pos] is not (' ' or '\t'))
+            return openStart;
+        while (pos < openStart && text[pos] is ' ' or '\t') pos++;
+        return pos == openStart ? lineStart : openStart;
+    }
+
+    /// <summary>
+    /// Locates a recognized assessment opening or closing tag in a single forward pass.
+    /// Fixed protocol delimiters do not require a regex or a matching timeout.
+    /// </summary>
+    private bool TryFindAssessmentTag(string text, int from, bool closing, out int start, out int end, out string tag)
+    {
+        var literalPrefix = closing ? "</localgpt-self-" : "<localgpt-self-";
+        var encodedPrefix = closing ? "&lt;/localgpt-self-" : "&lt;localgpt-self-";
+        start = -1;
+        end = -1;
+        tag = string.Empty;
+        while (from < text.Length)
+        {
+            var literal = text.IndexOf(literalPrefix, from, StringComparison.OrdinalIgnoreCase);
+            var encoded = text.IndexOf(encodedPrefix, from, StringComparison.OrdinalIgnoreCase);
+            if (literal < 0 && encoded < 0)
+                return false;
+
+            var isEncoded = literal < 0 || (encoded >= 0 && encoded < literal);
+            start = isEncoded ? encoded : literal;
+            var nameStart = start + (isEncoded ? encodedPrefix.Length : literalPrefix.Length);
+            var suffix = isEncoded ? "&gt;" : ">";
+            const string shortName = "assessment";
+            const string annotatedName = "annotated-assessment";
+            var name = text.AsSpan(nameStart).StartsWith(annotatedName, StringComparison.OrdinalIgnoreCase)
+                ? annotatedName
+                : text.AsSpan(nameStart).StartsWith(shortName, StringComparison.OrdinalIgnoreCase)
+                    ? shortName
+                    : string.Empty;
+            end = nameStart + name.Length;
+            if (name.Length > 0 && text.AsSpan(end).StartsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                end += suffix.Length;
+                tag = "localgpt-self-" + name;
+                return true;
+            }
+            from = start + 1;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Rejects ordinary prose and incomplete JSON without allocating parser exceptions.
+    /// JsonDocument remains the authoritative grammar validator for complete candidates.
+    /// </summary>
+    private bool LooksLikeCompleteAssessmentJson(string json)
+    {
+        if (json.Length < 2 || (json[0] != '{' && json[0] != '[') ||
+            (json[^1] != '}' && json[^1] != ']'))
+            return false;
+
+        Span<char> openings = stackalloc char[MaximumDepth];
+        var depth = 0;
+        var quoted = false;
+        var escaped = false;
+        var lineComment = false;
+        var blockComment = false;
+        for (var i = 0; i < json.Length; i++)
+        {
+            var ch = json[i];
+            if (lineComment)
+            {
+                if (ch is '\r' or '\n') lineComment = false;
+                continue;
+            }
+            if (blockComment)
+            {
+                if (ch == '*' && i + 1 < json.Length && json[i + 1] == '/')
+                {
+                    blockComment = false;
+                    i++;
+                }
+                continue;
+            }
+            if (quoted)
+            {
+                if (escaped) escaped = false;
+                else if (ch == '\\') escaped = true;
+                else if (ch == '"') quoted = false;
+                continue;
+            }
+            if (ch == '"') { quoted = true; continue; }
+            if (ch == '/' && i + 1 < json.Length && json[i + 1] == '/')
+            {
+                lineComment = true;
+                i++;
+                continue;
+            }
+            if (ch == '/' && i + 1 < json.Length && json[i + 1] == '*')
+            {
+                blockComment = true;
+                i++;
+                continue;
+            }
+            if (ch is '{' or '[')
+            {
+                if (depth == MaximumDepth) return false;
+                openings[depth++] = ch;
+            }
+            else if (ch is '}' or ']')
+            {
+                if (depth == 0 || (openings[--depth] == '{' ? ch != '}' : ch != ']'))
+                    return false;
+                if (depth == 0 && i < json.Length - 1)
+                    return false;
+            }
+        }
+        return depth == 0 && !quoted && !blockComment;
+    }
+
+    /// <summary>Checks a bounded negative cache without persisting uploaded or model-owned content.</summary>
+    private bool HasRejectedAssessmentJson(string json)
+    {
+        var key = GetAssessmentJsonFingerprint(json);
+        lock (rejectedAssessmentJsonGate)
+            return rejectedAssessmentJson.Contains(key);
+    }
+
+    /// <summary>Stores a bounded fingerprint only after System.Text.Json confirms invalid syntax.</summary>
+    private void RememberRejectedAssessmentJson(string json)
+    {
+        var key = GetAssessmentJsonFingerprint(json);
+        lock (rejectedAssessmentJsonGate)
+        {
+            if (rejectedAssessmentJson.Count >= 512)
+                rejectedAssessmentJson.Clear();
+            rejectedAssessmentJson.Add(key);
+        }
+    }
+
+    /// <summary>Calculates a compact content fingerprint for repeated invalid display-only frames.</summary>
+    private (ulong Fingerprint, int Length) GetAssessmentJsonFingerprint(string json)
+    {
+        // Non-cryptographic FNV-1a is sufficient for a bounded display-only negative cache.
+        // It is never used for trust decisions, identities, file integrity, or authorization.
+        ulong hash = 14695981039346656037UL;
+        foreach (var ch in json)
+        {
+            hash = unchecked((hash ^ ch) * 1099511628211UL);
+        }
+        return (hash, json.Length);
+    }
+
+    /// <summary>Samples invalid assessment diagnostics without emitting private model text or recurring exceptions.</summary>
+    private void ReportInvalidAssessment(string reason, int payloadLength, int sourceLength, JsonException? exception)
+    {
+        var count = Interlocked.Increment(ref invalidAssessmentCount);
+        if (count != 1 && count % 256 != 0)
+            return;
+
+        logger.LogWarning(
+            "LocalGPT assessment display received an unparseable payload: reason={Reason}, occurrence={Occurrence}, payloadCharacters={PayloadLength}, transcriptCharacters={SourceLength}, jsonLine={JsonLine}, jsonBytePosition={JsonBytePosition}. Content omitted; rendered as inert source.",
+            reason, count, payloadLength, sourceLength, exception?.LineNumber, exception?.BytePositionInLine);
     }
 
     /// <summary>
