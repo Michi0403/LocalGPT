@@ -64,3 +64,29 @@ Cross-platform release/local-development prerequisites validate the DevExpress l
 Windows Debug/Release builds also use Python 3 to validate and seed the version-matched GitHub Pages snapshot from the documentation output of that exact build.
 
 The Pages extractor accepts UTF-8 files with or without BOM, normalizes ZIP separators, rejects unsafe paths, and chooses the strongest complete release candidate.
+
+## Repository-owned packaging helper: one-command execution contract
+
+`Build-Release.ps1` and `Build-LocalDevelopment.ps1` both call `build/Ensure-ReleasePackagingPackage.ps1`. The helper **must** automatically create or repair its distributable NuGet package and verify the original PDFsharp MIT and third-party notice bytes (SHA-256), without requiring the operator to invoke a separate command.
+
+The build runs the **framework-dependent host executable published from the local project source**, not a second NuGet tool installation into `artifacts/release-tools/.store/.stage`. This avoids relying on NuGet tool extraction permissions on external macOS build volumes, while retaining the NuGet package as a separately verified release deliverable. The exact capability `pdf-merge-input-list` is checked against the published executable before starting expensive documentation. A publish or capability failure stops the build rather than silently dropping PDF functionality.
+
+```mermaid
+sequenceDiagram
+    participant Entry as Release / Local Development
+    participant Ensure as Ensure-ReleasePackagingPackage
+    participant NuGet as Local .nupkg
+    participant SDK as .NET publish
+    participant Helper as Published apphost
+    Entry->>Ensure: Prepare helper (one command)
+    Ensure->>NuGet: Build or repair if required
+    Ensure->>NuGet: Verify license hashes
+    Ensure->>SDK: Publish project executable
+    SDK-->>Ensure: Local apphost path
+    Ensure->>Helper: capabilities
+    Helper-->>Ensure: pdf-merge-input-list
+    Ensure-->>Entry: Verified executable path
+    Entry->>Helper: Documentation PDF / native packaging
+```
+
+The locally packed NuGet artifact is validated for included license contents; installation of that artifact by unrelated `dotnet tool install` consumers is not established by the direct-apphost smoke check and must be tested separately before claiming package-installability.

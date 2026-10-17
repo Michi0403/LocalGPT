@@ -52,6 +52,33 @@ public sealed partial class OllamaThinkingChatClient
                 return response;
             }
 
+            // A normal chat can have hundreds of eligible DXFunctions. Some Ollama models
+            // reject that much native JSON schema metadata even though they support tools.
+            // Retry once with the shared discovery broker and upload-workspace readers
+            // before concluding that this provider cannot execute native functions.
+            // An explicit strict tool policy is never broadened or silently rewritten.
+            if (request.Tools is { Count: > 48 } &&
+                (automaticFunctionAllowList is null || automaticFunctionAllowList.Contains("dxai.tools.invoke")))
+            {
+                var compactTools = request.Tools.Where(tool =>
+                    tool.Function.Name.StartsWith("dxai_tools_", StringComparison.OrdinalIgnoreCase) ||
+                    tool.Function.Name.StartsWith("chat_upload_workspace_", StringComparison.OrdinalIgnoreCase)).ToList();
+                if (compactTools.Count > 0 && compactTools.Count < request.Tools.Count)
+                {
+                    var originalToolCount = request.Tools.Count;
+                    response.Dispose();
+                    request.Tools = compactTools;
+                    var compactResponse = await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
+                    logger.LogInformation(
+                        "Ollama model {Model} native-tool compatibility retry: {OriginalToolCount} schemas reduced to {CompactToolCount}; HTTP {StatusCode}. Shared discovery/invocation and workspace tools remain available.",
+                        model, originalToolCount, compactTools.Count, (int)compactResponse.StatusCode);
+                    if (compactResponse.IsSuccessStatusCode ||
+                        compactResponse.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
+                        return compactResponse;
+                    response = compactResponse;
+                }
+            }
+
             // Newer Ollama runtimes expose provider reasoning only when the request explicitly opts into
             // thinking. Older runtimes/models may reject that field. Probe once per provider-qualified
             // model, remember the result, and preserve the normal request instead of breaking chat.
@@ -150,9 +177,18 @@ public sealed partial class OllamaThinkingChatClient
             if (functions.Count == 0)
                 return;
 
+            // A provider that cannot receive native tools must not receive hundreds
+            // of tool descriptions as unbounded system-prompt text either. The
+            // registry remains fully accessible through dxai.tools.discover/invoke.
+            // Keep explicit strict/preferred tool lists intact.
+            var advertisedFunctions = automaticFunctionAllowList is null && functions.Count > 48
+                ? functions.Where(function =>
+                    function.Name.StartsWith("dxai.tools.", StringComparison.OrdinalIgnoreCase) ||
+                    function.Name.StartsWith("chat.upload_workspace_", StringComparison.OrdinalIgnoreCase)).ToList()
+                : functions;
             var functionDirectory = string.Join(
                 Environment.NewLine,
-                functions.Select(function => $"- {function.Name}: {function.Parameters}"));
+                advertisedFunctions.Select(function => $"- {function.Name}: {function.Parameters}"));
             request.Messages.Insert(0, new OllamaChatMessage
             {
                 Role = "system",
@@ -162,14 +198,14 @@ public sealed partial class OllamaThinkingChatClient
                 If a function is genuinely needed, emit one standalone JSON object with exactly this shape and no invented function name:
                 {"functionName":"exact.registry.name","arguments":{}}
                 LocalGPT will validate the exact registry name, apply normal automatic/deferred approval policy, execute it when permitted, display the tool activity, return the tool result, and then continue your response.
-                Do not guess a function name. If the capability you want is not in the directory below, report it as a requested capability instead of pretending it exists.
+                Do not guess a function name. If another registered capability is needed, first call dxai.tools.discover with a narrow search query; use dxai.tools.preview with the exact name and parameters to get a previewFingerprint, then call dxai.tools.invoke with that fingerprint. Preserve approval requirements. Only report a capability gap if discovery confirms it is unavailable.
                 Exact automatic/deferred function directory for this request:
                 {{{functionDirectory}}}
                 """
             });
             logger.LogInformation(
                 "Attached textual DXFunction fallback instructions with {FunctionCount} exact registry name(s) for Ollama model {Model} because native tool metadata is unavailable.",
-                functions.Count,
+                advertisedFunctions.Count,
                 model);
         }
         catch (Exception ex)

@@ -103,7 +103,19 @@ $documentationToolCacheBase = Get-LocalGptDocumentationToolCacheRoot -FallbackRo
 $documentationCacheRoot = Join-Path $documentationToolCacheBase 'release-payload/LocalGPT' 
 $documentationPrepared = $false
 $releaseZipPaths = New-Object 'System.Collections.Generic.List[string]'
-$releasePackagingVersion = '1.0.7'
+# The release packaging NuGet version is owned by its project, not by a
+# second constant in the release coordinator. This remains independent of
+# the LocalGPT application version and the 1-Wire protocol package version.
+$releasePackagingProject = Join-Path $solutionRoot 'LocalGPT.ReleasePackaging/LocalGPT.ReleasePackaging.csproj'
+if (-not (Test-Path -LiteralPath $releasePackagingProject -PathType Leaf)) {
+    throw "Required release-packaging project is missing: $releasePackagingProject"
+}
+[xml]$releasePackagingProjectXml = Get-Content -LiteralPath $releasePackagingProject -Raw
+$releasePackagingVersion = [string]$releasePackagingProjectXml.Project.PropertyGroup.Version
+if ([string]::IsNullOrWhiteSpace($releasePackagingVersion)) {
+    throw "LocalGPT.ReleasePackaging must declare a package version in its project."
+}
+Write-Host "LocalGPT.ReleasePackaging version $releasePackagingVersion resolved from its project." -ForegroundColor DarkCyan
 $releasePackagingPackageName = "LocalGPT.ReleasePackaging.$releasePackagingVersion.nupkg"
 $releasePackagingPackage = Join-Path $packageDirectory $releasePackagingPackageName
 $thirdPartyNoticesPath = Join-Path $root 'THIRD-PARTY-NOTICES.txt'

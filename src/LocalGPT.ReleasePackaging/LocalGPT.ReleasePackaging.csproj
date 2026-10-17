@@ -7,16 +7,25 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>localgpt-release-packaging</ToolCommandName>
     <PackageId>LocalGPT.ReleasePackaging</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.1.2</Version>
     <Authors>Michi0403</Authors>
     <Description>Repository-owned deterministic release packaging primitives shared by LocalGPT and PublisherStudio.</Description>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
-  <ItemGroup>
-    <None Include="..\..\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="licenses/THIRD-PARTY-NOTICES.txt" />
-    <None Include="..\..\third_party\PDFsharp\LICENSE" Pack="true" PackagePath="licenses/PDFsharp-6.2.4-MIT-LICENSE.txt" />
-  </ItemGroup>
+  <!-- NuGet tool packages collect publish output through PackTool. Put redistributable
+       notices into its explicit package-file list rather than assuming generic None
+       content is included. Keep the SDK-generated tool layout unchanged. -->
+  <Target Name="IncludeLocalGptToolNotices" BeforeTargets="PackTool" Condition="'$(PackAsTool)' == 'true'">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(MSBuildProjectDirectory)/../../THIRD-PARTY-NOTICES.txt">
+        <PackagePath>licenses/THIRD-PARTY-NOTICES.txt</PackagePath>
+      </TfmSpecificPackageFile>
+      <TfmSpecificPackageFile Include="$(MSBuildProjectDirectory)/../../third_party/PDFsharp/LICENSE">
+        <PackagePath>licenses/PDFsharp-6.2.4-MIT-LICENSE.txt</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
   <ItemGroup>
     <!-- Keep the .NET 10 security-serviced PKCS version pinned. -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />

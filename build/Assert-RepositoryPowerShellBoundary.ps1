@@ -69,6 +69,35 @@ else {
     $workflow = [IO.File]::ReadAllText($workflowPath)
     if ($workflow -match '(?i)python3?\s+|\.py\b') { $violations.Add('GitHub Pages workflow still executes Python.') }
 }
+# A top-level build must own its tool preparation. A repaired helper/package is
+# useless if developers must invoke a separate publish command first.
+$oneCommandBuildContracts = @{
+    'Build-Release.ps1' = @('build/Ensure-ReleasePackagingPackage.ps1')
+    'Build-LocalDevelopment.ps1' = @('build/Ensure-ReleasePackagingPackage.ps1', '-PackagingTool $packagingTool')
+    'build/Ensure-ReleasePackagingPackage.ps1' = @('build/Publish-ReleasePackagingPackage.ps1', '$packageNeedsRebuild', 'catch {', 'dotnet publish', 'UseAppHost=true', 'pdf-merge-input-list')
+    'build/Publish-ReleasePackagingPackage.ps1' = @('CreateEntry($entryName', 'build/Assert-ReleasePackagingPackageNotices.ps1')
+}
+foreach ($entry in $oneCommandBuildContracts.Keys) {
+    $entryPath = Join-Path $root $entry
+    if (-not (Test-Path -LiteralPath $entryPath -PathType Leaf)) {
+        $violations.Add("Missing one-command build dependency: $entry")
+        continue
+    }
+    $entryText = [IO.File]::ReadAllText($entryPath)
+    foreach ($contract in $oneCommandBuildContracts[$entry]) {
+        if ($entryText.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+            $violations.Add("One-command build contract missing from ${entry}: $contract")
+        }
+    }
+}
+# The build helper is compiled from this repository; installing its own local
+# NuGet package is not a prerequisite and can fail during .store/.stage
+# extraction on external macOS volumes. Both entrypoints must run the
+# published apphost, while retaining distributable-package notice checks.
+$packagePreparation = [IO.File]::ReadAllText((Join-Path $root 'build/Ensure-ReleasePackagingPackage.ps1'))
+if ($packagePreparation -match '(?im)^\s*(?:&\s*)?dotnet\s+tool\s+install\b') {
+    $violations.Add('The release-packaging preparation must not require dotnet tool install; publish its repository-owned apphost instead.')
+}
 if ($violations.Count -gt 0) {
     foreach ($violation in $violations) { Write-Host "Repository PowerShell boundary: $violation" -ForegroundColor Red }
     throw "PowerShell-only build/publish boundary failed with $($violations.Count) issue(s)."

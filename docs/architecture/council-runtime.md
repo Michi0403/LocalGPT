@@ -111,3 +111,67 @@ sequenceDiagram
 ```
 
 **Migration note:** Between the provided 5.6.1 and 5.7.1 source versions, a `null` tool list was reinterpreted as *broker-only*. LocalGPT 5.9.1 restores the unrestricted 5.5.0 behavior. Existing persisted Council team/step choices remain authoritative; no saved preferences or strict settings are rewritten during migration.
+
+
+## Provider-native tool compatibility and workspace access
+
+LocalGPT's uploaded-file reader is an **application capability**, not a Game Project
+Development Team-specific feature. Direct chat and Council both use the same
+scoped DXFunction registry and the same Ollama tool adapter. The runtime process
+must not infer absence of uploaded files from a tool-name resolution failure.
+
+```mermaid
+stateDiagram-v2
+    [*] --> AdvertiseTools
+    AdvertiseTools --> NativeCall: Provider accepts tool metadata
+    AdvertiseTools --> CompactRetry: 400/501 with large normal tool catalog
+    CompactRetry --> NativeCall: Compact broker and file readers accepted
+    CompactRetry --> TextualRecovery: Metadata still unsupported
+    AdvertiseTools --> TextualRecovery: Provider model known incompatible
+    TextualRecovery --> Registry: Recovered function call
+    NativeCall --> Registry: Native function call
+    Registry --> Policy: Resolve canonical name and authorization
+    Policy --> ReadWorkspace: Authorized workspace reader
+    Policy --> Reject: Strict/disabled/invalid call
+    ReadWorkspace --> Continue: Concrete file content/result
+    Reject --> Continue: Recorded failed function result
+```
+
+In unrestricted direct chat, the normal first attempt still advertises the eligible
+function catalog. If a provider rejects a **large** native schema request, retry a
+compact **shared** directory of DXFunction discovery/preview/invoke and the
+`chat.upload_workspace_*` readers, rather than immediately disabling all native
+tools. In text-only recovery, the compact directory avoids overwhelming a small
+model's context; additional capabilities remain discoverable through the policy-
+checked broker. An explicit strict workflow policy is **not** broadened.
+
+The broker's invoke operation requires a preceding preview fingerprint; discovery
+alone is not approval or proof of a file read. Each tool result must be returned to
+the model, and the Council's separate source-evidence gate must observe a *successful
+read* before accepting source-dependent conclusions. Resolution failures now log
+a bounded tool name, provider model, and policy dimensions without exposing files.
+
+The same runtime source files contain the direct-chat path. A successful static
+inspection alone does **not** establish that a real Ollama/LM Studio model can
+complete a chat or read a file: both need end-to-end provider replays.
+
+## One-command release and development packaging
+
+```mermaid
+flowchart TD
+    R[Build-Release.ps1 / Build-LocalDevelopment.ps1] --> P[Ensure repository packaging helper]
+    P --> V{Cached NuGet tool package valid?}
+    V -->|Yes| I[Install / select isolated tool]
+    V -->|No| B[Build and pack from source]
+    B --> N[Embed exact root license and notice entries]
+    N --> H[SHA-256 notice verification]
+    H --> I
+    I --> D[Build application and DocFX/PDF]
+    D --> O[Produce and validate deliverables]
+```
+
+No user-run package publication command is a precondition. A missing or corrupted
+local NuGet helper package is rebuilt automatically; a rebuilt package must pass
+its original SHA-256 license-content guard or the single build command fails.
+The helper still owns its own version and its package version only changes when
+that helper's distributed contents change.

@@ -164,6 +164,16 @@ if (-not (Test-Path -LiteralPath $documentationScript -PathType Leaf)) { throw "
 if (-not (Test-Path -LiteralPath $documentationAssembly -PathType Leaf)) { throw "Documentation assembly not found: $documentationAssembly" }
 if (-not (Test-Path -LiteralPath $documentationXml -PathType Leaf)) { throw "Documentation XML not found: $documentationXml" }
 
+# Debug/development entrypoint owns its documentation merge helper prerequisites,
+# just like the release entrypoint. No separate dotnet pack/tool install step.
+$releasePackagingProject = Join-Path $solutionRoot 'LocalGPT.ReleasePackaging/LocalGPT.ReleasePackaging.csproj'
+$releasePackagingVersion = Resolve-ProjectVersion -ProjectPath $releasePackagingProject
+$packagingToolOutput = @(& (Join-Path $root 'build/Ensure-ReleasePackagingPackage.ps1') -Configuration $Configuration -Version $releasePackagingVersion)
+if ($packagingToolOutput.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$packagingToolOutput[0])) {
+    throw "LocalGPT development packaging helper preparation did not return exactly one executable."
+}
+$packagingTool = [string]$packagingToolOutput[0]
+if (-not (Test-Path -LiteralPath $packagingTool -PathType Leaf)) { throw "LocalGPT development packaging helper was not created: $packagingTool" }
 Write-Host "Generating LocalGPT documentation once from the completed RID-neutral application build..." -ForegroundColor Cyan
 & $documentationScript `
     -RepositoryRoot $root `
@@ -171,6 +181,7 @@ Write-Host "Generating LocalGPT documentation once from the completed RID-neutra
     -XmlDocumentationPath $documentationXml `
     -Version $appVersion `
     -OutputWebRoot $documentationRoot `
+    -PackagingTool $packagingTool `
     -RequirePdf:$requireDocumentationPdf
 Assert-LocalGptDocumentation -DocumentationRoot $documentationRoot -Version $appVersion
 if (-not (Test-Path -LiteralPath $pagesSnapshotScript -PathType Leaf)) { throw "GitHub Pages snapshot script not found: $pagesSnapshotScript" }

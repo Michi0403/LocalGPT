@@ -30,6 +30,7 @@ public sealed partial class OllamaThinkingChatClient
         try
         {
             var traces = new List<string>(toolCalls.Count);
+            var missingToolWarningLogged = false;
             foreach (var call in toolCalls)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -38,6 +39,20 @@ public sealed partial class OllamaThinkingChatClient
 
                 if (functionRegistry is null || registryName is null)
                 {
+                    if (!missingToolWarningLogged)
+                    {
+                        // A registered function can still be absent from this request's
+                        // advertised/tool-policy surface. Record which boundary rejected
+                        // it without logging parameters, files, or tool result content.
+                        var requestedName = call.Function.Name ?? string.Empty;
+                        requestedName = requestedName.Replace('\r', ' ').Replace('\n', ' ');
+                        if (requestedName.Length > 128) requestedName = requestedName[..128];
+                        logger.LogWarning(
+                            "Ollama tool name {RequestedTool} was not resolvable for model {Model}; registryPresent={RegistryPresent}, automaticToolsEnabled={AutomaticToolsEnabled}, policyListCount={PolicyListCount}. This is tool exposure/resolution, not proof of a missing workspace file.",
+                            requestedName, model, functionRegistry is not null, automaticToolsEnabled,
+                            automaticFunctionAllowList?.Count ?? -1);
+                        missingToolWarningLogged = true;
+                    }
                     result = new DxAiFunctionInvocationResult
                     {
                         FunctionName = call.Function.Name,
