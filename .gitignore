@@ -34,7 +34,9 @@ build/LocalGPTByMichi0403/
 build/publish-output/
 build/Michi0403_LocalGPT
 build/TelegramBots_Telegram.Bot
-images/
+# Ignore only a scratch images directory at repository root. An unanchored
+# images/ also hides src/LocalGPT/wwwroot/images on fresh Git clones.
+/images/
 
 # Local runtime state and diagnostics
 *.db

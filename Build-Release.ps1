@@ -67,6 +67,14 @@ if (-not (Test-Path -LiteralPath $wslCommonScript -PathType Leaf)) { throw "WSL 
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
+# Confirm the service-owned text policy with the same guard used by MSBuild.
+# Its uninitialized exception-set regression must never be hidden behind a
+# later expensive release stage or a different platform's build ordering.
+& (Join-Path $root 'build/Assert-TextServiceOwnership.ps1')
+# Audit authored image/CSS assets before cleaning bin/obj, signing checks, SDK
+# compilation or the long documentation render. MSBuild also runs this guard.
+# A Git checkout missing an ignored image must fail here with the exact path.
+& (Join-Path $root 'build/Assert-StaticWebAssets.ps1')
 function Clear-RepositoryReleaseBuildState {
     param([switch]$BestEffort)
     $directories = @(

@@ -90,3 +90,47 @@ sequenceDiagram
 ```
 
 The locally packed NuGet artifact is validated for included license contents; installation of that artifact by unrelated `dotnet tool install` consumers is not established by the direct-apphost smoke check and must be tested separately before claiming package-installability.
+
+
+## Release preflight: static source assets and text-service ownership (6.0.6)
+
+Normal `pwsh ./Build-Release.ps1` now executes the existing text-service ownership
+and static-web-asset guards **before** clearing repository `bin/obj`, preflighting
+signing, or building the RID-neutral assembly. Both guards remain in
+`Directory.Build.targets` for Visual Studio Debug and the CLI build. A failure
+cannot be bypassed by choosing a different entrypoint.
+
+The text-service guard has a locally initialized, intentionally empty reviewed
+exception set and self-checks that direct splitting, regex replacement, joining,
+and comparison are still detected. New UI/controller text manipulation belongs
+in injected services; no new exception baseline was introduced.
+
+The static-asset guard enumerates all image and named web assets declared by
+`LocalGPT.csproj` plus the critical runtime files, then verifies that each
+file exists. It also enforces four Council evidence popup CSS contracts. If
+an asset or CSS contract is absent, it prints the exact source-relative path
+or selector before failing. Missing original UI files must be restored;
+removing the guard or the project references is not a repair.
+
+The repository's scratch-image exclusion is now anchored at `/images/`. The
+previous unanchored `images/` entry matched the authored
+`src/LocalGPT/wwwroot/images/` tree and could prevent those source assets from
+entering Git. Files already missing from an existing Git checkout must be
+restored from authoritative source and committed as appropriate; an ignore
+rule change alone does not create missing Git objects. A clean `git status`
+does not prove that ignored files are present or tracked.
+
+```mermaid
+sequenceDiagram
+    participant Release as Build-Release.ps1
+    participant Text as Text-service ownership guard
+    participant Assets as Static-web-asset guard
+    participant SDK as dotnet build / MSBuild
+    Release->>Text: Validate UI/controller service ownership
+    Text-->>Release: Pass or fail with direct-operation details
+    Release->>Assets: Validate required assets and CSS contracts
+    Assets-->>Release: Pass or fail with missing source paths
+    Release->>SDK: Compile and preserve MSBuild guard checks
+    SDK->>Text: Run mandatory ownership validation again
+    SDK->>Assets: Run mandatory static asset validation again
+```

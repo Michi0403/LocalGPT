@@ -6,9 +6,21 @@ $failures = New-Object System.Collections.Generic.List[string]
 # An empty reviewed exception set is intentional: new UI/controller text manipulation
 # must be implemented by an injected service, not grandfathered by a generated baseline.
 $known = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+# No reviewed debt is exempt. Regression checks below ensure an accidentally
+# damaged regex cannot silently pass direct UI/controller text manipulation.
 $sourceRoot = (Join-Path $root 'src/LocalGPT')
 $folders = @('Components','Controllers','Controller')
 $pattern = '(?m)^(?<line>.*(?:\bRegex\s*\.|\bnew\s+Regex\s*\(|\.Replace\s*\(|\.Split\s*\(|\bstring\.Join\s*\(|\bWebUtility\.HtmlDecode\s*\(|\.StartsWith\s*\(|\.EndsWith\s*\(|\.IndexOf\s*\(|\.Substring\s*\(|\.Contains\s*\([^\r\n;]*StringComparison\.).*)$'
+foreach ($probe in @(
+    'var tokens = value.Split(",");',
+    'var result = Regex.Replace(value, pattern, replacement);',
+    'var text = string.Join(",", tokens);',
+    'var found = value.Contains(query, StringComparison.Ordinal);'
+)) {
+    if (-not [regex]::IsMatch($probe, $pattern)) {
+        Fail "Text-service ownership audit is not detecting a protected direct operation: $probe"
+    }
+}
 foreach ($folder in $folders) {
     $path = Join-Path $sourceRoot $folder
     if (-not (Test-Path -LiteralPath $path -PathType Container)) { continue }

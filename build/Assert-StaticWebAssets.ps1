@@ -6,6 +6,7 @@ $projectFile = Join-Path $repositoryRoot "src/LocalGPT/LocalGPT.csproj"
 $projectRoot = Join-Path $repositoryRoot "src/LocalGPT"
 $webRoot = Join-Path $projectRoot "wwwroot"
 
+Write-Host "Preflighting LocalGPT static web assets against the source manifest: $webRoot" -ForegroundColor DarkCyan
 if (-not (Test-Path -LiteralPath $projectFile -PathType Leaf)) { throw "LocalGPT project file is missing: $projectFile" }
 if (-not (Test-Path -LiteralPath $webRoot -PathType Container)) { throw "LocalGPT wwwroot is missing: $webRoot" }
 
@@ -60,7 +61,12 @@ foreach ($relative in ($requiredAssets | Sort-Object)) {
 }
 
 if ($missing.Count -gt 0) {
-    throw "LocalGPT static-web-asset validation failed. Missing $($missing.Count) maintained asset(s): $($missing -join ', ')"
+    Write-Host "LocalGPT static-web-asset validation FAILED: $($missing.Count) missing source asset(s) under $projectRoot" -ForegroundColor Red
+    foreach ($relative in $missing) {
+        Write-Host "  MISSING src/LocalGPT/$relative" -ForegroundColor Red
+    }
+    Write-Host 'These are required authored assets, not build output. Check that the Git checkout contains them; the root .gitignore must not exclude src/LocalGPT/wwwroot/images/.' -ForegroundColor Yellow
+    throw "LocalGPT static-web-asset validation failed: $($missing.Count) required source asset(s) are missing (listed above)."
 }
 # Council evidence uses DevExpress portal/FormLayout wrappers. Its native content grid
 # can only occupy the popup's 90dvh height when the entire intermediate layout stretches.
@@ -72,6 +78,8 @@ foreach ($requiredCssContract in @(
     'grid-template-rows: minmax(0, 1fr);',
     '.localgpt-council-evidence-pane > .localgpt-live-participant-waiting')) {
     if (-not $siteCss.Contains($requiredCssContract)) {
+        Write-Host "LocalGPT static CSS contract missing in src/LocalGPT/wwwroot/css/site.css:" -ForegroundColor Red
+        Write-Host "  $requiredCssContract" -ForegroundColor Red
         throw "Council evidence popup no longer stretches/scrolls within the DevExpress viewport: $requiredCssContract"
     }
 }
