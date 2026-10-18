@@ -162,7 +162,7 @@ namespace LocalGPT.Services
                         round,
                         phase,
                         bootstrap,
-                        string.Equals(team.Key, "game-project-development", StringComparison.OrdinalIgnoreCase) &&
+                        definition.RequiresVerifiedWorkspaceFileRead &&
                         !result.Steps.Any(step => string.Equals(step.ModelName, "LocalGPT: workspace curator gate", StringComparison.Ordinal)),
                         cancellationToken).ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(curationEvidence))
@@ -176,7 +176,7 @@ namespace LocalGPT.Services
                             "Authoritative upload-source inventory and framework declarations (override stale learned facts)",
                             sourceAuthority,
                             logger);
-                    if (string.Equals(definition.Role, "Web research necessity judge", StringComparison.OrdinalIgnoreCase))
+                    if (definition.IncludeLocalResearchEvidence)
                     {
                         var localResearchEvidence = await BuildLocalResearchEvidenceReceiptAsync(cancellationToken).ConfigureAwait(false);
                         gatedBootstrap = MultiModelCouncilServiceAppendPromptSection(
@@ -366,7 +366,8 @@ namespace LocalGPT.Services
                                         finalAnswerRecoveryEnabled: definition.FinalAnswerRecoveryEnabled,
                                         finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens,
                                         toolResultContinuationMode: definition.ToolResultContinuationMode,
-                                        toolResultContinuationRounds: definition.ToolResultContinuationRounds).ConfigureAwait(false);
+                                        toolResultContinuationRounds: definition.ToolResultContinuationRounds,
+                                        strictAutomaticFunctions: automaticFunctionPolicy.IsStrict).ConfigureAwait(false);
                                     break;
                                 }
                             case "AllMembersSequentialOnEachAIHostParallel":
@@ -417,7 +418,8 @@ namespace LocalGPT.Services
                                         finalAnswerRecoveryEnabled: definition.FinalAnswerRecoveryEnabled,
                                         finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens,
                                         toolResultContinuationMode: definition.ToolResultContinuationMode,
-                                        toolResultContinuationRounds: definition.ToolResultContinuationRounds).ConfigureAwait(false);
+                                        toolResultContinuationRounds: definition.ToolResultContinuationRounds,
+                                        strictAutomaticFunctions: automaticFunctionPolicy.IsStrict).ConfigureAwait(false);
                                     break;
                                 }
                             case "AllMembersSequential":

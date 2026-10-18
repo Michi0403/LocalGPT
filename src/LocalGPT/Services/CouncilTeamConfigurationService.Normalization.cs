@@ -153,6 +153,8 @@ namespace LocalGPT.Services
             row.RolesJson = Serialize(definition.Roles);
             row.PreferredCapabilitiesJson = Serialize(definition.PreferredCapabilities);
             row.AllowedAutomaticFunctionsJson = Serialize(definition.AllowedAutomaticFunctions);
+            row.ProjectProvisioningMode = definition.ProjectProvisioningMode;
+            row.RequiredCompletedFunctionsJson = Serialize(definition.RequiredCompletedFunctions);
             row.ArchitectureContractsJson = Serialize(definition.ArchitectureContracts);
             row.WorkflowStepsJson = Serialize(definition.WorkflowSteps);
             row.ExpertPreparationPromptTemplate = definition.ExpertPreparationPromptTemplate;
@@ -188,6 +190,8 @@ namespace LocalGPT.Services
         Roles = Deserialize<List<OrganicCouncilRoleDefinition>>(row.RolesJson) ?? [],
         PreferredCapabilities = Deserialize<List<string>>(row.PreferredCapabilitiesJson) ?? [],
         AllowedAutomaticFunctions = Deserialize<List<string>>(row.AllowedAutomaticFunctionsJson) ?? [],
+        ProjectProvisioningMode = row.ProjectProvisioningMode,
+        RequiredCompletedFunctions = Deserialize<List<string>>(row.RequiredCompletedFunctionsJson) ?? [],
         ArchitectureContracts = Deserialize<List<string>>(row.ArchitectureContractsJson) ?? [],
         WorkflowSteps = Deserialize<List<CouncilWorkflowStepDefinition>>(row.WorkflowStepsJson) ?? [],
         ExpertPreparationPromptTemplate = row.ExpertPreparationPromptTemplate,

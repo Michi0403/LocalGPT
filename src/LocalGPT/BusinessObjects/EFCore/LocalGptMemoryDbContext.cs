@@ -650,6 +650,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.RolesJson).IsRequired();
                 entity.Property(item => item.PreferredCapabilitiesJson).IsRequired();
                 entity.Property(item => item.AllowedAutomaticFunctionsJson).IsRequired();
+                entity.Property(item => item.RequiredCompletedFunctionsJson).IsRequired();
                 entity.Property(item => item.ArchitectureContractsJson).IsRequired();
                 entity.Property(item => item.WorkflowStepsJson).IsRequired();
                 entity.Property(item => item.ExpertPreparationPromptTemplate).IsRequired();

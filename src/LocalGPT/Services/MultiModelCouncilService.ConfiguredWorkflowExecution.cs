@@ -123,12 +123,15 @@ namespace LocalGPT.Services
 
                         // A deterministic hash pass is not a model source review. Do not allow
                         // later implementation roles to invent mechanics from a file manifest alone.
-                        if (string.Equals(team.Key, "game-project-development", StringComparison.OrdinalIgnoreCase) &&
-                            string.Equals(firstStep.Key, "game-development-baseline", StringComparison.OrdinalIgnoreCase) &&
+                        if (firstStep.RequiresVerifiedWorkspaceFileRead &&
                             result.Steps.Any(step => string.Equals(step.ModelName, "LocalGPT: workspace curator gate", StringComparison.Ordinal)) &&
                             !HasVerifiedCouncilFunctionResult(result, "chat.upload_workspace_file"))
                         {
-                            request.ProgressMessage?.Invoke("Game-project source review used no successful file reads; retrying the same read-only architect step once before implementation.");
+                            if (!firstStep.RetryMissingWorkspaceFileReadOnce)
+                                throw new InvalidOperationException(
+                                    $"Configured source review step '{firstStep.DisplayName}' requires a successful chat.upload_workspace_file result. " +
+                                    "Upload curation only establishes the byte inventory and cannot substitute for model file inspection.");
+                            request.ProgressMessage?.Invoke($"Configured source review '{firstStep.DisplayName}' has no successful file reads; retrying the same step once before implementation.");
                             state = await ExecuteConfiguredWorkflowDefinitionAsync(
                                 result,
                                 request,
@@ -156,8 +159,8 @@ namespace LocalGPT.Services
                                 cancellationToken: cancellationToken).ConfigureAwait(false);
                             if (!HasVerifiedCouncilFunctionResult(result, "chat.upload_workspace_file"))
                                 throw new InvalidOperationException(
-                                    "Game-project development source review failed twice without a successful chat.upload_workspace_file result. " +
-                                    "The Council will not invent source-derived mechanics. Uploaded files and partial steps remain available for another run.");
+                                    $"Configured source review '{firstStep.DisplayName}' failed twice without successful chat.upload_workspace_file evidence. " +
+                                    "The Council cannot assert inspected source behavior; uploaded files and partial steps remain resumable.");
                         }
 
                         var resolution = await ResolveConfiguredXDirectiveAsync(

@@ -170,6 +170,7 @@ namespace LocalGPT.Services
                 team.ArchitectureContracts.Add(versionRevisionBoundary);
             team.AllowedAutomaticFunctions ??= [];
             team.AllowedAutomaticFunctions = NormalizeFunctionNames(team.AllowedAutomaticFunctions);
+            team.RequiredCompletedFunctions = NormalizeFunctionNames(team.RequiredCompletedFunctions);
             var useSuppliedDefaultWorkflow = team.WorkflowSteps.Count == 0;
             if (useSuppliedDefaultWorkflow)
             {

@@ -122,7 +122,10 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
     /// <param name="enableRolePeerReview">Whether same-role members run the optional usefulness/vote pass after their primary answers.</param>
     /// <param name="summarizeRoleResults">Whether one role member consolidates the same-role results before downstream workflow steps.</param>
     /// <param name="includePriorTranscript">Whether the prior Council transcript is appended when the prompt template does not explicitly place it.</param>
-    /// <param name="allowedAutomaticFunctions">Optional exact registered-function allow-list for automatic provider tools on this step.</param>
+    /// <param name="allowedAutomaticFunctions">Optional function names preferred in automatic provider tool selection.</param>
+    /// <param name="requiresVerifiedWorkspaceFileRead">Requires recorded successful file-reading evidence before the step is accepted.</param>
+    /// <param name="retryMissingWorkspaceFileReadOnce">Retries a step once when a required workspace-file read is missing.</param>
+    /// <param name="includeLocalResearchEvidence">Includes local research evidence in this step's prompt.</param>
     /// <returns>The configured workflow step.</returns>
     private CouncilWorkflowStepDefinition Step(
         string key,
@@ -140,7 +143,10 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         bool enableRolePeerReview = false,
         bool summarizeRoleResults = false,
         bool includePriorTranscript = true,
-        IReadOnlyList<string>? allowedAutomaticFunctions = null) {
+        IReadOnlyList<string>? allowedAutomaticFunctions = null,
+        bool requiresVerifiedWorkspaceFileRead = false,
+        bool retryMissingWorkspaceFileReadOnce = false,
+        bool includeLocalResearchEvidence = false) {
     try
     {
         return new()
@@ -164,6 +170,9 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         ProducesFinalAnswer = producesFinalAnswer,
         RequiresHumanCheckpoint = requiresHumanCheckpoint,
         RequiresCompleteUploadWorkspaceCuration = requiresCompleteUploadWorkspaceCuration,
+        RequiresVerifiedWorkspaceFileRead = requiresVerifiedWorkspaceFileRead,
+        RetryMissingWorkspaceFileReadOnce = retryMissingWorkspaceFileReadOnce,
+        IncludeLocalResearchEvidence = includeLocalResearchEvidence,
         WaitForDeferredApprovalsBeforeNextStep = waitForDeferredApprovalsBeforeNextStep,
         EnableRolePeerReview = enableRolePeerReview,
         SummarizeRoleResults = summarizeRoleResults,

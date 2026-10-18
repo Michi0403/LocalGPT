@@ -124,13 +124,13 @@ public enum CouncilAutomaticFunctionPolicyMode
     Disabled = 1,
     /// <summary>Exposes every function that passes LocalGPT's normal registered-function policy.</summary>
     AllPolicyApproved = 2,
-    /// <summary>Prefers the team's named functions; saved games.* runtimes retain the historical strict interpretation.</summary>
+    /// <summary>Prefers the team's functions while retaining the policy-approved broker.</summary>
     TeamAllowList = 3,
-    /// <summary>Prefers the workflow step's named functions; saved games.* runtimes still treat this as an exact allow-list.</summary>
+    /// <summary>Prefers step functions while retaining the policy-approved broker.</summary>
     ExactAllowList = 4,
-    /// <summary>Restricts automatic/native tools exclusively to the team's configured names, regardless of team category.</summary>
+    /// <summary>For this selected step only, advertises the team's named tools exclusively; function permissions and approvals remain independent.</summary>
     StrictTeamAllowList = 5,
-    /// <summary>Restricts automatic/native tools exclusively to this workflow step's configured names, regardless of team category.</summary>
+    /// <summary>For this selected step only, advertises the step's named tools exclusively; function permissions and approvals remain independent.</summary>
     StrictStepAllowList = 6
 }
 
@@ -148,12 +148,26 @@ public enum CouncilToolResultContinuationMode
 /// <param name="Enabled">Whether automatic/native provider tools may be attached.</param>
 /// <param name="AutomaticFunctionAllowList">Native function names to attach, or <see langword="null"/> for all registered policy-approved automatic functions (the original 5.5.0 contract). When <paramref name="IsStrict"/> is true, this is the exclusive allow-list.</param>
 /// <param name="Description">Human-readable policy description used by Council diagnostics and capability briefing.</param>
-/// <param name="IsStrict">Whether the configured native function names are an exclusive permission boundary rather than direct-tool preferences.</param>
+/// <param name="IsStrict">Whether the function list is exclusive for this step. Per-function authorization and approval are always evaluated separately by the registered tool and skill security system.</param>
 public sealed record CouncilAutomaticFunctionPolicyResolution(
     bool Enabled,
     IReadOnlyList<string>? AutomaticFunctionAllowList,
     string Description,
     bool IsStrict = false);
+
+/// <summary>Defines project provisioning for any saved Council team, independent of its display name or stable key.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilProjectProvisioningMode
+{
+    /// <summary>Create a regular Project only when the run explicitly requests one.</summary>
+    OnExplicitRequest = 0,
+    /// <summary>Never create a Project implicitly or from a run-level request.</summary>
+    Disabled = 1,
+    /// <summary>Ensure a Game Project exists for this run; existing selections must be Game Projects.</summary>
+    EnsureGameProject = 2,
+    /// <summary>Ensure a regular Project exists for this run if none was selected.</summary>
+    EnsureProject = 3
+}
 
 /// <summary>Defines one editable LocalGPT Council team, its roles, workflow and architecture contracts.</summary>
 [DocumentationUpdated("2.1.20")]
@@ -184,9 +198,13 @@ public sealed class OrganicCouncilTeamDefinition
     /// </summary>
     /// <value>The preferred capabilities value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<string> PreferredCapabilities { get; set; } = [];
-    /// <summary>Gets or sets the team-level automatic/native function guidance, used as a hard allow-list only by live game runtimes.</summary>
-    /// <value>Registered DXFunction names selected by the user in Council Teams. Outside <c>games.*</c> runtimes these names are preferred guidance while the full policy-approved catalog remains available; live game runtimes retain strict allow-list semantics.</value>
+    /// <summary>Gets or sets team-level automatic/native function guidance; only explicit strict step policy makes it an exclusive allow-list.</summary>
+    /// <value>Registered DXFunction names; preferred except where a step explicitly selects StrictTeamAllowList.</value>
     public List<string> AllowedAutomaticFunctions { get; set; } = [];
+    /// <summary>Controls project creation and validation from persisted team configuration; independent of team key.</summary>
+    public CouncilProjectProvisioningMode ProjectProvisioningMode { get; set; } = CouncilProjectProvisioningMode.OnExplicitRequest;
+    /// <summary>DXFunction results required before this team may report the overall work as complete.</summary>
+    public List<string> RequiredCompletedFunctions { get; set; } = [];
     /// <summary>Gets or sets architecture and safety contracts that every round must preserve.</summary>
     /// <value>The architecture contracts value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<string> ArchitectureContracts { get; set; } = [];
@@ -483,6 +501,12 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets whether LocalGPT must complete deterministic curation of every upload workspace referenced by the request before this workflow step may start.</summary>
     /// <value><see langword="true"/> to block the step until every referenced original archive and safely extracted file has complete byte-read coverage.</value>
     public bool RequiresCompleteUploadWorkspaceCuration { get; set; }
+    /// <summary>Requires a successful model-initiated chat.upload_workspace_file result when the run has attached workspaces; a curated byte inventory alone is not sufficient.</summary>
+    public bool RequiresVerifiedWorkspaceFileRead { get; set; }
+    /// <summary>Retries this configured read-only workflow step once when source files were curated but no model completed a workspace file read.</summary>
+    public bool RetryMissingWorkspaceFileReadOnce { get; set; }
+    /// <summary>Includes a deterministic local knowledge and regex inventory before this configured step begins.</summary>
+    public bool IncludeLocalResearchEvidence { get; set; }
     /// <summary>Gets or sets whether the workflow must wait for approval-gated deferred DXFunctions requested by this step before advancing to the next configured step.</summary>
     /// <value><see langword="true"/> to pause while exact deferred requests await local human approval or decline and to expose approved results as downstream evidence.</value>
     public bool WaitForDeferredApprovalsBeforeNextStep { get; set; }
@@ -492,8 +516,8 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets the user-editable automatic/native function policy for this workflow step.</summary>
     /// <value>The persisted policy that determines whether no functions, the team list, an exact step list, or the complete policy-approved catalog is exposed.</value>
     public CouncilAutomaticFunctionPolicyMode AutomaticFunctionPolicyMode { get; set; } = CouncilAutomaticFunctionPolicyMode.Legacy;
-    /// <summary>Gets or sets step-level automatic provider function guidance, enforced as an exact allow-list for live game runtimes.</summary>
-    /// <value>Registered DXFunction names preferred by ordinary workflows, and allowed exclusively only by an explicit strict mode or the existing <c>games.*</c> runtime compatibility rule.</value>
+    /// <summary>Gets or sets step-level provider function guidance, strict only under explicit strict mode.</summary>
+    /// <value>Registered DXFunction names preferred in normal modes and exclusively allowed only by explicit StrictStepAllowList.</value>
     public List<string> AllowedAutomaticFunctions { get; set; } = [];
     /// <summary>Gets or sets how LocalGPT returns intermediate text-gateway function results to this workflow step's assigned model.</summary>
     /// <value>The bounded continuation policy used after the step emitted one or more registered DXFunction requests.</value>
@@ -604,6 +628,10 @@ public sealed class CouncilTeamConfiguration
     /// <summary>Gets or sets the persisted team-level automatic/native function allow-list.</summary>
     /// <value>Serialized registered DXFunction names selected by the user for this configured team.</value>
     public string AllowedAutomaticFunctionsJson { get; set; } = "[]";
+    /// <summary>Persists the team project-creation contract independently from its name.</summary>
+    public CouncilProjectProvisioningMode ProjectProvisioningMode { get; set; } = CouncilProjectProvisioningMode.OnExplicitRequest;
+    /// <summary>Persists registered function names whose completed results are required for a truthful team handoff.</summary>
+    public string RequiredCompletedFunctionsJson { get; set; } = "[]";
     /// <summary>
     /// Gets or sets the architecture contracts JSON value that forms part of the council team state consumed or produced by the surrounding workflow.
     /// </summary>

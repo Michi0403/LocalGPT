@@ -781,7 +781,7 @@
                                         <div class="localgpt-council-evidence-panes">
                                             <div class="localgpt-council-evidence-pane" role="region" aria-label="Complete Council member answer">
                                                 <header>Completed answer</header>
-                                                <div class="localgpt-live-participant-final" data-localgpt-details-host data-localgpt-copyable="true">
+                                                <div class="localgpt-council-evidence-scroll" data-localgpt-details-host data-localgpt-copyable="true">
                                                     @(new MarkupString(ChatContentRenderer.Render(inspectedActivity.FinalContent)))
                                                 </div>
                                             </div>
@@ -789,7 +789,7 @@
                                                 <header>Thinking, function calls and provider stream</header>
                                                 @if (!string.IsNullOrWhiteSpace(inspectedActivity.Content))
                                                 {
-                                                    <div class="localgpt-live-participant-content" data-localgpt-details-host data-localgpt-copyable="true">
+                                                    <div class="localgpt-council-evidence-scroll" data-localgpt-details-host data-localgpt-copyable="true">
                                                         @(new MarkupString(ChatContentRenderer.Render(inspectedActivity.Content)))
                                                     </div>
                                                 }

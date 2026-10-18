@@ -3,6 +3,9 @@ $ErrorActionPreference = 'Stop'
 function Fail([string]$Message) { throw $Message }
 $root = Split-Path -Parent $PSScriptRoot
 $failures = New-Object System.Collections.Generic.List[string]
+# An empty reviewed exception set is intentional: new UI/controller text manipulation
+# must be implemented by an injected service, not grandfathered by a generated baseline.
+$known = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 $sourceRoot = (Join-Path $root 'src/LocalGPT')
 $folders = @('Components','Controllers','Controller')
 $pattern = '(?m)^(?<line>.*(?:\bRegex\s*\.|\bnew\s+Regex\s*\(|\.Replace\s*\(|\.Split\s*\(|\bstring\.Join\s*\(|\bWebUtility\.HtmlDecode\s*\(|\.StartsWith\s*\(|\.EndsWith\s*\(|\.IndexOf\s*\(|\.Substring\s*\(|\.Contains\s*\([^\r\n;]*StringComparison\.).*)$'
@@ -16,7 +19,7 @@ foreach ($folder in $folders) {
             $line = ([regex]::Replace($match.Groups['line'].Value.Trim(), '\s+', ' ')).Trim()
             if ($line -match '(?:CouncilText|PanelText|TextService|RegexService|StringService|ReviewerPolicy)\.') { continue }
             $id = "${relative}|${line}"
-            if (-not $known.ContainsKey($id)) { $failures.Add($id) }
+            if (-not $known.Contains($id)) { $failures.Add($id) }
         }
     }
 }

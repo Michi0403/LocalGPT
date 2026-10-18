@@ -263,12 +263,36 @@ namespace LocalGPT.Services
             team.PreferredCapabilities = team.PreferredCapabilities.Select(value => value?.Trim() ?? string.Empty).Where(value => value.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             team.AllowedAutomaticFunctions ??= [];
             team.AllowedAutomaticFunctions = NormalizeFunctionNames(team.AllowedAutomaticFunctions);
+            if (!Enum.IsDefined(typeof(CouncilProjectProvisioningMode), team.ProjectProvisioningMode))
+                throw new InvalidOperationException("The configured project provisioning mode is not supported.");
+            team.RequiredCompletedFunctions = NormalizeFunctionNames(team.RequiredCompletedFunctions);
             foreach (var step in team.WorkflowSteps)
             {
+                if (step.RequiresVerifiedWorkspaceFileRead && !step.CanUseOrganicFunctions)
+                    throw new InvalidOperationException($"Workflow step '{step.Key}' requires workspace file reads but disables automatic functions.");
+                if (step.RetryMissingWorkspaceFileReadOnce && !step.RequiresVerifiedWorkspaceFileRead)
+                    throw new InvalidOperationException($"Workflow step '{step.Key}' retries workspace reads without requiring verified file reads.");
                 step.AllowedAutomaticFunctions ??= [];
                 step.AllowedAutomaticFunctions = NormalizeFunctionNames(step.AllowedAutomaticFunctions);
                 step.AutomaticFunctionPolicyMode = NormalizeAutomaticFunctionPolicy(step);
                 step.CanUseOrganicFunctions = step.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.Disabled;
+                // Exclusive tool sets are an optional per-step orchestration choice, not an
+                // authorization decision. Reject impossible source-review configurations
+                // rather than letting a model silently skip a required uploaded-file read.
+                if (step.RequiresVerifiedWorkspaceFileRead)
+                {
+                    var restrictedNames = step.AutomaticFunctionPolicyMode switch
+                    {
+                        CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList => team.AllowedAutomaticFunctions,
+                        CouncilAutomaticFunctionPolicyMode.StrictStepAllowList => step.AllowedAutomaticFunctions,
+                        _ => null
+                    };
+                    if (restrictedNames is not null &&
+                        !restrictedNames.Contains("chat.upload_workspace_file", StringComparer.OrdinalIgnoreCase))
+                        throw new InvalidOperationException(
+                            $"Workflow step '{step.Key}' requires a verified uploaded-file read but its explicit strict tool list excludes chat.upload_workspace_file. " +
+                            "Add the file reader to this step's selected tools or choose a preferred/all-functions mode.");
+                }
                 if (!Enum.IsDefined(typeof(CouncilToolResultContinuationMode), step.ToolResultContinuationMode))
                     step.ToolResultContinuationMode = CouncilToolResultContinuationMode.SameMemberBounded;
                 step.ToolResultContinuationRounds = step.ToolResultContinuationMode == CouncilToolResultContinuationMode.Disabled

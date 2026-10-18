@@ -184,17 +184,19 @@ namespace LocalGPT.Services
         /// <param name="stepCompleted">Step completed value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="progressMessage">Progress message value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="strictFunctionNames">Optional exclusive function list for the currently executing configured step.</param>
         /// <returns>The collection produced by the operation.</returns>
         private async Task<IReadOnlyList<MultiModelCouncilStep>> AddCouncilStepAndExecuteDxFunctionsAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilStep step,
             Action<MultiModelCouncilStep>? stepCompleted,
             Action<string>? progressMessage,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyCollection<string>? strictFunctionNames = null)
         {
             try
             {
-                var functionSteps = await councilDxFunctions.ExecuteRequestedCallsAsync(result, step, cancellationToken).ConfigureAwait(false);
+                var functionSteps = await councilDxFunctions.ExecuteRequestedCallsAsync(result, step, cancellationToken, strictFunctionNames).ConfigureAwait(false);
                 MultiModelCouncilServiceAddOrderedStep(result, step, logger);
                 stepCompleted?.Invoke(step);
                 foreach (var functionStep in functionSteps)
@@ -223,6 +225,7 @@ namespace LocalGPT.Services
         /// <param name="progressMessage">Progress message value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="allowDxFunctions">Value indicating whether allow DevExpress functions should apply to this operation.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="strictFunctionNames">Optional step-local tool selection applied to this step's native and textual function dispatch.</param>
         /// <returns>The collection produced by the operation.</returns>
         private async Task<IReadOnlyList<MultiModelCouncilStep>> AddCouncilStepAsync(
             MultiModelCouncilResult result,
@@ -230,12 +233,13 @@ namespace LocalGPT.Services
             Action<MultiModelCouncilStep>? stepCompleted,
             Action<string>? progressMessage,
             bool allowDxFunctions,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyCollection<string>? strictFunctionNames = null)
         {
     try
     {
                 if (allowDxFunctions)
-                    return await AddCouncilStepAndExecuteDxFunctionsAsync(result, step, stepCompleted, progressMessage, cancellationToken).ConfigureAwait(false);
+                    return await AddCouncilStepAndExecuteDxFunctionsAsync(result, step, stepCompleted, progressMessage, cancellationToken, strictFunctionNames).ConfigureAwait(false);
 
                 MultiModelCouncilServiceAddOrderedStep(result, step, logger);
                 stepCompleted?.Invoke(step);

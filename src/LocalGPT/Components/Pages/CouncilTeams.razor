@@ -154,8 +154,28 @@
             </details>
 
             <details class="council-best-use-functions" open>
+                <summary>Project and verified execution behavior</summary>
+                <label>
+                    <span>Project provisioning mode (saved per team, never inferred from its name)</span>
+                    <DxComboBox Data="@ProjectProvisioningModes"
+                                @bind-Value="_editor.ProjectProvisioningMode"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<CouncilProjectProvisioningMode>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<CouncilProjectProvisioningMode>.Label)"
+                                CssClass="localgpt-dx-combo" />
+                </label>
+                <label class="wide">
+                    <span>Required successful DXFunction results for a complete handoff (one name per line)</span>
+                    <DxMemo Text="@CouncilText.FormatMultilineNameList(_editor.RequiredCompletedFunctions)"
+                            TextChanged="@SetCompletionFunctionsText"
+                            CssClass="localgpt-editor council-script" Rows="4"
+                            NullText="For example: project.game.build and project.game.start. Empty = no extra completion gate." />
+                </label>
+                <p class="hint">The completion gate checks function execution evidence, not AI claims. It does not execute unauthorized operations on behalf of the model.</p>
+            </details>
+
+            <details class="council-best-use-functions" open>
                 <summary>Automatic/native function preferences (@_editor.AllowedAutomaticFunctions.Count selected)</summary>
-                <p class="hint">Outside live <code>games.*</code> runtimes these names are preferred guidance and the complete registered policy-approved DXFunction catalog remains available when a step enables functions. Game-runtime teams keep hard allow-list semantics. Disabled steps and normal LocalGPT safety/approval gates remain authoritative.</p>
+                <p class="hint">Named functions are preferences unless the workflow step explicitly selects Strict team/step allow-list. Read-only upload workspace tools are available to all non-strict function-enabled roles. Explicit strict selections narrow tools only within that workflow step. The separate DXFunction/skill permission and approval system still governs every call.</p>
                 @if (!_dxFunctionsLoaded)
                 {
                     <DxButton CssClass="btn btn-outline-secondary btn-sm" Click="LoadDxFunctionCatalogAsync" Enabled="@(!_dxFunctionsLoading)">@(_dxFunctionsLoading ? "Loading DXFunctions…" : "Load DXFunction catalog")</DxButton>
@@ -540,6 +560,9 @@
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.ProducesFinalAnswer" CssClass="localgpt-check" /><span>Can become final answer</span></label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequiresHumanCheckpoint" CssClass="localgpt-check" /><span>Respect human gate before round</span></label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequiresCompleteUploadWorkspaceCuration" CssClass="localgpt-check" /><span>Require complete upload-workspace curation before round</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequiresVerifiedWorkspaceFileRead" CssClass="localgpt-check" /><span>Require evidence that this AI actually read an uploaded file (not just a hash inventory)</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RetryMissingWorkspaceFileReadOnce" CssClass="localgpt-check" Enabled="@step.RequiresVerifiedWorkspaceFileRead" /><span>Retry this step once when model source-read evidence is missing</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.IncludeLocalResearchEvidence" CssClass="localgpt-check" /><span>Preload local Knowledge/regex inventory for this step</span></label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.WaitForDeferredApprovalsBeforeNextStep" CssClass="localgpt-check" /><span>Wait for approval-gated DXFunctions before next round</span></label>
                             <label>
                                 <span>Automatic/native function policy</span>
@@ -569,15 +592,15 @@
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.ProducesAsciiFrame" CssClass="localgpt-check" /><span>Produces one AI-owned ASCII frame</span></label>
                         </div>
                         <p class="hint">Function results are intermediate evidence. Bounded continuation sends text-gateway results back to the same assigned model so it can analyze web, compiler, formula, file, or other function evidence instead of presenting the raw payload as the task result.</p>
-                        <p class="hint">Normal workflows can discover, preview and invoke any policy-approved function. Lists prioritize native callable tools but do not restrict the catalog; choose a strict mode only for an intentional isolation boundary. Existing games.* runtime lists remain strict for compatibility. Function-specific permission and human approval requirements always apply.</p>
+                        <p class="hint">Normal workflows can discover, preview and invoke any policy-approved function. Lists prioritize native callable tools but do not restrict the catalog; choose a strict mode only for an intentional isolation boundary. Strict selection applies only to the current workflow step and never changes any function or skill permission. No team category or runtime class automatically enables strict mode. Function-specific permission and human approval requirements always apply.</p>
                         @if (step.AutomaticFunctionPolicyMode is CouncilAutomaticFunctionPolicyMode.TeamAllowList or CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList)
                         {
-                            <p class="hint">Team tools (@(step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList ? "exclusive" : "preferred; exclusive in games.* runtimes")): @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? CouncilText.FormatInlineNameList(_editor.AllowedAutomaticFunctions) : "no functions selected")</p>
+                            <p class="hint">Team tools (@(step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList ? "exclusive" : "preferred")): @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? CouncilText.FormatInlineNameList(_editor.AllowedAutomaticFunctions) : "no functions selected")</p>
                         }
                         else if (step.AutomaticFunctionPolicyMode is CouncilAutomaticFunctionPolicyMode.ExactAllowList or CouncilAutomaticFunctionPolicyMode.StrictStepAllowList)
                         {
                             <label class="wide">
-                                <span>@(step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.StrictStepAllowList ? "Strict step function allow-list" : "Preferred step function names (strict in games.* runtime teams)") · one per line</span>
+                                <span>@(step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.StrictStepAllowList ? "Strict step function allow-list" : "Preferred step function names") · one per line</span>
                                 <DxMemo Text="@CouncilText.FormatMultilineNameList(step.AllowedAutomaticFunctions)"
                                         TextChanged="@((string value) => SetStepAutomaticFunctions(step, new ChangeEventArgs { Value = value }))"
                                         CssClass="localgpt-editor council-script" Rows="4" />
@@ -677,7 +700,7 @@
                         <DxButton CssClass="btn btn-outline-primary btn-sm" Click="ApplyAdvancedJson">Apply JSON to editor</DxButton>
                     </div>
                     <label class="wide"><span>Preferred organic capabilities JSON</span><DxMemo @bind-Text="_capabilitiesJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
-                    <label class="wide"><span>Team automatic/native function preferences JSON · strict in games</span><DxMemo @bind-Text="_allowedFunctionsJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
+                    <label class="wide"><span>Team automatic/native function preferences JSON · strict only for explicitly selected steps</span><DxMemo @bind-Text="_allowedFunctionsJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
                     <label class="wide"><span>Architecture contracts JSON</span><DxMemo @bind-Text="_contractsJson" CssClass="localgpt-editor council-script" Rows="5" /></label>
                 </div>
             </details>

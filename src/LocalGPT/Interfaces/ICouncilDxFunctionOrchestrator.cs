@@ -13,9 +13,11 @@ public interface ICouncilDxFunctionOrchestrator
     /// <param name="result">Result value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
     /// <param name="sourceStep">Source step value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="strictFunctionNames">Optional exclusive names for this role-step; null means no workflow-level restriction. Registered function authorization remains independent.</param>
     /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<MultiModelCouncilStep>> ExecuteRequestedCallsAsync(
         MultiModelCouncilResult result,
         MultiModelCouncilStep sourceStep,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<string>? strictFunctionNames = null);
 }

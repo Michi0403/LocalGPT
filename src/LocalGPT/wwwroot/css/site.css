@@ -1064,18 +1064,22 @@ dxbl-popup-root > dxbl-popup-cell > dxbl-modal dxbl-modal-dialog.dxbl-popup:has(
     border-bottom: 1px solid var(--localgpt-border-color, var(--bs-border-color, #dee2e6));
     background: color-mix(in srgb, var(--localgpt-surface-raised-bg, var(--bs-body-bg, #fff)) 98%, transparent);
 }
-.localgpt-council-evidence-pane > .localgpt-live-participant-content,
-.localgpt-council-evidence-pane > .localgpt-live-participant-final {
-    flex: 1 1 auto;
+/* Inspection owns its own scroll viewport; the live-lane 22rem cap must not apply here.
+   flex-basis:0 lets BOTH columns fill their grid track even when text content differs. */
+.localgpt-council-evidence-pane > .localgpt-council-evidence-scroll {
+    display: block;
+    flex: 1 1 0;
     min-width: 0;
     min-height: 0;
-    max-height: none;
-    height: 100%;
+    max-height: none !important;
+    height: auto !important;
     overflow: auto;
     overflow-wrap: anywhere;
+    overscroll-behavior: contain;
     padding: .8rem 1rem;
     background: transparent;
 }
+.localgpt-council-evidence-scroll > :last-child { margin-bottom: 0; }
 .localgpt-council-evidence-pane > .localgpt-live-participant-waiting {
     flex: 1 1 auto;
     min-height: 0;

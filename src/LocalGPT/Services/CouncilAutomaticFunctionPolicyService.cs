@@ -46,15 +46,16 @@ public sealed class CouncilAutomaticFunctionPolicyService(
 
             var teamList = Normalize(team.AllowedAutomaticFunctions);
             var stepList = Normalize(step.AllowedAutomaticFunctions);
-            var strictGameRuntime = IsStrictGameRuntimeTeam(team);
-            var strictTeam = mode == CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList ||
-                             (strictGameRuntime && mode == CouncilAutomaticFunctionPolicyMode.TeamAllowList);
-            var strictStep = mode == CouncilAutomaticFunctionPolicyMode.StrictStepAllowList ||
-                             (strictGameRuntime && mode == CouncilAutomaticFunctionPolicyMode.ExactAllowList);
+            // Only the selected workflow step may opt into an exclusive tool list.
+            // Team keys and runtime classes never infer or persist strictness.
+            var strictTeam = mode == CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList;
+            var strictStep = mode == CouncilAutomaticFunctionPolicyMode.StrictStepAllowList;
 
-            // Strictness is an explicit workflow choice for ordinary teams. Retain the
-            // existing hard boundary for saved games.* runtime Team/Exact modes.
-            // No broker is attached to an exclusive list: it would defeat that boundary.
+            // A strict list scopes the tools offered in this step, not authorization or
+            // later workflow steps. Central DXFunction / organic-skill policy still decides
+            // whether each selected tool can run and whether approval is required.
+            // No unrestricted broker is attached to an exclusive list; it would evade
+            // the role-step tool-selection contract.
             if (strictTeam || strictStep)
             {
                 // Broker entrypoints cannot be present in an exclusive allow-list:
@@ -73,7 +74,7 @@ public sealed class CouncilAutomaticFunctionPolicyService(
                     IsStrict: true);
             }
 
-            // In normal software, research and learning workflows the saved names are
+            // In all non-strict workflows the saved names are
             // *preferences*, never an execution boundary. Promote them as native Ollama
             // metadata while the normal broker exposes every other registered,
             // policy-approved DXFunction on demand without sending thousands of schemas.
@@ -92,8 +93,11 @@ public sealed class CouncilAutomaticFunctionPolicyService(
                     "all registered policy-approved automatic DXFunctions available as native tools; no preference list");
             }
 
+            // Attachments are first-class context in every non-strict Council role, not a
+            // privilege of a named team or of the Learning Round. Approval/policy still applies.
             var exposed = preferred
-                .Concat(["dxai.tools.discover", "dxai.tools.preview", "dxai.tools.invoke"])
+                .Concat(["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file",
+                    "dxai.tools.discover", "dxai.tools.preview", "dxai.tools.invoke"])
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -124,26 +128,6 @@ public sealed class CouncilAutomaticFunctionPolicyService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Classifying Council DXFunction broker entrypoint {FunctionName} failed.", name);
-            throw;
-        }
-    }
-
-    /// <summary>Determines whether the selected team owns a live game runtime and therefore keeps hard tool allow-list semantics.</summary>
-    /// <param name="team">Council team whose role runtime classes are inspected.</param>
-    /// <returns><see langword="true"/> when at least one role is bound to a <c>games.*</c> runtime class.</returns>
-    private bool IsStrictGameRuntimeTeam(OrganicCouncilTeamDefinition team)
-    {
-        try
-        {
-            return team.Roles
-                .SelectMany(role => role.RuntimeClassKeys ?? [])
-                .Any(runtimeClassKey =>
-                    !string.IsNullOrWhiteSpace(runtimeClassKey) &&
-                    runtimeClassKey.Trim().StartsWith("games.", StringComparison.OrdinalIgnoreCase));
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Resolving strict game-runtime tool policy failed for team {TeamKey}.", team.Key);
             throw;
         }
     }

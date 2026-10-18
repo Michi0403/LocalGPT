@@ -123,8 +123,3 @@ docs/.tools/
 docs/.print-book/
 docs/LocalGPT-*.pdf
 src/LocalGPT/wwwroot/help-docs/
-build/__pycache__/audit_application_architecture.cpython-312.pyc
-build/__pycache__/audit_application_architecture.cpython-313.pyc
-build/__pycache__/audit_application_architecture.cpython-314.pyc
-build/__pycache__/audit_documentation_pdf_merge_5_5_0.cpython-312.pyc
-build/__pycache__/audit_learning_checklist_5_4_9.cpython-312.pyc

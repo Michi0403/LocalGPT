@@ -30,11 +30,13 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
     /// <param name="result">Result value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
     /// <param name="sourceStep">Source step value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="strictFunctionNames">Optional exclusive tool names for the current Council step; does not modify global function permission or approval.</param>
     /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<MultiModelCouncilStep>> ExecuteRequestedCallsAsync(
         MultiModelCouncilResult result,
         MultiModelCouncilStep sourceStep,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<string>? strictFunctionNames = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(sourceStep);
@@ -97,6 +99,19 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
                     continue;
 
                 acceptedCount++;
+                // Optional Council strictness controls only this role-step's selected tools.
+                // The registered function's actual authorization and human-approval policy
+                // is still enforced independently by the normal service client.
+                if (strictFunctionNames is not null &&
+                    !strictFunctionNames.Contains(functionName, StringComparer.OrdinalIgnoreCase))
+                {
+                    output.Add(CreateGatewayStep(
+                        sourceStep,
+                        "Function outside configured role step",
+                        $"DXFunction {functionName} is not selected for this strict Council workflow step. " +
+                        "This does not change the function's registered permissions or availability in other steps."));
+                    continue;
+                }
                 var entry = await catalog.GetByFunctionNameAsync(functionName, cancellationToken).ConfigureAwait(false);
                 if (entry is null ||
                     entry.Kind != vocabulary.Get().CatalogDxFunction ||

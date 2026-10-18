@@ -752,6 +752,13 @@ namespace LocalGPT.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("ProjectProvisioningMode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RequiredCompletedFunctionsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ArchitectureContractsJson")
                         .IsRequired()
                         .HasColumnType("TEXT");

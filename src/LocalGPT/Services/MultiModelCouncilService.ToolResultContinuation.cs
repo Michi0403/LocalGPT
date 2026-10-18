@@ -31,6 +31,7 @@ namespace LocalGPT.Services
         /// <param name="continuationMode">Configured function-result continuation mode.</param>
         /// <param name="maximumContinuationRounds">Maximum bounded continuation turns.</param>
         /// <param name="cancellationToken">Cancellation token for the Council run.</param>
+        /// <param name="strictFunctionNames">Optional role-step function exposure restriction retained across textual gateway continuations.</param>
         /// <returns>A task that completes after the bounded continuation has stopped.</returns>
         private async Task ContinueAfterDxFunctionResultsAsync(
             MultiModelCouncilResult result,
@@ -52,7 +53,8 @@ namespace LocalGPT.Services
             int finalAnswerRecoveryMaxOutputTokens,
             CouncilToolResultContinuationMode continuationMode,
             int maximumContinuationRounds,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyCollection<string>? strictFunctionNames = null)
         {
             try
             {
@@ -110,7 +112,8 @@ namespace LocalGPT.Services
                         stepCompleted,
                         progressMessage,
                         allowDxFunctions: true,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        strictFunctionNames).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

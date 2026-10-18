@@ -47,6 +47,7 @@ namespace LocalGPT.Services
         /// <param name="finalAnswerRecoveryMaxOutputTokens">Maximum output-token budget for one configured final-answer recovery turn.</param>
         /// <param name="toolResultContinuationMode">Policy controlling whether text-gateway function evidence is returned to the same member.</param>
         /// <param name="toolResultContinuationRounds">Maximum bounded same-member function-result continuation turns.</param>
+        /// <param name="strictAutomaticFunctions">Whether the current configured step selected an exclusive tool list, independently of function permissions.</param>
         /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RunPhaseAsync(
             MultiModelCouncilResult result,
@@ -77,7 +78,8 @@ namespace LocalGPT.Services
             bool finalAnswerRecoveryEnabled = true,
             int finalAnswerRecoveryMaxOutputTokens = 8192,
             CouncilToolResultContinuationMode toolResultContinuationMode = CouncilToolResultContinuationMode.Disabled,
-            int toolResultContinuationRounds = 0)
+            int toolResultContinuationRounds = 0,
+            bool strictAutomaticFunctions = false)
         {
             try
             {
@@ -351,7 +353,8 @@ namespace LocalGPT.Services
 
                     foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(step.ModelName, out var index) ? index : int.MaxValue))
                     {
-                        var functionSteps = await AddCouncilStepAsync(result, step, stepCompleted, progressMessage, allowDxFunctions, cancellationToken).ConfigureAwait(false);
+                        var strictFunctionNames = strictAutomaticFunctions ? automaticFunctionAllowList : null;
+                        var functionSteps = await AddCouncilStepAsync(result, step, stepCompleted, progressMessage, allowDxFunctions, cancellationToken, strictFunctionNames).ConfigureAwait(false);
                         if (allowDxFunctions && functionSteps.Count > 0)
                         {
                             var continuationPlan = modelRoutes.TryGetValue(step.ModelName, out var configuredContinuationPlan)
@@ -377,7 +380,8 @@ namespace LocalGPT.Services
                                 finalAnswerRecoveryMaxOutputTokens,
                                 toolResultContinuationMode,
                                 toolResultContinuationRounds,
-                                cancellationToken).ConfigureAwait(false);
+                                cancellationToken,
+                                strictFunctionNames).ConfigureAwait(false);
                         }
                     }
                 }

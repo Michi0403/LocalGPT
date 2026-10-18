@@ -67,6 +67,20 @@ public sealed class ChatContentRenderer(
     /// </summary>
     private readonly Regex AsciiFrameRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatAsciiFrame);
     /// <summary>
+    /// Recognizes authoritative Council stream boundaries, not model-generated function-call panels.
+    /// Each completed stream is an independent Markdown document: an unfinished provider fence must
+    /// never absorb the next Council member, phase, or the final consensus into a collapsed panel.
+    /// </summary>
+    private readonly Regex CouncilPanelBoundaryRegex = new(
+        @"^<details\s+class=""council-step(?:\s+council-live)?""[^>\r\n]*data-localgpt-stream-id=""[a-f0-9]{32}""[^>\r\n]*>|<!--localgpt-council-stream-complete:[a-f0-9]{32}-->",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(3));
+    /// <summary>Counts the actual HTML disclosure elements after Markdown rendering, never pseudo-tags in fenced code.</summary>
+    private readonly Regex RenderedDetailsTagRegex = new(
+        @"</?details\b[^>]*>",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(3));
+    /// <summary>
     /// Decodes only human-facing quote and apostrophe entities before structured-text recognition.
     /// Markup-significant entities such as &amp;lt;, &amp;gt;, and &amp;amp; deliberately remain encoded.
     /// </summary>
@@ -181,7 +195,7 @@ public sealed class ChatContentRenderer(
             if (string.IsNullOrWhiteSpace(normalized))
                 return string.Empty;
 
-            return Markdown.ToHtml(normalized, markdownPipeline).Trim();
+            return RenderCouncilTranscriptPanels(normalized);
         }
         catch (Exception ex)
         {
@@ -190,6 +204,80 @@ public sealed class ChatContentRenderer(
                 "Chat content rendering failed. LocalGPT will show a safely encoded plain-text fallback; message content was omitted from logs.");
             return BuildSafeFallback(content);
         }
+    }
+
+    /// <summary>
+    /// Renders each independently identified Council stream in isolation. A provider may stop
+    /// halfway through a Markdown code fence or disclosure; that provider's incomplete markup
+    /// must not turn all later Council rounds into descendants of its disclosure element.
+    /// Stream-completion comments are rendering delimiters, not visible content or tool events.
+    /// Ordinary chat messages still use the original single-document Markdown pipeline.
+    /// </summary>
+    private string RenderCouncilTranscriptPanels(string text)
+    {
+        var boundaries = CouncilPanelBoundaryRegex.Matches(text);
+        if (boundaries.Count == 0)
+            return Markdown.ToHtml(text, markdownPipeline).Trim();
+
+        var rendered = new StringBuilder(text.Length);
+        var start = 0;
+        var insideCouncilPanel = false;
+        foreach (Match boundary in boundaries)
+        {
+            if (boundary.Index > start)
+                AppendRenderedCouncilFragment(rendered, text[start..boundary.Index], insideCouncilPanel);
+
+            if (boundary.Value.StartsWith("<!--", StringComparison.Ordinal))
+            {
+                // The matching participant's final </details> belongs to the preceding fragment.
+                // Close any reasoning/tool panel left unfinished before rendering later steps.
+                insideCouncilPanel = false;
+                start = boundary.Index + boundary.Length;
+            }
+            else
+            {
+                // Another stream can arrive after cancellation/recovery without an earlier
+                // completion marker. The previous fragment was closed before starting this one.
+                insideCouncilPanel = true;
+                start = boundary.Index;
+            }
+        }
+
+        if (start < text.Length)
+            AppendRenderedCouncilFragment(rendered, text[start..], insideCouncilPanel);
+
+        return rendered.ToString().Trim();
+    }
+
+    /// <summary>
+    /// Appends an independently rendered fragment and finishes only disclosure tags that are
+    /// visibly unclosed in the resulting HTML. Fenced-code strings are already escaped by
+    /// Markdig, so they cannot influence this count or the next Council member's panel.
+    /// </summary>
+    private void AppendRenderedCouncilFragment(StringBuilder target, string fragment, bool isCouncilPanel)
+    {
+        if (string.IsNullOrWhiteSpace(fragment))
+            return;
+
+        var html = Markdown.ToHtml(fragment, markdownPipeline).Trim();
+        if (html.Length == 0)
+            return;
+
+        target.AppendLine(html);
+        if (!isCouncilPanel)
+            return;
+
+        var openElements = 0;
+        foreach (Match tag in RenderedDetailsTagRegex.Matches(html))
+        {
+            if (tag.Value.StartsWith("</", StringComparison.Ordinal))
+                openElements = Math.Max(0, openElements - 1);
+            else
+                openElements++;
+        }
+
+        for (var index = 0; index < openElements; index++)
+            target.AppendLine("</details>");
     }
 
     /// <summary>
@@ -239,7 +327,11 @@ public sealed class ChatContentRenderer(
                 var completedStart = $"<details class=\"council-step\" data-localgpt-stream-id=\"{streamId}\">";
                 text = text.Replace(liveStart, completedStart, StringComparison.OrdinalIgnoreCase);
             }
-            text = CouncilCompletionMarkerRegex.Replace(text, string.Empty);
+            // Leave authoritative completion comments in Council snapshots until Render has
+            // isolated each participant. They are removed at the fragment boundary, rather
+            // than letting an unfinished provider fence swallow the next role or consensus.
+            if (!text.Contains("data-localgpt-stream-id=", StringComparison.OrdinalIgnoreCase))
+                text = CouncilCompletionMarkerRegex.Replace(text, string.Empty);
 
             // Every provider-supplied thinking block stays expanded. Mark only the currently
             // unfinished block as live so the UI can show its streaming indicator without
@@ -270,7 +362,11 @@ public sealed class ChatContentRenderer(
                 0,
                 ControlledDetailsStartRegex.Matches(text).Count - DetailsEndRegex.Matches(text).Count);
 
-            if (missingPreClosures == 0 && missingDetailsClosures == 0)
+            // Independently close Council fragments AFTER Markdown rendering; raw counts
+            // include HTML-looking strings inside provider source-code fences and are not
+            // reliable for closing one huge multi-participant transcript.
+            if (text.Contains("data-localgpt-stream-id=", StringComparison.OrdinalIgnoreCase)
+                || (missingPreClosures == 0 && missingDetailsClosures == 0))
                 return text.Trim();
 
             var suffix = string.Concat(Enumerable.Repeat("</pre>", missingPreClosures)) +

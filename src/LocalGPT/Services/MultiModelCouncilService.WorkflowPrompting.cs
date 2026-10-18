@@ -347,7 +347,8 @@ namespace LocalGPT.Services
                     request.StepCompleted,
                     request.ProgressMessage,
                     allowDxFunctions,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken,
+                    automaticFunctionPolicy.IsStrict ? automaticFunctionPolicy.AutomaticFunctionAllowList : null).ConfigureAwait(false);
                 if (allowDxFunctions && functionSteps.Count > 0)
                 {
                     await ContinueAfterDxFunctionResultsAsync(
@@ -386,7 +387,8 @@ namespace LocalGPT.Services
                         definition.FinalAnswerRecoveryMaxOutputTokens,
                         definition.ToolResultContinuationMode,
                         definition.ToolResultContinuationRounds,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        automaticFunctionPolicy.IsStrict ? automaticFunctionPolicy.AutomaticFunctionAllowList : null).ConfigureAwait(false);
                 }
             }
             catch (Exception __serviceMethodException)

@@ -66,14 +66,21 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Stores the in-memory automatic function policy modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
     /// </summary>
+    private readonly IReadOnlyList<LocalGptSelectionOption<CouncilProjectProvisioningMode>> ProjectProvisioningModes =
+    [
+        new(CouncilProjectProvisioningMode.OnExplicitRequest, "Create a Project only when the run requests one"),
+        new(CouncilProjectProvisioningMode.Disabled, "Never automatically create a Project"),
+        new(CouncilProjectProvisioningMode.EnsureProject, "Automatically create a Project when none is selected"),
+        new(CouncilProjectProvisioningMode.EnsureGameProject, "Automatically create a Game Project when none is selected")
+    ];
     private readonly IReadOnlyList<LocalGptSelectionOption<CouncilAutomaticFunctionPolicyMode>> AutomaticFunctionPolicyModes =
     [
         new(CouncilAutomaticFunctionPolicyMode.Disabled, "Disabled — expose no automatic/native tools"),
         new(CouncilAutomaticFunctionPolicyMode.AllPolicyApproved, "All policy-approved functions · listed names preferred"),
         new(CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Prefer team functions · others available via broker"),
         new(CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Prefer step functions · others available via broker"),
-        new(CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList, "Strict team allow-list · no other tools"),
-        new(CouncilAutomaticFunctionPolicyMode.StrictStepAllowList, "Strict step allow-list · no other tools")
+        new(CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList, "Strict team list for this step only"),
+        new(CouncilAutomaticFunctionPolicyMode.StrictStepAllowList, "Strict step list for this step only")
     ];
     /// <summary>Stores the user-editable policies that control whether text-gateway function evidence is returned to the same model.</summary>
     private readonly IReadOnlyList<LocalGptSelectionOption<CouncilToolResultContinuationMode>> ToolResultContinuationModes =
@@ -644,10 +651,23 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    /// <summary>
-    /// Performs select team for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
-    /// </summary>
-    /// <param name="team">Team value supplied to the council teams operation and used when producing its result.</param>
+    /// <summary>Updates the verified function evidence contract from the team editor.</summary>
+    /// <param name="value">User-edited function names to parse through the injected Council text service.</param>
+    private void SetCompletionFunctionsText(string value)
+    {
+        try
+        {
+            _editor.RequiredCompletedFunctions = CouncilText.ParseUserEditableNameList(value);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Updating Council verified completion function preferences failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Selects the configured Council team in the editor.</summary>
+    /// <param name="team">Persisted team whose settings should be displayed for editing.</param>
     private void SelectTeam(OrganicCouncilTeamDefinition team)
     {
         try
