@@ -131,36 +131,53 @@ namespace LocalGPT.Services
                                 throw new InvalidOperationException(
                                     $"Configured source review step '{firstStep.DisplayName}' requires a successful chat.upload_workspace_file result. " +
                                     "Upload curation only establishes the byte inventory and cannot substitute for model file inspection.");
-                            request.ProgressMessage?.Invoke($"Configured source review '{firstStep.DisplayName}' has no successful file reads; retrying the same step once before implementation.");
-                            state = await ExecuteConfiguredWorkflowDefinitionAsync(
-                                result,
-                                request,
-                                team,
-                                firstStep,
-                                baseUri,
-                                participants,
-                                bootstrap,
-                                modelRoutes,
-                                maxParallelModels,
-                                keepAlive,
-                                ollamaNumGpu,
-                                maxContextTokens,
-                                modelTimeoutSeconds,
-                                leaderModel,
-                                roleAssignments,
-                                rolePairings,
-                                state,
-                                loopGroup: string.Empty,
-                                loopIteration: 1,
-                                loopMaximumIterations: 1,
-                                workflowRevision: revision + 1,
-                                xRoundCause: "Read actual uploaded source using chat.upload_workspace_file; hash-only inspection is insufficient",
-                                suppressOrganicFunctions: false,
-                                cancellationToken: cancellationToken).ConfigureAwait(false);
-                            if (!HasVerifiedCouncilFunctionResult(result, "chat.upload_workspace_file"))
+
+                            // The model sometimes repeats chat.upload_workspace_files but never
+                            // opens a file (observed on the game-development upload). Instead of
+                            // repeating exactly the same unsuccessful prompt, supply real source
+                            // excerpts, then make up to three bounded SAME-team repair rounds.
+                            var recoveredSources = await BuildSourceReviewRecoveryEvidenceAsync(
+                                request, bootstrap, cancellationToken).ConfigureAwait(false);
+                            if (recoveredSources.Paths.Count == 0)
                                 throw new InvalidOperationException(
-                                    $"Configured source review '{firstStep.DisplayName}' failed twice without successful chat.upload_workspace_file evidence. " +
-                                    "The Council cannot assert inspected source behavior; uploaded files and partial steps remain resumable.");
+                                    $"Configured source review '{firstStep.DisplayName}' has no readable extracted source files. " +
+                                    "The incomplete workspace remains resumable; no source behavior was inferred.");
+                            var sourceBacked = false;
+                            for (var sourceRepairRound = 1; sourceRepairRound <= 3 && !sourceBacked; sourceRepairRound++)
+                            {
+                                request.ProgressMessage?.Invoke(
+                                    $"Source review self-repair {sourceRepairRound}/3: giving the same team actual uploaded source contents for '{firstStep.DisplayName}'.");
+                                state = await ExecuteConfiguredWorkflowDefinitionAsync(
+                                    result,
+                                    request,
+                                    team,
+                                    firstStep,
+                                    baseUri,
+                                    participants,
+                                    bootstrap + Environment.NewLine + recoveredSources.Evidence,
+                                    modelRoutes,
+                                    maxParallelModels,
+                                    keepAlive,
+                                    ollamaNumGpu,
+                                    maxContextTokens,
+                                    modelTimeoutSeconds,
+                                    leaderModel,
+                                    roleAssignments,
+                                    rolePairings,
+                                    state,
+                                    loopGroup: string.Empty,
+                                    loopIteration: 1,
+                                    loopMaximumIterations: 1,
+                                    workflowRevision: revision + sourceRepairRound,
+                                    xRoundCause: "Source-review recovery: inspect real provided file contents; cite exact paths and continue project authoring instead of repeating the workspace list",
+                                    suppressOrganicFunctions: false,
+                                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                                sourceBacked = HasVerifiedCouncilFunctionResult(result, "chat.upload_workspace_file");
+                            }
+                            if (!sourceBacked)
+                                throw new InvalidOperationException(
+                                    $"Configured source review '{firstStep.DisplayName}' exhausted three source-backed self-repair rounds. " +
+                                    "No verified file-read result or source-backed review was produced; the run remains incomplete and resumable.");
                         }
 
                         var resolution = await ResolveConfiguredXDirectiveAsync(
@@ -326,6 +343,62 @@ namespace LocalGPT.Services
                     }
 
                     stepIndex += loopSteps.Count;
+                }
+
+                // A game-project run must try to finish its own bounded build/playtest
+                // contract in the SAME team and run before handing back an incomplete
+                // result. Receipts still come only from registered functions; human
+                // approval gates and source/requirement checks are not bypassed.
+                if (string.Equals(team.Key, "game-project-development", StringComparison.OrdinalIgnoreCase))
+                {
+                    var reranRequiredStep = false;
+                    foreach (var requiredFunction in team.RequiredCompletedFunctions ?? [])
+                    {
+                        if (HasVerifiedCouncilFunctionResult(result, requiredFunction)) continue;
+                        if (string.Equals(requiredFunction, "project.game.start", StringComparison.OrdinalIgnoreCase) &&
+                            !HasVerifiedCouncilFunctionResult(result, "project.game.build"))
+                        {
+                            result.Warnings.Add("Game playtest was not repeated: there is no successful project.game.build receipt.");
+                            continue;
+                        }
+                        var repairDefinition = configuredSteps.FirstOrDefault(step =>
+                            step.AllowedAutomaticFunctions.Contains(requiredFunction, StringComparer.OrdinalIgnoreCase));
+                        if (repairDefinition is null)
+                        {
+                            result.Warnings.Add($"No enabled same-team workflow step can invoke {requiredFunction}; a separate approved capability or team is needed.");
+                            continue;
+                        }
+                        for (var attempt = 1; attempt <= 2 &&
+                             !HasVerifiedCouncilFunctionResult(result, requiredFunction); attempt++)
+                        {
+                            request.ProgressMessage?.Invoke(
+                                $"Game development verification/repair {attempt}/2: repeating '{repairDefinition.DisplayName}' for the missing {requiredFunction} receipt.");
+                            state = await ExecuteConfiguredWorkflowDefinitionAsync(
+                                result, request, team, repairDefinition, baseUri, participants,
+                                bootstrap, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu,
+                                maxContextTokens, modelTimeoutSeconds, leaderModel, roleAssignments,
+                                rolePairings, state, loopGroup: string.Empty, loopIteration: 1,
+                                loopMaximumIterations: 1, workflowRevision: attempt + 1,
+                                xRoundCause: $"Required completion receipt {requiredFunction} is absent. Inspect the saved project state and use the allowed registered function; do not claim success from prose. Respect human approval and blockers.",
+                                suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                            reranRequiredStep = true;
+                        }
+                        if (!HasVerifiedCouncilFunctionResult(result, requiredFunction))
+                            result.Warnings.Add($"Same-team recovery exhausted for {requiredFunction}; completion is not verified.");
+                    }
+                    if (reranRequiredStep)
+                    {
+                        var summaryDefinition = configuredSteps.LastOrDefault(step => step.ProducesFinalAnswer);
+                        if (summaryDefinition is not null)
+                            state = await ExecuteConfiguredWorkflowDefinitionAsync(
+                                result, request, team, summaryDefinition, baseUri, participants,
+                                bootstrap, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu,
+                                maxContextTokens, modelTimeoutSeconds, leaderModel, roleAssignments,
+                                rolePairings, state, loopGroup: string.Empty, loopIteration: 1,
+                                loopMaximumIterations: 1, workflowRevision: 2,
+                                xRoundCause: "Final independent curation after bounded build/playtest self-repair: identify exactly which required functions completed and which remain blocked.",
+                                suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 var configuredAnswer = !string.IsNullOrWhiteSpace(state.FinalAnswer)
