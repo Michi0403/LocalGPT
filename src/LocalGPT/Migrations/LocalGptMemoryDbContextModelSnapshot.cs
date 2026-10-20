@@ -759,6 +759,18 @@ namespace LocalGPT.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CompletionRecoveryJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CompletionNoticeTemplate")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FollowOnPolicyJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ArchitectureContractsJson")
                         .IsRequired()
                         .HasColumnType("TEXT");

@@ -126,6 +126,12 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
     /// <param name="requiresVerifiedWorkspaceFileRead">Requires recorded successful file-reading evidence before the step is accepted.</param>
     /// <param name="retryMissingWorkspaceFileReadOnce">Retries a step once when a required workspace-file read is missing.</param>
     /// <param name="includeLocalResearchEvidence">Includes local research evidence in this step's prompt.</param>
+    /// <param name="missingWorkspaceFileReadRecoveryAttempts">Extra bounded source-read retry attempts.</param>
+    /// <param name="includeWorkspaceSourceExcerptsOnRecovery">Includes actual source excerpts during configured retries.</param>
+    /// <param name="workspaceFileReadRecoveryPromptTemplate">User-owned retry instruction stored with the seed step.</param>
+    /// <param name="workspaceSourcePriorityTerms">Saved ordered terms used to rank source excerpts.</param>
+    /// <param name="requireEachWorkspaceArchiveRead">Whether every archive root requires a verified read.</param>
+    /// <param name="continueWorkspaceReviewOnlyOnProgress">Whether source-review recovery requires newly completed source files.</param>
     /// <returns>The configured workflow step.</returns>
     private CouncilWorkflowStepDefinition Step(
         string key,
@@ -146,7 +152,13 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         IReadOnlyList<string>? allowedAutomaticFunctions = null,
         bool requiresVerifiedWorkspaceFileRead = false,
         bool retryMissingWorkspaceFileReadOnce = false,
-        bool includeLocalResearchEvidence = false) {
+        bool includeLocalResearchEvidence = false,
+        int missingWorkspaceFileReadRecoveryAttempts = 0,
+        bool includeWorkspaceSourceExcerptsOnRecovery = false,
+        string workspaceFileReadRecoveryPromptTemplate = "",
+        IReadOnlyList<string>? workspaceSourcePriorityTerms = null,
+        bool requireEachWorkspaceArchiveRead = false,
+        bool continueWorkspaceReviewOnlyOnProgress = false) {
     try
     {
         return new()
@@ -172,6 +184,12 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         RequiresCompleteUploadWorkspaceCuration = requiresCompleteUploadWorkspaceCuration,
         RequiresVerifiedWorkspaceFileRead = requiresVerifiedWorkspaceFileRead,
         RetryMissingWorkspaceFileReadOnce = retryMissingWorkspaceFileReadOnce,
+        MissingWorkspaceFileReadRecoveryAttempts = missingWorkspaceFileReadRecoveryAttempts,
+        IncludeWorkspaceSourceExcerptsOnRecovery = includeWorkspaceSourceExcerptsOnRecovery,
+        WorkspaceFileReadRecoveryPromptTemplate = workspaceFileReadRecoveryPromptTemplate,
+        WorkspaceSourcePriorityTerms = workspaceSourcePriorityTerms?.ToList() ?? [],
+        RequireEachWorkspaceArchiveRead = requireEachWorkspaceArchiveRead,
+        ContinueWorkspaceReviewOnlyOnProgress = continueWorkspaceReviewOnlyOnProgress,
         IncludeLocalResearchEvidence = includeLocalResearchEvidence,
         WaitForDeferredApprovalsBeforeNextStep = waitForDeferredApprovalsBeforeNextStep,
         EnableRolePeerReview = enableRolePeerReview,

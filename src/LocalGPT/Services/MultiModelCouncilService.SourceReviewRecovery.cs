@@ -10,8 +10,13 @@ namespace LocalGPT.Services
         /// requested a file. Evidence is supplied to the SAME Council team and run on its next
         /// X-round; a successful hash-only curator pass does not count as a semantic review.
         /// </summary>
+        /// <param name="request">Current Council request and uploaded workspace references.</param>
+        /// <param name="bootstrap">Current Council bootstrap context.</param>
+        /// <param name="step">Configured source selection and prioritization policy.</param>
+        /// <param name="cancellationToken">Cancels archive evidence retrieval.</param>
+        /// <returns>Bounded actual source excerpts and the read relative paths.</returns>
         private async Task<(string Evidence, IReadOnlyList<string> Paths)> BuildSourceReviewRecoveryEvidenceAsync(
-            MultiModelCouncilRequest request, string bootstrap, CancellationToken cancellationToken)
+            MultiModelCouncilRequest request, string bootstrap, CouncilWorkflowStepDefinition step, CancellationToken cancellationToken)
         {
             try
             {
@@ -65,7 +70,7 @@ namespace LocalGPT.Services
                     foreach (var path in candidates
                         .Select(file => file.RelativePath)
                         .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .OrderBy(SourceReviewPriority)
+                        .OrderBy(path => SourceReviewPriority(path, step.WorkspaceSourcePriorityTerms))
                         .ThenBy(path => path.Length)
                         .ThenBy(path => path, StringComparer.OrdinalIgnoreCase))
                     {
@@ -121,19 +126,18 @@ namespace LocalGPT.Services
             }
         }
 
-        /// <summary>Prioritizes project entry points and requirements over unrelated source inventory.</summary>
-        private int SourceReviewPriority(string path)
+        /// <summary>Ranks a candidate source path against the current step's saved ordered terms.</summary>
+        /// <param name="path">Candidate uploaded source path.</param>
+        /// <param name="priorityTerms">Saved matching terms, sorted by user preference.</param>
+        /// <returns>The index of the first matching priority term, or the configured unmatched rank.</returns>
+        private int SourceReviewPriority(string path, IReadOnlyList<string> priorityTerms)
         {
             try
             {
-                var name = Path.GetFileName(path).ToLowerInvariant();
-                if (name is "readme.md" or "readme.txt" or "readme") return 0;
-                if (name is "main.c" or "main.cpp" or "main.cs") return 1;
-                if (name.Contains("game", StringComparison.Ordinal) || name.Contains("engine", StringComparison.Ordinal)) return 2;
-                if (name.Contains("input", StringComparison.Ordinal) || name.Contains("player", StringComparison.Ordinal)) return 3;
-                if (name.EndsWith(".c", StringComparison.Ordinal) || name.EndsWith(".cpp", StringComparison.Ordinal)) return 4;
-                if (name.EndsWith(".h", StringComparison.Ordinal) || name.EndsWith(".cs", StringComparison.Ordinal)) return 5;
-                return 6;
+                for (var index = 0; index < priorityTerms.Count; index++)
+                    if (path.Contains(priorityTerms[index], StringComparison.OrdinalIgnoreCase))
+                        return index;
+                return priorityTerms.Count;
             }
             catch (Exception ex)
             {

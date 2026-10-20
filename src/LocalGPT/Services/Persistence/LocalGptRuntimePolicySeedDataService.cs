@@ -580,6 +580,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
   "maximumModelTimeoutSeconds": 1800,
   "maximumRoleComplianceRetries": 3,
   "maximumMemberRecoveryAttempts": 8,
+  "maximumCompletionRecoveryAttempts": 10,
+  "maximumWorkspaceFileReadRecoveryAttempts": 10,
   "minimumFinalRecoveryOutputTokens": 128,
   "maximumFinalRecoveryOutputTokens": 32768,
   "maximumChildCouncilDepth": 10,

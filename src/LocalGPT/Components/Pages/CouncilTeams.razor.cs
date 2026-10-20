@@ -1104,6 +1104,9 @@ namespace LocalGPT.Components.Pages
                 ? 1
                 : Math.Clamp(step.MaximumLoopIterations, 1, 100);
             step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
+            step.MissingWorkspaceFileReadRecoveryAttempts = Math.Clamp(step.MissingWorkspaceFileReadRecoveryAttempts, 0, 100);
+            step.RequiredCompletedWorkspaceFiles = Math.Clamp(step.RequiredCompletedWorkspaceFiles, 0, 100000);
+            step.WorkspaceFileReadRecoveryPromptTemplate = step.WorkspaceFileReadRecoveryPromptTemplate?.Trim() ?? string.Empty;
             step.XMaximumTransitions = Math.Clamp(step.XMaximumTransitions, 1, 100);
             step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, 10);
             step.XDefaultTargetStepKey = step.XDefaultTargetStepKey?.Trim().ToLowerInvariant() ?? string.Empty;

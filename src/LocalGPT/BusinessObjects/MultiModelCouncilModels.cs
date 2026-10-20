@@ -219,6 +219,16 @@ namespace LocalGPT.BusinessObjects
         [JsonIgnore]
         public int XRoundChildDepth { get; set; }
 
+        /// <summary>Process-local team ancestry used to prevent configured follow-on cycles.</summary>
+        /// <value>Visited team keys in the active council chain.</value>
+        [JsonIgnore]
+        public List<string> FollowOnTeamLineage { get; set; } = [];
+
+        /// <summary>Process-local maximum chain depth inherited from the initiating team; individual teams may narrow it.</summary>
+        /// <value>Maximum follow-on depth or null if no chain has begun.</value>
+        [JsonIgnore]
+        public int? FollowOnChainDepthLimit { get; set; }
+
         /// <summary>
         /// Gets or sets the progress message value that forms part of the multi model council state consumed or produced by the surrounding workflow.
         /// </summary>
@@ -659,6 +669,10 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         /// <value>The content value exposed by <see cref="MultiModelCouncilStep"/>.</value>
         public string Content { get; set; } = string.Empty;
+
+        /// <summary>Service-origin, content-free workspace read cursor receipt; never inferred from assistant prose.</summary>
+        /// <value>Optional compact JSON metadata for a verified registered workspace-file read.</value>
+        public string VerifiedWorkspaceReadMetadataJson { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the visible content value that forms part of the multi model council step state consumed or produced by the surrounding workflow.

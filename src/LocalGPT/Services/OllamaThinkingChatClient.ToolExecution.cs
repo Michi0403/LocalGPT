@@ -293,6 +293,41 @@ public sealed partial class OllamaThinkingChatClient
     }
 }
 
+    /// <summary>Retains only completed workspace-read cursor metadata in a truncated function result; file contents stay bounded by the transport limit.</summary>
+    /// <param name="result">Actual registered function result, not untrusted assistant text.</param>
+    /// <returns>Source path and read cursor evidence, or null for non-file functions.</returns>
+    private object? GetWorkspaceReadTransportMetadata(DxAiFunctionInvocationResult result)
+    {
+        try
+        {
+            if (!string.Equals(result.FunctionName, "chat.upload_workspace_file", StringComparison.OrdinalIgnoreCase) ||
+                !result.Succeeded || result.Value is null)
+                return null;
+            var value = JsonSerializer.SerializeToElement(result.Value, jsonOptions);
+            if (value.ValueKind != JsonValueKind.Object ||
+                !value.TryGetProperty("workspaceName", out var workspace) ||
+                !value.TryGetProperty("relativePath", out var path) ||
+                !value.TryGetProperty("characterOffset", out var offset) ||
+                !value.TryGetProperty("charactersReturned", out var returned) ||
+                !value.TryGetProperty("hasMore", out var hasMore) ||
+                workspace.ValueKind != JsonValueKind.String || path.ValueKind != JsonValueKind.String ||
+                offset.ValueKind != JsonValueKind.Number || returned.ValueKind != JsonValueKind.Number ||
+                (hasMore.ValueKind != JsonValueKind.True && hasMore.ValueKind != JsonValueKind.False))
+                return null;
+            return new
+            {
+                WorkspaceName = workspace.GetString(), RelativePath = path.GetString(),
+                CharacterOffset = offset.GetInt64(), CharactersReturned = returned.GetInt64(),
+                HasMore = hasMore.GetBoolean()
+            };
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not retain source-read progress metadata for a bounded tool result; no file content was logged.");
+            return null;
+        }
+    }
+
     /// <summary>
     /// Performs serialize tool result for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
@@ -300,22 +335,82 @@ public sealed partial class OllamaThinkingChatClient
     /// <returns>The string produced by the operation.</returns>
     private string SerializeToolResult(DxAiFunctionInvocationResult result)
     {
-    try
-    {
+        try
+        {
             var json = JsonSerializer.Serialize(result, jsonOptions);
-            return json.Length <= MaxToolResultCharacters
-                ? json
-                : json[..MaxToolResultCharacters] + "\n{\"truncated\":true}";
-    
+            var maximumCharacters = MaxToolResultCharacters;
+            if (json.Length <= maximumCharacters)
+                return json;
+
+            // The provider tool-message contract is exactly one JSON value. Cutting serialized JSON
+            // at a character boundary and appending a second object corrupts that contract (and
+            // generates first-chance JsonReaderExceptions in the Council's visible trace).
+            // Preserve the configured ceiling by transporting an explicitly incomplete JSON prefix
+            // as a *string*, rather than presenting the prefix as a complete function receipt.
+            // Small, provenance-bearing read metadata survives large CONTENT truncation. It is
+            // derived from the actual registered function result, not from the model's prose.
+            var readProgress = GetWorkspaceReadTransportMetadata(result);
+            var minimumMarker = JsonSerializer.Serialize(new { Truncated = true }, jsonOptions);
+            var lower = 0;
+            var upper = Math.Min(json.Length, maximumCharacters);
+            var retainedCharacters = 0;
+            string? boundedResult = null;
+            while (lower <= upper)
+            {
+                var midpoint = lower + (upper - lower) / 2;
+                var prefixLength = midpoint;
+                if (prefixLength > 0 && prefixLength < json.Length &&
+                    char.IsHighSurrogate(json[prefixLength - 1]) && char.IsLowSurrogate(json[prefixLength]))
+                {
+                    prefixLength--;
+                }
+
+                var candidate = JsonSerializer.Serialize(new
+                {
+                    Truncated = true,
+                    result.FunctionName,
+                    result.Status,
+                    result.Succeeded,
+                    OriginalCharacters = json.Length,
+                    ReadProgress = readProgress,
+                    SerializedResultPrefix = json[..prefixLength]
+                }, jsonOptions);
+
+                if (candidate.Length <= maximumCharacters)
+                {
+                    boundedResult = candidate;
+                    retainedCharacters = prefixLength;
+                    lower = midpoint + 1;
+                }
+                else
+                {
+                    upper = midpoint - 1;
+                }
+            }
+
+            if (boundedResult is not null)
+            {
+                logger.LogWarning(
+                    "Ollama function {FunctionName} returned {OriginalCharacters} serialized characters, exceeding the configured {MaximumCharacters}-character tool transport ceiling. A valid JSON truncation envelope with {RetainedCharacters} prefix characters was sent; request a smaller result or page for complete evidence.",
+                    result.FunctionName, json.Length, maximumCharacters, retainedCharacters);
+                return boundedResult;
+            }
+
+            // Even an empty full-metadata envelope cannot fit an extremely small operator limit.
+            // Prefer the minimal valid truncation marker over malformed JSON or invented success.
+            logger.LogWarning(
+                "Ollama function {FunctionName} has a tool-result ceiling of {MaximumCharacters} characters, too small for the JSON truncation envelope (minimum marker {MinimumCharacters}). Returning the minimal valid truncation marker.",
+                result.FunctionName, maximumCharacters, minimumMarker.Length);
+            return minimumMarker;
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Serializing an Ollama tool result was canceled.");
+            else
+                logger.LogError(exception, "Serializing an Ollama tool result failed.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SerializeToolResult)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SerializeToolResult)} failed.");
-        throw;
-    }
-}
 
 }

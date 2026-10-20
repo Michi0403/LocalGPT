@@ -404,6 +404,12 @@ public sealed class CouncilExecutionRuntimeParameters
     /// </summary>
     /// <value>The maximum member recovery attempts value exposed by <see cref="CouncilExecutionRuntimeParameters"/>.</value>
     public int MaximumMemberRecoveryAttempts { get; set; }
+    /// <summary>Database-backed bound for retrying missing registered function receipts after a configured team workflow.</summary>
+    /// <value>Maximum configured same-team required-function repair attempts per rule.</value>
+    public int MaximumCompletionRecoveryAttempts { get; set; } = 10;
+    /// <summary>Database-backed bound for missing verified workspace-file-read retries.</summary>
+    /// <value>Maximum source-review recovery attempts per saved workflow step.</value>
+    public int MaximumWorkspaceFileReadRecoveryAttempts { get; set; } = 10;
     /// <summary>
     /// Gets or sets the minimum final recovery output tokens value that forms part of the council execution runtime parameters state consumed or produced by the surrounding workflow.
     /// </summary>

@@ -233,6 +233,36 @@ namespace LocalGPT.Services
                 }
             }
 
+            // Evaluate recovery permissions only after all saved steps have been
+            // normalized. Before this point a user-edited step can still have its
+            // previous effective function mode or unnormalized allow-list values.
+            var duplicateRecoveryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var rule in team.CompletionRecovery.Rules)
+            {
+                if (rule is null) throw new InvalidOperationException("Completion recovery rules cannot be null.");
+                rule.FunctionName = rule.FunctionName?.Trim() ?? string.Empty;
+                rule.WorkflowStepKey = rule.WorkflowStepKey?.Trim() ?? string.Empty;
+                rule.RecoveryPromptTemplate = rule.RecoveryPromptTemplate?.Trim() ?? string.Empty;
+                rule.PrerequisiteFunctions = NormalizeFunctionNames(rule.PrerequisiteFunctions);
+                rule.MaximumAttempts = Math.Clamp(rule.MaximumAttempts, 0,
+                    runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumCompletionRecoveryAttempts);
+                if (string.IsNullOrWhiteSpace(rule.FunctionName) ||
+                    !team.RequiredCompletedFunctions.Contains(rule.FunctionName, StringComparer.OrdinalIgnoreCase) ||
+                    !duplicateRecoveryNames.Add(rule.FunctionName))
+                    throw new InvalidOperationException("Each completion recovery rule needs a unique function from the team's required results.");
+                var recoveryStep = team.WorkflowSteps.FirstOrDefault(step => step.IsEnabled &&
+                    string.Equals(step.Key, rule.WorkflowStepKey, StringComparison.OrdinalIgnoreCase));
+                if (recoveryStep is null || !recoveryStep.CanUseOrganicFunctions ||
+                    (recoveryStep.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.StrictStepAllowList &&
+                     !recoveryStep.AllowedAutomaticFunctions.Contains(rule.FunctionName, StringComparer.OrdinalIgnoreCase)) ||
+                    (recoveryStep.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList &&
+                     !team.AllowedAutomaticFunctions.Contains(rule.FunctionName, StringComparer.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"Recovery rule '{rule.FunctionName}' needs a function-capable step whose strict function policy permits this function.");
+                if (rule.PrerequisiteFunctions.Any(name => !team.RequiredCompletedFunctions.Contains(name, StringComparer.OrdinalIgnoreCase) ||
+                    string.Equals(name, rule.FunctionName, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"Recovery rule '{rule.FunctionName}' has an invalid required-function prerequisite.");
+            }
+
             var workflowStepKeys = team.WorkflowSteps
                 .Select(step => step.Key)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -266,11 +296,37 @@ namespace LocalGPT.Services
             if (!Enum.IsDefined(typeof(CouncilProjectProvisioningMode), team.ProjectProvisioningMode))
                 throw new InvalidOperationException("The configured project provisioning mode is not supported.");
             team.RequiredCompletedFunctions = NormalizeFunctionNames(team.RequiredCompletedFunctions);
+            team.CompletionNoticeTemplate = team.CompletionNoticeTemplate?.Trim() ?? string.Empty;
+            team.CompletionRecovery ??= new();
+            team.CompletionRecovery.Rules ??= [];
+            team.CompletionRecovery.FinalReviewPromptTemplate = team.CompletionRecovery.FinalReviewPromptTemplate?.Trim() ?? string.Empty;
+            if (team.CompletionRecovery.Rules.Count > MaxWorkflowSteps)
+                throw new InvalidOperationException("Completion recovery has more rules than the workflow step limit.");
+            team.FollowOn ??= new();
+            team.FollowOn.TeamKey = team.FollowOn.TeamKey?.Trim().ToLowerInvariant() ?? string.Empty;
+            team.FollowOn.PromptTemplate = team.FollowOn.PromptTemplate?.Trim() ?? string.Empty;
+            team.FollowOn.MaximumDepth = Math.Clamp(team.FollowOn.MaximumDepth, 1,
+                runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth);
+            if (!string.IsNullOrWhiteSpace(team.FollowOn.TeamKey) &&
+                string.IsNullOrWhiteSpace(team.FollowOn.PromptTemplate))
+                throw new InvalidOperationException("A configured follow-on team requires an explicit task prompt. Use {{ParentAnswer}} to pass the previous result.");
+            if (string.Equals(team.FollowOn.TeamKey, team.Key, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("A Council team cannot follow itself; select a different saved team.");
             foreach (var step in team.WorkflowSteps)
             {
                 if (step.RequiresVerifiedWorkspaceFileRead && !step.CanUseOrganicFunctions)
                     throw new InvalidOperationException($"Workflow step '{step.Key}' requires workspace file reads but disables automatic functions.");
-                if (step.RetryMissingWorkspaceFileReadOnce && !step.RequiresVerifiedWorkspaceFileRead)
+                step.RequiredCompletedWorkspaceFiles = Math.Clamp(step.RequiredCompletedWorkspaceFiles, 0, 100000);
+                if (!step.RequiresVerifiedWorkspaceFileRead &&
+                    (step.RequiredCompletedWorkspaceFiles > 0 || step.RequireEachWorkspaceArchiveRead || step.ContinueWorkspaceReviewOnlyOnProgress))
+                    throw new InvalidOperationException($"Workflow step '{step.Key}' has workspace reading acceptance conditions without enabling the required verified workspace-read gate.");
+                step.MissingWorkspaceFileReadRecoveryAttempts = Math.Clamp(step.MissingWorkspaceFileReadRecoveryAttempts, 0,
+                    runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumWorkspaceFileReadRecoveryAttempts);
+                step.WorkspaceFileReadRecoveryPromptTemplate = step.WorkspaceFileReadRecoveryPromptTemplate?.Trim() ?? string.Empty;
+                step.WorkspaceSourcePriorityTerms = (step.WorkspaceSourcePriorityTerms ?? [])
+                    .Where(term => !string.IsNullOrWhiteSpace(term))
+                    .Select(term => term.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(32).ToList();
+                if ((step.RetryMissingWorkspaceFileReadOnce || step.MissingWorkspaceFileReadRecoveryAttempts > 0) && !step.RequiresVerifiedWorkspaceFileRead)
                     throw new InvalidOperationException($"Workflow step '{step.Key}' retries workspace reads without requiring verified file reads.");
                 step.AllowedAutomaticFunctions ??= [];
                 step.AllowedAutomaticFunctions = NormalizeFunctionNames(step.AllowedAutomaticFunctions);

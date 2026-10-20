@@ -21,6 +21,7 @@ namespace LocalGPT.Services
         Key = "adaptive-model-benchmark",
         DisplayName = "Initial Hardware Calibration Benchmark",
         Purpose = "First-run benchmark structure for every selected provider-qualified Council member. The workflow freezes one exact target set, Task Curators prepare one consolidated four-section benchmark suite, and LocalGPT executes that same suite as one deterministic measurement phase across every benchmark-capable Benchmark Subject. Five bounded token profile points are measurements inside that single phase, never model packs or target subsets. Independent roles only review the complete all-subject measurement matrix after execution and then synthesize measured Low, Normal, High, Expert and Max hardware-spooler profiles.",
+        CompletionNoticeTemplate = "Council benchmark workflow `{{RunId}}` completed normally after {{ExpandedStepCount}} configured round execution(s). The deterministic measurement and coverage evidence remain in the saved transcript.",
         AllMembersReadinessPreflightMode = CouncilAllMembersReadinessPreflightMode.Disabled,
         IncludeAllMembersReadinessPreflightInWorkflowContext = false,
         AllMembersReadinessPreflightMaxOutputTokens = 192,

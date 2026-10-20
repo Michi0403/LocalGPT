@@ -155,6 +155,9 @@ namespace LocalGPT.Services
             row.AllowedAutomaticFunctionsJson = Serialize(definition.AllowedAutomaticFunctions);
             row.ProjectProvisioningMode = definition.ProjectProvisioningMode;
             row.RequiredCompletedFunctionsJson = Serialize(definition.RequiredCompletedFunctions);
+            row.CompletionRecoveryJson = Serialize(definition.CompletionRecovery);
+            row.FollowOnPolicyJson = Serialize(definition.FollowOn);
+            row.CompletionNoticeTemplate = definition.CompletionNoticeTemplate;
             row.ArchitectureContractsJson = Serialize(definition.ArchitectureContracts);
             row.WorkflowStepsJson = Serialize(definition.WorkflowSteps);
             row.ExpertPreparationPromptTemplate = definition.ExpertPreparationPromptTemplate;
@@ -192,6 +195,9 @@ namespace LocalGPT.Services
         AllowedAutomaticFunctions = Deserialize<List<string>>(row.AllowedAutomaticFunctionsJson) ?? [],
         ProjectProvisioningMode = row.ProjectProvisioningMode,
         RequiredCompletedFunctions = Deserialize<List<string>>(row.RequiredCompletedFunctionsJson) ?? [],
+        CompletionRecovery = Deserialize<CouncilCompletionRecoveryPolicy>(row.CompletionRecoveryJson) ?? new(),
+        FollowOn = Deserialize<CouncilTeamFollowOnPolicy>(row.FollowOnPolicyJson) ?? new(),
+        CompletionNoticeTemplate = row.CompletionNoticeTemplate,
         ArchitectureContracts = Deserialize<List<string>>(row.ArchitectureContractsJson) ?? [],
         WorkflowSteps = Deserialize<List<CouncilWorkflowStepDefinition>>(row.WorkflowStepsJson) ?? [],
         ExpertPreparationPromptTemplate = row.ExpertPreparationPromptTemplate,

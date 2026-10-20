@@ -171,6 +171,50 @@
                             NullText="For example: project.game.build and project.game.start. Empty = no extra completion gate." />
                 </label>
                 <p class="hint">The completion gate checks function execution evidence, not AI claims. It does not execute unauthorized operations on behalf of the model.</p>
+                <label class="wide"><span>Optional completion notice template</span>
+                    <DxMemo @bind-Text="_editor.CompletionNoticeTemplate" CssClass="localgpt-editor council-script" Rows="2" NullText="Use {{RunId}}, {{ExpandedStepCount}}, and {{TeamName}}. Blank = no special notice." />
+                </label>
+                <details class="council-advanced-section">
+                    <summary>Required-function recovery rules (@_editor.CompletionRecovery.Rules.Count)</summary>
+                    <p class="hint">Each rule selects an enabled, function-capable step and a required DXFunction. Zero extra attempts disables recovery. Dependencies require successful function receipts, never model claims.</p>
+                    @foreach (var recoveryRule in _editor.CompletionRecovery.Rules)
+                    {
+                        <div class="council-workflow-fields" @key="recoveryRule">
+                            <label><span>Required DXFunction</span>
+                                <DxComboBox Data="@RecoveryRequiredFunctionOptions" @bind-Value="recoveryRule.FunctionName"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" CssClass="localgpt-dx-combo" />
+                            </label>
+                            <label><span>Workflow step</span>
+                                <DxComboBox Data="@RecoveryWorkflowStepOptions" @bind-Value="recoveryRule.WorkflowStepKey"
+                                            ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                            TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" CssClass="localgpt-dx-combo" />
+                            </label>
+                            <label><span>Extra attempts</span><DxSpinEdit @bind-Value="recoveryRule.MaximumAttempts" CssClass="localgpt-editor" MinValue="0" MaxValue="100" /></label>
+                            <label class="wide"><span>Prerequisite successful functions (one per line)</span>
+                                <DxMemo Text="@CouncilText.FormatMultilineNameList(recoveryRule.PrerequisiteFunctions)" TextChanged="@((string value) => SetRecoveryRulePrerequisites(recoveryRule, value))" CssClass="localgpt-editor" Rows="2" />
+                            </label>
+                            <label class="wide"><span>Retry instruction</span><DxMemo @bind-Text="recoveryRule.RecoveryPromptTemplate" CssClass="localgpt-editor council-script" Rows="3" /></label>
+                            <DxButton CssClass="btn btn-outline-danger btn-sm" Click="() => RemoveCompletionRecoveryRule(recoveryRule)">Remove rule</DxButton>
+                        </div>
+                    }
+                    <DxButton CssClass="btn btn-outline-primary btn-sm" Click="AddCompletionRecoveryRule">Add recovery rule</DxButton>
+                    <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_editor.CompletionRecovery.RepeatFinalAnswerAfterRecovery" CssClass="localgpt-check" /><span>Repeat the final-answer step after a recovery attempt</span></label>
+                    <label class="wide"><span>Post-recovery final review prompt</span><DxMemo @bind-Text="_editor.CompletionRecovery.FinalReviewPromptTemplate" CssClass="localgpt-editor council-script" Rows="3" /></label>
+                </details>
+                <details class="council-advanced-section">
+                    <summary>Next Council team · configurable follow-on workflow</summary>
+                    <p class="hint">A saved team may start another saved team with the same project, models and uploaded workspaces. Empty target disables chaining; successful tool evidence, approval and bounded depth remain enforced.</p>
+                    <label><span>Follow-on team</span>
+                        <DxComboBox Data="@FollowOnTeamOptions" @bind-Value="_editor.FollowOn.TeamKey"
+                                    ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                    TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" CssClass="localgpt-dx-combo" />
+                    </label>
+                    <label><span>Maximum chain depth</span><DxSpinEdit @bind-Value="_editor.FollowOn.MaximumDepth" CssClass="localgpt-editor" MinValue="1" MaxValue="10" /></label>
+                    <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_editor.FollowOn.RequireVerifiedCompletion" CssClass="localgpt-check" /><span>Run next team only when required functions are verified</span></label>
+                    <label class="localgpt-check-row"><DxCheckBox @bind-Checked="_editor.FollowOn.RequiresHumanApproval" CssClass="localgpt-check" /><span>Ask for approval before starting the next team</span></label>
+                    <label class="wide"><span>Follow-on team task prompt</span><DxMemo @bind-Text="_editor.FollowOn.PromptTemplate" CssClass="localgpt-editor council-script" Rows="4" NullText="Use {{ParentAnswer}}, {{OriginalPrompt}}, {{ParentTeamKey}}, and {{ParentRunId}} to pass context." /></label>
+                </details>
             </details>
 
             <details class="council-best-use-functions" open>
@@ -561,7 +605,18 @@
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequiresHumanCheckpoint" CssClass="localgpt-check" /><span>Respect human gate before round</span></label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequiresCompleteUploadWorkspaceCuration" CssClass="localgpt-check" /><span>Require complete upload-workspace curation before round</span></label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequiresVerifiedWorkspaceFileRead" CssClass="localgpt-check" /><span>Require evidence that this AI actually read an uploaded file (not just a hash inventory)</span></label>
-                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RetryMissingWorkspaceFileReadOnce" CssClass="localgpt-check" Enabled="@step.RequiresVerifiedWorkspaceFileRead" /><span>Retry this step once when model source-read evidence is missing</span></label>
+                            <label><span>Minimum distinct fully read workspace files (0 = one)</span><DxSpinEdit @bind-Value="step.RequiredCompletedWorkspaceFiles" CssClass="localgpt-editor" MinValue="0" MaxValue="100000" Enabled="@step.RequiresVerifiedWorkspaceFileRead" /></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RequireEachWorkspaceArchiveRead" CssClass="localgpt-check" Enabled="@step.RequiresVerifiedWorkspaceFileRead" /><span>Require at least one complete read from each extracted archive root</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.ContinueWorkspaceReviewOnlyOnProgress" CssClass="localgpt-check" Enabled="@step.RequiresVerifiedWorkspaceFileRead" /><span>Continue source review while new source pages or complete files are read; stop if a retry makes no progress</span></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.RetryMissingWorkspaceFileReadOnce" CssClass="localgpt-check" Enabled="@step.RequiresVerifiedWorkspaceFileRead" /><span>Legacy single source-read retry (used only when the advanced attempt count is zero)</span></label>
+                            <label><span>Verified workspace-read recovery attempts</span><DxSpinEdit @bind-Value="step.MissingWorkspaceFileReadRecoveryAttempts" CssClass="localgpt-editor" MinValue="0" MaxValue="100" Enabled="@step.RequiresVerifiedWorkspaceFileRead" /></label>
+                            <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.IncludeWorkspaceSourceExcerptsOnRecovery" CssClass="localgpt-check" Enabled="@step.RequiresVerifiedWorkspaceFileRead" /><span>Supply bounded source excerpts for corrective retry (not a verified model read)</span></label>
+                            <label class="wide"><span>Workspace-read retry instruction</span><DxMemo @bind-Text="step.WorkspaceFileReadRecoveryPromptTemplate" CssClass="localgpt-editor council-script" Rows="3" /></label>
+                            <label class="wide"><span>Source excerpt filename priorities (one term per line, optional)</span>
+                                <DxMemo Text="@CouncilText.FormatMultilineNameList(step.WorkspaceSourcePriorityTerms)"
+                                        TextChanged="@((string value) => SetWorkspaceSourcePriorityTerms(step, value))"
+                                        CssClass="localgpt-editor" Rows="3" />
+                            </label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.IncludeLocalResearchEvidence" CssClass="localgpt-check" /><span>Preload local Knowledge/regex inventory for this step</span></label>
                             <label class="localgpt-check-row"><DxCheckBox @bind-Checked="step.WaitForDeferredApprovalsBeforeNextStep" CssClass="localgpt-check" /><span>Wait for approval-gated DXFunctions before next round</span></label>
                             <label>

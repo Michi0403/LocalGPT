@@ -121,63 +121,91 @@ namespace LocalGPT.Services
                         nextExecutionIsReconsideration = false;
                         nextXRoundCause = string.Empty;
 
-                        // A deterministic hash pass is not a model source review. Do not allow
-                        // later implementation roles to invent mechanics from a file manifest alone.
+                        // Curation proves every byte was inventoried, not that the assigned AI
+                        // reviewed any source. Require complete, distinct registered file reads
+                        // from THIS configured round (including progressive read intervals).
                         if (firstStep.RequiresVerifiedWorkspaceFileRead &&
-                            result.Steps.Any(step => string.Equals(step.ModelName, "LocalGPT: workspace curator gate", StringComparison.Ordinal)) &&
-                            !HasVerifiedCouncilFunctionResult(result, "chat.upload_workspace_file"))
+                            result.Steps.Any(step => string.Equals(step.ModelName, "LocalGPT: workspace curator gate", StringComparison.Ordinal)))
                         {
-                            if (!firstStep.RetryMissingWorkspaceFileReadOnce)
-                                throw new InvalidOperationException(
-                                    $"Configured source review step '{firstStep.DisplayName}' requires a successful chat.upload_workspace_file result. " +
-                                    "Upload curation only establishes the byte inventory and cannot substitute for model file inspection.");
-
-                            // The model sometimes repeats chat.upload_workspace_files but never
-                            // opens a file (observed on the game-development upload). Instead of
-                            // repeating exactly the same unsuccessful prompt, supply real source
-                            // excerpts, then make up to three bounded SAME-team repair rounds.
-                            var recoveredSources = await BuildSourceReviewRecoveryEvidenceAsync(
-                                request, bootstrap, cancellationToken).ConfigureAwait(false);
-                            if (recoveredSources.Paths.Count == 0)
-                                throw new InvalidOperationException(
-                                    $"Configured source review '{firstStep.DisplayName}' has no readable extracted source files. " +
-                                    "The incomplete workspace remains resumable; no source behavior was inferred.");
-                            var sourceBacked = false;
-                            for (var sourceRepairRound = 1; sourceRepairRound <= 3 && !sourceBacked; sourceRepairRound++)
+                            var progress = GetVerifiedWorkspaceReadProgress(
+                                result, request, firstStep, bootstrap, cancellationToken);
+                            var requiredFiles = Math.Max(1, firstStep.RequiredCompletedWorkspaceFiles);
+                            var goalMet = progress.CompletedFiles >= requiredFiles &&
+                                (!firstStep.RequireEachWorkspaceArchiveRead ||
+                                 (progress.RequiredRoots == 0 || progress.CoveredRoots == progress.RequiredRoots));
+                            if (!goalMet)
                             {
-                                request.ProgressMessage?.Invoke(
-                                    $"Source review self-repair {sourceRepairRound}/3: giving the same team actual uploaded source contents for '{firstStep.DisplayName}'.");
-                                state = await ExecuteConfiguredWorkflowDefinitionAsync(
-                                    result,
-                                    request,
-                                    team,
-                                    firstStep,
-                                    baseUri,
-                                    participants,
-                                    bootstrap + Environment.NewLine + recoveredSources.Evidence,
-                                    modelRoutes,
-                                    maxParallelModels,
-                                    keepAlive,
-                                    ollamaNumGpu,
-                                    maxContextTokens,
-                                    modelTimeoutSeconds,
-                                    leaderModel,
-                                    roleAssignments,
-                                    rolePairings,
-                                    state,
-                                    loopGroup: string.Empty,
-                                    loopIteration: 1,
-                                    loopMaximumIterations: 1,
-                                    workflowRevision: revision + sourceRepairRound,
-                                    xRoundCause: "Source-review recovery: inspect real provided file contents; cite exact paths and continue project authoring instead of repeating the workspace list",
-                                    suppressOrganicFunctions: false,
-                                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                                sourceBacked = HasVerifiedCouncilFunctionResult(result, "chat.upload_workspace_file");
+                                var configuredSourceRetries = Math.Clamp(
+                                    firstStep.MissingWorkspaceFileReadRecoveryAttempts > 0
+                                        ? firstStep.MissingWorkspaceFileReadRecoveryAttempts
+                                        : firstStep.RetryMissingWorkspaceFileReadOnce ? 1 : 0,
+                                    0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(
+                                        LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumWorkspaceFileReadRecoveryAttempts);
+                                var recoveredSources = configuredSourceRetries > 0 && firstStep.IncludeWorkspaceSourceExcerptsOnRecovery
+                                    ? await BuildSourceReviewRecoveryEvidenceAsync(request, bootstrap, firstStep, cancellationToken).ConfigureAwait(false)
+                                    : (Evidence: string.Empty, Paths: (IReadOnlyList<string>)Array.Empty<string>());
+                                if (firstStep.IncludeWorkspaceSourceExcerptsOnRecovery &&
+                                    configuredSourceRetries > 0 && recoveredSources.Paths.Count == 0)
+                                    throw new InvalidOperationException($"Configured source review '{firstStep.DisplayName}' requested source excerpts but has no readable extracted source files.");
+
+                                var stalled = firstStep.ContinueWorkspaceReviewOnlyOnProgress &&
+                                    progress.CompletedFiles == 0 && progress.ReviewedCharacters == 0 &&
+                                    progress.TruncatedReadAttempts == 0;
+                                for (var sourceRepairRound = 1; sourceRepairRound <= configuredSourceRetries && !goalMet && !stalled; sourceRepairRound++)
+                                {
+                                    cancellationToken.ThrowIfCancellationRequested();
+                                    request.ProgressMessage?.Invoke(
+                                        $"Configured source review '{firstStep.DisplayName}' continuing {sourceRepairRound}/{configuredSourceRetries}: " +
+                                        $"{progress.CompletedFiles}/{requiredFiles} distinct complete source files, " +
+                                        $"{progress.CoveredRoots}/{progress.RequiredRoots} archive roots inspected; " +
+                                        $"{progress.ReviewedCharacters:n0} unique source character(s) delivered, " +
+                                        $"{progress.TruncatedReadAttempts} truncated read attempt(s).");
+                                    var previousProgress = progress;
+                                    var nextRevision = workflowRevisions.TryGetValue(firstStep.Key, out var previousSourceReviewRevision)
+                                        ? previousSourceReviewRevision + 1 : 1;
+                                    workflowRevisions[firstStep.Key] = nextRevision;
+                                    state = await ExecuteConfiguredWorkflowDefinitionAsync(
+                                        result, request, team, firstStep, baseUri, participants,
+                                        bootstrap + Environment.NewLine + recoveredSources.Evidence,
+                                        modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu,
+                                        maxContextTokens, modelTimeoutSeconds, leaderModel,
+                                        roleAssignments, rolePairings, state,
+                                        loopGroup: string.Empty, loopIteration: 1,
+                                        loopMaximumIterations: 1, workflowRevision: nextRevision,
+                                        xRoundCause: firstStep.WorkspaceFileReadRecoveryPromptTemplate,
+                                        suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                                    progress = GetVerifiedWorkspaceReadProgress(
+                                        result, request, firstStep, bootstrap, cancellationToken);
+                                    goalMet = progress.CompletedFiles >= requiredFiles &&
+                                        (!firstStep.RequireEachWorkspaceArchiveRead ||
+                                         (progress.RequiredRoots == 0 || progress.CoveredRoots == progress.RequiredRoots));
+                                    stalled = firstStep.ContinueWorkspaceReviewOnlyOnProgress &&
+                                        progress.CompletedFiles <= previousProgress.CompletedFiles &&
+                                        progress.CoveredRoots <= previousProgress.CoveredRoots &&
+                                        progress.ReviewedCharacters <= previousProgress.ReviewedCharacters &&
+                                        progress.TruncatedReadAttempts <= previousProgress.TruncatedReadAttempts;
+                                    if (stalled)
+                                        logger.LogWarning(
+                                            "Council run {RunId} stopped step {StepKey} after a retry added no new source-file coverage or completed archive-root evidence.",
+                                            result.RunId, firstStep.Key);
+                                }
+                                if (!goalMet)
+                                {
+                                    var warning = $"Configured source review '{firstStep.DisplayName}' remains incomplete: " +
+                                        $"{progress.CompletedFiles}/{requiredFiles} distinct fully read files; " +
+                                        $"{progress.CoveredRoots}/{progress.RequiredRoots} archive roots. " +
+                                        (stalled ? "Further retries stopped because the round made no new verified progress." :
+                                            $"The configured {configuredSourceRetries} recovery turns were insufficient.");
+                                    result.Warnings.Add(warning);
+                                    request.ProgressMessage?.Invoke(warning);
+                                    throw new InvalidOperationException(warning);
+                                }
                             }
-                            if (!sourceBacked)
-                                throw new InvalidOperationException(
-                                    $"Configured source review '{firstStep.DisplayName}' exhausted three source-backed self-repair rounds. " +
-                                    "No verified file-read result or source-backed review was produced; the run remains incomplete and resumable.");
+                            request.ProgressMessage?.Invoke(
+                                $"Configured source review '{firstStep.DisplayName}' accepted: " +
+                                $"{progress.CompletedFiles} distinct complete file(s), " +
+                                $"{progress.CoveredRoots}/{progress.RequiredRoots} archive roots; " +
+                                $"{progress.ReviewedCharacters:n0} unique source character(s) read.");
                         }
 
                         var resolution = await ResolveConfiguredXDirectiveAsync(
@@ -345,59 +373,88 @@ namespace LocalGPT.Services
                     stepIndex += loopSteps.Count;
                 }
 
-                // A game-project run must try to finish its own bounded build/playtest
-                // contract in the SAME team and run before handing back an incomplete
-                // result. Receipts still come only from registered functions; human
-                // approval gates and source/requirement checks are not bypassed.
-                if (string.Equals(team.Key, "game-project-development", StringComparison.OrdinalIgnoreCase))
+                // Completion recovery uses explicit, persisted function/step rules. No
+                // built-in team key, game-specific dependency or implicit retry policy.
+                var recoveredCompletion = false;
+                var pendingRecoveryRules = team.CompletionRecovery.Rules.ToList();
+                // A prerequisite may be recovered by a later rule. Resolve all eligible
+                // rules over a bounded number of passes rather than assuming user list order.
+                for (var recoveryPass = 0; recoveryPass < team.CompletionRecovery.Rules.Count &&
+                     pendingRecoveryRules.Count > 0; recoveryPass++)
                 {
-                    var reranRequiredStep = false;
-                    foreach (var requiredFunction in team.RequiredCompletedFunctions ?? [])
+                    var advanced = false;
+                    foreach (var rule in pendingRecoveryRules.ToList())
                     {
-                        if (HasVerifiedCouncilFunctionResult(result, requiredFunction)) continue;
-                        if (string.Equals(requiredFunction, "project.game.start", StringComparison.OrdinalIgnoreCase) &&
-                            !HasVerifiedCouncilFunctionResult(result, "project.game.build"))
+                        if (HasVerifiedCouncilFunctionResult(result, rule.FunctionName))
                         {
-                            result.Warnings.Add("Game playtest was not repeated: there is no successful project.game.build receipt.");
+                            pendingRecoveryRules.Remove(rule);
+                            advanced = true;
                             continue;
                         }
-                        var repairDefinition = configuredSteps.FirstOrDefault(step =>
-                            step.AllowedAutomaticFunctions.Contains(requiredFunction, StringComparer.OrdinalIgnoreCase));
-                        if (repairDefinition is null)
+                        if (rule.PrerequisiteFunctions.Any(name =>
+                            !HasVerifiedCouncilFunctionResult(result, name)))
+                            continue;
+                        pendingRecoveryRules.Remove(rule);
+                        advanced = true;
+                        var recoveryStep = configuredSteps.FirstOrDefault(step =>
+                            string.Equals(step.Key, rule.WorkflowStepKey, StringComparison.OrdinalIgnoreCase));
+                        var permitted = recoveryStep is not null && recoveryStep.CanUseOrganicFunctions &&
+                            (recoveryStep.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.StrictStepAllowList ||
+                             recoveryStep.AllowedAutomaticFunctions.Contains(rule.FunctionName, StringComparer.OrdinalIgnoreCase)) &&
+                            (recoveryStep.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList ||
+                             team.AllowedAutomaticFunctions.Contains(rule.FunctionName, StringComparer.OrdinalIgnoreCase));
+                        if (!permitted || recoveryStep is null)
                         {
-                            result.Warnings.Add($"No enabled same-team workflow step can invoke {requiredFunction}; a separate approved capability or team is needed.");
+                            result.Warnings.Add($"Configured recovery step '{rule.WorkflowStepKey}' cannot invoke required function '{rule.FunctionName}' under its active function policy.");
                             continue;
                         }
-                        for (var attempt = 1; attempt <= 2 &&
-                             !HasVerifiedCouncilFunctionResult(result, requiredFunction); attempt++)
+                        var maximumAttempts = Math.Clamp(rule.MaximumAttempts, 0,
+                            runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(
+                                LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumCompletionRecoveryAttempts);
+                        for (var attempt = 1; attempt <= maximumAttempts &&
+                             !HasVerifiedCouncilFunctionResult(result, rule.FunctionName); attempt++)
                         {
-                            request.ProgressMessage?.Invoke(
-                                $"Game development verification/repair {attempt}/2: repeating '{repairDefinition.DisplayName}' for the missing {requiredFunction} receipt.");
+                            request.ProgressMessage?.Invoke($"Council completion recovery '{rule.FunctionName}': attempt {attempt}/{maximumAttempts} in step '{recoveryStep.Key}'.");
+                            var revision = workflowRevisions.TryGetValue(recoveryStep.Key, out var previousRevision)
+                                ? previousRevision + 1 : 1;
+                            workflowRevisions[recoveryStep.Key] = revision;
                             state = await ExecuteConfiguredWorkflowDefinitionAsync(
-                                result, request, team, repairDefinition, baseUri, participants,
+                                result, request, team, recoveryStep, baseUri, participants,
                                 bootstrap, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu,
                                 maxContextTokens, modelTimeoutSeconds, leaderModel, roleAssignments,
                                 rolePairings, state, loopGroup: string.Empty, loopIteration: 1,
-                                loopMaximumIterations: 1, workflowRevision: attempt + 1,
-                                xRoundCause: $"Required completion receipt {requiredFunction} is absent. Inspect the saved project state and use the allowed registered function; do not claim success from prose. Respect human approval and blockers.",
+                                loopMaximumIterations: 1, workflowRevision: revision,
+                                xRoundCause: rule.RecoveryPromptTemplate,
                                 suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
-                            reranRequiredStep = true;
+                            recoveredCompletion = true;
                         }
-                        if (!HasVerifiedCouncilFunctionResult(result, requiredFunction))
-                            result.Warnings.Add($"Same-team recovery exhausted for {requiredFunction}; completion is not verified.");
+                        if (!HasVerifiedCouncilFunctionResult(result, rule.FunctionName))
+                            result.Warnings.Add($"Configured completion recovery exhausted for '{rule.FunctionName}'; verification is still missing.");
                     }
-                    if (reranRequiredStep)
+                    if (!advanced) break;
+                }
+                foreach (var blockedRule in pendingRecoveryRules)
+                {
+                    var missing = blockedRule.PrerequisiteFunctions
+                        .Where(name => !HasVerifiedCouncilFunctionResult(result, name));
+                    result.Warnings.Add($"Configured recovery for '{blockedRule.FunctionName}' is blocked by missing prerequisite receipts: {string.Join(", ", missing)}.");
+                }
+                if (recoveredCompletion && team.CompletionRecovery.RepeatFinalAnswerAfterRecovery)
+                {
+                    var finalStep = configuredSteps.LastOrDefault(step => step.ProducesFinalAnswer);
+                    if (finalStep is not null)
                     {
-                        var summaryDefinition = configuredSteps.LastOrDefault(step => step.ProducesFinalAnswer);
-                        if (summaryDefinition is not null)
-                            state = await ExecuteConfiguredWorkflowDefinitionAsync(
-                                result, request, team, summaryDefinition, baseUri, participants,
-                                bootstrap, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu,
-                                maxContextTokens, modelTimeoutSeconds, leaderModel, roleAssignments,
-                                rolePairings, state, loopGroup: string.Empty, loopIteration: 1,
-                                loopMaximumIterations: 1, workflowRevision: 2,
-                                xRoundCause: "Final independent curation after bounded build/playtest self-repair: identify exactly which required functions completed and which remain blocked.",
-                                suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        var revision = workflowRevisions.TryGetValue(finalStep.Key, out var previousRevision)
+                            ? previousRevision + 1 : 1;
+                        workflowRevisions[finalStep.Key] = revision;
+                        state = await ExecuteConfiguredWorkflowDefinitionAsync(
+                            result, request, team, finalStep, baseUri, participants,
+                            bootstrap, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu,
+                            maxContextTokens, modelTimeoutSeconds, leaderModel, roleAssignments,
+                            rolePairings, state, loopGroup: string.Empty, loopIteration: 1,
+                            loopMaximumIterations: 1, workflowRevision: revision,
+                            xRoundCause: team.CompletionRecovery.FinalReviewPromptTemplate,
+                            suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -406,15 +463,17 @@ namespace LocalGPT.Services
                     : !string.IsNullOrWhiteSpace(state.FallbackAnswer)
                         ? state.FallbackAnswer
                         : "The configured council workflow completed without a substantive visible answer. Review the round prompts, role policies, selected models and local logs.";
-                if (team.Key.StartsWith("adaptive-model-benchmark", StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrWhiteSpace(team.CompletionNoticeTemplate))
                 {
-                    var completionNotice =
-                        $"Council benchmark workflow `{result.RunId:N}` completed normally after {state.ExpandedStepIndex} configured round execution(s). " +
-                        "The deterministic measurement/coverage evidence above remains part of the saved transcript.";
+                    var completionNotice = team.CompletionNoticeTemplate
+                        .Replace("{{RunId}}", result.RunId.ToString("N"), StringComparison.Ordinal)
+                        .Replace("{{ExpandedStepCount}}", state.ExpandedStepIndex.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                        .Replace("{{TeamName}}", team.DisplayName, StringComparison.Ordinal);
                     request.ProgressMessage?.Invoke(completionNotice);
                     configuredAnswer = $"{configuredAnswer.Trim()}{Environment.NewLine}{Environment.NewLine}---{Environment.NewLine}_{completionNotice}_";
                 }
-                return configuredAnswer;
+                return await RunConfiguredFollowOnAsync(result, request, team, configuredSteps,
+                    configuredAnswer, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -671,6 +730,7 @@ namespace LocalGPT.Services
         /// <param name="sourceDefinition">Source definition value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="directive">Directive value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="configuredChildDepthOverride">Optional saved team-chain depth bound; ordinary X-Rounds retain their workflow-step bound.</param>
         /// <returns>The string produced by the operation.</returns>
         private async Task<string> RunXRoundChildCouncilAsync(
             MultiModelCouncilResult result,
@@ -678,7 +738,8 @@ namespace LocalGPT.Services
             OrganicCouncilTeamDefinition parentTeam,
             CouncilWorkflowStepDefinition sourceDefinition,
             CouncilXRoundDirective directive,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            int? configuredChildDepthOverride = null)
         {
             try
             {
@@ -691,7 +752,12 @@ namespace LocalGPT.Services
                     return string.Empty;
                 }
 
-                var maximumDepth = Math.Clamp(sourceDefinition.XMaximumChildCouncilDepth, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth);
+                // X-Rounds use the source step's own bound; configured team chains have
+                // their separately saved follow-on bound. Both respect the global cap.
+                var maximumDepth = Math.Clamp(
+                    configuredChildDepthOverride ?? sourceDefinition.XMaximumChildCouncilDepth,
+                    1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(
+                        LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth);
                 if (request.XRoundChildDepth >= maximumDepth)
                 {
                     var warning = $"X-Function child Council '{teamKey}' was not started because step '{sourceDefinition.DisplayName}' allows at most {maximumDepth} nested child-Council level(s).";
@@ -708,6 +774,12 @@ namespace LocalGPT.Services
                     RunId = Guid.NewGuid(),
                     Prompt = childPrompt,
                     ModelNames = request.ModelNames.ToList(),
+                    AttachedWorkspaceNames = request.AttachedWorkspaceNames.ToList(),
+                    FollowOnTeamLineage = request.FollowOnTeamLineage
+                        .Append(parentTeam.Key).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    FollowOnChainDepthLimit = configuredChildDepthOverride is int chainMaximumDepth
+                        ? Math.Min(request.FollowOnChainDepthLimit ?? int.MaxValue, chainMaximumDepth)
+                        : request.FollowOnChainDepthLimit,
                     ModelSelections = request.ModelSelections.ToList(),
                     UnavailableModelSelections = request.UnavailableModelSelections.ToList(),
                     BaseUri = request.BaseUri,
@@ -725,9 +797,9 @@ namespace LocalGPT.Services
                     SaveToMemory = false,
                     GenerateImplementationArtifact = false,
                     UseChangeReviewWorkflow = request.UseChangeReviewWorkflow,
-                    ProjectId = request.ProjectId,
+                    ProjectId = result.ProjectId ?? request.ProjectId,
                     ProjectTopicId = request.ProjectTopicId,
-                    ProjectRevisionId = request.ProjectRevisionId,
+                    ProjectRevisionId = result.ProjectRevisionId ?? request.ProjectRevisionId,
                     CreateProjectForRun = false,
                     UseOrganicCouncilWorkflow = true,
                     CouncilTeamKey = teamKey,

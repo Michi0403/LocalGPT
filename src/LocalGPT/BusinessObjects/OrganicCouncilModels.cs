@@ -205,6 +205,15 @@ public sealed class OrganicCouncilTeamDefinition
     public CouncilProjectProvisioningMode ProjectProvisioningMode { get; set; } = CouncilProjectProvisioningMode.OnExplicitRequest;
     /// <summary>DXFunction results required before this team may report the overall work as complete.</summary>
     public List<string> RequiredCompletedFunctions { get; set; } = [];
+    /// <summary>Configures evidence-based same-team recovery for missing required function receipts.</summary>
+    /// <value>Serialized team-owned function receipt recovery configuration.</value>
+    public CouncilCompletionRecoveryPolicy CompletionRecovery { get; set; } = new();
+    /// <summary>Configures a subsequent user-selected Council team, independently of this team's key or purpose.</summary>
+    /// <value>Saved team routing, verified completion and approval configuration.</value>
+    public CouncilTeamFollowOnPolicy FollowOn { get; set; } = new();
+    /// <summary>Optional persisted completion notice template; blank disables the additional notice for any team.</summary>
+    /// <value>Optional user-authored team completion notification template.</value>
+    public string CompletionNoticeTemplate { get; set; } = string.Empty;
     /// <summary>Gets or sets architecture and safety contracts that every round must preserve.</summary>
     /// <value>The architecture contracts value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<string> ArchitectureContracts { get; set; } = [];
@@ -505,6 +514,27 @@ public sealed class CouncilWorkflowStepDefinition
     public bool RequiresVerifiedWorkspaceFileRead { get; set; }
     /// <summary>Retries this configured read-only workflow step once when source files were curated but no model completed a workspace file read.</summary>
     public bool RetryMissingWorkspaceFileReadOnce { get; set; }
+    /// <summary>Additional same-step attempts for missing verified workspace reads; zero retains the legacy one-retry checkbox behavior.</summary>
+    /// <value>Additional approved attempts for a missing verified file-read function receipt.</value>
+    public int MissingWorkspaceFileReadRecoveryAttempts { get; set; }
+    /// <summary>Whether to include bounded actual source excerpts in a retry prompt, without treating excerpts as model tool receipts.</summary>
+    /// <value>Whether bounded source content is offered as retry context.</value>
+    public bool IncludeWorkspaceSourceExcerptsOnRecovery { get; set; }
+    /// <summary>User-configurable instruction for missing verified workspace file reads.</summary>
+    /// <value>Custom retry instruction to the assigned reviewer.</value>
+    public string WorkspaceFileReadRecoveryPromptTemplate { get; set; } = string.Empty;
+    /// <summary>Ordered case-insensitive filename/path terms for choosing representative source excerpts; empty uses stable alphabetical ordering.</summary>
+    /// <value>User-selected source filename ranking tokens.</value>
+    public List<string> WorkspaceSourcePriorityTerms { get; set; } = [];
+    /// <summary>Minimum distinct files whose recorded read intervals cover the complete content before this step may advance; zero uses one when verified reading is required.</summary>
+    /// <value>Required number of completely read workspace files, not merely listed or hashed files.</value>
+    public int RequiredCompletedWorkspaceFiles { get; set; }
+    /// <summary>Requires at least one completely read extracted file within each uploaded archive root for this step.</summary>
+    /// <value>Whether the saved step must inspect evidence from every original archive's extracted root.</value>
+    public bool RequireEachWorkspaceArchiveRead { get; set; }
+    /// <summary>Allows bounded same-step continuations only while the preceding execution completed additional distinct source files.</summary>
+    /// <value>Whether measurable new file coverage is required to authorize another configured source-review retry.</value>
+    public bool ContinueWorkspaceReviewOnlyOnProgress { get; set; }
     /// <summary>Includes a deterministic local knowledge and regex inventory before this configured step begins.</summary>
     public bool IncludeLocalResearchEvidence { get; set; }
     /// <summary>Gets or sets whether the workflow must wait for approval-gated deferred DXFunctions requested by this step before advancing to the next configured step.</summary>
@@ -632,6 +662,15 @@ public sealed class CouncilTeamConfiguration
     public CouncilProjectProvisioningMode ProjectProvisioningMode { get; set; } = CouncilProjectProvisioningMode.OnExplicitRequest;
     /// <summary>Persists registered function names whose completed results are required for a truthful team handoff.</summary>
     public string RequiredCompletedFunctionsJson { get; set; } = "[]";
+    /// <summary>Persists per-function recovery rules and final evidence review as user-owned JSON.</summary>
+    /// <value>Serialized configuration for the team recovery policy.</value>
+    public string CompletionRecoveryJson { get; set; } = "{}";
+    /// <summary>Persists optional follow-on team routing and approval as user-owned JSON.</summary>
+    /// <value>Serialized configuration for selecting the next team.</value>
+    public string FollowOnPolicyJson { get; set; } = "{}";
+    /// <summary>Persists the team-specific completion message as user-editable seed/template data.</summary>
+    /// <value>Optional user-authored team completion notification template.</value>
+    public string CompletionNoticeTemplate { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the architecture contracts JSON value that forms part of the council team state consumed or produced by the surrounding workflow.
     /// </summary>

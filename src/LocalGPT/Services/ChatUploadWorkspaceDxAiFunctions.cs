@@ -368,7 +368,7 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         "POST",
         "/api/dxai/functions/chat.upload_workspace_file/invoke",
         "Reads one uploaded or safely extracted file from a DXAiChat paperclip workspace by exact relative path, with continuation metadata for large text sources.",
-        "JSON parameters: relativePath required exact workspace-relative path from chat.upload_workspace_files ProjectFiles or Files; workspaceName optional; maxCharacters optional 1-1000000 (small values are normalized to a substantial read); offsetCharacters optional >= 0.",
+        "JSON parameters: relativePath required exact workspace-relative path from chat.upload_workspace_files ProjectFiles or Files; workspaceName optional; maxCharacters optional 1-1000000 (respected for model-context-sized paging); offsetCharacters optional >= 0.",
         "Read-only. LocalGPT resolves the path inside the bounded upload workspace and never executes the file. When HasMore is true, continue from NextOffsetCharacters; a whole-file request is not complete until HasMore is false.",
         IsReadOnly: true,
         AvailableToAi: true,
@@ -398,7 +398,10 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
                 return new DxAiFunctionInvocationResult { Status = "InvalidRequest", Error = "workspaceName/latest workspace and relativePath are required." };
 
             var requestedCharacters = ReadInt(request.Parameters, "maxCharacters", 250_000, 1, 1_000_000);
-            var maxCharacters = Math.Max(64_000, requestedCharacters);
+            // Preserve the model-selected page size. The runtime policy already enforces the
+            // maintained min/max limits; silently promoting a 5K read to 64K can overflow the
+            // AI tool-result transport and leave the model without the requested source text.
+            var maxCharacters = requestedCharacters;
             var offsetCharacters = ReadLong(request.Parameters, "offsetCharacters", 0, 0, 9_007_199_254_740_991);
             var file = await workspaces.ReadFileAsync(
                 workspaceName,
