@@ -56,6 +56,11 @@ public sealed partial class GoalExecutionService
                 }),
                 functions = functions.Select(function => new { function.Name, function.Purpose, function.Parameters }),
                 skills = skills.Select(skill => skill.Key),
+                connectedCapabilities = wirePeers.GetPeers()
+                    .Where(peer => wireConnections.IsConnected(peer.PeerId))
+                    .SelectMany(peer => peer.Capabilities)
+                    .Where(capability => capability.IsEnabled && capability.IsOnline)
+                    .Select(capability => new { capability.Key, capability.DisplayName, capability.Description }),
                 participants = models
             });
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -71,6 +76,23 @@ public sealed partial class GoalExecutionService
                     Temperature = 0f
                 }, timeout.Token).ConfigureAwait(false);
             var responseText = response.Text ?? string.Empty;
+            // Some compatible model gateways return HTML-encoded JSON (for example
+            // {&quot;steps&quot;:...}); decode the transport representation before parsing.
+            // Preserve literal ampersands in otherwise valid JSON strings.
+            var objectStart = responseText.IndexOf('{');
+            if (objectStart >= 0)
+            {
+                var objectBody = responseText[(objectStart + 1)..].TrimStart();
+                if (objectBody.StartsWith("&quot;", StringComparison.OrdinalIgnoreCase) ||
+                    objectBody.StartsWith("&#34;", StringComparison.OrdinalIgnoreCase) ||
+                    objectBody.StartsWith("&#x22;", StringComparison.OrdinalIgnoreCase) ||
+                    objectBody.StartsWith("&amp;quot;", StringComparison.OrdinalIgnoreCase))
+                {
+                    responseText = System.Net.WebUtility.HtmlDecode(responseText);
+                    if (responseText.Contains("&quot;", StringComparison.OrdinalIgnoreCase))
+                        responseText = System.Net.WebUtility.HtmlDecode(responseText);
+                }
+            }
             var start = responseText.IndexOf('{');
             var end = responseText.LastIndexOf('}');
             if (start < 0 || end <= start) return null;

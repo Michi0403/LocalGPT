@@ -161,8 +161,16 @@ public sealed partial class GoalExecutionService
         var executableFunctions = directorySnapshot.Functions.Where(function => function.AvailableToAi &&
             !function.IsCoordinationOnly && (function.SupportsAutomaticInvocation || function.SupportsDirectInvocation || function.SupportsDeferredApprovalRequest))
             .Select(function => function.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Live 1-Wire capabilities are distinct from LocalGPT organic skill names.
+        // A connected PublisherStudio advertises publisher.* keys in its peer capability catalog.
         var executableCapabilities = directorySnapshot.Skills.Where(skill => skill.IsEnabled && skill.IsOnline)
-            .Select(skill => skill.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .Select(skill => skill.Key)
+            .Concat(wirePeers.GetPeers()
+                .Where(peer => wireConnections.IsConnected(peer.PeerId))
+                .SelectMany(peer => peer.Capabilities)
+                .Where(capability => capability.IsEnabled && capability.IsOnline)
+                .Select(capability => capability.Key))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (checkpoint.RequiredFunctions.Any(function => !executableFunctions.Contains(function)) ||
             checkpoint.RequiredCapabilities.Any(capability => !executableCapabilities.Contains(capability)))
         {

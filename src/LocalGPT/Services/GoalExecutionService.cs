@@ -16,6 +16,8 @@ namespace LocalGPT.Services;
 /// <param name="providerModels">Bounded planning-only inference with registered model routes.</param>
 /// <param name="runtimePolicy">Database-configurable planner instructions and limits.</param>
 /// <param name="ledger">Durable step checkpoints and per-goal coordination.</param>
+/// <param name="wirePeers">Live advertised 1-Wire peer capabilities.</param>
+/// <param name="wireConnections">Authoritative active 1-Wire connection state.</param>
 public sealed partial class GoalExecutionService(
     IRuntimeCapabilityDirectoryService directory,
     ICouncilTeamConfigurationService teams,
@@ -24,6 +26,8 @@ public sealed partial class GoalExecutionService(
     IProviderModelRuntimeService providerModels,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     IGoalExecutionLedgerService ledger,
+    IOneWirePeerRegistry wirePeers,
+    IOneWireConnectionRegistry wireConnections,
     ILogger<GoalExecutionService> logger) : IGoalExecutionService
 {
     /// <inheritdoc />
@@ -49,7 +53,17 @@ public sealed partial class GoalExecutionService(
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var knownFunctions = functions.Select(function => function.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var knownCapabilities = skills.Select(skill => skill.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // A publisher.* key is a capability of a CONNECTED 1-Wire peer, not a LocalGPT
+        // organic skill key. Validate against advertised executable peers rather than
+        // rejecting every PublisherStudio request at the goal-planning boundary.
+        var peerCapabilities = wirePeers.GetPeers()
+            .Where(peer => wireConnections.IsConnected(peer.PeerId))
+            .SelectMany(peer => peer.Capabilities)
+            .Where(capability => capability.IsEnabled && capability.IsOnline)
+            .ToArray();
+        var knownCapabilities = skills.Select(skill => skill.Key)
+            .Concat(peerCapabilities.Select(capability => capability.Key))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var missing = requiredFunctions.Where(key => !knownFunctions.Contains(key))
             .Concat(requiredCapabilities.Where(key => !knownCapabilities.Contains(key)))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -64,6 +78,13 @@ public sealed partial class GoalExecutionService(
             .Where(item => item.Score >= 2 || requiredCapabilities.Contains(item.Key, StringComparer.OrdinalIgnoreCase))
             .OrderByDescending(item => item.Score).ThenBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
             .Select(item => item.Key).ToList();
+        matchingSkills.AddRange(peerCapabilities
+            .Select(capability => new { capability.Key,
+                Score = Match(goalTokens, capability.Key, capability.DisplayName, capability.Description) })
+            .Where(item => item.Score >= 2 || requiredCapabilities.Contains(item.Key, StringComparer.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.Score).ThenBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(item => item.Key));
+        matchingSkills = matchingSkills.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var ranked = configuredTeams
             .Select(team => new
             {
