@@ -400,6 +400,8 @@ namespace LocalGPT
                 builder.Services.AddScoped<IProviderModelBenchmarkService, ProviderModelBenchmarkService>();
                 builder.Services.AddScoped<ICouncilBenchmarkCalibrationService, CouncilBenchmarkCalibrationService>();
                 builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
+                builder.Services.AddScoped<IGoalExecutionService, GoalExecutionService>();
+                builder.Services.AddSingleton<IGoalExecutionLedgerService, GoalExecutionLedgerService>();
                 builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
                 builder.Services.AddScoped<IChatClient>(sp =>
                     sp.GetRequiredService<IChatClientFactory>().Build());

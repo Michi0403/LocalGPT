@@ -35,10 +35,11 @@ public sealed class OneWireOperationExecutor(
             if (item.RequestType == OneWireMessageType.CouncilRequest || string.Equals(item.CapabilityKey, "council.run", StringComparison.OrdinalIgnoreCase))
             {
                 var wireRequest = ReadPayload<OneWireCouncilRequest>(item.Request, "CouncilRequest");
-                var council = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
+                var goalService = scope.ServiceProvider.GetRequiredService<IGoalExecutionService>();
                 var request = new MultiModelCouncilRequest
                 {
                     Prompt = wireRequest.Prompt,
+                    GoalText = wireRequest.Prompt,
                     CouncilTeamKey = wireRequest.TeamKey,
                     CouncilLeaderModelName = wireRequest.LeaderModelName,
                     ModelNames = wireRequest.ModelNames,
@@ -105,7 +106,18 @@ public sealed class OneWireOperationExecutor(
                 using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, liveCancellation);
                 try
                 {
-                    var result = await council.RunAsync(request, linkedCancellation.Token).ConfigureAwait(false);
+                    var goal = await goalService.ExecuteAsync(new GoalExecutionRequest
+                    {
+                        GoalText = request.Prompt,
+                        CouncilRequest = request,
+                        RequiredCapabilities = request.RequestedOrganicCapabilities.ToList(),
+                        PreserveSelectedTeam = !string.IsNullOrWhiteSpace(request.CouncilTeamKey) &&
+                            !string.Equals(request.CouncilTeamKey, "general", StringComparison.OrdinalIgnoreCase)
+                    }, linkedCancellation.Token).ConfigureAwait(false);
+                    if (goal.CouncilResult is null)
+                        throw new InvalidOperationException("Goal execution blocked; missing runtime requirements: "
+                            + string.Join(", ", goal.MissingRequirements));
+                    var result = goal.CouncilResult;
                     liveSessions.Append(
                         request.RunId,
                         $"{Environment.NewLine}{Environment.NewLine}## Final council answer{Environment.NewLine}{result.FinalAnswer}{Environment.NewLine}");

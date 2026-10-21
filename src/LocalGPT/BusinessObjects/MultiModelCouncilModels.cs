@@ -19,6 +19,15 @@ namespace LocalGPT.BusinessObjects
         /// <value>The prompt value exposed by <see cref="MultiModelCouncilRequest"/>.</value>
         public string Prompt { get; set; } = string.Empty;
 
+        /// <summary>Latest user instruction used for goal routing independently of bounded conversation history.</summary>
+        /// <value>The active user goal; empty for legacy callers that only provide Prompt.</value>
+        public string GoalText { get; set; } = string.Empty;
+
+        /// <summary>In-process preflight goal plan for a streaming run; never transmitted or persisted as user configuration.</summary>
+        /// <value>Transient plan validated again against the live execution directory.</value>
+        [JsonIgnore]
+        public GoalExecutionResult? PrecomputedGoalPlan { get; set; }
+
         /// <summary>Exact LocalGPT-generated attachment workspace identities attached to this request; these are source provenance, not model claims.</summary>
         public List<string> AttachedWorkspaceNames { get; set; } = [];
 
@@ -418,6 +427,10 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         /// <value>The artifacts value exposed by <see cref="MultiModelCouncilResult"/>.</value>
         public List<CouncilArtifact> Artifacts { get; set; } = [];
+
+        /// <summary>Goal-level routing and observed completion evidence produced before and after Council execution.</summary>
+        /// <value>Goal execution summary, or null for legacy direct Council operations.</value>
+        public GoalExecutionSummary? GoalExecution { get; set; }
 
         /// <summary>
         /// Gets or sets the change review value that forms part of the multi model council state consumed or produced by the surrounding workflow.

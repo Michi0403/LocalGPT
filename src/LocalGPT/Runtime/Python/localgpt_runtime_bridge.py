@@ -177,6 +177,31 @@ def _runtime_probe(parameters: dict, cancel_path: str) -> dict:
     return {"status": "Completed", "metadata": {str(k): str(v) for k, v in result.items() if v is not None}}
 
 
+def _model_load_probe(parameters: dict, cancel_path: str) -> dict:
+    """Verify that downloaded weights load through the exact maintained local inference adapter.
+
+    A successful file download alone does not establish model compatibility.
+    This isolated worker releases all loaded resources after the probe exits.
+    """
+    _require_not_cancelled(cancel_path)
+    model_path = Path(str(parameters.get("model_path", ""))).resolve()
+    if not model_path.is_dir():
+        raise ValueError("The model-load probe requires an existing local model directory.")
+    kind = str(parameters.get("kind", "")).strip()
+    if kind not in ("image", "image-edit", "video", "image-to-video", "asr"):
+        raise ValueError("No executable model-load adapter exists for the requested capability.")
+    import torch
+    device = _auto_device(torch, str(parameters.get("device", "auto")))
+    _require_not_cancelled(cancel_path)
+    pipeline, _ = _get_or_load_pipeline(kind, str(model_path),
+        bool(parameters.get("trust_remote_code", False)), device, False)
+    _require_not_cancelled(cancel_path)
+    del pipeline
+    _release_device_cache(torch)
+    return {"status": "Completed", "metadata": {"adapter_kind": kind, "device": device,
+        "model_loaded": "true"}}
+
+
 def _hf_snapshot_download(parameters: dict, cancel_path: str) -> dict:
     _require_not_cancelled(cancel_path)
     from huggingface_hub import snapshot_download
@@ -673,6 +698,7 @@ _OPERATIONS = {
     "web_extract": _web_extract,
     "runtime_probe": _runtime_probe,
     "hf_snapshot_download": _hf_snapshot_download,
+    "model_load_probe": _model_load_probe,
     "openai_whisper_download": _openai_whisper_download,
     "image_generate": _image_generate,
     "image_edit": _image_edit,

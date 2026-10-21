@@ -539,6 +539,18 @@ public enum LocalGptRuntimeValue
     /// </summary>
     VocabularyJson,
     /// <summary>Database-backed system prompt template used for each Council participant.</summary>
+    /// <summary>Database-owned instructions for model-assisted goal planning and replanning.</summary>
+    GoalSemanticPlannerSystemPrompt,
+    /// <summary>Database-owned Council subgoal briefing template.</summary>
+    GoalCouncilSubstepPromptTemplate,
+    /// <summary>Maximum persisted and executable subgoals proposed by a model.</summary>
+    GoalMaximumPlanSteps,
+    /// <summary>Maximum attempts at semantic replanning after a verifiably failed step.</summary>
+    GoalMaximumReplans,
+    /// <summary>Maximum output tokens for the planning-only model call.</summary>
+    GoalPlannerOutputTokens,
+    /// <summary>Maximum seconds allowed for the planning-only model call.</summary>
+    GoalPlannerTimeoutSeconds,
     CouncilParticipantSystemPromptTemplate,
     /// <summary>Database-backed system prompt template describing the read-only upload workspace to the model.</summary>
     UploadWorkspaceSystemPromptTemplate,

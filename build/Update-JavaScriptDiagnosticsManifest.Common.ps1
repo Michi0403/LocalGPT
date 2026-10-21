@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory = $true)][string]$RepositoryRoot,
     [Parameter(Mandatory = $true)][string]$JavaScriptRoot,
     [Parameter(Mandatory = $true)][string]$ManifestPath,
-    [string]$ProductName = "Application"
+    [string]$ProductName = "Application",
+    [string]$CollocatedComponentsRoot = ''
 )
 
 Set-StrictMode -Version Latest
@@ -35,6 +36,15 @@ $maintained = @(
         Where-Object { -not $_.Name.EndsWith('.example.js', [StringComparison]::OrdinalIgnoreCase) } |
         Sort-Object FullName
 )
+if (-not [string]::IsNullOrWhiteSpace($CollocatedComponentsRoot)) {
+    $componentsFull = [IO.Path]::GetFullPath($CollocatedComponentsRoot)
+    if (-not (Test-Path -LiteralPath $componentsFull -PathType Container)) {
+        throw "$ProductName collocated component source does not exist: $componentsFull"
+    }
+    # Component-owned ES modules must remain subject to the same reviewed hash contract as wwwroot scripts.
+    $maintained += @(Get-ChildItem -LiteralPath $componentsFull -Recurse -File -Filter '*.razor.js')
+    $maintained = @($maintained | Sort-Object FullName -Unique)
+}
 if ($maintained.Count -eq 0) { throw "$ProductName has no maintained JavaScript files under $javaScriptRootFull" }
 
 $lines = New-Object 'System.Collections.Generic.List[string]'

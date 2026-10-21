@@ -624,6 +624,32 @@ public sealed partial class LocalAiRuntimeService(
             cancellationToken.ThrowIfCancellationRequested();
             Directory.Move(incomingPath, localPath);
             promotedToModelRoot = true;
+            // A downloaded snapshot is not yet a runnable model. Probe the real offline adapter
+            // in a separate managed-Python process, then publish the manifest only after it loads.
+            // Every claimed capability must be runnable, not merely the first selected one.
+            // Only documented executable kinds reach this managed-Python probe.
+            foreach (var capability in capabilities)
+            {
+                var probeKind = capability switch
+                {
+                    LocalAiCapability.ImageGeneration => "image",
+                    LocalAiCapability.ImageEditing => "image-edit",
+                    LocalAiCapability.TextToVideo => "video",
+                    LocalAiCapability.ImageToVideo => "image-to-video",
+                    LocalAiCapability.SpeechRecognition => "asr",
+                    _ => throw new NotSupportedException("No verified executable local-AI adapter is registered for this capability.")
+                };
+                var loadProbe = await RunBridgeProcessAsync("model_load_probe", new Dictionary<string, object?>
+                {
+                    ["model_path"] = localPath,
+                    ["kind"] = probeKind,
+                    ["trust_remote_code"] = request.TrustRemoteCode,
+                    ["device"] = config.DefaultDevice
+                }, TimeSpan.FromMinutes(30), cancellationToken).ConfigureAwait(false);
+                if (!loadProbe.Succeeded ||
+                    !string.Equals(loadProbe.Metadata.GetValueOrDefault("model_loaded"), "true", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Downloaded model weights could not be loaded for every declared capability. The incomplete installation will be removed.");
+            }
             var installation = new LocalAiModelInstallation
             {
                 InstallationId = installationId,
@@ -1238,6 +1264,7 @@ public sealed partial class LocalAiRuntimeService(
     try
     {
             if (!operation.Equals("hf_snapshot_download", StringComparison.Ordinal)
+                && !operation.Equals("model_load_probe", StringComparison.Ordinal)
                 && !operation.Equals("web_extract", StringComparison.Ordinal)
                 && !operation.Equals("openai_whisper_download", StringComparison.Ordinal))
                 throw new InvalidOperationException("Only reviewed non-inference bridge operations may run outside the embedded Python.NET lane.");
@@ -1457,11 +1484,18 @@ public sealed partial class LocalAiRuntimeService(
                 result.ArtifactId = artifact.ArtifactId;
                 result.ArtifactFileName = artifact.FileName;
                 result.ArtifactUrl = artifact.DownloadUrl;
+                // Only the server-issued same-origin artifact URL may become media markup.
+                // Markdown links remain the safe fallback for unrecognized content types.
+                var verifiedArtifactUrl = artifact.DownloadUrl.StartsWith("/__artifacts/media/", StringComparison.Ordinal)
+                    ? System.Text.Encodings.Web.HtmlEncoder.Default.Encode(artifact.DownloadUrl)
+                    : string.Empty;
                 result.ArtifactMarkdown = artifact.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
                     ? $"![Generated local AI image]({artifact.DownloadUrl})"
-                    : artifact.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
-                        ? $"[Open generated local AI video]({artifact.DownloadUrl})"
-                        : $"[Open generated local AI artifact]({artifact.DownloadUrl})";
+                    : verifiedArtifactUrl.Length > 0 && artifact.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
+                        ? $"<video controls preload=\"metadata\" class=\"localgpt-generated-media\" src=\"{verifiedArtifactUrl}\"></video>\n\n[Open generated local AI video]({artifact.DownloadUrl})"
+                        : verifiedArtifactUrl.Length > 0 && artifact.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
+                            ? $"<audio controls preload=\"metadata\" class=\"localgpt-generated-media\" src=\"{verifiedArtifactUrl}\"></audio>\n\n[Open generated local AI audio]({artifact.DownloadUrl})"
+                            : $"[Open generated local AI artifact]({artifact.DownloadUrl})";
                 result.Metadata.Remove("artifactPath");
                 return result;
             }

@@ -20,6 +20,11 @@ public interface ICouncilTeamConfigurationService
     /// <returns>A task that completes with the team definition, or null when it is unavailable.</returns>
     Task<OrganicCouncilTeamDefinition?> FindTeamAsync(string? key, CancellationToken cancellationToken = default);
 
+    /// <summary>Validates a detached team draft using the same rules as confirmed persistence, without saving it.</summary>
+    /// <param name="team">Untrusted proposed Council team.</param>
+    /// <returns>A normalized detached definition suitable for operator review.</returns>
+    OrganicCouncilTeamDefinition ValidateDraft(OrganicCouncilTeamDefinition team);
+
     /// <summary>Creates or updates one Council team after explicit user confirmation and validation.</summary>
     /// <param name="request">Confirmed team save request.</param>
     /// <param name="cancellationToken">Cancels the asynchronous database operation.</param>

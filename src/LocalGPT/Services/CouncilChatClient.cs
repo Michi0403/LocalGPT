@@ -85,12 +85,34 @@ public sealed partial class CouncilChatClient(
         var requestMessages = messages.ToList();
         var request = CreateRequest(requestMessages);
         ArgumentNullException.ThrowIfNull(request);
-        if (request.ModelNames.Count == 0)
+        if (request.ModelNames.Count == 0 && request.ModelSelections.Count == 0)
         {
-            yield return councilRuntime.CreateUpdate(
-                "No AI Council members are selected. Select at least one provider model in the DXAiChat council controls.",
-                logger);
-            yield break;
+            // A goal can start with no manually selected Council members. Resolve suitable
+            // installed/configured provider candidates before the live session is announced.
+            var discoveryScope = serviceScopeFactory.CreateAsyncScope();
+            await using (discoveryScope.ConfigureAwait(false))
+            {
+                var planner = discoveryScope.ServiceProvider.GetRequiredService<IGoalExecutionService>();
+                var preview = await planner.PlanAsync(new GoalExecutionRequest
+                {
+                    GoalText = request.GoalText,
+                    CouncilRequest = request,
+                    RequiredCapabilities = request.RequestedOrganicCapabilities.ToList(),
+                    PreserveSelectedTeam = !string.IsNullOrWhiteSpace(request.CouncilTeamKey) &&
+                        !string.Equals(request.CouncilTeamKey, "general", StringComparison.OrdinalIgnoreCase)
+                }, cancellationToken).ConfigureAwait(false);
+                if (preview.MissingRequirements.Count > 0)
+                {
+                    yield return councilRuntime.CreateUpdate(
+                        "Goal execution blocked; missing runtime requirements: "
+                            + string.Join(", ", preview.MissingRequirements), logger);
+                    yield break;
+                }
+                request.PrecomputedGoalPlan = preview;
+                request.ModelSelections = preview.PlannedModelSelections.ToList();
+                request.ModelNames = preview.PlannedModelSelections.Select(model => model.ModelName).ToList();
+                request.CouncilTeamKey = preview.SelectedTeamKey;
+            }
         }
         if (request.UnavailableModelSelections.Count > 0)
         {
@@ -186,11 +208,21 @@ public sealed partial class CouncilChatClient(
             var scope = serviceScopeFactory.CreateAsyncScope();
             await using (scope.ConfigureAwait(false))
             {
-                var gameBootstrap = scope.ServiceProvider.GetRequiredService<CouncilGameWorkflowBootstrapService>();
-                await gameBootstrap.EnsureSessionAsync(request, cancellationToken).ConfigureAwait(false);
-
-                var councilService = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
-                var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
+                var goalService = scope.ServiceProvider.GetRequiredService<IGoalExecutionService>();
+                var goal = await goalService.ExecuteAsync(new GoalExecutionRequest
+                {
+                    GoalText = request.GoalText,
+                    CouncilRequest = request,
+                    RequiredCapabilities = request.RequestedOrganicCapabilities.ToList(),
+                    PreserveSelectedTeam = !string.IsNullOrWhiteSpace(request.CouncilTeamKey) &&
+                        !string.Equals(request.CouncilTeamKey, "general", StringComparison.OrdinalIgnoreCase)
+                }, cancellationToken).ConfigureAwait(false);
+                if (goal.CouncilResult is null)
+                {
+                    publish("Goal execution blocked; missing runtime requirements: " + string.Join(", ", goal.MissingRequirements));
+                    return null;
+                }
+                var result = goal.CouncilResult;
                 if (result is null)
                 {
                     publish("The AI Council ended without a result. Review the LocalGPT log for the failed council phase.");
@@ -264,16 +296,24 @@ public sealed partial class CouncilChatClient(
         {
             var request = CreateRequest(messages);
             ArgumentNullException.ThrowIfNull(request);
-            if (request.ModelNames.Count == 0)
-                return "No AI Council members are selected. Select at least one provider model in the DXAiChat council controls.";
             if (request.UnavailableModelSelections.Count > 0)
                 return councilText.ProviderUnavailableRunNotice(request.UnavailableModelSelections, logger);
 
             var scope = serviceScopeFactory.CreateAsyncScope();
             await using (scope.ConfigureAwait(false))
             {
-                var councilService = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
-                var result = await councilService.RunAsync(request, cancellationToken).ConfigureAwait(false);
+                var goalService = scope.ServiceProvider.GetRequiredService<IGoalExecutionService>();
+                var goal = await goalService.ExecuteAsync(new GoalExecutionRequest
+                {
+                    GoalText = request.GoalText,
+                    CouncilRequest = request,
+                    RequiredCapabilities = request.RequestedOrganicCapabilities.ToList(),
+                    PreserveSelectedTeam = !string.IsNullOrWhiteSpace(request.CouncilTeamKey) &&
+                        !string.Equals(request.CouncilTeamKey, "general", StringComparison.OrdinalIgnoreCase)
+                }, cancellationToken).ConfigureAwait(false);
+                if (goal.CouncilResult is null)
+                    return "Goal execution blocked; missing runtime requirements: " + string.Join(", ", goal.MissingRequirements);
+                var result = goal.CouncilResult;
                 return FormatResult(result, includeProcess: true);
             }
         }
@@ -299,6 +339,7 @@ public sealed partial class CouncilChatClient(
             var request = requestFactory();
             var history = messages.ToList();
             request.Prompt = councilRuntime.BuildPrompt(history, logger);
+            request.GoalText = history.LastOrDefault(item => item.Role == ChatRole.User)?.Text?.Trim() ?? string.Empty;
             // The bounded history intentionally strips system messages. Preserve the
             // exact, service-generated upload identity separately so the Council curator
             // can resolve the current attachment without guessing the latest workspace.

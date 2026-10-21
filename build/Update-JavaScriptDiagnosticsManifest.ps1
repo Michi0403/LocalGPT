@@ -7,4 +7,5 @@ $root = Split-Path -Parent $PSScriptRoot
     -RepositoryRoot $root `
     -JavaScriptRoot (Join-Path $root 'src/LocalGPT/wwwroot/js') `
     -ManifestPath (Join-Path $PSScriptRoot 'javascript-diagnostics-files.sha256') `
-    -ProductName 'LocalGPT'
+    -ProductName 'LocalGPT' `
+    -CollocatedComponentsRoot (Join-Path $root 'src/LocalGPT/Components')

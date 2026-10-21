@@ -147,6 +147,18 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
     }
 }
 
+    /// <summary>Checks an AI-authored detached draft without writing or altering any configured team.</summary>
+    /// <param name="team">Proposed, untrusted team definition.</param>
+    /// <returns>The validated normalized copy, leaving the caller's draft unchanged.</returns>
+    public OrganicCouncilTeamDefinition ValidateDraft(OrganicCouncilTeamDefinition team)
+    {
+        ArgumentNullException.ThrowIfNull(team);
+        var copy = JsonSerializer.Deserialize<OrganicCouncilTeamDefinition>(JsonSerializer.Serialize(team))
+            ?? throw new ArgumentException("The proposed Council team could not be deserialized.", nameof(team));
+        NormalizeAndValidateUserDefinition(copy);
+        return copy;
+    }
+
     /// <summary>
     /// Performs save as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

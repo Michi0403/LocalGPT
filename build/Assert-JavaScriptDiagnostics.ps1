@@ -19,7 +19,7 @@ $jsRoot = Join-Path $root 'src/LocalGPT/wwwroot/js'
 $manifestPath = Join-Path $PSScriptRoot 'javascript-diagnostics-files.sha256'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { Fail "Required diagnostics manifest is missing: $manifestPath" }
 
-$maintained = @(Get-ChildItem -LiteralPath $jsRoot -File -Filter '*.js' | Where-Object { -not $_.Name.EndsWith('.example.js', [StringComparison]::OrdinalIgnoreCase) })
+$maintained = @(@(Get-ChildItem -LiteralPath $jsRoot -File -Filter '*.js' | Where-Object { -not $_.Name.EndsWith('.example.js', [StringComparison]::OrdinalIgnoreCase) }) + @(Get-ChildItem -LiteralPath (Join-Path $root 'src/LocalGPT/Components') -Recurse -File -Filter '*.razor.js'))
 $relativeFiles = @($maintained | ForEach-Object { $_.FullName.Substring($root.Length + 1).Replace([char]'\', [char]'/') } | Sort-Object -Unique)
 $manifest = @{}
 foreach ($line in Get-Content -LiteralPath $manifestPath) {
