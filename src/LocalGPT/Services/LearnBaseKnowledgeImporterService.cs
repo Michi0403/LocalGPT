@@ -18,6 +18,7 @@ namespace LocalGPT.Services
     /// <param name="catalog">Local gpt catalog service dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
     /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
     /// <param name="regexPatterns">Regex pattern service dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
+    /// <param name="packages">ZIP-based document text inspection used when the configured selection permits a package.</param>
     public sealed partial class LearnBaseKnowledgeImporterService(
         ICouncilKnowledgeService knowledgeService,
         ILogger<LearnBaseKnowledgeImporterService> logger,
@@ -25,7 +26,8 @@ namespace LocalGPT.Services
         CouncilTextService councilText,
         LocalGptCatalogService catalog,
         ILocalGptRuntimePolicyDataService runtimePolicy,
-        IRegexPatternService regexPatterns) : ILearnBaseKnowledgeImporterService
+        IRegexPatternService regexPatterns,
+        IArchivePackageService packages) : ILearnBaseKnowledgeImporterService
     {
 
 
@@ -388,6 +390,16 @@ namespace LocalGPT.Services
     try
     {
                 const int maximumCharacters = 12000;
+                if (packages.IsZipContainer(file.FullName))
+                {
+                    var packageText = await packages.ReadSemanticTextAsync(file.FullName, maximumCharacters, cancellationToken).ConfigureAwait(false);
+                    var relativePackage = Path.GetRelativePath(root, file.FullName).Replace('\\', '/');
+                    var packageLines = packageText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Where(line => !line.StartsWith("[Package part:", StringComparison.Ordinal))
+                        .Take(6)
+                        .Select(line => line.Length <= 220 ? line : line[..220]);
+                    return relativePackage + " :: " + string.Join(" | ", packageLines);
+                }
                 var stream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
                 using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: false);

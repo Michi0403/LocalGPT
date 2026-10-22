@@ -172,6 +172,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IRegexPatternService, RegexPatternService>();
                 builder.Services.AddSingleton<IRegexCuratorService, RegexCuratorService>();
                 builder.Services.AddSingleton<IProjectEvidenceClassifierService, ProjectEvidenceClassifierService>();
+                builder.Services.AddSingleton<IArchivePackageService, ArchivePackageService>();
                 builder.Services.AddScoped<IProjectIngestionService, ProjectIngestionService>();
                 builder.Services.AddScoped<IUploadFileProcessingCapabilityService, UploadFileProcessingCapabilityService>();
                 builder.Services.AddScoped<IUploadProcessingRecommendationService, UploadProcessingRecommendationService>();

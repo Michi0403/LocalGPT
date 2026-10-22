@@ -38,6 +38,10 @@ namespace LocalGPT.Services
                 total += Math.Max(0, entry.Length);
                 if (total > maximumExtractedBytes)
                     throw new InvalidDataException($"Archive exceeds the database-backed MaxExtractedBytes policy ({maximumExtractedBytes:n0} bytes).");
+                if (packages.IsUnsafeEntry(entry.ExternalAttributes))
+                    throw new InvalidDataException("Archive contains a symbolic link or special file entry.");
+                if (Path.IsPathRooted(entry.FullName) || entry.FullName.Replace('\\', '/').Split('/').Any(segment => segment is ".." or "."))
+                    throw new InvalidDataException("Archive contains an unsafe absolute or traversal path.");
                 var destination = Path.GetFullPath(Path.Combine(targetRoot, entry.FullName));
                 if (!platform.IsSameOrDescendantPath(normalizedRoot, destination))
                     throw new InvalidDataException("Archive contains an unsafe traversal path.");
@@ -47,7 +51,7 @@ namespace LocalGPT.Services
                     continue;
                 }
                 Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                entry.ExtractToFile(destination, overwrite: true);
+                entry.ExtractToFile(destination, overwrite: false);
             }
     
     }

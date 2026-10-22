@@ -88,7 +88,8 @@ public sealed partial class LearningRoundService
 
             if (!File.Exists(path))
                 return await BlockFileAsync(db, file, "The tracked source file is missing; rescan the project before learning.", cancellationToken).ConfigureAwait(false);
-            if (file.EncodingName == "binary")
+            var isPackage = packages.IsZipContainer(path);
+            if (file.EncodingName == "binary" && !isPackage)
                 return await BlockFileAsync(db, file, "Binary source requires a file-type-specific review; metadata hashing is not semantic learning.", cancellationToken).ConfigureAwait(false);
 
             var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -97,6 +98,24 @@ public sealed partial class LearningRoundService
             if (!currentHash.Equals(file.ContentHash, StringComparison.OrdinalIgnoreCase))
                 return await BlockFileAsync(db, file, "Source hash changed since tracking; resynchronize before reviewing.", cancellationToken).ConfigureAwait(false);
             stream.Position = 0;
+            if (isPackage)
+            {
+                // The cursor remains character-based, but is anchored to the verified original package hash.
+                // No compressed XML bytes are mistaken for readable source text.
+                var packageOffset = Math.Max(0L, file.LearningReadCharacters);
+                var page = await packages.ReadSemanticPageAsync(path, packageOffset, Math.Clamp(maximumCharacters, 1, 16000), cancellationToken).ConfigureAwait(false);
+                var content = page.Text;
+                var readCount = content.Length;
+                var hasMorePackage = page.HasMore;
+                file.LearningReadCharacters = checked(packageOffset + readCount);
+                file.LearningReadComplete = !hasMorePackage;
+                file.LearningStatus = hasMorePackage ? "Reading" : "NeedsReview";
+                file.LearningBlockReason = string.Empty;
+                file.LearningUpdatedAtUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                return new LearningFileReadResult(file.Id, file.ProjectRelativePath, file.ContentHash, packageOffset,
+                    file.LearningReadCharacters, hasMorePackage, content, file.LearningStatus, string.Empty);
+            }
 
             using var reader = new StreamReader(stream, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: true, leaveOpen: true);
             var position = Math.Max(0, file.LearningReadCharacters);

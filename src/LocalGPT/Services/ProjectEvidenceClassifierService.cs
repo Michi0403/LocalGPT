@@ -10,12 +10,14 @@ namespace LocalGPT.Services;
 /// <param name="regexPatterns">Regex pattern service dependency used by the project evidence classifier workflow to provide the corresponding application capability.</param>
 /// <param name="councilText">Council text service dependency used by the project evidence classifier workflow to provide the corresponding application capability.</param>
 /// <param name="catalog">Local gpt catalog service dependency used by the project evidence classifier workflow to provide the corresponding application capability.</param>
+/// <param name="packages">Shared ZIP-package type inspection.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProjectEvidenceClassifierService(
     IRegexCuratorService regexCurator,
     IRegexPatternService regexPatterns,
     CouncilTextService councilText,
     LocalGptCatalogService catalog,
+    IArchivePackageService packages,
     ILogger<ProjectEvidenceClassifierService> logger) : IProjectEvidenceClassifierService
 {
     /// <summary>
@@ -111,7 +113,7 @@ public sealed class ProjectEvidenceClassifierService(
             {
                 var relative = councilText.ToForwardSlash(Path.GetRelativePath(rootPath, path), logger);
                 AddUnique(values, relative);
-                if (!path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                if (!packages.IsZipContainer(path))
                     continue;
 
                 try
@@ -119,7 +121,7 @@ public sealed class ProjectEvidenceClassifierService(
                     using var archive = ZipFile.OpenRead(path);
                     foreach (var entry in archive.Entries.Where(entry => !string.IsNullOrWhiteSpace(entry.Name)).Take(Math.Max(1, catalog.MaxZipEntries)))
                     {
-                        var safeEntry = councilText.BuildSafeZipRelativePath(entry.FullName, logger);
+                        var safeEntry = packages.IsUnsafeEntry(entry.ExternalAttributes) ? null : councilText.BuildSafeZipRelativePath(entry.FullName, logger);
                         if (!string.IsNullOrWhiteSpace(safeEntry))
                             AddUnique(values, $"{relative}!/{councilText.ToForwardSlash(safeEntry, logger)}");
                     }
@@ -164,7 +166,7 @@ public sealed class ProjectEvidenceClassifierService(
             if (directIdentity is not null)
                 repositories.Add(directIdentity);
 
-            foreach (var zipPath in directFiles.Where(path => path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)))
+            foreach (var zipPath in directFiles.Where(path => packages.IsZipContainer(path) && packages.IdentifyFamily(path) == "ZipContainer"))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 try

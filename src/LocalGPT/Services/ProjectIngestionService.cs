@@ -19,6 +19,7 @@ namespace LocalGPT.Services;
 /// <param name="councilText">Council text service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
 /// <param name="councilRuntime">Council runtime service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
 /// <param name="catalog">Local gpt catalog service dependency used by the project ingestion workflow to provide the corresponding application capability.</param>
+/// <param name="packages">Shared archive signature and safety inspection.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProjectIngestionService(
     IChatUploadWorkspaceService workspaces,
@@ -31,6 +32,7 @@ public sealed class ProjectIngestionService(
     CouncilTextService councilText,
     CouncilRuntimeService councilRuntime,
     LocalGptCatalogService catalog,
+    IArchivePackageService packages,
     ILogger<ProjectIngestionService> logger) : IProjectIngestionService
 {
     /// <summary>
@@ -79,7 +81,7 @@ public sealed class ProjectIngestionService(
                     Length = info.Length,
                     Sha256 = await HashFileAsync(path, cancellationToken).ConfigureAwait(false),
                     Kind = councilRuntime.DetermineFileKind(path, logger),
-                    IsArchive = path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+                    IsArchive = packages.IsZipContainer(path)
                 };
 
                 if (evidence.IsArchive)
@@ -227,7 +229,7 @@ public sealed class ProjectIngestionService(
                 foreach (var source in Directory.EnumerateFiles(originalRoot, "*", SearchOption.AllDirectories))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (source.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    if (packages.IsZipContainer(source))
                     {
                         var zipRoot = Path.Combine(promotedRoot, councilText.SanitizeFileName(Path.GetFileNameWithoutExtension(source), logger));
                         Directory.CreateDirectory(zipRoot);
@@ -293,6 +295,7 @@ public sealed class ProjectIngestionService(
                 if (entry.Length > catalog.MaxZipEntryBytes) rejectionReasons.Add($"{evidence.RelativePath}: archive entry exceeds MaxZipEntryBytes.");
                 expanded += entry.Length;
                 if (expanded > catalog.MaxExtractedBytes) { rejectionReasons.Add($"{evidence.RelativePath}: archive exceeds MaxExtractedBytes."); break; }
+                if (packages.IsUnsafeEntry(entry.ExternalAttributes)) rejectionReasons.Add($"{evidence.RelativePath}: contains a linked or special archive entry.");
                 if (councilText.BuildSafeZipRelativePath(entry.FullName, logger) is null) rejectionReasons.Add($"{evidence.RelativePath}: contains an unsafe archive path.");
             }
             evidence.ArchiveEntryCount = entries;
@@ -326,13 +329,14 @@ public sealed class ProjectIngestionService(
             if (entry.Length > catalog.MaxZipEntryBytes) throw new InvalidDataException("Archive promotion encountered an oversized entry.");
             totalBytes += entry.Length;
             if (totalBytes > catalog.MaxExtractedBytes) throw new InvalidDataException("Archive promotion exceeded MaxExtractedBytes.");
+            if (packages.IsUnsafeEntry(entry.ExternalAttributes)) throw new InvalidDataException("Archive promotion rejected a linked or special entry.");
             var relative = councilText.BuildSafeZipRelativePath(entry.FullName, logger) ?? throw new InvalidDataException("Archive promotion encountered an unsafe path.");
             var destination = Path.GetFullPath(Path.Combine(destinationRoot, relative));
             if (!councilRuntime.IsInsideRoot(destinationRoot, destination, logger)) throw new InvalidDataException("Archive promotion encountered a traversal path.");
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             var source = entry.Open();
             await using var configuredSource = source.ConfigureAwait(false);
-            var target = File.Create(destination);
+            var target = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             await using var configuredTarget = target.ConfigureAwait(false);
             await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
         }

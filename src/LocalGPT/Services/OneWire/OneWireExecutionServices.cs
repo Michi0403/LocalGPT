@@ -115,8 +115,14 @@ public sealed class OneWireOperationExecutor(
                             !string.Equals(request.CouncilTeamKey, "general", StringComparison.OrdinalIgnoreCase)
                     }, linkedCancellation.Token).ConfigureAwait(false);
                     if (goal.CouncilResult is null)
+                    {
+                        var missing = string.Join(", ", goal.MissingRequirements);
+                        var suggestion = goal.MissingRequirements.Contains("CouncilParticipants", StringComparer.OrdinalIgnoreCase)
+                            ? " No configured AI participant is reachable. Start the selected local provider (for example Ollama), refresh model discovery, and retry."
+                            : string.Empty;
                         throw new InvalidOperationException("Goal execution blocked; missing runtime requirements: "
-                            + string.Join(", ", goal.MissingRequirements));
+                            + missing + "." + suggestion);
+                    }
                     var result = goal.CouncilResult;
                     liveSessions.Append(
                         request.RunId,

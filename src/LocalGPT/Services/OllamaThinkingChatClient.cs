@@ -595,7 +595,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     public void Dispose() {
     try
     {
-        http.Dispose();
+        // http.Dispose(); // Disabled: an in-flight Ollama stream may outlive the chat session. Restore only after transport leases track active sends.
     }
     catch (Exception __serviceMethodException)
     {

@@ -40,6 +40,25 @@ public sealed partial class GoalExecutionService
                 request.CouncilRequest.MaxContextTokens,
                 TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt(LocalGptRuntimeValue.GoalPlannerTimeoutSeconds))),
                 request.CouncilRequest.OllamaNumGpu, enableAutomaticTools: false, throwOnFailure: true);
+            // Present only a bounded, goal-relevant catalog to the planner. The proposal is
+            // still checked against the entire live directory in GoalExecutionService.PlanAsync;
+            // this is an inference budget, not an authorization filter.
+            var goalTerms = Tokens(goalText);
+            var relevantTeams = configuredTeams
+                .OrderByDescending(team => string.Equals(team.Key, request.CouncilRequest.CouncilTeamKey,
+                    StringComparison.OrdinalIgnoreCase) ? int.MaxValue : Match(goalTerms, team.Key, team.DisplayName, team.Purpose))
+                .Take(16).ToList();
+            var relevantFunctions = functions
+                .OrderByDescending(function => request.RequiredFunctions.Contains(function.Name, StringComparer.OrdinalIgnoreCase)
+                    ? int.MaxValue : Match(goalTerms, function.Name, function.Purpose))
+                .Take(48).ToList();
+            var connected = wirePeers.GetPeers()
+                .Where(peer => wireConnections.IsConnected(peer.PeerId))
+                .SelectMany(peer => peer.Capabilities)
+                .Where(capability => capability.IsEnabled && capability.IsOnline)
+                .OrderByDescending(capability => request.RequiredCapabilities.Contains(capability.Key, StringComparer.OrdinalIgnoreCase)
+                    ? int.MaxValue : Match(goalTerms, capability.Key, capability.DisplayName, capability.Description))
+                .Take(48).ToList();
             var catalog = JsonSerializer.Serialize(new
             {
                 goal = goalText,
@@ -47,20 +66,17 @@ public sealed partial class GoalExecutionService
                 explicitTeam = request.PreserveSelectedTeam ? request.CouncilRequest.CouncilTeamKey : null,
                 requiredFunctions = request.RequiredFunctions,
                 requiredCapabilities = request.RequiredCapabilities,
-                teams = configuredTeams.Select(team => new
+                teams = relevantTeams.Select(team => new
                 {
                     team.Key, team.DisplayName, team.Purpose,
                     roles = team.Roles.Select(role => role.Role),
                     functions = team.AllowedAutomaticFunctions,
                     capabilities = team.PreferredCapabilities
                 }),
-                functions = functions.Select(function => new { function.Name, function.Purpose, function.Parameters }),
-                skills = skills.Select(skill => skill.Key),
-                connectedCapabilities = wirePeers.GetPeers()
-                    .Where(peer => wireConnections.IsConnected(peer.PeerId))
-                    .SelectMany(peer => peer.Capabilities)
-                    .Where(capability => capability.IsEnabled && capability.IsOnline)
-                    .Select(capability => new { capability.Key, capability.DisplayName, capability.Description }),
+                functions = relevantFunctions.Select(function => new { function.Name, function.Purpose }),
+                skills = skills.OrderByDescending(skill => request.RequiredCapabilities.Contains(skill.Key, StringComparer.OrdinalIgnoreCase)
+                    ? int.MaxValue : Match(goalTerms, skill.Key)).Take(32).Select(skill => skill.Key),
+                connectedCapabilities = connected.Select(capability => new { capability.Key, capability.DisplayName, capability.Description }),
                 participants = models
             });
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -96,8 +112,28 @@ public sealed partial class GoalExecutionService
             var start = responseText.IndexOf('{');
             var end = responseText.LastIndexOf('}');
             if (start < 0 || end <= start) return null;
-            var proposal = JsonSerializer.Deserialize<GoalSemanticProposal>(responseText.Substring(start, end - start + 1),
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var json = responseText.Substring(start, end - start + 1);
+            // An LLM sometimes emits illustrative ellipses in JSON values, e.g. "teams": ... .
+            // Reject that incomplete response as ordinary failed planning *before* invoking the
+            // strict JSON parser. Deterministic catalog routing will handle the request.
+            if (ContainsInvalidBarePeriod(json))
+            {
+                logger.LogWarning("Goal {GoalId} semantic model returned incomplete JSON; using catalog fallback.",
+                    request.CouncilRequest.RunId);
+                return null;
+            }
+            GoalSemanticProposal? proposal;
+            try
+            {
+                proposal = JsonSerializer.Deserialize<GoalSemanticProposal>(json,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch (JsonException)
+            {
+                logger.LogWarning("Goal {GoalId} semantic model returned malformed JSON; using catalog fallback.",
+                    request.CouncilRequest.RunId);
+                return null;
+            }
             return proposal is { Steps.Count: > 0, Functions: not null, Capabilities: not null } ? proposal : null;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -112,4 +148,40 @@ public sealed partial class GoalExecutionService
             return null;
         }
     }
+
+    /// <summary>Detects unquoted model placeholders without changing legitimate quoted text.</summary>
+    /// <param name="text">Untrusted JSON candidate.</param>
+    /// <returns>True when a non-numeric period appears outside a JSON string.</returns>
+    private bool ContainsInvalidBarePeriod(string text)
+    {
+        try
+        {
+            var quoted = false;
+            var escaped = false;
+            for (var index = 0; index < text.Length; index++)
+            {
+                var character = text[index];
+                if (quoted)
+                {
+                    if (escaped) escaped = false;
+                    else if (character == '\\') escaped = true;
+                    else if (character == '"') quoted = false;
+                    continue;
+                }
+                if (character == '"') { quoted = true; continue; }
+                // Bare periods are legal only inside numeric JSON literals, e.g. 1.25.
+                // An LLM's placeholder "." or "..." is not a JSON value.
+                if (character == '.' && (index == 0 || index + 1 >= text.Length ||
+                    !char.IsDigit(text[index - 1]) || !char.IsDigit(text[index + 1])))
+                    return true;
+            }
+            return false;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Failed to inspect semantic-plan response syntax.");
+            return true;
+        }
+    }
+
 }

@@ -55,7 +55,8 @@
                     </div>
                     <div class="onewire-security-facts">
                         <span><strong>Fingerprint</strong>@(_status.HasSecret ? _status.Fingerprint : "Not created")</span>
-                        <span><strong>Trusted peers</strong>@_status.TrustedPeerCount</span>
+                        <span><strong>Encrypted trusted peers</strong>@_status.TrustedPeerCount</span>
+                        <span><strong>Live linked peers</strong>@_advertisedPeers.Count(peer => ConnectionRegistry.IsConnected(peer.PeerId))</span>
                         <span><strong>Secret file</strong><code>@_status.SecretPath</code></span>
                     </div>
                     <div class="onewire-security-actions">
@@ -221,11 +222,28 @@
                     <div class="onewire-security-section-heading">
                         <div>
                             <span class="onewire-security-kicker">TRUST STORE</span>
-                            <h2>Trusted peers</h2>
-                            <p>Review and revoke encrypted peer trust without mixing the list with the protocol catalog.</p>
+                            <h2>Trusted peers and live links</h2>
+                            <p>Active 1-Wire frontend links are displayed separately from optional encrypted pairing trust. A frontend link can be approved in Human Collaboration without creating encrypted peer trust.</p>
                         </div>
                         <span class="onewire-count-badge">@_trustedPeers.Count trusted</span>
                     </div>
+                    <div class="onewire-security-actions">
+                        <DxButton Text="Refresh peer status" Click="() => RefreshAsync()" />
+                    </div>
+                    <div class="onewire-security-facts">
+                        <span><strong>Active connections</strong>@_advertisedPeers.Count(peer => ConnectionRegistry.IsConnected(peer.PeerId))</span>
+                        <span><strong>Encrypted trust records</strong>@_trustedPeers.Count</span>
+                    </div>
+                    @foreach (var peer in _advertisedPeers.Where(peer => ConnectionRegistry.IsConnected(peer.PeerId)).OrderBy(peer => peer.PeerId))
+                    {
+                        <div class="onewire-security-peer" @key="peer.PeerId">
+                            <div>
+                                <strong>@peer.DisplayName · linked via 1-Wire</strong>
+                                <span>@peer.PeerId</span>
+                                <small>@peer.Capabilities.Count advertised capability(s) · encrypted trust: @(_trustedPeers.Any(trusted => string.Equals(trusted.PeerId, peer.PeerId, StringComparison.OrdinalIgnoreCase)) ? "present" : "not configured")</small>
+                            </div>
+                        </div>
+                    }
                     @if (_trustedPeers.Count == 0)
                     {
                         <div class="onewire-empty-state">
@@ -342,7 +360,7 @@
     /// </summary>
     /// <param name="key">Key value supplied to the one wire security operation and used when producing its result.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task OnOneWireSectionChangedAsync(string key)
+    private async Task OnOneWireSectionChangedAsync(string key)
     {
         try
         {
@@ -353,8 +371,10 @@
             _renderQr = true;
         }
 
-        return Task.CompletedTask;
-    
+        if (string.Equals(key, "peers", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(key, "protocol", StringComparison.OrdinalIgnoreCase))
+            await RefreshAsync(lifetimeCts.Token).ConfigureAwait(true);
+
         }
         catch (Exception __componentMethodException)
         {

@@ -15,10 +15,12 @@ namespace LocalGPT.Services;
 /// <param name="databaseInitializer">Database initialization service dependency used by the safe text document workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the safe text document workflow to provide the corresponding application capability.</param>
+/// <param name="packages">ZIP-based document inspector.</param>
 public sealed class SafeTextDocumentService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    IArchivePackageService packages,
     ILogger<SafeTextDocumentService> logger) : ISafeTextDocumentService
 {
     /// <summary>
@@ -46,7 +48,8 @@ public sealed class SafeTextDocumentService(
             ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
             var fullPath = Path.GetFullPath(filePath);
             var extension = Path.GetExtension(fullPath);
-            if (!AllowedExtensions.Contains(extension))
+            var isPackage = packages.IsZipContainer(fullPath);
+            if (!AllowedExtensions.Contains(extension) && !isPackage)
                 throw new InvalidOperationException($"The extension '{extension}' is not in the harmless text-document allowlist.");
 
             var info = new FileInfo(fullPath);
@@ -56,6 +59,14 @@ public sealed class SafeTextDocumentService(
             if (info.Length > maximumBytes)
                 throw new InvalidOperationException($"Text document size exceeds the configured SafeTextDocumentMaximumBytes policy ({maximumBytes:n0} bytes).");
 
+            if (isPackage)
+            {
+                var readable = await packages.ReadSemanticTextAsync(fullPath, maxCharacters, cancellationToken).ConfigureAwait(false);
+                return new SafeTextDocument(info.Name, readable,
+                    await HashDocumentAsync(fullPath, cancellationToken).ConfigureAwait(false), "utf-8",
+                    PackageContentType(packages.IdentifyFamily(fullPath)),
+                    ["Bounded package text was extracted as untrusted read-only reference data; original archive entries remain immutable."]);
+            }
             var bytes = await File.ReadAllBytesAsync(fullPath, cancellationToken).ConfigureAwait(false);
             if (LooksBinary(bytes))
                 throw new InvalidOperationException("The selected file contains binary control bytes and was not imported as text.");
@@ -272,5 +283,50 @@ public sealed class SafeTextDocumentService(
             logger.LogError(__serviceMethodException, $"Service method {nameof(SafeTextDocumentService)}.{nameof(GuessContentType)} failed.");
         throw;
     }
-}
+    }
+
+    /// <summary>Computes a stable content hash for imported package evidence without reading the entire archive into memory.</summary>
+    /// <param name="path">Package path.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>Hexadecimal SHA-256 digest.</returns>
+    private async Task<string> HashDocumentAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var stream = File.OpenRead(path);
+            await using var configured = stream.ConfigureAwait(false);
+            return Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)).ToLowerInvariant();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Hashing safe package document failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Assigns document media types from inspected package content rather than the user-supplied extension.</summary>
+    /// <param name="family">Inspected internal ZIP package family.</param>
+    /// <returns>Stable MIME media type.</returns>
+    private string PackageContentType(string family)
+    {
+        try
+        {
+            return family switch
+            {
+                "OfficeWord" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "OfficeSpreadsheet" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "OfficePresentation" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                "OpenDocument" => "application/vnd.oasis.opendocument.text",
+                "OpenSpreadsheet" => "application/vnd.oasis.opendocument.spreadsheet",
+                "OpenPresentation" => "application/vnd.oasis.opendocument.presentation",
+                "EPUB" => "application/epub+zip",
+                _ => "application/zip"
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Resolving package media type failed.");
+            throw;
+        }
+    }
 }

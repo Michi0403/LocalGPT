@@ -15,11 +15,13 @@ namespace LocalGPT.Services
     /// <param name="councilRuntime">Council runtime service dependency used by the chat upload workspace workflow to provide the corresponding application capability.</param>
     /// <param name="councilText">Council text service dependency used by the chat upload workspace workflow to provide the corresponding application capability.</param>
     /// <param name="catalog">Local gpt catalog service dependency used by the chat upload workspace workflow to provide the corresponding application capability.</param>
+    /// <param name="packages">Shared ZIP-compatible package classification and semantic text extraction.</param>
     public sealed class ChatUploadWorkspaceService(
         ILogger<ChatUploadWorkspaceService> logger,
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
-        LocalGptCatalogService catalog) : IChatUploadWorkspaceService
+        LocalGptCatalogService catalog,
+        IArchivePackageService packages) : IChatUploadWorkspaceService
     {
         /// <summary>
         /// Gets the workspace root value that forms part of the chat upload workspace state consumed or produced by the surrounding workflow.
@@ -90,14 +92,14 @@ namespace LocalGPT.Services
                     await System.IO.File.WriteAllBytesAsync(originalPath, bytes, cancellationToken).ConfigureAwait(false);
 
                     var originalRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
-                    if (councilRuntime.IsZip(input.Name, logger))
+                    if (packages.IsZipContainer(originalPath))
                     {
                         var buildSummary = councilRuntime.BuildBinarySummary(
                             originalRelativePath,
                             bytes.Length,
-                            "zip",
+                            packages.IdentifyFamily(originalPath),
                             false,
-                            "Original zip remains quarantined. Safe read-only extraction starts immediately so uploaded source can be inspected without waiting for promotion; execution and promotion remain gated.",
+                            "Original ZIP-compatible package remains quarantined. Safe read-only extraction starts immediately so uploaded source can be inspected without waiting for promotion; execution and promotion remain gated.",
                             logger);
                         ArgumentNullException.ThrowIfNull(buildSummary);
                         analyzedFiles.Add(buildSummary);
@@ -109,6 +111,7 @@ namespace LocalGPT.Services
                             analyzedFiles,
                             warnings,
                             cancellationToken).ConfigureAwait(false);
+                        await AddReadablePackageEvidenceAsync(root, originalPath, safeName, analyzedFiles, warnings, cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
@@ -250,14 +253,14 @@ namespace LocalGPT.Services
                     }
 
                     var originalRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
-                    if (councilRuntime.IsZip(input.Name, logger))
+                    if (packages.IsZipContainer(originalPath))
                     {
                         var summary = councilRuntime.BuildBinarySummary(
                             originalRelativePath,
                             copiedBytes,
-                            "zip",
+                            packages.IdentifyFamily(originalPath),
                             false,
-                            "Original zip remains quarantined. Safe read-only extraction starts immediately so uploaded source can be inspected without waiting for promotion; execution and promotion remain gated.",
+                            "Original ZIP-compatible package remains quarantined. Safe read-only extraction starts immediately so uploaded source can be inspected without waiting for promotion; execution and promotion remain gated.",
                             logger);
                         ArgumentNullException.ThrowIfNull(summary);
                         analyzedFiles.Add(summary);
@@ -269,6 +272,7 @@ namespace LocalGPT.Services
                             analyzedFiles,
                             warnings,
                             cancellationToken).ConfigureAwait(false);
+                        await AddReadablePackageEvidenceAsync(root, originalPath, safeName, analyzedFiles, warnings, cancellationToken).ConfigureAwait(false);
                     }
                     else if (copiedBytes <= Math.Min(catalog.MaxSingleFileBytes, Parameters.ImmediateAnalysisMaximumBytes))
                     {
@@ -567,7 +571,7 @@ namespace LocalGPT.Services
                     .ToList();
                 var originals = paths.Where(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase))
                     .ToList();
-                var archiveRoots = originals.Where(file => file.RelativePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                var archiveRoots = originals.Where(file => packages.IsZipContainer(file.FullPath))
                     .Select(file => "extracted/" + Path.GetFileNameWithoutExtension(file.RelativePath.Replace('\\', '/')))
                     .Where(path => Directory.Exists(Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar))))
                     .ToList();
@@ -987,6 +991,11 @@ namespace LocalGPT.Services
                             continue;
                         }
 
+                        if (packages.IsUnsafeEntry(entry.ExternalAttributes))
+                        {
+                            skippedOrInvalidEntryCount++;
+                            continue;
+                        }
                         var safeRelativePath = councilText.BuildSafeZipRelativePath(entry.FullName, logger);
                         if (safeRelativePath is null)
                         {
@@ -1468,6 +1477,11 @@ namespace LocalGPT.Services
                         break;
                     }
 
+                    if (packages.IsUnsafeEntry(entry.ExternalAttributes))
+                    {
+                        warnings.Add($"{zipFileName}: linked or special archive entry skipped: {entry.FullName}");
+                        continue;
+                    }
                     var safeRelativePath = councilText.BuildSafeZipRelativePath(entry.FullName, logger);
                     if (safeRelativePath is null)
                     {
@@ -1545,6 +1559,41 @@ namespace LocalGPT.Services
                     zipFileName);
                 warnings.Add($"{zipFileName}: safe read-only extraction failed; original quarantine file remains available.");
                 return false;
+            }
+        }
+
+        /// <summary>Produces bounded, explicit document text evidence outside the extracted entry tree so full ZIP curation counts remain authoritative.</summary>
+        /// <param name="workspaceRoot">Owner of the quarantined upload.</param>
+        /// <param name="packagePath">Original saved package path.</param>
+        /// <param name="packageName">Safe unique package file name.</param>
+        /// <param name="analyzedFiles">Source summaries for the Council context.</param>
+        /// <param name="warnings">Non-fatal diagnostic notes for the upload.</param>
+        /// <param name="cancellationToken">Cancellation.</param>
+        /// <returns>A task that completes after indexing readable content.</returns>
+        private async Task AddReadablePackageEvidenceAsync(string workspaceRoot, string packagePath, string packageName,
+            List<AnalyzedUploadFile> analyzedFiles, List<string> warnings, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var readable = await packages.ReadSemanticTextAsync(packagePath, catalog.MaxContextCharacters, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(readable)) return;
+                var folder = Path.Combine(workspaceRoot, "readable");
+                Directory.CreateDirectory(folder);
+                var destination = Path.Combine(folder, packageName + ".md");
+                await File.WriteAllTextAsync(destination, readable, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+                var relative = councilText.ToForwardSlash(Path.GetRelativePath(workspaceRoot, destination), logger);
+                var summary = councilRuntime.AnalyzeBytes(relative, Encoding.UTF8.GetBytes(readable), logger);
+                if (summary is not null) analyzedFiles.Add(summary);
+                logger.LogInformation("Indexed bounded semantic text from package {PackageName}; source remains quarantined.", packageName);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not create semantic package text evidence for {PackageName}.", packageName);
+                warnings.Add($"{packageName}: structured text could not be indexed; safely extracted package entries remain available.");
             }
         }
 

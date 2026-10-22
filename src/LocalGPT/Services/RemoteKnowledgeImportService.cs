@@ -34,6 +34,8 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
     private readonly LocalGptCatalogService catalog;
     /// <summary>Stores host filesystem semantics behind the injected platform boundary.</summary>
     private readonly IPlatformRuntimeService platform;
+    /// <summary>Shared ZIP-package entry validation policy.</summary>
+    private readonly IArchivePackageService packages;
     /// <summary>
     /// Stores the logger used by <see cref="RemoteKnowledgeImportService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -45,6 +47,7 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
     /// <param name="regexPatterns">Injected dependency used by the RemoteKnowledgeImportService.</param>
     /// <param name="catalog">Injected dependency used by the RemoteKnowledgeImportService.</param>
     /// <param name="platform">Injected host filesystem/platform semantics.</param>
+    /// <param name="packages">Shared ZIP package inspector.</param>
     /// <param name="logger">Injected dependency used by the RemoteKnowledgeImportService.</param>
     public RemoteKnowledgeImportService(
         ILearnBaseKnowledgeImporterService learnBaseImporter,
@@ -52,6 +55,7 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
         IRegexPatternService regexPatterns,
         LocalGptCatalogService catalog,
         IPlatformRuntimeService platform,
+        IArchivePackageService packages,
         ILogger<RemoteKnowledgeImportService> logger)
     {
         this.learnBaseImporter = learnBaseImporter;
@@ -59,6 +63,7 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
         this.regexPatterns = regexPatterns;
         this.catalog = catalog;
         this.platform = platform;
+        this.packages = packages;
         this.logger = logger;
         var parameters = catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>(LocalGptRuntimeValue.RemoteKnowledgeRuntimeParametersJson);
         http = new HttpClient(new HttpClientHandler

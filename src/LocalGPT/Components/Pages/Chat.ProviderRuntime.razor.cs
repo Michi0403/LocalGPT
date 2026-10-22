@@ -56,7 +56,7 @@ namespace LocalGPT.Components.Pages
             foreach (var session in ChatClientProvider.AvailableChatClients.Where(filter => CouncilRuntime.IsDynamicSession(filter, Logger) ?? new()).ToList())
             {
                 ChatClientProvider.AvailableChatClients.Remove(session);
-                session.Client.Dispose();
+                // session.Client.Dispose(); // Session-list refresh must not destroy a streaming Ollama transport.
             }
 
             foreach (var candidate in OllamaCandidates.Where(candidate => candidate.IsInstalled))

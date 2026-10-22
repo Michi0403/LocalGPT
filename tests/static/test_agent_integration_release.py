@@ -10,7 +10,7 @@ SERVICES = ROOT / 'src' / 'LocalGPT' / 'Services'
 
 class AgentIntegrationReleaseTests(unittest.TestCase):
     def test_version(self):
-        self.assertIn('<Version>6.1.6</Version>', (ROOT / 'src/LocalGPT/LocalGPT.csproj').read_text())
+        self.assertIn('<Version>6.2.3</Version>', (ROOT / 'src/LocalGPT/LocalGPT.csproj').read_text())
 
     def test_council_team_functions_include_approval_gate(self):
         s = (SERVICES / 'CouncilTeamDxAiFunctions.cs').read_text()

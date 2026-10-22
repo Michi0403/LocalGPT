@@ -263,7 +263,7 @@ public class CompositeChatClient : IChatClient
             {
                 try
                 {
-                    AvailableChatClients[i].Client.Dispose();
+                    // AvailableChatClients[i].Client.Dispose(); // Retired sessions can still own active Ollama stream enumerators.
                     AvailableChatClients[i].Messages.Clear();
                 }
                 catch (Exception ex)

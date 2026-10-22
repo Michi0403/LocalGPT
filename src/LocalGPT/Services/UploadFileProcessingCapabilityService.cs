@@ -107,10 +107,10 @@ public sealed class UploadFileProcessingCapabilityService(
         try
         {
             var extension = Path.GetExtension(file.RelativePath);
+            if (file.IsArchive)
+                return Available(file, "LocalGPT", "localgpt.native.archive", "LocalGPT can inspect ZIP-based Office, OpenDocument, EPUB and source packages as bounded read-only containers without PublisherStudio.");
             if (catalog.TextExtensions.Contains(extension) || catalog.SourceExtensions.Contains(extension))
                 return Available(file, "LocalGPT", "localgpt.native.text", "LocalGPT can process this text/source format directly.");
-            if (file.IsArchive && extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
-                return Available(file, "LocalGPT", "localgpt.native.archive", "LocalGPT can inspect this bounded ZIP/source archive directly.");
             if (localImageExtensions.Contains(extension))
                 return Available(file, "LocalGPT", "localgpt.vision.ocr", "LocalGPT can inspect the image directly and can use the local vision OCR workflow when an OCR model is available.");
             if (localSpeechExtensions.Contains(extension) && localAiRuntime.GetInstalledModels().Any(model => model.Capabilities.Contains(LocalAiCapability.SpeechRecognition)))
