@@ -697,6 +697,24 @@ namespace LocalGPT.Services
                     };
                 }
 
+                if (packages.IsZipContainer(file))
+                {
+                    // DOCX, XLSX, EPUB and nested ZIP packages are readable by their structured
+                    // semantic pages, just like the durable per-project learner. The cursor is
+                    // over normalized document text, never over compressed binary bytes.
+                    var page = await packages.ReadSemanticPageAsync(file, effectiveOffset, effectiveMaximum,
+                        cancellationToken).ConfigureAwait(false);
+                    var content = councilRuntime.SanitizeForPrompt(page.Text, logger);
+                    return new ChatUploadWorkspaceFileReadResult(
+                        workspaceName, normalizedRelativePath, file, "text", info.Length, content)
+                    {
+                        CharacterOffset = effectiveOffset,
+                        CharactersReturned = page.Text.Length,
+                        HasMore = page.HasMore,
+                        NextOffsetCharacters = page.HasMore ? effectiveOffset + page.Text.Length : null
+                    };
+                }
+
                 var bytes = await System.IO.File.ReadAllBytesAsync(file, cancellationToken).ConfigureAwait(false);
                 var analyzed = councilRuntime.AnalyzeBytes(normalizedRelativePath, bytes, logger);
                 ArgumentNullException.ThrowIfNull(analyzed);

@@ -52,9 +52,12 @@ namespace LocalGPT.Services
                         cancellationToken.ThrowIfCancellationRequested();
                         page = uploadWorkspaces.QueryFiles(workspaceName,
                             parameters.MaximumFileListCount, offset);
-                        candidates.AddRange(page.Files.Where(file => file.IncludedInPrompt &&
-                            file.RelativePath.StartsWith("extracted/", StringComparison.OrdinalIgnoreCase) &&
-                            IsSourceReviewTextPath(file.RelativePath)));
+                        // File type is classified by the shared workspace reader/catalog, not by a
+                        // hardcoded short extension list. An archive may contain source, SQL, XML,
+                        // notebooks, Markdown, or other configured readable formats.
+                        candidates.AddRange(page.Files.Where(file =>
+                            (file.IncludedInPrompt || string.Equals(file.Kind, "zip", StringComparison.OrdinalIgnoreCase)) &&
+                            file.RelativePath.StartsWith("extracted/", StringComparison.OrdinalIgnoreCase)));
                         pages++;
                         if (page.NextOffset is not int nextOffset || nextOffset <= offset) break;
                         offset = nextOffset;
@@ -66,13 +69,27 @@ namespace LocalGPT.Services
                             workspaceName, candidates.Count);
 
                     evidence.AppendLine($"Workspace: {workspaceName}; extracted archive roots: {string.Join(", ", page?.ArchiveRoots ?? [])}");
-                    var count = 0;
-                    foreach (var path in candidates
+                    var rankedPaths = candidates
                         .Select(file => file.RelativePath)
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .OrderBy(path => SourceReviewPriority(path, step.WorkspaceSourcePriorityTerms))
                         .ThenBy(path => path.Length)
-                        .ThenBy(path => path, StringComparer.OrdinalIgnoreCase))
+                        .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    // Reserve the first source slot in each represented archive before filling
+                    // remaining slots by the user's configured source-priority terms.
+                    var sourceRoots = page?.ArchiveRoots ?? [];
+                    var representatives = sourceRoots
+                        .Select(root => rankedPaths.FirstOrDefault(path =>
+                            path.StartsWith(root.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase)))
+                        .Where(path => path is not null)
+                        .Select(path => path!)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    var orderedPaths = representatives.Concat(rankedPaths)
+                        .Distinct(StringComparer.OrdinalIgnoreCase);
+                    var count = 0;
+                    foreach (var path in orderedPaths)
                     {
                         if (count >= maximumFilesPerWorkspace || evidence.Length >= maximumTotalCharacters - 1024)
                             break;
@@ -102,26 +119,6 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not prepare paginated actual source excerpts for same-team Council source-review recovery.");
-                throw;
-            }
-        }
-
-        /// <summary>Selects human-readable source extensions while excluding workspace manifests and binaries.</summary>
-        private bool IsSourceReviewTextPath(string path)
-        {
-            try
-            {
-                return path.EndsWith(".c", StringComparison.OrdinalIgnoreCase) ||
-                    path.EndsWith(".h", StringComparison.OrdinalIgnoreCase) ||
-                    path.EndsWith(".cpp", StringComparison.OrdinalIgnoreCase) ||
-                    path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ||
-                    path.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
-                    path.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
-                    path.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Could not classify an uploaded path as source-review evidence.");
                 throw;
             }
         }

@@ -154,6 +154,34 @@
             </details>
 
             <details class="council-best-use-functions" open>
+                <summary>PublisherStudio organic capability routing</summary>
+                <p class="hint">Bind individual PublisherStudio organic functions to this team by enabling its preferred capabilities, then save the team. PublisherStudio clients can select this team key for 1-Wire requests; approval and function permission checks still apply.</p>
+                <p class="hint">Current team key: <code>@_editor.Key</code>. Use dedicated teams for spreadsheets and OpenSCAD, or apply a single verified model to all AI roles below.</p>
+                <fieldset class="council-runtime-class-group">
+                    <legend>PublisherStudio capability affinity</legend>
+                    @foreach (var capabilityKey in PublisherOrganicCapabilityKeys)
+                    {
+                        <label class="council-runtime-class-option" @key="capabilityKey">
+                            <DxCheckBox Checked="@_editor.PreferredCapabilities.Contains(capabilityKey, StringComparer.OrdinalIgnoreCase)"
+                                        CheckedChanged="@((bool enabled) => TogglePreferredCapability(capabilityKey, new ChangeEventArgs { Value = enabled }))" />
+                            <span>@capabilityKey</span>
+                        </label>
+                    }
+                </fieldset>
+                <label>
+                    <span>One currently installed and configured AI model for this team</span>
+                    <DxComboBox Data="@PublisherOrganicLiveModelOptions"
+                                @bind-Value="_publisherSingleModelKey"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                CssClass="localgpt-dx-combo" />
+                </label>
+                <DxButton Text="Bind this live model to all AI roles" Click="BindPublisherOrganicSingleModel" Enabled="@(!string.IsNullOrWhiteSpace(_publisherSingleModelKey))" />
+                <DxButton Text="Remove unavailable saved role-model bindings" Click="RemoveUnavailablePublisherModels" />
+                <p class="hint">Offline or merely configured machines are not offered by this quick binder. Previously saved unavailable model bindings remain visible in individual role settings until replaced. Binding this model changes the unsaved editor; review and save with confirmation.</p>
+            </details>
+
+            <details class="council-best-use-functions" open>
                 <summary>Project and verified execution behavior</summary>
                 <label>
                     <span>Project provisioning mode (saved per team, never inferred from its name)</span>

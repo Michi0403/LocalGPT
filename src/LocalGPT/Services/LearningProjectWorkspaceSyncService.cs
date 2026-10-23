@@ -188,8 +188,8 @@ public sealed class LearningProjectWorkspaceSyncService(
             var requested = candidates.FirstOrDefault(item => string.Equals(item.WorkspaceName, requestedName, StringComparison.OrdinalIgnoreCase));
             if (requested is null)
             {
-                logger.LogWarning("Requested learning workspace {WorkspaceName} is no longer available; the latest upload workspace will be synchronized instead.", requestedName);
-                return [candidates[0]];
+                logger.LogWarning("Requested learning workspace {WorkspaceName} is no longer available; no other workspace will be substituted for source-backed learning.", requestedName);
+                return [];
             }
 
             if (!parameters.IncludeNewerWorkspacesWhenExplicitWorkspaceIsStale)

@@ -148,9 +148,10 @@ namespace LocalGPT.Services
                                     configuredSourceRetries > 0 && recoveredSources.Paths.Count == 0)
                                     throw new InvalidOperationException($"Configured source review '{firstStep.DisplayName}' requested source excerpts but has no readable extracted source files.");
 
-                                var stalled = firstStep.ContinueWorkspaceReviewOnlyOnProgress &&
-                                    progress.CompletedFiles == 0 && progress.ReviewedCharacters == 0 &&
-                                    progress.TruncatedReadAttempts == 0;
+                                // An empty initial read ledger means the AI has not called the file reader yet.
+                                // It must trigger the first source-backed recovery turn, not suppress every
+                                // configured retry. Stop ONLY after that turn produces no further verified progress.
+                                var stalled = false;
                                 for (var sourceRepairRound = 1; sourceRepairRound <= configuredSourceRetries && !goalMet && !stalled; sourceRepairRound++)
                                 {
                                     cancellationToken.ThrowIfCancellationRequested();

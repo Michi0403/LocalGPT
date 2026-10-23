@@ -105,10 +105,13 @@ public sealed partial class MultiModelCouncilService
                         if (source.ValueKind != JsonValueKind.Object ||
                             !source.TryGetProperty("workspaceName", out var workspace) ||
                             !source.TryGetProperty("relativePath", out var path) ||
+                            !source.TryGetProperty("kind", out var kind) ||
                             !source.TryGetProperty("characterOffset", out var offset) ||
                             !source.TryGetProperty("charactersReturned", out var count) ||
                             !source.TryGetProperty("hasMore", out var hasMore) ||
                             workspace.ValueKind != JsonValueKind.String || path.ValueKind != JsonValueKind.String ||
+                            kind.ValueKind != JsonValueKind.String ||
+                            !string.Equals(kind.GetString(), "text", StringComparison.OrdinalIgnoreCase) ||
                             offset.ValueKind != JsonValueKind.Number || count.ValueKind != JsonValueKind.Number ||
                             (hasMore.ValueKind != JsonValueKind.True && hasMore.ValueKind != JsonValueKind.False))
                             continue;
@@ -117,7 +120,7 @@ public sealed partial class MultiModelCouncilService
                         if (!offset.TryGetInt64(out var start) || !count.TryGetInt64(out var characters))
                             continue;
                         if (!referenced.Contains(name, StringComparer.OrdinalIgnoreCase) ||
-                            relative.Length == 0 || start < 0 || characters < 0 ||
+                            relative.Length == 0 || start < 0 || characters <= 0 ||
                             start > long.MaxValue - characters)
                             continue;
                         var key = $"{name}|{relative}";

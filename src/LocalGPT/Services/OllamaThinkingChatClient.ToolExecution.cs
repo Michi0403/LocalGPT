@@ -307,16 +307,19 @@ public sealed partial class OllamaThinkingChatClient
             if (value.ValueKind != JsonValueKind.Object ||
                 !value.TryGetProperty("workspaceName", out var workspace) ||
                 !value.TryGetProperty("relativePath", out var path) ||
+                !value.TryGetProperty("kind", out var kind) ||
                 !value.TryGetProperty("characterOffset", out var offset) ||
                 !value.TryGetProperty("charactersReturned", out var returned) ||
                 !value.TryGetProperty("hasMore", out var hasMore) ||
                 workspace.ValueKind != JsonValueKind.String || path.ValueKind != JsonValueKind.String ||
+                kind.ValueKind != JsonValueKind.String ||
                 offset.ValueKind != JsonValueKind.Number || returned.ValueKind != JsonValueKind.Number ||
                 (hasMore.ValueKind != JsonValueKind.True && hasMore.ValueKind != JsonValueKind.False))
                 return null;
             return new
             {
                 WorkspaceName = workspace.GetString(), RelativePath = path.GetString(),
+                Kind = kind.GetString(),
                 CharacterOffset = offset.GetInt64(), CharactersReturned = returned.GetInt64(),
                 HasMore = hasMore.GetBoolean()
             };

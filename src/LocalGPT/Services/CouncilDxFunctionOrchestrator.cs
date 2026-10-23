@@ -156,6 +156,8 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
                         if (read.ValueKind == JsonValueKind.Object &&
                             read.TryGetProperty("workspaceName", out var readWorkspace) &&
                             read.TryGetProperty("relativePath", out var readPath) &&
+                            read.TryGetProperty("kind", out var readKind) &&
+                            readKind.ValueKind == JsonValueKind.String &&
                             read.TryGetProperty("characterOffset", out var readOffset) &&
                             read.TryGetProperty("charactersReturned", out var readCount) &&
                             read.TryGetProperty("hasMore", out var readHasMore))
@@ -168,6 +170,7 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
                                 {
                                     workspaceName = readWorkspace.GetString(),
                                     relativePath = readPath.GetString(),
+                                    kind = readKind.GetString(),
                                     characterOffset = readOffset.GetInt64(),
                                     charactersReturned = readCount.GetInt64(),
                                     hasMore = readHasMore.GetBoolean()
