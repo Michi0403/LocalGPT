@@ -23,7 +23,7 @@ public sealed partial class DatabaseInitializationService
     {
             var catalogEntries = await catalog.LoadKnowledgeAsync(token).ConfigureAwait(false);
             if (catalogEntries.Count == 0)
-                return;
+                throw new InvalidOperationException("Mandatory initial knowledge catalog is empty.");
 
             var ids = catalogEntries.Select(x => x.Id).ToArray();
             var existingById = await db.CouncilKnowledgeEntries
@@ -39,6 +39,15 @@ public sealed partial class DatabaseInitializationService
                     continue;
                 }
 
+                // Only refresh an untouched, seed-owned record. Editing its content or
+                // changing its provenance makes the persisted knowledge user-owned.
+                var seedOwned = existing.Source.StartsWith("repository:", StringComparison.OrdinalIgnoreCase)
+                    || existing.Source.StartsWith("embedded:", StringComparison.OrdinalIgnoreCase)
+                    || existing.Source.StartsWith("builtin:core-knowledge:", StringComparison.OrdinalIgnoreCase);
+                var persistedContentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(existing.Content)));
+                if (!seedOwned || !string.Equals(persistedContentHash, existing.SourceHash, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 var contentChanged = !string.Equals(existing.SourceHash, item.SourceHash, StringComparison.OrdinalIgnoreCase);
                 if (contentChanged)
                 {
@@ -53,11 +62,8 @@ public sealed partial class DatabaseInitializationService
                     existing.UpdatedAtUtc = DateTime.UtcNow;
                 }
 
-                // Trust metadata is policy-owned and must be refreshed even when document text is unchanged.
-                existing.VerificationStatus = item.VerificationStatus;
-                existing.ReviewStatus = item.ReviewStatus;
-                existing.IsUserApproved = item.IsUserApproved;
-                existing.IsPinned = item.IsPinned;
+                // A human may unapprove, unpin or flag a supplied reference for review.
+                // Default seeding must not silently reverse those human decisions.
             }
     
     }

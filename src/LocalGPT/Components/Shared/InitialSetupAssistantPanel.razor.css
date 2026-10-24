@@ -63,3 +63,9 @@
     .initial-setup-installed-row { grid-template-columns: auto auto; }
     .initial-setup-installed-identity { grid-column: 1 / -1; }
 }
+
+/* One editable physical-host summary, independently selectable accelerator rows. */
+.initial-setup-physical-host { border:1px solid var(--dxbl-border-color, #7774); border-radius:.6rem; padding:.9rem; margin-block:.65rem; }
+.initial-setup-physical-host h5 { margin:.1rem 0 .8rem; }
+.initial-setup-host-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:.65rem; }
+.initial-setup-accelerator-list { display:grid; gap:.65rem; margin-top:.7rem; }

@@ -557,13 +557,19 @@
                      Visible="true"
                      VisibleChanged="OnGameConsoleVisibilityChangedAsync"
                      HeaderText="LocalGPT ASCII console"
-                     Width="min(1920px, 98vw)"
-                     Height="96dvh"
-                     MaxHeight="98dvh"
+                     Width="@AsciiPopupWidth"
+                     Height="@AsciiPopupHeight"
+                     MaxHeight="100dvh"
                      CloseOnOutsideClick="false">
                 <BodyContentTemplate>
                     <LocalGptFormLayoutSurface OwnerType="@typeof(Chat)" SectionName="ascii-console-body" CanHide="false" CssClass="chat-ascii-layout-surface">
                     <div class="chat-game-popup-body" aria-label="Optional ASCII game console">
+                    <div class="chat-ascii-popup-size-controls" aria-label="ASCII terminal window size">
+                        <span>ASCII terminal size</span>
+                        <DxButton Text="Compact" Enabled="@(asciiPopupSize != 0)" Click="@(() => SetAsciiPopupSize(0))" />
+                        <DxButton Text="Comfortable" Enabled="@(asciiPopupSize != 1)" Click="@(() => SetAsciiPopupSize(1))" />
+                        <DxButton Text="Full window" Enabled="@(asciiPopupSize != 2)" Click="@(() => SetAsciiPopupSize(2))" />
+                    </div>
                         <ChatGameConsole ConversationId="@ActiveConversationId"
                                          CouncilRunId="@(AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? SelectedCouncilRunId)"
                                          SuggestedTeamKey="@SelectedCouncilTeamKey"

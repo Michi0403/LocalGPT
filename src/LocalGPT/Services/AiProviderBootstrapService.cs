@@ -1,5 +1,7 @@
 using System.Text.Json;
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.EFCore;
+using Microsoft.EntityFrameworkCore;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.Options;
 
@@ -20,6 +22,8 @@ namespace LocalGPT.Services;
 /// <param name="providerRegistry">Ai provider configuration registry service dependency used by the AI provider bootstrap workflow to provide the corresponding application capability.</param>
 public sealed class AiProviderBootstrapService(
     ICouncilKnowledgeService knowledge,
+    IDbContextFactory<LocalGptMemoryDbContext> databaseFactory,
+    IDatabaseInitializationService databaseInitializer,
     IRegexPatternService regexPatterns,
     IConsoleCommandService console,
     IJsonTextService jsonText,
@@ -36,6 +40,13 @@ public sealed class AiProviderBootstrapService(
     private readonly IReadOnlyDictionary<string, string> MaintainedOllamaModelAliases =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
+        // Public model-family tokens observed in Council presets from the supplied DB.
+        // These are suggestions only: the live Ollama catalog determines availability.
+        ["deepscaler-1.5b"] = "deepscaler:1.5b",
+        ["deepseek-ocr-3b"] = "deepseek-ocr:3b",
+        ["dolphin3-8b"] = "dolphin3:8b",
+        ["openthinker-7b"] = "openthinker:7b",
+        ["openthinker-32b"] = "openthinker:32b",
         ["gemma3-270m"] = "gemma3:270m",
         ["qwen2.5-coder-0.5b"] = "qwen2.5-coder:0.5b",
         ["qwen2.5-0.5b"] = "qwen2.5:0.5b",
@@ -142,7 +153,25 @@ public sealed class AiProviderBootstrapService(
             if (blockRegexV2 is null && blockRegexV1 is null)
                 throw new InvalidOperationException("The AI-provider bootstrap profile regex is unavailable.");
             var platform = platformRuntime.ProviderBootstrapToken;
-            var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: 500, cancellationToken).ConfigureAwait(false);
+            // The general Knowledge service deliberately returns a bounded summary. Model
+            // bootstrap records must not disappear as unrelated learning entries accumulate.
+            // Read all active records from the same persisted SQLite source, preserving the
+            // user's edited/approved profile precedence and existing regex validation.
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            await using var db = await databaseFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var now = DateTime.UtcNow;
+            var entries = await db.CouncilKnowledgeEntries.AsNoTracking()
+                .Where(entry => !entry.IsArchived &&
+                    entry.ReviewStatus != "Archived" &&
+                    entry.ReviewStatus != "Deprecated" &&
+                    entry.ReviewStatus != "Superseded" &&
+                    entry.ReviewStatus != "Expired" &&
+                    (entry.ExpiresAtUtc == null || entry.ExpiresAtUtc > now))
+                .OrderByDescending(entry => entry.IsPinned)
+                .ThenByDescending(entry => entry.IsUserApproved)
+                .ThenBy(entry => entry.ReviewStatus)
+                .ThenByDescending(entry => entry.UpdatedAtUtc)
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
             var profiles = new List<AiProviderBootstrapProfile>();
             foreach (var entry in entries.OrderByDescending(item => item.IsUserApproved).ThenByDescending(item => item.UpdatedAtUtc))
             {

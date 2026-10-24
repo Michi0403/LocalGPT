@@ -278,6 +278,7 @@
             else
             {
                 <div class="configured-provider-grid">
+                    @{ var renderedHardwareHostKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase); }
                     @foreach (var configured in ConfiguredProviderHosts)
                     {
                         <article class="configured-provider-card" @key="configured.Key">
@@ -290,7 +291,8 @@
                             </div>
                             <code>@configured.Endpoint</code>
                             <span>@(string.IsNullOrWhiteSpace(configured.ModelName) ? "No preferred model selected" : configured.ModelName)</span>
-                            @if (configured.OpenAiHost is not null || configured.OllamaHost is not null)
+                            @if ((configured.OpenAiHost is not null || configured.OllamaHost is not null)
+                                && renderedHardwareHostKeys.Add(HostHardware.GetHostKey(configured.Endpoint)))
                             {
                                 var hardwareDraft = GetHostHardwareDraft(configured.Endpoint);
                             <details class="configured-host-hardware">

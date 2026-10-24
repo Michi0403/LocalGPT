@@ -3,6 +3,7 @@ using LocalGPT.BusinessObjects.Models;
 using LocalGPT.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace LocalGPT.Services.Persistence;
 
@@ -279,6 +280,39 @@ Keep work bounded to the request. Do not perform unrelated filesystem, process, 
     {
         var feedEntries = await initialDataFeed.LoadKnowledgeFeedAsync(cancellationToken).ConfigureAwait(false);
         var entries = new List<CouncilKnowledgeEntry>(feedEntries.Count + 1);
+        using (var stream = typeof(InitialDataCatalog).Assembly.GetManifestResourceStream("LocalGPT.Knowledge.core-defaults.json")
+            ?? throw new InvalidOperationException("Required embedded core knowledge defaults are missing."))
+        {
+            var coreDefaults = await JsonSerializer.DeserializeAsync<List<CoreKnowledgeSeedRow>>(stream, cancellationToken: cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("Embedded core knowledge defaults are empty.");
+            // The release-owned manifest deliberately contains exactly 42 curated, generic records.
+            // A truncated embedded resource is an incomplete installation, not a valid empty catalog.
+            if (coreDefaults.Count != 42 || coreDefaults.Select(row => row.Id).Distinct().Count() != coreDefaults.Count)
+                throw new InvalidOperationException("Embedded core knowledge defaults are incomplete or contain duplicate identifiers (expected 42 records).");
+            foreach (var row in coreDefaults)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (row.Id == Guid.Empty || string.IsNullOrWhiteSpace(row.Topic) || string.IsNullOrWhiteSpace(row.Content))
+                    throw new InvalidOperationException("Embedded core knowledge defaults contain an incomplete entry.");
+                entries.Add(new CouncilKnowledgeEntry
+                {
+                    Id = row.Id,
+                    Topic = row.Topic,
+                    Scope = row.Scope,
+                    Content = row.Content,
+                    Source = "builtin:core-knowledge:v1",
+                    HelpfulSources = row.HelpfulSources,
+                    Tags = row.Tags,
+                    Confidence = row.Confidence,
+                    VerificationStatus = row.VerificationStatus,
+                    ReviewStatus = row.ReviewStatus,
+                    LastVerifiedAtUtc = DateTime.UtcNow,
+                    SourceHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(row.Content))),
+                    IsUserApproved = true,
+                    IsPinned = true
+                });
+            }
+        }
         foreach (var feedEntry in feedEntries)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -356,4 +390,27 @@ Keep work bounded to the request. Do not perform unrelated filesystem, process, 
         throw;
     }
 }
+    /// <summary>Deserializable, deliberately limited schema for reference knowledge supplied with LocalGPT itself.</summary>
+    private sealed class CoreKnowledgeSeedRow
+    {
+        /// <summary>Stable identifier from the repository's original curated seed catalog.</summary>
+        public Guid Id { get; set; }
+        /// <summary>Reference topic.</summary>
+        public string Topic { get; set; } = string.Empty;
+        /// <summary>Reference category.</summary>
+        public string Scope { get; set; } = string.Empty;
+        /// <summary>Reference text, sourced from the shipped SQL catalog rather than a personal runtime DB.</summary>
+        public string Content { get; set; } = string.Empty;
+        /// <summary>Reference evidence pointer.</summary>
+        public string HelpfulSources { get; set; } = string.Empty;
+        /// <summary>Search tags.</summary>
+        public string Tags { get; set; } = string.Empty;
+        /// <summary>Shipped reference confidence.</summary>
+        public int Confidence { get; set; }
+        /// <summary>Reference verification classification.</summary>
+        public string VerificationStatus { get; set; } = "SourceBacked";
+        /// <summary>Reference review classification.</summary>
+        public string ReviewStatus { get; set; } = "Current";
+    }
+
 }

@@ -242,6 +242,14 @@ namespace LocalGPT.Components.Pages
     bool showGameConsole;
     /// <summary>Forces a fresh DevExpress popup subtree whenever the ASCII terminal is reopened.</summary>
     int gameConsoleRenderKey;
+    /// <summary>Controls the ASCII popup's compact, comfortable, or fullscreen presentation without remounting its session.</summary>
+    private int asciiPopupSize = 1;
+    /// <summary>Returns the user-selected popup width as a CSS viewport bound.</summary>
+    private string AsciiPopupWidth => asciiPopupSize switch { 0 => "min(800px, 96vw)", 2 => "100vw", _ => "min(1440px, 98vw)" };
+    /// <summary>Returns the user-selected popup height, retaining a useful short terminal preview in compact mode.</summary>
+    private string AsciiPopupHeight => asciiPopupSize switch { 0 => "min(470px, 65dvh)", 2 => "100dvh", _ => "min(850px, 92dvh)" };
+    /// <summary>Applies a bounded ASCII popup size without stopping the underlying Council/game session.</summary>
+    private void SetAsciiPopupSize(int value) => asciiPopupSize = Math.Clamp(value, 0, 2);
     /// <summary>Tracks whether the terminal has reported an owned active game for this chat/Council context.</summary>
     bool asciiGameAvailable;
     /// <summary>Stores whether contextual/random ASCII fun is enabled for the current chat.</summary>

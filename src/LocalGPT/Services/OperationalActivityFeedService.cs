@@ -21,21 +21,22 @@ public sealed class OperationalActivityFeedService(
         try
         {
             var builder = new StringBuilder();
+            // Keep the most recent command lines at the bottom of the terminal.
+            // Application activity is background context, not another log tail that
+            // pushes Ollama's current pull/download progress off the visible area.
+            var activityText = activity.BuildBriefing(Math.Max(1, activityEntries));
+            builder.AppendLine("Application activity (separate from command progress)");
+            builder.AppendLine(string.IsNullOrWhiteSpace(activityText) ? "No bounded application activity yet." : activityText.Trim());
+            builder.AppendLine();
             if (!string.IsNullOrWhiteSpace(localText))
             {
                 builder.AppendLine("Setup status");
                 builder.AppendLine(localText.Trim());
                 builder.AppendLine();
             }
-
             var consoleText = console.GetRecentDisplayText(Math.Max(1, consoleLines));
-            builder.AppendLine("Shared operational / ASCII console");
+            builder.AppendLine("Shared operational / ASCII console · latest lines at bottom");
             builder.AppendLine(string.IsNullOrWhiteSpace(consoleText) ? "No shared console activity yet." : consoleText.Trim());
-            builder.AppendLine();
-
-            var activityText = activity.BuildBriefing(Math.Max(1, activityEntries));
-            builder.AppendLine("Application activity");
-            builder.AppendLine(string.IsNullOrWhiteSpace(activityText) ? "No bounded application activity yet." : activityText.Trim());
             return builder.ToString().TrimEnd();
         }
         catch (Exception exception)

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>6.3.0</Version>
+    <Version>6.3.2</Version>
     <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
@@ -72,6 +72,25 @@
 		<Content Include="..\..\docs\guide\embedded-and-games.md" Link="docs\guide\embedded-and-games.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/guide/embedded-and-games.md')" />
 		<Content Include="..\..\docs\COUNCIL_KNOWLEDGE_SEED.sql" Link="docs\COUNCIL_KNOWLEDGE_SEED.sql" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/COUNCIL_KNOWLEDGE_SEED.sql')" />
 		<Content Include="Runtime\Python\localgpt_runtime_bridge.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+        <EmbeddedResource Include="..\..\AGENTS.md" LogicalName="LocalGPT.SeedDocument.AGENTS.md" />
+        <EmbeddedResource Include="..\..\SECURITY.md" LogicalName="LocalGPT.SeedDocument.SECURITY.md" />
+        <EmbeddedResource Include="..\..\docs\index.md" LogicalName="LocalGPT.SeedDocument.docs.index.md" />
+        <EmbeddedResource Include="..\..\docs\architecture\system-overview.md" LogicalName="LocalGPT.SeedDocument.docs.architecture.system-overview.md" />
+        <EmbeddedResource Include="..\..\docs\architecture\ai-host.md" LogicalName="LocalGPT.SeedDocument.docs.architecture.ai-host.md" />
+        <EmbeddedResource Include="..\..\docs\architecture\council-runtime.md" LogicalName="LocalGPT.SeedDocument.docs.architecture.council-runtime.md" />
+        <EmbeddedResource Include="..\..\docs\architecture\project-data.md" LogicalName="LocalGPT.SeedDocument.docs.architecture.project-data.md" />
+        <EmbeddedResource Include="..\..\docs\architecture\onewire-security.md" LogicalName="LocalGPT.SeedDocument.docs.architecture.onewire-security.md" />
+        <EmbeddedResource Include="..\..\docs\architecture\frontend-and-themes.md" LogicalName="LocalGPT.SeedDocument.docs.architecture.frontend-and-themes.md" />
+        <EmbeddedResource Include="..\..\docs\engineering\build-validation.md" LogicalName="LocalGPT.SeedDocument.docs.engineering.build-validation.md" />
+        <EmbeddedResource Include="..\..\docs\reference\capability-map.md" LogicalName="LocalGPT.SeedDocument.docs.reference.capability-map.md" />
+        <EmbeddedResource Include="..\..\docs\reference\toolchain-discovery.md" LogicalName="LocalGPT.SeedDocument.docs.reference.toolchain-discovery.md" />
+        <EmbeddedResource Include="..\..\docs\reference\ai-provider-installation.md" LogicalName="LocalGPT.SeedDocument.docs.reference.ai-provider-installation.md" />
+        <EmbeddedResource Include="..\..\docs\reference\ascii-game-authoring.md" LogicalName="LocalGPT.SeedDocument.docs.reference.ascii-game-authoring.md" />
+        <EmbeddedResource Include="..\..\docs\reference\canonical-repositories.md" LogicalName="LocalGPT.SeedDocument.docs.reference.canonical-repositories.md" />
+        <EmbeddedResource Include="..\..\docs\reference\design-evolution.md" LogicalName="LocalGPT.SeedDocument.docs.reference.design-evolution.md" />
+        <EmbeddedResource Include="..\..\docs\guide\embedded-and-games.md" LogicalName="LocalGPT.SeedDocument.docs.guide.embedded-and-games.md" />
+        <EmbeddedResource Include="..\..\docs\COUNCIL_KNOWLEDGE_SEED.sql" LogicalName="LocalGPT.SeedDocument.docs.COUNCIL_KNOWLEDGE_SEED.sql" />
+        <EmbeddedResource Include="Resources\Knowledge\core-defaults.json" LogicalName="LocalGPT.Knowledge.core-defaults.json" />
 		<EmbeddedResource Include="..\..\docs\reference\ai-provider-installation.md" LogicalName="LocalGPT.Knowledge.ai-provider-installation.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ai-provider-installation.md')" />
 		<EmbeddedResource Include="..\..\docs\reference\ascii-game-authoring.md" LogicalName="LocalGPT.Knowledge.ascii-game-authoring.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ascii-game-authoring.md')" />
 		<EmbeddedResource Include="..\..\docs\reference\toolchain-discovery.md" LogicalName="LocalGPT.Knowledge.toolchain-discovery.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/toolchain-discovery.md')" />

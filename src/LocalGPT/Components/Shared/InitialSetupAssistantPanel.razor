@@ -53,19 +53,36 @@
                     <DxTextBox @bind-Text="hardwareEndpoint" CssClass="localgpt-editor" />
                 </label>
                 <div class="initial-setup-hardware-list">
-                    @foreach (var device in hardware)
+                    @foreach (var hostGroup in hardware.GroupBy(device =>
+                        string.IsNullOrWhiteSpace(device.HostKey) ? device.Endpoint : device.HostKey,
+                        StringComparer.OrdinalIgnoreCase))
                     {
-                        <div class="initial-setup-hardware-row" @key="device.Key">
-                            <label class="initial-setup-hardware-use"><DxCheckBox @bind-Checked="device.Selected" /> Use this host/device row</label>
-                            <label>Provider endpoint / physical host<DxTextBox @bind-Text="device.Endpoint" CssClass="localgpt-editor" /></label>
-                            <label>CPU / SoC<DxTextBox @bind-Text="device.CpuName" CssClass="localgpt-editor" /></label>
-                            <label>GPU / accelerator (optional)<DxTextBox @bind-Text="device.Name" CssClass="localgpt-editor" /></label>
-                            <label>GPU vendor<DxTextBox @bind-Text="device.Vendor" CssClass="localgpt-editor" /></label>
-                            <label>Dedicated VRAM GiB<InvariantDoubleEditor @bind-Value="device.DedicatedVramGiB" Min="0" Step="0.25" DecimalPlaces="2" /></label>
-                            <label>System / unified RAM GiB<InvariantDoubleEditor @bind-Value="device.SystemMemoryGiB" Min="0" Step="0.25" DecimalPlaces="2" /></label>
-                            <label class="initial-setup-hardware-canirun">CanIRun.ai hardware match (optional catalog variant)<DxTextBox @bind-Text="device.CanIRunHardwareName" CssClass="localgpt-editor" /></label>
-                            <DxButton CssClass="localgpt-native-button initial-setup-hardware-remove" Click="() => RemoveHardware(device)">Remove row</DxButton>
-                        </div>
+                        var primaryDevice = hostGroup.First();
+                        <section class="initial-setup-physical-host" @key="primaryDevice.Key" aria-label="Physical Ollama host">
+                            <h5>Physical host · @primaryDevice.Endpoint</h5>
+                            <div class="initial-setup-host-facts">
+                                <label>Provider endpoint / physical host
+                                    <DxTextBox Text="@primaryDevice.Endpoint"
+                                               TextChanged="@((string endpoint) => SetHardwareGroupEndpoint(hostGroup.Key, endpoint))"
+                                               CssClass="localgpt-editor" />
+                                </label>
+                                <label>CPU / SoC<DxTextBox @bind-Text="primaryDevice.CpuName" CssClass="localgpt-editor" /></label>
+                                <label>System / unified RAM GiB<InvariantDoubleEditor @bind-Value="primaryDevice.SystemMemoryGiB" Min="0" Step="0.25" DecimalPlaces="2" /></label>
+                            </div>
+                            <div class="initial-setup-accelerator-list">
+                                @foreach (var device in hostGroup)
+                                {
+                                    <div class="initial-setup-hardware-row" @key="device.Key">
+                                        <label class="initial-setup-hardware-use"><DxCheckBox @bind-Checked="device.Selected" /> Use this accelerator/device row</label>
+                                        <label>GPU / accelerator (optional)<DxTextBox @bind-Text="device.Name" CssClass="localgpt-editor" /></label>
+                                        <label>GPU vendor<DxTextBox @bind-Text="device.Vendor" CssClass="localgpt-editor" /></label>
+                                        <label>Dedicated VRAM GiB<InvariantDoubleEditor @bind-Value="device.DedicatedVramGiB" Min="0" Step="0.25" DecimalPlaces="2" /></label>
+                                        <label class="initial-setup-hardware-canirun">CanIRun.ai hardware match (optional catalog variant)<DxTextBox @bind-Text="device.CanIRunHardwareName" CssClass="localgpt-editor" /></label>
+                                        <DxButton CssClass="localgpt-native-button initial-setup-hardware-remove" Click="() => RemoveHardware(device)">Remove device row</DxButton>
+                                    </div>
+                                }
+                            </div>
+                        </section>
                     }
                 </div>
                 <div class="initial-setup-actions">
@@ -678,9 +695,22 @@
         };
     }
 
-    /// <summary>
-    /// Adds hardware for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
-    /// </summary>
+    /// <summary>Updates the physical endpoint for every device row assigned to one host.
+    /// Changing a host must not split one Ollama daemon into several saved hosts.</summary>
+    private void SetHardwareGroupEndpoint(string previousHostKey, string endpoint)
+    {
+        var normalized = (endpoint ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized)) return;
+        foreach (var device in hardware.Where(device =>
+            string.Equals(string.IsNullOrWhiteSpace(device.HostKey) ? device.Endpoint : device.HostKey,
+                previousHostKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            device.Endpoint = normalized;
+            device.HostKey = string.Empty; // Re-resolved by the existing physical-host save service.
+        }
+    }
+
+    /// <summary>Adds an editable hardware row to the current physical-host setup form.</summary>
     private void AddHardware()
     {
         try

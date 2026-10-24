@@ -175,8 +175,9 @@ public sealed class CouncilPreflightService(
                     readiness.MissingCapabilities.Add("A GPU/accelerator road needs an explicit non-negative device index.");
                 if (readiness.AssignedDxFunctions.Count == 0)
                     readiness.MissingCapabilities.Add("No AI-callable DXFunctions are registered.");
-                if (readiness.AssignedOrganicSkills.Count == 0)
-                    readiness.MissingCapabilities.Add("No approved online organic skill is currently assigned or advertised.");
+                // Organic add-ons are optional 1-Wire extensions. An empty organic
+                // inventory must not suppress registered DXFunctions, including ones
+                // that can ask the human for approval before execution.
                 report.Members.Add(readiness);
             }
 
@@ -244,7 +245,7 @@ public sealed class CouncilPreflightService(
                     ? "No explicit hardware road was found; report this as a configuration gap and continue conservatively on Automatic."
                     : $"Your road is {member.LaneKey} ({member.HardwareKind} {member.HardwareIndex}, {member.HardwareName}) at {member.EffectiveLoadPercent}% with output {member.EffectiveMaxOutputTokens:n0}, context {member.EffectiveMaxContextTokens:n0}, Ollama num_gpu {(member.OllamaNumGpu?.ToString() ?? "auto")}.",
                 $"DXFunctions directly available to you in this run: {string.Join(", ", assignedFunctions.Take(200))}.",
-                $"Approved online organic skills/organs directly available to you: {(assignedSkills.Count == 0 ? "none" : string.Join(", ", assignedSkills.Take(120)))}.",
+                $"Approved online organic skills/organs directly available to you: {(assignedSkills.Count == 0 ? "none currently connected; continue using registered DXFunctions and request human approval through their normal dispatch path" : string.Join(", ", assignedSkills.Take(120)))}.",
                 $"Known organic add-ons that are currently offline or discovery-only: {(report.OfflineSkillKeys.Count == 0 ? "none" : string.Join(", ", report.OfflineSkillKeys.Take(120)))}. Do not claim they are callable until their trusted 1-Wire peer connects.",
                 report.CapabilityTeachings.Count == 0
                     ? "No connected peer currently exposes a detailed 1-Wire capability contract. Do not invent external organs."

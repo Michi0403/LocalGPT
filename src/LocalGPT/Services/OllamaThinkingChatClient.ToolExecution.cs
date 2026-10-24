@@ -199,7 +199,9 @@ public sealed partial class OllamaThinkingChatClient
 
         var eligible = functionRegistry.GetFunctions()
             .Where(function => function.AvailableToAi &&
-                function.SupportsDirectInvocation && function.SupportsAutomaticInvocation)
+                function.SupportsDirectInvocation &&
+                (function.SupportsAutomaticInvocation || function.RequiresHumanConfirmation ||
+                 function.SupportsDeferredApprovalRequest))
             .ToList();
         var canonical = eligible.FirstOrDefault(function =>
             function.Name.Equals(toolName, StringComparison.OrdinalIgnoreCase));

@@ -21,7 +21,9 @@ class LearningRoundSourceRecoveryTests(unittest.TestCase):
 
     def test_recovery_uses_workspaces_and_kind_not_magic_extension_list(self):
         source = (SERVICES / "MultiModelCouncilService.SourceReviewRecovery.cs").read_text()
-        self.assertIn('file.IncludedInPrompt || string.Equals(file.Kind, "zip"', source)
+        self.assertIn('file.RelativePath.StartsWith("extracted/"', source)
+        self.assertIn("file.Length > 0", source)
+        self.assertNotIn('file.IncludedInPrompt || string.Equals(file.Kind, "zip"', source)
         self.assertIn("page?.ArchiveRoots", source)
         self.assertIn("representatives.Concat(rankedPaths)", source)
         self.assertNotIn("IsSourceReviewTextPath", source)
@@ -67,7 +69,7 @@ class LearningRoundSourceRecoveryTests(unittest.TestCase):
         for path in SERVICES.glob("*.cs"):
             self.assertNotIn("compilestick", path.read_text(errors="replace").lower(), str(path))
         project = (ROOT / "src" / "LocalGPT" / "LocalGPT.csproj").read_text()
-        self.assertIn("<Version>6.3.0</Version>", project)
+        self.assertIn("<Version>6.3.2</Version>", project)
 
 
 if __name__ == "__main__":

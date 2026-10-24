@@ -48,7 +48,10 @@ public sealed partial class OllamaThinkingChatClient
                 Function = new OllamaToolFunctionDefinition
                 {
                     Name = ToOllamaToolName(function.Name),
-                    Description = $"{function.Purpose} Parameters: {function.Parameters} Safety: {function.SafetyNotes}",
+                    Description = $"{function.Purpose} Parameters: {function.Parameters} Safety: {function.SafetyNotes}" +
+                        (function.RequiresHumanConfirmation || !function.SupportsAutomaticInvocation
+                            ? " Request this function normally. Exact-parameter validation and the Human Collaboration approval queue control execution; pending/declined calls do not execute."
+                            : string.Empty),
                     Parameters = BuildParametersSchema(function)
                 }
             }).ToList();
@@ -71,15 +74,16 @@ public sealed partial class OllamaThinkingChatClient
     private IReadOnlyList<DxaichatFunctionInfo> GetAutomaticFunctions() {
     try
     {
-        // Restore the 5.5.0 automatic-tool contract: no allow-list means ALL registered,
-        // AI-exposed, automatic-safe tools, not just the three coordination brokers.
-        // A nonempty list describes the tools advertised natively for this request.
-        // Normal Council preferences retain broader access through the broker and
-        // the policy-aware resolver; strict lists stay exclusive.
+        // Offer approval-gated DXFunctions to models as callable requests, too.
+        // The registry still validates exact parameters and queues consequential
+        // invocations for a local human decision; advertising != authorization.
+        // Strict Council allow-lists remain honored by the resolver below.
         var available = functionRegistry?.GetFunctions() ?? [];
         return available
             .Where(function => function.AvailableToAi &&
-                function.SupportsDirectInvocation && function.SupportsAutomaticInvocation &&
+                function.SupportsDirectInvocation &&
+                (function.SupportsAutomaticInvocation || function.RequiresHumanConfirmation ||
+                 function.SupportsDeferredApprovalRequest) &&
                 (automaticFunctionAllowList is null || automaticFunctionAllowList.Contains(function.Name)))
             .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();

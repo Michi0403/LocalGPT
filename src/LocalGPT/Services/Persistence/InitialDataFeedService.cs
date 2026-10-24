@@ -34,16 +34,14 @@ public sealed class InitialDataFeedService(
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!IsSupportedFeedPath(relativePath))
                 {
-                    logger.LogWarning("Configured initial knowledge feed path {RelativePath} is not a supported Markdown/SQL/text feed and was skipped.", relativePath);
-                    continue;
+                    throw new InvalidOperationException($"Required knowledge seed path '{relativePath}' is not a supported Markdown/SQL/text document.");
                 }
 
                 var normalizedRelative = relativePath.Replace('/', Path.DirectorySeparatorChar);
                 var path = Path.GetFullPath(Path.Combine(root, normalizedRelative));
                 if (!platform.IsSameOrDescendantPath(root, path))
                 {
-                    logger.LogWarning("Configured initial knowledge feed path {RelativePath} resolved outside the repository root and was skipped.", relativePath);
-                    continue;
+                    throw new InvalidOperationException($"Required knowledge seed path '{relativePath}' resolves outside the repository root.");
                 }
 
                 string? content;
@@ -63,11 +61,13 @@ public sealed class InitialDataFeedService(
                 }
 
                 if (string.IsNullOrWhiteSpace(content))
-                    continue;
+                    throw new InvalidOperationException($"Required knowledge seed document '{relativePath}' was not found or was empty in both the repository and embedded resources.");
 
                 entries.Add(new InitialDataFeedEntry(relativePath.Replace('\\', '/'), content, source, sourceDateUtc));
             }
 
+            if (entries.Count != configuredFiles.Count)
+                throw new InvalidOperationException($"Mandatory reference seed incomplete: loaded {entries.Count} of {configuredFiles.Count} configured documents.");
             return entries;
         }
         catch (OperationCanceledException)
@@ -131,17 +131,13 @@ public sealed class InitialDataFeedService(
     {
         try
         {
-            var resourceName = relativePath.Replace('\\', '/').ToLowerInvariant() switch
-            {
-                "docs/reference/ai-provider-installation.md" => "LocalGPT.Knowledge.ai-provider-installation.md",
-                "docs/reference/ascii-game-authoring.md" => "LocalGPT.Knowledge.ascii-game-authoring.md",
-                "docs/reference/toolchain-discovery.md" => "LocalGPT.Knowledge.toolchain-discovery.md",
-                "docs/reference/runtime-path-layout.md" => "LocalGPT.Knowledge.runtime-path-layout.md",
-                _ => string.Empty
-            };
-            if (string.IsNullOrWhiteSpace(resourceName))
+            var canonicalPath = relativePath.Replace('\\', '/');
+            var requiredPaths = runtimePolicySeed.GetSeed().Collections
+                .Single(item => item.Key == LocalGptRuntimeCollection.KnowledgeFiles).Values;
+            if (!requiredPaths.Contains(canonicalPath, StringComparer.OrdinalIgnoreCase))
                 return null;
 
+            var resourceName = "LocalGPT.SeedDocument." + canonicalPath.Replace('/', '.');
             using var stream = typeof(InitialDataFeedService).Assembly.GetManifestResourceStream(resourceName);
             if (stream is null)
             {

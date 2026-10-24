@@ -1,9 +1,10 @@
 @inject IConsoleCommandService Console
 @inject IComponentActivityService Activity
 @inject IOperationalActivityFeedService Feed
+@inject IJSRuntime JS
 @inject ILogger<OperationalActivityFeed> Logger
 @inject ISupervisedTaskRunner TaskRunner
-@implements IDisposable
+@implements IAsyncDisposable
 
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -11,7 +12,7 @@
 <DxFormLayout CssClass="razor-component-layout-owner OperationalActivityFeed">
     <DxFormLayoutItem ColSpanMd="12">
         <Template Context="formItemContext001">
-<pre class="localgpt-operational-feed @CssClass"
+<pre @ref="feedElement" class="localgpt-operational-feed @CssClass"
      style="min-height: calc(@Rows * 1.45em + 1.5rem);"
      aria-live="polite"
      aria-atomic="false">@displayText</pre>
@@ -45,6 +46,8 @@
     /// <summary>
     /// Stores the internal display text state used by <see cref="OperationalActivityFeed"/> while executing its surrounding workflow.
     /// </summary>
+    private ElementReference feedElement;
+    private IJSObjectReference? scrollModule;
     private string displayText = string.Empty;
     /// <summary>
     /// Stores the internal render pending state used by <see cref="OperationalActivityFeed"/> while executing its surrounding workflow.
@@ -62,6 +65,24 @@
     /// Stores the internal disposed state used by <see cref="OperationalActivityFeed"/> while executing its surrounding workflow.
     /// </summary>
     private bool disposed;
+
+    /// <summary>Keep the live command tail visible, without jumping away from manually
+    /// inspected earlier lines. The JS helper owns the user's scroll-intent flag.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (disposed) return;
+        try
+        {
+            scrollModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/localgpt-operational-feed.js");
+            await scrollModule.InvokeVoidAsync("preserveTailScroll", feedElement);
+        }
+        catch (JSDisconnectedException) { /* Navigation and shutdown are expected. */ }
+        catch (OperationCanceledException) { /* Navigation and shutdown are expected. */ }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not preserve operational console scroll position.");
+        }
+    }
 
     /// <summary>Subscribes to both bounded operational sources.</summary>
     protected override void OnInitialized()
@@ -169,7 +190,7 @@
     }
 
     /// <summary>Unsubscribes the shared operational sources when the interactive circuit disposes this child.</summary>
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         Logger.LogDebug("Component method OperationalActivityFeed.Dispose completed.");
         try
@@ -181,11 +202,11 @@
             Activity.Changed -= OnSourceChanged;
             renderCancellation.Cancel();
             renderCancellation.Dispose();
+            if (scrollModule is not null)
+                await scrollModule.DisposeAsync();
             GC.SuppressFinalize(this);
         }
-        catch (ObjectDisposedException)
-        {
-        }
-    
+        catch (ObjectDisposedException) { }
+        catch (JSDisconnectedException) { }
     }
 }

@@ -207,6 +207,7 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
             {
                 await seed(db, cancellationToken).ConfigureAwait(false);
                 await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await VerifySeedStageAsync(db, stageName, cancellationToken).ConfigureAwait(false);
                 return;
             }
             catch (DbUpdateConcurrencyException exception)
@@ -226,10 +227,10 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
 
                 logger.LogError(
                     exception,
-                    "Database seed stage {SeedStage} retained an unresolved concurrency conflict after {AttemptCount} attempt(s); later independent stages will continue.",
+                    "Database seed stage {SeedStage} retained an unresolved concurrency conflict after {AttemptCount} attempt(s); initialization cannot be marked complete.",
                     stageName,
                     maximumAttempts);
-                return;
+                throw new InvalidOperationException($"Mandatory seed stage '{stageName}' has unresolved concurrency conflicts.", exception);
             }
             catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
             {
@@ -240,13 +241,74 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
             {
                 logger.LogError(
                     exception,
-                    "Database seed stage {SeedStage} failed on attempt {Attempt}; later independent stages will continue.",
+                    "Database seed stage {SeedStage} failed on attempt {Attempt}; initialization cannot be marked complete.",
                     stageName,
                     attempt);
-                return;
+                throw new InvalidOperationException($"Mandatory seed stage '{stageName}' did not complete.", exception);
             }
         }
 
+    }
+
+    /// <summary>Checks durable baseline keys after a seed stage committed; never mistakes a partial seed for readiness.</summary>
+    /// <param name="db">Freshly committed database context.</param>
+    /// <param name="stageName">Current seed stage.</param>
+    /// <param name="token">Cancellation token.</param>
+    /// <returns>A completed task only after mandatory seed records have been verified.</returns>
+    private async Task VerifySeedStageAsync(LocalGptMemoryDbContext db, string stageName, CancellationToken token)
+    {
+        if (stageName == "regex definitions")
+        {
+            var expected = catalog.RegexPatterns.Select(row => row.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var actual = (await db.RegexPatterns.AsNoTracking().Select(row => row.Name).ToListAsync(token).ConfigureAwait(false))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!expected.IsSubsetOf(actual))
+                throw new InvalidOperationException($"Regex seed incomplete: {expected.Except(actual).Count()} required patterns are missing.");
+        }
+        else if (stageName == "prompt definitions")
+        {
+            var expected = catalog.Prompts.Select(row => row.Key + "|" + row.Language).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var actual = (await db.Prompts.AsNoTracking().Select(row => row.Key + "|" + row.Language).ToListAsync(token).ConfigureAwait(false))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!expected.IsSubsetOf(actual))
+                throw new InvalidOperationException($"Prompt seed incomplete: {expected.Except(actual).Count()} required prompts are missing.");
+        }
+        else if (stageName == "system variables")
+        {
+            var expected = catalog.Variables.Select(row => row.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var actual = (await db.SystemVariables.AsNoTracking().Select(row => row.Name).ToListAsync(token).ConfigureAwait(false))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!expected.IsSubsetOf(actual))
+                throw new InvalidOperationException($"System variable seed incomplete: {expected.Except(actual).Count()} required variables are missing.");
+        }
+        else if (stageName == "knowledge entries")
+        {
+            var expectedRows = await catalog.LoadKnowledgeAsync(token).ConfigureAwait(false);
+            var expected = expectedRows.Select(row => row.Id).ToHashSet();
+            var actualRows = await db.CouncilKnowledgeEntries.AsNoTracking().Where(row => expected.Contains(row.Id))
+                .Select(row => new { row.Id, row.Content, row.Source, row.SourceHash }).ToListAsync(token).ConfigureAwait(false);
+            var actual = actualRows.Select(row => row.Id).ToHashSet();
+            if (!expected.IsSubsetOf(actual))
+                throw new InvalidOperationException($"Knowledge seed incomplete: {expected.Except(actual).Count()} required reference records are missing.");
+
+            // Seed-owned, unedited content must match the shipped document. A user-edited
+            // record is intentionally NOT repaired over the user's changes.
+            var sourceHashes = expectedRows.ToDictionary(row => row.Id, row => row.SourceHash);
+            foreach (var persisted in actualRows)
+            {
+                var seedOwned = persisted.Source.StartsWith("repository:", StringComparison.OrdinalIgnoreCase)
+                    || persisted.Source.StartsWith("embedded:", StringComparison.OrdinalIgnoreCase)
+                    || persisted.Source.StartsWith("builtin:core-knowledge:", StringComparison.OrdinalIgnoreCase);
+                if (!seedOwned)
+                    continue;
+                var contentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(persisted.Content)));
+                if (!string.Equals(contentHash, persisted.SourceHash, StringComparison.OrdinalIgnoreCase))
+                    continue; // User-edited content, preserved even if the seed changed.
+                if (!string.Equals(persisted.SourceHash, sourceHashes[persisted.Id], StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"Knowledge reference {persisted.Id} differs from the packaged seed after reconciliation.");
+            }
+            logger.LogInformation("Verified {Count} mandatory Knowledge seed records and unchanged source hashes.", expected.Count);
+        }
     }
 
     /// <summary>

@@ -56,9 +56,13 @@ namespace LocalGPT.Services
                         // File type is classified by the shared workspace reader/catalog, not by a
                         // hardcoded short extension list. An archive may contain source, SQL, XML,
                         // notebooks, Markdown, or other configured readable formats.
+                        // IncludedInPrompt only means an item was highlighted in the chat prompt.
+                        // It is not a source-content permission or readability test: normal ZIP
+                        // entries are intentionally absent from that tiny prompt subset.
+                        // ReadFileAsync below remains the authoritative bounded text gate.
                         candidates.AddRange(page.Files.Where(file =>
-                            (file.IncludedInPrompt || string.Equals(file.Kind, "zip", StringComparison.OrdinalIgnoreCase)) &&
-                            file.RelativePath.StartsWith("extracted/", StringComparison.OrdinalIgnoreCase)));
+                            file.RelativePath.StartsWith("extracted/", StringComparison.OrdinalIgnoreCase) &&
+                            file.Length > 0));
                         pages++;
                         if (page.NextOffset is not int nextOffset || nextOffset <= offset) break;
                         offset = nextOffset;
@@ -71,11 +75,14 @@ namespace LocalGPT.Services
 
                     evidence.AppendLine($"Workspace: {workspaceName}; extracted archive roots: {string.Join(", ", page?.ArchiveRoots ?? [])}");
                     var rankedPaths = candidates
+                        .GroupBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
+                        .Select(group => group.First())
+                        .OrderBy(file => SourceReviewPriority(file.RelativePath, step.WorkspaceSourcePriorityTerms))
+                        // Reading a whole small file provides stronger, honest progress
+                        // than perpetually returning page one of a large source file.
+                        .ThenBy(file => file.Length)
+                        .ThenBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
                         .Select(file => file.RelativePath)
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .OrderBy(path => SourceReviewPriority(path, step.WorkspaceSourcePriorityTerms))
-                        .ThenBy(path => path.Length)
-                        .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
                         .ToList();
                     // Reserve the first source slot in each represented archive before filling
                     // remaining slots by the user's configured source-priority terms.
