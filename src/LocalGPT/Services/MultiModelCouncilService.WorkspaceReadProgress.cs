@@ -48,7 +48,14 @@ public sealed partial class MultiModelCouncilService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var payloads = new List<string>();
-                if (string.Equals(step.ModelName, "LocalGPT DXFunction gateway", StringComparison.Ordinal))
+                if (string.Equals(step.ModelName, "LocalGPT: source recovery gateway", StringComparison.Ordinal))
+                {
+                    // Generated inside the service only after the source page was actually
+                    // included in a completed model turn. Never infer receipts from model text.
+                    if (!string.IsNullOrWhiteSpace(step.VerifiedWorkspaceReadMetadataJson))
+                        payloads.Add(step.VerifiedWorkspaceReadMetadataJson);
+                }
+                else if (string.Equals(step.ModelName, "LocalGPT DXFunction gateway", StringComparison.Ordinal))
                 {
                     if (step.VisibleContent.StartsWith("chat.upload_workspace_file -> Completed", StringComparison.OrdinalIgnoreCase))
                         payloads.Add(string.IsNullOrWhiteSpace(step.VerifiedWorkspaceReadMetadataJson)

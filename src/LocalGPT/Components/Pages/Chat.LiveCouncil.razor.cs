@@ -897,7 +897,8 @@ namespace LocalGPT.Components.Pages
         await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         try
         {
-            await JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", false).ConfigureAwait(false);
+            await JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer",
+                CouncilLiveSessions.GetSummary(runId)?.IsRunning == true).ConfigureAwait(false);
         }
         catch (JSDisconnectedException)
         {
@@ -915,7 +916,9 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-        Guid?[] candidates = [AttachedLiveCouncilRunId, RejoinCouncilRunId];
+        // An explicit selection has priority; a newly started stream may not yet be
+        // attached to the circuit, but its server-owned run must still be stoppable.
+        Guid?[] candidates = [SelectedCouncilRunId, AttachedLiveCouncilRunId, RejoinCouncilRunId];
         foreach (var candidate in candidates)
         {
             if (candidate is Guid runId && CouncilLiveSessions.GetSummary(runId)?.IsRunning == true)

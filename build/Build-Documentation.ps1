@@ -2443,19 +2443,32 @@ function Invoke-LocalGptBrowserPdfWithRetry {
     $lastResult = $null
     $maximumAttempts = 1 + $browserPdfChunkRetries
     for ($renderAttempt = 1; $renderAttempt -le $maximumAttempts; $renderAttempt++) {
+        # Only the active failed candidate is disposable; all verified earlier chunks are durable.
+        if (Test-Path -LiteralPath $PdfPath -PathType Leaf) {
+            Remove-Item -LiteralPath $PdfPath -Force -ErrorAction Stop
+        }
         if ($renderAttempt -gt 1) {
             Write-Host "Retrying $ContextLabel with a fresh isolated browser profile (attempt $renderAttempt of $maximumAttempts)..." -ForegroundColor Yellow
-            Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
             if ($documentationLowMemoryMode) {
                 [GC]::Collect(2, [GCCollectionMode]::Optimized, $true, $true)
                 [GC]::WaitForPendingFinalizers()
             }
             Start-Sleep -Milliseconds 500
         }
-        $lastResult = Invoke-LocalGptBrowserPdf -BrowserPath $BrowserPath -HtmlPath $HtmlPath -PdfPath $PdfPath -WorkingRoot $WorkingRoot -MinimumBytes $MinimumBytes
+        try {
+            $lastResult = Invoke-LocalGptBrowserPdf -BrowserPath $BrowserPath -HtmlPath $HtmlPath -PdfPath $PdfPath -WorkingRoot $WorkingRoot -MinimumBytes $MinimumBytes
+        }
+        catch {
+            $combinedDiagnostics.Add("attempt $renderAttempt/${maximumAttempts}: browser renderer threw $($_.Exception.GetType().Name): $($_.Exception.Message)")
+            $lastResult = [pscustomobject]@{ Succeeded = $false; ExitCode = -1; Diagnostics = @(); HeadlessMode = ''; RenderMode = ''; AccessibilityMode = 'unavailable' }
+        }
         foreach ($line in @($lastResult.Diagnostics)) { $combinedDiagnostics.Add("attempt $renderAttempt/${maximumAttempts}: $line") }
-        if ($lastResult.Succeeded) {
+        if ($lastResult.Succeeded -and (Test-LocalGptCompletePdf -Path $PdfPath -MinimumBytes $MinimumBytes)) {
             return [pscustomobject]@{ Succeeded = $true; ExitCode = [int]$lastResult.ExitCode; Diagnostics = @($combinedDiagnostics); HeadlessMode = [string]$lastResult.HeadlessMode; RenderMode = [string]$lastResult.RenderMode; AccessibilityMode = [string]$lastResult.AccessibilityMode; AttemptCount = $renderAttempt }
+        }
+        $combinedDiagnostics.Add("attempt $renderAttempt/${maximumAttempts}: incomplete or missing PDF candidate was rejected; only this chunk will be regenerated.")
+        if (Test-Path -LiteralPath $PdfPath -PathType Leaf) {
+            Remove-Item -LiteralPath $PdfPath -Force -ErrorAction Stop
         }
     }
     $exitCode = if ($null -ne $lastResult) { [int]$lastResult.ExitCode } else { -1 }
@@ -2486,18 +2499,24 @@ function Invoke-LocalGptChunkedBrowserPdf {
     $chunkPdfs = [System.Collections.Generic.List[string]]::new()
     $renderedChunks = 0
     $reusedChunks = 0
+    $totalPdfParts = 1 + [int][Math]::Ceiling($TotalPageCount / [double]$ChunkPages)
+    Write-Host ("Documentation PDF rendering queue: 0/{0} validated part(s); source pages={1}, page batch={2}." -f $totalPdfParts,$TotalPageCount,$ChunkPages) -ForegroundColor DarkCyan
     try {
         # Keep browser output durable by documentation hash. A release interrupted after hours of
         # printing can therefore resume at the first missing chunk instead of re-rendering page 1.
         $frontMatterHtml = Join-Path $chunkRoot 'front-matter.html'
         $frontMatterPdf = Join-Path $durableChunkRoot 'front-matter.pdf'
         $indexedPages = New-LocalGptHtmlPrintBook -SiteRoot $SiteRoot -DestinationPath $frontMatterHtml -FrontMatterOnly
+        $cachedCoverPresent = Test-Path -LiteralPath $frontMatterPdf -PathType Leaf
         if (-not $ForceRebuild -and (Test-LocalGptCompletePdf -Path $frontMatterPdf -MinimumBytes 65536)) {
             $reusedChunks++
             Write-Host "Reusing durable documentation PDF cover/index for $indexedPages source pages." -ForegroundColor DarkGreen
         }
         else {
-            Remove-Item -LiteralPath $frontMatterPdf -Force -ErrorAction SilentlyContinue
+            if ($cachedCoverPresent -and -not $ForceRebuild) {
+                Write-Warning "Discarding incomplete cached documentation cover/index; verified source-page chunks remain untouched."
+            }
+            if ($cachedCoverPresent) { Remove-Item -LiteralPath $frontMatterPdf -Force -ErrorAction Stop }
             Write-Host "Printing complete documentation PDF cover/index for $indexedPages source pages with the installed browser..." -ForegroundColor DarkCyan
             $timer = [Diagnostics.Stopwatch]::StartNew()
             $frontMatterResult = Invoke-LocalGptBrowserPdfWithRetry -BrowserPath $BrowserPath -HtmlPath $frontMatterHtml -PdfPath $frontMatterPdf -WorkingRoot $chunkRoot -ContextLabel "documentation PDF cover/index" -MinimumBytes 65536
@@ -2510,6 +2529,7 @@ function Invoke-LocalGptChunkedBrowserPdf {
             Write-Host ("Completed PDF cover/index in {0:n1}s ({1:n0} bytes)." -f $timer.Elapsed.TotalSeconds,(Get-Item -LiteralPath $frontMatterPdf).Length) -ForegroundColor DarkGreen
         }
         $chunkPdfs.Add($frontMatterPdf)
+        Write-Host ("Documentation PDF rendering progress: {0}/{1} validated part(s) (cover/index)." -f $chunkPdfs.Count,$totalPdfParts) -ForegroundColor DarkGreen
         Remove-Item -LiteralPath $frontMatterHtml -Force -ErrorAction SilentlyContinue
         if ($documentationLowMemoryMode) {
             [GC]::Collect(2, [GCCollectionMode]::Optimized, $true, $true)
@@ -2522,12 +2542,16 @@ function Invoke-LocalGptChunkedBrowserPdf {
             $htmlPath = Join-Path $chunkRoot ("chunk-{0:D3}.html" -f $chunkNumber)
             $chunkPdf = Join-Path $durableChunkRoot ("chunk-{0:D3}.pdf" -f $chunkNumber)
             $writtenPages = New-LocalGptHtmlPrintBook -SiteRoot $SiteRoot -DestinationPath $htmlPath -StartIndex $start -MaximumPages $ChunkPages -SuppressFrontMatter
+            $cachedChunkPresent = Test-Path -LiteralPath $chunkPdf -PathType Leaf
             if (-not $ForceRebuild -and (Test-LocalGptCompletePdf -Path $chunkPdf -MinimumBytes 65536)) {
                 $reusedChunks++
                 Write-Host "Reusing durable documentation PDF chunk $chunkNumber ($writtenPages source pages; start $start of $TotalPageCount)." -ForegroundColor DarkGreen
             }
             else {
-                Remove-Item -LiteralPath $chunkPdf -Force -ErrorAction SilentlyContinue
+                if ($cachedChunkPresent -and -not $ForceRebuild) {
+                    Write-Warning "Discarding incomplete cached documentation PDF chunk $chunkNumber; earlier verified chunks remain untouched."
+                }
+                if ($cachedChunkPresent) { Remove-Item -LiteralPath $chunkPdf -Force -ErrorAction Stop }
                 Write-Host "Printing documentation PDF chunk $chunkNumber ($writtenPages source pages; start $start of $TotalPageCount) with the installed browser..." -ForegroundColor DarkCyan
                 $timer = [Diagnostics.Stopwatch]::StartNew()
                 $result = Invoke-LocalGptBrowserPdfWithRetry -BrowserPath $BrowserPath -HtmlPath $htmlPath -PdfPath $chunkPdf -WorkingRoot $chunkRoot -ContextLabel "documentation PDF chunk $chunkNumber" -MinimumBytes 65536
@@ -2540,6 +2564,7 @@ function Invoke-LocalGptChunkedBrowserPdf {
                 Write-Host ("Completed documentation PDF chunk {0} in {1:n1}s ({2:n0} bytes)." -f $chunkNumber,$timer.Elapsed.TotalSeconds,(Get-Item -LiteralPath $chunkPdf).Length) -ForegroundColor DarkGreen
             }
             $chunkPdfs.Add($chunkPdf)
+            Write-Host ("Documentation PDF rendering progress: {0}/{1} validated part(s) ({2}/{3} source-page batch(es))." -f $chunkPdfs.Count,$totalPdfParts,$chunkNumber,($totalPdfParts - 1)) -ForegroundColor DarkGreen
             Remove-Item -LiteralPath $htmlPath -Force -ErrorAction SilentlyContinue
             if ($documentationLowMemoryMode) {
                 [GC]::Collect(2, [GCCollectionMode]::Optimized, $true, $true)

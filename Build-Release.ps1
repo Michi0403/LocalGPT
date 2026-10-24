@@ -50,6 +50,7 @@ $buildStorageScript = Join-Path $root 'build/RepositoryBuildStorage.Common.ps1'
 if (-not (Test-Path -LiteralPath $buildStorageScript -PathType Leaf)) { throw "Repository build-storage helper is missing: $buildStorageScript" }
 . $buildStorageScript
 $buildStorage = Initialize-Future2RepositoryBuildStorage -RepositoryRoot $root -DocumentationCacheRoot $DocumentationCacheRoot
+Write-Host "[Build stage: preflight] LocalGPT: configuration=$Configuration; runtime=$Runtime; compileOnly=$CompileOnly." -ForegroundColor Cyan
 if ($CompileOnly) {
     & (Join-Path $root 'build/Invoke-ReleaseCompileValidation.ps1') -Solution 'src/LocalGPTWebviewWrapper.sln' -Configuration $Configuration
     return
@@ -90,6 +91,8 @@ function Clear-RepositoryReleaseBuildState {
     return $directories.Count
 }
 
+Write-Host "[Build stage: preflight] LocalGPT: release-entrypoint checks complete; MSBuild architecture gates still run during compilation." -ForegroundColor Green
+Write-Host "[Build stage: compile] LocalGPT: preparing authoritative build inputs." -ForegroundColor Cyan
 Write-Host "Clearing repository-local bin/obj build state for the authoritative release build..." -ForegroundColor Cyan
 $clearedBuildStateCount = Clear-RepositoryReleaseBuildState
 Write-Host "Cleared $clearedBuildStateCount repository-local bin/obj director$(if ($clearedBuildStateCount -eq 1) { 'y' } else { 'ies' }). Durable documentation caches outside bin/obj were preserved." -ForegroundColor DarkCyan
@@ -342,6 +345,7 @@ function Prepare-LocalGptDocumentation {
     if (-not (Test-Path -LiteralPath $documentationAssembly -PathType Leaf)) { throw "Documentation assembly not found: $documentationAssembly" }
     if (-not (Test-Path -LiteralPath $documentationXml -PathType Leaf)) { throw "Documentation XML not found: $documentationXml" }
 
+    Write-Host "[Build stage: documentation] LocalGPT: DocFX HTML + resumable browser-PDF pipeline." -ForegroundColor Cyan
     Write-Host "Generating the complete LocalGPT documentation once for all runtime packages..." -ForegroundColor Cyan
     & $documentationScript `
         -RepositoryRoot $root `

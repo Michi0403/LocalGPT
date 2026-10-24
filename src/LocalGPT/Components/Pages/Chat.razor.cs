@@ -1013,7 +1013,7 @@ namespace LocalGPT.Components.Pages
     {
         get
         {
-            Guid?[] candidateRunIds = [AttachedLiveCouncilRunId, RejoinCouncilRunId];
+            Guid?[] candidateRunIds = [SelectedCouncilRunId, AttachedLiveCouncilRunId, RejoinCouncilRunId];
             foreach (var candidateRunId in candidateRunIds)
             {
                 if (candidateRunId is Guid runId && CouncilLiveSessions.GetSummary(runId) is { IsRunning: true } snapshot)
@@ -1075,7 +1075,7 @@ namespace LocalGPT.Components.Pages
     {
         get
         {
-            Guid?[] candidateRunIds = [AttachedLiveCouncilRunId, RejoinCouncilRunId];
+            Guid?[] candidateRunIds = [SelectedCouncilRunId, AttachedLiveCouncilRunId, RejoinCouncilRunId];
             foreach (var candidateRunId in candidateRunIds)
             {
                 if (candidateRunId is Guid runId

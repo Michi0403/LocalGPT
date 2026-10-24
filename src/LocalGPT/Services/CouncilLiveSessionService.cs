@@ -376,7 +376,9 @@ public sealed class CouncilLiveSessionService(
             lock (state.SyncRoot)
             {
                 state.IsRunning = false;
-                state.StatusMessage = "Council completed.";
+                state.StatusMessage = state.Cancellation.IsCancellationRequested
+                    ? "Council stopped by user."
+                    : "Council completed.";
                 var completedAtUtc = DateTime.UtcNow;
                 foreach (var activity in state.ParticipantActivities.Values.Where(activity => activity.IsRunning))
                 {

@@ -172,6 +172,7 @@
                                     <h3>Authenticator enrollment</h3>
                                     <p>Scan this QR code with an Authenticator-compatible app.</p>
                                     <div id="localgpt-security-otp-qr" class="onewire-security-qr" aria-label="LocalGPT Authenticator QR code"></div>
+                                    <DxButton Text="Test authenticator code" Click="OpenMfaVerificationAsync" RenderStyle="ButtonRenderStyle.Primary" />
                                     <DxMemo Text="@_otpUri" Rows="5" ReadOnly="true" />
                                 </article>
                                 <article class="onewire-security-subcard">
@@ -279,6 +280,24 @@
     </Template>
     </DxFormLayoutItem>
 </DxFormLayout>
+<DxPopup @bind-Visible="_showMfaVerification" HeaderText="Verify authenticator enrollment"
+         Width="400px" MaxHeight="80dvh" CloseOnOutsideClick="false">
+    <BodyContentTemplate>
+        <div class="onewire-security-card">
+            <p>Scan the authenticator QR below, then enter its current six-digit code to test the pairing setup. This does not trust any peer.</p>
+            <div id="localgpt-security-otp-test-qr" class="onewire-security-qr" aria-label="Authenticator enrollment QR for verification"></div>
+            <label>Authenticator code <DxTextBox @bind-Text="_mfaTestCode" MaxLength="6" /></label>
+            @if (_mfaVerificationSucceeded)
+            {
+                <p role="status">Your authenticator is working. Pairing remains optional.</p>
+            }
+            <div class="onewire-security-actions">
+                <DxButton Text="Verify code" Click="VerifyMfaEnrollmentAsync" Enabled="@(!_mfaVerificationBusy && !_mfaVerificationSucceeded)" RenderStyle="ButtonRenderStyle.Primary" />
+                <DxButton Text="Close" Click="CloseMfaVerificationAsync" />
+            </div>
+        </div>
+    </BodyContentTemplate>
+</DxPopup>
 </div>
 
 
@@ -334,6 +353,16 @@
     /// Stores the internal MFA code state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
     /// </summary>
     private string _mfaCode = string.Empty;
+    /// <summary>Transient authenticator verification dialog state, never written to disk.</summary>
+    private bool _showMfaVerification;
+    /// <summary>Controls one-time local enrollment verification feedback.</summary>
+    private bool _mfaVerificationSucceeded;
+    /// <summary>Blocks duplicate authenticator verification requests.</summary>
+    private bool _mfaVerificationBusy;
+    /// <summary>Controls the QR redraw after the verification popup becomes visible.</summary>
+    private bool _renderMfaTestQr;
+    /// <summary>User-entered verification code, cleared after every attempt.</summary>
+    private string _mfaTestCode = string.Empty;
     /// <summary>
     /// Stores the internal valid for minutes state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
     /// </summary>
@@ -434,6 +463,22 @@
                 "InitialSecurityRefresh",
                 InitializeAfterRenderAsync,
                 lifetimeCts.Token);
+        }
+
+        if (_renderMfaTestQr && _showMfaVerification && !isDisposed)
+        {
+            _renderMfaTestQr = false;
+            try
+            {
+                await JS.InvokeVoidAsync("localGptOneWireSecurity.renderQr",
+                    "localgpt-security-otp-test-qr", _otpUri,
+                    "LocalGPT Authenticator enrollment verification").ConfigureAwait(true);
+            }
+            catch (JSDisconnectedException) when (isDisposed) { }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Could not render the authenticator verification QR code.");
+            }
         }
 
         if (!_renderQr || isDisposed || !string.Equals(ActiveOneWireSection, "pairing", StringComparison.OrdinalIgnoreCase))
@@ -594,6 +639,70 @@
         }
     }
 
+    /// <summary>Opens the local MFA verification popup without changing peer trust.</summary>
+    /// <returns>A completed task for the renderer event.</returns>
+    private Task OpenMfaVerificationAsync()
+    {
+        try
+        {
+            _mfaVerificationSucceeded = false;
+            _mfaTestCode = string.Empty;
+            _showMfaVerification = true;
+            _renderMfaTestQr = true;
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Opening the local authenticator verification dialog failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Tests the current TOTP against the local runtime identity; this never trusts another peer.</summary>
+    /// <returns>A task completing once verification feedback has been presented.</returns>
+    private async Task VerifyMfaEnrollmentAsync()
+    {
+        if (_mfaVerificationBusy) return;
+        _mfaVerificationBusy = true;
+        try
+        {
+            var valid = await Security.VerifyCurrentMfaCodeAsync(_mfaTestCode, lifetimeCts.Token).ConfigureAwait(true);
+            _mfaVerificationSucceeded = valid;
+            if (valid)
+                Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator code verified. Pairing and trust remain separate.", "1-Wire Security");
+            else
+                Notifier.ShowWarning("OneWireSecurityToasts", "The authenticator code was not accepted. Check the device clock and try again.", "1-Wire Security");
+        }
+        catch (OperationCanceledException) when (isDisposed || lifetimeCts.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Local authenticator verification failed without changing peer trust.");
+            Notifier.ShowError("OneWireSecurityToasts", "Authenticator verification could not complete.", "1-Wire Security");
+        }
+        finally
+        {
+            _mfaTestCode = string.Empty;
+            _mfaVerificationBusy = false;
+        }
+    }
+
+    /// <summary>Closes the verification popup and clears its transient code.</summary>
+    /// <returns>A completed task for the renderer event.</returns>
+    private Task CloseMfaVerificationAsync()
+    {
+        try
+        {
+            _showMfaVerification = false;
+            _mfaTestCode = string.Empty;
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Closing the local authenticator verification dialog failed.");
+            throw;
+        }
+    }
+
     /// <summary>
     /// Creates pairing material for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
     /// </summary>
@@ -610,7 +719,11 @@
         _pairingTicketJson = JsonSerializer.Serialize(ticket, JsonOptions);
         ActiveOneWireSection = "pairing";
         _renderQr = true;
-        Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator enrollment and public pairing material created.", "1-Wire Security");
+        _mfaVerificationSucceeded = false;
+        _mfaTestCode = string.Empty;
+        _showMfaVerification = true;
+        _renderMfaTestQr = true;
+        Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator enrollment and public pairing material created. Verify your authenticator to confirm setup.", "1-Wire Security");
     }, "CreatePairingMaterial", "Could not create 1-Wire pairing material.").ConfigureAwait(false);
         }
         catch (Exception __componentMethodException)

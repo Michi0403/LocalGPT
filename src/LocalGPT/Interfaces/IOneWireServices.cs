@@ -144,6 +144,11 @@ public interface IOneWireRuntimeSecurityService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The string produced by the operation.</returns>
     Task<string> GetOtpAuthUriAsync(CancellationToken cancellationToken = default);
+    /// <summary>Tests the current six-digit authenticator code against the local 1-Wire identity without establishing peer trust.</summary>
+    /// <param name="code">Code entered by the user; never logged or persisted.</param>
+    /// <param name="cancellationToken">Cancels the verification.</param>
+    /// <returns>True only when the code matches the local identity's current authenticator secret.</returns>
+    Task<bool> VerifyCurrentMfaCodeAsync(string code, CancellationToken cancellationToken = default);
     /// <summary>
     /// Performs establish trust as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

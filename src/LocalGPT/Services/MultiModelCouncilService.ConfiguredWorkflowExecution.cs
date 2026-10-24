@@ -143,7 +143,8 @@ namespace LocalGPT.Services
                                         LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumWorkspaceFileReadRecoveryAttempts);
                                 var recoveredSources = configuredSourceRetries > 0 && firstStep.IncludeWorkspaceSourceExcerptsOnRecovery
                                     ? await BuildSourceReviewRecoveryEvidenceAsync(request, bootstrap, firstStep, cancellationToken).ConfigureAwait(false)
-                                    : (Evidence: string.Empty, Paths: (IReadOnlyList<string>)Array.Empty<string>());
+                                    : (Evidence: string.Empty, Paths: (IReadOnlyList<string>)Array.Empty<string>(),
+                                       Pages: (IReadOnlyList<ChatUploadWorkspaceFileReadResult>)Array.Empty<ChatUploadWorkspaceFileReadResult>());
                                 if (firstStep.IncludeWorkspaceSourceExcerptsOnRecovery &&
                                     configuredSourceRetries > 0 && recoveredSources.Paths.Count == 0)
                                     throw new InvalidOperationException($"Configured source review '{firstStep.DisplayName}' requested source excerpts but has no readable extracted source files.");
@@ -175,6 +176,47 @@ namespace LocalGPT.Services
                                         loopMaximumIterations: 1, workflowRevision: nextRevision,
                                         xRoundCause: firstStep.WorkspaceFileReadRecoveryPromptTemplate,
                                         suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                                    // The recovery service read these exact pages and supplied their
+                                    // content to this completed model turn. Record server-origin page
+                                    // receipts only after a real Council response, never on curator
+                                    // hashing alone or when the source text was not delivered.
+                                    if (recoveredSources.Pages.Count > 0 && result.Steps.Any(item =>
+                                        string.Equals(item.WorkflowStepKey, firstStep.Key, StringComparison.OrdinalIgnoreCase) &&
+                                        item.WorkflowRevision == nextRevision &&
+                                        string.IsNullOrWhiteSpace(item.Error) &&
+                                        !string.IsNullOrWhiteSpace(item.VisibleContent) &&
+                                        !string.Equals(item.ModelName, "LocalGPT DXFunction gateway", StringComparison.Ordinal)))
+                                    {
+                                        foreach (var page in recoveredSources.Pages)
+                                        {
+                                            result.Steps.Add(new MultiModelCouncilStep
+                                            {
+                                                Round = firstStep.SortOrder,
+                                                Phase = firstStep.Phase + " source recovery",
+                                                ModelName = "LocalGPT: source recovery gateway",
+                                                Role = "Service-verified source page supplied to the Council; not evidence of knowledge persistence",
+                                                WorkflowStepKey = firstStep.Key,
+                                                WorkflowRevision = nextRevision,
+                                                VisibleContent = "Verified source page supplied to Council",
+                                                VerifiedWorkspaceReadMetadataJson = System.Text.Json.JsonSerializer.Serialize(new
+                                                {
+                                                    succeeded = true,
+                                                    truncated = false,
+                                                    readProgress = new
+                                                    {
+                                                        workspaceName = page.WorkspaceName,
+                                                        relativePath = page.RelativePath,
+                                                        kind = page.Kind,
+                                                        characterOffset = page.CharacterOffset,
+                                                        charactersReturned = page.CharactersReturned,
+                                                        hasMore = page.HasMore
+                                                    }
+                                                }),
+                                                StartedAtUtc = DateTime.UtcNow,
+                                                CompletedAtUtc = DateTime.UtcNow
+                                            });
+                                        }
+                                    }
                                     progress = GetVerifiedWorkspaceReadProgress(
                                         result, request, firstStep, bootstrap, cancellationToken);
                                     goalMet = progress.CompletedFiles >= requiredFiles &&

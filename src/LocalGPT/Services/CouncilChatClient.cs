@@ -67,7 +67,7 @@ public sealed partial class CouncilChatClient(
     /// <summary>Starts or attaches to a live Council run and streams bounded response updates.</summary>
     /// <param name="messages">Current chat history.</param>
     /// <param name="options">Optional Microsoft.Extensions.AI chat options.</param>
-    /// <param name="cancellationToken">Detaches this stream when canceled; explicit session controls own run cancellation.</param>
+    /// <param name="cancellationToken">Cancellation from the Chat control stops the owned run, including native DevExpress Stop.</param>
     /// <returns>An asynchronous sequence of Council response updates.</returns>
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
@@ -167,7 +167,12 @@ public sealed partial class CouncilChatClient(
                 await waitCts.CancelAsync().ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
+                {
+                    // DevExpress Chat Stop cancels the streaming request. Detaching just
+                    // the UI while retaining the heavy Council task leaves an orphan.
+                    liveSessions.Cancel(request.RunId);
                     yield break;
+                }
 
                 if (completed == heartbeat && DateTimeOffset.UtcNow >= nextHeartbeatAt)
                 {
@@ -185,9 +190,12 @@ public sealed partial class CouncilChatClient(
         finally
         {
             Interlocked.Exchange(ref attached, 0);
+            if (cancellationToken.IsCancellationRequested &&
+                liveSessions.GetSummary(request.RunId)?.IsRunning == true)
+                liveSessions.Cancel(request.RunId);
             logger.LogInformation(
-                "AI Council DXChat stream detached for run {RunId}; the Council runtime remains owned by the live-session service until completion or explicit stop.",
-                request.RunId);
+                "AI Council DXChat stream ended for run {RunId}; canceled={CancellationRequested}.",
+                request.RunId, cancellationToken.IsCancellationRequested);
         }
     }
 

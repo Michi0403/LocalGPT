@@ -252,6 +252,30 @@ public sealed partial class OneWireRuntimeSecurityService : IOneWireRuntimeSecur
         finally { gate.Release(); }
     }
 
+    /// <summary>Tests the local authenticator enrollment without granting 1-Wire trust or changing any identity material.</summary>
+    /// <param name="code">User-entered six-digit TOTP; never persisted or logged.</param>
+    /// <param name="cancellationToken">Cancels the verification.</param>
+    /// <returns>True when the current local TOTP is valid, otherwise false.</returns>
+    public async Task<bool> VerifyCurrentMfaCodeAsync(string code, CancellationToken cancellationToken = default)
+    {
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            // Do not create an identity as a side effect of a verification attempt.
+            var file = await LoadCoreAsync(createWhenMissing: false, cancellationToken).ConfigureAwait(false);
+            return file is not null && !string.IsNullOrWhiteSpace(file.MfaSeed) && VerifyTotp(file.MfaSeed, code);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or CryptographicException or FormatException)
+        {
+            logger.LogError(ex, "Could not verify the locally enrolled 1-Wire authenticator code.");
+            throw;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
     /// <summary>
     /// Performs establish trust as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
