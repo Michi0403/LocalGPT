@@ -534,8 +534,15 @@ namespace LocalGPT.Components.Pages
                 .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            var advertisedCapabilities = CouncilText.FilterPublisherOrganicCapabilityKeys(
+                WirePeers.GetPeers()
+                    .Where(peer => WireConnections.IsConnected(peer.PeerId))
+                    .SelectMany(peer => peer.Capabilities)
+                    .Where(capability => capability.IsEnabled && capability.IsOnline)
+                    .Select(capability => capability.Key));
             await InvokeAsync(() =>
             {
+                _publisherAdvertisedCapabilityKeys = advertisedCapabilities;
                 _providerModels = candidates;
                 var migrated = ReconcileEditorProviderModelBindings();
                 if (migrated > 0)

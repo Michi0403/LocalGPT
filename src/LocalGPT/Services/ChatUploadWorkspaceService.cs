@@ -704,9 +704,9 @@ namespace LocalGPT.Services
                     // over normalized document text, never over compressed binary bytes.
                     var page = await packages.ReadSemanticPageAsync(file, effectiveOffset, effectiveMaximum,
                         cancellationToken).ConfigureAwait(false);
-                    var content = councilRuntime.SanitizeForPrompt(page.Text, logger);
+                    var semanticPageText = councilRuntime.SanitizeForPrompt(page.Text, logger);
                     return new ChatUploadWorkspaceFileReadResult(
-                        workspaceName, normalizedRelativePath, file, "text", info.Length, content)
+                        workspaceName, normalizedRelativePath, file, "text", info.Length, semanticPageText)
                     {
                         CharacterOffset = effectiveOffset,
                         CharactersReturned = page.Text.Length,

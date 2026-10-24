@@ -150,12 +150,12 @@
     <Exec Condition="Exists('$(ComponentSafetyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(ComponentSafetyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-  <!--<Target Name="AssertLocalGptApplicationStaticPolicy"
+  <Target Name="AssertLocalGptApplicationStaticPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptMethodDiagnosticsPolicy"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipApplicationStaticPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(ApplicationStaticPolicyScript)')" Text="Application static policy script is missing: $(ApplicationStaticPolicyScript)" />
     <Exec Condition="Exists('$(ApplicationStaticPolicyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(ApplicationStaticPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>-->
+  </Target>
 
   <Target Name="AssertLocalGptTextServiceOwnership"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptRuntimeTextOwnership"

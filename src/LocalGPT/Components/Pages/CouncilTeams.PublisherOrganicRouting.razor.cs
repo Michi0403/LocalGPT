@@ -6,13 +6,34 @@ namespace LocalGPT.Components.Pages;
 /// <summary>Provides capability-focused PublisherStudio team affinity and a checked single-model assignment action.</summary>
 public partial class CouncilTeams
 {
-    /// <summary>The organic functions a PublisherStudio specialist team can prefer without granting additional permissions.</summary>
-    private static readonly IReadOnlyList<string> PublisherOrganicCapabilityKeys =
-    [
-        "publisher.spreadsheet.inspect", "publisher.text.insert.propose", "publisher.openscad.generate",
-        "publisher.panel.modules.inspect", "publisher.panel.module.invoke", "publisher.browser.view.inspect",
-        "publisher.project.inspect", "publisher.media.capabilities"
-    ];
+    /// <summary>
+    /// Projects discovered PublisherStudio capabilities and persisted,
+    /// user-editable team/reset-template preferences from prepared render state. No source-owned capability allowlist
+    /// can become a second policy source or silently authorize an operation.
+    /// </summary>
+    /// <value>PublisherStudio capability keys available to the team affinity editor.</value>
+    private IReadOnlyList<string> PublisherOrganicCapabilityKeys
+    {
+        get
+        {
+            try
+            {
+                return CouncilText.FilterPublisherOrganicCapabilityKeys(
+                    _publisherAdvertisedCapabilityKeys
+                        .Concat(_teams.SelectMany(team => team.PreferredCapabilities))
+                        .Concat(_defaultTemplates.SelectMany(template => template.PreferredCapabilities))
+                        .Concat(_editor.PreferredCapabilities));
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "Council Teams could not inspect publisher organic capability preferences.");
+                throw;
+            }
+        }
+    }
+
+    /// <summary>Snapshot of online, enabled PublisherStudio capabilities, prepared by the supervised discovery workflow.</summary>
+    private IReadOnlyList<string> _publisherAdvertisedCapabilityKeys = [];
 
     /// <summary>Stores the selected installed and configured provider identity until an explicit Apply click.</summary>
     private string _publisherSingleModelKey = string.Empty;
