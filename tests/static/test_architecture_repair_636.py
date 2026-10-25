@@ -37,5 +37,5 @@ class ArchitectureRepair636(unittest.TestCase):
         self.assertIn('javascript-diagnostics: guarded',data)
         self.assertIn('catch (error)',data)
     def test_release_number(self):
-        self.assertIn('<Version>6.3.7</Version>',read('LocalGPT.csproj'))
+        self.assertIn('<Version>6.4.1</Version>',read('LocalGPT.csproj'))
 if __name__=='__main__': unittest.main()

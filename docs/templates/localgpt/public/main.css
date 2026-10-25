@@ -2938,101 +2938,157 @@ html.localgpt-kawaii-docs :where(*) {
 }
 
 
-/* Ephemeral cat-tear Easter egg: SVG cuts through the actual DocFX content,
-   with a separately drawn ripped-fiber edge. Neither affects layout or exports. */
+/* Ephemeral presentation-only DocFX tear: a narrow cut, a fine lifted
+   paper rim, and a restrained theme-aware underside. Document DOM is intact. */
 html.localgpt-kawaii-docs .localgpt-tear-overlay {
-  overflow: visible;
-  pointer-events: none;
   position: fixed !important;
   z-index: 2147483642 !important;
+  overflow: visible;
+  pointer-events: none;
 }
 html.localgpt-kawaii-docs .localgpt-tear-void {
   fill: url(#localgpt-tear-space-dark);
-  stroke: #35214e;
-  stroke-width: 2.2;
-  filter: drop-shadow(0 1px 2px #090316) drop-shadow(0 0 6px #c456f1);
+  stroke: rgba(26, 12, 42, .68);
+  stroke-width: .55;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.55));
+}
+html.localgpt-kawaii-docs .localgpt-tear-shadow {
+  fill: none;
+  stroke: rgba(10, 3, 18, .58);
+  stroke-width: 1.35;
+  filter: drop-shadow(0 1px 1px rgba(5,0,12,.45));
+}
+html.localgpt-kawaii-docs .localgpt-tear-paper {
+  fill: none;
+  stroke: #d8c2dc;
+  stroke-width: .7;
+  opacity: .85;
 }
 html.localgpt-kawaii-docs .localgpt-tear-rim {
   fill: none;
-  stroke: #e8c9ee;
-  stroke-width: 2.2;
-  stroke-linejoin: bevel;
-  opacity: .96;
-  filter: drop-shadow(0 1px 2px #16081e);
+  stroke: #f8dfff;
+  stroke-width: .62;
+  opacity: .82;
 }
 html.localgpt-kawaii-docs .localgpt-tear-bloom {
   fill: none;
-  stroke: #bc65f9;
-  stroke-width: 8;
-  stroke-linejoin: round;
-  opacity: .32;
-  filter: blur(5px);
+  stroke: #b953e8;
+  stroke-width: 2.4;
+  opacity: .19;
+  filter: blur(2px);
+}
+html.localgpt-kawaii-docs .localgpt-tear-paper-lip {
+  fill: url(#localgpt-tear-flap-shade);
+  stroke: rgba(255,235,255,.38);
+  stroke-width: .32;
+  filter: drop-shadow(.5px 1px .6px rgba(0,0,0,.38));
+}
+html.localgpt-kawaii-docs .localgpt-tear-flap {
+  fill: url(#localgpt-tear-flap-shade);
+  stroke: #f1d9f1;
+  stroke-width: .38;
+  opacity: .94;
+  filter: drop-shadow(.7px 1px .7px rgba(0,0,0,.45));
+}
+html.localgpt-kawaii-docs .localgpt-tear-flap-shadow {
+  fill: #0b0617;
+  opacity: .30;
+  transform: translate(.6px, 1px);
+}
+html.localgpt-kawaii-docs .localgpt-tear-fold {
+  fill: none;
+  stroke: rgba(255,255,255,.62);
+  stroke-width: .45;
+}
+html.localgpt-kawaii-docs .localgpt-tear-fiber {
+  fill: none;
+  stroke: #f5dfed;
+  stroke-width: .45;
+  stroke-linecap: round;
 }
 html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-void {
   fill: url(#localgpt-tear-space-light);
-  stroke: #8b7598;
-  filter: drop-shadow(0 1px 2px #817293) drop-shadow(0 0 7px #d3bbff);
+  stroke: rgba(126, 100, 148, .74);
+  filter: drop-shadow(0 0 1px rgba(255,255,255,.98))
+          drop-shadow(0 0 4px rgba(255,255,255,.88))
+          drop-shadow(0 0 7px rgba(169, 214, 255, .48))
+          drop-shadow(0 0 11px rgba(255, 185, 237, .38));
+}
+html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-shadow {
+  stroke: rgba(96,66,118,.22);
+  filter: blur(.35px);
+}
+html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-paper {
+  stroke: #fffdfd;
+  opacity: .97;
 }
 html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-rim {
-  stroke: #fdfaff;
-  filter: drop-shadow(0 1px 2px #7c627f);
+  stroke: #8a73a2;
 }
 html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-bloom {
-  stroke: #836ad1;
-  opacity: .25;
+  stroke: #fff8ff;
+  opacity: .44;
+  filter: blur(2.4px);
 }
+html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-paper-lip,
+html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-flap {
+  fill: #fffdfd;
+  stroke: #c9b4d7;
+  filter: drop-shadow(.5px 1px .6px rgba(67,44,92,.18));
+}
+html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-flap-shadow {
+  fill: #9f8ab2;
+  opacity: .10;
+}
+html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-fold {
+  stroke: #baa8c8;
+}
+html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-fiber {
+  stroke: #9a83aa;
+}
+/* Theme-aware rim lighting for the selected iridescent paw: never change its pointer hotspot
+   or the independent scratch/content-mask layers. A silhouette drop-shadow follows the SVG,
+   rather than placing a rectangular glow over text or navigation. */
 html.localgpt-kawaii-docs .localgpt-cursor-paw {
-  width: 3.15rem;
-  height: 3.15rem;
+  --localgpt-paw-fur: #343048;
+  --localgpt-paw-fur-stroke: #b5a4d4;
+  --localgpt-paw-fur-detail: #bbb0dc;
+  width: 3.4rem;
+  height: 3.4rem;
   transform: translate(-.35rem, -.55rem);
-  filter: drop-shadow(0 0 7px rgba(170,87,247,.65)) drop-shadow(0 0 3px rgba(75,217,248,.45));
+  filter: drop-shadow(0 0 1px rgba(245, 252, 255, .95))
+          drop-shadow(0 0 3px rgba(75, 225, 255, .90))
+          drop-shadow(0 0 8px rgba(92, 155, 255, .68))
+          drop-shadow(0 0 12px rgba(165, 89, 244, .42));
 }
 html.localgpt-kawaii-docs .localgpt-cursor-paw svg { display: block; width: 100%; height: 100%; }
+html.localgpt-kawaii-docs .localgpt-cursor-paw .localgpt-paw-fur {
+  fill: var(--localgpt-paw-fur);
+  stroke: var(--localgpt-paw-fur-stroke);
+  stroke-width: 1.8;
+}
+html.localgpt-kawaii-docs .localgpt-cursor-paw .localgpt-paw-fur-detail {
+  stroke: var(--localgpt-paw-fur-detail);
+  opacity: .65;
+}
+/* Pale backgrounds benefit from depth, not an intense bright halo. Keep the outer
+   rim faint while a short, soft plum shadow makes the cursor legible on white. */
 html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-cursor-paw {
-  filter: drop-shadow(0 1px 2px rgba(80,49,117,.35)) drop-shadow(0 0 4px rgba(167,117,223,.35));
+  --localgpt-paw-fur: rgba(73, 62, 93, .12);
+  --localgpt-paw-fur-stroke: rgba(71, 57, 95, .74);
+  --localgpt-paw-fur-detail: rgba(123, 101, 152, .78);
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, .98))
+          drop-shadow(0 0 2px rgba(59, 44, 82, .94))
+          drop-shadow(0 0 5px rgba(59, 44, 82, .82))
+          drop-shadow(0 0 9px rgba(106, 151, 232, .34));
+}
+html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-cursor-paw .localgpt-paw-fur {
+  opacity: .46;
+  stroke-width: 1.55;
+}
+html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-cursor-paw .localgpt-paw-fur-detail {
+  opacity: .82;
 }
 @media (prefers-reduced-motion: reduce), (pointer: coarse) {
   html.localgpt-kawaii-docs .localgpt-tear-overlay { display: none !important; }
-}
-
-/* Raised, irregular paper fibers surround the cutout; these never mask UI chrome. */
-html.localgpt-kawaii-docs .localgpt-tear-shadow {
-  fill: none; stroke: #0f0717; stroke-width: 7; stroke-linejoin: bevel;
-  filter: drop-shadow(0 3px 3px rgba(0,0,0,.7));
-}
-html.localgpt-kawaii-docs .localgpt-tear-paper {
-  fill: none; stroke: #ead8f0; stroke-width: 3.4; stroke-linejoin: bevel;
-  opacity: .85; filter: drop-shadow(0 0 4px rgba(229,119,255,.85));
-}
-html.localgpt-kawaii-docs .localgpt-tear-rim {
-  stroke: #fef2ff; stroke-width: 1.7; stroke-linejoin: bevel;
-  stroke-dasharray: 8 1 3 1; filter: drop-shadow(0 0 2px #ec83f7);
-}
-html.localgpt-kawaii-docs .localgpt-tear-bloom {
-  stroke: #d75bf0; stroke-width: 13; opacity: .65; filter: blur(4px);
-}
-html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-shadow {
-  stroke: #b9a7c4; filter: drop-shadow(0 2px 2px rgba(60,35,69,.3));
-}
-html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-paper {
-  stroke: #fafcff; filter: drop-shadow(0 0 3px rgba(119,90,166,.45));
-}
-html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-rim {
-  stroke: #85708c; filter: drop-shadow(0 0 2px #c4a9d7);
-}
-html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-bloom {
-  stroke: #f4f2ff; opacity: .75; filter: blur(5px);
-}
-
-html.localgpt-kawaii-docs .localgpt-tear-flap {
-  fill: #e9c7ee;
-  stroke: #fff0ff;
-  stroke-width: .6;
-  opacity: .92;
-  filter: drop-shadow(1px 2px 2px rgba(0,0,0,.52)) drop-shadow(0 0 3px rgba(227,117,242,.65));
-}
-html.localgpt-kawaii-docs:not([data-bs-theme="dark"]) .localgpt-tear-flap {
-  fill: #f9f5ff;
-  stroke: #9980a7;
-  filter: drop-shadow(1px 2px 1px rgba(90,66,116,.28));
 }

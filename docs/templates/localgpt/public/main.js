@@ -645,21 +645,26 @@ let kawaiiTearSession = null;
 let kawaiiScratchAudio = null;
 
 function makeKawaiiGalaxyPaw() {
-  // Decorative inline vector; no external asset, DOM replacement, or downloaded dependency.
+  // Theme-aware, inline SVG: the paw remains part of the pointer overlay, not the DocFX content mask.
+  // The fur silhouette gives the pastel toe beans contrast on light surfaces without changing the scratch renderer.
   return `<svg viewBox="0 0 92 92" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
     <defs>
-      <linearGradient id="localgpt-paw-gradient" x1=".15" y1=".1" x2=".88" y2=".92"><stop stop-color="#fac5fc"/><stop offset=".35" stop-color="#ae70ff"/><stop offset=".67" stop-color="#5c78fc"/><stop offset="1" stop-color="#5ce4f9"/></linearGradient>
-      <radialGradient id="localgpt-paw-shine"><stop stop-color="#fff" stop-opacity=".74"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+      <linearGradient id="localgpt-paw-gradient" x1=".15" y1=".1" x2=".88" y2=".92"><stop stop-color="#ffd0ef"/><stop offset=".38" stop-color="#f48ecf"/><stop offset=".7" stop-color="#bd83ff"/><stop offset="1" stop-color="#7adff9"/></linearGradient>
+      <radialGradient id="localgpt-paw-shine"><stop stop-color="#fff" stop-opacity=".72"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
     </defs>
-    <g fill="url(#localgpt-paw-gradient)" stroke="#fce8ff" stroke-opacity=".52" stroke-width="1.15">
+    <path class="localgpt-paw-fur" d="M22 51 Q16 48 13 56 Q9 62 15 69 Q11 79 22 83 Q30 89 43 85 Q53 91 64 84 Q76 84 78 72 Q84 63 77 54 Q70 47 62 52 Q47 44 36 50 Q28 45 22 51 Z"/>
+    <g fill="url(#localgpt-paw-gradient)" stroke="#fce8ff" stroke-opacity=".88" stroke-width="1.7">
       <ellipse cx="19" cy="37" rx="8" ry="11" transform="rotate(-24 19 37)"/>
       <ellipse cx="36" cy="23" rx="8" ry="11" transform="rotate(-10 36 23)"/>
       <ellipse cx="56" cy="24" rx="8" ry="11" transform="rotate(12 56 24)"/>
       <ellipse cx="72" cy="37" rx="8" ry="11" transform="rotate(26 72 37)"/>
       <path d="M25 67 C24 57 34 48 39 43 Q46 39 52 43 C59 48 69 58 68 67 C67 78 58 80 48 77 C37 74 26 81 25 67 Z"/>
     </g>
-    <ellipse cx="35" cy="55" rx="18" ry="11" fill="url(#localgpt-paw-shine)" opacity=".62"/>
-    <g fill="#fff" opacity=".92"><circle cx="33" cy="18" r="2"/><circle cx="61" cy="56" r="1.7"/><circle cx="46" cy="68" r="1.4"/></g>
+    <ellipse cx="35" cy="55" rx="18" ry="11" fill="url(#localgpt-paw-shine)" opacity=".58"/>
+    <g fill="#fff" opacity=".86"><circle cx="33" cy="18" r="2"/><circle cx="61" cy="56" r="1.7"/><circle cx="46" cy="68" r="1.4"/></g>
+    <g class="localgpt-paw-fur-detail" fill="none" stroke-linecap="round" stroke-width="1.1">
+      <path d="M18 73 l-3 3 M23 79 l-2 4 M31 83 l-1 3 M62 82 l2 3 M70 77 l4 3 M75 65 l4 1"/>
+    </g>
   </svg>`;
 }
 
@@ -671,55 +676,116 @@ function kawaiiTearTarget() {
     || document.querySelector('article.content');
 }
 
-function kawaiiTearOutline(points, claw) {
+function kawaiiTearPoints(points) {
   const first = points[0];
   const last = points[points.length - 1];
-  const effective = points.length > 1 && Math.hypot(last.x - first.x, last.y - first.y) > 5
+  const input = points.length > 1 && Math.hypot(last.x - first.x, last.y - first.y) > 5
     ? points : [{ x: first.x - 9, y: first.y + 11 }, { x: first.x + 9, y: first.y - 11 }];
-  const left = [];
-  const right = [];
-  for (let i = 0; i < effective.length; i += 1) {
-    const point = effective[i];
-    const before = effective[Math.max(0, i - 1)];
-    const after = effective[Math.min(effective.length - 1, i + 1)];
-    const dx = after.x - before.x;
-    const dy = after.y - before.y;
-    const len = Math.max(1, Math.hypot(dx, dy));
-    const nx = -dy / len;
-    const ny = dx / len;
-    const offset = (claw - 1) * 25;
-    const noise = Math.sin(i * 17.17 + claw * 3.8 + point.x * .31) * 3.4;
-    const width = (i === 0 || i === effective.length - 1) ? 3.1 : 8.5 + noise;
-    const cx = point.x + nx * offset;
-    const cy = point.y + ny * offset;
-    left.push(`${(cx + nx * width).toFixed(1)},${(cy + ny * width).toFixed(1)}`);
-    right.push(`${(cx - nx * (width + .7)).toFixed(1)},${(cy - ny * (width + .7)).toFixed(1)}`);
+  // Even a short click produces fine tapering instead of a two-vertex diamond.
+  // Resampling also prevents long pointer-event gaps from forming polygonal loops.
+  const result = [input[0]];
+  for (let i = 1; i < input.length; i += 1) {
+    const before = input[i - 1];
+    const after = input[i];
+    const distance = Math.hypot(after.x - before.x, after.y - before.y);
+    const steps = Math.max(1, Math.min(24, Math.ceil(distance / 6)));
+    for (let step = 1; step <= steps; step += 1) {
+      const t = step / steps;
+      result.push({ x: before.x + (after.x - before.x) * t,
+        y: before.y + (after.y - before.y) * t });
+    }
   }
-  return `M${left.join(' L')} L${right.reverse().join(' L')} Z`;
+  return result;
 }
 
-// Very small curled paper slivers on the edge of long drag cuts; purely decorative.
-function kawaiiTearFlaps(points, claw) {
-  if (points.length < 4) return '';
-  const flaps = [];
-  for (let i = 3; i < points.length - 2; i += 5) {
-    const point = points[i];
-    const before = points[i - 1];
-    const after = points[i + 1];
+const KAWAII_CLAW_SPACING = 16;
+
+function kawaiiTearGeometry(points, claw) {
+  const path = kawaiiTearPoints(points);
+  const left = [];
+  const right = [];
+  for (let i = 0; i < path.length; i += 1) {
+    const point = path[i];
+    const before = path[Math.max(0, i - 1)];
+    const after = path[Math.min(path.length - 1, i + 1)];
     const dx = after.x - before.x;
     const dy = after.y - before.y;
     const len = Math.max(1, Math.hypot(dx, dy));
-    const nx = -dy / len;
-    const ny = dx / len;
-    const offset = (claw - 1) * 25 + 8;
-    const x = point.x + nx * offset;
-    const y = point.y + ny * offset;
-    const lift = 4 + (i % 4) * 1.1;
-    const tipX = x + nx * lift;
-    const tipY = y + ny * lift;
-    flaps.push(`M${x.toFixed(1)},${y.toFixed(1)} L${tipX.toFixed(1)},${tipY.toFixed(1)} L${(x + dx / len * 7).toFixed(1)},${(y + dy / len * 7).toFixed(1)} Z`);
+    const tx = dx / len;
+    const ty = dy / len;
+    const nx = -ty;
+    const ny = tx;
+    // Fine deterministic irregularity; no random jitter on re-render.
+    const jag = Math.sin(i * 2.13 + claw * 3.29 + point.x * .049) * .58
+      + Math.sin(i * .57 + point.y * .085 + claw) * .42;
+    const taper = Math.min(1, .25 + i * .30, .25 + (path.length - 1 - i) * .30);
+    const occasionalNick = i % 17 === (claw * 3 + 5) ? .95 : 0;
+    const widthLeft = taper * Math.max(.65, 2.45 + jag + occasionalNick);
+    const widthRight = taper * Math.max(.65, 2.25 - jag * .7 + (i % 19 === 7 ? .65 : 0));
+    const cx = point.x + nx * (claw - 1) * KAWAII_CLAW_SPACING;
+    const cy = point.y + ny * (claw - 1) * KAWAII_CLAW_SPACING;
+    left.push({ x: cx + nx * widthLeft, y: cy + ny * widthLeft, nx, ny, tx, ty });
+    right.push({ x: cx - nx * widthRight, y: cy - ny * widthRight, nx, ny, tx, ty });
   }
-  return flaps.map(path => `<path class="localgpt-tear-flap" d="${path}"/>`).join('');
+  return { left, right, claw };
+}
+
+function kawaiiTearCoords(points) {
+  return points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L');
+}
+
+function kawaiiTearOutline(geometry) {
+  return `M${kawaiiTearCoords(geometry.left)} L${kawaiiTearCoords([...geometry.right].reverse())} Z`;
+}
+
+// Raised paper rims start at the ACTUAL mask boundary, and lift only 1-2px.
+// This prevents thick overlapping SVG bands when the user scribbles repeatedly.
+function kawaiiTearPaperLips(geometry) {
+  const strips = [];
+  for (const [side, edge] of [[1, geometry.left], [-1, geometry.right]]) {
+    const lifted = edge.map((p, i) => {
+      const fold = i === 0 || i === edge.length - 1 ? .45
+        : 1.1 + Math.sin(i * .77 + geometry.claw) * .36;
+      return { x: p.x + p.nx * side * fold,
+        y: p.y + p.ny * side * fold };
+    });
+    const d = `M${kawaiiTearCoords(edge)} L${kawaiiTearCoords(lifted.reverse())} Z`;
+    strips.push(`<path class="localgpt-tear-paper-lip" d="${d}"/>`);
+  }
+  return strips.join('');
+}
+
+function kawaiiTearFlaps(geometry) {
+  const details = [];
+  const edges = [geometry.left, geometry.right];
+  // Sparse 3-6px peeling corners, rather than the old 20px paper triangles.
+  for (let i = 6; i < geometry.left.length - 3; i += 14) {
+    const side = (i + geometry.claw) % 2;
+    const edge = edges[side];
+    const p = edge[i];
+    const nx = p.nx * (side === 0 ? 1 : -1);
+    const ny = p.ny * (side === 0 ? 1 : -1);
+    const span = 2.6 + (i % 3) * 1.2;
+    const lift = 2.8 + (i % 4) * .8;
+    const startX = p.x - p.tx * span;
+    const startY = p.y - p.ty * span;
+    const endX = p.x + p.tx * span * .8;
+    const endY = p.y + p.ty * span * .8;
+    const tipX = p.x + nx * lift + p.tx;
+    const tipY = p.y + ny * lift + p.ty;
+    const d = `M${startX.toFixed(1)},${startY.toFixed(1)} L${tipX.toFixed(1)},${tipY.toFixed(1)} L${endX.toFixed(1)},${endY.toFixed(1)} Z`;
+    details.push(`<path class="localgpt-tear-flap-shadow" d="${d}"/><path class="localgpt-tear-flap" d="${d}"/>`);
+    details.push(`<path class="localgpt-tear-fold" d="M${startX.toFixed(1)},${startY.toFixed(1)} L${endX.toFixed(1)},${endY.toFixed(1)}"/>`);
+    // Two thin, short exposed fibres per occasional peeled corner.
+    for (let fiber = 0; fiber < 2; fiber += 1) {
+      const x = p.x + p.tx * (fiber ? 1.4 : -1.4);
+      const y = p.y + p.ty * (fiber ? 1.4 : -1.4);
+      const tipFx = x + nx * (2.2 + fiber * .7) + p.tx * (fiber ? .5 : -.6);
+      const tipFy = y + ny * (2.2 + fiber * .7) + p.ty * (fiber ? .5 : -.6);
+      details.push(`<path class="localgpt-tear-fiber" d="M${x.toFixed(1)},${y.toFixed(1)} L${tipFx.toFixed(1)},${tipFy.toFixed(1)}"/>`);
+    }
+  }
+  return details.join('');
 }
 
 function createKawaiiTearSession(target) {
@@ -727,7 +793,7 @@ function createKawaiiTearSession(target) {
   layer.setAttribute('class', 'localgpt-tear-overlay');
   layer.setAttribute('aria-hidden', 'true');
   layer.setAttribute('focusable', 'false');
-  layer.innerHTML = `<defs><linearGradient id="localgpt-tear-space-dark" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#10051f"/><stop offset=".28" stop-color="#7b28b0"/><stop offset=".57" stop-color="#29115b"/><stop offset=".83" stop-color="#1688bb"/><stop offset="1" stop-color="#130d33"/></linearGradient><linearGradient id="localgpt-tear-space-light" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset=".45" stop-color="#eae0fc"/><stop offset=".8" stop-color="#f8fbff"/><stop offset="1" stop-color="#eff7ff"/></linearGradient></defs><g class="localgpt-tear-marks"></g>`;
+  layer.innerHTML = `<defs><linearGradient id="localgpt-tear-space-dark" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#10051f"/><stop offset=".28" stop-color="#7b28b0"/><stop offset=".57" stop-color="#29115b"/><stop offset=".83" stop-color="#1688bb"/><stop offset="1" stop-color="#130d33"/></linearGradient><linearGradient id="localgpt-tear-space-light" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset=".18" stop-color="#fff8ff"/><stop offset=".42" stop-color="#efe2ff"/><stop offset=".68" stop-color="#e5fbff"/><stop offset=".88" stop-color="#fff1fb"/><stop offset="1" stop-color="#ffffff"/></linearGradient><linearGradient id="localgpt-tear-flap-shade" x1="0" y1="0" x2=".85" y2="1"><stop stop-color="#fff9ff"/><stop offset=".27" stop-color="#d9c6df"/><stop offset=".6" stop-color="#9b80ac"/><stop offset="1" stop-color="#493556"/></linearGradient></defs><g class="localgpt-tear-marks"></g>`;
   document.body.appendChild(layer);
   return { target, layer, marks: layer.querySelector('.localgpt-tear-marks'),
     scratches: [], active: null, frame: 0, lastPaint: 0, lastSound: 0,
@@ -763,7 +829,8 @@ function paintKawaiiTears() {
     session.layer.setAttribute('width', String(width));
     session.layer.setAttribute('height', String(height));
     session.layer.setAttribute('viewBox', `0 0 ${width} ${height}`);
-    const shapes = session.scratches.flatMap(scratch => [0, 1, 2].map(claw => kawaiiTearOutline(scratch, claw)));
+    const geometries = session.scratches.flatMap(scratch => [0, 1, 2].map(claw => kawaiiTearGeometry(scratch, claw)));
+    const shapes = geometries.map(kawaiiTearOutline);
     if (shapes.length === 0) return;
     // Alpha-mask data image has transparent cutouts. Real text, diagrams, code,
     // pictures and backdrop in this DocFX content subtree vanish through them.
@@ -778,8 +845,10 @@ function paintKawaiiTears() {
     session.target.style.webkitMaskRepeat = 'no-repeat';
     // Separate transparent SVG paints the void, shredded contour and front glow.
     // It never intercepts events and doesn't affect document flow.
-    session.marks.innerHTML = shapes.map(path => `<path class="localgpt-tear-shadow" d="${path}"/><path class="localgpt-tear-bloom" d="${path}"/><path class="localgpt-tear-void" d="${path}"/><path class="localgpt-tear-paper" d="${path}"/><path class="localgpt-tear-rim" d="${path}"/>`).join('')
-      + session.scratches.flatMap(scratch => [0, 1, 2].map(claw => kawaiiTearFlaps(scratch, claw))).join('');
+    session.marks.innerHTML = shapes.map(path => `<path class="localgpt-tear-shadow" d="${path}"/><path class="localgpt-tear-bloom" d="${path}"/><path class="localgpt-tear-void" d="${path}"/>`).join('')
+      + geometries.map(kawaiiTearPaperLips).join('')
+      + shapes.map(path => `<path class="localgpt-tear-paper" d="${path}"/><path class="localgpt-tear-rim" d="${path}"/>`).join('')
+      + geometries.map(kawaiiTearFlaps).join('');
   } catch (error) {
     reportDocumentationError('paintKawaiiTears', error);
     clearKawaiiTearSession();

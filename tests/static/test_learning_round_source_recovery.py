@@ -69,7 +69,7 @@ class LearningRoundSourceRecoveryTests(unittest.TestCase):
         for path in SERVICES.glob("*.cs"):
             self.assertNotIn("compilestick", path.read_text(errors="replace").lower(), str(path))
         project = (ROOT / "src" / "LocalGPT" / "LocalGPT.csproj").read_text()
-        self.assertIn("<Version>6.3.7</Version>", project)
+        self.assertIn("<Version>6.4.1</Version>", project)
 
 
 if __name__ == "__main__":
