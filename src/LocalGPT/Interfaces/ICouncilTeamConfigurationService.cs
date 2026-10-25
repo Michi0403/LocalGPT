@@ -8,6 +8,9 @@ namespace LocalGPT.Interfaces;
 [DocumentationUpdated("2.1.20")]
 public interface ICouncilTeamConfigurationService
 {
+    /// <summary>Repairs and verifies missing supplied team templates on an existing database without touching user-owned team definitions or intentional tombstones.</summary>
+    Task ReconcileDefaultsAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Returns enabled or complete Council-team configuration records.</summary>
     /// <param name="includeDisabled">Whether disabled teams are included.</param>
     /// <param name="cancellationToken">Cancels the asynchronous database operation.</param>

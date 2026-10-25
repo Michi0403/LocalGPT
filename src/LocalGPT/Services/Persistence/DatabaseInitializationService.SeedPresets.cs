@@ -26,6 +26,27 @@ public sealed partial class DatabaseInitializationService
                 .ToListAsync(token)
                 .ConfigureAwait(false);
             var existing = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var presets = CreateDefaultCouncilModelPresets();
+
+            foreach (var preset in presets.Where(item => !existing.Contains(item.Name)))
+                db.CouncilModelPresets.Add(preset);
+    
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseInitializationService)}.{nameof(SeedCouncilModelPresetsAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseInitializationService)}.{nameof(SeedCouncilModelPresetsAsync)} failed.");
+        throw;
+    }
+}
+
+    /// <summary>Builds the authoritative maintained model presets for additive repairs and post-commit verification.</summary>
+    private CouncilModelPreset[] CreateDefaultCouncilModelPresets()
+    {
+        try
+        {
             var presets = new[]
             {
                 BuildPreset(
@@ -114,19 +135,14 @@ public sealed partial class DatabaseInitializationService
                     includeMemory: false,
                     createProjectPerRun: false)
             };
-            foreach (var preset in presets.Where(item => !existing.Contains(item.Name)))
-                db.CouncilModelPresets.Add(preset);
-    
+            return presets;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Building default Council model presets failed.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseInitializationService)}.{nameof(SeedCouncilModelPresetsAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseInitializationService)}.{nameof(SeedCouncilModelPresetsAsync)} failed.");
-        throw;
-    }
-}
 
     /// <summary>
     /// Builds preset as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -137,8 +153,8 @@ public sealed partial class DatabaseInitializationService
     /// <param name="routes">Routes value supplied to the database initialization operation and used when producing its result.</param>
     /// <param name="isDefault">Value indicating whether is default should apply to this operation.</param>
     /// <param name="maxParallel">Max parallel value supplied to the database initialization operation and used when producing its result.</param>
-    /// <param name="includeMemory">Value indicating whether include memory should apply to this operation.</param>
-    /// <param name="createProjectPerRun">Value indicating whether create project per run should apply to this operation.</param>
+    /// <param name="includeMemory">Include-memory flag.</param>
+    /// <param name="createProjectPerRun">Create-project-per-run flag.</param>
     /// <returns>The council model preset produced by the operation.</returns>
     private CouncilModelPreset BuildPreset(
         string name,

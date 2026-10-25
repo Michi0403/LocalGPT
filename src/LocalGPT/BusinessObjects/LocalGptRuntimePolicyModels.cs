@@ -671,6 +671,12 @@ public enum LocalGptRuntimeValue
     CouncilMarkerBoundaryPatternTemplate,
     /// <summary>Database-backed regex template used to create a repository-marker evidence candidate without embedding regex policy in operational code.</summary>
     ProjectMarkerPatternTemplate,
+    /// <summary>System-owned but user-editable final goal completeness review prompt.</summary>
+    GoalKeyaccountManagerSystemPrompt,
+    /// <summary>Configured number of extra Council runs allowed per user goal, not per Council phase.</summary>
+    GoalKeyaccountDefaultContinuations,
+    /// <summary>Optional, user-selected provider-qualified reviewer model; empty inherits a Council participant.</summary>
+    GoalKeyaccountReviewerModelKey,
 }
 
 /// <summary>

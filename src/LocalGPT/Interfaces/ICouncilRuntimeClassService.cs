@@ -7,6 +7,12 @@ namespace LocalGPT.Interfaces;
 /// </summary>
 public interface ICouncilRuntimeClassService
 {
+    /// <summary>Repairs and verifies missing supplied runtime/game class defaults on existing databases.</summary>
+    Task ReconcileDefaultsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the current shipped seed keys for post-upgrade completeness auditing.</summary>
+    IReadOnlyList<string> GetSuppliedSeedKeys();
+
     /// <summary>
     /// Retrieves definitions as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

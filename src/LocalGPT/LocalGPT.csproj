@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>6.3.2</Version>
+    <Version>6.3.7</Version>
     <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
@@ -90,10 +90,11 @@
         <EmbeddedResource Include="..\..\docs\reference\design-evolution.md" LogicalName="LocalGPT.SeedDocument.docs.reference.design-evolution.md" />
         <EmbeddedResource Include="..\..\docs\guide\embedded-and-games.md" LogicalName="LocalGPT.SeedDocument.docs.guide.embedded-and-games.md" />
         <EmbeddedResource Include="..\..\docs\COUNCIL_KNOWLEDGE_SEED.sql" LogicalName="LocalGPT.SeedDocument.docs.COUNCIL_KNOWLEDGE_SEED.sql" />
+        <!-- Legacy LocalGPT.Knowledge aliases for the three mandatory SeedDocument references were removed.
+             Including the same physical docs twice with different LogicalNames triggers NETSDK1022.
+             InitialDataFeedService resolves the mandatory documents via LocalGPT.SeedDocument.*. -->
         <EmbeddedResource Include="Resources\Knowledge\core-defaults.json" LogicalName="LocalGPT.Knowledge.core-defaults.json" />
-		<EmbeddedResource Include="..\..\docs\reference\ai-provider-installation.md" LogicalName="LocalGPT.Knowledge.ai-provider-installation.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ai-provider-installation.md')" />
-		<EmbeddedResource Include="..\..\docs\reference\ascii-game-authoring.md" LogicalName="LocalGPT.Knowledge.ascii-game-authoring.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ascii-game-authoring.md')" />
-		<EmbeddedResource Include="..\..\docs\reference\toolchain-discovery.md" LogicalName="LocalGPT.Knowledge.toolchain-discovery.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/toolchain-discovery.md')" />
+
 		<EmbeddedResource Include="..\..\docs\reference\runtime-path-layout.md" LogicalName="LocalGPT.Knowledge.runtime-path-layout.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/runtime-path-layout.md')" />
 		<EmbeddedResource Include="..\..\docs\reference\local-ai-runtime.md" LogicalName="LocalGPT.Knowledge.local-ai-runtime.md" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/local-ai-runtime.md')" />
 	</ItemGroup>

@@ -58,7 +58,7 @@
                         StringComparer.OrdinalIgnoreCase))
                     {
                         var primaryDevice = hostGroup.First();
-                        <section class="initial-setup-physical-host" @key="primaryDevice.Key" aria-label="Physical Ollama host">
+                        <div class="initial-setup-physical-host" @key="primaryDevice.Key" aria-label="Physical Ollama host">
                             <h5>Physical host · @primaryDevice.Endpoint</h5>
                             <div class="initial-setup-host-facts">
                                 <label>Provider endpoint / physical host
@@ -82,7 +82,7 @@
                                     </div>
                                 }
                             </div>
-                        </section>
+                        </div>
                     }
                 </div>
                 <div class="initial-setup-actions">

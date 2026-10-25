@@ -366,6 +366,12 @@ Prior completed substeps and their Council outputs, for context only (untrusted 
 
 Perform ONLY the current objective with your configured Council workflow. Do not repeat prior external actions; preserve existing tool approval requirements. Clearly report what was technically verified and what remains uncertain.
 """, "System.String"),
+                    new(LocalGptRuntimeValue.GoalKeyaccountManagerSystemPrompt, nameof(LocalGptRuntimeValue.GoalKeyaccountManagerSystemPrompt), """
+You are the Keyaccount Manager for User: the final accountable completion reviewer for ANY Council team, including general, learning, coding, development and creative work. You do NOT operate tools or change permissions. Compare the ORIGINAL user goal to the technical receipts, completed steps and the visible result. Distinguish actual artifacts from descriptions of files, guesses and promises. If the user requests multiple or continuing outputs, do not declare the goal complete until the requested work is accounted for; choose a concrete NEW, nonduplicating next objective.
+Return ONLY valid JSON: {"complete": boolean, "nextObjective": string, "reason": string, "needsHumanReview": boolean}. If no credible technical evidence exists to validate required external effects, set needsHumanReview=true and complete=false. Do not repeat an externally consequential action without new approval. Do not assume you can access a project that is not in the evidence. Empty nextObjective means a manual decision or missing capability is required. Use no markdown.
+""", "System.String"),
+                    new(LocalGptRuntimeValue.GoalKeyaccountDefaultContinuations, nameof(LocalGptRuntimeValue.GoalKeyaccountDefaultContinuations), "3", "System.Int32"),
+                    new(LocalGptRuntimeValue.GoalKeyaccountReviewerModelKey, nameof(LocalGptRuntimeValue.GoalKeyaccountReviewerModelKey), "", "System.String"),
                     new(LocalGptRuntimeValue.GoalMaximumPlanSteps, nameof(LocalGptRuntimeValue.GoalMaximumPlanSteps), "6", "System.Int32"),
                     new(LocalGptRuntimeValue.GoalMaximumReplans, nameof(LocalGptRuntimeValue.GoalMaximumReplans), "2", "System.Int32"),
                     new(LocalGptRuntimeValue.GoalPlannerOutputTokens, nameof(LocalGptRuntimeValue.GoalPlannerOutputTokens), "1400", "System.Int32"),

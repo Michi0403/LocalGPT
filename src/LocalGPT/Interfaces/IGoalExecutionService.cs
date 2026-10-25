@@ -29,4 +29,8 @@ public interface IGoalExecutionService
     /// <param name="cancellationToken">Cancels execution.</param>
     /// <returns>Observed result and current durable checkpoint.</returns>
     Task<GoalExecutionResult> ResumeAsync(Guid goalId, bool confirmInterruptedRetry, CancellationToken cancellationToken = default);
+
+    /// <summary>Human-approved, nonreplaying extension of an existing goal with a new distinct objective.</summary>
+    Task<GoalExecutionResult> ContinueWithNewObjectiveAsync(Guid goalId, string? objective,
+        int additionalRounds, CancellationToken cancellationToken = default);
 }

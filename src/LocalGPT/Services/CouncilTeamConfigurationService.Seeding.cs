@@ -11,6 +11,23 @@ namespace LocalGPT.Services
     /// </summary>
     public sealed partial class CouncilTeamConfigurationService
     {
+    /// <summary>Ensures maintained team workflows are available on first boot and after updates.</summary>
+    public async Task ReconcileDefaultsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await EnsureSeededAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Council team default reconciliation was canceled.");
+            else
+                logger.LogError(exception, "Council team default reconciliation failed.");
+            throw;
+        }
+    }
+
     /// <summary>Applies missing seed teams and seed-version updates without replacing user-modified definitions.</summary>
     /// <param name="cancellationToken">Cancels the asynchronous seed operation.</param>
     /// <returns>A task that completes when the catalog is current.</returns>
@@ -122,6 +139,20 @@ namespace LocalGPT.Services
 
             if (changed)
                 await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            // Verify persisted identities after SaveChanges, not only EF's in-memory additions.
+            // A deleted supplied team is an intentional tombstone: its identity stays present
+            // and must not be silently resurrected by startup reconciliation.
+            var requiredKeys = seedData.CreateDefaultTeams().Select(item => item.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (requiredKeys.Count == 0)
+                throw new InvalidOperationException("The supplied Council team catalog is unexpectedly empty.");
+            var persistedKeys = (await db.CouncilTeamConfigurations.AsNoTracking()
+                .Select(item => item.Key).ToListAsync(cancellationToken).ConfigureAwait(false))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!requiredKeys.IsSubsetOf(persistedKeys))
+                throw new InvalidOperationException($"Council team default reconciliation incomplete: {requiredKeys.Except(persistedKeys).Count()} required team templates are missing.");
+            logger.LogInformation("Verified {Count} supplied Council team keys (including intentionally disabled/deleted user configurations).", requiredKeys.Count);
     
     }
     catch (Exception __serviceMethodException)

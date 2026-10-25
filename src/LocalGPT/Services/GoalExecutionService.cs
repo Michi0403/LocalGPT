@@ -214,6 +214,8 @@ public sealed partial class GoalExecutionService(
             && cachedPlan.MissingRequirements.Count == 0
                 ? cachedPlan : await PlanAsync(request, cancellationToken).ConfigureAwait(false);
         request.CouncilRequest.PrecomputedGoalPlan = null;
+        request.KeyaccountReviewEnabled = request.CouncilRequest.KeyaccountReviewEnabled;
+        request.KeyaccountContinuationLimit = request.CouncilRequest.KeyaccountContinuationLimit;
         var checkpoint = CreateCheckpoint(request, plan);
         if (plan.MissingRequirements.Count > 0)
         {
@@ -243,6 +245,40 @@ public sealed partial class GoalExecutionService(
             ?? throw new KeyNotFoundException("Goal checkpoint not found.");
         var request = RestoreRequest(checkpoint);
         return await ContinueAsync(request, checkpoint, confirmInterruptedRetry, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<GoalExecutionResult> ContinueWithNewObjectiveAsync(Guid goalId, string? objective,
+        int additionalRounds, CancellationToken cancellationToken = default)
+    {
+        if (additionalRounds < 1 || additionalRounds > 100)
+            throw new ArgumentOutOfRangeException(nameof(additionalRounds), "Select between 1 and 100 new Council rounds per continuation request.");
+        using var lease = await ledger.AcquireAsync(goalId, cancellationToken).ConfigureAwait(false);
+        var checkpoint = await ledger.LoadAsync(goalId, cancellationToken).ConfigureAwait(false)
+            ?? throw new KeyNotFoundException("Goal checkpoint not found.");
+        if (checkpoint.State is GoalExecutionState.Running or GoalExecutionState.Interrupted or GoalExecutionState.NeedsApproval)
+            throw new InvalidOperationException("Resolve running or interrupted Council work before adding new objectives.");
+        var newObjective = (string.IsNullOrWhiteSpace(objective) ? checkpoint.KeyaccountPendingObjective : objective).Trim();
+        if (newObjective.Length < 4 || newObjective.Length > 2000)
+            throw new ArgumentException("Specify a distinct objective between 4 and 2000 characters.", nameof(objective));
+        if (checkpoint.Steps.Any(step => string.Equals(step.Objective.Trim(), newObjective, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("The objective already exists; do not replay an earlier Council operation.");
+        // This method is invoked only from the human-approval-gated continuation endpoint.
+        // It extends the original goal journal; earlier successful steps are immutable.
+        checkpoint.KeyaccountContinuationLimit = checked(checkpoint.KeyaccountContinuationsScheduled + additionalRounds);
+        checkpoint.KeyaccountContinuationApproved = true;
+        checkpoint.KeyaccountPendingObjective = string.Empty;
+        checkpoint.Steps.Add(new GoalExecutionPlanStep
+        {
+            Key = "keyaccount-manual-" + Guid.NewGuid().ToString("N"),
+            Objective = newObjective,
+            TeamKey = checkpoint.Steps.LastOrDefault()?.TeamKey ?? checkpoint.RequestedTeamKey
+        });
+        checkpoint.KeyaccountContinuationsScheduled++;
+        checkpoint.State = GoalExecutionState.Running;
+        await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+        return await ContinueAsync(RestoreRequest(checkpoint), checkpoint, retryInterrupted: false, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>Extracts comparable terms from user input and persisted capability/team metadata without an embedded task vocabulary.</summary>

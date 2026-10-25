@@ -28,6 +28,15 @@ namespace LocalGPT.BusinessObjects
         [JsonIgnore]
         public GoalExecutionResult? PrecomputedGoalPlan { get; set; }
 
+        /// <summary>Run the goal-level Keyaccount Manager audit after each ordinary Council step.</summary>
+        public bool KeyaccountReviewEnabled { get; set; } = true;
+        /// <summary>Optional user-selected additional subgoal budget (0 uses database policy). More can be explicitly requested later.</summary>
+        public int KeyaccountContinuationLimit { get; set; }
+        /// <summary>Optional generic count of distinct generated files to verify (0 uses the reviewer's assessment).</summary>
+        public int KeyaccountExpectedArtifacts { get; set; }
+
+
+
         /// <summary>Exact LocalGPT-generated attachment workspace identities attached to this request; these are source provenance, not model claims.</summary>
         public List<string> AttachedWorkspaceNames { get; set; } = [];
 

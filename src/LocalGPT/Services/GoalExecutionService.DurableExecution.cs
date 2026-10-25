@@ -20,6 +20,10 @@ public sealed partial class GoalExecutionService
             Prompt = councilRequest.Prompt,
             RequestedTeamKey = councilRequest.CouncilTeamKey,
             PreserveSelectedTeam = request.PreserveSelectedTeam,
+            KeyaccountReviewEnabled = request.KeyaccountReviewEnabled,
+            KeyaccountContinuationLimit = Math.Clamp(request.KeyaccountContinuationLimit > 0
+                ? request.KeyaccountContinuationLimit : runtimePolicy.GetInt(LocalGptRuntimeValue.GoalKeyaccountDefaultContinuations), 0, 100),
+            KeyaccountExpectedArtifacts = Math.Clamp(councilRequest.KeyaccountExpectedArtifacts, 0, 100000),
             ModelSelectionKeys = plan.SelectedModels.ToList(),
             RequiredFunctions = request.RequiredFunctions.ToList(),
             RequiredCapabilities = request.RequiredCapabilities.Concat(councilRequest.RequestedOrganicCapabilities)
@@ -56,6 +60,8 @@ public sealed partial class GoalExecutionService
     {
         GoalText = checkpoint.GoalText,
         PreserveSelectedTeam = checkpoint.PreserveSelectedTeam,
+        KeyaccountReviewEnabled = checkpoint.KeyaccountReviewEnabled,
+        KeyaccountContinuationLimit = checkpoint.KeyaccountContinuationLimit,
         RequiredFunctions = checkpoint.RequiredFunctions.ToList(),
         RequiredCapabilities = checkpoint.RequiredCapabilities.ToList(),
         CouncilRequest = new MultiModelCouncilRequest
@@ -63,6 +69,9 @@ public sealed partial class GoalExecutionService
             RunId = checkpoint.GoalId,
             Prompt = checkpoint.Prompt,
             GoalText = checkpoint.GoalText,
+            KeyaccountReviewEnabled = checkpoint.KeyaccountReviewEnabled,
+            KeyaccountContinuationLimit = checkpoint.KeyaccountContinuationLimit,
+            KeyaccountExpectedArtifacts = checkpoint.KeyaccountExpectedArtifacts,
             CouncilTeamKey = checkpoint.RequestedTeamKey,
             MaxRounds = checkpoint.MaxRounds,
             MaxOutputTokens = checkpoint.MaxOutputTokens,
@@ -191,6 +200,11 @@ public sealed partial class GoalExecutionService
                 var step = checkpoint.Steps[stepIndex];
                 var saved = checkpoint.Receipts.LastOrDefault(receipt => receipt.StepKey == step.Key);
                 if (saved?.State == GoalExecutionState.Completed) continue;
+                // Human-approved extension may proceed to a distinct later objective without
+                // replaying an earlier unverifiable effect or pretending it was verified.
+                if (saved?.State == GoalExecutionState.NeedsVerification &&
+                    checkpoint.KeyaccountContinuationApproved && stepIndex < checkpoint.Steps.Count - 1)
+                    continue;
                 if (!liveTeams.Contains(step.TeamKey))
                 {
                     // A team removed before the next subgoal is safe to replan: no new Council call occurred.
@@ -267,6 +281,17 @@ public sealed partial class GoalExecutionService
                     receipt.Evidence.Any(evidence => evidence.Kind == "VerifiedWorkspaceRead");
                 receipt.FailureSummary = councilResult.Steps.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.Error))?.Error
                     ?? (string.IsNullOrWhiteSpace(councilResult.FinalAnswer) ? "EmptyCouncilResult" : string.Empty);
+                // The Keyaccount Manager checks every Council subrun, regardless of its saved team workflow.
+                // This is a read-only reviewer, not a replacement for tool or user approval receipts.
+                GoalKeyaccountReview? keyaccountReview = null;
+                if (checkpoint.KeyaccountReviewEnabled)
+                {
+                    keyaccountReview = await ReviewKeyaccountCompletionAsync(request, checkpoint, step,
+                        councilResult, receipt, cancellationToken).ConfigureAwait(false);
+                    checkpoint.KeyaccountReviews.Add(keyaccountReview);
+                    checkpoint.KeyaccountPendingObjective = keyaccountReview.Complete
+                        ? string.Empty : keyaccountReview.NextObjective;
+                }
                 receipt.State = string.IsNullOrWhiteSpace(councilResult.FinalAnswer) ||
                     councilResult.Steps.Any(item => !string.IsNullOrWhiteSpace(item.Error))
                     ? GoalExecutionState.Failed
@@ -293,6 +318,43 @@ public sealed partial class GoalExecutionService
                     checkpoint.State = GoalExecutionState.NeedsVerification;
                     break;
                 }
+                // A completed text response does NOT by itself complete a larger user goal.
+                // Append a NEW objective (not a replay of prior effects) only with an explicit budget.
+                if (keyaccountReview is { Complete: false })
+                {
+                    var lastPlannedStep = stepIndex == checkpoint.Steps.Count - 1;
+                    if (lastPlannedStep && !keyaccountReview.NeedsHumanReview &&
+                        !string.IsNullOrWhiteSpace(keyaccountReview.NextObjective) &&
+                        checkpoint.KeyaccountContinuationsScheduled < checkpoint.KeyaccountContinuationLimit &&
+                        !string.Equals(keyaccountReview.NextObjective.Trim(), step.Objective.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                        !checkpoint.Steps.Any(item => string.Equals(item.Objective.Trim(),
+                            keyaccountReview.NextObjective.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    {
+                        checkpoint.Steps.Add(new GoalExecutionPlanStep
+                        {
+                            Key = "keyaccount-" + (checkpoint.KeyaccountContinuationsScheduled + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            TeamKey = step.TeamKey,
+                            Objective = keyaccountReview.NextObjective.Trim()
+                        });
+                        checkpoint.KeyaccountContinuationsScheduled++;
+                        checkpoint.KeyaccountPendingObjective = string.Empty;
+                        await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+                    if (lastPlannedStep)
+                    {
+                        checkpoint.State = GoalExecutionState.NeedsVerification;
+                        outcome.MissingRequirements.Add(keyaccountReview.NeedsHumanReview
+                            ? "KeyaccountNeedsHumanReview" : "KeyaccountUnfinishedGoal");
+                        break;
+                    }
+                }
+                if (keyaccountReview is { ReviewerResponded: false } && stepIndex == checkpoint.Steps.Count - 1)
+                {
+                    checkpoint.State = GoalExecutionState.NeedsVerification;
+                    outcome.MissingRequirements.Add("KeyaccountReviewerUnavailable");
+                    break;
+                }
             }
             if (checkpoint.State == GoalExecutionState.Running)
                 checkpoint.State = checkpoint.Steps.All(step => checkpoint.Receipts.Any(receipt =>
@@ -308,6 +370,17 @@ public sealed partial class GoalExecutionService
                 outcome.CouncilResult.FinalAnswer = string.Join("\n\n", checkpoint.Receipts
                     .Where(receipt => receipt.State is GoalExecutionState.Completed or GoalExecutionState.NeedsVerification)
                     .Select(receipt => receipt.Answer).Where(answer => !string.IsNullOrWhiteSpace(answer)));
+                if (checkpoint.KeyaccountReviewEnabled)
+                {
+                    var latestReview = checkpoint.KeyaccountReviews.LastOrDefault();
+                    var stateLabel = checkpoint.State == GoalExecutionState.Completed ?
+                        "Review passed (model assessment, not external proof)" : "Unfinished: " + checkpoint.State;
+                    outcome.CouncilResult.FinalAnswer += "\n\n## Keyaccount Manager for User\n" +
+                        stateLabel + "\n" + (latestReview?.Reason ?? "Completion has not been reviewed") +
+                        (string.IsNullOrWhiteSpace(checkpoint.KeyaccountPendingObjective) ? "" :
+                            "\nNext objective: " + checkpoint.KeyaccountPendingObjective) +
+                        "\nTechnical receipts and unfinished work are in the durable goal journal.";
+                }
                 outcome.CouncilResult.GoalExecution = new GoalExecutionSummary
                 {
                     GoalId = checkpoint.GoalId,
@@ -318,7 +391,9 @@ public sealed partial class GoalExecutionService
                     State = checkpoint.State,
                     TeamKey = outcome.SelectedTeamKey,
                     MissingRequirements = outcome.MissingRequirements.ToList(),
-                    Evidence = outcome.Evidence.ToList()
+                    Evidence = outcome.Evidence.ToList(),
+                    KeyaccountReview = checkpoint.KeyaccountReviews.LastOrDefault(),
+                    PendingObjective = checkpoint.KeyaccountPendingObjective
                 };
             }
             return outcome;
@@ -416,7 +491,8 @@ public sealed partial class GoalExecutionService
         evidence.AddRange(result.Artifacts.Select(artifact => new GoalExecutionEvidence
         {
             Kind = "CouncilArtifact", Source = artifact.Name,
-            Succeeded = !string.IsNullOrWhiteSpace(artifact.FilePath) || !string.IsNullOrWhiteSpace(artifact.DownloadUrl),
+            Succeeded = !string.IsNullOrWhiteSpace(artifact.FilePath) && File.Exists(artifact.FilePath)
+                && artifact.MissingRequirements.Count == 0,
             CouncilRunId = result.RunId
         }));
         return evidence;
@@ -443,7 +519,9 @@ public sealed partial class GoalExecutionService
             ReplanCount = checkpoint.ReplanCount,
             CompletedSubgoals = checkpoint.Receipts.Count(receipt => receipt.State == GoalExecutionState.Completed),
             TotalSubgoals = checkpoint.Steps.Count,
-            Evidence = checkpoint.Receipts.SelectMany(receipt => receipt.Evidence).ToList()
+            Evidence = checkpoint.Receipts.SelectMany(receipt => receipt.Evidence).ToList(),
+            KeyaccountReview = checkpoint.KeyaccountReviews.LastOrDefault(),
+            PendingObjective = checkpoint.KeyaccountPendingObjective
         }
     };
 }

@@ -9,6 +9,7 @@
 @inject INativeCommandRunner CommandRunner
 @inject IChatClient? ChatClient
 @inject IMultiModelCouncilService CouncilService
+@inject IGoalExecutionService Goals
 @inject NavigationManager Navigation
 @inject ILogger<MinecraftModBuilder> Logger
 @inject INotificationService Notifier
@@ -488,7 +489,7 @@
         {
             await RunUiActionAsync(async () =>
        {
-           var result = await CouncilService.RunAsync(new MultiModelCouncilRequest
+           var goalRequest = new MultiModelCouncilRequest
            {
                ModelNames = ParseCouncilModels().ToList(),
                Prompt = CreatePlanningPrompt(),
@@ -501,7 +502,14 @@
                OllamaNumGpu = useCpuOnlyCouncil ? 0 : null,
                IncludeMemory = true,
                SaveToMemory = true
+           };
+           var goal = await Goals.ExecuteAsync(new GoalExecutionRequest
+           {
+               GoalText = goalRequest.Prompt,
+               CouncilRequest = goalRequest
            }).ConfigureAwait(false);
+           var result = goal.CouncilResult ?? throw new InvalidOperationException(
+               CouncilText.FormatBlockedGoalRequirements(goal.MissingRequirements));
 
            lastCouncilResult = result;
            aiPlan = result.FinalAnswer;

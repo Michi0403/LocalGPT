@@ -30,6 +30,37 @@ public sealed class CouncilRuntimeClassService(
         WriteIndented = true
     };
 
+    /// <summary>Ensures maintained game and runtime classes are present after an update.</summary>
+    public async Task ReconcileDefaultsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await EnsureSeedDataAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Council game/runtime default reconciliation was canceled.");
+            else
+                logger.LogError(exception, "Council game/runtime default reconciliation failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Returns source-defined runtime/game identities without reading or modifying user settings.</summary>
+    public IReadOnlyList<string> GetSuppliedSeedKeys()
+    {
+        try
+        {
+            return CreateSeedDefinitions().Select(item => item.Key).ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Enumerating maintained Council game/runtime classes failed.");
+            throw;
+        }
+    }
+
     /// <summary>
     /// Retrieves definitions as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -171,7 +202,8 @@ public sealed class CouncilRuntimeClassService(
             var existing = existingRows.ToDictionary(item => item.Key, StringComparer.OrdinalIgnoreCase);
             var changed = false;
 
-            foreach (var definition in CreateSeedDefinitions())
+            var requiredDefinitions = CreateSeedDefinitions();
+            foreach (var definition in requiredDefinitions)
             {
                 NormalizeAndValidate(definition);
                 if (!existing.TryGetValue(definition.Key, out var row))
@@ -210,6 +242,17 @@ public sealed class CouncilRuntimeClassService(
                 await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 logger.LogInformation("Seeded or upgraded Council runtime class definitions to version {SeedVersion}.", CurrentSeedVersion);
             }
+
+            var requiredKeys = requiredDefinitions.Select(item => item.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (requiredKeys.Count == 0)
+                throw new InvalidOperationException("The supplied game/runtime class catalog is unexpectedly empty.");
+            var persistedKeys = (await db.CouncilRuntimeClassConfigurations.AsNoTracking()
+                .Select(item => item.Key).ToListAsync(cancellationToken).ConfigureAwait(false))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!requiredKeys.IsSubsetOf(persistedKeys))
+                throw new InvalidOperationException($"Runtime class default reconciliation incomplete: {requiredKeys.Except(persistedKeys).Count()} required game/runtime classes are missing.");
+            logger.LogInformation("Verified {Count} supplied game and runtime class keys.", requiredKeys.Count);
     
     }
     catch (Exception __serviceMethodException)

@@ -68,6 +68,22 @@ namespace LocalGPT.Services
 
    
 
+        /// <summary>Formats missing GoalExecution prerequisites for a human-visible Council error.</summary>
+        /// <param name="requirements">Verified missing capabilities or other goal prerequisites.</param>
+        /// <returns>A readable list of missing requirements, prefixed with the Council status.</returns>
+        public string FormatBlockedGoalRequirements(IEnumerable<string>? requirements)
+        {
+            try
+            {
+                return "Council goal blocked: " + string.Join(", ", requirements ?? Array.Empty<string>());
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Could not format missing Council goal prerequisites.");
+                return "Council goal blocked: missing prerequisites could not be displayed";
+            }
+        }
+
         /// <summary>
         /// Decodes HTML entities for a plain-text human-visible surface. Callers must render the returned value through an encoding text surface rather than as raw markup.
         /// </summary>

@@ -281,7 +281,16 @@ namespace LocalGPT.Components.Pages
                 Request.ModelSelections = SelectedProviderModels.ToList();
                 try
                 {
-                    LastResult = await CouncilService.RunAsync(Request).ConfigureAwait(false);
+                    var goal = await Goals.ExecuteAsync(new GoalExecutionRequest
+                    {
+                        GoalText = Request.GoalText.Length == 0 ? Request.Prompt : Request.GoalText,
+                        CouncilRequest = Request,
+                        PreserveSelectedTeam = !string.IsNullOrWhiteSpace(Request.CouncilTeamKey) &&
+                            !string.Equals(Request.CouncilTeamKey, "general", StringComparison.OrdinalIgnoreCase),
+                        RequiredCapabilities = Request.RequestedOrganicCapabilities.ToList()
+                    }).ConfigureAwait(false);
+                    LastResult = goal.CouncilResult ?? throw new InvalidOperationException(
+                        CouncilText.FormatBlockedGoalRequirements(goal.MissingRequirements));
                     LastGenerationExecution = null;
                     BuildApprovedReview = false;
                     if (LastResult.MemoryConversationId is Guid memoryId)

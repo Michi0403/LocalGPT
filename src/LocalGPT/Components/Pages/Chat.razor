@@ -396,7 +396,19 @@
                             TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
                             ValueChanged="@((string value) => OnCouncilTeamChanged(new ChangeEventArgs { Value = value }))" />
             </label>
-            <span class="memory-status">Roles, preparation prompts and heartbeat scripts are stored in SQLite and can be adjusted without replacing compiled services.</span>
+            <label title="Run Keyaccount Manager for User completion review for every Council step, regardless of team.">
+                <DxCheckBox @bind-Checked="KeyaccountReviewEnabled" />
+                <span>Keyaccount Manager: check full user goal</span>
+            </label>
+            <label title="Keyaccount Manager for User reviews each Council result against the original goal, then may request additional distinct rounds. This is a per-run limit, not the total lifetime of your goal.">
+                <span>Keyaccount extra rounds (0=DB default)</span>
+                <DxSpinEdit @bind-Value="KeyaccountContinuationRounds" MinValue="0" MaxValue="100" Increment="1" CssClass="localgpt-editor" />
+            </label>
+            <label title="Optional minimum number of distinct source-verified generated files for this goal. Zero uses Keyaccount review only; an AI claiming a file exists does not count.">
+                <span>Required output files (0=automatic)</span>
+                <DxSpinEdit @bind-Value="KeyaccountExpectedArtifacts" MinValue="0" MaxValue="100000" Increment="1" CssClass="localgpt-editor" />
+            </label>
+            <span class="memory-status">Final goal review is applied to every Council team. Extra rounds reuse the selected team and still obey human approvals. Unfinished goals stay visible in their durable checkpoint.</span>
             <a class="btn btn-outline-secondary btn-sm" href="/council-teams" data-enhance-nav="false">Edit teams and workflow</a>
         </div>
         @if (CouncilStarterSuggestions.Count > 0)

@@ -1,7 +1,10 @@
+// javascript-diagnostics: guarded
+// Scroll intent is a presentation concern; log faults without interrupting Ollama output.
 // The newest Ollama pull lines stay at the bottom only while the user is tailing.
 // Scrolling upward switches to manual inspection; the next batch must not yank it down.
 const scrollIntent = new WeakMap();
 export function preserveTailScroll(element) {
+    try {
     if (!element) return;
     let intent = scrollIntent.get(element);
     if (!intent) {
@@ -12,4 +15,7 @@ export function preserveTailScroll(element) {
         }, { passive: true });
     }
     if (intent.follow) element.scrollTop = element.scrollHeight;
+    } catch (error) {
+        console.error('LocalGPT operational output scroll handling failed', error);
+    }
 }

@@ -1,3 +1,4 @@
+using LocalGPT.Services;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Interfaces;
@@ -281,6 +282,29 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
             if (!expected.IsSubsetOf(actual))
                 throw new InvalidOperationException($"System variable seed incomplete: {expected.Except(actual).Count()} required variables are missing.");
         }
+        else if (stageName == "Council model presets")
+        {
+            var expected = CreateDefaultCouncilModelPresets().Select(row => row.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var actual = (await db.CouncilModelPresets.AsNoTracking()
+                .Select(row => row.Name).ToListAsync(token).ConfigureAwait(false))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!expected.IsSubsetOf(actual))
+                throw new InvalidOperationException($"Council preset seed incomplete: {expected.Except(actual).Count()} required presets are missing.");
+        }
+        else if (stageName == "core projects")
+        {
+            var expected = new[]
+            {
+                runtimePolicySeed.GetSeed().LocalGptCoreProjectId,
+                Guid.Parse("7f4d7b4a-b622-4d15-8e44-9dfae2aa6102")
+            }.ToHashSet();
+            var actual = (await db.LocalGptProjects.AsNoTracking()
+                .Where(row => expected.Contains(row.Id))
+                .Select(row => row.Id).ToListAsync(token).ConfigureAwait(false)).ToHashSet();
+            if (!expected.IsSubsetOf(actual))
+                throw new InvalidOperationException($"Core project seed incomplete: {expected.Except(actual).Count()} required projects are missing.");
+        }
         else if (stageName == "knowledge entries")
         {
             var expectedRows = await catalog.LoadKnowledgeAsync(token).ConfigureAwait(false);
@@ -386,31 +410,37 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
 }
 
 /// <summary>
-/// Coordinates database initialization behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
+/// Repairs release-owned defaults in an existing user database after every application upgrade,
+/// and reports verified seed coverage for testers without exporting their private data.
 /// </summary>
-/// <param name="initializer">Database initialization service dependency used by the database initialization workflow to provide the corresponding application capability.</param>
-/// <param name="runtimePolicy">Runtime-policy service that reloads persisted overrides only after database initialization completes.</param>
-/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="initializer">Coordinates database migration and mandatory seed stages.</param>
+/// <param name="runtimePolicy">Reloads persisted policy overrides after initialization.</param>
+/// <param name="scopeFactory">Creates the scoped Council seed services without DI cycles.</param>
+/// <param name="dbContextFactory">Provides independent post-commit verification reads.</param>
+/// <param name="catalog">Provides the maintained mandatory regex, prompt, variable and Knowledge seed keys.</param>
+/// <param name="runtimePolicySeed">Provides the stable core project identity.</param>
+/// <param name="applicationPaths">Provides the current user's safe runtime report directory.</param>
+/// <param name="logger">Records initialization and repair diagnostics.</param>
 public sealed class DatabaseInitializationHostedService(
     IDatabaseInitializationService initializer,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    IServiceScopeFactory scopeFactory,
+    IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
+    IInitialDataCatalog catalog,
+    ILocalGptRuntimePolicySeedDataService runtimePolicySeed,
+    ILocalGptApplicationPathService applicationPaths,
     ILogger<DatabaseInitializationHostedService> logger) : BackgroundService
 {
-    /// <summary>
-    /// Performs database initialization after the web host has begun starting so lengthy first-run
-    /// migration/seed work cannot hold Kestrel offline. Database-backed services still await the same
-    /// singleton initializer when they need data before this background pass completes.
-    /// </summary>
-    /// <param name="stoppingToken">Cancellation token that is signaled when the host is stopping.</param>
-    /// <returns>A task that completes when initialization has finished.</returns>
+    /// <summary>Starts core and supplemental seed reconciliation after the host starts.</summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Task.Delay(1, stoppingToken).ConfigureAwait(false);
-
+        var phase = "core database migration and seeding";
         try
         {
-            logger.LogInformation("Starting LocalGPT database initialization in the background.");
+            logger.LogInformation("Starting LocalGPT database initialization and existing-user default reconciliation in the background.");
             await initializer.InitializeAsync(stoppingToken).ConfigureAwait(false);
+            phase = "runtime policy reload";
             try
             {
                 runtimePolicy.Reload();
@@ -418,21 +448,146 @@ public sealed class DatabaseInitializationHostedService(
             }
             catch (Exception ex)
             {
-                // The built-in policy seed remains valid and keeps the application usable.
-                // Persisted policy can be retried from the runtime-policy API without taking down the host.
-                logger.LogError(ex, "Persisted LocalGPT runtime policy could not be reloaded after database initialization; the built-in seed remains active.");
+                // Runtime policy already has its valid built-in defaults; this optional
+                // reload must not suppress the other mandatory seed repairs.
+                logger.LogError(ex, "Persisted runtime-policy overrides could not be reloaded; the built-in seed remains active.");
             }
-            logger.LogInformation("Background LocalGPT database initialization completed.");
+
+            // Council teams and game/runtime classes were previously lazy-seeded only
+            // on the first request for those screens/functions. An existing installation
+            // may not visit those paths after an update: explicitly reconcile here.
+            phase = "Council team templates";
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var teams = scope.ServiceProvider.GetRequiredService<ICouncilTeamConfigurationService>();
+            await teams.ReconcileDefaultsAsync(stoppingToken).ConfigureAwait(false);
+            phase = "Council game/runtime classes";
+            var runtimeClasses = scope.ServiceProvider.GetRequiredService<ICouncilRuntimeClassService>();
+            await runtimeClasses.ReconcileDefaultsAsync(stoppingToken).ConfigureAwait(false);
+
+            phase = "post-repair seed audit";
+            var coverage = await AuditRequiredDefaultsAsync(teams, runtimeClasses, stoppingToken).ConfigureAwait(false);
+            var missing = coverage.Where(item => item.Present < item.Required).ToArray();
+            if (missing.Length != 0)
+                throw new InvalidOperationException("Default seed coverage incomplete: " +
+                    string.Join(", ", missing.Select(item => $"{item.Category} {item.Present}/{item.Required}")));
+
+            await WriteStatusReportAsync("Complete", phase, coverage, stoppingToken).ConfigureAwait(false);
+            logger.LogInformation(
+                "Release defaults verified for this user database across {CategoryCount} categories: {Summary}. Seed report: {ReportFile}",
+                coverage.Count,
+                string.Join("; ", coverage.Select(item => $"{item.Category}={item.Present}/{item.Required}")),
+                Path.Combine(applicationPaths.GetLayout().RuntimeDirectory, "seed-reconciliation.json"));
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            logger.LogDebug("Background LocalGPT database initialization was canceled because the host is stopping.");
+            logger.LogDebug("Default seed reconciliation canceled because the host is stopping.");
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            logger.LogCritical(ex, "LocalGPT database initialization failed.");
+            logger.LogCritical(exception, "LocalGPT mandatory default reconciliation failed during {Phase}; the installation must not be considered fully seeded.", phase);
+            await WriteStatusReportAsync("Failed", phase, [], CancellationToken.None).ConfigureAwait(false);
+            // A failed core migration/seed is fatal because even the database contract is unknown.
+            // A supplemental Council/game template repair should remain visible and retryable
+            // without taking down unrelated chat, setup, backup and recovery facilities.
+            if (string.Equals(phase, "core database migration and seeding", StringComparison.Ordinal))
+                throw;
+            logger.LogWarning("LocalGPT remains available in degraded default-data state. Repair will be retried on the next startup.");
+        }
+    }
+
+    /// <summary>Rechecks persisted keys independently of seeding methods; no user content is exported.</summary>
+    private async Task<IReadOnlyList<SeedCategoryCoverage>> AuditRequiredDefaultsAsync(
+        ICouncilTeamConfigurationService teams,
+        ICouncilRuntimeClassService runtimeClasses,
+        CancellationToken token)
+    {
+        try
+        {
+            var db = await dbContextFactory.CreateDbContextAsync(token).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
+            var expectedKnowledge = (await catalog.LoadKnowledgeAsync(token).ConfigureAwait(false))
+                .Select(item => item.Id).ToHashSet();
+            var expectedPrompts = catalog.Prompts.Select(item => item.Key + "|" + item.Language)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var expectedRegex = catalog.RegexPatterns.Select(item => item.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var expectedVariables = catalog.Variables.Select(item => item.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var expectedTeams = (await teams.GetDefaultTemplatesAsync(token).ConfigureAwait(false))
+                .Select(item => item.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var expectedRuntime = runtimeClasses.GetSuppliedSeedKeys().ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (expectedTeams.Count == 0 || expectedRuntime.Count == 0)
+                throw new InvalidOperationException("Supplied Council team or game/runtime seed catalog is empty.");
+            var expectedPresets = new[]
+            {
+                "Reactive ASCII Gameplay", "Adaptive Mixed Hardware Council", "Learning Round",
+                "Fast Game Council (Low-B)", "Code Curator Council", "Benchmark Candidate Pool"
+            }.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var expectedCoreProjects = new[]
+            {
+                runtimePolicySeed.GetSeed().LocalGptCoreProjectId,
+                Guid.Parse("7f4d7b4a-b622-4d15-8e44-9dfae2aa6102")
+            }.ToHashSet();
+
+            var knowledge = (await db.CouncilKnowledgeEntries.AsNoTracking().Select(item => item.Id).ToListAsync(token).ConfigureAwait(false)).ToHashSet();
+            var prompts = (await db.Prompts.AsNoTracking().Select(item => item.Key + "|" + item.Language).ToListAsync(token).ConfigureAwait(false)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var regex = (await db.RegexPatterns.AsNoTracking().Select(item => item.Name).ToListAsync(token).ConfigureAwait(false)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var variables = (await db.SystemVariables.AsNoTracking().Select(item => item.Name).ToListAsync(token).ConfigureAwait(false)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var teamKeys = (await db.CouncilTeamConfigurations.AsNoTracking().Select(item => item.Key).ToListAsync(token).ConfigureAwait(false)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var runtimeKeys = (await db.CouncilRuntimeClassConfigurations.AsNoTracking().Select(item => item.Key).ToListAsync(token).ConfigureAwait(false)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var presetNames = (await db.CouncilModelPresets.AsNoTracking().Select(item => item.Name).ToListAsync(token).ConfigureAwait(false)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var projectIds = (await db.LocalGptProjects.AsNoTracking().Select(item => item.Id).ToListAsync(token).ConfigureAwait(false)).ToHashSet();
+
+            return
+            [
+                new("Knowledge (C#, DevExpress, Ollama, DXFunctions, source references)", expectedKnowledge.Count, expectedKnowledge.Count(knowledge.Contains)),
+                new("Regex patterns", expectedRegex.Count, expectedRegex.Count(regex.Contains)),
+                new("Prompts", expectedPrompts.Count, expectedPrompts.Count(prompts.Contains)),
+                new("System variables", expectedVariables.Count, expectedVariables.Count(variables.Contains)),
+                new("Council team templates", expectedTeams.Count, expectedTeams.Count(teamKeys.Contains)),
+                new("Council game/runtime classes", expectedRuntime.Count, expectedRuntime.Count(runtimeKeys.Contains)),
+                new("Council model presets", expectedPresets.Count, expectedPresets.Count(presetNames.Contains)),
+                new("Core project templates", expectedCoreProjects.Count, expectedCoreProjects.Count(projectIds.Contains))
+            ];
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Post-repair default inventory audit failed.");
             throw;
         }
     }
-}
 
+    /// <summary>Writes a privacy-safe, replaceable status document under this user's runtime directory.</summary>
+    private async Task WriteStatusReportAsync(
+        string status,
+        string phase,
+        IReadOnlyList<SeedCategoryCoverage> coverage,
+        CancellationToken token)
+    {
+        try
+        {
+            var runtimeDirectory = applicationPaths.GetLayout().RuntimeDirectory;
+            Directory.CreateDirectory(runtimeDirectory);
+            var path = Path.Combine(runtimeDirectory, "seed-reconciliation.json");
+            var temporary = path + ".tmp";
+            var content = JsonSerializer.Serialize(new
+            {
+                Status = status,
+                ReleaseVersion = typeof(DatabaseInitializationService).Assembly.GetName().Version?.ToString(),
+                VerifiedAtUtc = DateTime.UtcNow,
+                Phase = phase,
+                Scope = "This operating-system user's existing LocalGPT database; user-owned content preserved",
+                Categories = coverage.Select(item => new { item.Category, item.Required, item.Present }).ToArray()
+            }, new JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(temporary, content, token).ConfigureAwait(false);
+            File.Move(temporary, path, overwrite: true);
+        }
+        catch (Exception exception)
+        {
+            // Report I/O is separate from actual seed success; failure stays visible in logs.
+            logger.LogError(exception, "Could not persist runtime/seed-reconciliation.json; check default reconciliation logs.");
+        }
+    }
+
+    private sealed record SeedCategoryCoverage(string Category, int Required, int Present);
+}

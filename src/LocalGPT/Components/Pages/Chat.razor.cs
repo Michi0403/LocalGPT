@@ -727,6 +727,12 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <value>The selected council team key value exposed by <see cref="Chat"/>.</value>
     string SelectedCouncilTeamKey { get; set; } = "general";
+    /// <summary>Session-local, user-controlled maximum of new Council goals after Keyaccount review.</summary>
+    int KeyaccountContinuationRounds { get; set; }
+    /// <summary>Minimum distinct generated files required for the current user goal.</summary>
+    int KeyaccountExpectedArtifacts { get; set; }
+    /// <summary>Enable the final goal review across the selected Council team's execution.</summary>
+    bool KeyaccountReviewEnabled { get; set; } = true;
     /// <summary>
     /// Gets or sets the model preset name value that forms part of the chat state consumed or produced by the surrounding workflow.
     /// </summary>

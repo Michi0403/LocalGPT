@@ -54,6 +54,10 @@ public sealed class GoalExecutionRequest
     /// <summary>Prevents automatic team substitution when the caller explicitly selects a team.</summary>
     /// <value>Whether the saved team selection is authoritative.</value>
     public bool PreserveSelectedTeam { get; set; }
+    /// <summary>Enable goal-level completeness auditing, independent of the selected Council team.</summary>
+    public bool KeyaccountReviewEnabled { get; set; } = true;
+    /// <summary>Optional user-selected continuation count; zero uses the configured database default.</summary>
+    public int KeyaccountContinuationLimit { get; set; }
 }
 
 /// <summary>Inspectable goal plan, routing and observed result; does not confuse model prose with verified effects.</summary>
@@ -128,6 +132,10 @@ public sealed class GoalExecutionSummary
     /// <summary>Source-attributed observations from Council execution.</summary>
     /// <value>Technical execution evidence.</value>
     public List<GoalExecutionEvidence> Evidence { get; set; } = [];
+    /// <summary>Last Keyaccount Manager advisory review, with separate technical receipts.</summary>
+    public GoalKeyaccountReview? KeyaccountReview { get; set; }
+    /// <summary>Unfinished objective awaiting more iterations, approvals or verification.</summary>
+    public string PendingObjective { get; set; } = string.Empty;
 }
 
 /// <summary>A proposed subgoal executed by one configured Council team; keys are scoped to one goal.</summary>
@@ -165,6 +173,21 @@ public sealed class GoalExecutionStepReceipt
 /// <summary>Durable goal-level journal snapshot. Sensitive intent stays in the LocalGPT per-user data directory.</summary>
 public sealed class GoalExecutionCheckpoint
 {
+    /// <summary>Final-accountability role is enabled for this goal.</summary>
+    public bool KeyaccountReviewEnabled { get; set; } = true;
+    /// <summary>Maximum NEW Council continuations beyond planned steps. Can be extended explicitly.</summary>
+    public int KeyaccountContinuationLimit { get; set; }
+    /// <summary>Generic user-selected minimum distinct existing generated artifacts (zero means no fixed count).</summary>
+    public int KeyaccountExpectedArtifacts { get; set; }
+    /// <summary>Number of additional distinct Council subgoals already scheduled.</summary>
+    public int KeyaccountContinuationsScheduled { get; set; }
+    /// <summary>Human approved the distinct next objective without certifying earlier unverified effects.</summary>
+    public bool KeyaccountContinuationApproved { get; set; }
+    /// <summary>Review trail committed to the durable goal journal after each Council result.</summary>
+    public List<GoalKeyaccountReview> KeyaccountReviews { get; set; } = [];
+    /// <summary>Current unfinished objective awaiting a user extension or verification.</summary>
+    public string KeyaccountPendingObjective { get; set; } = string.Empty;
+
     /// <summary>Stable goal identifier across all Council attempts.</summary><value>The goal identifier.</value>
     public Guid GoalId { get; set; }
     /// <summary>User's original goal.</summary><value>Original goal text.</value>
@@ -244,4 +267,25 @@ public sealed class GoalSemanticProposal
     public List<string> Functions { get; set; } = [];
     /// <summary>Skill keys selected from online organic capabilities.</summary><value>Skill selections.</value>
     public List<string> Capabilities { get; set; } = [];
+}
+
+/// <summary>A source-attributed advisory conclusion; NEVER proof of file creation or an authorization.</summary>
+public sealed class GoalKeyaccountReview
+{
+    /// <summary>Actual Council attempt checked by the reviewer.</summary>
+    public Guid CouncilRunId { get; set; }
+    /// <summary>Plan step that was checked.</summary>
+    public string StepKey { get; set; } = string.Empty;
+    /// <summary>Reviewer says all currently requested work is accounted for (advisory only).</summary>
+    public bool Complete { get; set; }
+    /// <summary>External results still require an explicit human decision.</summary>
+    public bool NeedsHumanReview { get; set; }
+    /// <summary>Concrete distinct next objective, if unfinished.</summary>
+    public string NextObjective { get; set; } = string.Empty;
+    /// <summary>Bounded explanation, not evidence.</summary>
+    public string Reason { get; set; } = string.Empty;
+    /// <summary>Whether a real configured model successfully returned a valid structured review.</summary>
+    public bool ReviewerResponded { get; set; }
+    /// <summary>UTC advisory review time.</summary>
+    public DateTime ReviewedAtUtc { get; set; } = DateTime.UtcNow;
 }

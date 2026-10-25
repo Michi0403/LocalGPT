@@ -31,6 +31,30 @@ public sealed class GoalExecutionController(IGoalExecutionService goals, ILogger
         }
     }
 
+    /// <summary>Explicitly continue an existing goal with another distinct objective and new Council rounds.</summary>
+    /// <param name="goalId">Original run ID.</param>
+    /// <param name="request">User-selected objective and new round allowance.</param>
+    /// <param name="cancellationToken">Cancels the continuation.</param>
+    [HttpPost("{goalId:guid}/continue")]
+    [HumanApprovalRequired("goal.execution.continue", "Continue Keyaccount goal", "Approve new distinct Council objectives and their execution; old effects cannot be silently replayed.", "High", "Goal continuation reviewer", requiredBeforeCompletion: true)]
+    public async Task<IResult> ContinueAsync(Guid goalId, KeyaccountContinuationInput request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await goals.ContinueWithNewObjectiveAsync(goalId, request.Objective,
+                request.AdditionalRounds, cancellationToken).ConfigureAwait(false));
+        }
+        catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (ArgumentException error) { return Results.BadRequest(error.Message); }
+        catch (InvalidOperationException error) { return Results.Conflict(error.Message); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Goal continuation failed for {GoalId}.", goalId);
+            return Results.InternalServerError("Goal continuation failed.");
+        }
+    }
+
     /// <summary>Operator-approved retry of only the remaining work after inspecting uncertain interrupted effects.</summary>
     /// <param name="goalId">Stable goal identifier.</param>
     /// <param name="cancellationToken">Cancels execution.</param>
@@ -51,4 +75,13 @@ public sealed class GoalExecutionController(IGoalExecutionService goals, ILogger
             return Results.InternalServerError("Goal could not be resumed.");
         }
     }
+}
+
+/// <summary>User-supplied continuation after reviewing the goal journal.</summary>
+public sealed class KeyaccountContinuationInput
+{
+    /// <summary>Distinct new task; defaults to the previously proposed unfinished objective.</summary>
+    public string? Objective { get; set; }
+    /// <summary>How many additional Council objectives may be queued for this human-approved continuation.</summary>
+    public int AdditionalRounds { get; set; } = 3;
 }

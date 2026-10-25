@@ -8,7 +8,8 @@ using Microsoft.Extensions.Options;
 namespace LocalGPT.Services;
 
 /// <summary>Loads user-maintainable provider bootstrap commands from LocalGPT knowledge and executes them only through the shared bounded console service.</summary>
-/// <param name="knowledge">Reads approved/user-edited provider profile articles from the LocalGPT Knowledge Database.</param>
+/// <param name="databaseFactory">Queries all active provider reference entries without a summary-result cap.</param>
+/// <param name="databaseInitializer">Ensures the database is ready before reading provider bootstrap profiles.</param>
 /// <param name="regexPatterns">Parses profile blocks and validates provider model identifiers through database-backed regexes.</param>
 /// <param name="console">Runs read-only and explicitly approved provider commands through the common console feed.</param>
 /// <param name="jsonText">Applies the maintained LocalGPT JSON policy when reading provider profiles from Knowledge.</param>
@@ -21,7 +22,6 @@ namespace LocalGPT.Services;
 /// <param name="configurationWriter">Configuration writer dependency used by the AI provider bootstrap workflow to provide the corresponding application capability.</param>
 /// <param name="providerRegistry">Ai provider configuration registry service dependency used by the AI provider bootstrap workflow to provide the corresponding application capability.</param>
 public sealed class AiProviderBootstrapService(
-    ICouncilKnowledgeService knowledge,
     IDbContextFactory<LocalGptMemoryDbContext> databaseFactory,
     IDatabaseInitializationService databaseInitializer,
     IRegexPatternService regexPatterns,

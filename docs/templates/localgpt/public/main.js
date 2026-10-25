@@ -534,7 +534,7 @@ function ensureCursorCompanion() {
       const paw = document.createElement("span");
       paw.className = "localgpt-cursor-paw";
       paw.setAttribute("aria-hidden", "true");
-      paw.textContent = "🐾";
+      paw.innerHTML = makeKawaiiGalaxyPaw();
       overlay.appendChild(paw);
 
       let lastTrailTime = 0;
@@ -640,6 +640,266 @@ function scheduleMermaidRecovery() {
   window.setTimeout(() => void retry(), retryDelays[0]);
 }
 
+// The documentation tear is ephemeral presentation state. It never edits DocFX nodes or sources.
+let kawaiiTearSession = null;
+let kawaiiScratchAudio = null;
+
+function makeKawaiiGalaxyPaw() {
+  // Decorative inline vector; no external asset, DOM replacement, or downloaded dependency.
+  return `<svg viewBox="0 0 92 92" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="localgpt-paw-gradient" x1=".15" y1=".1" x2=".88" y2=".92"><stop stop-color="#fac5fc"/><stop offset=".35" stop-color="#ae70ff"/><stop offset=".67" stop-color="#5c78fc"/><stop offset="1" stop-color="#5ce4f9"/></linearGradient>
+      <radialGradient id="localgpt-paw-shine"><stop stop-color="#fff" stop-opacity=".74"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    </defs>
+    <g fill="url(#localgpt-paw-gradient)" stroke="#fce8ff" stroke-opacity=".52" stroke-width="1.15">
+      <ellipse cx="19" cy="37" rx="8" ry="11" transform="rotate(-24 19 37)"/>
+      <ellipse cx="36" cy="23" rx="8" ry="11" transform="rotate(-10 36 23)"/>
+      <ellipse cx="56" cy="24" rx="8" ry="11" transform="rotate(12 56 24)"/>
+      <ellipse cx="72" cy="37" rx="8" ry="11" transform="rotate(26 72 37)"/>
+      <path d="M25 67 C24 57 34 48 39 43 Q46 39 52 43 C59 48 69 58 68 67 C67 78 58 80 48 77 C37 74 26 81 25 67 Z"/>
+    </g>
+    <ellipse cx="35" cy="55" rx="18" ry="11" fill="url(#localgpt-paw-shine)" opacity=".62"/>
+    <g fill="#fff" opacity=".92"><circle cx="33" cy="18" r="2"/><circle cx="61" cy="56" r="1.7"/><circle cx="46" cy="68" r="1.4"/></g>
+  </svg>`;
+}
+
+function kawaiiTearTarget() {
+  // The DocFX content surface is the only destructible region. Chrome, navigation,
+  // live editor islands, and the existing cursor/scratch overlay are never masked.
+  return document.querySelector('main.container-xxl > .content')
+    || document.querySelector('main .content article')
+    || document.querySelector('article.content');
+}
+
+function kawaiiTearOutline(points, claw) {
+  const first = points[0];
+  const last = points[points.length - 1];
+  const effective = points.length > 1 && Math.hypot(last.x - first.x, last.y - first.y) > 5
+    ? points : [{ x: first.x - 9, y: first.y + 11 }, { x: first.x + 9, y: first.y - 11 }];
+  const left = [];
+  const right = [];
+  for (let i = 0; i < effective.length; i += 1) {
+    const point = effective[i];
+    const before = effective[Math.max(0, i - 1)];
+    const after = effective[Math.min(effective.length - 1, i + 1)];
+    const dx = after.x - before.x;
+    const dy = after.y - before.y;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / len;
+    const ny = dx / len;
+    const offset = (claw - 1) * 25;
+    const noise = Math.sin(i * 17.17 + claw * 3.8 + point.x * .31) * 3.4;
+    const width = (i === 0 || i === effective.length - 1) ? 3.1 : 8.5 + noise;
+    const cx = point.x + nx * offset;
+    const cy = point.y + ny * offset;
+    left.push(`${(cx + nx * width).toFixed(1)},${(cy + ny * width).toFixed(1)}`);
+    right.push(`${(cx - nx * (width + .7)).toFixed(1)},${(cy - ny * (width + .7)).toFixed(1)}`);
+  }
+  return `M${left.join(' L')} L${right.reverse().join(' L')} Z`;
+}
+
+// Very small curled paper slivers on the edge of long drag cuts; purely decorative.
+function kawaiiTearFlaps(points, claw) {
+  if (points.length < 4) return '';
+  const flaps = [];
+  for (let i = 3; i < points.length - 2; i += 5) {
+    const point = points[i];
+    const before = points[i - 1];
+    const after = points[i + 1];
+    const dx = after.x - before.x;
+    const dy = after.y - before.y;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / len;
+    const ny = dx / len;
+    const offset = (claw - 1) * 25 + 8;
+    const x = point.x + nx * offset;
+    const y = point.y + ny * offset;
+    const lift = 4 + (i % 4) * 1.1;
+    const tipX = x + nx * lift;
+    const tipY = y + ny * lift;
+    flaps.push(`M${x.toFixed(1)},${y.toFixed(1)} L${tipX.toFixed(1)},${tipY.toFixed(1)} L${(x + dx / len * 7).toFixed(1)},${(y + dy / len * 7).toFixed(1)} Z`);
+  }
+  return flaps.map(path => `<path class="localgpt-tear-flap" d="${path}"/>`).join('');
+}
+
+function createKawaiiTearSession(target) {
+  const layer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  layer.setAttribute('class', 'localgpt-tear-overlay');
+  layer.setAttribute('aria-hidden', 'true');
+  layer.setAttribute('focusable', 'false');
+  layer.innerHTML = `<defs><linearGradient id="localgpt-tear-space-dark" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#10051f"/><stop offset=".28" stop-color="#7b28b0"/><stop offset=".57" stop-color="#29115b"/><stop offset=".83" stop-color="#1688bb"/><stop offset="1" stop-color="#130d33"/></linearGradient><linearGradient id="localgpt-tear-space-light" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset=".45" stop-color="#eae0fc"/><stop offset=".8" stop-color="#f8fbff"/><stop offset="1" stop-color="#eff7ff"/></linearGradient></defs><g class="localgpt-tear-marks"></g>`;
+  document.body.appendChild(layer);
+  return { target, layer, marks: layer.querySelector('.localgpt-tear-marks'),
+    scratches: [], active: null, frame: 0, lastPaint: 0, lastSound: 0,
+    initialMask: target.style.maskImage, initialWebkitMask: target.style.webkitMaskImage,
+    initialMaskSize: target.style.maskSize, initialWebkitMaskSize: target.style.webkitMaskSize,
+    initialMaskRepeat: target.style.maskRepeat, initialWebkitMaskRepeat: target.style.webkitMaskRepeat };
+}
+
+function clearKawaiiTearSession() {
+  if (!kawaiiTearSession) return;
+  const session = kawaiiTearSession;
+  if (session.frame) window.cancelAnimationFrame(session.frame);
+  session.target.style.maskImage = session.initialMask;
+  session.target.style.webkitMaskImage = session.initialWebkitMask;
+  session.target.style.maskSize = session.initialMaskSize;
+  session.target.style.webkitMaskSize = session.initialWebkitMaskSize;
+  session.target.style.maskRepeat = session.initialMaskRepeat;
+  session.target.style.webkitMaskRepeat = session.initialWebkitMaskRepeat;
+  session.layer.remove();
+  kawaiiTearSession = null;
+}
+
+function paintKawaiiTears() {
+  try {
+    const session = kawaiiTearSession;
+    if (!session || !session.target.isConnected) { clearKawaiiTearSession(); return; }
+    session.frame = 0;
+    const rect = session.target.getBoundingClientRect();
+    const width = Math.max(1, Math.ceil(rect.width));
+    const height = Math.max(1, Math.ceil(rect.height));
+    session.layer.style.left = `${rect.left}px`;
+    session.layer.style.top = `${rect.top}px`;
+    session.layer.setAttribute('width', String(width));
+    session.layer.setAttribute('height', String(height));
+    session.layer.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    const shapes = session.scratches.flatMap(scratch => [0, 1, 2].map(claw => kawaiiTearOutline(scratch, claw)));
+    if (shapes.length === 0) return;
+    // Alpha-mask data image has transparent cutouts. Real text, diagrams, code,
+    // pictures and backdrop in this DocFX content subtree vanish through them.
+    const paths = shapes.map(path => `<path d="${path}" fill="black"/>`).join('');
+    const mask = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><mask id="cut"><rect width="${width}" height="${height}" fill="white"/>${paths}</mask></defs><rect width="${width}" height="${height}" fill="white" mask="url(#cut)"/></svg>`;
+    const url = `url("data:image/svg+xml,${encodeURIComponent(mask)}")`;
+    session.target.style.maskImage = url;
+    session.target.style.webkitMaskImage = url;
+    session.target.style.maskSize = '100% 100%';
+    session.target.style.webkitMaskSize = '100% 100%';
+    session.target.style.maskRepeat = 'no-repeat';
+    session.target.style.webkitMaskRepeat = 'no-repeat';
+    // Separate transparent SVG paints the void, shredded contour and front glow.
+    // It never intercepts events and doesn't affect document flow.
+    session.marks.innerHTML = shapes.map(path => `<path class="localgpt-tear-shadow" d="${path}"/><path class="localgpt-tear-bloom" d="${path}"/><path class="localgpt-tear-void" d="${path}"/><path class="localgpt-tear-paper" d="${path}"/><path class="localgpt-tear-rim" d="${path}"/>`).join('')
+      + session.scratches.flatMap(scratch => [0, 1, 2].map(claw => kawaiiTearFlaps(scratch, claw))).join('');
+  } catch (error) {
+    reportDocumentationError('paintKawaiiTears', error);
+    clearKawaiiTearSession();
+  }
+}
+
+function scheduleKawaiiTearPaint(immediate = false) {
+  const session = kawaiiTearSession;
+  if (!session || session.frame) return;
+  session.frame = window.requestAnimationFrame(time => {
+    if (!immediate && time - session.lastPaint < 50) {
+      session.frame = 0;
+      window.setTimeout(() => scheduleKawaiiTearPaint(true), 50);
+      return;
+    }
+    session.lastPaint = time;
+    paintKawaiiTears();
+  });
+}
+
+function playKawaiiScratchSound(dragging = false) {
+  try {
+    if (prefersReducedMotion()) return;
+    const Audio = window.AudioContext || window.webkitAudioContext;
+    if (!Audio) return;
+    kawaiiScratchAudio ||= new Audio();
+    if (kawaiiScratchAudio.state === 'suspended') void kawaiiScratchAudio.resume();
+    const ctx = kawaiiScratchAudio;
+    const length = .085 + Math.random() * (dragging ? .065 : .045);
+    const buffer = ctx.createBuffer(1, Math.round(ctx.sampleRate * length), ctx.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < samples.length; i += 1) samples[i] = (Math.random() * 2 - 1) * (1 - i / samples.length);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 680 + Math.random() * 1300;
+    filter.Q.value = .7 + Math.random();
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(.001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.035 + Math.random() * .025, ctx.currentTime + .012);
+    gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + length);
+    noise.connect(filter).connect(gain).connect(ctx.destination);
+    noise.start();
+    noise.stop(ctx.currentTime + length);
+  } catch (error) {
+    reportDocumentationError('playKawaiiScratchSound', error);
+  }
+}
+
+function installKawaiiTearInteraction() {
+  if (document.documentElement.dataset.localgptTearInstalled === 'true') return;
+  document.documentElement.dataset.localgptTearInstalled = 'true';
+  // Left-button pointer paths accumulate for the current document only.
+  document.addEventListener('pointerdown', event => {
+    try {
+      if (event.button !== 0 || !event.isPrimary || event.shiftKey || !supportsFinePointer() || prefersReducedMotion()) return;
+      if (event.target instanceof Element && event.target.closest('a,button,input,textarea,select,summary,[contenteditable="true"]')) return;
+      const target = kawaiiTearTarget();
+      if (!target || !(event.target instanceof Node) || !target.contains(event.target)) return;
+      const rect = target.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+      event.preventDefault(); // Drag makes a tear, not an accidental text selection. Shift+drag still selects text.
+      if (kawaiiTearSession && kawaiiTearSession.target !== target) clearKawaiiTearSession();
+      const session = kawaiiTearSession || (kawaiiTearSession = createKawaiiTearSession(target));
+      const points = [{ x: event.clientX - rect.left, y: event.clientY - rect.top }];
+      session.scratches.push(points);
+      session.active = { pointerId: event.pointerId, points };
+      playKawaiiScratchSound();
+      scheduleKawaiiTearPaint(true);
+    } catch (error) { reportDocumentationError('tearPointerDown', error); }
+  }, { passive: false });
+  document.addEventListener('pointermove', event => {
+    try {
+      const session = kawaiiTearSession;
+      if (!session?.active || session.active.pointerId !== event.pointerId || (event.buttons & 1) === 0) return;
+      const rect = session.target.getBoundingClientRect();
+      const points = session.active.points;
+      const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+      const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+      const previous = points[points.length - 1];
+      if (Math.hypot(x - previous.x, y - previous.y) < 6) return;
+      points.push({ x, y });
+      // Streamline very long drags without truncating their damage.
+      if (points.length > 200) points.splice(1, 1);
+      scheduleKawaiiTearPaint();
+      if (performance.now() - session.lastSound > 230) {
+        session.lastSound = performance.now();
+        playKawaiiScratchSound(true);
+      }
+    } catch (error) { reportDocumentationError('tearPointerMove', error); }
+  }, { passive: true });
+  const endTear = event => {
+    try {
+      const session = kawaiiTearSession;
+      if (!session?.active || session.active.pointerId !== event.pointerId) return;
+      session.active = null;
+      scheduleKawaiiTearPaint(true);
+    } catch (error) { reportDocumentationError('tearPointerEnd', error); }
+  };
+  document.addEventListener('pointerup', endTear, { passive: true });
+  document.addEventListener('pointercancel', endTear, { passive: true });
+  document.addEventListener('dragstart', event => {
+    if (kawaiiTearSession?.active && kawaiiTearSession.target.contains(event.target)) event.preventDefault();
+  });
+  // DocFX normally navigates by full document load; handle history/hash routes too.
+  window.addEventListener('popstate', clearKawaiiTearSession);
+  window.addEventListener('hashchange', clearKawaiiTearSession);
+  window.addEventListener('pagehide', clearKawaiiTearSession);
+  window.addEventListener('blur', () => { if (kawaiiTearSession) kawaiiTearSession.active = null; });
+  window.addEventListener('scroll', () => {
+    const session = kawaiiTearSession;
+    if (!session || !session.target.isConnected) return;
+    const rect = session.target.getBoundingClientRect();
+    session.layer.style.left = `${rect.left}px`;
+    session.layer.style.top = `${rect.top}px`;
+  }, { passive: true });
+  window.addEventListener('resize', () => { if (kawaiiTearSession) scheduleKawaiiTearPaint(true); });
+}
+
 function startKawaiiDocumentation() {
   try {
       document.documentElement.classList.add("localgpt-kawaii-docs");
@@ -648,6 +908,7 @@ function startKawaiiDocumentation() {
       scheduleMermaidRecovery();
       decorateBrand();
       ensureCursorCompanion();
+      installKawaiiTearInteraction();
 
       if (document.documentElement.dataset.localgptKawaiiStarted !== "true") {
         document.documentElement.dataset.localgptKawaiiStarted = "true";
