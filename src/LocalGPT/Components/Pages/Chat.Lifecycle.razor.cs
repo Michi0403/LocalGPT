@@ -964,6 +964,18 @@ namespace LocalGPT.Components.Pages
         return false;
     
         }
+        catch (JSDisconnectedException exception)
+        {
+            Logger.LogWarning(exception, "The Council starter could not reach the browser because its Blazor circuit disconnected; no submission is confirmed.");
+            modelStatus = "The browser connection was lost while preparing Council. Reload and rejoin the current run before submitting again.";
+            return false;
+        }
+        catch (TaskCanceledException exception)
+        {
+            Logger.LogWarning(exception, "The Council starter browser call timed out; no submission is confirmed.");
+            modelStatus = "The browser stopped responding during Council submission. Check the interactive connection before retrying to avoid duplicates.";
+            return false;
+        }
         catch (Exception __componentMethodException)
         {
             Logger.LogError(__componentMethodException, "Component method Chat.Lifecycle.StartCouncilPromptAsync failed.");

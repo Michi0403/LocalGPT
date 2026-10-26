@@ -189,6 +189,7 @@
             setBusy(modal, false);
         } else if (modal.classList.contains('components-reconnect-hide')) {
             setBusy(modal, false);
+            globalThis.localGptJavaScriptDiagnostics?.resumeTransport?.();
         }
     }
 
@@ -291,6 +292,9 @@
                     }
                 });
                 globalThis.localGptReconnect = Object.freeze({
+                    showDisconnected() {
+                        revealRecoverySurface('The browser lost its Blazor connection. Reconnect or reload and rejoin without stopping server-side Council work.');
+                    },
                     setCouncilRun(runId) {
                         writeRunId(runId);
                         updateFromClass();

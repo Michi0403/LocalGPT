@@ -47,5 +47,5 @@ class CertificateEnumCombinations645(unittest.TestCase):
         for number in ('0015','0016','0024','0025','0031','0033','0035'):
             self.assertIn('TLSCONTRACT'+number, guard)
     def test_version(self):
-        self.assertIn('<Version>6.5.2</Version>',source('src/LocalGPT/LocalGPT.csproj'))
+        self.assertIn('<Version>6.5.4</Version>',source('src/LocalGPT/LocalGPT.csproj'))
 if __name__=='__main__': unittest.main()

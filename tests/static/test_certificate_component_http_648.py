@@ -39,5 +39,5 @@ class CertificateComponentHttp648(unittest.TestCase):
         reg=read('src/LocalGPT/Program.ServiceRegistration.cs')
         self.assertEqual(reg.count('AddSingleton<INetworkCertificateService, NetworkCertificateService>()'),1)
     def test_release_version(self):
-        self.assertIn('<Version>6.5.2</Version>',read('src/LocalGPT/LocalGPT.csproj'))
+        self.assertIn('<Version>6.5.4</Version>',read('src/LocalGPT/LocalGPT.csproj'))
 if __name__=='__main__': unittest.main()

@@ -6,7 +6,7 @@ PUBLIC = ROOT / 'docs/templates/localgpt/public'
 
 class DocumentationPawGlow640Tests(unittest.TestCase):
     def test_maintained_version_and_isolated_paw(self):
-        self.assertIn('<Version>6.5.2</Version>', (ROOT/'src/LocalGPT/LocalGPT.csproj').read_text())
+        self.assertIn('<Version>6.5.4</Version>', (ROOT/'src/LocalGPT/LocalGPT.csproj').read_text())
         js = (PUBLIC/'main.js').read_text()
         self.assertIn('function makeKawaiiGalaxyPaw()', js)
         self.assertIn('class="localgpt-paw-fur"', js)

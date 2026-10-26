@@ -41,5 +41,5 @@ class CertificateAttributeForm647(unittest.TestCase):
             self.assertIn(key,guard)
         self.assertIn('AssertLocalGptNetworkCertificateContract',read('Directory.Build.targets'))
     def test_version(self):
-        self.assertIn('<Version>6.5.2</Version>',read('src/LocalGPT/LocalGPT.csproj'))
+        self.assertIn('<Version>6.5.4</Version>',read('src/LocalGPT/LocalGPT.csproj'))
 if __name__=='__main__': unittest.main()

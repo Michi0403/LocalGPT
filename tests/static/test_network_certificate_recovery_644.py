@@ -36,7 +36,7 @@ class NetworkCertificateRecovery644(unittest.TestCase):
         self.assertIn('AssertLocalGptInstallerLayout', TARGETS)
         self.assertIn('INSTALLLAYOUT0004', INSTALLER_GUARD)
     def test_version_progression(self):
-        self.assertIn('<Version>6.5.2</Version>', (ROOT/'src/LocalGPT/LocalGPT.csproj').read_text())
+        self.assertIn('<Version>6.5.4</Version>', (ROOT/'src/LocalGPT/LocalGPT.csproj').read_text())
         self.assertIn('<Version>4.9.9</Version>', (ROOT/'src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj').read_text())
 
 if __name__=='__main__': unittest.main()

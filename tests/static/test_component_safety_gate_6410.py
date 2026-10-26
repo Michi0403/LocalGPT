@@ -25,6 +25,6 @@ class HardwareSafetyContract(unittest.TestCase):
         self.assertIn('Assert-ComponentSafety.ps1', targets)
         for symbol in ('INotificationService Notifier','IComponentActivityService ComponentActivity', 'RAZORLOG0001'):
             self.assertIn(symbol, gate)
-        self.assertIn('<Version>6.5.2</Version>', (ROOT/'src/LocalGPT/LocalGPT.csproj').read_text(encoding='utf8'))
+        self.assertIn('<Version>6.5.4</Version>', (ROOT/'src/LocalGPT/LocalGPT.csproj').read_text(encoding='utf8'))
 
 if __name__=='__main__': unittest.main()

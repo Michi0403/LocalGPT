@@ -65,6 +65,14 @@ public sealed class UploadProcessingRecommendationService(
                     cancellationToken).ConfigureAwait(false);
                 var ai = ParseRecommendation(response.Text ?? string.Empty, fallback);
                 ValidateSuggestedTeam(ai, teamCandidates);
+                // No explicit user processing objective means the upload is still in evidence review.
+                // Do not let an AI keyword match jump directly into an implementation workflow.
+                if (string.IsNullOrWhiteSpace(request.UserGoal) && !string.IsNullOrWhiteSpace(fallback.SuggestedTeamKey))
+                {
+                    ai.SuggestedTeamKey = fallback.SuggestedTeamKey;
+                    ai.SuggestedTeamName = fallback.SuggestedTeamName;
+                    ai.SuggestedConfiguration = fallback.SuggestedConfiguration;
+                }
                 ai.Source = "AI-assisted from approved LocalGPT evidence";
                 return await PersistAsync(ai, cancellationToken).ConfigureAwait(false);
             }
@@ -183,7 +191,9 @@ public sealed class UploadProcessingRecommendationService(
                         .Concat(team.Roles.Select(role => $"{role.Role} {role.Expertise} {role.Responsibility}"))),
                 })
                 .Select(item => new { item.Team, Score = terms.Count(term => item.Haystack.Contains(term, StringComparison.OrdinalIgnoreCase)) })
-                .OrderByDescending(item => item.Score)
+                .OrderByDescending(item => item.Team.PreferredCapabilities.Any(capability =>
+                    string.Equals(capability, "chat.upload_workspace_curate", StringComparison.OrdinalIgnoreCase)))
+                .ThenByDescending(item => item.Score)
                 .ThenBy(item => item.Team.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .Take(8)
                 .Select(item => item.Team)
@@ -216,12 +226,17 @@ public sealed class UploadProcessingRecommendationService(
         {
             var repository = gate.Repositories.FirstOrDefault();
             var repositoryDetected = repository is not null;
+            // The upload advisor's initial review is curation, not software development.
+            // Prefer an enabled, user-maintained team with the actual workspace-curation function.
+            var workspaceCurationTeam = teamCandidates.FirstOrDefault(item =>
+                item.PreferredCapabilities.Any(capability =>
+                    string.Equals(capability, "chat.upload_workspace_curate", StringComparison.OrdinalIgnoreCase)));
             var repositoryTeam = repositoryDetected
                 ? teamCandidates.FirstOrDefault(item => item.DisplayName.Contains("Repository", StringComparison.OrdinalIgnoreCase)
                     || item.Purpose.Contains("repository", StringComparison.OrdinalIgnoreCase)
                     || item.PreferredCapabilities.Any(capability => capability.Contains("repository", StringComparison.OrdinalIgnoreCase)))
                 : null;
-            var team = repositoryTeam
+            var team = workspaceCurationTeam ?? repositoryTeam
                 ?? teamCandidates.FirstOrDefault(item => string.Equals(item.Key, "general", StringComparison.OrdinalIgnoreCase))
                 ?? teamCandidates.FirstOrDefault();
             var domains = gate.Domains.Count > 0 ? string.Join(", ", gate.Domains) : "unclassified material";

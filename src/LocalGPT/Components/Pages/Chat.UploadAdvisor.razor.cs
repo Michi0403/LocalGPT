@@ -68,7 +68,19 @@ namespace LocalGPT.Components.Pages
                     key: $"upload-advisor-{Guid.NewGuid():N}",
                     teamKeys: teamKeys,
                     startsCouncilDirectly: true);
-                await InvokeAsync(() => StartCouncilPromptAsync(starter, startFresh: false)).ConfigureAwait(false);
+                bool submitted = false;
+                Func<Task> submitCouncil = async () =>
+                {
+                    submitted = await StartCouncilPromptAsync(starter, startFresh: false).ConfigureAwait(true);
+                };
+                await InvokeAsync(submitCouncil).ConfigureAwait(false);
+                if (!submitted)
+                {
+                    await InvokeAsync(() => Notifier.ShowWarning(
+                        toastName,
+                        "Council prompt was not confirmed as submitted. Reopen the chat composer or reconnect before retrying; the quarantined workspace and recommendation remain saved.",
+                        "Council submission not confirmed")).ConfigureAwait(false);
+                }
             }
             catch (Exception exception)
             {

@@ -58,6 +58,6 @@ class InteractiveFormsAndPairingTests(unittest.TestCase):
         self.assertIsNotNone(version)
         self.assertLessEqual(len(version.group(2)),1)
         self.assertLessEqual(len(version.group(3)),1)
-        self.assertEqual(version.group(0),'<Version>6.5.2</Version>')
+        self.assertEqual(version.group(0),'<Version>6.5.4</Version>')
 
 if __name__=='__main__':unittest.main()

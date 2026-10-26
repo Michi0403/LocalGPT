@@ -4,6 +4,7 @@
     // javascript-diagnostics: guarded-runtime
     let dotNetReference = null;
     let reporting = false;
+    let transportUnavailable = false;
     const pendingReports = new Map();
     const wrappedCallbacks = new WeakMap();
 
@@ -22,6 +23,7 @@
 
     function queueReport(source, details) { try {
         try {
+            if (pendingReports.size >= 100) pendingReports.delete(pendingReports.keys().next().value);
             pendingReports.set(`${source}\n${details.message}`, { source, message: details.message, stack: details.stack });
         } catch (queueError) {
             console.error("LocalGPT JavaScript diagnostics could not buffer an error before the application logger attached.", queueError);
@@ -30,7 +32,7 @@
 
     function flushPendingReports() { try {
         try {
-            if (!dotNetReference || reporting || pendingReports.size === 0) return;
+            if (!dotNetReference || reporting || transportUnavailable || pendingReports.size === 0) return;
             const first = pendingReports.entries().next();
             if (first.done) return;
             pendingReports.delete(first.value[0]);
@@ -42,7 +44,7 @@
 
     function forward(source, details) { try {
         try {
-            if (!dotNetReference || reporting) {
+            if (!dotNetReference || reporting || transportUnavailable) {
                 queueReport(source, details);
                 return;
             }
@@ -50,6 +52,13 @@
             reporting = true;
             dotNetReference.invokeMethodAsync("ReportJavaScriptErrorAsync", source, details.message, details.stack)
                 .catch(reportError => { try {
+                    const message = String(reportError?.message ?? reportError);
+                    if (/Cannot send data if the connection is not in the 'Connected' State|connection.*disconnected/i.test(message)) {
+                        transportUnavailable = true;
+                        queueReport(source, details);
+                        globalThis.localGptReconnect?.showDisconnected?.();
+                        return;
+                    }
                     console.error("LocalGPT JavaScript diagnostics could not forward an error to the application logger.", reportError);
                  } catch (__javascriptError) { console.error('JavaScript diagnostics runtime error in js/javascript-diagnostics.js:forward.catch.', __javascriptError); throw __javascriptError; }})
                 .finally(() => { try {
@@ -67,7 +76,11 @@
             const details = errorDetails(error);
             const source = String(context || "browser-runtime");
             console.error(`LocalGPT JavaScript error in ${source}: ${details.message}`, error);
-            if (!dotNetReference || reporting) {
+            if (/Cannot send data if the connection is not in the 'Connected' State/.test(details.message)) {
+                transportUnavailable = true;
+                globalThis.localGptReconnect?.showDisconnected?.();
+            }
+            if (!dotNetReference || reporting || transportUnavailable) {
                 queueReport(source, details);
                 return;
             }
@@ -155,11 +168,17 @@
     function bindDotNet(reference) { try {
         try {
             dotNetReference = reference || null;
+            transportUnavailable = false;
             flushPendingReports();
         } catch (error) {
             report("javascript-diagnostics.bindDotNet", error);
         }
      } catch (__javascriptError) { console.error('JavaScript diagnostics runtime error in js/javascript-diagnostics.js:bindDotNet@117.', __javascriptError); throw __javascriptError; }}
+
+    function resumeTransport() {
+        transportUnavailable = false;
+        flushPendingReports();
+    }
 
     function unbindDotNet() { try {
         try {
@@ -325,6 +344,7 @@
         guardObject,
         guardClass,
         bindDotNet,
-        unbindDotNet
+        unbindDotNet,
+        resumeTransport
     };
  } catch (__javascriptError) { console.error('JavaScript diagnostics runtime error in js/javascript-diagnostics.js:ArrowFunction@1.', __javascriptError); throw __javascriptError; }})();

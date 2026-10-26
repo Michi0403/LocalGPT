@@ -79,7 +79,7 @@ class ExistingUserSeedRepair634Tests(unittest.TestCase):
         self.assertIn('await RunSeedStageAsync("knowledge entries", SeedKnowledgeAsync',DB)
 
     def test_expected_versions_and_changelog(self):
-        self.assertIn('<Version>6.5.2</Version>',(ROOT/'src/LocalGPT/LocalGPT.csproj').read_text())
+        self.assertIn('<Version>6.5.4</Version>',(ROOT/'src/LocalGPT/LocalGPT.csproj').read_text())
         self.assertTrue((ROOT/'CHANGELOG-6.3.4-EXISTING-USER-DEFAULT-RECONCILIATION.md').exists())
         self.assertTrue((ROOT/'docs/DEFAULT-SEED-UPGRADE-6.3.4.md').exists())
 

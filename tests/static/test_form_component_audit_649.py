@@ -21,7 +21,7 @@ class FormComponentAudit649(unittest.TestCase):
     def test_release_form_guard_is_wired(self):
         self.assertIn('AssertLocalGPTRazorFormEncapsulation',read('Directory.Build.targets'))
         self.assertIn('Assert-RazorFormEncapsulation.ps1',read('Build-Release.ps1'))
-        self.assertIn('<Version>6.5.2</Version>',read('src/LocalGPT/LocalGPT.csproj'))
+        self.assertIn('<Version>6.5.4</Version>',read('src/LocalGPT/LocalGPT.csproj'))
     def test_full_inventory_is_shipped(self):
         with (ROOT / 'FORM_AUDIT_ALL_COMPONENTS.csv').open(newline='',encoding='utf8') as f:
             rows=list(csv.DictReader(f))
