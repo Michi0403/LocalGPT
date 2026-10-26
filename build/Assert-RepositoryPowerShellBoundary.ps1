@@ -98,6 +98,37 @@ $packagePreparation = [IO.File]::ReadAllText((Join-Path $root 'build/Ensure-Rele
 if ($packagePreparation -match '(?im)^\s*(?:&\s*)?dotnet\s+tool\s+install\b') {
     $violations.Add('The release-packaging preparation must not require dotnet tool install; publish its repository-owned apphost instead.')
 }
+# Source/architecture validation belongs to PowerShell, not a parallel
+# Python/Node source-test suite. Optional Python application runtime sources
+# (for example Runtime/Python) are deliberately outside this restriction.
+$testRoot = Join-Path $root 'tests'
+if (Test-Path -LiteralPath $testRoot -PathType Container) {
+    $foreignTests = @(Get-ChildItem -LiteralPath $testRoot -Recurse -File |
+        Where-Object { $_.Extension -in @('.py', '.pyc', '.pyo', '.cjs', '.mjs', '.js') })
+    foreach ($file in $foreignTests) {
+        $relative = $file.FullName.Substring($root.Length + 1).Replace([char]'\', [char]'/')
+        $violations.Add("Non-PowerShell source test is forbidden: $relative. Keep validation in version-independent build/Assert-*.ps1 guards.")
+    }
+}
+$pythonArchitectureChecks = @(Get-ChildItem -LiteralPath (Join-Path $root 'build') -Recurse -File -Filter '*.py')
+foreach ($file in $pythonArchitectureChecks) {
+    $relative = $file.FullName.Substring($root.Length + 1).Replace([char]'\', [char]'/')
+    $violations.Add("Python build architecture check is forbidden: $relative.")
+}
+
+# Versions are discovered from the project files on each run. No test script
+# must be edited for a new release; minor/patch components roll over after 9.
+$projects = @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -File -Filter '*.csproj')
+foreach ($projectFile in $projects) {
+    $projectXml = [xml]([IO.File]::ReadAllText($projectFile.FullName))
+    $versions = @($projectXml.SelectNodes('//Project/PropertyGroup/Version'))
+    foreach ($versionNode in $versions) {
+        $currentVersion = [string]$versionNode.InnerText
+        if ($currentVersion -notmatch '^[0-9]+\.[0-9]\.[0-9]$') {
+            $violations.Add("$($projectFile.FullName): invalid project version '$currentVersion'; require major.minor.patch with single-digit minor and patch, advancing by carry rather than .10.")
+        }
+    }
+}
 if ($violations.Count -gt 0) {
     foreach ($violation in $violations) { Write-Host "Repository PowerShell boundary: $violation" -ForegroundColor Red }
     throw "PowerShell-only build/publish boundary failed with $($violations.Count) issue(s)."

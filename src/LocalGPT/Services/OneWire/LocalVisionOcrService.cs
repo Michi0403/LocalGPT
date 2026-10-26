@@ -33,7 +33,7 @@ public sealed class LocalVisionOcrService(
         try
         {
             var imageBase64 = ReadImageBase64(request.ImageDataUrl, out var mediaType);
-            var provider = ResolveProvider(request.ModelName);
+            var provider = await ResolveAvailableProviderAsync(request.ModelName, cancellationToken).ConfigureAwait(false);
             var configuredTimeoutSeconds = runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionRequestTimeoutSeconds);
             using var client = new HttpClient
             {
@@ -113,46 +113,77 @@ public sealed class LocalVisionOcrService(
     /// Resolves provider as part of the local vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="requestedModel">Requested model value supplied to the local vision OCR operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancels the configured Ollama host/model probes when the caller cancels the OCR request.</param>
     /// <returns>The Ollama core options produced by the operation.</returns>
-    private OllamaCoreOptions ResolveProvider(string? requestedModel)
+    private async Task<OllamaCoreOptions> ResolveAvailableProviderAsync(string? requestedModel, CancellationToken cancellationToken)
     {
         try
         {
             var ai = options.CurrentValue.AICore ?? new AICoreOptions();
-            var configured = new[] { ai.OllamaCore }
+            var hosts = new[] { ai.OllamaCore }
                 .Concat(ai.OllamaCores ?? [])
-                .Where(item => !string.IsNullOrWhiteSpace(item.Uri) && !string.IsNullOrWhiteSpace(item.ModelName))
+                .Where(host => host is not null && !string.IsNullOrWhiteSpace(host.Uri))
+                .DistinctBy(host => host.Uri.TrimEnd('/'), StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            if (configured.Count == 0)
-                throw new InvalidOperationException("No Ollama-compatible provider is configured for local OCR.");
+            if (hosts.Count == 0)
+                throw new InvalidOperationException("No Ollama provider is configured for OCR.");
 
-            if (!string.IsNullOrWhiteSpace(requestedModel))
+            var requested = string.IsNullOrWhiteSpace(requestedModel)
+                ? hosts.Select(host => host.ModelName).FirstOrDefault(name =>
+                    !string.IsNullOrWhiteSpace(name) &&
+                    (name.Contains("ocr", StringComparison.OrdinalIgnoreCase) ||
+                     name.Contains("vision", StringComparison.OrdinalIgnoreCase)))
+                : requestedModel.Trim();
+            if (string.IsNullOrWhiteSpace(requested))
+                throw new InvalidOperationException("No OCR/vision model was selected. Select an installed model first.");
+
+            // The primary Chat provider is not necessarily the OCR provider. Confirm installed models on
+            // each operator-configured endpoint instead of silently sending OCR to an unreachable first host.
+            foreach (var host in hosts)
             {
-                var normalizedRequestedModel = requestedModel.Trim();
-                var exact = configured.FirstOrDefault(item => string.Equals(item.ModelName, normalizedRequestedModel, StringComparison.OrdinalIgnoreCase));
-                if (exact is not null)
-                    return exact;
-
-                // OCR is a model-level capability of an Ollama host. A user should not have to replace the
-                // primary Chat model merely to invoke an already-installed OCR model on that same host.
-                var host = configured.First();
-                return new OllamaCoreOptions
+                try
                 {
-                    Uri = host.Uri,
-                    ModelName = normalizedRequestedModel,
-                    ResponseProtocol = host.ResponseProtocol
-                };
+                    var timeout = runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionRequestTimeoutSeconds);
+                    using var probe = new HttpClient
+                    {
+                        BaseAddress = new Uri(host.Uri.TrimEnd('/') + "/", UriKind.Absolute),
+                        Timeout = TimeSpan.FromSeconds(timeout <= 0 ? 8 : Math.Min(timeout, 8))
+                    };
+                    using var response = await probe.GetAsync("api/tags", cancellationToken).ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode) continue;
+                    var tags = await response.Content.ReadFromJsonAsync<OllamaTagsResponse>(JsonOptions, cancellationToken).ConfigureAwait(false);
+                    var installed = tags?.Models.Select(model => model.Name ?? model.Model)
+                        .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name) &&
+                            (string.Equals(name, requested, StringComparison.OrdinalIgnoreCase) ||
+                             (!requested.Contains(':') && name.StartsWith(requested + ":", StringComparison.OrdinalIgnoreCase))));
+                    if (string.IsNullOrWhiteSpace(installed)) continue;
+                    return new OllamaCoreOptions
+                    {
+                        Uri = host.Uri,
+                        ModelName = installed,
+                        ResponseProtocol = host.ResponseProtocol
+                    };
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or UriFormatException)
+                {
+                    logger.LogDebug(ex, "One configured Ollama host did not answer the bounded OCR model-inventory probe.");
+                }
             }
-
-            return configured.FirstOrDefault(item =>
-                       item.ModelName.Contains("ocr", StringComparison.OrdinalIgnoreCase) ||
-                       item.ModelName.Contains("vision", StringComparison.OrdinalIgnoreCase))
-                   ?? throw new InvalidOperationException(
-                       "No OCR/vision model is configured. Request an installed OCR model such as deepseek-ocr explicitly, or configure an OCR/vision model in LocalGPT settings.");
+            throw new InvalidOperationException(
+                $"OCR model '{requested}' is not installed on any reachable configured Ollama endpoint. " +
+                "Check LocalGPT provider URLs, Ollama availability and installed models before retrying OCR.");
         }
-        catch (Exception exception)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogError(exception, "Service method {Service}.{Method} failed.", nameof(LocalVisionOcrService), nameof(ResolveProvider));
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Resolving an installed local 1-Wire OCR provider failed.");
             throw;
         }
     }

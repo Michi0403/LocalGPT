@@ -6,6 +6,9 @@ A successful LocalGPT build is the primary compilation truth. Delimiter counts, 
 
 The repository pins its SDK through `global.json` and provides validation scripts for architecture and policy. When .NET is unavailable, those scripts can still provide partial evidence, but the result must be labeled uncompiled.
 
+Architecture and source-validation maintenance uses only build-wired PowerShell scripts compatible with Windows PowerShell 5.1 and modern `pwsh`. The repository does not maintain a parallel Python test suite; application runtime Python is separate. Source checks derive the current project version and embedded-resource inventory from the `.csproj` file. Release bumps must not require hand-editing static test expectations or introducing version-named test files.
+
+
 ## Validation sequence
 
 A normal maintenance pass should run, as applicable:
@@ -61,7 +64,7 @@ Important checks include:
 The documentation build verifies conceptual pages, generated API YAML/HTML, versioned PDF, Kawaii CSS/JS markers, icon assets, status JSON, and nonzero source/API counts.
 DocFX-only reflection dependencies are isolated in `docs/DocfxDependencies.csproj`; they are restored and staged into the temporary documentation probe directory and do not become LocalGPT runtime package references. Unresolved assembly metadata is a hard failure before PDF generation.
 Cross-platform release/local-development prerequisites validate the DevExpress license location and provide a compatible Node.js 20–22 runtime for documentation tooling on Windows, macOS, and Linux.
-Windows Debug/Release builds also use Python 3 to validate and seed the version-matched GitHub Pages snapshot from the documentation output of that exact build.
+Windows Debug/Release builds use repository-owned PowerShell validation and packaging scripts to validate and seed the version-matched GitHub Pages snapshot from the documentation output of that exact build.
 
 The Pages extractor accepts UTF-8 files with or without BOM, normalizes ZIP separators, rejects unsafe paths, and chooses the strongest complete release candidate.
 

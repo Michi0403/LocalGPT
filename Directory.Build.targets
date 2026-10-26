@@ -1,4 +1,14 @@
 <Project>
+  <!-- Source inventory checks use PowerShell on every supported build host. -->
+  <PropertyGroup>
+    <EmbeddedResourceArchitectureScript>$(MSBuildThisFileDirectory)build/Assert-EmbeddedResourceArchitecture.ps1</EmbeddedResourceArchitectureScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptEmbeddedResourceArchitecture" BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(EmbeddedResourceArchitectureScript)')" Text="Missing mandatory embedded resource architecture guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(EmbeddedResourceArchitectureScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
   <PropertyGroup>
     <LocalAiDownloadAndPeerUiGuardScript>$(MSBuildThisFileDirectory)build/Assert-LocalAiDownloadAndPeerUI.ps1</LocalAiDownloadAndPeerUiGuardScript>
   </PropertyGroup>

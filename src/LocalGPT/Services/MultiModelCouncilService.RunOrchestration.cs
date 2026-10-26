@@ -447,28 +447,64 @@ namespace LocalGPT.Services
                         cancellationToken).ConfigureAwait(false);
                     var finalTranscript = councilText.MultiModelCouncilServiceBuildTranscript(GetCouncilWorkflowContextSteps(result.Steps, organicTeam), logger);
                     var consensusModel = SelectHealthyParticipant(result, participants);
-                    MultiModelCouncilStep? consensusStep;
-                    using (ambientContext.PushCouncil(result.RunId, consensusRound, "Consensus"))
+                    // The final consensus writer is a direct participant invocation, not a RunPhaseAsync
+                    // participant. Publish its own producer-side lane so the UI can show this real work
+                    // while the ordered transcript is still being assembled.
+                    var consensusActivityKey = BuildCouncilParticipantActivityKey(
+                        consensusRound, "Consensus", "Consensus writer", consensusModel);
+                    var consensusRouteLabel = GetCouncilExecutionHostKey(consensusModel);
+                    liveCouncilSessions.BeginParticipantActivity(
+                        result.RunId, consensusActivityKey, consensusModel, "Consensus", "Consensus writer", consensusRouteLabel);
+                    liveCouncilSessions.SetParticipantActivityStatus(
+                        result.RunId, consensusActivityKey, $"Running on {consensusRouteLabel}.");
+                    Action<string> consensusStreamUpdate = text =>
                     {
-                        consensusStep = await RunParticipantAsync(
-                            baseUri,
-                            consensusModel,
-                            participants,
-                            round: consensusRound,
-                            phase: "Consensus",
-                            role: "Consensus writer",
-                            prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateConsensusPrompt(request.Prompt, finalTranscript, logger)),
-                            consensusBootstrap,
-                            request.MaxOutputTokens,
-                            keepAlive,
-                            MultiModelCouncilServiceResolveParticipantOllamaNumGpu(consensusModel, ollamaNumGpu, logger),
-                            maxContextTokens,
-                            modelTimeoutSeconds,
-                            request.StreamUpdate,
-                            cancellationToken,
-                            progressMessage: request.ProgressMessage).ConfigureAwait(false);
+                        if (string.IsNullOrEmpty(text))
+                            return;
+
+                        liveCouncilSessions.AppendParticipantActivity(result.RunId, consensusActivityKey, text);
+                        request.StreamUpdate?.Invoke(text);
+                    };
+                    MultiModelCouncilStep? consensusStep;
+                    try
+                    {
+                        using (ambientContext.PushCouncil(result.RunId, consensusRound, "Consensus"))
+                        {
+                            consensusStep = await RunParticipantAsync(
+                                baseUri,
+                                consensusModel,
+                                participants,
+                                round: consensusRound,
+                                phase: "Consensus",
+                                role: "Consensus writer",
+                                prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateConsensusPrompt(request.Prompt, finalTranscript, logger)),
+                                consensusBootstrap,
+                                request.MaxOutputTokens,
+                                keepAlive,
+                                MultiModelCouncilServiceResolveParticipantOllamaNumGpu(consensusModel, ollamaNumGpu, logger),
+                                maxContextTokens,
+                                modelTimeoutSeconds,
+                                consensusStreamUpdate,
+                                cancellationToken,
+                                progressMessage: request.ProgressMessage).ConfigureAwait(false);
+                        }
+                        ArgumentNullException.ThrowIfNull(consensusStep);
+                        liveCouncilSessions.SetParticipantActivityResult(
+                            result.RunId, consensusActivityKey, consensusStep.VisibleContent);
+                        liveCouncilSessions.CompleteParticipantActivity(
+                            result.RunId,
+                            consensusActivityKey,
+                            string.IsNullOrWhiteSpace(consensusStep.Error)
+                                ? "Consensus writer completed. Its response is available in this lane."
+                                : $"Consensus writer completed with an error: {consensusStep.Error}");
                     }
-                    ArgumentNullException.ThrowIfNull(consensusStep);
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Council consensus writer failed for run {RunId}.", result.RunId);
+                        liveCouncilSessions.CompleteParticipantActivity(
+                            result.RunId, consensusActivityKey, $"Consensus writer failed: {ex.Message}");
+                        throw;
+                    }
                     var consensusFunctionSteps = await AddCouncilStepAndExecuteDxFunctionsAsync(result, consensusStep, request.StepCompleted, request.ProgressMessage, cancellationToken).ConfigureAwait(false);
                     var consensusContent = MultiModelCouncilServiceSelectConsensusContent(result, consensusStep, logger);
                     if (consensusFunctionSteps.Count > 0)
