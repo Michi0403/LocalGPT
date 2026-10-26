@@ -1112,39 +1112,44 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    /// <summary>
-    /// Creates network certificate for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
-    /// </summary>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task CreateNetworkCertificateAsync()
+    /// <summary>Updates the staged network endpoint after the isolated certificate editor successfully issued a certificate.</summary>
+    /// <param name="result">Issued certificate metadata, never the private key.</param>
+    /// <returns>The completion task for the install-side notification and draft update.</returns>
+    private async Task OnNetworkCertificateCreatedAsync(NetworkCertificateCreateResult result)
     {
         try
         {
-            IsCertificateBusy = true;
-            CertificateStatus = "Creating certificate...";
-            var result = await NetworkCertificates.CreateAsync(CertificateRequest).ConfigureAwait(false);
-            CertificateStatus = $"Created {result.Thumbprint} at {result.PfxPath}; {result.StoreDescription}; valid until {result.NotAfter:O}.";
-            if (UseCreatedCertificateForRemoteEndpoint)
+            if (CertificateRequest.RequireServerAuthentication)
             {
                 NetworkModel.CertificatePath = result.PfxPath;
                 NetworkModel.CertificatePassword = CertificateRequest.Password ?? string.Empty;
                 if (NetworkModel.Port <= 0) NetworkModel.Port = 5443;
                 NetworkModel.Enabled = true;
             }
-            await Append(CertificateStatus).ConfigureAwait(false);
-            Notifier.ShowSuccess(toastName, "Certificate created. Save setup settings and restart LocalGPT to activate HTTPS.", "TLS certificate ready");
+            await Append($"Created certificate {result.Thumbprint} at {result.PfxPath}.").ConfigureAwait(true);
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            Logger.LogError(ex, "Certificate creation failed: {Message}", ex.Message);
-            CertificateStatus = ex.Message;
-            Notifier.ShowError(toastName, "Certificate creation failed. See local application logs for details.", "TLS certificate failed");
-            await Append("(Certificate) " + ex.Message).ConfigureAwait(false);
+            Logger.LogError(exception, "Updating the installation draft after certificate generation failed.");
+            Notifier.ShowError(toastName, "The certificate was created but setup settings could not be updated.", "Certificate setup failed");
+            throw;
         }
-        finally
+    }
+
+    /// <summary>Propagates ongoing certificate generation to the install-page activity indicator.</summary>
+    /// <param name="busy">True while the certificate creation operation is in progress.</param>
+    /// <returns>A task when the parent's UI state has been updated.</returns>
+    private async Task OnCertificateBusyChangedAsync(bool busy)
+    {
+        try
         {
-            IsCertificateBusy = false;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            IsCertificateBusy = busy;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Updating certificate generation activity failed.");
+            throw;
         }
     }
 

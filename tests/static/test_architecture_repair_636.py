@@ -11,8 +11,11 @@ class ArchitectureRepair636(unittest.TestCase):
             self.assertIn(token,view)
         self.assertNotRegex(view,r'<input[^>]+@bind="Keyaccount')
     def test_component_owner_remains_component_based(self):
-        self.assertIn('<div class="initial-setup-physical-host"', read('Components/Shared/InitialSetupAssistantPanel.razor'))
-        self.assertNotIn('<section class="initial-setup-physical-host"',read('Components/Shared/InitialSetupAssistantPanel.razor'))
+        owner = read('Components/Shared/InitialSetupAssistantPanel.razor')
+        form = read('Components/Shared/InitialSetupHardwareForm.razor')
+        self.assertIn('<InitialSetupHardwareForm Hardware="@hardware"', owner)
+        self.assertIn('<div class="initial-setup-physical-host"', form)
+        self.assertNotIn('<section class="initial-setup-physical-host"', form)
     def test_text_formatting_service_owned(self):
         self.assertIn('public string FormatBlockedGoalRequirements',read('Services/CouncilTextService.cs'))
         for rel in ('Components/Pages/MinecraftModBuilder.razor','Components/Pages/ModelCouncil.razor.cs'):
@@ -37,5 +40,5 @@ class ArchitectureRepair636(unittest.TestCase):
         self.assertIn('javascript-diagnostics: guarded',data)
         self.assertIn('catch (error)',data)
     def test_release_number(self):
-        self.assertIn('<Version>6.4.1</Version>',read('LocalGPT.csproj'))
+        self.assertIn('<Version>6.5.2</Version>',read('LocalGPT.csproj'))
 if __name__=='__main__': unittest.main()

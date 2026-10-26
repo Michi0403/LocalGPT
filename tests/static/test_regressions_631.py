@@ -28,8 +28,11 @@ class Regression631(unittest.TestCase):
     def test_two_gpu_rows_have_one_host_editor_and_coherent_endpoint(self):
         setup = (ROOT / 'Components/Shared/InitialSetupAssistantPanel.razor').read_text()
         install = (ROOT / 'Components/Pages/Install.razor').read_text()
-        self.assertIn('hardware.GroupBy(device =>', setup)
-        self.assertIn('SetHardwareGroupEndpoint(hostGroup.Key, endpoint)', setup)
+        hardware_form = (ROOT / 'Components/Shared/InitialSetupHardwareForm.razor').read_text()
+        self.assertIn('<InitialSetupHardwareForm Hardware="@hardware"', setup)
+        self.assertIn('Hardware.GroupBy(device =>', hardware_form)
+        self.assertIn('UpdateHardwareGroupEndpoint(hostGroup.Key, endpoint)', hardware_form)
+        self.assertIn('foreach (var device in Hardware.Where', (ROOT / 'Components/Shared/InitialSetupHardwareForm.razor.cs').read_text())
         self.assertIn('renderedHardwareHostKeys.Add(', install)
 
     def test_console_tail_and_user_scroll_intent(self):

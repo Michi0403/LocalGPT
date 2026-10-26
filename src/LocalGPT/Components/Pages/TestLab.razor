@@ -128,7 +128,7 @@
                         @foreach (var extension in Catalog.LearnBaseKnownExtensions.OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
                         {
                             <label>
-                                <DxCheckBox Checked="@selectedLearnBaseExtensions.Contains(extension)"
+                                <DxCheckBox ValidationEnabled="false" Checked="@selectedLearnBaseExtensions.Contains(extension)"
                                             CheckedChanged="@((bool selected) => ToggleLearnBaseExtension(extension, selected))" />
                                 <code>@extension</code>
                             </label>

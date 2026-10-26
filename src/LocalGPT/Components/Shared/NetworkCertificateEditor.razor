@@ -1,0 +1,103 @@
+@using System.Security.Cryptography.X509Certificates
+@inject INetworkCertificateService NetworkCertificates
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
+@inject ILogger<NetworkCertificateEditor> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner NetworkCertificateEditor">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="certificateLayoutContext">
+        <div id="tls-certificate" class="installer-workbench-card install-workbench-region" aria-labelledby="certificate-heading">
+            <div class="installer-card-heading">
+                <div>
+                    <h3 id="certificate-heading">Create TLS certificate</h3>
+                    <p class="field-help">Creates a user-requested self-signed server certificate with Server Authentication EKU and SAN entries. A self-signed certificate is encrypted traffic, but browsers still require the certificate or issuing authority to be trusted.</p>
+                </div>
+            </div>
+            <EditForm EditContext="@CertificateEditContext" OnValidSubmit="CreateNetworkCertificateAsync" Context="certificateFormContext">
+                <DataAnnotationsValidator />
+                <DxFormLayout>
+                <DxFormLayoutItem Caption="Common name">
+                    <DxTextBox @bind-Text="CertificateRequest.CommonName" @bind-Text:after="ValidateCertificateForm" />
+                    <ValidationMessage For="@(() => CertificateRequest.CommonName)" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Subject alternative names">
+                    <DxMemo Rows="3" @bind-Text="CertificateRequest.SubjectAlternativeNames" @bind-Text:after="ValidateCertificateForm" />
+                    <p class="field-help">Separate DNS names and IP addresses with semicolons. The current machine name and detected local addresses are prefilled.</p>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="@T("Install.Certificate.KeySize", "RSA key size (select one)")">
+                    <DxListBox Data="@CertificateKeySizes" @bind-Value="CertificateRequest.KeySize" @bind-Value:after="ValidateCertificateForm" Height="112px" ShowValidationSuccessState="true" />
+                    <ValidationMessage For="@(() => CertificateRequest.KeySize)" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="@T("Install.Certificate.Hash", "Hash algorithm (select one)")">
+                    <DxListBox Data="@CertificateHashes" @bind-Value="CertificateRequest.Hash" @bind-Value:after="ValidateCertificateForm" Height="112px" ShowValidationSuccessState="true" />
+                    <ValidationMessage For="@(() => CertificateRequest.Hash)" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="@T("Install.Certificate.KeyUsages", "X.509 Key Usage (combine flags)")">
+                    <DxListBox Data="@CertificateKeyUsageOptions" @bind-Values="CertificateRequest.KeyUsages" @bind-Values:after="ValidateCertificateForm"
+                               SelectionMode="ListBoxSelectionMode.Multiple" ShowCheckboxes="true"
+                               ShowSelectAllCheckbox="true" Height="190px" ShowValidationSuccessState="true" />
+                    <ValidationMessage For="@(() => CertificateRequest.KeyUsages)" />
+                    <p class="field-help">@T("Install.Certificate.KeyUsageHelp", "Select one or more key usages. TLS server defaults: DigitalSignature + KeyEncipherment. KeyCertSign/CRL signing require CA mode; EncipherOnly/DecipherOnly require KeyAgreement.")</p>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="@T("Install.Certificate.ExtendedKeyUsages", "Extended Key Usage (combine purposes)")">
+                    <DxListBox Data="@CertificateExtendedKeyUsageOptions" @bind-Values="CertificateRequest.ExtendedKeyUsages" @bind-Values:after="ValidateCertificateForm"
+                               SelectionMode="ListBoxSelectionMode.Multiple" ShowCheckboxes="true"
+                               ShowSelectAllCheckbox="true" Height="190px" ShowValidationSuccessState="true" />
+                    <ValidationMessage For="@(() => CertificateRequest.ExtendedKeyUsages)" />
+                    <p class="field-help">@T("Install.Certificate.EkuHelp", "Choose the intended certificate purposes. ServerAuthentication is mandatory if you assign this certificate to the HTTPS listener.")</p>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="@T("Install.Certificate.CaMode", "Certificate authority")">
+                    <DxCheckBox Checked="@CertificateRequest.IsCertificateAuthority" CheckedExpression="@(() => CertificateRequest.IsCertificateAuthority)" CheckedChanged="@((bool value) => OnCertificateAuthorityChanged(value))"
+                                Text='@T("Install.Certificate.CaHelp", "Issue a CA certificate (requires KeyCertSign and no end-entity EKUs)")' />
+                    <ValidationMessage For="@(() => CertificateRequest.IsCertificateAuthority)" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Validity (days)">
+                    <DxSpinEdit @bind-Value="CertificateRequest.ValidityDays" @bind-Value:after="ValidateCertificateForm" Min="1" Max="3650" />
+                    <ValidationMessage For="@(() => CertificateRequest.ValidityDays)" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Save PFX to">
+                    <DxTextBox @bind-Text="CertificateRequest.OutputPath" @bind-Text:after="ValidateCertificateForm" />
+                    <ValidationMessage For="@(() => CertificateRequest.OutputPath)" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="PFX password">
+                    <DxTextBox @bind-Text="CertificateRequest.Password" @bind-Text:after="ValidateCertificateForm" Password="true" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Certificate store">
+                    <DxCheckBox @bind-Checked="CertificateRequest.InstallToStore" @bind-Checked:after="ValidateCertificateForm" Text="Install the generated certificate into a Windows/.NET certificate store" />
+                </DxFormLayoutItem>
+                @if (CertificateRequest.InstallToStore)
+                {
+                    <DxFormLayoutItem Caption="Store location">
+                        <DxListBox Data="@CertificateStoreLocations" @bind-Value="CertificateRequest.StoreLocation" @bind-Value:after="ValidateCertificateForm" Height="86px" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Store name">
+                        <DxListBox Data="@CertificateStoreNames" @bind-Value="CertificateRequest.StoreName" @bind-Value:after="ValidateCertificateForm" Height="166px" />
+                    </DxFormLayoutItem>
+                }
+                <DxFormLayoutItem>
+                    <DxCheckBox @bind-Checked="CertificateRequest.RequireServerAuthentication" @bind-Checked:after="ValidateCertificateForm" Text="Use the generated PFX for the remote Kestrel endpoint" />
+                    <ValidationMessage For="@(() => CertificateRequest.RequireServerAuthentication)" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem>
+                    <ValidationSummary />
+                    <DxButton Text="@(IsCertificateBusy ? "Creating certificate..." : "Create certificate")"
+                              Enabled="@(!IsCertificateBusy && !CertificateEditContext.GetValidationMessages().Any())"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              SubmitFormOnClick="true" />
+                </DxFormLayoutItem>
+                @if (!string.IsNullOrWhiteSpace(CertificateStatus))
+                {
+                    <DxFormLayoutItem Caption="Certificate status">
+                        <div class="installer-status-line">@CertificateStatus</div>
+                    </DxFormLayoutItem>
+                }
+                </DxFormLayout>
+            </EditForm>
+        </div>
+        </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>

@@ -63,6 +63,10 @@ $wslCommonScript = Join-Path $root 'build/WslRelease.Common.ps1'
 if (-not (Test-Path -LiteralPath $wslCommonScript -PathType Leaf)) { throw "WSL release helper is missing: $wslCommonScript" }
 . $wslCommonScript
 & (Join-Path $root 'build/Assert-PowerShellCompatibility.ps1')
+& (Join-Path $root 'build/Assert-InstallerLayout.ps1')
+& (Join-Path $root 'build/Assert-NetworkCertificateContract.ps1')
+& (Join-Path $root 'build/Assert-InteractiveFormsAndPairing.ps1')
+& (Join-Path $root 'build/Assert-RazorFormEncapsulation.ps1')
 & (Join-Path $root 'build/Initialize-BuildPrerequisites.ps1') -AllowMissingDevExpressLicense:$AllowMissingDevExpressLicense -SkipDocumentationNodeProvisioning:($WslChildBuild -and -not [string]::IsNullOrWhiteSpace($PreparedDocumentationRoot))
 & (Join-Path $root 'build/Assert-CrossPlatformBoundaries.ps1')
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan

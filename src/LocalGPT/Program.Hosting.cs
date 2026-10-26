@@ -32,6 +32,7 @@ using Microsoft.Extensions.Logging;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.Json;
@@ -293,8 +294,48 @@ namespace LocalGPT
                     certificatePath = Environment.ExpandEnvironmentVariables(certificatePath.Trim());
                     if (!Path.IsPathRooted(certificatePath))
                         certificatePath = Path.GetFullPath(Path.Combine(contentRootPath, certificatePath));
+                    // The remote HTTPS listener is optional; never prevent the primary
+                    // loopback application from starting because a user moved its PFX.
+                    // An explicitly configured remote listener continues as plain HTTP,
+                    // and the downgrade is recorded prominently for the administrator.
                     if (!File.Exists(certificatePath))
-                        throw new FileNotFoundException("Configured LocalGPT network TLS certificate was not found.", certificatePath);
+                    {
+                        logger.LogWarning(
+                            "Configured LocalGPT network TLS certificate is missing at {CertificatePath}. " +
+                            "Continuing the optional network endpoint over HTTP without TLS. Restore or regenerate a valid server certificate to restore HTTPS.",
+                            certificatePath);
+                        certificatePath = string.Empty;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            using var endpointCertificate = X509CertificateLoader.LoadPkcs12FromFile(
+                                certificatePath, certificatePassword, X509KeyStorageFlags.EphemeralKeySet);
+                            // A certificate that advertises EKU must explicitly permit HTTPS server authentication.
+                            // This preflight avoids Kestrel aborting the entire LocalGPT process at host startup.
+                            var enhancedKeyUsages = endpointCertificate.Extensions.OfType<X509EnhancedKeyUsageExtension>().ToList();
+                            var supportsServerAuthentication = enhancedKeyUsages.Count == 0 ||
+                                enhancedKeyUsages.Any(extension => extension.EnhancedKeyUsages.Cast<System.Security.Cryptography.Oid>()
+                                    .Any(usage => string.Equals(usage.Value, "1.3.6.1.5.5.7.3.1", StringComparison.Ordinal)));
+                            if (!endpointCertificate.HasPrivateKey ||
+                                DateTime.UtcNow < endpointCertificate.NotBefore.ToUniversalTime() ||
+                                DateTime.UtcNow > endpointCertificate.NotAfter.ToUniversalTime() ||
+                                !supportsServerAuthentication)
+                            {
+                                throw new InvalidOperationException(
+                                    "Configured network TLS certificate has no usable private key, is outside its validity period, or lacks Server Authentication EKU.");
+                            }
+                        }
+                        catch (Exception ex) when (ex is System.Security.Cryptography.CryptographicException or InvalidOperationException or IOException or UnauthorizedAccessException)
+                        {
+                            logger.LogWarning(ex,
+                                "Configured LocalGPT network TLS certificate is unusable at {CertificatePath}. " +
+                                "The optional network endpoint continues over HTTP. Regenerate a valid HTTPS server certificate; traffic is NOT encrypted.",
+                                certificatePath);
+                            certificatePath = string.Empty;
+                        }
+                    }
                 }
 
                 return new RemoteWebEndpointOptions

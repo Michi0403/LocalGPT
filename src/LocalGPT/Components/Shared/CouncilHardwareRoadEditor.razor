@@ -36,7 +36,7 @@
                             <small>@GetRouteEndpointLabel(route)</small>
                         </div>
                         <label class="inline-dx-check compact">
-                            <DxCheckBox Checked="@route.IsEnabled" CheckedChanged="@((bool value) => SetEnabled(route, value))" />
+                            <DxCheckBox ValidationEnabled="false" Checked="@route.IsEnabled" CheckedChanged="@((bool value) => SetEnabled(route, value))" />
                             <span>Enabled</span>
                         </label>
                     </header>
@@ -82,7 +82,7 @@
 
                     <div class="council-road-load-row">
                         <label class="inline-dx-check compact" title="Enable a model-specific load percentage instead of the session-wide value.">
-                            <DxCheckBox Checked="@route.LoadPercentOverride.HasValue" CheckedChanged="@((bool value) => ToggleOverride(route, value))" />
+                            <DxCheckBox ValidationEnabled="false" Checked="@route.LoadPercentOverride.HasValue" CheckedChanged="@((bool value) => ToggleOverride(route, value))" />
                             <span>Model override</span>
                         </label>
                         <label class="council-road-load-editor">Load percent

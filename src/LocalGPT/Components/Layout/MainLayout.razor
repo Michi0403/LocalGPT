@@ -50,13 +50,6 @@
     <aside class="localgpt-assistant-rail" aria-label="LocalGPT approvals and Council tools">
         <HumanCollaborationInbox />
         <CouncilSpoolerPanel />
-        @if (IsInstallPage)
-        {
-            <nav class="localgpt-page-scroll-assist" aria-label="@(Localization.Get("Navigation.ScrollAssist", fallback: "Page scrolling"))">
-                <a href="#install-scroll-top" data-enhance-nav="false" aria-label="@(Localization.Get("Navigation.ScrollUp", fallback: "Scroll to top"))">▲</a>
-                <a href="#install-scroll-bottom" data-enhance-nav="false" aria-label="@(Localization.Get("Navigation.ScrollDown", fallback: "Scroll to bottom"))">▼</a>
-            </nav>
-        }
     </aside>
 </div>
     </Template>

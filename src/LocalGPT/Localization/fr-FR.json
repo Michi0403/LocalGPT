@@ -2398,5 +2398,13 @@
   "Text.Storage": "Storage",
   "Text.hidden␠when␠the␠consuming␠section␠allows␠hiding": "hidden when the consuming section allows hiding",
   "Text.Local␠AI␠runtimes": "Local AI runtimes",
-  "Text.Direct␠model␠sources,␠Python␠capabilities,␠optional␠hubs": "Direct model sources, Python capabilities, optional hubs"
+  "Text.Direct␠model␠sources,␠Python␠capabilities,␠optional␠hubs": "Direct model sources, Python capabilities, optional hubs",
+  "Install.Certificate.KeySize": "RSA key size (select one)",
+  "Install.Certificate.Hash": "Hash algorithm (select one)",
+  "Install.Certificate.KeyUsages": "X.509 Key Usage (combine flags)",
+  "Install.Certificate.KeyUsageHelp": "Select one or more key usages. TLS server defaults: DigitalSignature + KeyEncipherment. KeyCertSign/CRL signing require CA mode; EncipherOnly/DecipherOnly require KeyAgreement.",
+  "Install.Certificate.ExtendedKeyUsages": "Extended Key Usage (combine purposes)",
+  "Install.Certificate.EkuHelp": "Choose the intended certificate purposes. ServerAuthentication is mandatory if you assign this certificate to the HTTPS listener.",
+  "Install.Certificate.CaMode": "Certificate authority",
+  "Install.Certificate.CaHelp": "Issue a CA certificate (requires KeyCertSign and no end-entity EKUs)"
 }

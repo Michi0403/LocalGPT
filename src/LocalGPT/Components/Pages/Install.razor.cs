@@ -80,10 +80,15 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-        InstallSectionUserSelected = true;
-        ActiveInstallSection = key;
-        return Task.CompletedTask;
-    
+            InstallSectionUserSelected = true;
+            ActiveInstallSection = key;
+            // Populate only the workbench the user opened. These are supervised,
+            // non-blocking service calls; they do not hold the Blazor event loop.
+            if (string.Equals(key, "local-ai", StringComparison.Ordinal) && !LocalAiBusy)
+                TaskRunner.Run(nameof(Install), "ProbeLocalAiRuntimeOnOpen", _ => ProbeLocalAiRuntimeAsync());
+            if (string.Equals(key, "toolchains", StringComparison.Ordinal) && !ToolchainRuntimeBusy)
+                TaskRunner.Run(nameof(Install), "RefreshToolchainsOnOpen", _ => RefreshToolchainRuntimeManagementAsync());
+            return Task.CompletedTask;
         }
         catch (Exception __componentMethodException)
         {
@@ -144,44 +149,19 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private NetworkCertificateCreateRequest CertificateRequest = new();
     /// <summary>
-    /// Gets the certificate key sizes collection maintained or exposed by this install instance for downstream processing.
-    /// </summary>
-    /// <value>The certificate key sizes value exposed by <see cref="Install"/>.</value>
-    private IReadOnlyList<NetworkCertificateKeySize> CertificateKeySizes { get; } = Enum.GetValues<NetworkCertificateKeySize>();
-    /// <summary>
-    /// Gets the certificate hashes collection maintained or exposed by this install instance for downstream processing.
-    /// </summary>
-    /// <value>The certificate hashes value exposed by <see cref="Install"/>.</value>
-    private IReadOnlyList<NetworkCertificateHash> CertificateHashes { get; } = Enum.GetValues<NetworkCertificateHash>();
-    /// <summary>
-    /// Gets the certificate store locations collection maintained or exposed by this install instance for downstream processing.
-    /// </summary>
-    /// <value>The certificate store locations value exposed by <see cref="Install"/>.</value>
-    private IReadOnlyList<System.Security.Cryptography.X509Certificates.StoreLocation> CertificateStoreLocations { get; } = Enum.GetValues<System.Security.Cryptography.X509Certificates.StoreLocation>();
-    /// <summary>
-    /// Gets the certificate store names collection maintained or exposed by this install instance for downstream processing.
-    /// </summary>
-    /// <value>The certificate store names value exposed by <see cref="Install"/>.</value>
-    private IReadOnlyList<System.Security.Cryptography.X509Certificates.StoreName> CertificateStoreNames { get; } = Enum.GetValues<System.Security.Cryptography.X509Certificates.StoreName>();
-    /// <summary>
     /// Stores the internal use created certificate for remote endpoint state used by <see cref="Install"/> while executing its surrounding workflow.
     /// </summary>
-    private bool UseCreatedCertificateForRemoteEndpoint = true;
     /// <summary>
     /// Stores the internal is certificate busy state used by <see cref="Install"/> while executing its surrounding workflow.
     /// </summary>
     private bool IsCertificateBusy;
-    /// <summary>
-    /// Stores the internal certificate status state used by <see cref="Install"/> while executing its surrounding workflow.
-    /// </summary>
-    private string CertificateStatus = string.Empty;
     /// <summary>
     /// Gets the network endpoint preview value that forms part of the install state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The network endpoint preview value exposed by <see cref="Install"/>.</value>
     private string NetworkEndpointPreview => !NetworkModel.Enabled || NetworkModel.Port <= 0
         ? "disabled (loopback-only LocalGPT remains active)"
-        : $"{(string.IsNullOrWhiteSpace(NetworkModel.CertificatePath) ? "http" : "https")}://{(string.IsNullOrWhiteSpace(NetworkModel.Address) ? "0.0.0.0" : NetworkModel.Address)}:{NetworkModel.Port}";
+        : $"{(string.IsNullOrWhiteSpace(NetworkModel.CertificatePath) ? "HTTP requested" : "HTTPS requested; certificate must pass startup validation")} on {(string.IsNullOrWhiteSpace(NetworkModel.Address) ? "0.0.0.0" : NetworkModel.Address)}:{NetworkModel.Port} (not the active listener)";
     /// <summary>
     /// Stores the internal log state used by <see cref="Install"/> while executing its surrounding workflow.
     /// </summary>

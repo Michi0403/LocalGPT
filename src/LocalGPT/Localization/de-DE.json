@@ -2398,5 +2398,13 @@
   "Text.Storage": "Speicher",
   "Text.hidden␠when␠the␠consuming␠section␠allows␠hiding": "ausgeblendet, wenn der verwendende Abschnitt das Ausblenden erlaubt",
   "Text.Local␠AI␠runtimes": "Lokale KI-Laufzeiten",
-  "Text.Direct␠model␠sources,␠Python␠capabilities,␠optional␠hubs": "Direkte Modellquellen, Python-Fähigkeiten und optionale Hubs"
+  "Text.Direct␠model␠sources,␠Python␠capabilities,␠optional␠hubs": "Direkte Modellquellen, Python-Fähigkeiten und optionale Hubs",
+  "Install.Certificate.KeySize": "RSA-Schlüsselgröße (eine auswählen)",
+  "Install.Certificate.Hash": "Hashalgorithmus (einen auswählen)",
+  "Install.Certificate.KeyUsages": "X.509-Schlüsselverwendung (kombinierbar)",
+  "Install.Certificate.KeyUsageHelp": "Eine oder mehrere Schlüsselverwendungen auswählen. TLS-Server-Standard: DigitalSignature + KeyEncipherment. KeyCertSign/CRL-Signatur benötigen CA-Modus; EncipherOnly/DecipherOnly benötigen KeyAgreement.",
+  "Install.Certificate.ExtendedKeyUsages": "Erweiterte Schlüsselverwendung (kombinierbar)",
+  "Install.Certificate.EkuHelp": "Zertifikatszwecke auswählen. ServerAuthentication ist erforderlich, wenn das Zertifikat für den HTTPS-Endpunkt verwendet wird.",
+  "Install.Certificate.CaMode": "Zertifizierungsstelle",
+  "Install.Certificate.CaHelp": "CA-Zertifikat ausstellen (benötigt KeyCertSign und keine Endentitäts-EKUs)"
 }

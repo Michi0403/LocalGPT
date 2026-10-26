@@ -64,27 +64,52 @@ public sealed class LocalAiAcquisitionService(
                 if (response.Content.Headers.ContentLength is > MaximumSourceBytes)
                     throw new InvalidOperationException("The local-AI source archive exceeds LocalGPT's 2 GiB direct-download limit.");
 
-                var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-                await using var configuredInputAsyncDisposal = input.ConfigureAwait(false);
-                var output = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                await using var configuredOutputAsyncDisposal = output.ConfigureAwait(false);
+                // Complete and dispose the writer BEFORE publishing the archive. On Windows an
+                // open FileShare.None stream prevents File.Move, even within the same process.
                 using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-                var buffer = new byte[128 * 1024];
                 long total = 0;
-                while (true)
+                await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
-                    if (read == 0)
-                        break;
-                    total += read;
-                    if (total > MaximumSourceBytes)
-                        throw new InvalidOperationException("The local-AI source archive exceeded LocalGPT's 2 GiB direct-download limit while streaming.");
-                    hash.AppendData(buffer, 0, read);
-                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    await using (var output = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write,
+                        FileShare.None, 128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                    {
+                        var buffer = new byte[128 * 1024];
+                        while (true)
+                        {
+                            var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                            if (read == 0) break;
+                            total += read;
+                            if (total > MaximumSourceBytes)
+                                throw new InvalidOperationException("The local-AI source archive exceeded LocalGPT's 2 GiB direct-download limit while streaming.");
+                            hash.AppendData(buffer, 0, read);
+                            await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                        }
+                        await output.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    }
                 }
-                await output.FlushAsync(cancellationToken).ConfigureAwait(false);
-                File.Move(temporaryPath, finalPath, overwrite: true);
+                // Content-addressed immutable files avoid overwriting a model source that an
+                // installer or another concurrent request is currently reading. Repeated
+                // downloads of identical content reuse the published archive.
                 var digest = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+                var archivePath = Path.Combine(sourceRoot,
+                    Path.GetFileNameWithoutExtension(source.SourceFileName) + "-sha256-" + digest + Path.GetExtension(source.SourceFileName));
+                if (File.Exists(archivePath))
+                {
+                    File.Delete(temporaryPath);
+                }
+                else
+                {
+                    try
+                    {
+                        File.Move(temporaryPath, archivePath);
+                    }
+                    catch (IOException) when (File.Exists(archivePath))
+                    {
+                        // Another downloader published the same digest first; preserve it.
+                        File.Delete(temporaryPath);
+                    }
+                }
+                finalPath = archivePath;
                 logger.LogInformation("Downloaded reviewed local-AI source {SourceKey} with {Bytes} bytes; URL and local path were omitted from logs.", source.Key, total);
                 return new LocalAiSourceDownloadResult
                 {

@@ -70,7 +70,7 @@
             @foreach (var reviewer in Models.OrderBy(ReviewerPolicy.GetPriority).ThenBy(model => model.DisplayName, StringComparer.OrdinalIgnoreCase))
             {
                 <label>
-                    <DxCheckBox Checked="@reviewerSelectionKeys.Contains(reviewer.SelectionKey)"
+                    <DxCheckBox ValidationEnabled="false" Checked="@reviewerSelectionKeys.Contains(reviewer.SelectionKey)"
                                 CheckedChanged="@((bool selected) => ToggleReviewer(reviewer.SelectionKey, selected))" />
                     <span>@reviewer.DisplayName</span>
                 </label>

@@ -175,7 +175,7 @@
                     Memorize transcript
                 </label>
                 <label title="Ask the council to prepare an immutable change-review heartbeat. No files are written and no build is started until a later explicit approval of the exact review hash.">
-                    <DxCheckBox Checked="@Request.GenerateImplementationArtifact"
+                    <DxCheckBox ValidationEnabled="false" Checked="@Request.GenerateImplementationArtifact"
                                 CheckedChanged="@((bool value) => ToggleArtifactGeneration(value))" />
                     Prepare code-generation change review
                 </label>

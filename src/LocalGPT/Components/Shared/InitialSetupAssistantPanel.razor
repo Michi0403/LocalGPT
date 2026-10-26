@@ -45,59 +45,14 @@
             <div class="alert alert-secondary">The AI-guided Setup Council becomes available here as soon as LocalGPT can see at least one installed local model. Until then, use the same setup functions manually below to bootstrap the first provider/model.</div>
         }
         <div class="initial-setup-grid">
-            <article class="initial-setup-card">
-                <h4>1. Local host hardware</h4>
-                <OperationStatusStrip Busy='@BusyFor("hardware")' Text='@(BusyFor("hardware") ? busyText : string.Empty)' Detail='@(BusyFor("hardware") ? T("Live details are mirrored to the shared operational console below.") : string.Empty)' />
-                <p>LocalGPT detects the physical host CPU, RAM/unified memory and every GPU it can identify. The optional CanIRun.ai hardware match is separate so a user can choose the catalog variant without overwriting LocalGPT's detected hardware facts.</p>
-                <label>Physical host endpoint
-                    <DxTextBox @bind-Text="hardwareEndpoint" CssClass="localgpt-editor" />
-                </label>
-                <div class="initial-setup-hardware-list">
-                    @foreach (var hostGroup in hardware.GroupBy(device =>
-                        string.IsNullOrWhiteSpace(device.HostKey) ? device.Endpoint : device.HostKey,
-                        StringComparer.OrdinalIgnoreCase))
-                    {
-                        var primaryDevice = hostGroup.First();
-                        <div class="initial-setup-physical-host" @key="primaryDevice.Key" aria-label="Physical Ollama host">
-                            <h5>Physical host · @primaryDevice.Endpoint</h5>
-                            <div class="initial-setup-host-facts">
-                                <label>Provider endpoint / physical host
-                                    <DxTextBox Text="@primaryDevice.Endpoint"
-                                               TextChanged="@((string endpoint) => SetHardwareGroupEndpoint(hostGroup.Key, endpoint))"
-                                               CssClass="localgpt-editor" />
-                                </label>
-                                <label>CPU / SoC<DxTextBox @bind-Text="primaryDevice.CpuName" CssClass="localgpt-editor" /></label>
-                                <label>System / unified RAM GiB<InvariantDoubleEditor @bind-Value="primaryDevice.SystemMemoryGiB" Min="0" Step="0.25" DecimalPlaces="2" /></label>
-                            </div>
-                            <div class="initial-setup-accelerator-list">
-                                @foreach (var device in hostGroup)
-                                {
-                                    <div class="initial-setup-hardware-row" @key="device.Key">
-                                        <label class="initial-setup-hardware-use"><DxCheckBox @bind-Checked="device.Selected" /> Use this accelerator/device row</label>
-                                        <label>GPU / accelerator (optional)<DxTextBox @bind-Text="device.Name" CssClass="localgpt-editor" /></label>
-                                        <label>GPU vendor<DxTextBox @bind-Text="device.Vendor" CssClass="localgpt-editor" /></label>
-                                        <label>Dedicated VRAM GiB<InvariantDoubleEditor @bind-Value="device.DedicatedVramGiB" Min="0" Step="0.25" DecimalPlaces="2" /></label>
-                                        <label class="initial-setup-hardware-canirun">CanIRun.ai hardware match (optional catalog variant)<DxTextBox @bind-Text="device.CanIRunHardwareName" CssClass="localgpt-editor" /></label>
-                                        <DxButton CssClass="localgpt-native-button initial-setup-hardware-remove" Click="() => RemoveHardware(device)">Remove device row</DxButton>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-                <div class="initial-setup-actions">
-                    <DxButton CssClass="localgpt-native-button" Click="AddHardware">Add hardware row</DxButton>
-                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="DetectLocalHardwareAsync">Detect local hardware</DxButton>
-                    <DxButton CssClass="localgpt-native-button" Enabled="@(!busy)" Click="SaveHardwareAsync">Save reviewed list</DxButton>
-                </div>
-                <details>
-                    <summary>HWiNFO text import</summary>
-                    <p>The report stays local. LocalGPT deterministically extracts all supported GPU-memory sections plus CPU/RAM/OS facts.</p>
-                    <DxMemo @bind-Text="hwInfoText" CssClass="localgpt-editor" Rows="6" NullText="Paste HWiNFO text export" />
-                    <DxFileInput FilesUploading="ReadHwInfoFileAsync" UploadMode="UploadMode.OnButtonClick" MaxFileCount="1" MaxFileSize="8388608" AcceptedFileTypes="@HwInfoAcceptedTypes" AllowedFileExtensions="@HwInfoAllowedExtensions" />
-                    <DxButton CssClass="localgpt-native-button" Enabled="@(!(busy || string.IsNullOrWhiteSpace(hwInfoText)))" Click="ImportHwInfoAsync">Import HWiNFO</DxButton>
-                </details>
-            </article>
+            <InitialSetupHardwareForm Hardware="@hardware" HardwareEndpoint="@hardwareEndpoint"
+                                      HardwareEndpointChanged="@((string value) => hardwareEndpoint = value)"
+                                      HwInfoText="@hwInfoText" HwInfoTextChanged="@((string value) => hwInfoText = value)"
+                                      Busy="@busy" HardwareBusy="@(BusyFor("hardware"))"
+                                      BusyText="@busyText" StatusDetail='@T("Live details are mirrored to the shared operational console below.")'
+                                      OnAddHardware="AddHardware" OnRemoveHardware="RemoveHardware"
+                                      OnDetectHardware="DetectLocalHardwareAsync" OnSaveHardware="SaveHardwareAsync"
+                                      OnImportHwInfo="ImportHwInfoAsync" OnUploadHwInfo="ReadHwInfoFileAsync" />
 
             <article class="initial-setup-card">
                 <h4>2. Optional CanIRun.ai hardware-fit model discovery</h4>
@@ -396,8 +351,8 @@
                             var selected = selectedModels.Contains(model.SelectionKey);
                             var preferred = preferredCuratorModels.Contains(model.SelectionKey);
                             <div class="initial-setup-installed-row" @key="model.SelectionKey">
-                                <label class="localgpt-check-row initial-setup-installed-toggle"><DxCheckBox Checked="@selected" CheckedChanged="@((bool value) => ToggleModel(model.SelectionKey, value))" CssClass="localgpt-check" /><span>@T("Use")</span></label>
-                                <label class="localgpt-check-row initial-setup-installed-toggle"><DxCheckBox Checked="@preferred" CheckedChanged="@((bool value) => TogglePreferredModel(model.SelectionKey, value))" CssClass="localgpt-check" /><span>@T("Curator")</span></label>
+                                <label class="localgpt-check-row initial-setup-installed-toggle"><DxCheckBox ValidationEnabled="false" Checked="@selected" CheckedChanged="@((bool value) => ToggleModel(model.SelectionKey, value))" CssClass="localgpt-check" /><span>@T("Use")</span></label>
+                                <label class="localgpt-check-row initial-setup-installed-toggle"><DxCheckBox ValidationEnabled="false" Checked="@preferred" CheckedChanged="@((bool value) => TogglePreferredModel(model.SelectionKey, value))" CssClass="localgpt-check" /><span>@T("Curator")</span></label>
                                 <div class="initial-setup-installed-identity"><strong>@model.DisplayName</strong><code>@model.EndpointLabel</code></div>
                             </div>
                         }

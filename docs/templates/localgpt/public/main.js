@@ -569,6 +569,48 @@ function getMermaidTheme() {
   return document.documentElement.getAttribute("data-bs-theme") === "dark" ? "dark" : "default";
 }
 
+function clippedMermaidNodeLabels(block) {
+  // Actual rendered label extents, never guesses from character count.
+  // Supports text/tspan and foreignObject Mermaid node renderers.
+  const svg = block.querySelector('svg');
+  if (!svg) return [];
+  return [...svg.querySelectorAll('.node')].flatMap(node => {
+    const shape = node.querySelector('rect, polygon, ellipse, path');
+    const label = node.querySelector('.label, .nodeLabel, foreignObject, text');
+    if (!shape || !label) return [];
+    const outline = shape.getBoundingClientRect();
+    const measured = label.getBoundingClientRect();
+    if (!outline.width || !outline.height || !measured.width || !measured.height) return [];
+    const allowance = 3;
+    const clipped = measured.left < outline.left - allowance || measured.right > outline.right + allowance
+      || measured.top < outline.top - allowance || measured.bottom > outline.bottom + allowance;
+    return clipped ? [{ node, shape, label, outline, measured }] : [];
+  });
+}
+
+function hasClippedMermaidLabels(block) {
+  return clippedMermaidNodeLabels(block).length > 0;
+}
+
+function fitAlreadyRenderedMermaidLabels(block) {
+  // DocFX may have rendered Mermaid before our recovery hook, consuming the
+  // original source. Instead of resetting the diagram with missing source,
+  // scale only overflowing text inside its existing SVG node boxes.
+  for (const entry of clippedMermaidNodeLabels(block)) {
+    const text = entry.node.querySelector('text')
+      || entry.node.querySelector('foreignObject .nodeLabel')
+      || entry.node.querySelector('foreignObject div');
+    if (!text) continue;
+    const ratio = Math.min(1, (entry.outline.width - 8) / entry.measured.width,
+      (entry.outline.height - 7) / entry.measured.height);
+    const size = Number.parseFloat(window.getComputedStyle(text).fontSize);
+    if (!Number.isFinite(size) || ratio <= 0 || ratio >= 1) continue;
+    // At least 9px remains readable; a warning still reports more severe overflow.
+    text.style.fontSize = `${Math.max(9, size * ratio)}px`;
+  }
+  return !hasClippedMermaidLabels(block);
+}
+
 async function recoverMermaidDiagrams() {
   try {
       // Convert any legacy DocFX code fences into attached Mermaid nodes before Mermaid
@@ -588,7 +630,15 @@ async function recoverMermaidDiagrams() {
 
       const pendingBlocks = [...document.querySelectorAll(".mermaid")]
         .filter(block => !block.querySelector("svg") && block.getAttribute("data-processed") !== "true");
-      if (pendingBlocks.length === 0) return true;
+      for (const block of pendingBlocks) {
+        // Preserve the author-owned Mermaid source for a one-time layout recovery.
+        if (!block.getAttribute('data-localgpt-mermaid-source'))
+          block.setAttribute('data-localgpt-mermaid-source', block.textContent || '');
+      }
+      const renderedBlocks = [...document.querySelectorAll('.mermaid')]
+        .filter(block => block.querySelector('svg'));
+      const desktop = window.matchMedia('(min-width: 768px)').matches;
+      if (pendingBlocks.length === 0 && (!desktop || !renderedBlocks.some(hasClippedMermaidLabels))) return true;
 
       const themeScript = document.querySelector('script[data-localgpt-kawaii-script]');
       const moduleUrl = new URL("../public/mermaid.core-PFJTYFYY.min.js", themeScript?.src || import.meta.url);
@@ -605,7 +655,47 @@ async function recoverMermaidDiagrams() {
         flowchart: { htmlLabels: false, useMaxWidth: true, wrappingWidth: 180 }
       });
 
-      await mermaid.run({ nodes: pendingBlocks, suppressErrors: false });
+      if (pendingBlocks.length) await mermaid.run({ nodes: pendingBlocks, suppressErrors: false });
+      // Inspect even pre-rendered DocFX diagrams; otherwise a clipped SVG can
+      // mistakenly be marked complete before this recovery hook runs.
+      if (desktop) {
+        const clipped = [...document.querySelectorAll('.mermaid')].filter(hasClippedMermaidLabels);
+        if (clipped.length) {
+          mermaid.initialize({
+            startOnLoad: false,
+            theme: getMermaidTheme(),
+            securityLevel: 'strict',
+            flowchart: { htmlLabels: true, useMaxWidth: false, wrappingWidth: 230 }
+          });
+          for (const block of clipped) {
+            const oldMarkup = block.innerHTML;
+            const source = block.getAttribute('data-localgpt-mermaid-source');
+            if (!source) {
+              // An already-rendered DocFX diagram can have no recoverable source.
+              // Never wipe its SVG; correct its measured labels in place.
+              if (!fitAlreadyRenderedMermaidLabels(block))
+                console.warn('localgpt diagram has unrecoverable label overflow.');
+              continue;
+            }
+            try {
+              block.textContent = source;
+              block.removeAttribute('data-processed');
+              await mermaid.run({ nodes: [block], suppressErrors: false });
+              if (!block.querySelector('svg') || hasClippedMermaidLabels(block)) {
+                // Do not sacrifice a usable diagram for an unsuccessful recovery.
+                block.innerHTML = oldMarkup;
+                block.setAttribute('data-processed', 'true');
+                if (!fitAlreadyRenderedMermaidLabels(block))
+                  console.warn('localgpt Mermaid diagram label repair was inconclusive.');
+              }
+            } catch (error) {
+              block.innerHTML = oldMarkup;
+              block.setAttribute('data-processed', 'true');
+              reportDocumentationError('mermaidLabelRecovery', error);
+            }
+          }
+        }
+      }
       for (const block of pendingBlocks) {
         block.classList.add("localgpt-mermaid-diagram");
         if (block.querySelector("svg")) block.setAttribute("data-localgpt-mermaid-rendered", "true");
@@ -638,6 +728,24 @@ function scheduleMermaidRecovery() {
   };
 
   window.setTimeout(() => void retry(), retryDelays[0]);
+  // DocFX's own Mermaid renderer may finish after the first recovery check.
+  // Bounded later audits cover that race without observing/rebuilding the DOM.
+  const lateAudit = async () => {
+    if (running) return;
+    running = true;
+    try { await recoverMermaidDiagrams(); }
+    finally { running = false; }
+  };
+  window.setTimeout(() => void lateAudit(), 750);
+  window.setTimeout(() => void lateAudit(), 2200);
+  let wasDesktop = window.matchMedia('(min-width: 768px)').matches;
+  window.addEventListener('resize', () => {
+    const desktop = window.matchMedia('(min-width: 768px)').matches;
+    if (wasDesktop !== desktop) {
+      wasDesktop = desktop;
+      window.setTimeout(() => void lateAudit(), 100);
+    }
+  }, { passive: true });
 }
 
 // The documentation tear is ephemeral presentation state. It never edits DocFX nodes or sources.
@@ -803,6 +911,7 @@ function createKawaiiTearSession(target) {
 }
 
 function clearKawaiiTearSession() {
+  removeKawaiiTouchPaw();
   if (!kawaiiTearSession) return;
   const session = kawaiiTearSession;
   if (session.frame) window.cancelAnimationFrame(session.frame);
@@ -899,13 +1008,60 @@ function playKawaiiScratchSound(dragging = false) {
   }
 }
 
+let kawaiiTouchPaw = null;
+
+function removeKawaiiTouchPaw() {
+  kawaiiTouchPaw?.remove();
+  kawaiiTouchPaw = null;
+}
+
+function moveKawaiiTouchPaw(x, y) {
+  if (!kawaiiTouchPaw) {
+    const overlay = ensureKawaiiPointerOverlay();
+    if (!overlay) return;
+    kawaiiTouchPaw = document.createElement('span');
+    kawaiiTouchPaw.className = 'localgpt-cursor-paw localgpt-touch-paw';
+    kawaiiTouchPaw.setAttribute('aria-hidden', 'true');
+    kawaiiTouchPaw.innerHTML = makeKawaiiGalaxyPaw();
+    overlay.appendChild(kawaiiTouchPaw);
+  }
+  kawaiiTouchPaw.style.left = `${x}px`;
+  kawaiiTouchPaw.style.top = `${y}px`;
+  kawaiiTouchPaw.style.opacity = '1';
+}
+
+function installKawaiiTouchScratchToggle() {
+  if (!window.matchMedia('(any-pointer: coarse)').matches || prefersReducedMotion()) return;
+  if (document.querySelector('.localgpt-touch-scratch-toggle')) return;
+  const control = document.createElement('button');
+  control.type = 'button';
+  control.className = 'localgpt-touch-scratch-toggle';
+  control.setAttribute('aria-pressed', 'false');
+  control.setAttribute('aria-label', 'Enable cat scratching with your finger');
+  control.textContent = '🐾 Scratch';
+  control.addEventListener('click', () => {
+    const enabled = document.documentElement.classList.toggle('localgpt-touch-scratch-active');
+    control.setAttribute('aria-pressed', String(enabled));
+    control.setAttribute('aria-label', enabled ? 'Return to normal scrolling' : 'Enable cat scratching with your finger');
+    control.textContent = enabled ? '↕ Scroll' : '🐾 Scratch';
+    if (!enabled) {
+      if (kawaiiTearSession) kawaiiTearSession.active = null;
+      removeKawaiiTouchPaw();
+    }
+  });
+  document.body.appendChild(control);
+}
+
 function installKawaiiTearInteraction() {
   if (document.documentElement.dataset.localgptTearInstalled === 'true') return;
   document.documentElement.dataset.localgptTearInstalled = 'true';
   // Left-button pointer paths accumulate for the current document only.
   document.addEventListener('pointerdown', event => {
     try {
-      if (event.button !== 0 || !event.isPrimary || event.shiftKey || !supportsFinePointer() || prefersReducedMotion()) return;
+      const isTouch = event.pointerType === 'touch';
+      const touchDrawing = isTouch && document.documentElement.classList.contains('localgpt-touch-scratch-active');
+      if (event.button !== 0 || !event.isPrimary || event.shiftKey || prefersReducedMotion()) return;
+      if (isTouch ? !touchDrawing : !(event.pointerType === 'pen' || supportsFinePointer())) return;
       if (event.target instanceof Element && event.target.closest('a,button,input,textarea,select,summary,[contenteditable="true"]')) return;
       const target = kawaiiTearTarget();
       if (!target || !(event.target instanceof Node) || !target.contains(event.target)) return;
@@ -917,6 +1073,7 @@ function installKawaiiTearInteraction() {
       const points = [{ x: event.clientX - rect.left, y: event.clientY - rect.top }];
       session.scratches.push(points);
       session.active = { pointerId: event.pointerId, points };
+      if (isTouch) moveKawaiiTouchPaw(event.clientX, event.clientY);
       playKawaiiScratchSound();
       scheduleKawaiiTearPaint(true);
     } catch (error) { reportDocumentationError('tearPointerDown', error); }
@@ -924,7 +1081,9 @@ function installKawaiiTearInteraction() {
   document.addEventListener('pointermove', event => {
     try {
       const session = kawaiiTearSession;
-      if (!session?.active || session.active.pointerId !== event.pointerId || (event.buttons & 1) === 0) return;
+      if (!session?.active || session.active.pointerId !== event.pointerId) return;
+      if (event.pointerType !== 'touch' && (event.buttons & 1) === 0) return;
+      if (event.pointerType === 'touch') moveKawaiiTouchPaw(event.clientX, event.clientY);
       const rect = session.target.getBoundingClientRect();
       const points = session.active.points;
       const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
@@ -946,6 +1105,7 @@ function installKawaiiTearInteraction() {
       const session = kawaiiTearSession;
       if (!session?.active || session.active.pointerId !== event.pointerId) return;
       session.active = null;
+      removeKawaiiTouchPaw();
       scheduleKawaiiTearPaint(true);
     } catch (error) { reportDocumentationError('tearPointerEnd', error); }
   };
@@ -958,7 +1118,7 @@ function installKawaiiTearInteraction() {
   window.addEventListener('popstate', clearKawaiiTearSession);
   window.addEventListener('hashchange', clearKawaiiTearSession);
   window.addEventListener('pagehide', clearKawaiiTearSession);
-  window.addEventListener('blur', () => { if (kawaiiTearSession) kawaiiTearSession.active = null; });
+  window.addEventListener('blur', () => { if (kawaiiTearSession) kawaiiTearSession.active = null; removeKawaiiTouchPaw(); });
   window.addEventListener('scroll', () => {
     const session = kawaiiTearSession;
     if (!session || !session.target.isConnected) return;
@@ -978,6 +1138,7 @@ function startKawaiiDocumentation() {
       decorateBrand();
       ensureCursorCompanion();
       installKawaiiTearInteraction();
+      installKawaiiTouchScratchToggle();
 
       if (document.documentElement.dataset.localgptKawaiiStarted !== "true") {
         document.documentElement.dataset.localgptKawaiiStarted = "true";

@@ -1,5 +1,14 @@
 <Project>
   <PropertyGroup>
+    <LocalAiDownloadAndPeerUiGuardScript>$(MSBuildThisFileDirectory)build/Assert-LocalAiDownloadAndPeerUI.ps1</LocalAiDownloadAndPeerUiGuardScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalAiDownloadAndPeerUI" BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(LocalAiDownloadAndPeerUiGuardScript)')" Text="Missing mandatory Local AI download and peer UI regression guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalAiDownloadAndPeerUiGuardScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <PropertyGroup>
     <!-- Repository policy/build scripts are required on every supported build host. -->
     <RepositoryPowerShell Condition="'$(RepositoryPowerShell)' == '' and '$(OS)' == 'Windows_NT'">powershell</RepositoryPowerShell>
     <RepositoryPowerShell Condition="'$(RepositoryPowerShell)' == '' and '$(OS)' != 'Windows_NT'">pwsh</RepositoryPowerShell>
@@ -12,6 +21,36 @@
     <RepositoryPowerShellBoundaryScript>$(MSBuildThisFileDirectory)build/Assert-RepositoryPowerShellBoundary.ps1</RepositoryPowerShellBoundaryScript>
     <RuntimePluginCallbackScript>$(MSBuildThisFileDirectory)build/Assert-RuntimePluginSourceCallbacks.ps1</RuntimePluginCallbackScript>
   </PropertyGroup>
+  <PropertyGroup>
+    <InstallerLayoutGuardScript>$(MSBuildThisFileDirectory)build/Assert-InstallerLayout.ps1</InstallerLayoutGuardScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptInstallerLayout"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and ('$(MSBuildProjectName)' == 'LocalGPTInstallerConsole' or '$(MSBuildProjectName)' == 'LocalGPT')">
+    <Error Condition="!Exists('$(InstallerLayoutGuardScript)')" Text="Missing mandatory installer layout guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(InstallerLayoutGuardScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <PropertyGroup>
+    <NetworkCertificateGuardScript>$(MSBuildThisFileDirectory)build/Assert-NetworkCertificateContract.ps1</NetworkCertificateGuardScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptNetworkCertificateContract"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(NetworkCertificateGuardScript)')" Text="Missing mandatory LocalGPT network certificate contract guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(NetworkCertificateGuardScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <PropertyGroup>
+    <InteractiveFormsAndPairingGuardScript>$(MSBuildThisFileDirectory)build/Assert-InteractiveFormsAndPairing.ps1</InteractiveFormsAndPairingGuardScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptInteractiveFormsAndPairing"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(InteractiveFormsAndPairingGuardScript)')" Text="Missing mandatory interactive forms and pairing guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(InteractiveFormsAndPairingGuardScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
   <Target Name="AssertLocalGptPowerShellOnlyMaintenance"
           BeforeTargets="BeforeBuild"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
@@ -331,4 +370,16 @@
     <Exec Condition="Exists('$(RazorComponentAttributeExpressionsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RazorComponentAttributeExpressionsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
+
+  <!-- Reusable Razor subform ownership is a required, read-only maintenance gate. -->
+  <PropertyGroup>
+    <RazorFormEncapsulationGuardScript>$(MSBuildThisFileDirectory)build/Assert-RazorFormEncapsulation.ps1</RazorFormEncapsulationGuardScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGPTRazorFormEncapsulation" BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(RazorFormEncapsulationGuardScript)')" Text="Missing mandatory Razor form encapsulation guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RazorFormEncapsulationGuardScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
+          StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
 </Project>

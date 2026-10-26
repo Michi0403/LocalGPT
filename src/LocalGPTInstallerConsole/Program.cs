@@ -326,6 +326,7 @@ internal static class Program
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error in InstallLocalGptWin.");
+                    throw;
                 }
                 SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
@@ -646,13 +647,19 @@ internal static class Program
 
             var targetPath = Path.Combine(localAppData, "LocalGPT");
 
+            // Force refresh of application binaries must never erase the user database,
+            // MFA material, certificates, learning assets or the persistent setup log.
+            // The explicit --uninstall command remains the separate destructive workflow.
             if (options.ForceDelete)
-                DeleteIfExists(targetPath, logger);
+            {
+                DeleteIfExists(Path.Combine(targetPath, "winx64"), logger);
+                DeleteIfExists(Path.Combine(targetPath, "setupwinx64"), logger);
+            }
 
             Directory.CreateDirectory(targetPath);
 
-            logger.LogInformation($"Extracting LocalGPT app '{zipPath}' to '{targetPath}'");
-            ExtractZipWithFallback(zipPath, targetPath, logger);
+            logger.LogInformation($"Extracting LocalGPT app '{zipPath}' to '{targetPath}' canonical winx64 directory");
+            InstallPortableReleaseAsset(zipPath, targetPath, "winx64", "LocalGPT.exe", logger);
 
             var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
 
@@ -663,8 +670,18 @@ internal static class Program
                 options,
                 setupAsset: true).ConfigureAwait(false);
 
-            logger.LogInformation($"Extracting LocalGPT setup/bootstrap '{setupZipPath}' to '{targetPath}'");
-            ExtractZipWithFallback(setupZipPath, targetPath, logger);
+            logger.LogInformation($"Extracting LocalGPT setup/bootstrap '{setupZipPath}' to '{targetPath}' canonical setupwinx64 directory");
+            InstallPortableReleaseAsset(setupZipPath, targetPath, "setupwinx64", "Start.cmd", logger);
+
+            // Missing canonical files are a failed installation, never an installation success.
+            if (!File.Exists(Path.Combine(targetPath, "winx64", "LocalGPT.exe"))
+                || !File.Exists(Path.Combine(targetPath, "setupwinx64", "Start.cmd")))
+                throw new InvalidDataException("Installed LocalGPT layout is incomplete; refusing to provision shortcuts or report success.");
+
+            // After verifying both new canonical payloads, isolate the exact legacy
+            // release-wrapper directories left by earlier installers. Never sweep
+            // arbitrary data folders or erase anything that could contain user edits.
+            RecoverLegacyVersionedInstallFolders(targetPath, logger);
 
             logger.LogDebug($"LocalGPT installed to '{targetPath}'.");
             logger.LogInformation($"LocalGPT app and setup/bootstrap files now reside in '{targetPath}'.");
@@ -676,6 +693,174 @@ internal static class Program
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in InstallLocalGptAsync. options {options}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Installs a versioned or legacy-flat release ZIP into the canonical, stable payload directory.
+    /// The release archiver may wrap files in a versioned top-level folder; this packaging
+    /// detail must never become an installation path or a shortcut target.
+    /// </summary>
+    /// <param name="zipPath">The already-downloaded application or setup archive.</param>
+    /// <param name="installRoot">The per-user LocalGPT data directory.</param>
+    /// <param name="canonicalFolder">The stable runtime folder name (winx64 or setupwinx64).</param>
+    /// <param name="requiredFile">A file required immediately within the runtime folder.</param>
+    /// <param name="logger">Installer diagnostics.</param>
+    private static void InstallPortableReleaseAsset(string zipPath, string installRoot, string canonicalFolder, string requiredFile, ILogger logger)
+    {
+        if (canonicalFolder is not ("winx64" or "setupwinx64"))
+            throw new ArgumentOutOfRangeException(nameof(canonicalFolder), "Unknown canonical Windows payload folder.");
+
+        // Validate all entries BEFORE extraction, including ZIP traversal and symlink entries.
+        // Reject mixed archive layouts rather than accidentally deploying an unexpected root.
+        string? wrapper = null;
+        using (var archive = ZipFile.OpenRead(zipPath))
+        {
+            var entries = archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name)).ToArray();
+            if (entries.Length == 0)
+                throw new InvalidDataException($"Empty LocalGPT release archive: {zipPath}");
+            foreach (var entry in archive.Entries)
+            {
+                var path = entry.FullName.Replace('\\', '/');
+                var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                if (Path.IsPathRooted(path) || entry.FullName.Contains('\\') || path.Contains(':')
+                    || segments.Any(segment => segment is "." or "..")
+                    || ((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000)
+                    throw new InvalidDataException($"Unsafe LocalGPT release archive entry: {entry.FullName}");
+            }
+
+            var firstSegments = entries.Select(entry => entry.FullName.Replace('\\', '/').Split('/')[0])
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (firstSegments.Length == 1 && entries.All(entry => entry.FullName.Replace('\\', '/').Contains('/')))
+            {
+                var candidate = firstSegments[0];
+                if (candidate.Equals(canonicalFolder, StringComparison.OrdinalIgnoreCase)
+                    || candidate.StartsWith("LocalGPT-", StringComparison.OrdinalIgnoreCase))
+                    wrapper = candidate;
+            }
+
+            var expectedArchiveFile = wrapper is null ? requiredFile : $"{wrapper}/{requiredFile}";
+            if (!entries.Any(entry => entry.FullName.Replace('\\', '/').Equals(expectedArchiveFile, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException($"LocalGPT release archive lacks the root-level {requiredFile} payload; expected entry '{expectedArchiveFile}'.");
+            logger.LogInformation("Validated {Count} release files; archive wrapper={Wrapper}; destination={Destination}.", entries.Length, wrapper ?? "(flat)", canonicalFolder);
+        }
+
+        var stage = Path.Combine(installRoot, $".localgpt-install-{Guid.NewGuid():N}");
+        try
+        {
+            ExtractZipWithFallback(zipPath, stage, logger);
+            var source = wrapper is null ? stage : Path.Combine(stage, wrapper);
+            if (!File.Exists(Path.Combine(source, requiredFile)))
+                throw new InvalidDataException($"LocalGPT release extraction did not produce {requiredFile} in its validated payload root.");
+            var target = Path.Combine(installRoot, canonicalFolder);
+            Directory.CreateDirectory(target);
+            CopyReleasePayload(source, target);
+            if (!File.Exists(Path.Combine(target, requiredFile)))
+                throw new InvalidDataException($"LocalGPT release deployment failed: {requiredFile} missing from {target}.");
+            logger.LogInformation("Installed LocalGPT payload at canonical directory: {Destination}", target);
+        }
+        finally
+        {
+            if (Directory.Exists(stage))
+                Directory.Delete(stage, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Removes old installer-generated, version-bearing payload folders from the user-data
+    /// root by safely moving them into an isolated recovery area after BOTH canonical
+    /// payloads are installed. Preserves every byte; users can inspect old contents
+    /// before deleting the recovery directory. Never searches recursively.
+    /// </summary>
+    /// <param name="installRoot">Canonical LocalGPT user-data directory.</param>
+    /// <param name="logger">Installer diagnostics.</param>
+    private static void RecoverLegacyVersionedInstallFolders(string installRoot, ILogger logger)
+    {
+        if (!File.Exists(Path.Combine(installRoot, "winx64", "LocalGPT.exe")) ||
+            !File.Exists(Path.Combine(installRoot, "setupwinx64", "Start.cmd")))
+            throw new InvalidOperationException("Cannot repair legacy installer folders before both canonical applications have been verified.");
+
+        // The known broken installer left e.g. LocalGPT-6.4.1-win-x64 and
+        // LocalGPT-Setup-6.4.1-win-x64 in the SAME directory as persistent data.
+        // Check only direct children and require the expected root executable.
+        // Treat the old directory as evidence: move it rather than deleting it.
+        foreach (var legacyPath in Directory.EnumerateDirectories(installRoot, "*", SearchOption.TopDirectoryOnly))
+        {
+            var name = Path.GetFileName(legacyPath);
+            if (!TryIdentifyLegacyReleaseWrapper(name, out var requiredFile))
+                continue;
+
+            try
+            {
+                if ((File.GetAttributes(legacyPath) & FileAttributes.ReparsePoint) != 0 ||
+                    !File.Exists(Path.Combine(legacyPath, requiredFile)))
+                {
+                    logger.LogWarning("Legacy release folder {Folder} has no expected payload or is a reparse point; preserving it for manual review.", legacyPath);
+                    continue;
+                }
+
+                var recoveryRoot = Path.Combine(installRoot, "runtime", "recovered-installer-payloads");
+                Directory.CreateDirectory(recoveryRoot);
+                var recoveryPath = Path.Combine(recoveryRoot, name);
+                if (Directory.Exists(recoveryPath) || File.Exists(recoveryPath))
+                    recoveryPath = Path.Combine(recoveryRoot, $"{name}-{Guid.NewGuid():N}");
+
+                Directory.Move(legacyPath, recoveryPath);
+                logger.LogWarning("Recovered obsolete LocalGPT release folder {OldFolder} to {RecoveryFolder}. Canonical application and setup were verified; the original contents were preserved for manual review.", legacyPath, recoveryPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A running old application may lock an executable. Installation is
+                // otherwise valid; log the skipped cleanup instead of hiding it.
+                logger.LogWarning(ex, "Unable to isolate old LocalGPT release folder {Folder}; the canonical installation remains intact.", legacyPath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Recognizes ONLY the obsolete versioned ZIP root layouts generated by
+    /// maintained releases. Names and payload markers must both match.
+    /// </summary>
+    /// <param name="folderName">A direct child folder name under LocalGPT user data.</param>
+    /// <param name="requiredFile">The marker executable expected inside that folder.</param>
+    /// <returns>True for an exact generated release wrapper with a three-part version.</returns>
+    private static bool TryIdentifyLegacyReleaseWrapper(string folderName, out string requiredFile)
+    {
+        requiredFile = string.Empty;
+        const string suffix = "-win-x64";
+        if (!folderName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            return false;
+        var prefix = folderName.StartsWith("LocalGPT-Setup-", StringComparison.OrdinalIgnoreCase)
+            ? "LocalGPT-Setup-" : folderName.StartsWith("LocalGPT-", StringComparison.OrdinalIgnoreCase)
+                ? "LocalGPT-" : string.Empty;
+        if (prefix.Length == 0)
+            return false;
+        var versionText = folderName.Substring(prefix.Length, folderName.Length - prefix.Length - suffix.Length);
+        if (!Version.TryParse(versionText, out var version) || version.Build < 0 || version.Revision >= 0)
+            return false;
+        requiredFile = prefix == "LocalGPT-Setup-" ? "Start.cmd" : "LocalGPT.exe";
+        return true;
+    }
+
+    /// <summary>Copies validated release files into the canonical runtime folder without touching user data.</summary>
+    /// <param name="source">Validated staged payload root.</param>
+    /// <param name="target">Canonical version-independent runtime directory.</param>
+    private static void CopyReleasePayload(string source, string target)
+    {
+        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+        {
+            if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException($"Release payload contains a directory link: {directory}");
+            Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
+        }
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        {
+            if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException($"Release payload contains a file link: {file}");
+            var destination = Path.Combine(target, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination, overwrite: true);
         }
     }
 
@@ -1369,13 +1554,9 @@ internal static class Program
     {
         try
         {
-            var cmdPath = FindLocalGptFile(localGptRoot, cmdFileName, logger);
-
-            if (string.IsNullOrWhiteSpace(cmdPath) || !File.Exists(cmdPath))
-            {
-                logger.LogWarning($"Shortcut target CMD not found, skipping: {cmdFileName}");
-                return;
-            }
+            var cmdPath = Path.Combine(localGptRoot, "setupwinx64", cmdFileName);
+            if (!File.Exists(cmdPath))
+                throw new FileNotFoundException($"LocalGPT canonical setup shortcut target is missing: {cmdPath}", cmdPath);
 
             var workingDirectory = Path.GetDirectoryName(cmdPath);
 
@@ -1393,6 +1574,7 @@ internal static class Program
         catch (Exception ex)
         {
             logger.LogError(ex, $"Error in AddCmdShortcutIfExists. cmdFileName {cmdFileName}");
+            throw;
         }
     }
     /// <summary>

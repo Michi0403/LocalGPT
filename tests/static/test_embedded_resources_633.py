@@ -27,7 +27,7 @@ class EmbeddedResources633Tests(unittest.TestCase):
         self.assertIn('LocalGPT.Knowledge.core-defaults.json', logical_names)
 
     def test_version(self):
-        self.assertIn('<Version>6.4.1</Version>', PROJECT.read_text())
+        self.assertIn('<Version>6.5.2</Version>', PROJECT.read_text())
 
 if __name__ == '__main__':
     unittest.main()

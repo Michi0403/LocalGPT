@@ -16,7 +16,7 @@
     <header class="provider-model-heading">
         @if (ShowSelection)
         {
-            <DxCheckBox id="@SelectionId"
+            <DxCheckBox ValidationEnabled="false" id="@SelectionId"
                         Checked="@Selected"
                         CheckedChanged="@((bool value) => OnSelectionChangedAsync(value))"
                         aria-label="@($"Select {Model.DisplayName} from {Model.EndpointLabel}")" />

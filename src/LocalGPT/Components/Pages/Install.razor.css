@@ -722,14 +722,6 @@
     touch-action: pan-y;
 }
 
-.install-scroll-anchor {
-    display: block;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    pointer-events: none;
-}
-
 .configured-host-hardware {
     margin-top: .5rem;
     border-top: 1px solid var(--bs-border-color, #dee2e6);

@@ -52,7 +52,6 @@
 
 <LocalGptFormLayoutSurface OwnerType="@typeof(Install)" SectionName="page" CanHide="false" CssClass="localgpt-route-layout-surface">
 
-<span id="install-scroll-top" class="install-scroll-anchor" aria-hidden="true"></span>
 <div class="main-container install-page-scroll-owner">
     <ToastWrapper Name="@toastName" />
 
@@ -615,8 +614,9 @@
                     <DxTextBox @bind-Text="NetworkModel.CertificatePassword" Password="true" />
                     <p class="field-help">For reusable deployments prefer LOCALGPT_NETWORK_CERTIFICATE_PASSWORD instead of persisting a production password.</p>
                 </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="Effective after restart">
+                <DxFormLayoutItem Caption="Configured request after restart (not live status)">
                     <div class="installer-status-line"><code>@NetworkEndpointPreview</code></div>
+                    <p class="field-help" role="status">This is a configuration preview, not the running listener. A stored PFX path does not prove HTTPS: if the PFX is missing or invalid, startup currently downgrades the optional listener to HTTP. Inspect the actual Kestrel "Now listening on" entries and TLS warning before using the network endpoint.</p>
                 </DxFormLayoutItem>
             </DxFormLayout>
         </div>
@@ -855,66 +855,9 @@
         <DxFormLayout CssClass="razor-section-layout-owner">
     <DxFormLayoutItem ColSpanMd="12">
         <Template Context="formItemContext008">
-        <div id="tls-certificate" class="installer-workbench-card install-workbench-region" aria-labelledby="certificate-heading">
-            <div class="installer-card-heading">
-                <div>
-                    <h3 id="certificate-heading">Create TLS certificate</h3>
-                    <p class="field-help">Creates a user-requested self-signed server certificate with Server Authentication EKU and SAN entries. A self-signed certificate is encrypted traffic, but browsers still require the certificate or issuing authority to be trusted.</p>
-                </div>
-            </div>
-            <DxFormLayout>
-                <DxFormLayoutItem Caption="Common name">
-                    <DxTextBox @bind-Text="CertificateRequest.CommonName" />
-                </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="Subject alternative names">
-                    <DxMemo Rows="3" @bind-Text="CertificateRequest.SubjectAlternativeNames" />
-                    <p class="field-help">Separate DNS names and IP addresses with semicolons. The current machine name and detected local addresses are prefilled.</p>
-                </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="RSA key size">
-                    <DxComboBox Data="@CertificateKeySizes" @bind-Value="CertificateRequest.KeySize" />
-                </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="Hash algorithm">
-                    <DxComboBox Data="@CertificateHashes" @bind-Value="CertificateRequest.Hash" />
-                </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="Validity (days)">
-                    <DxSpinEdit @bind-Value="CertificateRequest.ValidityDays" Min="1" Max="3650" />
-                </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="Save PFX to">
-                    <DxTextBox @bind-Text="CertificateRequest.OutputPath" />
-                </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="PFX password">
-                    <DxTextBox @bind-Text="CertificateRequest.Password" Password="true" />
-                </DxFormLayoutItem>
-                <DxFormLayoutItem Caption="Certificate store">
-                    <DxCheckBox @bind-Checked="CertificateRequest.InstallToStore" Text="Install the generated certificate into a Windows/.NET certificate store" />
-                </DxFormLayoutItem>
-                @if (CertificateRequest.InstallToStore)
-                {
-                    <DxFormLayoutItem Caption="Store location">
-                        <DxComboBox Data="@CertificateStoreLocations" @bind-Value="CertificateRequest.StoreLocation" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Store name">
-                        <DxComboBox Data="@CertificateStoreNames" @bind-Value="CertificateRequest.StoreName" />
-                    </DxFormLayoutItem>
-                }
-                <DxFormLayoutItem>
-                    <DxCheckBox @bind-Checked="UseCreatedCertificateForRemoteEndpoint" Text="Use the generated PFX for the remote Kestrel endpoint" />
-                </DxFormLayoutItem>
-                <DxFormLayoutItem>
-                    <DxButton Text="@(IsCertificateBusy ? "Creating certificate..." : "Create certificate")"
-                              Enabled="@(!IsCertificateBusy)"
-                              RenderStyle="ButtonRenderStyle.Primary"
-                              RenderStyleMode="ButtonRenderStyleMode.Contained"
-                              Click="CreateNetworkCertificateAsync" />
-                </DxFormLayoutItem>
-                @if (!string.IsNullOrWhiteSpace(CertificateStatus))
-                {
-                    <DxFormLayoutItem Caption="Certificate status">
-                        <div class="installer-status-line">@CertificateStatus</div>
-                    </DxFormLayoutItem>
-                }
-            </DxFormLayout>
-        </div>
+        <NetworkCertificateEditor Request="@CertificateRequest"
+                                  OnCertificateCreated="OnNetworkCertificateCreatedAsync"
+                                  BusyChanged="OnCertificateBusyChangedAsync" />
     </Template>
     </DxFormLayoutItem>
 </DxFormLayout>
@@ -1628,17 +1571,32 @@
                 </div>
                 @if (LocalAiSearchResults.Count > 0)
                 {
-                    <div class="local-ai-model-grid">
-                        @foreach (var model in LocalAiSearchResults)
-                        {
-                            <article class="toolchain-card">
-                                <header><div><h4>@model.ModelId</h4><small>@(string.IsNullOrWhiteSpace(model.PipelineTag) ? model.LibraryName : model.PipelineTag)</small></div></header>
-                                <small>Capabilities: @LocalAiRuntime.FormatCapabilities(model.Capabilities)</small>
-                                <small>@model.Downloads downloads · @model.Likes likes@(model.LastModifiedUtc is null ? string.Empty : $" · updated {model.LastModifiedUtc:yyyy-MM-dd}")@(model.IsGated ? " · gated" : string.Empty)@(model.IsPrivate ? " · private" : string.Empty)</small>
-                                <DxButton Text="Install snapshot" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy && CanInstallLocalAiModel(model))" Click="@(() => InstallHuggingFaceModelAsync(model))" />
-                            </article>
-                        }
-                    </div>
+                    <DxGrid Data="@LocalAiSearchResults" KeyFieldName="ModelId" PageSize="15"
+                            ShowFilterRow="true" ShowSearchBox="true" SearchBoxNullText="Search all loaded model metadata..."
+                            ShowGroupPanel="true" PagerVisible="true">
+                        <Columns>
+                            <DxGridDataColumn FieldName="ModelId" Caption="Model" MinWidth="240" />
+                            <DxGridDataColumn FieldName="Author" Caption="Author" />
+                            <DxGridDataColumn FieldName="PipelineTag" Caption="Pipeline" />
+                            <DxGridDataColumn FieldName="LibraryName" Caption="Library" />
+                            <DxGridDataColumn FieldName="Downloads" Caption="Downloads" />
+                            <DxGridDataColumn FieldName="Likes" Caption="Likes" />
+                            <DxGridDataColumn FieldName="LastModifiedUtc" Caption="Updated UTC" />
+                            <DxGridDataColumn FieldName="IsGated" Caption="Gated" />
+                            <DxGridDataColumn FieldName="IsPrivate" Caption="Private" />
+                            <DxGridDataColumn Caption="Install" Width="160px">
+                                <CellDisplayTemplate Context="hfModelCell">
+                                    @if (hfModelCell.DataItem is HuggingFaceModelSearchResult model)
+                                    {
+                                        <DxButton Text="Install snapshot" RenderStyle="ButtonRenderStyle.Primary"
+                                                  Enabled="@(!LocalAiBusy && CanInstallLocalAiModel(model))"
+                                                  Click="@(() => InstallHuggingFaceModelAsync(model))" />
+                                    }
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                        </Columns>
+                    </DxGrid>
+                    <p class="field-help">Search and sort all returned model properties locally. Provider queries and the existing approval-gated snapshot installation remain unchanged.</p>
                 }
             </details>
 
@@ -1765,7 +1723,6 @@
             </div>
         </div>
     </div>
-    <span id="install-scroll-bottom" class="install-scroll-anchor" aria-hidden="true"></span>
 </div>
 </LocalGptFormLayoutSurface>
     </Template>

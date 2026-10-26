@@ -1,0 +1,97 @@
+app,file,lines,route,form_layout,form_sections,edit_form,data_annotations,validation_messages,dx_editors,native_editors,priority,validation,codebehind_lines
+LocalGPT,src/LocalGPT/Components/App.razor,150,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Layout/CouncilSpoolerPanel.razor,270,child,2,2,0,0,0,1,0,P3 (small component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Layout/Drawer.razor,146,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor,1094,child,7,7,0,0,0,10,0,P1 (large component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Layout/LanguageSwitcher.razor,135,child,1,1,0,0,0,1,0,P3 (small component),Layout/editors; no explicit EditForm,9
+LocalGPT,src/LocalGPT/Components/Layout/MainLayout.razor,240,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Layout/MenuIsland.razor,20,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Layout/NavMenu.razor,60,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Layout/SafeErrorBoundary.razor,120,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Layout/ThemeSwitcher.razor,171,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Layout/ThemeSwitcherContainer.razor,571,child,4,4,0,0,0,0,0,P2 (medium component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Layout/ThemeSwitcherItem.razor,57,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Layout/ToastWrapper.razor,77,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Pages/Chat.razor,1056,/chat,12,18,0,0,0,34,0,P1 (large component),Layout/editors; no explicit EditForm,1825
+LocalGPT,src/LocalGPT/Components/Pages/CouncilTeams.razor,814,/council-teams,6,6,0,0,0,114,0,P2 (medium component),Layout/editors; no explicit EditForm,1178
+LocalGPT,src/LocalGPT/Components/Pages/DataManagement.razor,302,/data-management,2,2,0,0,0,16,0,P3 (small component),Layout/editors; no explicit EditForm,798
+LocalGPT,src/LocalGPT/Components/Pages/Database.razor,1507,/database,3,3,0,0,0,40,0,P1 (large component),Layout/editors; no explicit EditForm,358
+LocalGPT,src/LocalGPT/Components/Pages/DxFunctionCatalog.razor,1118,/dx-functions,9,11,0,0,0,19,0,P1 (large component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Pages/Error.razor,93,/Error,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Pages/GameStudio.razor,190,/game-studio,1,1,0,0,0,26,0,P3 (small component),Layout/editors; no explicit EditForm,684
+LocalGPT,src/LocalGPT/Components/Pages/Help.razor,325,/help,4,4,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Pages/Index.razor,270,/,4,4,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Pages/Install.razor,1718,/install,22,123,0,0,0,153,0,P1 (large component),Layout/editors; no explicit EditForm,1276
+LocalGPT,src/LocalGPT/Components/Pages/MinecraftModBuilder.razor,804,/minecraft-mod-builder,6,6,0,0,0,14,0,P2 (medium component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Pages/ModelCouncil.razor,599,/model-council,12,12,0,0,0,19,0,P2 (medium component),Layout/editors; no explicit EditForm,966
+LocalGPT,src/LocalGPT/Components/Pages/OneWireSecurity.razor,956,/onewire-security,6,6,0,0,0,7,0,P2 (medium component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Pages/ProjectMaintenance.razor,1339,/project-maintenance,2,2,0,0,0,38,0,P1 (large component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Pages/Projects.razor,1331,/projects,4,4,0,0,0,62,0,P1 (large component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Pages/RemoteControl.razor,339,/remote-control,5,5,0,0,0,33,0,P3 (small component),Layout/editors; no explicit EditForm,762
+LocalGPT,src/LocalGPT/Components/Pages/TestLab.razor,1481,/test-lab,5,5,0,0,0,27,0,P1 (large component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Routes.razor,119,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/BoundedNumberEditor.razor,133,child,1,1,0,0,0,1,0,P3 (small component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/ChatGameConsole.razor,504,child,5,5,0,0,0,12,0,P2 (medium component),Layout/editors; no explicit EditForm,9
+LocalGPT,src/LocalGPT/Components/Shared/ChatMicrophone.razor,402,child,1,1,0,0,0,3,0,P3 (small component),Layout/editors; no explicit EditForm,6
+LocalGPT,src/LocalGPT/Components/Shared/ConfigurationWorkbenchNav.razor,85,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/ConfigurationWorkbenchPanel.razor,71,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/CouncilHardwareRoadEditor.razor,439,child,2,2,0,0,0,12,0,P3 (small component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/DocumentationViewerHost.razor,165,child,2,2,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/HumanCollaborationRequestCard.razor,102,child,2,5,0,0,0,4,0,P3 (small component),Layout/editors; no explicit EditForm,147
+LocalGPT,src/LocalGPT/Components/Shared/InitialSetupAssistantPanel.razor,1645,child,2,2,0,0,0,8,0,P1 (large component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/InitialSetupHardwareForm.razor,64,child,1,1,0,0,0,8,0,P3 (small component),Layout/editors; no explicit EditForm,101
+LocalGPT,src/LocalGPT/Components/Shared/InvariantDoubleEditor.razor,85,child,1,1,0,0,0,1,0,P3 (small component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/LayoutStudio.razor,309,child,4,20,0,0,0,15,0,P3 (small component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/LocalConsoleFeed.razor,159,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/LocalGptFormLayoutSurface.razor,320,child,2,2,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/LocalPathExplorer.razor,369,child,1,1,0,0,0,1,0,P3 (small component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/NetworkCertificateEditor.razor,103,child,2,17,1,1,9,14,0,P3 (small component),EditForm + DataAnnotations,172
+LocalGPT,src/LocalGPT/Components/Shared/OperationStatusStrip.razor,39,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/OperationalActivityFeed.razor,212,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/ProviderModelBenchmarkCouncilPanel.razor,579,child,2,2,0,0,0,6,0,P2 (medium component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/ProviderModelBenchmarkEvidenceHistory.razor,380,child,2,2,0,0,0,2,0,P3 (small component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/ProviderModelBenchmarkReportAuditSummary.razor,159,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/ProviderModelBenchmarkTaskEvidence.razor,248,child,5,5,0,0,0,0,0,P3 (small component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/ProviderModelPanel.razor,777,child,2,2,0,0,0,6,0,P2 (medium component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/ProviderRuntimeManagementPanel.razor,895,child,3,20,0,0,0,18,0,P2 (medium component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/ToolchainEnvironmentEditor.razor,195,child,1,1,0,0,0,4,0,P3 (small component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/UploadProcessingAdvisor.razor,725,child,2,8,0,0,0,0,0,P2 (medium component),Layout/display only,8
+LocalGPT,src/LocalGPT/Components/Shared/UserDxFunctionEditor.razor,626,child,2,2,0,0,0,19,0,P2 (medium component),Layout/editors; no explicit EditForm,8
+LocalGPT,src/LocalGPT/Components/Shared/WorkbenchHeader.razor,55,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/AnimationPanel.razor,1584,child,7,7,0,0,0,0,29,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/BarcodeEditor.razor,1174,child,1,1,0,0,0,0,11,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/DataManager.razor,1703,child,7,7,0,0,0,1,25,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/DataVisualEditor.razor,1812,child,2,2,0,0,0,28,0,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/DevExpressColorPicker.razor,131,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/DevExtremeComponentEditor.razor,2786,child,10,10,0,0,0,0,181,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/InspectorPanel.razor,6570,child,25,25,0,0,0,0,126,P0 (giant component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/MediaConverterStudio.razor,2496,child,3,3,0,0,0,4,33,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/MediaStudio.razor,1077,child,13,13,0,0,0,0,63,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/NewPublicationDialog.razor,194,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/PageEffectStudio.razor,551,child,1,1,0,0,0,14,0,P2 (medium component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/PageNavigator.razor,578,child,1,1,0,0,0,0,0,P2 (medium component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/PageSurface.razor,6226,child,1,1,0,0,0,0,0,P0 (giant component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/PanelLibrary.razor,193,child,2,2,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/PanelStudio.razor,4495,child,1,1,0,0,0,62,0,P0 (giant component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/PictureEditor.razor,1280,child,14,14,0,0,0,0,68,P1 (large component),Layout/editors; no explicit EditForm,7710
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/PrintPublication.razor,814,child,2,2,0,0,0,0,0,P2 (medium component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/PublicationRibbon.razor,6130,child,1,1,0,0,0,0,0,P0 (giant component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/PublicationTimeline.razor,1685,child,2,2,0,0,0,0,1,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/SpreadsheetEditor.razor,1161,child,5,5,0,0,0,1,4,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/StoryEditor.razor,2609,child,3,3,0,0,0,0,6,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/StreamingStudio.razor,3033,child,16,16,0,0,0,0,82,P0 (giant component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/SystemFontPicker.razor,66,child,1,1,0,0,0,1,0,P3 (small component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/WordArtPathEditor.razor,492,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Editor/WordArtView.razor,939,child,1,1,0,0,0,0,0,P2 (medium component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Layout/MainLayout.razor,36,child,2,2,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/OrganicPlugins/OrganicApprovalBar.razor,494,child,1,1,0,0,0,0,1,P3 (small component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/OrganicPlugins/OrganicCouncilRequestForm.razor,41,child,2,7,1,1,1,5,0,P3 (small component),EditForm + DataAnnotations,71
+PublisherStudio,src/PublisherStudio.Web/Components/OrganicPlugins/OrganicSecurityPanel.razor,412,child,2,2,0,0,0,0,6,P3 (small component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Pages/Editor.razor,6249,/,3,3,0,0,0,4,16,P0 (giant component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Pages/Error.razor,41,/error,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Pages/Help.razor,379,/help,3,3,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Pages/Localization.razor,286,/localization,3,3,0,0,0,0,3,P3 (small component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Pages/OrganicPlugins.razor,1480,/organic-plugins,12,12,0,0,0,2,17,P1 (large component),Layout/editors; no explicit EditForm,8
+PublisherStudio,src/PublisherStudio.Web/Components/Routes.razor,21,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Shared/DocumentationViewerHost.razor,191,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8
+PublisherStudio,src/PublisherStudio.Web/Components/Shared/UserNotificationHost.razor,196,child,1,1,0,0,0,0,0,P3 (small component),Layout/display only,8

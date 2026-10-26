@@ -65,11 +65,39 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
             if (!Path.IsPathRooted(outputPath)) outputPath = Path.GetFullPath(outputPath);
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
+            if (!Enum.IsDefined(request.KeySize) || !Enum.IsDefined(request.Hash))
+                throw new ArgumentException("Select a supported RSA key size and hash algorithm.", nameof(request));
+            var selectedKeyUsages = (request.KeyUsages ?? []).Distinct().ToArray();
+            if (selectedKeyUsages.Length == 0 || selectedKeyUsages.Contains(X509KeyUsageFlags.None) ||
+                selectedKeyUsages.Any(value => !Enum.IsDefined(value)))
+                throw new ArgumentException("Select at least one individual X.509 key-usage flag.", nameof(request));
+            var keyUsage = selectedKeyUsages.Aggregate(X509KeyUsageFlags.None, (flags, value) => flags | value);
+            if ((keyUsage & (X509KeyUsageFlags.EncipherOnly | X509KeyUsageFlags.DecipherOnly)) != 0 &&
+                (keyUsage & X509KeyUsageFlags.KeyAgreement) == 0)
+                throw new ArgumentException("EncipherOnly/DecipherOnly require KeyAgreement.", nameof(request));
+            if (request.IsCertificateAuthority != ((keyUsage & X509KeyUsageFlags.KeyCertSign) != 0))
+                throw new ArgumentException("CA certificates require KeyCertSign; end-entity certificates must not have KeyCertSign.", nameof(request));
+            if (!request.IsCertificateAuthority && (keyUsage & X509KeyUsageFlags.CrlSign) != 0)
+                throw new ArgumentException("CRL signing requires the Certificate Authority option.", nameof(request));
+            var selectedRoles = (request.ExtendedKeyUsages ?? []).Distinct().ToArray();
+            if (selectedRoles.Any(role => !Enum.IsDefined(role)))
+                throw new ArgumentException("Unknown extended-key-usage role.", nameof(request));
+            if (!request.IsCertificateAuthority && selectedRoles.Length == 0)
+                throw new ArgumentException("An end-entity certificate requires at least one extended-key-usage role.", nameof(request));
+            if (request.IsCertificateAuthority && selectedRoles.Length > 0)
+                throw new ArgumentException("Certificate Authority certificates cannot contain end-entity extended-key-usage roles.", nameof(request));
+            if (request.RequireServerAuthentication &&
+                (request.IsCertificateAuthority ||
+                 !selectedRoles.Contains(NetworkCertificateExtendedKeyUsage.ServerAuthentication) ||
+                 (keyUsage & (X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment)) == 0))
+                throw new ArgumentException("TLS server certificates require Server Authentication EKU and a signing/encipherment key usage.", nameof(request));
+
             var hash = request.Hash switch
             {
+                NetworkCertificateHash.Sha256 => HashAlgorithmName.SHA256,
                 NetworkCertificateHash.Sha384 => HashAlgorithmName.SHA384,
                 NetworkCertificateHash.Sha512 => HashAlgorithmName.SHA512,
-                _ => HashAlgorithmName.SHA256
+                _ => throw new ArgumentOutOfRangeException(nameof(request), "Unsupported hash algorithm.")
             };
 
             using var rsa = RSA.Create((int)request.KeySize);
@@ -78,13 +106,16 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
                 rsa,
                 hash,
                 RSASignaturePadding.Pkcs1);
-            certificateRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
-            certificateRequest.CertificateExtensions.Add(new X509KeyUsageExtension(
-                X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment,
-                true));
-            certificateRequest.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
-                new OidCollection { new Oid("1.3.6.2.5.5.7.3.1", "TLS Web Server Authentication") },
-                false));
+            certificateRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(
+                request.IsCertificateAuthority, request.IsCertificateAuthority, 0, true));
+            certificateRequest.CertificateExtensions.Add(new X509KeyUsageExtension(keyUsage, true));
+            if (selectedRoles.Length > 0)
+            {
+                var extendedKeyUsages = new OidCollection();
+                foreach (var role in selectedRoles)
+                    extendedKeyUsages.Add(MapExtendedKeyUsage(role));
+                certificateRequest.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(extendedKeyUsages, false));
+            }
 
             var sanBuilder = new SubjectAlternativeNameBuilder();
             var sanValues = ParseSubjectAlternativeNames(request.SubjectAlternativeNames, request.CommonName);
@@ -98,6 +129,16 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
             var notBefore = DateTimeOffset.UtcNow.AddMinutes(-5);
             var notAfter = notBefore.AddDays(request.ValidityDays);
             using var certificate = certificateRequest.CreateSelfSigned(notBefore, notAfter);
+            // Fail before touching the previous PFX if the new certificate cannot serve HTTPS.
+            // Kestrel requires the real Server Authentication OID, not a similar-looking OID.
+            var serverAuthenticationOid = "1.3.6.1.5.5.7.3.1";
+            if (request.RequireServerAuthentication && (!certificate.HasPrivateKey ||
+                !certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>()
+                    .Any(extension => extension.EnhancedKeyUsages.Cast<Oid>()
+                        .Any(usage => string.Equals(usage.Value, serverAuthenticationOid, StringComparison.Ordinal)))))
+            {
+                throw new InvalidOperationException("Generated network certificate is not valid for TLS Server Authentication.");
+            }
             var pfx = certificate.Export(X509ContentType.Pfx, request.Password ?? string.Empty);
             var temporaryPath = outputPath + ".tmp";
             await File.WriteAllBytesAsync(temporaryPath, pfx, cancellationToken).ConfigureAwait(false);
@@ -129,6 +170,24 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
             throw;
         }
     }
+
+    /// <summary>Resolves the standards-defined OID for a selected extended-key-usage role.</summary>
+    /// <param name="role">The EKU role selected in the certificate request.</param>
+    /// <returns>The exact OID representing the selected EKU role.</returns>
+    private Oid MapExtendedKeyUsage(NetworkCertificateExtendedKeyUsage role) => role switch
+    {
+        NetworkCertificateExtendedKeyUsage.ServerAuthentication => new Oid("1.3.6.1.5.5.7.3.1", "TLS Web Server Authentication"),
+        NetworkCertificateExtendedKeyUsage.ClientAuthentication => new Oid("1.3.6.1.5.5.7.3.2", "TLS Web Client Authentication"),
+        NetworkCertificateExtendedKeyUsage.CodeSigning => new Oid("1.3.6.1.5.5.7.3.3", "Code Signing"),
+        NetworkCertificateExtendedKeyUsage.EmailProtection => new Oid("1.3.6.1.5.5.7.3.4", "Email Protection"),
+        NetworkCertificateExtendedKeyUsage.IpsecEndSystem => new Oid("1.3.6.1.5.5.7.3.5", "IPsec End System"),
+        NetworkCertificateExtendedKeyUsage.IpsecTunnel => new Oid("1.3.6.1.5.5.7.3.6", "IPsec Tunnel"),
+        NetworkCertificateExtendedKeyUsage.IpsecUser => new Oid("1.3.6.1.5.5.7.3.7", "IPsec User"),
+        NetworkCertificateExtendedKeyUsage.TimeStamping => new Oid("1.3.6.1.5.5.7.3.8", "Time Stamping"),
+        NetworkCertificateExtendedKeyUsage.OcspSigning => new Oid("1.3.6.1.5.5.7.3.9", "OCSP Signing"),
+        NetworkCertificateExtendedKeyUsage.AnyExtendedKeyUsage => new Oid("2.5.29.37.0", "Any Extended Key Usage"),
+        _ => throw new ArgumentOutOfRangeException(nameof(role), "Unsupported certificate role.")
+    };
 
     /// <summary>
     /// Parses subject alternative names as part of the network certificate service workflow, applying the service's runtime policy, state management, and diagnostics as required.

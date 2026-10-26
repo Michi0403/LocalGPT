@@ -115,7 +115,7 @@
                             </table>
                         </div>
                     </details>
-                    @foreach (var peer in _advertisedPeers.OrderBy(item => item.DisplayName))
+                    @foreach (var peer in _advertisedPeers.GroupBy(item => item.PeerId, StringComparer.OrdinalIgnoreCase).Select(group => group.First()).OrderBy(item => item.DisplayName))
                     {
                         <details class="onewire-peer-surface" @key="peer.PeerId">
                             <summary>@peer.DisplayName · @(ConnectionRegistry.IsConnected(peer.PeerId) ? "connected" : "discovered") · @peer.Capabilities.Count method(s)</summary>
@@ -123,7 +123,7 @@
                                 <table class="onewire-protocol-table">
                                     <thead><tr><th>Capability</th><th>Method and route</th><th>Configuration</th><th>Source</th></tr></thead>
                                     <tbody>
-                                        @foreach (var capability in peer.Capabilities.Where(item => item.IsEnabled && item.IsOnline).OrderBy(item => item.Key))
+                                        @foreach (var capability in peer.Capabilities.Where(item => item.IsEnabled && item.IsOnline).GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase).Select(group => group.First()).OrderBy(item => item.Key))
                                         {
                                             <tr @key="capability.Key">
                                                 <td><strong>@capability.DisplayName</strong><small>@capability.Key</small></td>
@@ -154,27 +154,38 @@
                             <div>
                                 <span class="onewire-security-kicker">PAIRING</span>
                                 <h2>Pairing material</h2>
-                                <p>Generate public pairing material from the Identity section, then enroll MFA or exchange the public ticket here.</p>
+                                <p>A fresh, signed public ticket is generated when you open this section. Existing trusted peers persist independently of short-lived pairing tickets. MFA enrollment secrets are shown only after you explicitly request them.</p>
                             </div>
                         </div>
-                        @if (string.IsNullOrWhiteSpace(_pairingTicketJson) && string.IsNullOrWhiteSpace(_otpUri))
+                        @if (string.IsNullOrWhiteSpace(_pairingTicketJson))
                         {
                             <div class="onewire-empty-state">
                                 <strong>No pairing material generated.</strong>
-                                <span>Open Identity and choose “Create pairing material”.</span>
+                                <span>@(_status.HasSecret ? "A fresh ticket could not be generated. Retry by reopening Pairing & trust or choose Create pairing material under Identity." : "Create a local identity before generating pairing material.")</span>
                                 <DxButton Text="Open identity" Click="OpenIdentitySectionAsync" />
                             </div>
                         }
                         else
                         {
                             <div class="onewire-security-grid">
-                                <article class="onewire-security-subcard">
-                                    <h3>Authenticator enrollment</h3>
-                                    <p>Scan this QR code with an Authenticator-compatible app.</p>
-                                    <div id="localgpt-security-otp-qr" class="onewire-security-qr" aria-label="LocalGPT Authenticator QR code"></div>
-                                    <DxButton Text="Test authenticator code" Click="OpenMfaVerificationAsync" RenderStyle="ButtonRenderStyle.Primary" />
-                                    <DxMemo Text="@_otpUri" Rows="5" ReadOnly="true" />
-                                </article>
+                                @if (!string.IsNullOrWhiteSpace(_otpUri))
+                                {
+                                    <article class="onewire-security-subcard">
+                                        <h3>Authenticator enrollment</h3>
+                                        <p>Scan this QR code with an Authenticator-compatible app.</p>
+                                        <div id="localgpt-security-otp-qr" class="onewire-security-qr" aria-label="LocalGPT Authenticator QR code"></div>
+                                        <DxButton Text="Test authenticator code" Click="OpenMfaVerificationAsync" RenderStyle="ButtonRenderStyle.Primary" />
+                                        <DxMemo Text="@_otpUri" Rows="5" ReadOnly="true" />
+                                    </article>
+                                }
+                                else
+                                {
+                                    <article class="onewire-security-subcard">
+                                        <h3>Authenticator enrollment</h3>
+                                        <p>MFA enrollment is not shown automatically. Choose Create pairing material under Identity if you explicitly need to enroll or test an authenticator.</p>
+                                        <DxButton Text="Open identity" Click="OpenIdentitySectionAsync" />
+                                    </article>
+                                }
                                 <article class="onewire-security-subcard">
                                     <h3>Public pairing ticket</h3>
                                     <p>The short-lived ticket contains public keys and a signature only.</p>
@@ -235,9 +246,9 @@
                         <span><strong>Active connections</strong>@_advertisedPeers.Count(peer => ConnectionRegistry.IsConnected(peer.PeerId))</span>
                         <span><strong>Encrypted trust records</strong>@_trustedPeers.Count</span>
                     </div>
-                    @foreach (var peer in _advertisedPeers.Where(peer => ConnectionRegistry.IsConnected(peer.PeerId)).OrderBy(peer => peer.PeerId))
+                    @foreach (var peer in _advertisedPeers.Where(peer => ConnectionRegistry.IsConnected(peer.PeerId)).GroupBy(peer => peer.PeerId, StringComparer.OrdinalIgnoreCase).Select(group => group.First()).OrderBy(peer => peer.PeerId))
                     {
-                        <div class="onewire-security-peer" @key="peer.PeerId">
+                        <div class="onewire-security-peer" @key="(peer.PeerId, true)">
                             <div>
                                 <strong>@peer.DisplayName · linked via 1-Wire</strong>
                                 <span>@peer.PeerId</span>
@@ -254,9 +265,9 @@
                     }
                     else
                     {
-                        @foreach (var peer in _trustedPeers)
+                        @foreach (var peer in _trustedPeers.GroupBy(item => item.PeerId, StringComparer.OrdinalIgnoreCase).Select(group => group.OrderByDescending(item => item.TrustedUtc).First()))
                         {
-                            <div class="onewire-security-peer" @key="peer.PeerId">
+                            <div class="onewire-security-peer" @key="(peer.PeerId, false)">
                                 <div>
                                     <strong>@peer.DisplayName</strong>
                                     <span>@peer.PeerId</span>
@@ -394,10 +405,25 @@
         try
         {
         ActiveOneWireSection = key;
-        if (string.Equals(key, "pairing", StringComparison.OrdinalIgnoreCase) &&
-            (!string.IsNullOrWhiteSpace(_pairingTicketJson) || !string.IsNullOrWhiteSpace(_otpUri)))
+        if (string.Equals(key, "pairing", StringComparison.OrdinalIgnoreCase))
         {
-            _renderQr = true;
+            // Public tickets expire and are intentionally not persisted with trusted peers.
+            // Refresh a signed public ticket on each visit without exposing MFA enrollment secrets.
+            if (_status.HasSecret)
+            {
+                try
+                {
+                    var ticket = await Security.CreatePairingTicketAsync(TimeSpan.FromMinutes(15), lifetimeCts.Token).ConfigureAwait(true);
+                    _pairingTicketJson = JsonSerializer.Serialize(ticket, JsonOptions);
+                    _renderQr = true;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Could not refresh public 1-Wire pairing material.");
+                    ComponentActivity.RecordFailure(nameof(OneWireSecurity), nameof(OnOneWireSectionChangedAsync), ex);
+                    Notifier.ShowError("OneWireSecurityToasts", "Unable to generate a fresh public pairing ticket; review the security log.", "1-Wire Security");
+                }
+            }
         }
 
         if (string.Equals(key, "peers", StringComparison.OrdinalIgnoreCase) ||

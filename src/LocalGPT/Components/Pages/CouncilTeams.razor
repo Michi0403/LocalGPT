@@ -144,7 +144,7 @@
                             {
                                 var recommended = RecommendedRuntimeFunctions.Contains(entry.FunctionName);
                                 <label class="council-runtime-class-option">
-                                    <DxCheckBox CssClass="council-runtime-class-checkbox"
+                                    <DxCheckBox ValidationEnabled="false" CssClass="council-runtime-class-checkbox"
                                                 Checked="@_editor.PreferredCapabilities.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
                                                 CheckedChanged="@((bool value) => TogglePreferredCapability(entry.FunctionName, new ChangeEventArgs { Value = value }))" />
                                     <span><strong>@entry.DisplayName</strong> <small>@entry.FunctionName@(recommended ? " · runtime-class recommendation" : string.Empty)</small></span>
@@ -164,7 +164,7 @@
                     @foreach (var capabilityKey in PublisherOrganicCapabilityKeys)
                     {
                         <label class="council-runtime-class-option" @key="capabilityKey">
-                            <DxCheckBox Checked="@_editor.PreferredCapabilities.Contains(capabilityKey, StringComparer.OrdinalIgnoreCase)"
+                            <DxCheckBox ValidationEnabled="false" Checked="@_editor.PreferredCapabilities.Contains(capabilityKey, StringComparer.OrdinalIgnoreCase)"
                                         CheckedChanged="@((bool enabled) => TogglePreferredCapability(capabilityKey, new ChangeEventArgs { Value = enabled }))" />
                             <span>@capabilityKey</span>
                         </label>
@@ -263,7 +263,7 @@
                             @foreach (var entry in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
                             {
                                 <label class="council-runtime-class-option">
-                                    <DxCheckBox CssClass="council-runtime-class-checkbox"
+                                    <DxCheckBox ValidationEnabled="false" CssClass="council-runtime-class-checkbox"
                                                 Checked="@_editor.AllowedAutomaticFunctions.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
                                                 CheckedChanged="@((bool value) => ToggleTeamAutomaticFunction(entry.FunctionName, new ChangeEventArgs { Value = value }))" />
                                     <span><strong>@entry.DisplayName</strong> <small>@entry.FunctionName</small></span>
@@ -403,7 +403,7 @@
                                             @foreach (var candidate in providerGroup.OrderBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase))
                                             {
                                                 <label class="council-provider-model-option">
-                                                    <DxCheckBox CssClass="council-provider-model-checkbox"
+                                                    <DxCheckBox ValidationEnabled="false" CssClass="council-provider-model-checkbox"
                                                                 Checked="@role.AssignedModelKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)"
                                                                 CheckedChanged="@((bool value) => ToggleRoleModel(roleIndex, candidate.SelectionKey, new ChangeEventArgs { Value = value }))" />
                                                     <span>
@@ -448,7 +448,7 @@
                                     @foreach (var runtimeClass in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
                                     {
                                         <label class="council-runtime-class-option">
-                                            <DxCheckBox CssClass="council-runtime-class-checkbox"
+                                            <DxCheckBox ValidationEnabled="false" CssClass="council-runtime-class-checkbox"
                                                         Checked="@role.RuntimeClassKeys.Contains(runtimeClass.Key, StringComparer.OrdinalIgnoreCase)"
                                                         CheckedChanged="@((bool value) => ToggleRuntimeClass(roleIndex, runtimeClass.Key, new ChangeEventArgs { Value = value }))" />
                                             <span><strong>@runtimeClass.DisplayName</strong> <small>@runtimeClass.Key · @runtimeClass.Kind</small></span>

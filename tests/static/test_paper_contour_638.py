@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class PaperContour638Tests(unittest.TestCase):
     def test_project_version(self):
-        self.assertRegex((ROOT/'src/LocalGPT/LocalGPT.csproj').read_text(), r'<Version>6\.4\.1</Version>')
+        self.assertRegex((ROOT/'src/LocalGPT/LocalGPT.csproj').read_text(), r'<Version>6\.5\.2</Version>')
 
     def test_masks_real_content_but_not_dom(self):
         js = (ROOT/'docs/templates/localgpt/public/main.js').read_text()
