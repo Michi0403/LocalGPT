@@ -1126,6 +1126,12 @@ namespace LocalGPT.Components.Pages
                 if (NetworkModel.Port <= 0) NetworkModel.Port = 5443;
                 NetworkModel.Enabled = true;
             }
+            // Make freshly issued server-auth certificates available in the unsaved MCP draft.
+            if (CertificateRequest.RequireServerAuthentication && string.IsNullOrWhiteSpace(McpGatewayModel.CertificatePath))
+            {
+                McpGatewayModel.CertificatePath = result.PfxPath;
+                McpGatewayModel.CertificatePassword = CertificateRequest.Password ?? string.Empty;
+            }
             await Append($"Created certificate {result.Thumbprint} at {result.PfxPath}.").ConfigureAwait(true);
         }
         catch (Exception exception)

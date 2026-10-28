@@ -18,6 +18,111 @@ namespace LocalGPT.Components.Pages
         /// Stores the internal mcp API key visible state used by <see cref="Install"/> while executing its surrounding workflow.
         /// </summary>
         private bool McpApiKeyVisible;
+        private bool CertificatePickerVisible;
+        private bool CertificatePickerForMcp;
+
+        /// <summary>Opens the common host-file explorer for a certificate path.</summary>
+        /// <param name="forMcp">True to select the MCP listener certificate, false for the remote web listener.</param>
+        private void OpenCertificatePicker(bool forMcp)
+        {
+            try
+            {
+                CertificatePickerForMcp = forMcp;
+                CertificatePickerVisible = true;
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "Opening the certificate file explorer failed.");
+                throw;
+            }
+        }
+
+        /// <summary>Handles the shared host-file explorer visibility callback.</summary>
+        /// <param name="visible">Current popup visibility.</param>
+        /// <returns>The completed UI task.</returns>
+        private Task OnCertificatePickerVisibleChangedAsync(bool visible)
+        {
+            try
+            {
+                CertificatePickerVisible = visible;
+                return Task.CompletedTask;
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "Updating certificate picker visibility failed.");
+                throw;
+            }
+        }
+
+        /// <summary>Starts the shared file explorer in the certificate's parent folder, not an individual file.</summary>
+        /// <returns>Existing parent directory or a platform-safe suggested root.</returns>
+        private string GetCertificatePickerInitialPath()
+        {
+            try
+            {
+                var selected = CertificatePickerForMcp ? McpGatewayModel.CertificatePath : NetworkModel.CertificatePath;
+                var candidate = !string.IsNullOrWhiteSpace(selected) ? Path.GetDirectoryName(selected)
+                    : Path.GetDirectoryName(CertificateRequest.OutputPath);
+                return !string.IsNullOrWhiteSpace(candidate) && Directory.Exists(candidate)
+                    ? candidate : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(exception, "Finding a starting folder for the certificate picker failed.");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>Accepts a locally present PFX file selected through the existing path explorer.</summary>
+        /// <param name="path">Selected path on the LocalGPT host.</param>
+        /// <returns>The completed UI task.</returns>
+        private Task OnCertificateFileSelectedAsync(string path)
+        {
+            try
+            {
+                if (!path.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
+                {
+                    Notifier.ShowWarning(toastName, "Choose an existing .pfx certificate file on this host.", "Certificate path");
+                    return Task.CompletedTask;
+                }
+                if (CertificatePickerForMcp)
+                    McpGatewayModel.CertificatePath = path;
+                else
+                    NetworkModel.CertificatePath = path;
+                CertificatePickerVisible = false;
+                return Task.CompletedTask;
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "Selecting the certificate file failed.");
+                throw;
+            }
+        }
+
+        /// <summary>Suggests an existing generated TLS certificate without overwriting a configured MCP certificate.</summary>
+        private void PrefillMcpCertificateDraft()
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(McpGatewayModel.CertificatePath)) return;
+                if (!string.IsNullOrWhiteSpace(NetworkModel.CertificatePath) && File.Exists(NetworkModel.CertificatePath))
+                {
+                    McpGatewayModel.CertificatePath = NetworkModel.CertificatePath;
+                    McpGatewayModel.CertificatePassword = NetworkModel.CertificatePassword;
+                    return;
+                }
+                // The certificate editor's platform-independent default is the canonical
+                // destination for generated TLS certificates. Do not change any active listener.
+                if (!string.IsNullOrWhiteSpace(CertificateRequest.OutputPath) && File.Exists(CertificateRequest.OutputPath))
+                    McpGatewayModel.CertificatePath = CertificateRequest.OutputPath;
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(exception, "No reusable MCP TLS certificate could be suggested.");
+            }
+        }
+
+
 
         /// <summary>Gets the dedicated MCP endpoint preview that becomes effective after restart.</summary>
         /// <value>The mcp gateway endpoint preview value exposed by <see cref="Install"/>.</value>

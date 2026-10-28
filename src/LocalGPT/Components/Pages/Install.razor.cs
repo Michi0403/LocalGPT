@@ -42,6 +42,45 @@ namespace LocalGPT.Components.Pages
     /// Gets or sets the active install section value that forms part of the install state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The active install section value exposed by <see cref="Install"/>.</value>
+    private bool installDisposed;
+    private int installCommandWasRunning;
+
+    /// <summary>Rechecks installed provider models when a confirmed console install/pull finishes.</summary>
+    private void OnInstallCommandOutputChanged()
+    {
+        try
+        {
+            if (installDisposed) return;
+            var running = CommandConsole.GetActiveOperations().Count > 0;
+            if (running)
+            {
+                Interlocked.Exchange(ref installCommandWasRunning, 1);
+                return;
+            }
+            if (Interlocked.Exchange(ref installCommandWasRunning, 0) == 1)
+                TaskRunner.Run(nameof(Install), nameof(OnInstallCommandOutputChanged),
+                    async _ => await InvokeAsync(RefreshOnboardingAsync).ConfigureAwait(false));
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Scheduling installed-model refresh after the command completed failed.");
+        }
+    }
+
+    /// <summary>Unsubscribes from the shared command stream when the install page is disposed.</summary>
+    public void Dispose()
+    {
+        try
+        {
+            installDisposed = true;
+            CommandConsole.Changed -= OnInstallCommandOutputChanged;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Disposing the install command subscription failed.");
+        }
+    }
+
     private string ActiveInstallSection { get; set; } = "providers";
     /// <summary>Keeps the last opt-in CanIRun.ai score results available when the setup-guide tab is unmounted and reopened.</summary>
     /// <value>The last successfully fetched, attributed recommendation rows for this Install page instance.</value>
@@ -387,6 +426,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     protected override void OnInitialized()
     {
+        CommandConsole.Changed += OnInstallCommandOutputChanged;
+        Interlocked.Exchange(ref installCommandWasRunning, CommandConsole.GetActiveOperations().Count > 0 ? 1 : 0);
         RuntimePluginDraft = NewPluginDraft();
         ApplyRequestedInstallSection();
         try
@@ -411,6 +452,7 @@ namespace LocalGPT.Components.Pages
             NetworkModel = Opts.CurrentValue.LocalGPT?.RemoteEndpoint ?? new RemoteWebEndpointOptions();
             McpGatewayModel = CloneMcpGatewayOptions(Opts.CurrentValue.LocalGPT?.McpGateway);
             CertificateRequest = NetworkCertificates.CreateDefaultRequest();
+            PrefillMcpCertificateDraft();
             if (!string.IsNullOrWhiteSpace(NetworkModel.CertificatePath))
             {
                 CertificateRequest.OutputPath = NetworkModel.CertificatePath;
@@ -888,8 +930,11 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
+            if (IsOnboardingLoading || installDisposed) return;
             IsOnboardingLoading = true;
-            OnboardingStatus = await Onboarding.GetStatusAsync(refreshConnectivity: false).ConfigureAwait(false);
+            // The previously used false value intentionally left InstalledModels empty,
+            // even after a successful Ollama pull; the guide displays live inventory.
+            OnboardingStatus = await Onboarding.GetStatusAsync(refreshConnectivity: true).ConfigureAwait(false);
             if (!OnboardingStatus.IsCompleted && !InstallSectionUserSelected && string.IsNullOrWhiteSpace(new Uri(Nav.Uri).Fragment))
                 ActiveInstallSection = "guide";
         }

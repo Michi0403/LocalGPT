@@ -426,12 +426,55 @@ public sealed class ConsoleCommandService(
     {
         try
         {
-            return string.Join(Environment.NewLine, GetRecentOutput(take).Select(item => $"[{item.TimestampUtc:HH:mm:ss}] {item.Stream,-7} {item.Text}"));
+            var items = GetRecentOutput(take);
+            // A redirected TTY can send the same progress row repeatedly while moving
+            // the cursor back up. A plain <pre> cannot honor terminal cursor addressing.
+            // Coalesce only progress/status redraws for display; raw bounded receipts stay intact.
+            var latestProgressRow = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (var index = 0; index < items.Count; index++)
+            {
+                var item = items[index];
+                var identity = GetDisplayProgressIdentity(item.Text);
+                if (identity is not null)
+                    latestProgressRow[$"{item.OperationId:N}:{item.Stream}:{identity}"] = index;
+            }
+            var visible = new List<string>(items.Count);
+            for (var index = 0; index < items.Count; index++)
+            {
+                var item = items[index];
+                var identity = GetDisplayProgressIdentity(item.Text);
+                if (identity is not null && latestProgressRow[$"{item.OperationId:N}:{item.Stream}:{identity}"] != index)
+                    continue;
+                visible.Add($"[{item.TimestampUtc:HH:mm:ss}] {item.Stream,-7} {item.Text}");
+            }
+            return string.Join(Environment.NewLine, visible);
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Formatting recent local console output failed; output text was omitted from logs.");
             throw;
+        }
+    }
+
+    /// <summary>Identifies repeated TTY progress redraws without hiding ordinary command output.</summary>
+    /// <param name="text">Normalized console row text.</param>
+    /// <returns>A progress identity or null for durable output lines.</returns>
+    private string? GetDisplayProgressIdentity(string text)
+    {
+        try
+        {
+            if (TryGetProgressPercentage(text, out _, out var identity))
+                return "percentage:" + identity;
+            // Ollama's manifest spinner does not necessarily expose a percentage.
+            // Identical spinner frames are updates to one display cell, not new log lines.
+            if (text.Trim().Equals("pulling manifest", StringComparison.OrdinalIgnoreCase))
+                return "manifest";
+            return null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Identifying terminal redraw failed.");
+            return null;
         }
     }
 

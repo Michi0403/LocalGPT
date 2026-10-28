@@ -6,6 +6,8 @@
 @inject IGameStudioService Studio
 @inject IGameGodotWorkspaceService Godot
 @inject GameSceneEngine Engine
+@inject LocalGPT.Interfaces.IRegexPatternService RegexCatalog
+@inject LocalGPT.Interfaces.IRegexCuratorService RegexCurator
 @inject ILogger<GameStudio> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -97,6 +99,10 @@
                                                     <label>World seconds / real second<DxSpinEdit @bind-Value="Draft.Scene.WorldSecondsPerRealSecond" MinValue="0.01" MaxValue="100" Increment="0.1" /></label>
                                                     <label>Seconds per turn<DxSpinEdit @bind-Value="Draft.Scene.SecondsPerTurn" MinValue="0.01" MaxValue="3600" Increment="0.1" /></label>
                                                 </div>
+                                                <label>Renderer presentation style
+                                                    <DxComboBox Data="@ArtworkModes" @bind-Value="Draft.Scene.ArtworkMode" />
+                                                </label>
+                                                <p class="game-studio-note">Classic Glyph preserves the original skeleton-era look. Authored ASCII/ANSI consumes multiline sprite art and conditional text canvases from the scene JSON. Pixel uses the same scene and palette sprites. None of these modes owns game rules.</p>
                                                 <label>Art direction<DxMemo @bind-Text="Draft.Scene.ArtDirection" Rows="3" /></label>
                                                 <DxButton Text="Save scene in open draft" Enabled="@CanEdit" Click="SaveSceneAsync" />
                                             }
@@ -163,6 +169,14 @@
                                         <DxButton Text="+1 real second" Click="AdvanceSecond" />
                                         <DxButton Text="Reset simulation" Click="ResetClock" />
                                     </div>
+                                    @if (Draft is not null && Draft.Scene.RegexTransitions.Count > 0)
+                                    {
+                                        <p class="game-studio-note">Test named knowledge/regex catalog transitions without changing game mechanics or the saved project revision.</p>
+                                        <div class="game-studio-actions">
+                                            <DxTextBox @bind-Text="RegexSceneInput" NullText="Input to match against the scene's catalog regex rules" />
+                                            <DxButton Text="Test scene transition" Click="TestSceneRegexAsync" />
+                                        </div>
+                                    }
                                     @if (Preview is not null)
                                     {
                                         <p>Tick @Preview.Tick · world @Preview.WorldSeconds.ToString("F2") s</p>

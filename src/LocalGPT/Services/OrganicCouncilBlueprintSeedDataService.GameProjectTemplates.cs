@@ -216,6 +216,51 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
         }
     }
 
+    /// <summary>Offers one editable example of a generic regex- and project-backed game scene authoring Council, without exclusive role or team-key checks.</summary>
+    /// <returns>The optional Council scene authoring template.</returns>
+    private OrganicCouncilTeamDefinition CreateGameSceneArtTeam()
+    {
+        return new OrganicCouncilTeamDefinition
+        {
+            Key = "game-scene-art-curation",
+            DisplayName = "Game Scene Art & Regex Curation",
+            Purpose = "Author detailed ASCII, ANSI and pixel presentation as reviewable Game Studio scene data, backed by Project requirements, knowledge notes and named regex-catalog bindings. Game rules and runtime state stay independent of renderers.",
+            Roles =
+            [
+                new() { Role = "Scene Director", Expertise = "Project requirements, game art direction, precise screen layouts and dynamic state", Responsibility = "read the chosen Game project and agree a visual contract; do not hardcode scenes in runtime services" },
+                new() { Role = "ASCII/ANSI Artist", Expertise = "1990s-style multi-line terminal art, typography, ANSI palette design, animation frames and sprites", Responsibility = "propose original high-detail artwork as scene JSON or a small independently reviewable patch" },
+                new() { Role = "Regex Knowledge Author", Expertise = "persisted regex rules, knowledge links, captures and declarative scene-state transitions", Responsibility = "reuse or curate bounded regex catalog rules and associate them with state variables and conditional canvases" },
+                new() { Role = "Independent Scene Curator", Expertise = "scene geometry, authorship, data validation and approval boundaries", Responsibility = "read the exact candidate, inspect rendered preview/conditions and review without automatically applying the artist's proposal" }
+            ],
+            PreferredCapabilities =
+            [
+                "project.architecture.get", "project.game.profile.get", "project.game.scene.get",
+                "project.game.scene.propose", "project.game.scene.patch.propose", "project.game.scene.proposal.get",
+                "project.game.scene.review", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get",
+                "localgpt.regex.test", "localgpt.regex.upsert", "localgpt.regex.curator.list", "localgpt.regex.curator.review",
+                "localgpt.ascii.surface.get", "localgpt.game.display.palette.get",
+                "human.collaboration.request"
+            ],
+            WorkflowSteps =
+            [
+                Step("scene-read", "Read project and scene catalog", 10, "Discovery", "Scene Director", "Read the selected Game project's requirements, draft and approved artwork style. Inspect linked Knowledge entries and exact named Regex patterns with bounded get/list/test calls. A regex is a recognition rule, not a program or bitmap. Do not invent a scene as engine hardcoded behavior.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.architecture.get", "project.game.profile.get", "project.game.scene.get", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
+                Step("scene-author", "Propose authored screens and sprites", 20, "Authoring", "ASCII/ANSI Artist", "Use GameSceneDocument.ArtworkMode, TextCanvases, GameSceneSprite.AsciiRows or PixelRows, actor SpriteId, HUD, animations, palettes and world-time declarations. Make an original legible 1990s-style terminal scene when the project calls for it; preserve ClassicGlyph as a valid older-game choice. Send changes via project.game.scene.patch.propose or project.game.scene.propose for independent review; do not apply them directly.", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.game.scene.get", "project.game.scene.patch.propose", "project.game.scene.propose", "localgpt.game.display.palette.get"]),
+                Step("scene-regex", "Curate declarative transitions", 30, "Knowledge", "Regex Knowledge Author", "Resolve authored RegexTransitions by the exact saved regex names and test examples. When a project requires a new recognition pattern, propose it through localgpt.regex.upsert; it then requires a separate regex-curator review and explicit human approval before use in a game build. Bind a named capture or literal match value to scene-state variables. Author conditional TextCanvases and HUD placeholders using those variables. Never embed regex literals as operational C# or give recognition rules game-mechanics authority.", "AllMembersParallel", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.regex.upsert", "localgpt.regex.curator.list", "localgpt.knowledge.list", "project.game.scene.get"]),
+                Step("scene-review", "Independent scene curation", 40, "Review", "Independent Scene Curator", "Read the exact isolated proposal via project.game.scene.proposal.get, verify legibility, bounds, regex names, and presentation-only state. Independently review any newly upserted regex via localgpt.regex.curator.review; regex curator approval also requires explicit human confirmation outside automatic functions. Use project.game.scene.review to record approval or detailed rejection. A different curator and human approval are still required before the world draft changes.", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["project.game.scene.proposal.get", "project.game.scene.review", "localgpt.regex.get", "localgpt.regex.test", "localgpt.regex.curator.list", "localgpt.regex.curator.review"]),
+                Step("scene-handoff", "Report reviewable scene handoff", 50, "Handoff", "Scene Director", "Report ProjectId, draft/proposal IDs, catalog regex names, chosen artwork mode, exact curation findings and pending approvals. Do not claim a scene was accepted, a revision closed or a game built without corresponding verified results.", "LeaderSingle", producesFinalAnswer: true)
+            ],
+            MainRoundInstructionTemplate = "The user owns Game project requirements, scene art, saved regex rules, and Council team policies. Regex catalog is for bounded semantic recognition; scene JSON declaratively defines geometry, full text screens, sprites, canvas visibility and display variables. Only the shared scene engine advances mechanics. ClassicGlyph is a supported presentation style, not an enforced default for new artwork. All Council roles and function allow-lists are user-editable; no game behavior is coupled to this template key.",
+            ArchitectureContracts =
+            [
+                .. DefaultArchitectureContracts(),
+                "Presentation assets and display-state declarations belong to Game project revisions and may be proposed by any configured Council team with the correct functions.",
+                "Named regex rules come from the persisted regex catalog/knowledge system, never from embedded C# pattern text.",
+                "Regex scene variables are presentation-only: GameDirector controls own the game state, and human-approved project revisions own the content.",
+                "Preserve ClassicGlyph for vintage games; modern ASCII/ANSI/pixel presentations remain optional project data."
+            ]
+        };
+    }
+
     /// <summary>Creates the independent team used to playtest built Game projects against their durable requirement baseline.</summary>
     /// <returns>The seeded Game-project playtest team.</returns>
     private OrganicCouncilTeamDefinition CreateGameProjectPlaytestTeam()

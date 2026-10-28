@@ -15,6 +15,8 @@ namespace LocalGPT.Services;
 /// <param name="architecture">Project architecture service used to persist the compiled game definition as a reviewed project artifact.</param>
 /// <param name="games">Shared GameDirector session service that consumes compiled definitions.</param>
 /// <param name="engine">Scene curator for approved, revision-specific user-authored games.</param>
+/// <param name="regexCatalog">Database-owned regex catalog used to verify authored scene transitions.</param>
+/// <param name="regexCurator">Independent review and human-approval state for named regex patterns.</param>
 /// <param name="logger">Logger used to record bounded operational diagnostics.</param>
 public sealed class GameProjectService(
     ILocalGptProjectService projects,
@@ -22,6 +24,8 @@ public sealed class GameProjectService(
     IProjectArchitectureService architecture,
     ICouncilGameSessionService games,
     GameSceneEngine engine,
+    IRegexPatternService regexCatalog,
+    IRegexCuratorService regexCurator,
     ILogger<GameProjectService> logger) : IGameProjectService
 {
     /// <summary>Reads the editable authoring profile owned by one LocalGPT Game project.</summary>
@@ -178,6 +182,8 @@ public sealed class GameProjectService(
             var currentRevisionId = completedRevision?.Id;
             var committedScene = completedRevision is not null && completedRevision.IsUserApproved
                 ? ReadPlayableRevisionScene(completedRevision) : null;
+            if (committedScene is not null)
+                await ValidateSceneRegexCatalogAsync(committedScene, cancellationToken).ConfigureAwait(false);
             var requirementIds = details.Requirements
                 .Where(item => item.IsUserApproved)
                 .OrderBy(item => item.CreatedAtUtc)
@@ -201,8 +207,8 @@ public sealed class GameProjectService(
                 GameDirectorModelName = profile.GameDirectorModelName,
                 CreatureDirectorCount = profile.CreatureDirectorCount,
                 AutoplayDelayMilliseconds = profile.AutoplayDelayMilliseconds,
-                FrameWidth = profile.FrameWidth,
-                FrameHeight = profile.FrameHeight,
+                FrameWidth = committedScene?.ViewWidth ?? profile.FrameWidth,
+                FrameHeight = committedScene?.ViewHeight ?? profile.FrameHeight,
                 AsciiColorMode = profile.AsciiColorMode,
                 DefaultForegroundColor = profile.DefaultForegroundColor,
                 DefaultBackgroundColor = profile.DefaultBackgroundColor,
@@ -371,6 +377,7 @@ public sealed class GameProjectService(
                 throw new InvalidOperationException("Only explicitly completed and approved Game Studio revisions can be played.");
             var scene = ReadPlayableRevisionScene(revision)
                 ?? throw new InvalidOperationException("This revision has no accepted, playable scene. Finish and curate its game artwork before playing.");
+            await ValidateSceneRegexCatalogAsync(scene, cancellationToken).ConfigureAwait(false);
             var profile = details.GameProfile;
             var definition = new ProjectGameDefinition
             {
@@ -430,6 +437,24 @@ public sealed class GameProjectService(
         }
     }
 
+    /// <summary>Requires all named scene transitions to resolve to curator-approved catalog patterns before a game build or launch.</summary>
+    /// <param name="scene">Approved scene with the catalog pattern references.</param>
+    /// <param name="cancellationToken">Cancellation token for repository lookups.</param>
+    /// <returns>An awaitable catalog validation operation.</returns>
+    private async Task ValidateSceneRegexCatalogAsync(GameSceneDocument scene, CancellationToken cancellationToken)
+    {
+        if (scene.RegexTransitions.Count == 0)
+            return;
+        var approved = (await regexCurator.ListApprovedPatternsAsync(cancellationToken).ConfigureAwait(false))
+            .Select(pattern => pattern.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in scene.RegexTransitions.Select(binding => binding.RegexPatternName).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!approved.Contains(name) || await regexCatalog.GetRegexAsync(name).ConfigureAwait(false) is null)
+                throw new InvalidOperationException($"Scene regex '{name}' must exist and pass independent curator review and user approval before build or launch.");
+        }
+    }
+
     /// <summary>Reads exactly the scene committed in a revision's ProjectStructure business-object field.</summary>
     /// <param name="revision">Persisted immutable project revision.</param>
     /// <returns>The accepted scene or <c>null</c> when no playable scene was committed.</returns>
@@ -444,7 +469,7 @@ public sealed class GameProjectService(
                 || !document.RootElement.TryGetProperty("scene", out var sceneElement))
                 return null;
             var scene = sceneElement.Deserialize<GameSceneDocument>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
-            if (scene is null || (scene.Tiles.Count == 0 && scene.Actors.Count == 0 && scene.Layers.Count == 0 && scene.Hud.Count == 0))
+            if (scene is null || (scene.Tiles.Count == 0 && scene.Actors.Count == 0 && scene.Layers.Count == 0 && scene.Hud.Count == 0 && scene.TextCanvases.Count == 0))
                 return null;
             var findings = engine.Curate(scene);
             if (findings.Any(value => value.BlocksAcceptance))

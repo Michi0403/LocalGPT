@@ -572,6 +572,25 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             if (!sessions.TryGetValue(request.SessionId, out var session))
                 throw new KeyNotFoundException($"Council game session {request.SessionId} was not found.");
 
+            // Resolve named recognition rules outside the session lock. The already-approved game
+            // control supplies input; regex transitions may change scene visuals, never mechanics.
+            var scenePatterns = new Dictionary<string, System.Text.RegularExpressions.Regex>(StringComparer.OrdinalIgnoreCase);
+            if (session.Scene is { RegexTransitions.Count: > 0 } authoredScene)
+            {
+                using var regexScope = scopeFactory.CreateScope();
+                var regexCatalog = regexScope.ServiceProvider.GetRequiredService<IRegexPatternService>();
+                var regexCurator = regexScope.ServiceProvider.GetRequiredService<IRegexCuratorService>();
+                var approved = (await regexCurator.ListApprovedPatternsAsync(cancellationToken).ConfigureAwait(false))
+                    .Select(pattern => pattern.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (var patternName in authoredScene.RegexTransitions.Select(item => item.RegexPatternName).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!approved.Contains(patternName))
+                        throw new InvalidOperationException($"The scene regex '{patternName}' is not curator-approved; no game control was applied.");
+                    scenePatterns.Add(patternName, await regexCatalog.GetRegexAsync(patternName).ConfigureAwait(false)
+                        ?? throw new InvalidOperationException($"The scene regex '{patternName}' is not available."));
+                }
+            }
             lock (session.SyncRoot)
             {
                 if (session.Turn != decision.ExpectedTurn)
@@ -585,7 +604,22 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.InputReason = "The GameDirector approved the proposal and is resolving one authoritative world step.";
                 session.CurrentTurnOwner = session.GameDirectorName;
                 if (session.Scene is not null)
+                {
+                    // Validate proposed presentation transitions before advancing canonical mechanics;
+                    // commit them only if the shared GameDirector scene control succeeds.
+                    GameSceneClock? pendingPresentation = null;
+                    if (session.SceneClock is not null && scenePatterns.Count > 0)
+                    {
+                        pendingPresentation = new GameSceneClock
+                        {
+                            SceneVariables = new Dictionary<string, string>(session.SceneClock.SceneVariables, StringComparer.Ordinal)
+                        };
+                        gameSceneEngine.ApplyRegexTransitions(session.Scene, pendingPresentation, request.Action ?? string.Empty, scenePatterns);
+                    }
                     ApplySceneControl(session, decision.NormalizedAction);
+                    if (pendingPresentation is not null && session.SceneClock is not null)
+                        session.SceneClock.SceneVariables = pendingPresentation.SceneVariables;
+                }
                 else
                 {
                     ApplyAction(session, decision.NormalizedAction, request.AimX, request.AimY);

@@ -1,4 +1,67 @@
+using System.Text.Json.Serialization;
+
 namespace LocalGPT.BusinessObjects;
+
+/// <summary>Chooses a presentation adapter, never a game-mechanics implementation or a team identity.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum GameSceneArtworkMode
+{
+    /// <summary>Existing single-character actor and tile display; compatible with legacy/1970s-style art.</summary>
+    ClassicGlyph,
+    /// <summary>Preserves multi-line authored character art and explicitly positioned text canvases.</summary>
+    AuthoredAscii,
+    /// <summary>Uses authored character art and color metadata; the renderer determines available ANSI capabilities.</summary>
+    AuthoredAnsi,
+    /// <summary>Uses authored palette-based pixel sprites with the same simulation state.</summary>
+    AuthoredPixel
+}
+
+/// <summary>One authored text canvas. Multiple canvases form conditional, layered screens without code-generated scenes.</summary>
+public sealed class GameSceneTextCanvas
+{
+    /// <summary>Stable project-local canvas name for revisions and proposals.</summary>
+    /// <value>Canvas identity.</value>
+    public string Id { get; set; } = string.Empty;
+    /// <summary>Screen-space left position.</summary>
+    /// <value>Horizontal offset in terminal cells.</value>
+    public int X { get; set; }
+    /// <summary>Screen-space top position.</summary>
+    /// <value>Vertical offset in terminal cells.</value>
+    public int Y { get; set; }
+    /// <summary>Authored rows, preserved literally with spaces and character shading.</summary>
+    /// <value>Canvas rows; never synthesized by the renderer.</value>
+    public List<string> Rows { get; set; } = [];
+    /// <summary>Optional scene-state variable gating this canvas.</summary>
+    /// <value>Empty makes the canvas unconditional.</value>
+    public string VisibleWhenVariable { get; set; } = string.Empty;
+    /// <summary>Required value of the visibility variable.</summary>
+    /// <value>Literal state value, compared ordinally.</value>
+    public string VisibleWhenValue { get; set; } = string.Empty;
+    /// <summary>Earliest world time at which the canvas can appear.</summary>
+    /// <value>World time in seconds.</value>
+    public double FromWorldSecond { get; set; }
+    /// <summary>Optional expiration time; zero leaves the canvas active.</summary>
+    /// <value>World time in seconds or zero.</value>
+    public double UntilWorldSecond { get; set; }
+}
+
+/// <summary>Binds an existing database regex name to a bounded scene-state update, without defining a second regex catalog.</summary>
+public sealed class GameSceneRegexTransition
+{
+    /// <summary>Existing name resolved through the application's regex catalog and compiler.</summary>
+    /// <value>Catalog regex identity.</value>
+    public string RegexPatternName { get; set; } = string.Empty;
+    /// <summary>Presentation state variable to update after a successful match.</summary>
+    /// <value>Project-owned state key used in authored placeholders and canvas visibility.</value>
+    public string Variable { get; set; } = string.Empty;
+    /// <summary>Optional named/numbered capture group; blank uses the configured literal value.</summary>
+    /// <value>Regex capture group name.</value>
+    public string CaptureGroup { get; set; } = string.Empty;
+    /// <summary>Value used when no capture group is specified.</summary>
+    /// <value>Bounded literal scene-state value.</value>
+    public string ValueOnMatch { get; set; } = string.Empty;
+}
+
 
 /// <summary>Editable, project-owned two-dimensional world description. No game's scenery, art or rules are compiled into the engine.</summary>
 public sealed class GameSceneDocument
@@ -93,6 +156,15 @@ public sealed class GameSceneDocument
     /// </summary>
     /// <value>The art direction value exposed by <see cref="GameSceneDocument"/>.</value>
     public string ArtDirection { get; set; } = string.Empty;
+    /// <summary>Selects whether the same game world is drawn as classic glyphs, author-created character art, ANSI, or pixel art.</summary>
+    /// <value>Renderer-independent project-owned artwork preference.</value>
+    public GameSceneArtworkMode ArtworkMode { get; set; } = GameSceneArtworkMode.ClassicGlyph;
+    /// <summary>Authored multi-line backgrounds, decorative frames, and conditional complete screens.</summary>
+    /// <value>Text canvases attached to this project revision.</value>
+    public List<GameSceneTextCanvas> TextCanvases { get; set; } = [];
+    /// <summary>Links approved regex catalog rules to declarative presentation-state transitions.</summary>
+    /// <value>Ordered match-to-variable bindings used by both previews and approved game controls.</value>
+    public List<GameSceneRegexTransition> RegexTransitions { get; set; } = [];
 }
 
 /// <summary>One cell in an open-world chunk, with semantic exclusion flags for object placement.</summary>
@@ -231,6 +303,9 @@ public sealed class GameSceneSprite
     /// </summary>
     /// <value>The pixel rows value exposed by <see cref="GameSceneSprite"/>.</value>
     public List<string> PixelRows { get; set; } = [];
+    /// <summary>Optional multi-line glyph sprite for authored ASCII/ANSI presentation, independent of pixel palette tokens.</summary>
+    /// <value>Literal character-art rows with preserved whitespace.</value>
+    public List<string> AsciiRows { get; set; } = [];
     /// <summary>
     /// Gets or sets the palette collection maintained or exposed by this game scene sprite instance for downstream processing.
     /// </summary>
@@ -546,6 +621,15 @@ public sealed class GameScenePatch
     /// </summary>
     /// <value>The palette timeline value exposed by <see cref="GameScenePatch"/>.</value>
     public List<GameScenePaletteKey> PaletteTimeline { get; set; } = [];
+    /// <summary>Optional presentation choice for this patch; null preserves the existing project's mode.</summary>
+    /// <value>Scene artwork mode or null.</value>
+    public GameSceneArtworkMode? ArtworkMode { get; set; }
+    /// <summary>Individual authored screen canvases added or replaced by stable identity.</summary>
+    /// <value>Proposed canvas changes.</value>
+    public List<GameSceneTextCanvas> TextCanvases { get; set; } = [];
+    /// <summary>Named regex catalog bindings added or replaced by pattern and variable identity.</summary>
+    /// <value>Proposed declarative state transitions.</value>
+    public List<GameSceneRegexTransition> RegexTransitions { get; set; } = [];
 }
 
 /// <summary>Independent Council reviewer response; geometry validation is always repeated by the service.</summary>
@@ -627,6 +711,9 @@ public sealed class GameSceneClock
     /// </summary>
     /// <value>The actor positions value exposed by <see cref="GameSceneClock"/>.</value>
     public Dictionary<string, GameScenePosition> ActorPositions { get; set; } = [];
+    /// <summary>Runtime-only scene presentation variables produced by approved regex transitions.</summary>
+    /// <value>Named values; the authored GameSceneDocument remains unchanged.</value>
+    public Dictionary<string, string> SceneVariables { get; set; } = new(StringComparer.Ordinal);
 }
 
 /// <summary>Simulation-space position maintained separately from the authored scene.</summary>

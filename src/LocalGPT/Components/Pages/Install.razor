@@ -1,4 +1,5 @@
 @rendermode InteractiveServer
+@implements IDisposable
 @page "/install"
 @attribute [LocalGptUiLayoutSurface("page", "Install / Setup", "/install", CanHide = false)]
 @attribute [LocalGptUiLayoutSurface("providers", "Install · AI providers", "/install#providers")]
@@ -17,6 +18,7 @@
 @inject IConfigurationWriter Writer
 @inject IAiProviderConfigurationRegistryService ProviderConfigurationRegistry
 @inject INetworkCertificateService NetworkCertificates
+@inject IConsoleCommandService CommandConsole
 @inject IAiConnectivityProbe Probe
 @inject IOllamaProcessService OllamaProcesses
 @inject NavigationManager Nav
@@ -75,6 +77,13 @@
             </Actions>
         </WorkbenchHeader>
 
+        <LocalPathExplorer Visible="@CertificatePickerVisible"
+                           VisibleChanged="OnCertificatePickerVisibleChangedAsync"
+                           SelectedPath="@GetCertificatePickerInitialPath()"
+                           SelectedPathChanged="OnCertificateFileSelectedAsync"
+                           SelectionMode="File"
+                           IncludeFiles="true"
+                           Title='@T("Install.Certificates.SelectPfx", "Select existing PFX certificate")' />
         <OperationStatusStrip Busy="@HasActiveInstallOperation"
                               Text="@CurrentInstallOperationText"
                               Detail="@(HasActiveInstallOperation ? T("Install.Workbench.OperationHelp", "Live provider, setup, command, and application activity is mirrored to Setup log and the shared ASCII operational console.") : string.Empty)" />
@@ -607,7 +616,10 @@
                     <DxSpinEdit @bind-Value="NetworkModel.Port" Min="0" Max="65535" />
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption="PFX certificate path">
-                    <DxTextBox @bind-Text="NetworkModel.CertificatePath" />
+                    <div class="top-container">
+                        <DxTextBox @bind-Text="NetworkModel.CertificatePath" />
+                        <DxButton Text='@T("Install.Certificates.Browse", "Browse certificate")' Click="@(() => OpenCertificatePicker(false))" />
+                    </div>
                     <p class="field-help">Leave empty for HTTP. Select or create a PFX below for HTTPS.</p>
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption="PFX password">
@@ -720,8 +732,11 @@
                                         <DxSpinEdit @bind-Value="McpGatewayModel.MaxRequestBodyBytes" Min="1024" Max="67108864" />
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="PFX certificate path" ColSpanMd="8">
-                                        <DxTextBox @bind-Text="McpGatewayModel.CertificatePath" NullText="Leave empty for HTTP / reverse-proxy TLS" />
-                                        <p class="field-help">Environment override: <code>LOCALGPT_MCP_CERTIFICATE</code>.</p>
+                                        <div class="top-container">
+                                            <DxTextBox @bind-Text="McpGatewayModel.CertificatePath" NullText="Leave empty for HTTP / reverse-proxy TLS" />
+                                            <DxButton Text='@T("Install.Certificates.Browse", "Browse certificate")' Click="@(() => OpenCertificatePicker(true))" />
+                                        </div>
+                                        <p class="field-help">Environment override: <code>LOCALGPT_MCP_CERTIFICATE</code>. A suggested file path does not validate its password or activate TLS until Save and restart.</p>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="PFX password" ColSpanMd="4">
                                         <DxTextBox @bind-Text="McpGatewayModel.CertificatePassword" Password="true" NullText="Stored secret or environment override" />

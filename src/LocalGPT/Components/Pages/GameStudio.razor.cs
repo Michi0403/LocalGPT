@@ -13,6 +13,13 @@ public partial class GameStudio
     /// Stores the internal JSON options state used by <see cref="GameStudio"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>All supported rendering adapters, without coupling a Council team to a built-in game identity.</summary>
+    /// <value>Available project scene presentation styles.</value>
+    private static readonly IReadOnlyList<GameSceneArtworkMode> ArtworkModes = Enum.GetValues<GameSceneArtworkMode>();
+    /// <summary>Unsaved sample input for exercising project-authored regex transitions in the preview.</summary>
+    /// <value>The transient test text.</value>
+    private string RegexSceneInput { get; set; } = string.Empty;
+
     /// <summary>
     /// Gets or sets the game projects collection maintained or exposed by this game studio instance for downstream processing.
     /// </summary>
@@ -552,6 +559,33 @@ public partial class GameStudio
         {
             Logger.LogError(exception, "Closing the explicit Game Studio revision failed.");
             throw;
+        }
+    }
+
+    /// <summary>Exercises all catalog-backed recognition bindings on the transient preview clock, not the project draft.</summary>
+    /// <returns>An awaitable preview refresh without any saved project mutation.</returns>
+    private async Task TestSceneRegexAsync()
+    {
+        if (Draft is null) return;
+        try
+        {
+            var approved = (await RegexCurator.ListApprovedPatternsAsync().ConfigureAwait(true))
+                .Select(pattern => pattern.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var patterns = new Dictionary<string, System.Text.RegularExpressions.Regex>(StringComparer.OrdinalIgnoreCase);
+            foreach (var patternName in Draft.Scene.RegexTransitions.Select(binding => binding.RegexPatternName).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!approved.Contains(patternName))
+                    throw new InvalidOperationException($"Catalog regex '{patternName}' requires independent review and human approval.");
+                patterns.Add(patternName, await RegexCatalog.GetRegexAsync(patternName).ConfigureAwait(true)
+                    ?? throw new InvalidOperationException($"Catalog regex '{patternName}' was not found."));
+            }
+            var changes = Engine.ApplyRegexTransitions(Draft.Scene, Clock, RegexSceneInput ?? string.Empty, patterns);
+            PreviewNow();
+            Status = $"{changes} declarative scene state transition(s) matched; project source remains unchanged.";
+        }
+        catch (Exception exception)
+        {
+            Status = $"Regex preview failed: {exception.Message}";
         }
     }
 

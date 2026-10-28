@@ -276,6 +276,18 @@ public sealed class GameStudioService(
                 var index = scene.PaletteTimeline.FindIndex(item => item.AtWorldSecond == key.AtWorldSecond);
                 if (index >= 0) scene.PaletteTimeline[index] = key; else scene.PaletteTimeline.Add(key);
             }
+            if (patch.ArtworkMode is GameSceneArtworkMode mode)
+                scene.ArtworkMode = mode;
+            foreach (var canvas in patch.TextCanvases)
+            {
+                var index = scene.TextCanvases.FindIndex(item => item.Id == canvas.Id);
+                if (index >= 0) scene.TextCanvases[index] = canvas; else scene.TextCanvases.Add(canvas);
+            }
+            foreach (var binding in patch.RegexTransitions)
+            {
+                var index = scene.RegexTransitions.FindIndex(item => item.RegexPatternName == binding.RegexPatternName && item.Variable == binding.Variable);
+                if (index >= 0) scene.RegexTransitions[index] = binding; else scene.RegexTransitions.Add(binding);
+            }
             return await ProposeSceneAsync(projectId, draftId, new GameSceneProposal
             {
                 Artist = artist, Description = description, Scene = scene

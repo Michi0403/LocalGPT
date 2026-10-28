@@ -54,7 +54,8 @@ namespace LocalGPT.Services
             CurrentTurn = session.SceneClock.CurrentTurn,
             CameraX = session.SceneClock.CameraX,
             CameraY = session.SceneClock.CameraY,
-            ActorPositions = session.SceneClock.ActorPositions.ToDictionary(item => item.Key, item => item.Value)
+            ActorPositions = session.SceneClock.ActorPositions.ToDictionary(item => item.Key, item => item.Value),
+            SceneVariables = new Dictionary<string, string>(session.SceneClock.SceneVariables, StringComparer.Ordinal)
         },
         SourceRevisionId = session.SourceRevisionId,
         GameKey = session.GameKey,

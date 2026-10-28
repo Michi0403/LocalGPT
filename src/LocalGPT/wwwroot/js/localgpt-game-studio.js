@@ -31,6 +31,39 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.font = 'bold 14px monospace';
             ctx.textBaseline = 'top';
+            const mode = scene.artworkMode || 'ClassicGlyph';
+            const variables = clock.sceneVariables || {};
+            function expand(template) {
+                let value = String(template || '').replaceAll('{tick}', String(clock.tick || 0))
+                    .replaceAll('{worldSeconds}', worldTime.toFixed(2))
+                    .replaceAll('{turn}', String(clock.currentTurn || 0));
+                for (const [key, replacement] of Object.entries(variables)) {
+                    if (key.length > 80) continue;
+                    value = value.split('{' + key + '}').join(String(replacement || '').replace(/\s+/g, ' ').slice(0, 160));
+                }
+                return value.slice(0, 4096);
+            }
+            function drawTextRows(rows, x, y, color) {
+                ctx.fillStyle = color || fg;
+                for (let row = 0; row < rows.length; row++) {
+                    if (y + row < 0 || y + row >= height) continue;
+                    const text = expand(rows[row]);
+                    for (let column = 0; column < text.length; column++) {
+                        if (x + column >= 0 && x + column < width && text[column] !== ' ')
+                            ctx.fillText(text[column], (x + column) * cell, (y + row) * cell);
+                    }
+                }
+            }
+            if (mode !== 'ClassicGlyph') {
+                for (const screen of scene.textCanvases || []) {
+                    const value = variables[screen.visibleWhenVariable];
+                    if ((screen.fromWorldSecond || 0) > worldTime
+                        || (screen.untilWorldSecond || 0) > 0 && worldTime >= screen.untilWorldSecond
+                        || screen.visibleWhenVariable && value !== screen.visibleWhenValue)
+                        continue;
+                    drawTextRows(screen.rows || [], screen.x || 0, screen.y || 0, fg);
+                }
+            }
 
             for (const layer of [...(scene.layers || [])].sort((a, b) => a.depth - b.depth)) {
                 const pattern = layer.glyphPattern || '';
@@ -67,7 +100,9 @@
             function drawObject(object, x, y) {
                 if (x < 0 || y < 0 || x >= width || y >= height) return;
                 const sprite = sprites.get(animatedSpriteId(object));
-                if (sprite && sprite.pixelRows && sprite.pixelRows.length) {
+                if (sprite && mode !== 'ClassicGlyph' && mode !== 'AuthoredPixel' && sprite.asciiRows && sprite.asciiRows.length) {
+                    drawTextRows(sprite.asciiRows, x, y, object.color || fg);
+                } else if (sprite && sprite.pixelRows && sprite.pixelRows.length) {
                     const pxSize = Math.max(1, Math.floor(cell / Math.max(1, ...sprite.pixelRows.map(row => row.length), sprite.pixelRows.length)));
                     for (let row = 0; row < sprite.pixelRows.length; row++) {
                         for (let column = 0; column < sprite.pixelRows[row].length; column++) {
@@ -92,9 +127,7 @@
             }
             for (const hud of scene.hud || []) {
                 ctx.fillStyle = hud.color || fg;
-                const label = (hud.format || '').replaceAll('{tick}', String(clock.tick || 0))
-                    .replaceAll('{worldSeconds}', worldTime.toFixed(2))
-                    .replaceAll('{turn}', String(clock.currentTurn || 0));
+                const label = expand(hud.format || '');
                 ctx.fillText(label, hud.x * cell, hud.y * cell);
             }
         } catch (error) {

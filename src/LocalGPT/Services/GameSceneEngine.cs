@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Services;
@@ -25,6 +26,36 @@ public sealed class GameSceneEngine(ILogger<GameSceneEngine> logger)
                 findings.Add(new("SceneCapacity", "The scene exceeds the maintained world/actor/layer/timeline limits.", true));
             if (scene.Animations.Count > 2048 || scene.Hud.Count > 256)
                 findings.Add(new("PresentationCapacity", "Animation and HUD data must remain within the scene's authored bounds.", true));
+            if (!Enum.IsDefined(typeof(GameSceneArtworkMode), scene.ArtworkMode))
+                findings.Add(new("ArtworkMode", "Select an existing presentation mode.", true));
+            if (scene.TextCanvases.Count > 64 || scene.RegexTransitions.Count > 64)
+                findings.Add(new("SceneDeclarations", "A scene supports up to 64 text canvases and 64 regex transitions.", true));
+            var authoredCharacterCells = scene.TextCanvases.Sum(canvas => canvas.Rows.Sum(row => row?.Length ?? 0))
+                + scene.Sprites.Sum(sprite => sprite.AsciiRows.Sum(row => row?.Length ?? 0));
+            if (authoredCharacterCells > 96000)
+                findings.Add(new("CharacterArtBudget", "A scene supports up to 96,000 authored character-art cells total.", true));
+            var canvasIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var canvas in scene.TextCanvases)
+            {
+                if (string.IsNullOrWhiteSpace(canvas.Id) || canvas.Id.Length > 128 || !canvasIds.Add(canvas.Id))
+                    findings.Add(new("CanvasIdentity", "Each canvas requires a unique ID of at most 128 characters.", true));
+                if (canvas.X < 0 || canvas.Y < 0 || canvas.X >= scene.ViewWidth || canvas.Y >= scene.ViewHeight
+                    || canvas.Rows.Count is < 1 or > 100 || canvas.Y + canvas.Rows.Count > scene.ViewHeight
+                    || canvas.Rows.Any(row => row is null || row.Length > 240 || canvas.X + row.Length > scene.ViewWidth || row.Any(char.IsControl)))
+                    findings.Add(new("CanvasBounds", $"Canvas {canvas.Id} exceeds the viewport or contains control characters.", true));
+                if (!double.IsFinite(canvas.FromWorldSecond) || !double.IsFinite(canvas.UntilWorldSecond)
+                    || canvas.FromWorldSecond < 0 || (canvas.UntilWorldSecond != 0 && canvas.UntilWorldSecond <= canvas.FromWorldSecond))
+                    findings.Add(new("CanvasTiming", $"Canvas {canvas.Id} has invalid presentation timing.", true));
+                if (canvas.VisibleWhenVariable.Length > 80 || canvas.VisibleWhenValue.Length > 160)
+                    findings.Add(new("CanvasPredicate", "Canvas predicates must be bounded presentation values.", true));
+            }
+            foreach (var binding in scene.RegexTransitions)
+            {
+                if (string.IsNullOrWhiteSpace(binding.RegexPatternName) || binding.RegexPatternName.Length > 128
+                    || string.IsNullOrWhiteSpace(binding.Variable) || binding.Variable.Length > 80
+                    || binding.CaptureGroup.Length > 80 || binding.ValueOnMatch.Length > 160)
+                    findings.Add(new("RegexTransition", "A regex transition requires a bounded existing pattern name and scene-state variable.", true));
+            }
             if (scene.Sprites.Count > 1024)
                 findings.Add(new("SpriteCapacity", "The scene may have no more than 1,024 independently curated pixel sprites.", true));
             var colors = scene.Tiles.Select(tile => tile.Color)
@@ -41,8 +72,10 @@ public sealed class GameSceneEngine(ILogger<GameSceneEngine> logger)
             {
                 if (string.IsNullOrWhiteSpace(sprite.Id) || !sprites.Add(sprite.Id))
                     findings.Add(new("SpriteIdentity", "Each pixel-art sprite requires a distinct nonempty ID.", true));
-                if (sprite.PixelRows.Count is < 1 or > 64 || sprite.PixelRows.Any(row => row.Length > 64))
-                    findings.Add(new("SpriteDimensions", $"Sprite {sprite.Id} must have 1–64 rows and at most 64 columns.", true));
+                if ((sprite.PixelRows.Count == 0 && sprite.AsciiRows.Count == 0)
+                    || sprite.PixelRows.Count > 64 || sprite.PixelRows.Any(row => row is null || row.Length > 64)
+                    || sprite.AsciiRows.Count > 100 || sprite.AsciiRows.Any(row => row is null || row.Length > 240 || row.Any(char.IsControl)))
+                    findings.Add(new("SpriteDimensions", $"Sprite {sprite.Id} requires bounded pixel or authored character-art rows without control characters.", true));
                 foreach (var row in sprite.PixelRows)
                     foreach (var token in row)
                         if (token != ' ' && !sprite.Palette.ContainsKey(token.ToString()))
@@ -112,6 +145,46 @@ public sealed class GameSceneEngine(ILogger<GameSceneEngine> logger)
         }
     }
 
+    /// <summary>Matches a reviewed input against catalog-compiled regexes and changes only declarative scene presentation variables.</summary>
+    /// <param name="scene">Approved project-owned scene declarations.</param>
+    /// <param name="state">Per-session state that owns mutable presentation values.</param>
+    /// <param name="input">Approved input or text event; never interpreted as arbitrary executable code.</param>
+    /// <param name="patterns">Existing catalog-compiled regular expressions keyed by their persisted names.</param>
+    /// <returns>Number of matched scene-state assignments.</returns>
+    public int ApplyRegexTransitions(GameSceneDocument scene, GameSceneClock state, string input, IReadOnlyDictionary<string, Regex> patterns)
+    {
+        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(patterns);
+        if (Curate(scene).Any(finding => finding.BlocksAcceptance))
+            throw new InvalidOperationException("The scene must pass curation before accepting regex transitions.");
+        if (input is null || input.Length > 4096)
+            throw new ArgumentException("Scene input must be 4,096 characters or fewer.", nameof(input));
+        var assignments = 0;
+        var pending = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var binding in scene.RegexTransitions)
+        {
+            if (!patterns.TryGetValue(binding.RegexPatternName, out var regex))
+                throw new InvalidOperationException($"The scene references an unavailable catalog regex '{binding.RegexPatternName}'.");
+            var match = regex.Match(input);
+            if (!match.Success)
+                continue;
+            var value = binding.ValueOnMatch;
+            if (!string.IsNullOrWhiteSpace(binding.CaptureGroup))
+            {
+                var capture = match.Groups[binding.CaptureGroup];
+                if (!capture.Success)
+                    continue;
+                value = capture.Value;
+            }
+            pending[binding.Variable] = value.Length > 160 ? value[..160] : value;
+            assignments++;
+        }
+        foreach (var update in pending)
+            state.SceneVariables[update.Key] = update.Value;
+        return assignments;
+    }
+
     /// <summary>Advances exact fixed ticks, retaining any unprocessed backlog; neither rendering FPS nor UI latency controls world speed.</summary>
     /// <param name="scene">Scene value supplied to the game scene engine operation and used when producing its result.</param>
     /// <param name="state">State value supplied to the game scene engine operation and used when producing its result.</param>
@@ -174,6 +247,80 @@ public sealed class GameSceneEngine(ILogger<GameSceneEngine> logger)
             for (var row = 0; row < height; row++)
                 for (var column = 0; column < width; column++)
                     cells[row, column] = ' ';
+            string Expand(string template)
+            {
+                var result = (template ?? string.Empty)
+                    .Replace("{tick}", state.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                    .Replace("{worldSeconds}", state.WorldSeconds.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                    .Replace("{turn}", state.CurrentTurn.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+                foreach (var entry in state.SceneVariables.OrderBy(item => item.Key, StringComparer.Ordinal))
+                {
+                    var safe = string.Join(' ', entry.Value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+                    result = result.Replace("{" + entry.Key + "}", safe, StringComparison.Ordinal);
+                }
+                return result.Length > 4096 ? result[..4096] : result;
+            }
+            void PaintRows(IReadOnlyList<string> art, int startX, int startY)
+            {
+                for (var row = 0; row < art.Count; row++)
+                {
+                    var y = startY + row;
+                    if (y < 0 || y >= height) continue;
+                    var expanded = Expand(art[row]);
+                    for (var column = 0; column < expanded.Length; column++)
+                    {
+                        var x = startX + column;
+                        if (x >= 0 && x < width && expanded[column] != ' ')
+                            cells[y, x] = expanded[column];
+                    }
+                }
+            }
+            if (scene.ArtworkMode != GameSceneArtworkMode.ClassicGlyph)
+                foreach (var canvas in scene.TextCanvases)
+                    if (state.WorldSeconds >= canvas.FromWorldSecond
+                        && (canvas.UntilWorldSecond == 0 || state.WorldSeconds < canvas.UntilWorldSecond)
+                        && (string.IsNullOrEmpty(canvas.VisibleWhenVariable)
+                            || state.SceneVariables.TryGetValue(canvas.VisibleWhenVariable, out var visibleValue)
+                                && string.Equals(visibleValue, canvas.VisibleWhenValue, StringComparison.Ordinal)))
+                        PaintRows(canvas.Rows, canvas.X, canvas.Y);
+            var spriteLookup = scene.Sprites.ToDictionary(item => item.Id, StringComparer.Ordinal);
+            string AnimatedSpriteId(string targetId, string initial)
+            {
+                var animation = scene.Animations.FirstOrDefault(item => item.TargetId == targetId);
+                if (animation is null || state.WorldSeconds < animation.StartWorldSecond || animation.Frames.Count == 0)
+                    return initial;
+                var duration = animation.Frames.Sum(frame => frame.DurationWorldSeconds);
+                if (duration <= 0) return initial;
+                var phase = state.WorldSeconds - animation.StartWorldSecond;
+                phase = animation.Loop ? phase % duration : Math.Min(phase, duration - 0.000001);
+                foreach (var frame in animation.Frames)
+                {
+                    phase -= frame.DurationWorldSeconds;
+                    if (phase < 0) return frame.SpriteId;
+                }
+                return initial;
+            }
+            void PaintSprite(string id, int x, int y, string fallback)
+            {
+                if (scene.ArtworkMode == GameSceneArtworkMode.ClassicGlyph)
+                {
+                    if (x >= 0 && y >= 0 && x < width && y < height && fallback.Length > 0)
+                        cells[y, x] = fallback[0];
+                    return;
+                }
+                if (!spriteLookup.TryGetValue(id, out var sprite))
+                {
+                    if (x >= 0 && y >= 0 && x < width && y < height && fallback.Length > 0)
+                        cells[y, x] = fallback[0];
+                    return;
+                }
+                if (scene.ArtworkMode == GameSceneArtworkMode.AuthoredPixel && sprite.PixelRows.Count > 0)
+                    PaintRows(sprite.PixelRows, x, y);
+                else if (sprite.AsciiRows.Count > 0)
+                    PaintRows(sprite.AsciiRows, x, y);
+                else if (x >= 0 && y >= 0 && x < width && y < height && fallback.Length > 0)
+                    cells[y, x] = fallback[0];
+            }
             foreach (var layer in scene.Layers.OrderBy(item => item.Depth))
             {
                 if (layer.GlyphPattern.Length == 0)
@@ -195,22 +342,18 @@ public sealed class GameSceneEngine(ILogger<GameSceneEngine> logger)
             {
                 var x = tile.X - (int)Math.Floor(state.CameraX);
                 var y = tile.Y - (int)Math.Floor(state.CameraY);
-                if (x >= 0 && y >= 0 && x < width && y < height && tile.Glyph.Length > 0)
-                    cells[y, x] = tile.Glyph[0];
+                PaintSprite(AnimatedSpriteId(tile.Id, tile.SpriteId), x, y, tile.Glyph);
             }
             foreach (var actor in scene.Actors.OrderBy(item => item.Layer))
             {
                 var current = state.ActorPositions.TryGetValue(actor.Id, out var position) ? position : new GameScenePosition(actor.X, actor.Y);
                 var x = (int)Math.Floor(current.X - state.CameraX);
                 var y = (int)Math.Floor(current.Y - state.CameraY);
-                if (x >= 0 && y >= 0 && x < width && y < height && actor.Glyph.Length > 0)
-                    cells[y, x] = actor.Glyph[0];
+                PaintSprite(AnimatedSpriteId(actor.Id, actor.SpriteId), x, y, actor.Glyph);
             }
             foreach (var hud in scene.Hud)
             {
-                var formatted = hud.Format.Replace("{tick}", state.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
-                    .Replace("{worldSeconds}", state.WorldSeconds.ToString("F2", System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
-                    .Replace("{turn}", state.CurrentTurn.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+                var formatted = Expand(hud.Format);
                 for (var index = 0; index < formatted.Length && hud.X + index < width; index++)
                     cells[hud.Y, hud.X + index] = formatted[index];
             }
