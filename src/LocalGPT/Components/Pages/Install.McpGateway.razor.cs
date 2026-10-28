@@ -80,7 +80,7 @@ namespace LocalGPT.Components.Pages
         {
             try
             {
-                if (!path.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
+                if (!NetworkCertificates.IsExistingPfxFile(path))
                 {
                     Notifier.ShowWarning(toastName, "Choose an existing .pfx certificate file on this host.", "Certificate path");
                     return Task.CompletedTask;

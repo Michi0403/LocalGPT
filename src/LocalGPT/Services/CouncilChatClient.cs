@@ -67,20 +67,26 @@ public sealed partial class CouncilChatClient(
     /// <summary>Starts or attaches to a live Council run and streams bounded response updates.</summary>
     /// <param name="messages">Current chat history.</param>
     /// <param name="options">Optional Microsoft.Extensions.AI chat options.</param>
-    /// <param name="cancellationToken">Cancellation from the Chat control stops the owned run, including native DevExpress Stop.</param>
+    /// <param name="cancellationToken">Cancellation detaches this browser stream. Only explicit Council run controls cancel backend execution.</param>
     /// <returns>An asynchronous sequence of Council response updates.</returns>
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var updates = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+        // Delivery is an expendable observer buffer, never the authoritative transcript.
+        // Bound it so a disconnected/stalled browser cannot grow process memory without limit.
+        // The live-session service receives every update independently and supports rejoin.
+        var updates = Channel.CreateBounded<string>(new BoundedChannelOptions(512)
         {
             SingleReader = true,
             SingleWriter = false,
+            FullMode = BoundedChannelFullMode.DropOldest,
             AllowSynchronousContinuations = false
         });
         var attached = 1;
+        using var observerCancellationRegistration = cancellationToken.Register(
+            () => Interlocked.Exchange(ref attached, 0));
 
         var requestMessages = messages.ToList();
         var request = CreateRequest(requestMessages);
@@ -148,13 +154,16 @@ public sealed partial class CouncilChatClient(
         request.StreamUpdate = Publish;
         request.StepCompleted = step => Publish(councilRuntime.FormatStepProgress(step, logger));
 
-        yield return councilRuntime.CreateUpdate(liveMessageMarker + introduction, logger);
+        // Launch the process-owned run before returning the first UI update. An iterator may
+        // be disposed immediately after its first yield (navigation, tab close or circuit
+        // failure); that must not strand a "running" session that never actually started.
+        var runTask = RunCouncilInBackgroundAsync(request, liveCancellation, updates.Writer, Publish);
         var startedAt = DateTimeOffset.UtcNow;
         var nextHeartbeatAt = startedAt.AddSeconds(35);
-        var runTask = RunCouncilInBackgroundAsync(request, liveCancellation, updates.Writer, Publish);
 
         try
         {
+            yield return councilRuntime.CreateUpdate(liveMessageMarker + introduction, logger);
             while (!runTask.IsCompleted)
             {
                 while (updates.Reader.TryRead(out var update))
@@ -168,9 +177,9 @@ public sealed partial class CouncilChatClient(
 
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    // DevExpress Chat Stop cancels the streaming request. Detaching just
-                    // the UI while retaining the heavy Council task leaves an orphan.
-                    liveSessions.Cancel(request.RunId);
+                    // This token belongs to a UI observer, not the process-owned Council.
+                    // Explicit Stop (including the native chat button) goes through
+                    // StopActiveCouncilRunAsync -> CouncilLiveSessions.Cancel(runId).
                     yield break;
                 }
 
@@ -190,11 +199,10 @@ public sealed partial class CouncilChatClient(
         finally
         {
             Interlocked.Exchange(ref attached, 0);
-            if (cancellationToken.IsCancellationRequested &&
-                liveSessions.GetSummary(request.RunId)?.IsRunning == true)
-                liveSessions.Cancel(request.RunId);
+            // Never cancel a backend run just because its viewer disconnected, navigated,
+            // or stopped consuming updates. The explicit Stop command owns cancellation.
             logger.LogInformation(
-                "AI Council DXChat stream ended for run {RunId}; canceled={CancellationRequested}.",
+                "AI Council DXChat observer detached for run {RunId}; streamCanceled={CancellationRequested}.",
                 request.RunId, cancellationToken.IsCancellationRequested);
         }
     }

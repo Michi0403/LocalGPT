@@ -895,6 +895,24 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 if (button === liveAction || !visible(button)) return false;
                 return /stop|cancel generation|abort|square/i.test(marker(button));
             }) || null;
+            // DevExpress cancels its own streaming enumerator when native Stop is pressed.
+            // That token also fires on transport loss, so it must NEVER be interpreted as
+            // an explicit backend stop. Bridge the actual user click to the server-owned
+            // run control instead, without changing the native button's normal behavior.
+            if (nativeStop instanceof HTMLElement && !nativeStop.hasAttribute('data-localgpt-council-stop-bridge')) {
+                nativeStop.setAttribute('data-localgpt-council-stop-bridge', 'true');
+                nativeStop.addEventListener('click', diagnostics.guard('localgpt-chat-ui.nativeCouncilStop.click', () => {
+                    if (!councilComposerActive || !councilComposerDotNet) return;
+                    councilComposerDotNet.invokeMethodAsync('StopActiveCouncilRunAsync')
+                        .then(stopped => {
+                            if (stopped) {
+                                councilComposerActive = false;
+                                scheduleApply();
+                            }
+                        })
+                        .catch(error => diagnostics.report('localgpt-chat-ui.nativeCouncilStop.invoke', error));
+                }), { capture: true });
+            }
             const nativeSend = actionButtons.find(button => {
                 if (button === liveAction || button === nativeStop) return false;
                 const buttonMarker = marker(button);

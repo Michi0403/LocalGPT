@@ -15,7 +15,7 @@ public partial class GameStudio
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     /// <summary>All supported rendering adapters, without coupling a Council team to a built-in game identity.</summary>
     /// <value>Available project scene presentation styles.</value>
-    private static readonly IReadOnlyList<GameSceneArtworkMode> ArtworkModes = Enum.GetValues<GameSceneArtworkMode>();
+    private readonly IReadOnlyList<GameSceneArtworkMode> ArtworkModes = Enum.GetValues<GameSceneArtworkMode>();
     /// <summary>Unsaved sample input for exercising project-authored regex transitions in the preview.</summary>
     /// <value>The transient test text.</value>
     private string RegexSceneInput { get; set; } = string.Empty;

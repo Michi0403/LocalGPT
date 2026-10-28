@@ -30,6 +30,7 @@
   <PropertyGroup>
     <RepositoryPowerShellBoundaryScript>$(MSBuildThisFileDirectory)build/Assert-RepositoryPowerShellBoundary.ps1</RepositoryPowerShellBoundaryScript>
     <RuntimePluginCallbackScript>$(MSBuildThisFileDirectory)build/Assert-RuntimePluginSourceCallbacks.ps1</RuntimePluginCallbackScript>
+    <CouncilXRoundWiringScript>$(MSBuildThisFileDirectory)build/Assert-CouncilXRoundWiring.ps1</CouncilXRoundWiringScript>
   </PropertyGroup>
   <PropertyGroup>
     <InstallerLayoutGuardScript>$(MSBuildThisFileDirectory)build/Assert-InstallerLayout.ps1</InstallerLayoutGuardScript>
@@ -80,6 +81,8 @@
           BeforeTargets="BeforeBuild"
           AfterTargets="AssertLocalGptRuntimePluginSourceCallbacks"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(CouncilXRoundWiringScript)')" Text="Missing mandatory Council backend/observer validation guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(CouncilXRoundWiringScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
     <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(AsyncContinuationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
     <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(AsyncOnlyArchitectureScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
     <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(MethodDiagnosticsPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />

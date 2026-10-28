@@ -45,6 +45,24 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
         }
     }
 
+    /// <summary>Validates the local PFX path selected for either HTTPS listener, without opening or importing the certificate.</summary>
+    /// <param name="path">User-selected certificate path.</param>
+    /// <returns>True if the file exists and has the .pfx extension.</returns>
+    public bool IsExistingPfxFile(string? path)
+    {
+        try
+        {
+            return !string.IsNullOrWhiteSpace(path)
+                && string.Equals(Path.GetExtension(path), ".pfx", StringComparison.OrdinalIgnoreCase)
+                && File.Exists(path);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            logger.LogDebug(ex, "Rejected invalid local PFX certificate path.");
+            return false;
+        }
+    }
+
     /// <summary>
     /// Performs create as part of the network certificate service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
