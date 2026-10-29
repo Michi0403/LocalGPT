@@ -187,3 +187,8 @@
     background: var(--bs-warning-bg-subtle);
     overflow-wrap: anywhere;
 }
+
+/* Bounded, searchable provider model selection; role cards must not grow with installed inventory. */
+.council-provider-model-list { margin-top: .55rem; max-width: 100%; min-width: 0; }
+::deep .council-provider-model-list .dxbl-list-box { max-width: 100%; }
+.council-role-all-subjects { align-self: center; margin: 0; }

@@ -44,6 +44,8 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
         /// <summary>Stores host filesystem semantics behind the injected platform boundary.</summary>
         private readonly IPlatformRuntimeService platform;
+        /// <summary>Shared CodeDOM emitter for reviewed sources and sandbox previews.</summary>
+        private readonly ICodeDomSourceService codeDomSource;
         /// <summary>
         /// Stores the logger used by <see cref="CodeGenerationWorkflowService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -58,6 +60,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         /// <param name="regexPatterns">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
         /// <param name="platform">Injected platform runtime service providing cross-platform filesystem semantics.</param>
+        /// <param name="codeDomSource">The shared CodeDOM source generator.</param>
         /// <param name="logger">Injected dependency used by the CodeGenerationWorkflowService.</param>
         public CodeGenerationWorkflowService(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -68,6 +71,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             IRegexPatternService regexPatterns,
             ILocalGptRuntimePolicyDataService runtimePolicy,
             IPlatformRuntimeService platform,
+            ICodeDomSourceService codeDomSource,
             ILogger<CodeGenerationWorkflowService> logger)
         {
             this.dbContextFactory = dbContextFactory;
@@ -78,6 +82,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             this.regexPatterns = regexPatterns;
             this.runtimePolicy = runtimePolicy;
             this.platform = platform;
+            this.codeDomSource = codeDomSource;
             this.logger = logger;
         }
 

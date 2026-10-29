@@ -63,6 +63,7 @@ namespace LocalGPT.Components.Pages
             {
                 interactiveAttached = true;
                 AttachInteractiveCouncilSubscriptions();
+                SandboxRuns.Changed += OnSandboxExecutionChanged;
                 chatInteropReference ??= DotNetObjectReference.Create(this);
                 if (AutoStartCouncilStarter || !string.IsNullOrWhiteSpace(RequestedCouncilStarterKey))
                     await JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").ConfigureAwait(true);

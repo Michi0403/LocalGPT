@@ -1148,6 +1148,7 @@ namespace LocalGPT.Components.Pages
                 CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
                 CouncilRunConfigurations.Changed -= OnCouncilRunConfigurationChanged;
             }
+            SandboxRuns.Changed -= OnSandboxExecutionChanged;
             componentLifetimeCts.Cancel();
             if (interactiveAttached && DxAiChat is not null)
             {

@@ -38,6 +38,8 @@
 @inject IDeferredDxAiInvocationService DeferredDxInvocations
 @inject ILocalGptVocabularyService Vocabulary
 @inject ICouncilLiveSessionService CouncilLiveSessions
+@inject ISessionSandboxExecutionService SandboxRuns
+@inject ICodeDomSourceService CodeDomSources
 @inject ICouncilRunConfigurationService CouncilRunConfigurations
 @inject ICouncilHardwareRoadConfigurationService CouncilHardwareRoads
 @inject IServiceScopeFactory ServiceScopeFactory
@@ -1004,6 +1006,91 @@
                 <span class="memory-status">Select a running Council and join its transcript without interrupting it.</span>
             }
         </div>
+        <details class="session-sandbox-panel" data-testid="session-sandbox-workspace">
+            <summary>Session code sandboxes · @TotalRunningSandboxes running</summary>
+            <div class="session-sandbox-body" aria-label="Isolated session debugging and test execution">
+                <p class="memory-status">Backend-owned execution: sandboxes remain active when Chat disconnects. The guest has no network or project mounts; Python, C# and PowerShell runtimes are provisioned at build/publish time. Only the explicitly submitted source enters the micro-VM. A missing Hyperlight runtime never falls back to host execution.</p>
+                <div class="session-sandbox-runtime-readiness" aria-label="Hyperlight guest runtimes available with this build">
+                    @foreach (var readiness in SandboxRuns.RuntimeReadiness)
+                    {
+                        <small>@readiness.DisplayName · @(readiness.Provisioned ? "Provisioned" : "Not provisioned") — @readiness.Explanation</small>
+                    }
+                </div>
+                <div class="session-sandbox-controls">
+                    <label>Session
+                        <DxComboBox Data="@SandboxSessionOptions"
+                                    Value="@(EffectiveSandboxSessionId.ToString("D"))"
+                                    ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                    TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                    ValueChanged="@((string value) => selectedSandboxSession = value)" />
+                    </label>
+                    <label>Isolated runtime
+                        <DxComboBox Data="@SandboxLanguageOptions"
+                                    @bind-Value="@selectedSandboxLanguage"
+                                    ValueFieldName="@nameof(SessionSandboxLanguage.Key)"
+                                    TextFieldName="@nameof(SessionSandboxLanguage.DisplayName)" />
+                    </label>
+                </div>
+                <details class="session-sandbox-codedom" data-testid="session-sandbox-codedom">
+                    <summary>CodeDOM source generator · create a C# executable test</summary>
+                    <p class="memory-status">Uses the same CodeDOM source generator as reviewed projects. Generate the source, inspect or edit it below, then explicitly approve an isolated run. C++ execution requires a separate available language provider and a verified guest compiler.</p>
+                    <div class="session-sandbox-codedom-fields">
+                        <label>Namespace <DxTextBox @bind-Text="@sandboxCodeDomNamespace" /></label>
+                        <label>Class <DxTextBox @bind-Text="@sandboxCodeDomTypeName" /></label>
+                        <label>Method <DxTextBox @bind-Text="@sandboxCodeDomMethodName" /></label>
+                        <label>Returned text <DxTextBox @bind-Text="@sandboxCodeDomMethodResult" /></label>
+                    </div>
+                    <DxButton Text="Generate runnable C# source with CodeDOM" Click="StageCodeDomSandboxSourceAsync" />
+                </details>
+                <label class="session-sandbox-source-label">Python / C# / PowerShell source to debug or test
+                    <DxMemo @bind-Text="@sandboxSource" Rows="7" NullText="Paste code to run inside a Hyperlight micro-VM" />
+                </label>
+                <div class="session-sandbox-buttons">
+                    <DxButton Text="Run inside sandbox" RenderStyle="ButtonRenderStyle.Primary" Click="StartSandboxExecutionAsync" />
+                    <DxButton Text="Refresh sandboxes" Click="RefreshSandboxExecutionAsync" />
+                </div>
+                @if (!string.IsNullOrWhiteSpace(sandboxFeedback))
+                {
+                    <p class="memory-status" role="status">@sandboxFeedback</p>
+                }
+                @foreach (var sandbox in SessionSandboxRuns)
+                {
+                    <div class="session-sandbox-run" @key="sandbox.RunId">
+                        <div class="session-sandbox-run-header">
+                            <strong>@sandbox.Runtime · @sandbox.Status</strong>
+                            <small>@(sandbox.StartedUtc.ToLocalTime().ToString("g")) · @(sandbox.RunId.ToString("N")[..8])</small>
+                            @if (sandbox.Status is "Queued" or "Running")
+                            {
+                                <DxButton Text="Stop micro-VM" RenderStyle="ButtonRenderStyle.Danger"
+                                          Click="@(() => StopSandboxExecutionAsync(sandbox.RunId))" />
+                            }
+                        </div>
+                        <small>@sandbox.Permissions</small>
+                        <small>Source: @sandbox.SourceKind · SHA-256 @(sandbox.SourceSha256.Length >= 12 ? sandbox.SourceSha256[..12] : "legacy receipt")</small>
+                        @if (sandbox.ExitCode is int sandboxExitCode)
+                        {
+                            <p class="memory-status">Exit code: @sandboxExitCode</p>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(sandbox.Diagnostic))
+                        {
+                            <p class="memory-status">@sandbox.Diagnostic</p>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(sandbox.StandardOutput))
+                        {
+                            <strong>stdout</strong><pre>@sandbox.StandardOutput</pre>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(sandbox.StandardError))
+                        {
+                            <strong>stderr</strong><pre>@sandbox.StandardError</pre>
+                        }
+                        @if (sandbox.OutputTruncated)
+                        {
+                            <p class="memory-status">Output exceeded the bounded evidence limit and was truncated.</p>
+                        }
+                    </div>
+                }
+            </div>
+        </details>
         @if (FeedbackTargets.Count > 0)
         {
             <div class="memory-toolbar" aria-label="Assistant response feedback" data-testid="chat-feedback-controls">

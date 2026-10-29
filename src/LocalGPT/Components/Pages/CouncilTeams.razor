@@ -336,14 +336,21 @@
                                                 NullText="Optional · use range below" />
                                 </label>
                             }
-                            <label>
-                                <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Minimum pool invocations" : "Minimum random AI participants")</span>
-                                <DxSpinEdit @bind-Value="role.MinimumAiParticipants" CssClass="localgpt-editor" MinValue="1" Enabled="@(!(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly))" />
-                            </label>
-                            <label>
-                                <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Maximum pool invocations" : "Maximum random AI participants")</span>
-                                <DxSpinEdit @bind-Value="role.MaximumAiParticipants" CssClass="localgpt-editor" MinValue="1" Enabled="@(!(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly))" />
-                            </label>
+                            @if (UsesRandomParticipantCount(role) && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
+                            {
+                                <label>
+                                    <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Minimum pool invocations" : "Minimum random AI participants")</span>
+                                    <DxSpinEdit @bind-Value="role.MinimumAiParticipants" CssClass="localgpt-editor" MinValue="1" />
+                                </label>
+                                <label>
+                                    <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Maximum pool invocations" : "Maximum random AI participants")</span>
+                                    <DxSpinEdit @bind-Value="role.MaximumAiParticipants" CssClass="localgpt-editor" MinValue="1" />
+                                </label>
+                            }
+                            else if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
+                            {
+                                <p class="hint council-role-all-subjects">Every selected Council AI participates. There is no random minimum, maximum or representative sampling for this role.</p>
+                            }
                             <label>
                                 <span>Human participation</span>
                                 <DxComboBox Data="@HumanParticipationModes"
@@ -399,19 +406,19 @@
                                 {
                                     <details class="council-provider-host-group">
                                         <summary>@providerGroup.Key.Provider · @providerGroup.Key.Endpoint (@providerGroup.Count() models)</summary>
-                                        <div class="council-provider-model-grid">
-                                            @foreach (var candidate in providerGroup.OrderBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase))
-                                            {
-                                                <label class="council-provider-model-option">
-                                                    <DxCheckBox ValidationEnabled="false" CssClass="council-provider-model-checkbox"
-                                                                Checked="@role.AssignedModelKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)"
-                                                                CheckedChanged="@((bool value) => ToggleRoleModel(roleIndex, candidate.SelectionKey, new ChangeEventArgs { Value = value }))" />
-                                                    <span>
-                                                        <strong>@candidate.ModelName</strong>
-                                                        <small>@(candidate.IsInstalled ? "reachable" : candidate.IsConfigured ? "configured" : "discovered")</small>
-                                                    </span>
-                                                </label>
-                                            }
+                                        <div class="council-provider-model-list">
+                                            <DxListBox TData="CouncilRoleModelOption" TValue="string"
+                                                       Data="@ProviderModelOptions(providerGroup)"
+                                                       Values="@SelectedProviderModelKeys(role, providerGroup)"
+                                                       ValuesChanged="@((IEnumerable<string> values) => SetProviderRoleModels(roleIndex, providerGroup.Select(candidate => candidate.SelectionKey).ToArray(), values))"
+                                                       ValueFieldName="@nameof(CouncilRoleModelOption.SelectionKey)"
+                                                       TextFieldName="@nameof(CouncilRoleModelOption.DisplayName)"
+                                                       SelectionMode="ListBoxSelectionMode.Multiple"
+                                                       ShowCheckboxes="true"
+                                                       ShowSearchBox="true"
+                                                       SearchBoxNullText="Search models on this provider..."
+                                                       ListRenderMode="ListRenderMode.Virtual"
+                                                       Height="260px" />
                                         </div>
                                     </details>
                                 }

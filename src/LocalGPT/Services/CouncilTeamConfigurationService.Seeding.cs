@@ -233,18 +233,13 @@ namespace LocalGPT.Services
                 });
             }
 
-            var seedMinimumAiParticipants = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilSeedRoleMinimumAiParticipants));
-            var seedMaximumAiParticipants = Math.Max(seedMinimumAiParticipants, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilSeedRoleMaximumAiParticipants));
+            // A seed role's AI selection mode is authoritative configuration. In particular,
+            // AllSelected is not a request to choose the runtime's generic random-pool default.
+            // Converting it here silently sampled benchmark subjects (and other explicit roles).
+            // Only roles explicitly configured as RandomRange use their min/max controls.
             foreach (var role in team.Roles)
             {
                 role.Role = role.Role?.Trim() ?? string.Empty;
-                if (role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
-                    role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected)
-                {
-                    role.AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange;
-                    role.MinimumAiParticipants = seedMinimumAiParticipants;
-                    role.MaximumAiParticipants = seedMaximumAiParticipants;
-                }
                 role.Expertise = role.Expertise?.Trim() ?? string.Empty;
                 role.Responsibility = role.Responsibility?.Trim() ?? string.Empty;
                 role.DistinctAiAssignmentGroup = role.DistinctAiAssignmentGroup?.Trim() ?? string.Empty;

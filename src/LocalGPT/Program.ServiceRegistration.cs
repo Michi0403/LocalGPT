@@ -258,6 +258,11 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IHumanCollaborationService, HumanCollaborationService>();
                 builder.Services.AddSingleton<ICouncilXRoundService, CouncilXRoundService>();
                 builder.Services.AddSingleton<ICouncilLiveSessionService, CouncilLiveSessionService>();
+                // Session-owned Hyperlight execution. No host execution fallback or browser-owned task.
+                builder.Services.AddSingleton<ISessionSandboxExecutionProvider, HyperlightUnikraftSessionSandboxProvider>();
+                builder.Services.AddSingleton<SessionSandboxExecutionService>();
+                builder.Services.AddSingleton<ISessionSandboxExecutionService>(provider => provider.GetRequiredService<SessionSandboxExecutionService>());
+                builder.Services.AddHostedService(provider => provider.GetRequiredService<SessionSandboxExecutionService>());
                 builder.Services.AddSingleton<ICouncilGameActorRuntimeFactory, CouncilGameActorRuntimeFactory>();
                 builder.Services.AddSingleton<ICouncilGameSubdirector, CreatureCouncilGameSubdirector>();
                 builder.Services.AddSingleton<ICouncilGameSubdirector, ReactiveObjectCouncilGameSubdirector>();
@@ -315,6 +320,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<RemoteImportDxParameterReader>();
                 builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();
                 builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
+                builder.Services.AddSingleton<ICodeDomSourceService, CodeDomSourceService>();
                 builder.Services.AddScoped<ICodeGenerationWorkflowService, CodeGenerationWorkflowService>();
                 builder.Services.AddScoped<ICouncilCodeGenerationPlanService, CouncilCodeGenerationPlanService>();
                 builder.Services.AddSingleton<ICouncilSpoolerService, LocalGPT.Services.Council.CouncilSpoolerService>();

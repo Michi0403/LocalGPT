@@ -3385,3 +3385,56 @@
 
 .chat-game-popup-body:has(> .chat-ascii-popup-size-controls) { grid-template-rows: auto minmax(0, 1fr); }
 .chat-game-popup-body > .chat-ascii-popup-size-controls { min-height: 0; }
+
+/* Session-owned sandbox runs: compact when collapsed, readable evidence when expanded. */
+.session-sandbox-panel {
+    margin-block: 0.85rem;
+    border: 1px solid var(--bs-border-color, #adb5bd);
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg, transparent);
+}
+.session-sandbox-panel > summary {
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+}
+.session-sandbox-body {
+    padding: 0.25rem 1rem 1rem;
+    display: grid;
+    gap: 0.8rem;
+}
+.session-sandbox-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: 0.85rem;
+}
+.session-sandbox-controls label, .session-sandbox-source-label { display: grid; gap: 0.3rem; }
+.session-sandbox-buttons, .session-sandbox-run-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+.session-sandbox-run {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+    padding: 0.85rem;
+    border-radius: 0.65rem;
+    border: 1px solid var(--bs-border-color, #adb5bd);
+}
+.session-sandbox-run pre {
+    max-height: 24rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    padding: 0.65rem;
+    border-radius: 0.45rem;
+    background: var(--bs-tertiary-bg, #f5f5f5);
+    color: var(--bs-body-color, inherit);
+}
+
+/* CodeDOM authoring remains a compact, optional part of the session tools panel. */
+.session-sandbox-codedom { margin: .5rem 0 1rem; }
+.session-sandbox-codedom-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .75rem; margin: .8rem 0; }
+.session-sandbox-codedom-fields label { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }

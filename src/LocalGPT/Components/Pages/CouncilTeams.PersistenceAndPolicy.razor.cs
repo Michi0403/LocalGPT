@@ -357,6 +357,35 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>Presentation-only model choice. The provider-qualified identity remains the persisted selection key.</summary>
+    public sealed record CouncilRoleModelOption(string SelectionKey, string DisplayName);
+
+    private IReadOnlyList<CouncilRoleModelOption> ProviderModelOptions(IEnumerable<MultiModelCouncilModelCandidate> candidates) =>
+        candidates.OrderBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
+            .Select(candidate => new CouncilRoleModelOption(candidate.SelectionKey,
+                $"{candidate.ModelName} ({(candidate.IsInstalled ? "reachable" : candidate.IsConfigured ? "configured" : "discovered")})"))
+            .ToArray();
+
+    private IReadOnlyList<string> SelectedProviderModelKeys(
+        OrganicCouncilRoleDefinition role, IEnumerable<MultiModelCouncilModelCandidate> candidates)
+    {
+        var keys = candidates.Select(candidate => candidate.SelectionKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return role.AssignedModelKeys.Where(keys.Contains).ToArray();
+    }
+
+    /// <summary>Update only the selected provider group; keep saved identities from other providers and unavailable models.</summary>
+    private void SetProviderRoleModels(int roleIndex, IReadOnlyList<string> hostKeys, IEnumerable<string> selectedKeys)
+    {
+        if (roleIndex < 0 || roleIndex >= _editor.Roles.Count) return;
+        var role = _editor.Roles[roleIndex];
+        var eligible = hostKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var otherHosts = role.AssignedModelKeys.Where(key => !eligible.Contains(key));
+        role.AssignedModelKeys = otherHosts.Concat(selectedKeys.Where(eligible.Contains))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase).ToList();
+        _confirmed = false;
+    }
+
     /// <summary>Sets a provider-bound role to an exact invocation count without removing the more general minimum/maximum range controls.</summary>
     /// <param name="roleIndex">Zero-based index of the role being edited.</param>
     /// <param name="args">Change event containing the requested positive invocation count.</param>

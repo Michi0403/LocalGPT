@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>6.6.2</Version>
+    <Version>6.6.6</Version>
     <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
@@ -1389,4 +1389,22 @@
     <Compile Include="..\Shared\Extensions\ConsoleProductIdentityExtensions.cs" Link="Extensions\ConsoleProductIdentityExtensions.cs" />
   </ItemGroup>
 
+
+  <!-- Reproducible, optional-on-unsupported-host Hyperlight guest provisioning.
+       A normal Debug build attempts first-use provisioning without breaking offline local development.
+       Publish fails closed on a supported native target if a required guest runtime cannot be bundled. -->
+  <PropertyGroup>
+    <EnableLocalGptHyperlightGuestProvisioning Condition="'$(EnableLocalGptHyperlightGuestProvisioning)' == ''">true</EnableLocalGptHyperlightGuestProvisioning>
+    <HyperlightGuestProvisionScript>$(MSBuildProjectDirectory)/../../build/Provision-HyperlightGuestRuntimes.ps1</HyperlightGuestProvisionScript>
+  </PropertyGroup>
+  <Target Name="ProvisionLocalGptHyperlightGuestsForBuild" AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(EnableLocalGptHyperlightGuestProvisioning)' == 'true'">
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(HyperlightGuestProvisionScript)&quot; -OutputDirectory &quot;$(TargetDir).&quot; -TargetRuntimeIdentifier &quot;$(RuntimeIdentifier)&quot; -Mode Developer"
+          WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+  <Target Name="ProvisionLocalGptHyperlightGuestsForPublish" AfterTargets="Publish"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(EnableLocalGptHyperlightGuestProvisioning)' == 'true'">
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(HyperlightGuestProvisionScript)&quot; -OutputDirectory &quot;$(PublishDir).&quot; -TargetRuntimeIdentifier &quot;$(RuntimeIdentifier)&quot; -Mode Release"
+          WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
 </Project>
