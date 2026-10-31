@@ -173,6 +173,8 @@ namespace LocalGPT.BusinessObjects.EFCore
         /// </summary>
         /// <value>The council team configurations value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilTeamConfiguration> CouncilTeamConfigurations => Set<CouncilTeamConfiguration>();
+        public DbSet<CouncilRoleIndex> CouncilRoleIndexes => Set<CouncilRoleIndex>();
+        public DbSet<CouncilRoleModelBinding> CouncilRoleModelBindings => Set<CouncilRoleModelBinding>();
         /// <summary>
         /// Gets the council runtime class configurations value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
@@ -640,6 +642,27 @@ namespace LocalGPT.BusinessObjects.EFCore
             });
 
 
+            modelBuilder.Entity<CouncilRoleIndex>(entity =>
+            {
+                entity.ToTable("CouncilRoleIndexes");
+                entity.HasKey(item => new { item.TeamKey, item.RoleName });
+                entity.Property(item => item.TeamKey).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.RoleName).HasMaxLength(256).IsRequired();
+                entity.Property(item => item.Responsibility).IsRequired();
+                entity.HasIndex(item => item.RoleName);
+            });
+            modelBuilder.Entity<CouncilRoleModelBinding>(entity =>
+            {
+                entity.ToTable("CouncilRoleModelBindings");
+                entity.HasKey(item => new { item.TeamKey, item.RoleName, item.ModelKey });
+                entity.Property(item => item.TeamKey).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.RoleName).HasMaxLength(256).IsRequired();
+                entity.Property(item => item.ModelKey).HasMaxLength(1024).IsRequired();
+                entity.HasIndex(item => item.ModelKey);
+                entity.HasOne<CouncilRoleIndex>().WithMany()
+                    .HasForeignKey(item => new { item.TeamKey, item.RoleName })
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
             modelBuilder.Entity<CouncilTeamConfiguration>(entity =>
             {
                 entity.ToTable("CouncilTeamConfigurations");

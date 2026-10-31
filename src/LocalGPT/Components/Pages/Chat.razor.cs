@@ -139,6 +139,15 @@ namespace LocalGPT.Components.Pages
         })
         .ToList();
 
+    /// <summary>Active and retained Council runs, without rendering full steps for every picker refresh.</summary>
+    /// <value>The selection options for active and retained Council sessions.</value>
+    private IReadOnlyList<LocalGptSelectionOption<string>> CouncilSessionHistoryOptions =>
+        RunningCouncilSessionOptions.Concat(CouncilSpooler.GetRecentSummaries(take: 50)
+            .Where(item => RunningLiveCouncilSessions.All(live => live.RunId != item.RunId))
+            .Select(item => new LocalGptSelectionOption<string>(item.RunId.ToString(),
+                $"{item.StartedAtUtc.ToLocalTime():g} · {item.Status} · {item.Phase} · {ShortCouncilRunId(item.RunId)} · {item.CouncilTeamKey}")))
+        .ToList();
+
     /// <summary>
     /// Gets the feedback target options collection maintained or exposed by this chat instance for downstream processing.
     /// </summary>
@@ -266,11 +275,8 @@ namespace LocalGPT.Components.Pages
     string asciiConversationSignature = string.Empty;
     /// <summary>Ensures only one bounded ASCII transcript mirror loop runs at a time.</summary>
     int asciiMirrorLoopRunning;
-    /// <summary>
-    /// Gets or sets a value indicating whether contextual/random ASCII fun is enabled for the active chat.
-    /// </summary>
-    /// <value><c>true</c> when models may optionally add bounded ASCII art or animation content while the terminal is open.</value>
     /// <summary>Gets the complete CSS class value for the contextual ASCII fun action without mixing Razor markup inside a component attribute.</summary>
+    /// <value>CSS classes corresponding to the current ASCII fun mode.</value>
     private string AsciiFunButtonCssClass => AsciiFunModeEnabled
         ? "localgpt-rounded-action localgpt-action-primary"
         : "localgpt-rounded-action localgpt-action-neutral";
@@ -1337,18 +1343,37 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
+        // The renderer may dispose this component between a Council notification and
+        // the mirror worker launch. Never read Token from a disposed source.
+        if (isDisposed || componentLifetimeCts.IsCancellationRequested || !showGameConsole)
+            return;
         if (Interlocked.CompareExchange(ref asciiMirrorLoopRunning, 1, 0) != 0)
             return;
 
-        TaskRunner.Run(
-            nameof(Chat),
-            "ASCII chat transcript mirror",
-            RunAsciiConversationMirrorLoopAsync,
-            componentLifetimeCts.Token);
+        try
+        {
+            var lifetimeToken = componentLifetimeCts.Token;
+            if (isDisposed || lifetimeToken.IsCancellationRequested)
+            {
+                Interlocked.Exchange(ref asciiMirrorLoopRunning, 0);
+                return;
+            }
+            TaskRunner.Run(
+                nameof(Chat),
+                "ASCII chat transcript mirror",
+                RunAsciiConversationMirrorLoopAsync,
+                lifetimeToken);
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            Interlocked.Exchange(ref asciiMirrorLoopRunning, 0);
+            Logger.LogDebug("Skipped ASCII transcript mirror after Chat circuit disposal.");
+        }
     
         }
         catch (Exception __componentMethodException)
         {
+            Interlocked.Exchange(ref asciiMirrorLoopRunning, 0);
             Logger.LogError(__componentMethodException, "Component method Chat.StartAsciiConversationMirrorLoop failed.");
             throw;
         }
@@ -1363,7 +1388,9 @@ namespace LocalGPT.Components.Pages
         {
             while (!cancellationToken.IsCancellationRequested && Volatile.Read(ref showGameConsole))
             {
-                await Task.Delay(700, cancellationToken).ConfigureAwait(false);
+                // Bound the DevExpress SaveMessages snapshot cadence so a multi-model
+                // Council does not continuously compete with browser stream interop.
+                await Task.Delay(1500, cancellationToken).ConfigureAwait(false);
                 if (!Volatile.Read(ref showGameConsole))
                     break;
                 await RefreshAsciiConversationMirrorAsync().ConfigureAwait(false);
@@ -1380,7 +1407,7 @@ namespace LocalGPT.Components.Pages
         finally
         {
             Interlocked.Exchange(ref asciiMirrorLoopRunning, 0);
-            if (!cancellationToken.IsCancellationRequested && Volatile.Read(ref showGameConsole))
+            if (!isDisposed && !cancellationToken.IsCancellationRequested && Volatile.Read(ref showGameConsole))
                 StartAsciiConversationMirrorLoop();
         }
     }

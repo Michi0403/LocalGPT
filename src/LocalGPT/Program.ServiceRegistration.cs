@@ -361,7 +361,9 @@ namespace LocalGPT
                     builder.Services.AddScoped(typeof(IDxAiFunctionHandler), handlerType);
                 logger.LogInformation("Registered {DxAiFunctionHandlerCount} DI-backed DXAIFunction handler(s).", dxAiHandlerTypes.Count);
                 builder.Services.AddScoped<IProjectOrganicContextService, ProjectOrganicContextService>();
+                builder.Services.AddScoped<CouncilRoleAssignmentIndexService>();
                 builder.Services.AddScoped<ICouncilTeamConfigurationService, CouncilTeamConfigurationService>();
+                builder.Services.AddScoped<ICouncilRoleAssignmentService, CouncilRoleAssignmentService>();
                 builder.Services.AddScoped<CouncilGameWorkflowBootstrapService>();
                 builder.Services.AddScoped<ICouncilAutomaticFunctionPolicyService, CouncilAutomaticFunctionPolicyService>();
                 builder.Services.AddScoped<ICouncilRuntimeClassService, CouncilRuntimeClassService>();

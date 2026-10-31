@@ -16,6 +16,19 @@ $required = @(
     @{ Path = 'src/LocalGPT/BusinessObjects/OrganicCouncilModels.cs'; Tokens = @('StrictTeamAllowList = 5', 'StrictStepAllowList = 6', 'bool IsStrict = false') }
     @{ Path = 'src/LocalGPT/Components/Pages/CouncilTeams.razor.cs'; Tokens = @('CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList', 'CouncilAutomaticFunctionPolicyMode.StrictStepAllowList') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.WorkflowPrompting.cs'; Tokens = @('Tool initiative:', 'Repair boundary:', 'automaticFunctionPolicy.IsStrict') }
+    @{ Path = 'src/LocalGPT/Services/CouncilRoleAssignmentService.cs'; Tokens = @('AssignAsync', 'UserConfirmed', 'teams.SaveAsync', 'RestrictSelectedRolesToAssignedPool', 'item.IsInstalled') }
+    @{ Path = 'src/LocalGPT/Services/CouncilRoleAssignmentIndexService.cs'; Tokens = @('SynchronizeAsync', 'CouncilRoleIndexes', 'CouncilRoleModelBindings') }
+    @{ Path = 'src/LocalGPT/Components/Shared/ProviderModelRoleEditor.razor'; Tokens = @('ShowSearchBox="true"', 'Save role assignments', 'ListRenderMode.Virtual', 'DxComboBox TData="TeamOption" TValue="string"', 'ValueChanged="@(async (string key) => await TeamChangedAsync(key))"', 'ValuesChanged="@(async (IEnumerable<string> values) => await SelectedChangedAsync(values))"') }
+    @{ Path = 'src/LocalGPT/Migrations/20261029123000_AddCouncilRoleAssignments.cs'; Tokens = @('CouncilRoleIndexes', 'CouncilRoleModelBindings') }
+    @{ Path = 'src/LocalGPT/Services/Council/CouncilSpoolerService.cs'; Tokens = @('GetRecentSummaries(int take = 50)', 'CouncilSpoolerRunSummary') }
+    @{ Path = 'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs'; Tokens = @('OpenSelectedCouncilHistoryAsync', 'SelectCouncilSessionAsync', 'CouncilSpooler.GetSnapshot(runId)') }
+    @{ Path = 'src/LocalGPT/Components/Pages/Chat.Lifecycle.razor.cs'; Tokens = @('openedCouncilArchive = CouncilSpooler.GetSnapshot(rejoinRunId)', 'localGptReconnect.clearCouncilRun') }
+    @{ Path = 'src/LocalGPT/Services/UploadProcessingRecommendationService.cs'; Tokens = @('imageOnly', 'RequiresVerifiedWorkspaceFileRead', 'localgpt.vision.ocr.capability') }
+    @{ Path = 'src/LocalGPT/Components/Shared/UploadProcessingAdvisor.razor'; Tokens = @('Check local OCR availability', 'Run OCR on quarantined image', 'RecognizeWorkspaceImageAsync') }
+    @{ Path = 'src/LocalGPT/Services/WorkspaceVisionOcrService.cs'; Tokens = @('normalizedRelative = "original/" + normalizedRelative;', 'segment is "." or ".."', 'FileAttributes.ReparsePoint', 'ResolveWorkspaceFile(workspaceRoot, normalizedRelative, logger)') }
+    @{ Path = 'src/LocalGPT/Services/UploadProcessingRecommendationService.cs'; Tokens = @('if (imageOnly)', 'return await PersistAsync(fallback, cancellationToken).ConfigureAwait(false);', 'capability.StartsWith("localgpt.vision."', 'capability.EndsWith(".ocr"') }
+
+
 )
 $findings = [Collections.Generic.List[string]]::new()
 foreach ($entry in $required) {
@@ -25,6 +38,25 @@ foreach ($entry in $required) {
     foreach ($token in $entry.Tokens) {
         if ($content.IndexOf($token, [StringComparison]::Ordinal) -lt 0) { $findings.Add($entry.Path + ': missing contract ' + $token) }
     }
+}
+
+# Keep the Chat terminal worker from racing a disposed circuit and from
+# monopolizing a busy multi-model renderer. This is a source boundary check,
+# not a substitute for host-side verification of Blazor stream timeouts.
+$chatLifetimeSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.razor.cs'))
+foreach ($contract in @(
+    'if (isDisposed || componentLifetimeCts.IsCancellationRequested || !showGameConsole)',
+    'catch (ObjectDisposedException) when (isDisposed)',
+    'Interlocked.Exchange(ref asciiMirrorLoopRunning, 0);',
+    'if (!isDisposed && !cancellationToken.IsCancellationRequested && Volatile.Read(ref showGameConsole))'
+)) {
+    if ($chatLifetimeSource.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+        $findings.Add('Chat.razor.cs: missing disposal-safe ASCII mirror contract: ' + $contract)
+    }
+}
+$chatSessionRenderingSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs'))
+if ($chatSessionRenderingSource.IndexOf('await Task.Delay(750, cancellationToken).ConfigureAwait(false);', [StringComparison]::Ordinal) -lt 0) {
+    $findings.Add('Chat.LiveCouncil.razor.cs: session list refresh must remain debounced during Council streaming.')
 }
 
 # The Council run is server-owned; UI streaming is only an expendable observer.
@@ -138,5 +170,87 @@ $nativeToolsSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Servi
 if ($nativeToolsSource -match 'automaticFunctionAllowList\s+is\s+null\s*\?\s*function\.Source\s*==\s*"DxFunctionBroker"') {
     $findings.Add('Ollama automatic-tool default regressed to broker-only; 5.5.0 exposed all eligible DXFunctions.')
 }
+# Prevent misattached XML docs when adding Council spooler methods. A stale <param>
+# on the next method generates CS1572, and an omitted tag can generate CS1573.
+# Validate both contract and implementation, including exactly one summary block.
+foreach ($relative in @(
+    'src/LocalGPT/Services/Council/CouncilSpoolerService.cs',
+    'src/LocalGPT/Interfaces/ICouncilSpoolerService.cs'
+)) {
+    $spoolerText = [IO.File]::ReadAllText((Join-Path $root $relative))
+    foreach ($contract in @(
+        @{ Name = 'GetRecentSummaries'; Parameter = 'take' },
+        @{ Name = 'GetSnapshot'; Parameter = 'runId' }
+    )) {
+        $methodPattern = '(?m)(?<documentation>(?:^[ \t]*///[^\r\n]*\r?\n)+)[ \t]*(?:public[ \t]+)?[^\r\n;{}]*?\b' +
+            [regex]::Escape($contract.Name) + '\s*\((?<parameters>[^)]*)\)'
+        $methodMatch = [regex]::Match($spoolerText, $methodPattern)
+        if (-not $methodMatch.Success) {
+            $findings.Add($relative + ': missing adjacent XML documentation for ' + $contract.Name + '.')
+            continue
+        }
+        $xmlDoc = $methodMatch.Groups['documentation'].Value
+        $docParameters = @([regex]::Matches($xmlDoc, '<param\s+name="(?<name>[^"]+)"') |
+            ForEach-Object { $_.Groups['name'].Value })
+        $methodParameters = $methodMatch.Groups['parameters'].Value
+        if ($docParameters.Count -ne 1 -or $docParameters[0] -cne $contract.Parameter -or
+            $methodParameters -notmatch ('\b' + [regex]::Escape($contract.Parameter) + '\b')) {
+            $findings.Add($relative + ': XML parameters do not match ' + $contract.Name + '(' + $contract.Parameter + ') (CS1572/CS1573).')
+        }
+        if ([regex]::Matches($xmlDoc, '<summary(?:\s|>)').Count -ne 1 -or
+            [regex]::Matches($xmlDoc, '<returns>').Count -ne 1) {
+            $findings.Add($relative + ': duplicate/missing XML summary or returns for ' + $contract.Name + '.')
+        }
+    }
+}
+
+# Keep new Chat selection properties from collecting XML comments belonging to
+# the property below. Misattached documentation can be misleading even if it
+# does not itself raise the same compiler diagnostic as an invalid <param>.
+$chatComponentSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.razor.cs'))
+foreach ($propertyName in @('CouncilSessionHistoryOptions', 'FeedbackTargetOptions', 'AsciiFunButtonCssClass')) {
+    $propertyPattern = '(?m)(?<documentation>(?:^[ \t]*///[^\r\n]*\r?\n)+)[ \t]*private[ \t]+[^\r\n]*\b' +
+        [regex]::Escape($propertyName) + '[ \t]*=>'
+    $propertyMatch = [regex]::Match($chatComponentSource, $propertyPattern)
+    if (-not $propertyMatch.Success -or
+        [regex]::Matches($propertyMatch.Groups['documentation'].Value, '<summary(?:\s|>)').Count -ne 1) {
+        $findings.Add('Chat.razor.cs: misattached/duplicate XML documentation for ' + $propertyName + '.')
+    }
+}
+
+# Whenever constructor injection changes, its XML documentation must change with it.
+# CS1572/CS1573 are build errors; catch this Council-specific regression in the
+# existing mandatory PowerShell source gate, before invoking the C# compiler.
+$teamConfigurationSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CouncilTeamConfigurationService.cs'))
+$constructorDocumentationPattern = '(?m)(?<documentation>(?:^[ \t]*///[^\r\n]*(?:\r?\n))+)[ \t]*public[ \t]+CouncilTeamConfigurationService[ \t]*\((?<parameters>[\s\S]*?)\)[ \t]*(?:\r?\n)[ \t]*\{'
+$constructorDocumentationMatch = [regex]::Match($teamConfigurationSource, $constructorDocumentationPattern)
+if (-not $constructorDocumentationMatch.Success) {
+    $findings.Add('CouncilTeamConfigurationService.cs: constructor and its XML documentation could not be located.')
+}
+else {
+    $documented = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($parameterTag in [regex]::Matches($constructorDocumentationMatch.Groups['documentation'].Value, '<param\s+name="(?<name>[^"]+)"')) {
+        [void]$documented.Add($parameterTag.Groups['name'].Value)
+    }
+    $declared = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($argument in $constructorDocumentationMatch.Groups['parameters'].Value.Split(',')) {
+        if ($argument -notmatch '([A-Za-z_][A-Za-z0-9_]*)\s*$') {
+            $findings.Add('CouncilTeamConfigurationService.cs: could not read constructor parameter: ' + $argument.Trim())
+            continue
+        }
+        [void]$declared.Add($Matches[1])
+    }
+    foreach ($name in $declared) {
+        if (-not $documented.Contains($name)) {
+            $findings.Add('CouncilTeamConfigurationService.cs: constructor XML documentation is missing <param name="' + $name + '"> (CS1573).')
+        }
+    }
+    foreach ($name in $documented) {
+        if (-not $declared.Contains($name)) {
+            $findings.Add('CouncilTeamConfigurationService.cs: XML documentation references an absent constructor parameter: ' + $name + ' (CS1572).')
+        }
+    }
+}
+
 if ($findings.Count -gt 0) { foreach ($finding in $findings) { Write-Error $finding }; throw ('Source contract audit failed: ' + $findings.Count + ' finding(s).') }
 Write-Host 'Maintained PowerShell source contract audit passed.'

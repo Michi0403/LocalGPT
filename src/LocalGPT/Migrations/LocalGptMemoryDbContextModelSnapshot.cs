@@ -732,6 +732,25 @@ namespace LocalGPT.Migrations
                     b.ToTable("ConfiguredAiHostHardwareProfiles", (string)null);
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilRoleIndex", b =>
+                {
+                    b.Property<string>("TeamKey").HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<string>("RoleName").HasMaxLength(256).HasColumnType("TEXT");
+                    b.Property<string>("Responsibility").IsRequired().HasColumnType("TEXT");
+                    b.Property<int>("SelectionMode").HasColumnType("INTEGER");
+                    b.HasKey("TeamKey", "RoleName");
+                    b.HasIndex("RoleName");
+                    b.ToTable("CouncilRoleIndexes", (string)null);
+                });
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilRoleModelBinding", b =>
+                {
+                    b.Property<string>("TeamKey").HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<string>("RoleName").HasMaxLength(256).HasColumnType("TEXT");
+                    b.Property<string>("ModelKey").HasMaxLength(1024).HasColumnType("TEXT");
+                    b.HasKey("TeamKey", "RoleName", "ModelKey");
+                    b.HasIndex("ModelKey");
+                    b.ToTable("CouncilRoleModelBindings", (string)null);
+                });
             modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilTeamConfiguration", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2977,6 +2996,12 @@ namespace LocalGPT.Migrations
                     b.Navigation("Conversation");
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilRoleModelBinding", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.CouncilRoleIndex", null)
+                        .WithMany().HasForeignKey("TeamKey", "RoleName")
+                        .OnDelete(DeleteBehavior.Cascade).IsRequired();
+                });
             modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilKnowledgeRegexPatternLink", b =>
                 {
                     b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")

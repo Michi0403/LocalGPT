@@ -31,24 +31,28 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
     private readonly ILogger<CouncilTeamConfigurationService> logger;
     /// <summary>Database-backed operator runtime policy for Council size limits.</summary>
     private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
+    private readonly CouncilRoleAssignmentIndexService roleIndex;
 
     /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
     /// <param name="dbContextFactory">Injected dependency used by the CouncilTeamConfigurationService.</param>
     /// <param name="databaseInitializer">Injected dependency used by the CouncilTeamConfigurationService.</param>
     /// <param name="seedData">Injected dependency used by the CouncilTeamConfigurationService.</param>
     /// <param name="runtimePolicy">Database-backed operator runtime policy.</param>
+    /// <param name="roleIndex">Injected index service that synchronizes saved Council roles and their provider-qualified model bindings.</param>
     /// <param name="logger">Injected dependency used by the CouncilTeamConfigurationService.</param>
     public CouncilTeamConfigurationService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
         IOrganicCouncilBlueprintSeedDataService seedData,
         ILocalGptRuntimePolicyDataService runtimePolicy,
+        CouncilRoleAssignmentIndexService roleIndex,
         ILogger<CouncilTeamConfigurationService> logger)
     {
         this.dbContextFactory = dbContextFactory;
         this.databaseInitializer = databaseInitializer;
         this.seedData = seedData;
         this.runtimePolicy = runtimePolicy;
+        this.roleIndex = roleIndex;
         this.logger = logger;
     }
 
@@ -220,6 +224,7 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
             row.IsUserModified = true;
             row.SeedVersion = CurrentSeedVersion;
             row.UpdatedAtUtc = DateTime.UtcNow;
+            await roleIndex.SynchronizeAsync(db, definitionToSave, cancellationToken).ConfigureAwait(false);
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             logger.LogInformation(
                 "Saved editable council team {TeamKey} with {RoleCount} role(s), {WorkflowStepCount} workflow step(s) and {ExpandedStepCount} expanded round(s).",

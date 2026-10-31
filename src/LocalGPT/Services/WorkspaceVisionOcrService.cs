@@ -83,15 +83,33 @@ public sealed class WorkspaceVisionOcrService(
             ArgumentException.ThrowIfNullOrWhiteSpace(request.RelativePath);
             var workspaceRoot = workspaces.ResolveWorkspacePath(request.WorkspaceName)
                 ?? throw new KeyNotFoundException($"Upload workspace '{request.WorkspaceName}' was not found.");
-            var normalizedRelative = request.RelativePath.Replace('\\', '/').TrimStart('/');
+            // The ingestion gate indexes each original upload relative to original/, whereas
+            // the workspace file APIs use workspace-relative paths. Accept both contracts,
+            // but never interpret an unqualified path outside the original quarantine tree.
+            var normalizedRelative = request.RelativePath.Replace('\\', '/').Trim();
+            if (Path.IsPathRooted(request.RelativePath) || normalizedRelative.StartsWith("/", StringComparison.Ordinal))
+                throw new InvalidOperationException("Workspace OCR requires a relative quarantined image path.");
+            var segments = normalizedRelative.Split('/');
+            if (segments.Any(segment => string.IsNullOrEmpty(segment) || segment is "." or ".." || segment.Contains(':')))
+                throw new InvalidOperationException("Workspace OCR rejected an invalid or traversing image path.");
             if (!normalizedRelative.StartsWith("original/", StringComparison.OrdinalIgnoreCase)
                 && !normalizedRelative.StartsWith("extracted/", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Workspace OCR accepts only quarantined original/ or reviewed extracted/ image evidence.");
+                normalizedRelative = "original/" + normalizedRelative;
 
             var imagePath = councilRuntime.ResolveWorkspaceFile(workspaceRoot, normalizedRelative, logger)
                 ?? throw new InvalidOperationException("The requested workspace image path is outside the bounded workspace.");
+            // Lexical containment alone is insufficient if a directory or image is a symlink.
+            // The upload quarantine is created by LocalGPT; do not follow external link targets.
+            var inspectedPath = workspaceRoot;
+            foreach (var segment in normalizedRelative.Split('/'))
+            {
+                inspectedPath = Path.Combine(inspectedPath, segment);
+                if ((File.Exists(inspectedPath) || Directory.Exists(inspectedPath))
+                    && (File.GetAttributes(inspectedPath) & FileAttributes.ReparsePoint) != 0)
+                    throw new InvalidOperationException("Workspace OCR cannot follow symbolic links or reparse points.");
+            }
             if (!File.Exists(imagePath))
-                throw new FileNotFoundException("The requested workspace image does not exist.");
+                throw new FileNotFoundException("The requested quarantined workspace image does not exist.");
             var extension = Path.GetExtension(imagePath);
             if (!imageExtensions.Contains(extension))
                 throw new InvalidOperationException("The requested workspace file is not a supported local OCR image format.");

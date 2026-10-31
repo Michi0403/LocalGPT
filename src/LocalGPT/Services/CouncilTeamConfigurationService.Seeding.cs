@@ -17,6 +17,13 @@ namespace LocalGPT.Services
         try
         {
             await EnsureSeededAsync(cancellationToken).ConfigureAwait(false);
+            // Backfill searchable role tables from saved JSON without altering user-owned role definitions.
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var rows = await db.CouncilTeamConfigurations.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var row in rows)
+                await roleIndex.SynchronizeAsync(db, ToDefinition(row), cancellationToken).ConfigureAwait(false);
+            if (db.ChangeTracker.HasChanges())
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception)
         {

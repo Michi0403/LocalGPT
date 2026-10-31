@@ -16,7 +16,8 @@
 
     function readRunId() {
         try {
-            const value = sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey) || '';
+            const fromUrl = new URL(location.href).searchParams.get('rejoinCouncilRunId') || '';
+            const value = (guidPattern.test(fromUrl) ? fromUrl : '') || sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey) || '';
             return guidPattern.test(value) ? value : '';
         } catch (error) {
             report('readRunId', error);
@@ -43,7 +44,7 @@
       try {
                 const runId = readRunId();
                 if (!runId) return location.href;
-                const url = new URL('Chat', document.baseURI);
+                const url = location.pathname.toLowerCase().endsWith('/chat') ? new URL(location.href) : new URL('Chat', document.baseURI);
                 url.searchParams.set('rejoinCouncilRunId', runId);
                 return url.href;
     
@@ -217,19 +218,16 @@
         try {
             const reconnect = globalThis.Blazor?.reconnect;
             if (typeof reconnect !== 'function') {
-                setStatus(modal, 'The reconnect runtime is unavailable. Use Reload & rejoin instead.');
-                setBusy(modal, false);
+                reloadAndRejoin();
                 return;
             }
             const restored = await reconnect();
             if (!restored) {
-                setStatus(modal, 'The old circuit was rejected. Use Reload & rejoin to restore the UI and reopen the running Council.');
-                setBusy(modal, false);
+                reloadAndRejoin();
             }
         } catch (error) {
             report('reconnectNow', error);
-            setStatus(modal, 'Reconnect failed. Use Reload & rejoin to restore the UI and reopen the running Council.');
-            setBusy(modal, false);
+            reloadAndRejoin();
         }
     }
 
@@ -296,7 +294,8 @@
                         revealRecoverySurface('The browser lost its Blazor connection. Reconnect or reload and rejoin without stopping server-side Council work.');
                     },
                     setCouncilRun(runId) {
-                        writeRunId(runId);
+                        // A fresh circuit may render before the server run is recovered.
+                        if (guidPattern.test(String(runId || ''))) writeRunId(runId);
                         updateFromClass();
                     },
                     clearCouncilRun() {

@@ -38,6 +38,7 @@
 @inject IDeferredDxAiInvocationService DeferredDxInvocations
 @inject ILocalGptVocabularyService Vocabulary
 @inject ICouncilLiveSessionService CouncilLiveSessions
+@inject ICouncilSpoolerService CouncilSpooler
 @inject ISessionSandboxExecutionService SandboxRuns
 @inject ICodeDomSourceService CodeDomSources
 @inject ICouncilRunConfigurationService CouncilRunConfigurations
@@ -616,6 +617,41 @@
                           Click="@(() => JoinCouncilSessionAsync(newestLiveSession.RunId))" />
             </div>
         }
+        @if (openedCouncilArchive is { } archive)
+        {
+            <details open class="chat-council-history-inline" data-testid="chat-council-history-inline">
+                <summary>Saved Council transcript · @ShortCouncilRunId(archive.RunId) · @archive.Status · @archive.Phase</summary>
+                <div class="chat-council-history-content">
+                    <p>Evidence from this exact backend run, including completed steps and failure details.</p>
+                    @if (!string.IsNullOrWhiteSpace(archive.FinalAnswer))
+                    {
+                        <details open><summary>Final Council answer</summary><pre>@archive.FinalAnswer</pre></details>
+                    }
+                    @foreach (var step in archive.Steps.OrderBy(item => item.SortOrder))
+                    {
+                        <details @key="@(archive.RunId.ToString() + step.SortOrder.ToString() + step.ModelName)">
+                            <summary>Round @step.Round · @step.Phase · @step.Role · @step.ModelName</summary>
+                            @if (openedCouncilEvidenceStep == step.SortOrder)
+                            {
+                                <DxButton Text="Collapse saved evidence" Click="@(() => ToggleCouncilEvidenceStep(step.SortOrder))" />
+                                <pre>@(string.IsNullOrWhiteSpace(step.VisibleContent) ? step.Content : step.VisibleContent)</pre>
+                                @if (!string.IsNullOrWhiteSpace(step.Thinking))
+                                {
+                                    <details><summary>Model thinking</summary><pre>@step.Thinking</pre></details>
+                                }
+                            }
+                            else
+                            {
+                                <DxButton Text="Show full step evidence" Click="@(() => ToggleCouncilEvidenceStep(step.SortOrder))" />
+                                <p>@CouncilEvidencePreview(step)</p>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(step.Error)) { <p role="alert">@step.Error</p> }
+                        </details>
+                    }
+                    @foreach (var warning in archive.Warnings.Take(20)) { <p role="status">@warning</p> }
+                </div>
+            </details>
+        }
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
             <DxAIChat Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"
@@ -932,20 +968,20 @@
             <div class="chat-session-tools-content">
         <div class="memory-toolbar human-live-contribution" aria-label="Join and add information to a running AI Council" data-testid="live-council-participation">
             <label class="live-session-selector" title="Join any council heartbeat that is still running in this LocalGPT process.">
-                <span>Running Council session</span>
-                <DxComboBox Data="@RunningCouncilSessionOptions"
+                <span>Council sessions (live and recent)</span>
+                <DxComboBox TData="LocalGptSelectionOption<string>" TValue="string" Data="@CouncilSessionHistoryOptions"
                             Value="@SelectedCouncilRunValue"
                             ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
                             TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
-                            ValueChanged="@((string value) => OnActiveCouncilRunChanged(new ChangeEventArgs { Value = value }))"
+                            ValueChanged="@(async (string value) => await SelectCouncilSessionAsync(value))"
                             CssClass="localgpt-dx-combo"
-                            NullText="No Council heartbeat is running"
-                            Enabled="@(RunningLiveCouncilSessions.Count > 0)" />
+                            NullText="No recorded Council runs"
+                            Enabled="@(CouncilSessionHistoryOptions.Count > 0)" />
             </label>
             <details class="component-actions-menu live-session-actions-menu">
                 <summary class="btn btn-outline-secondary">Session actions</summary>
                 <div class="component-actions-menu-items" role="menu">
-                    <DxButton role="menuitem" Click="RefreshHumanCollaborationAsync">Refresh running sessions</DxButton>
+                    <DxButton role="menuitem" Click="RefreshHumanCollaborationAsync">Refresh sessions</DxButton>
                     @if (ActiveCouncilRun is not null)
                     {
                         <DxButton role="menuitem" Click="SkipCurrentCouncilRoundAsync">Skip current round</DxButton>
@@ -958,10 +994,14 @@
             </details>
             @if (CanJoinSelectedCouncilRun)
             {
-                <DxButton CssClass="localgpt-rounded-action localgpt-action-primary" Text="Join selected transcript"
+                <DxButton CssClass="localgpt-rounded-action localgpt-action-primary" Text="Rejoin selected transcript"
                           RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="RejoinSelectedCouncilSessionAsync" />
+            }
+            @if (SelectedCouncilRunId is not null)
+            {
+                <DxButton Text="Load selected transcript &amp; evidence" Click="OpenSelectedCouncilHistoryAsync" />
             }
             @if (IsLiveCouncilInteractionAvailable)
             {

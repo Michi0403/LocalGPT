@@ -259,8 +259,27 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>Reads bounded Council run headers without cloning transcripts or thinking buffers.</summary>
+    /// <param name="take">Maximum number of recent run headers.</param>
+    /// <returns>Retained Council headers ordered by status and update time.</returns>
+    public IReadOnlyList<CouncilSpoolerRunSummary> GetRecentSummaries(int take = 50)
+    {
+        lock (mutationGate)
+        {
+            var running = vocabulary.Get().CouncilSpoolerRunning;
+            return runs.Values.OrderByDescending(item => item.Status == running)
+                .ThenByDescending(item => item.UpdatedAtUtc)
+                .Take(Math.Clamp(take, 1, QueryParameters.CouncilSpoolerMaximum))
+                .Select(item => new CouncilSpoolerRunSummary
+                {
+                    RunId = item.RunId, StartedAtUtc = item.StartedAtUtc,
+                    Status = item.Status, Phase = item.Phase, CouncilTeamKey = item.CouncilTeamKey
+                }).ToList();
+        }
+    }
+
     /// <summary>
-    /// Retrieves snapshot as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// Retrieves a Council run snapshot for the selected run, including retained step evidence.
     /// </summary>
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <returns>The council spooler snapshot produced by the operation.</returns>

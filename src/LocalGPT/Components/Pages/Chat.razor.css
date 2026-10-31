@@ -3438,3 +3438,9 @@
 .session-sandbox-codedom { margin: .5rem 0 1rem; }
 .session-sandbox-codedom-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .75rem; margin: .8rem 0; }
 .session-sandbox-codedom-fields label { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+
+/* Saved transcript remains inside the same Chat session, with bounded evidence rendering. */
+.chat-council-history-inline { padding: 0.75rem; margin: 0.75rem 0; border: 1px solid var(--bs-border-color); border-radius: 0.5rem; background: var(--bs-tertiary-bg); }
+.chat-council-history-content { display: grid; gap: 0.5rem; }
+.chat-council-history-content > details { padding: 0.5rem; border: 1px solid var(--bs-border-color); border-radius: 0.375rem; }
+.chat-council-history-content pre { max-height: 32rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bs-body-bg); padding: 0.75rem; }

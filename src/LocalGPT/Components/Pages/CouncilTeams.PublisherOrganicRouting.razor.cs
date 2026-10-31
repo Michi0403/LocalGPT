@@ -46,7 +46,7 @@ public partial class CouncilTeams
             try
             {
                 return _providerModels
-                    .Where(candidate => candidate.IsInstalled && candidate.IsConfigured)
+                    .Where(candidate => candidate.IsInstalled)
                     .OrderBy(candidate => candidate.Provider, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
                     .Select(candidate => new LocalGptSelectionOption<string>(candidate.SelectionKey,
@@ -66,7 +66,7 @@ public partial class CouncilTeams
     {
         try
         {
-            var available = _providerModels.Where(model => model.IsInstalled && model.IsConfigured)
+            var available = _providerModels.Where(model => model.IsInstalled)
                 .Select(model => model.SelectionKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (available.Count == 0)
             {
@@ -98,7 +98,7 @@ public partial class CouncilTeams
         try
         {
             var candidate = _providerModels.FirstOrDefault(model =>
-                model.IsInstalled && model.IsConfigured &&
+                model.IsInstalled &&
                 string.Equals(model.SelectionKey, _publisherSingleModelKey, StringComparison.OrdinalIgnoreCase));
             if (candidate is null)
             {

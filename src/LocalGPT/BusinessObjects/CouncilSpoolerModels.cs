@@ -72,3 +72,18 @@ public sealed class CouncilSpoolerSnapshot
     /// <value>The warnings value exposed by <see cref="CouncilSpoolerSnapshot"/>.</value>
     public List<string> Warnings { get; set; } = [];
 }
+
+/// <summary>Lightweight persisted Council run header; intentionally contains no model thinking or transcript payloads.</summary>
+public sealed class CouncilSpoolerRunSummary
+{
+    /// <summary>Stable run identifier.</summary>
+    public Guid RunId { get; init; }
+    /// <summary>UTC time when the run started.</summary>
+    public DateTime StartedAtUtc { get; init; }
+    /// <summary>Current or final run status.</summary>
+    public string Status { get; init; } = string.Empty;
+    /// <summary>Last phase.</summary>
+    public string Phase { get; init; } = string.Empty;
+    /// <summary>Selected saved team key.</summary>
+    public string CouncilTeamKey { get; init; } = string.Empty;
+}

@@ -1,0 +1,117 @@
+@using LocalGPT.BusinessObjects
+@using LocalGPT.Interfaces
+@inject ICouncilRoleAssignmentService RoleAssignments
+@inject ILogger<ProviderModelRoleEditor> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner ProviderModelRoleEditor">
+    <DxFormLayoutItem ColSpanMd="12"><Template Context="modelRoleContext">
+<DxButton Text="Assign Council roles" Click="OpenAsync" />
+<DxPopup @bind-Visible="_visible" HeaderText="Council model role assignments" Width="94vw" MaxHeight="85dvh" CloseOnOutsideClick="false">
+    <BodyContentTemplate>
+        <div class="model-role-workspace">
+            <p><strong>@Model.ModelName</strong> · @Model.ProviderName · @Model.Endpoint</p>
+            <p>Assign this exact provider-qualified model to existing roles. The saved role mode determines execution; AllSelected roles remain all-selected.</p>
+            @if (!string.IsNullOrWhiteSpace(_status)) { <p role="status">@_status</p> }
+            @if (_busy) { <p>Loading Council role catalog…</p> }
+            else
+            {
+                <label>Team
+                    <DxComboBox TData="TeamOption" TValue="string"
+                                Data="@TeamOptions" Value="@_team"
+                                ValueChanged="@(async (string key) => await TeamChangedAsync(key))"
+                                ValueFieldName="@nameof(TeamOption.Key)" TextFieldName="@nameof(TeamOption.Label)" />
+                </label>
+                @if (RoleOptions.Count > 0)
+                {
+                    <DxListBox TData="RoleOption" TValue="string" Data="@RoleOptions" Values="@_selected"
+                               ValuesChanged="@(async (IEnumerable<string> values) => await SelectedChangedAsync(values))"
+                               ValueFieldName="@nameof(RoleOption.Key)"
+                               TextFieldName="@nameof(RoleOption.Label)"
+                               SelectionMode="ListBoxSelectionMode.Multiple" ShowCheckboxes="true"
+                               ShowSearchBox="true" SearchBoxNullText="Search team roles..."
+                               ListRenderMode="ListRenderMode.Virtual" Height="290px" />
+                    <label><DxCheckBox @bind-Checked="_restrict" /> Explicitly switch selected roles to AssignedModels mode</label>
+                }
+                else { <p>No AI roles are defined for this team.</p> }
+            }
+            <div class="model-role-toolbar">
+                <DxButton Text="Save role assignments" Click="SaveAsync" Enabled="@(!_busy && RoleOptions.Count > 0)" RenderStyle="ButtonRenderStyle.Primary" />
+                <DxButton Text="Refresh" Click="LoadAsync" Enabled="@(!_busy)" />
+                <DxButton Text="Close" Click="Close" />
+            </div>
+            <p>Supplied teams are protected: modifying them creates a user-owned copy. No same-name substitution between hosts.</p>
+        </div>
+    </BodyContentTemplate>
+</DxPopup>
+    </Template></DxFormLayoutItem>
+</DxFormLayout>
+</div>
+@code {
+    [Parameter, EditorRequired] public ProviderModelReference Model { get; set; } = new();
+    private sealed record TeamOption(string Key, string Label);
+    private sealed record RoleOption(string Key, string Label);
+    private bool _visible, _busy, _restrict;
+    private string _team = string.Empty, _status = string.Empty;
+    private IReadOnlyList<CouncilRoleAssignmentChoice> _roles = [];
+    private IReadOnlyList<string> _selected = [];
+    private IReadOnlyList<TeamOption> TeamOptions => _roles.Where(item => item.IsEnabled)
+        .DistinctBy(item => item.TeamKey, StringComparer.OrdinalIgnoreCase)
+        .Select(item => new TeamOption(item.TeamKey, item.TeamName + " · " + item.TeamKey)).ToArray();
+    private IReadOnlyList<RoleOption> RoleOptions => _roles.Where(item => item.TeamKey == _team && item.IsEnabled)
+        .Select(item => new RoleOption(item.RoleName, item.RoleName + " · " + item.SelectionMode)).ToArray();
+    private async Task OpenAsync() { _visible = true; await LoadAsync(); }
+    private async Task LoadAsync()
+    {
+        _busy = true;
+        try
+        {
+            _roles = await RoleAssignments.ListForModelAsync(Model.SelectionKey);
+            if (!TeamOptions.Any(item => item.Key == _team)) _team = TeamOptions.FirstOrDefault()?.Key ?? string.Empty;
+            UpdateSelection();
+            _status = string.Empty;
+        }
+        catch (Exception ex) { Logger.LogError(ex, "Council role catalog unavailable."); _status = "Could not retrieve roles; no changes made."; }
+        finally { _busy = false; }
+    }
+    /// <summary>Updates the selected Council team and refreshes its bound role list.</summary>
+    /// <param name="key">The selected persisted Council team key.</param>
+    /// <returns>A completed task for the synchronous selection update.</returns>
+    private Task TeamChangedAsync(string key)
+    {
+        _team = key;
+        _restrict = false;
+        UpdateSelection();
+        return Task.CompletedTask;
+    }
+    private void UpdateSelection() => _selected = _roles.Where(item => item.TeamKey == _team && item.Assigned)
+        .Select(item => item.RoleName).ToArray();
+    /// <summary>Receives the selected role keys from the DevExpress multiselect control.</summary>
+    /// <param name="values">The role keys currently selected by the user.</param>
+    /// <returns>A completed task for the synchronous selection update.</returns>
+    private Task SelectedChangedAsync(IEnumerable<string> values)
+    {
+        _selected = values.ToArray();
+        return Task.CompletedTask;
+    }
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        try
+        {
+            var saved = await RoleAssignments.AssignAsync(new CouncilRoleAssignmentRequest
+            {
+                TeamKey = _team, ModelKey = Model.SelectionKey, RoleNames = _selected.ToList(),
+                RestrictSelectedRolesToAssignedPool = _restrict, UserConfirmed = true
+            });
+            _busy = false;
+            _team = saved.Key;
+            await LoadAsync();
+            _status = "Saved Council role assignments to " + saved.DisplayName + " (" + saved.Key + ").";
+        }
+        catch (Exception ex) { Logger.LogWarning(ex, "Model role assignment failed."); _status = ex.Message; }
+        finally { _busy = false; }
+    }
+    private void Close() => _visible = false;
+}

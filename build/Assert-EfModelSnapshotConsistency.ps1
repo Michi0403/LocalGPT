@@ -96,6 +96,57 @@ foreach ($entityType in ($entityTypes | Sort-Object)) {
     }
 }
 
+# Validate relational indexes as well as scalar properties for the Council role
+# assignment migration. A foreign-key index is NOT conventionally generated when
+# the same columns are already the leading columns of a composite primary key.
+# A hand-edited snapshot containing such an index creates EF Core pending model
+# changes (and blocks startup/seeding), even though the migration file exists.
+$bindingContextMatch = [regex]::Match($contextText, 'modelBuilder\.Entity<CouncilRoleModelBinding>\s*\(')
+$bindingSnapshotMatch = [regex]::Match($snapshotText, 'modelBuilder\.Entity\("LocalGPT\.BusinessObjects\.CouncilRoleModelBinding", b =>\s*\{')
+$roleSnapshotMatch = [regex]::Match($snapshotText, 'modelBuilder\.Entity\("LocalGPT\.BusinessObjects\.CouncilRoleIndex", b =>\s*\{')
+$roleMigrationPath = Join-Path $root 'src/LocalGPT/Migrations/20261029123000_AddCouncilRoleAssignments.cs'
+if ($bindingContextMatch.Success -or $bindingSnapshotMatch.Success -or $roleSnapshotMatch.Success) {
+    if (-not ($bindingContextMatch.Success -and $bindingSnapshotMatch.Success -and $roleSnapshotMatch.Success)) {
+        $failures.Add('Council role binding context and both snapshot entity definitions must be present together.')
+    }
+    else {
+        $contextBindingBlock = Get-BracedBlock $contextText $bindingContextMatch.Index
+        $snapshotBindingBlock = Get-BracedBlock $snapshotText $bindingSnapshotMatch.Index
+        $snapshotRoleBlock = Get-BracedBlock $snapshotText $roleSnapshotMatch.Index
+        if (-not $contextBindingBlock -or -not $snapshotBindingBlock -or -not $snapshotRoleBlock) {
+            $failures.Add('Council role binding source/snapshot entity definitions contain an invalid block.')
+        }
+        else {
+            foreach ($expected in @('b.HasKey("TeamKey", "RoleName", "ModelKey")', 'b.HasIndex("ModelKey")')) {
+                if (-not $snapshotBindingBlock.Contains($expected)) {
+                    $failures.Add('CouncilRoleModelBinding snapshot is missing: ' + $expected)
+                }
+            }
+            if (-not $snapshotRoleBlock.Contains('b.HasIndex("RoleName")')) {
+                $failures.Add('CouncilRoleIndex snapshot must include the role lookup index.')
+            }
+            $redundantIndex = 'b.HasIndex("TeamKey", "RoleName")'
+            $contextDeclaresIndex = $contextBindingBlock -match 'entity\.HasIndex\(\s*item\s*=>\s*new\s*\{\s*item\.TeamKey\s*,\s*item\.RoleName\s*\}'
+            if ($snapshotBindingBlock.Contains($redundantIndex) -and -not $contextDeclaresIndex) {
+                $failures.Add('CouncilRoleModelBinding snapshot has a redundant FK index absent from OnModelCreating (EF PendingModelChangesWarning).')
+            }
+        }
+    }
+    if (-not (Test-Path -LiteralPath $roleMigrationPath -PathType Leaf)) {
+        $failures.Add('Council role assignment model has no schema migration file.')
+    }
+    else {
+        $migrationSource = [System.IO.File]::ReadAllText($roleMigrationPath, [System.Text.Encoding]::UTF8)
+        foreach ($name in @('CouncilRoleIndexes', 'CouncilRoleModelBindings',
+                'FK_CouncilRoleModelBindings_CouncilRoleIndexes_TeamKey_RoleName',
+                'IX_CouncilRoleIndexes_RoleName', 'IX_CouncilRoleModelBindings_ModelKey')) {
+            if (-not $migrationSource.Contains($name)) {
+                $failures.Add('Council role migration is missing schema contract: ' + $name)
+            }
+        }
+    }
+}
+
 if ($failures.Count -gt 0) {
     Write-Host 'EF model/snapshot consistency validation failed:'
     foreach ($failure in $failures | Sort-Object -Unique) { Write-Host "  - $failure" }

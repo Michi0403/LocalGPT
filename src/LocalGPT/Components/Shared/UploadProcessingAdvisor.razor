@@ -1,6 +1,7 @@
 @inject IProjectIngestionService ProjectIngestion
 @inject IDxAiFunctionRegistry DxAiFunctionRegistry
 @inject IUploadProcessingRecommendationService Recommendations
+@inject IWorkspaceVisionOcrService WorkspaceOcr
 @inject LocalGptCatalogService Catalog
 @inject CouncilTextService CouncilText
 @inject ILogger<UploadProcessingAdvisor> Logger
@@ -122,6 +123,16 @@
                     </Items>
                 </DxAccordion>
 
+                @if (recommendation.ProcessingRoutes.Any(route => string.Equals(route.CapabilityKey, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase)))
+                {
+                    <div class="upload-processing-image-actions">
+                        <p>Image inspection/OCR is not source-code review. OCR results stay review-required and nothing is promoted automatically.</p>
+                        <DxButton Text="Check local OCR availability" Enabled="@(!busy && !ocrBusy)" Click="CheckWorkspaceOcrAvailabilityAsync" />
+                        <DxButton Text="Run OCR on quarantined image" Enabled="@(!busy && !ocrBusy)" Click="RunReviewedWorkspaceOcrAsync" />
+                        @if (!string.IsNullOrWhiteSpace(ocrStatus)) { <p role="status">@ocrStatus</p> }
+                        @if (!string.IsNullOrWhiteSpace(ocrText)) { <details open><summary>Untrusted OCR result · review required</summary><pre>@ocrText</pre></details> }
+                    </div>
+                }
                 <div class="upload-processing-review-actions">
                     <DxButton Text="Use recommendation in Chat" Enabled="@CanUseRecommendation" RenderStyle="ButtonRenderStyle.Primary" Click="UseInChatAsync" />
                     <DxButton Text="Ask suggested Council team" Enabled="@CanUseSuggestedTeam" RenderStyle="ButtonRenderStyle.Secondary" Click="UseInCouncilAsync" />
@@ -142,6 +153,72 @@
 
 
 @code {
+    /// <summary>Explicit image action status.</summary>
+    private bool ocrBusy;
+    /// <summary>OCR runtime/processing result status.</summary>
+    private string ocrStatus = string.Empty;
+    /// <summary>Human-review-only OCR result.</summary>
+    private string ocrText = string.Empty;
+
+    /// <summary>Probes an available local OCR model without processing the image.</summary>
+    /// <returns>Awaitable component event.</returns>
+    private async Task CheckWorkspaceOcrAvailabilityAsync()
+    {
+        ocrBusy = true;
+        try
+        {
+            var capability = await WorkspaceOcr.GetCapabilityAsync();
+            ocrStatus = capability.Available
+                ? $"OCR available using {capability.ModelName} at {capability.ProviderUri}. You may explicitly process the image."
+                : $"OCR unavailable: {capability.Reason}";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Local OCR capability check failed.");
+            ocrStatus = "OCR capability check failed; image was not processed.";
+        }
+        finally { ocrBusy = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    /// <summary>Processes one quarantined image on explicit user command.</summary>
+    /// <returns>Awaitable component event.</returns>
+    private async Task RunReviewedWorkspaceOcrAsync()
+    {
+        if (gate is null || recommendation is null || !gate.DeterministicChecksPassed)
+        {
+            ocrStatus = "The quarantine gate must pass before OCR is allowed.";
+            return;
+        }
+        var image = recommendation.ProcessingRoutes.FirstOrDefault(route =>
+            string.Equals(route.CapabilityKey, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase));
+        if (image is null) return;
+        ocrBusy = true;
+        ocrText = string.Empty;
+        try
+        {
+            var capability = await WorkspaceOcr.GetCapabilityAsync();
+            if (!capability.Available)
+            {
+                ocrStatus = $"OCR unavailable: {capability.Reason}";
+                return;
+            }
+            var result = await WorkspaceOcr.RecognizeWorkspaceImageAsync(new WorkspaceImageOcrRequest
+            {
+                WorkspaceName = gate.WorkspaceName,
+                RelativePath = image.RelativePath,
+                ModelName = capability.ModelName
+            });
+            ocrText = result.Ocr.Text;
+            ocrStatus = $"OCR finished for {image.RelativePath} with {result.Ocr.ModelName}. Review the evidence before using it as Knowledge.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Explicit quarantined-image OCR failed for {WorkspaceName}.", gate.WorkspaceName);
+            ocrStatus = "OCR failed. The image remains quarantined; inspect the runtime/model diagnostics.";
+        }
+        finally { ocrBusy = false; await InvokeAsync(StateHasChanged); }
+    }
+
     /// <summary>
     /// Stores the internal user goal state used by <see cref="UploadProcessingAdvisor"/> while executing its surrounding workflow.
     /// </summary>
@@ -282,6 +359,8 @@
 
             SetBusy(true, "Inspecting dropped files…", "The dropped files are already in bounded quarantine. LocalGPT is reading deterministic evidence before any optional AI recommendation runs.");
             gate = await ProjectIngestion.InspectAsync(workspaceName).ConfigureAwait(false);
+            ocrStatus = string.Empty;
+            ocrText = string.Empty;
             SetBusy(true, "Building a processing recommendation…", "LocalGPT is combining curator-approved data rules, approved Knowledge, and existing Council team definitions. No content is promoted by this step.");
             recommendation = await Recommendations.RecommendAsync(new UploadProcessingRecommendationRequest
             {

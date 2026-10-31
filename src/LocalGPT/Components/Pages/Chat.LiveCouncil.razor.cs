@@ -41,6 +41,58 @@ namespace LocalGPT.Components.Pages
     /// <summary>Short-lived user-visible continuation upload stage, cleared as soon as the message is queued.</summary>
     private string liveCouncilUploadStatus = string.Empty;
 
+    /// <summary>Explicitly opened archived Council evidence, separate from the active streamed Chat.</summary>
+    private CouncilSpoolerSnapshot? openedCouncilArchive;
+    /// <summary>Selected expanded step, keeping the default display bounded.</summary>
+    private int? openedCouncilEvidenceStep;
+
+    /// <summary>Changes the selected Council run without attaching to an unrelated session.</summary>
+    /// <param name="value">Selected run identifier.</param>
+    /// <returns>UI update.</returns>
+    private async Task SelectCouncilSessionAsync(string value)
+    {
+        SelectedCouncilRunId = Guid.TryParse(value, out var runId) ? runId : null;
+        openedCouncilArchive = null;
+        openedCouncilEvidenceStep = null;
+        LoadCouncilRunConfiguration(SelectedCouncilRunId);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Loads exact persisted Council evidence and attaches the live transcript if it still exists.</summary>
+    /// <returns>UI update.</returns>
+    private async Task OpenSelectedCouncilHistoryAsync()
+    {
+        if (SelectedCouncilRunId is not Guid runId) return;
+        var receipt = CouncilSpooler.GetSnapshot(runId);
+        if (receipt is null)
+        {
+            Notifier.ShowWarning(toastName, "The selected run is no longer retained.", "Council history");
+            return;
+        }
+        openedCouncilArchive = receipt;
+        openedCouncilEvidenceStep = null;
+        RejoinCouncilRunId = runId;
+        if (CouncilLiveSessions.GetAttachmentSnapshot(runId) is not null)
+            await AttachToLiveCouncilSessionAsync(runId, reloadChatControl: true);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Toggles one saved step without repeatedly sending its full content on every Council heartbeat.</summary>
+    /// <param name="sortOrder">Step order.</param>
+    private void ToggleCouncilEvidenceStep(int sortOrder)
+    {
+        openedCouncilEvidenceStep = openedCouncilEvidenceStep == sortOrder ? null : sortOrder;
+    }
+
+    /// <summary>Short saved evidence preview.</summary>
+    /// <param name="step">Saved step.</param>
+    /// <returns>Bounded display text.</returns>
+    private string CouncilEvidencePreview(MultiModelCouncilStep step)
+    {
+        var value = string.IsNullOrWhiteSpace(step.VisibleContent) ? step.Content : step.VisibleContent;
+        return value.Length <= 720 ? value : value[..720] + "… (expand to inspect evidence)";
+    }
+
     // DevExpress AIChat owns and may cache the message template. A popup placed outside the
     // template therefore owns post-run inspection state independently of message rendering.
     /// <summary>
@@ -128,7 +180,8 @@ namespace LocalGPT.Components.Pages
                     SelectedCouncilRunId = newestLiveSession.RunId;
                 if (SelectedCouncilRunId is Guid selectedRunId
                     && collaborationSnapshot.ActiveRuns.All(run => run.RunId != selectedRunId)
-                    && !activeLiveRunIds.Contains(selectedRunId))
+                    && !activeLiveRunIds.Contains(selectedRunId)
+                    && !CouncilSpooler.GetRecentSummaries(take: 50).Any(run => run.RunId == selectedRunId))
                 {
                     SelectedCouncilRunId = null;
                 }
@@ -587,7 +640,8 @@ namespace LocalGPT.Components.Pages
                 {
                     try
                     {
-                        await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+                        // Debounce nonessential session-picker renders during high-frequency Council streaming.
+                        await Task.Delay(750, cancellationToken).ConfigureAwait(false);
                         if (cancellationToken.IsCancellationRequested || componentLifetimeCts.IsCancellationRequested || isDisposed || !interactiveAttached)
                             return;
                         try

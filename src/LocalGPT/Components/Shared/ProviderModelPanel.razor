@@ -102,6 +102,7 @@
             <div><dt>@T("Benchmark")</dt><dd>@(Model.SupportsBenchmark ? T("available") : T("unavailable"))</dd></div>
             <div><dt>@T("Council address")</dt><dd>@Model.SelectionKey</dd></div>
             <div><dt>@T("Stable identity")</dt><dd>@Model.StableId</dd></div>
+            <div><dt>Council roles</dt><dd><ProviderModelRoleEditor Model="Model" /></dd></div>
             @if (!string.IsNullOrWhiteSpace(Model.Details))
             {
                 <div><dt>@T("Details")</dt><dd>@Model.Details</dd></div>

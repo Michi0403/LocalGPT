@@ -171,13 +171,15 @@
                     }
                 </fieldset>
                 <label>
-                    <span>One currently installed and configured AI model for this team</span>
+                    <span>Reachable provider model for team binding</span>
                     <DxComboBox Data="@PublisherOrganicLiveModelOptions"
                                 @bind-Value="_publisherSingleModelKey"
                                 ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
                                 TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
                                 CssClass="localgpt-dx-combo" />
                 </label>
+                <DxButton Text="Refresh provider models" Click="RefreshProviderModelsAsync" Enabled="@(!_providerModelsRefreshing)" />
+                <span class="hint">@_providerModels.Count detected models · @PublisherOrganicLiveModelOptions.Count reachable</span>
                 <DxButton Text="Bind this live model to all AI roles" Click="BindPublisherOrganicSingleModel" Enabled="@(!string.IsNullOrWhiteSpace(_publisherSingleModelKey))" />
                 <DxButton Text="Remove unavailable saved role-model bindings" Click="RemoveUnavailablePublisherModels" />
                 <p class="hint">Offline or merely configured machines are not offered by this quick binder. Previously saved unavailable model bindings remain visible in individual role settings until replaced. Binding this model changes the unsaved editor; review and save with confirmation.</p>
@@ -390,10 +392,10 @@
                                 ? "Set Exact role invocations for a fixed count, or use the minimum/maximum fields for a random count per run. A count larger than the provider-bound pool deliberately reuses members in fair shuffled cycles. "
                                 : string.Empty)The count selects role participants/invocations. The workflow execution mode still decides whether all selected members run or one leader/round-robin member is chosen for that step.</p>
                         }
-                        @if (UsesProviderBoundRolePool(role) && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
+                        @if (role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
                         {
                             <details class="wide council-provider-model-picker" open>
-                                <summary>Provider-bound role models (@role.AssignedModelKeys.Count selected)</summary>
+                                <summary>Role model eligibility (@role.AssignedModelKeys.Count bindings · @role.AiSelectionMode)</summary>
                                 <p class="hint">The provider, endpoint and model are one identity. These saved members are automatically added to the run and LocalGPT will not substitute a same-name model from another host. In random-pool mode, the saved models form the eligible pool; requesting more invocations than the pool size cycles through another deterministic shuffle instead of imposing a hard ceiling.</p>
                                 @if (_providerModels.Count == 0)
                                 {

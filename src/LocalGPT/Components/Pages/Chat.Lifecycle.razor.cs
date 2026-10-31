@@ -261,7 +261,14 @@ namespace LocalGPT.Components.Pages
             }
 
             if (RejoinCouncilRunId is Guid rejoinRunId)
-                await AttachToLiveCouncilSessionAsync(rejoinRunId, reloadChatControl: !initialMessagesLoaded).ConfigureAwait(false);
+            {
+                var attached = await AttachToLiveCouncilSessionAsync(rejoinRunId, reloadChatControl: !initialMessagesLoaded).ConfigureAwait(false);
+                if (!attached)
+                {
+                    openedCouncilArchive = CouncilSpooler.GetSnapshot(rejoinRunId);
+                    if (openedCouncilArchive is not null) SelectedCouncilRunId = rejoinRunId;
+                }
+            }
 
             StartAutoSaveLoop();
             StartInitialModelRefresh();
@@ -314,7 +321,10 @@ namespace LocalGPT.Components.Pages
             ownsLiveCouncilStream = false;
             lastAttachedLiveCouncilUpdatedAtUtc = default;
             SelectedCouncilRunId = null;
+            openedCouncilArchive = null;
+            openedCouncilEvidenceStep = null;
             LoadCouncilRunConfiguration(null);
+            await JS.InvokeVoidAsync("localGptReconnect.clearCouncilRun");
             await JS.InvokeVoidAsync("localGptChatUi.clearLiveUserMessages").ConfigureAwait(false);
         }
         catch (Exception ex)

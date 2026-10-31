@@ -42,6 +42,10 @@ public interface ICouncilSpoolerService
     /// <param name="take">Take value supplied to the council spooler operation and used when producing its result.</param>
     /// <returns>The collection produced by the operation.</returns>
     IReadOnlyList<CouncilSpoolerSnapshot> GetSnapshots(bool includeCompleted = true, int take = 0);
+    /// <summary>Returns retained run headers without copying bulky model output during Chat renders.</summary>
+    /// <param name="take">Maximum number of recent run headers.</param>
+    /// <returns>Recent run headers.</returns>
+    IReadOnlyList<CouncilSpoolerRunSummary> GetRecentSummaries(int take = 50);
     /// <summary>
     /// Retrieves snapshot as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

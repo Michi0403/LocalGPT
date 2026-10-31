@@ -42,9 +42,25 @@ public sealed class UploadProcessingRecommendationService(
             var availableTeams = await teams.GetTeamsAsync(false, cancellationToken).ConfigureAwait(false);
             var approvedKnowledge = await knowledge.GetEntriesAsync(false, 500, cancellationToken).ConfigureAwait(false);
             var relevantKnowledge = SelectKnowledge(gate, approvedKnowledge);
-            var teamCandidates = RankTeams(gate, availableTeams);
             var processingRoutes = processingCapabilities.Evaluate(gate.Files);
+            var imageOnly = processingRoutes.Count > 0 && processingRoutes.All(route =>
+                string.Equals(route.CapabilityKey, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase));
+            // Curation capability alone does not qualify a source-code workflow for an image-only upload.
+            var compatibleTeams = availableTeams.Where(team => !imageOnly || !team.WorkflowSteps.Any(step => step.IsEnabled &&
+                (step.RequiresVerifiedWorkspaceFileRead || step.IncludeWorkspaceSourceExcerptsOnRecovery))).ToList();
+            if (imageOnly)
+                compatibleTeams = compatibleTeams.Where(team => team.PreferredCapabilities.Any(capability =>
+                    string.Equals(capability, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase)
+                    || capability.StartsWith("localgpt.vision.", StringComparison.OrdinalIgnoreCase)
+                    || capability.StartsWith("vision.", StringComparison.OrdinalIgnoreCase)
+                    || capability.EndsWith(".ocr", StringComparison.OrdinalIgnoreCase))).ToList();
+            var teamCandidates = RankTeams(gate, compatibleTeams);
             var fallback = BuildFallback(request, gate, relevantKnowledge, teamCandidates, processingRoutes);
+            // An image's bytes and SHA-256 do not provide visual semantics. Without an
+            // explicit OCR/vision result, a text-only advisor must not invent image context
+            // or recommend an unrelated game/source Council workflow from keyword matches.
+            if (imageOnly)
+                return await PersistAsync(fallback, cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -65,6 +81,8 @@ public sealed class UploadProcessingRecommendationService(
                     cancellationToken).ConfigureAwait(false);
                 var ai = ParseRecommendation(response.Text ?? string.Empty, fallback);
                 ValidateSuggestedTeam(ai, teamCandidates);
+                if (imageOnly)
+                    ai.RecommendedAction = "Image-only upload: offer a verified vision/OCR capability and explicitly approved image processing. Do not run source-code inventory or claim image understanding from a SHA-256 scan.";
                 // No explicit user processing objective means the upload is still in evidence review.
                 // Do not let an AI keyword match jump directly into an implementation workflow.
                 if (string.IsNullOrWhiteSpace(request.UserGoal) && !string.IsNullOrWhiteSpace(fallback.SuggestedTeamKey))
@@ -228,7 +246,9 @@ public sealed class UploadProcessingRecommendationService(
             var repositoryDetected = repository is not null;
             // The upload advisor's initial review is curation, not software development.
             // Prefer an enabled, user-maintained team with the actual workspace-curation function.
-            var workspaceCurationTeam = teamCandidates.FirstOrDefault(item =>
+            var imageOnly = processingRoutes.Count > 0 && processingRoutes.All(route =>
+                string.Equals(route.CapabilityKey, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase));
+            var workspaceCurationTeam = (imageOnly ? Array.Empty<OrganicCouncilTeamDefinition>() : teamCandidates).FirstOrDefault(item =>
                 item.PreferredCapabilities.Any(capability =>
                     string.Equals(capability, "chat.upload_workspace_curate", StringComparison.OrdinalIgnoreCase)));
             var repositoryTeam = repositoryDetected
@@ -236,7 +256,15 @@ public sealed class UploadProcessingRecommendationService(
                     || item.Purpose.Contains("repository", StringComparison.OrdinalIgnoreCase)
                     || item.PreferredCapabilities.Any(capability => capability.Contains("repository", StringComparison.OrdinalIgnoreCase)))
                 : null;
-            var team = workspaceCurationTeam ?? repositoryTeam
+            // A mention of "image" (e.g. a game art pipeline) is not a declared OCR
+            // capability. Require an explicit capability contract, never a team name.
+            var imageTeam = imageOnly ? teamCandidates.FirstOrDefault(item =>
+                item.PreferredCapabilities.Any(capability =>
+                    string.Equals(capability, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase)
+                    || capability.StartsWith("localgpt.vision.", StringComparison.OrdinalIgnoreCase)
+                    || capability.StartsWith("vision.", StringComparison.OrdinalIgnoreCase)
+                    || capability.EndsWith(".ocr", StringComparison.OrdinalIgnoreCase))) : null;
+            var team = imageOnly ? imageTeam : workspaceCurationTeam ?? repositoryTeam
                 ?? teamCandidates.FirstOrDefault(item => string.Equals(item.Key, "general", StringComparison.OrdinalIgnoreCase))
                 ?? teamCandidates.FirstOrDefault();
             var domains = gate.Domains.Count > 0 ? string.Join(", ", gate.Domains) : "unclassified material";
@@ -256,7 +284,9 @@ public sealed class UploadProcessingRecommendationService(
                     ? "Resolve the quarantine rejection reasons before any processing or promotion."
                     : repositoryDetected
                         ? "Review and promote the repository into its canonical LocalGPT project structure. Promotion records a source snapshot, compares it with the previous revision, and stages source/delta Knowledge plus repository regex candidates for explicit review before they can become trusted runtime knowledge."
-                        : "Review the quarantined files against the listed evidence and approved knowledge, then choose whether to process them in solo Chat or with the suggested Council team before promotion.",
+                        : imageOnly
+                            ? "The upload contains image evidence, not extracted source. Check verified local vision/OCR capabilities, then explicitly choose image inspection, OCR, or a separate image-generation/editing operation."
+                            : "Review the quarantined files against the listed evidence and approved knowledge, then choose whether to process them in solo Chat or with the suggested Council team before promotion.",
                 ProcessingMode = team is null ? "Solo" : "SoloOrTeam",
                 SuggestedTeamKey = team?.Key ?? string.Empty,
                 SuggestedTeamName = team?.DisplayName ?? string.Empty,
@@ -449,7 +479,12 @@ public sealed class UploadProcessingRecommendationService(
             var repositoryInstruction = gate.Repositories.Count == 0
                 ? string.Empty
                 : " The upload contains a recognized source repository; preserve its repository root, compare the promoted canonical revision with its previous revision, and keep generated Knowledge/regex evidence review-required.";
-            return $"{goal}. Use quarantined workspace '{gate.WorkspaceName}'. Start from the reviewed evidence and approved knowledge.{repositoryInstruction} Do not promote, execute, build, install, publish, network, or write outside the bounded workspace without the corresponding explicit user approval.";
+            var imageInstruction = gate.Files.Count > 0 && gate.Files.All(file =>
+                new[] { ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff" }
+                    .Contains(Path.GetExtension(file.RelativePath), StringComparer.OrdinalIgnoreCase))
+                ? " These are images, not source files. Do not run source-code inventory. Probe localgpt.vision.ocr.capability, and only offer OCR if its runtime/model are available. localgpt.vision.ocr.workspace is an explicit bounded image operation; no claim of visual inspection or generation without actual evidence."
+                : string.Empty;
+            return $"{goal}. Use quarantined workspace '{gate.WorkspaceName}'. Start from the reviewed evidence and approved knowledge.{repositoryInstruction}{imageInstruction} Do not promote, execute, build, install, publish, network, or write outside the bounded workspace without the corresponding explicit user approval.";
         }
         catch (Exception ex)
         {
