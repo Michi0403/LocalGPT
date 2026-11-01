@@ -311,6 +311,40 @@ public sealed partial class GoalExecutionService
                         continue;
                     }
                     checkpoint.State = receipt.ExternalEffectsPossible ? GoalExecutionState.NeedsApproval : GoalExecutionState.Failed;
+                    // Persist the terminal/approval-gated checkpoint before contacting an AI curator.
+                    // A disconnect or cancelled model call must not leave this goal marked running.
+                    await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+                    // Existing durable journal and explicit authorization remain authoritative.
+                    // A central recovery report diagnoses the exhausted objective but never
+                    // resumes an uncertain tool action or changes its approval requirement.
+                    try
+                    {
+                        var taskId = $"goal:{checkpoint.GoalId:N}:{System.Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(step.Key)))}";
+                        var objective = step.Objective ?? string.Empty;
+                        var helpDecision = await aiHelpEscalator.ReportAttemptAsync(new AiHelpAttemptReport
+                        {
+                            TaskId = taskId,
+                            AttemptId = receipt.CouncilRunId,
+                            Task = checkpoint.GoalText[..Math.Min(2000, checkpoint.GoalText.Length)],
+                            Action = objective.Length == 0 ? "Council goal step" : objective[..Math.Min(500, objective.Length)],
+                            Status = "failed",
+                            CouncilRunId = councilResult.RunId,
+                            Error = new AiHelpFailureEvidence
+                            {
+                                Code = "GoalStepRecoveryExhausted",
+                                Message = "The goal step did not produce verified completion after the allowed recovery paths.",
+                                Source = "validator"
+                            }
+                        }, cancellationToken).ConfigureAwait(false);
+                        logger.LogInformation("Goal {GoalId} exhausted step {StepKey}; AI help decision {DecisionType}, human request {HumanRequestId}.",
+                            checkpoint.GoalId, step.Key, helpDecision.Type, helpDecision.HumanRequestId);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                    catch (Exception error)
+                    {
+                        logger.LogWarning(error, "AI help escalation unavailable after failed goal step {StepKey} in goal {GoalId}; the saved failure remains authoritative.",
+                            step.Key, checkpoint.GoalId);
+                    }
                     break;
                 }
                 if (receipt.State == GoalExecutionState.NeedsVerification)

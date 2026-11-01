@@ -29,6 +29,20 @@ foreach ($file in $releaseScripts) {
 $targets = Join-Path $root 'Directory.Build.targets'
 if (-not (Test-Path -LiteralPath $targets -PathType Leaf)) { throw 'Directory.Build.targets is missing.' }
 $xml = [xml]([IO.File]::ReadAllText($targets))
+# The complete platform compatibility check must be a regular LocalGPT MSBuild
+# error in Debug as well as Release, not only a late Build-Release.ps1 preflight.
+$targetsSource = [IO.File]::ReadAllText($targets)
+foreach ($requiredFragment in @(
+    'Name="AssertLocalGptPowerShellCompatibility"',
+    'BeforeTargets="BeforeBuild"',
+    'Condition="''$(DesignTimeBuild)'' != ''true'' and ''$(MSBuildProjectName)'' == ''LocalGPT''"',
+    'build/Assert-PowerShellCompatibility.ps1',
+    'ConsoleToMSBuild="true"'
+)) {
+    if ($targetsSource.IndexOf($requiredFragment, [StringComparison]::Ordinal) -lt 0) {
+        $violations.Add('Standard Debug/Release MSBuild compatibility diagnostics contract missing: ' + $requiredFragment)
+    }
+}
 foreach ($group in @($xml.Project.PropertyGroup)) {
     foreach ($property in @($group.ChildNodes)) {
         $value = [string]$property.InnerText

@@ -886,6 +886,10 @@ namespace LocalGPT.Components.Pages
     [Parameter]
     [SupplyParameterFromQuery(Name = "rejoinCouncilRunId")]
     public Guid? RequestedRejoinCouncilRunId { get; set; }
+    /// <summary>Exact persisted Chat conversation to restore before rejoining a Council after a dead Blazor circuit.</summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "rejoinConversationId")]
+    public Guid? RequestedRejoinConversationId { get; set; }
     /// <summary>
     /// Gets or sets the stable requested council team key used to identify or correlate this chat instance with related application state.
     /// </summary>
@@ -1535,7 +1539,17 @@ namespace LocalGPT.Components.Pages
                 ClearSelectedSessionForFreshStart();
                 memoryStatus = "Diagnostic fresh chat: saved memory was not auto-loaded into the selected model.";
             }
-            else if (AutoLoadLatestConversation)
+            else if (RequestedRejoinConversationId is Guid requestedConversationId)
+            {
+                // Restore the exact Chat BEFORE attaching the Council. The old marker-based
+                // lookup cannot recover a conversation whose Council marker wasn't saved yet.
+                var matching = SavedConversations.FirstOrDefault(item => item.Id == requestedConversationId);
+                if (matching is not null)
+                    await LoadSavedConversationAsync(matching, saveCurrentFirst: false, loadIntoDxChat: false).ConfigureAwait(false);
+                else
+                    Logger.LogWarning("Recovery conversation {ConversationId} is not available in saved memory; refusing to substitute an unrelated Chat.", requestedConversationId);
+            }
+            else if (AutoLoadLatestConversation && RejoinCouncilRunId is null)
             {
                 await LoadLatestConversationIntoSessionAsync(loadIntoDxChat: false).ConfigureAwait(false);
             }

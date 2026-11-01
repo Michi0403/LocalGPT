@@ -59,6 +59,127 @@ if ($chatSessionRenderingSource.IndexOf('await Task.Delay(750, cancellationToken
     $findings.Add('Chat.LiveCouncil.razor.cs: session list refresh must remain debounced during Council streaming.')
 }
 
+# Server-owned Council runs must recover automatically when Blazor rejects a
+# dead circuit. Keep the existing manual recovery path and prevent reload loops.
+$reconnectSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/wwwroot/js/localgpt-reconnect.js'))
+foreach ($contract in @(
+    'scheduleAutomaticRecovery(600)',
+    'scheduleAutomaticRecovery(1200)',
+    'scheduleAutomaticRecovery(15000)',
+    'claimAutomaticReload()',
+    'reloadAndRejoin();',
+    'confirmedRunId = String(runId)',
+    'attempts >= 2',
+    'components-reconnect-rejected',
+    'components-reconnect-hide'
+)) {
+    if ($reconnectSource.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+        $findings.Add('localgpt-reconnect.js: missing bounded automatic Council recovery: ' + $contract)
+    }
+}
+
+# A dead Blazor circuit must restore both the Chat conversation and the running
+# Council. Recovering a Council marker alone must never split one chat in two.
+foreach ($contract in @(
+    'conversationStorageKey',
+    'readConversationId()',
+    "url.searchParams.set('rejoinConversationId', conversationId)",
+    'setConversation(conversationId)',
+    'clearConversation()',
+    "url.searchParams.set('rejoinCouncilRunId', String(runId))"
+)) {
+    if ($reconnectSource.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+        $findings.Add('localgpt-reconnect.js: exact Chat/Council recovery identity contract missing: ' + $contract)
+    }
+}
+$chatRazorSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.razor.cs'))
+$chatPersistSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.PersistenceAndMemory.razor.cs'))
+$chatLifecycleSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.Lifecycle.razor.cs'))
+$chatLiveSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs'))
+foreach ($entry in @(
+    @{ Name = 'Chat.razor.cs'; Content = $chatRazorSource; Token = 'RequestedRejoinConversationId' },
+    @{ Name = 'Chat.razor.cs'; Content = $chatRazorSource; Token = 'LoadSavedConversationAsync(matching, saveCurrentFirst: false, loadIntoDxChat: false)' },
+    @{ Name = 'Chat.Lifecycle.razor.cs'; Content = $chatLifecycleSource; Token = 'localGptReconnect.setConversation' },
+    @{ Name = 'Chat.LiveCouncil.razor.cs'; Content = $chatLiveSource; Token = 'firstAttachmentToRun && ActiveConversationId is null' },
+    @{ Name = 'Chat.PersistenceAndMemory.razor.cs'; Content = $chatPersistSource; Token = 'chatConversationSaveGate.WaitAsync()' },
+    @{ Name = 'Chat.PersistenceAndMemory.razor.cs'; Content = $chatPersistSource; Token = 'chatConversationSaveGate.Release()' }
+)) {
+    if ($entry.Content.IndexOf($entry.Token, [StringComparison]::Ordinal) -lt 0) {
+        $findings.Add($entry.Name + ': recovery/persistence contract missing: ' + $entry.Token)
+    }
+}
+
+# Recovery must preserve the visible DevExpress Council session, not only the DB id.
+# The current implementation merges an ordered overlap so reconnecting does not
+# duplicate already-visible messages or discard Council messages. Check the whole
+# preservation contract, not one older implementation-specific AddRange expression.
+foreach ($contract in @(
+    'var restoredMessages = restoredChatSession.Messages.ToList();',
+    'var visibleMessages = councilSession.Messages.ToList();',
+    'var overlap = 0;',
+    'councilSession.Messages.AddRange(restoredMessages);',
+    'councilSession.Messages.AddRange(visibleMessages.Skip(overlap));',
+    'canonicalConversationMessages.AddRange(councilSession.Messages);',
+    'DxAiChat.LoadMessages(councilSession.Messages);'
+)) {
+    if ($chatLiveSource.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+        $findings.Add('Chat.LiveCouncil.razor.cs: restored Chat/Council overlap and visible-session synchronization missing: ' + $contract)
+    }
+}
+
+# Optional image exclusions must not block a tool call. Validate the published
+# JSON schemas in addition to the invocation and runtime defaults.
+$imageFunctionSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/LocalAiRuntimeDxAiFunctions.cs'))
+$imageSchemas = [regex]::Matches($imageFunctionSource, 'ParameterSchemaJson:\s*"""(?<json>\{[^\r\n]+\})"""')
+$checkedNegativePrompts = 0
+foreach ($match in $imageSchemas) {
+    # An optional JSON property must be looked up through PSObject.Properties.
+    # Under Set-StrictMode -Version Latest, accessing a missing property directly
+    # throws PropertyNotFoundStrict *before* a null check can evaluate it.
+    # Most DX function schemas legitimately have no negativePrompt property.
+    try {
+        $schema = $match.Groups['json'].Value | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        $findings.Add('LocalAiRuntimeDxAiFunctions.cs: malformed JSON function schema: ' + $_.Exception.Message)
+        continue
+    }
+    if ($null -eq $schema) {
+        $findings.Add('LocalAiRuntimeDxAiFunctions.cs: unexpectedly empty JSON function schema.')
+        continue
+    }
+    $propertiesMember = $schema.PSObject.Properties['properties']
+    if ($null -eq $propertiesMember -or $null -eq $propertiesMember.Value) { continue }
+    $negativePromptMember = $propertiesMember.Value.PSObject.Properties['negativePrompt']
+    if ($null -eq $negativePromptMember -or $null -eq $negativePromptMember.Value) { continue }
+
+    $checkedNegativePrompts++
+    $requiredMember = $schema.PSObject.Properties['required']
+    if ($null -ne $requiredMember -and @($requiredMember.Value) -contains 'negativePrompt') {
+        $findings.Add('LocalAiRuntimeDxAiFunctions.cs: optional negativePrompt must not be schema-required.')
+    }
+    $defaultMember = $negativePromptMember.Value.PSObject.Properties['default']
+    if ($null -eq $defaultMember -or $defaultMember.Value -cne '') {
+        $findings.Add('LocalAiRuntimeDxAiFunctions.cs: negativePrompt must default to an empty exclusion set.')
+    }
+}
+if ($checkedNegativePrompts -ne 2) {
+    $findings.Add('LocalAiRuntimeDxAiFunctions.cs: both image generation and edit schemas require optional negativePrompt contracts.')
+}
+if ($imageFunctionSource.IndexOf('binding.Value.NegativePrompt ??= string.Empty;', [StringComparison]::Ordinal) -lt 0) {
+    $findings.Add('LocalAiRuntimeDxAiFunctions.cs: null optional prompt must be normalized before runtime dispatch.')
+}
+$registrySource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/DxAiFunctionRegistry.cs'))
+if ($registrySource.IndexOf('propertyValue.ValueKind == JsonValueKind.Null', [StringComparison]::Ordinal) -lt 0 -or
+    $registrySource.IndexOf('string.Equals(property.Name, "negativePrompt"', [StringComparison]::Ordinal) -lt 0) {
+    $findings.Add('DxAiFunctionRegistry.cs: null optional negativePrompt must not fail the required parameter validator.')
+}
+$keyaccountSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/GoalExecutionService.KeyaccountManager.cs'))
+if ($keyaccountSource.IndexOf('ReadKeyaccountReviewObject(text)', [StringComparison]::Ordinal) -lt 0 -or
+    $keyaccountSource.IndexOf('JsonDocument.Parse(text.Substring(start, end - start + 1))', [StringComparison]::Ordinal) -ge 0) {
+    $findings.Add('GoalExecutionService.KeyaccountManager.cs: parse a bounded single JSON review, not first-to-last brace prose.')
+}
+
 # The Council run is server-owned; UI streaming is only an expendable observer.
 # Keep the contract in this maintained, cross-platform PowerShell guard rather
 # than adding release-specific Python source tests to tests/static.

@@ -218,6 +218,40 @@ namespace LocalGPT.Services
                     {
                         result.Warnings.Add(
                             $"Configured round '{definition.DisplayName}' could not recover required member work originally assigned to {failedModel} after {definition.MemberFailureRecoveryAttempts} round-level recovery turn(s). The failure remains explicit; LocalGPT did not silently drop or fabricate this member result.");
+                        // This round has already consumed its existing recovery policy. Report
+                        // the observed stall to the shared service; do not schedule another
+                        // Council retry, change its tool permissions, or conceal the failure.
+                        try
+                        {
+                            var identity = $"{result.RunId:N}:{definition.Key}:{round}:{failedModel}";
+                            var digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
+                            var taskId = $"council:{result.RunId:N}:{digest}";
+                            var taskDescription = $"Council run {result.RunId:N}, workflow step {definition.Key}, role {roleAssignment.RoleName}";
+                            var attemptedAction = $"Recover failed Council participant {failedModel} in phase {phase}";
+                            var helpDecision = await aiHelpEscalator.ReportAttemptAsync(new AiHelpAttemptReport
+                            {
+                                TaskId = taskId,
+                                AttemptId = new Guid(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes("attempt:" + identity))[..16]),
+                                Task = taskDescription[..Math.Min(2000, taskDescription.Length)],
+                                Action = attemptedAction[..Math.Min(500, attemptedAction.Length)],
+                                Status = "no_progress",
+                                CouncilRunId = result.RunId,
+                                FailedModelSelectionKey = failedModel[..Math.Min(160, failedModel.Length)],
+                                Error = new AiHelpFailureEvidence
+                                {
+                                    Code = "CouncilMemberRecoveryExhausted",
+                                    Message = "The configured round member recovery attempts were exhausted.",
+                                    Source = "validator"
+                                }
+                            }, cancellationToken).ConfigureAwait(false);
+                            logger.LogInformation("Council member recovery exhausted for run {RunId}, step {StepKey}, model {ModelName}; central help decision {DecisionType}, request {HumanRequestId}.",
+                                result.RunId, definition.Key, failedModel, helpDecision.Type, helpDecision.HumanRequestId);
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                        catch (Exception exception)
+                        {
+                            logger.LogWarning(exception, "Central AI help escalation unavailable for Council run {RunId}, step {StepKey}; original failure remains visible.", result.RunId, definition.Key);
+                        }
                     }
                 }
 

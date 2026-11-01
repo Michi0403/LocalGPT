@@ -3,11 +3,17 @@
     'use strict';
 
     const storageKey = 'localgpt.activeCouncilRunId';
+    const conversationStorageKey = 'localgpt.activeChatConversationId';
     const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     let observedModal = null;
     let classObserver = null;
     let resumeCheckTimer = 0;
     let hiddenAfterInteractiveReady = false;
+    let autoRecoveryTimer = 0;
+    let autoRecoveryInProgress = false;
+    let confirmedRunId = '';
+    let confirmedConversationId = '';
+    const automaticReloadKey = 'localgpt.reconnect.autoReloadBudget';
 
     function report(context, error) {
         try { globalThis.localGptJavaScriptDiagnostics?.report?.(`localgpt-reconnect.${context}`, error); }
@@ -17,12 +23,34 @@
     function readRunId() {
         try {
             const fromUrl = new URL(location.href).searchParams.get('rejoinCouncilRunId') || '';
-            const value = (guidPattern.test(fromUrl) ? fromUrl : '') || sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey) || '';
+            const value = confirmedRunId || (guidPattern.test(fromUrl) ? fromUrl : '') || sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey) || '';
             return guidPattern.test(value) ? value : '';
         } catch (error) {
             report('readRunId', error);
             return '';
         }
+    }
+
+    // A Council run and a Chat conversation are distinct identities. Preserve both on a
+    // full circuit reload so joining a running Council never creates an empty Chat.
+    function readConversationId() {
+        try {
+            const fromUrl = new URL(location.href).searchParams.get('rejoinConversationId') || '';
+            const value = confirmedConversationId || (guidPattern.test(fromUrl) ? fromUrl : '') ||
+                sessionStorage.getItem(conversationStorageKey) || '';
+            return guidPattern.test(value) ? value : '';
+        } catch (error) {
+            report('readConversationId', error);
+            return '';
+        }
+    }
+
+    function writeConversationId(value) {
+        try {
+            const normalized = String(value || '').trim();
+            if (guidPattern.test(normalized)) sessionStorage.setItem(conversationStorageKey, normalized);
+            else sessionStorage.removeItem(conversationStorageKey);
+        } catch (error) { report('writeConversationId', error); }
     }
 
     function writeRunId(value) {
@@ -43,15 +71,81 @@
     function buildReloadTarget() {
       try {
                 const runId = readRunId();
-                if (!runId) return location.href;
+                const conversationId = readConversationId();
+                if (!runId && !conversationId) return location.href;
                 const url = location.pathname.toLowerCase().endsWith('/chat') ? new URL(location.href) : new URL('Chat', document.baseURI);
-                url.searchParams.set('rejoinCouncilRunId', runId);
+                if (runId) url.searchParams.set('rejoinCouncilRunId', runId);
+                else url.searchParams.delete('rejoinCouncilRunId');
+                if (conversationId) url.searchParams.set('rejoinConversationId', conversationId);
+                else url.searchParams.delete('rejoinConversationId');
                 return url.href;
     
       } catch (error) {
         report('buildReloadTarget', error);
         throw error;
       }
+    }
+
+    function claimAutomaticReload() {
+        try {
+            const now = Date.now();
+            const saved = JSON.parse(sessionStorage.getItem(automaticReloadKey) || 'null');
+            const withinWindow = saved && Number.isFinite(saved.started) &&
+                now >= saved.started && now - saved.started < 120000;
+            const started = withinWindow ? saved.started : now;
+            const attempts = withinWindow ? Number(saved.attempts) || 0 : 0;
+            if (attempts >= 2) return false;
+            sessionStorage.setItem(automaticReloadKey, JSON.stringify({ started, attempts: attempts + 1 }));
+            return true;
+        } catch (error) {
+            report('claimAutomaticReload', error);
+            return false;
+        }
+    }
+
+    function cancelAutomaticRecovery() {
+        if (autoRecoveryTimer) clearTimeout(autoRecoveryTimer);
+        autoRecoveryTimer = 0;
+        autoRecoveryInProgress = false;
+    }
+
+    function scheduleAutomaticRecovery(delayMilliseconds) {
+        try {
+            if (autoRecoveryTimer || autoRecoveryInProgress) return;
+            autoRecoveryTimer = window.setTimeout(async () => {
+                autoRecoveryTimer = 0;
+                const modal = findModal();
+                if (!(modal instanceof HTMLElement)) return;
+                if (modal.classList.contains('components-reconnect-hide')) return;
+                if (navigator.onLine === false || document.visibilityState === 'hidden') return;
+                if (!modal.classList.contains('components-reconnect-show') &&
+                    !modal.classList.contains('components-reconnect-failed') &&
+                    !modal.classList.contains('components-reconnect-rejected')) return;
+                autoRecoveryInProgress = true;
+                try {
+                    // A rejected circuit is gone; Blazor.reconnect() cannot revive it.
+                    // For a transient failure, give the framework one last reconnect.
+                    if (!modal.classList.contains('components-reconnect-rejected') &&
+                        typeof globalThis.Blazor?.reconnect === 'function') {
+                        try {
+                            const restored = await globalThis.Blazor.reconnect();
+                            if (restored) return;
+                        } catch (error) {
+                            report('automaticReconnect', error);
+                        }
+                    }
+                    if (!modal.classList.contains('components-reconnect-hide') && claimAutomaticReload()) {
+                        reloadAndRejoin();
+                    } else if (!modal.classList.contains('components-reconnect-hide')) {
+                        setStatus(modal, 'Automatic recovery paused to avoid a reload loop. Use Reload & rejoin to retry manually.');
+                    }
+                } finally {
+                    autoRecoveryInProgress = false;
+                }
+            }, delayMilliseconds);
+        } catch (error) {
+            report('scheduleAutomaticRecovery', error);
+        }
     }
 
     function recoverFromBackForwardCache(event) {
@@ -182,13 +276,17 @@
         if (modal.classList.contains('components-reconnect-failed')) {
             setStatus(modal, `Automatic reconnection failed.${suffix}`);
             setBusy(modal, false);
+            scheduleAutomaticRecovery(1200);
         } else if (modal.classList.contains('components-reconnect-rejected')) {
             setStatus(modal, `The previous interactive circuit can no longer be restored.${suffix}`);
             setBusy(modal, false);
+            scheduleAutomaticRecovery(600);
         } else if (modal.classList.contains('components-reconnect-show')) {
             setStatus(modal, `The interactive UI is disconnected while server-side Council work may still continue.${suffix}`);
             setBusy(modal, false);
+            scheduleAutomaticRecovery(15000);
         } else if (modal.classList.contains('components-reconnect-hide')) {
+            cancelAutomaticRecovery();
             setBusy(modal, false);
             globalThis.localGptJavaScriptDiagnostics?.resumeTransport?.();
         }
@@ -291,15 +389,62 @@
                 });
                 globalThis.localGptReconnect = Object.freeze({
                     showDisconnected() {
-                        revealRecoverySurface('The browser lost its Blazor connection. Reconnect or reload and rejoin without stopping server-side Council work.');
+                        revealRecoverySurface('The browser lost its Blazor connection. LocalGPT will recover and rejoin the Council automatically if necessary.');
+                        scheduleAutomaticRecovery(15000);
+                    },
+                    setConversation(conversationId) {
+                        const normalized = String(conversationId || '').trim();
+                        if (!guidPattern.test(normalized)) return;
+                        confirmedConversationId = normalized;
+                        writeConversationId(normalized);
+                        // A previously rejoined URL must not keep targeting a different chat
+                        // if the user explicitly loads another saved conversation.
+                        try {
+                            const url = new URL(location.href);
+                            if (url.searchParams.has('rejoinConversationId') &&
+                                url.searchParams.get('rejoinConversationId') !== normalized) {
+                                url.searchParams.set('rejoinConversationId', normalized);
+                                history.replaceState(history.state, '', url.href);
+                            }
+                        } catch (error) { report('setConversation', error); }
+                    },
+                    clearConversation() {
+                        confirmedConversationId = '';
+                        writeConversationId('');
+                        try {
+                            const url = new URL(location.href);
+                            if (url.searchParams.has('rejoinConversationId')) {
+                                url.searchParams.delete('rejoinConversationId');
+                                history.replaceState(history.state, '', url.href);
+                            }
+                        } catch (error) { report('clearConversation', error); }
                     },
                     setCouncilRun(runId) {
                         // A fresh circuit may render before the server run is recovered.
-                        if (guidPattern.test(String(runId || ''))) writeRunId(runId);
+                        if (guidPattern.test(String(runId || ''))) {
+                            confirmedRunId = String(runId);
+                            writeRunId(runId);
+                            try {
+                                const url = new URL(location.href);
+                                if (url.searchParams.has('rejoinCouncilRunId') &&
+                                    url.searchParams.get('rejoinCouncilRunId') !== String(runId)) {
+                                    url.searchParams.set('rejoinCouncilRunId', String(runId));
+                                    history.replaceState(history.state, '', url.href);
+                                }
+                            } catch (error) { report('setCouncilRun', error); }
+                        }
                         updateFromClass();
                     },
                     clearCouncilRun() {
+                        confirmedRunId = '';
                         writeRunId('');
+                        try {
+                            const url = new URL(location.href);
+                            if (url.searchParams.has('rejoinCouncilRunId')) {
+                                url.searchParams.delete('rejoinCouncilRunId');
+                                history.replaceState(history.state, '', url.href);
+                            }
+                        } catch (error) { report('clearCouncilRun', error); }
                         updateFromClass();
                     },
                     reloadAndRejoin

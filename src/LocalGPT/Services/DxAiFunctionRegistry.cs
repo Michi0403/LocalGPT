@@ -698,6 +698,15 @@ public sealed class DxAiFunctionRegistry(
                     {
                         if (!value.TryGetProperty(property.Name, out var propertyValue))
                             continue;
+                        // A missing optional negative prompt (including explicit JSON null) is
+                        // an empty exclusion set. Required fields retain strict schema checks.
+                        if (string.Equals(property.Name, "negativePrompt", StringComparison.OrdinalIgnoreCase) &&
+                            propertyValue.ValueKind == JsonValueKind.Null &&
+                            (!schema.TryGetProperty("required", out var requiredNames) ||
+                             requiredNames.ValueKind != JsonValueKind.Array ||
+                             !requiredNames.EnumerateArray().Any(name =>
+                                 string.Equals(name.GetString(), property.Name, StringComparison.Ordinal))))
+                            continue;
                         var error = ValidateSchemaElement(property.Value, propertyValue, $"{path}.{property.Name}");
                         if (!string.IsNullOrWhiteSpace(error))
                             return error;

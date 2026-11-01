@@ -172,7 +172,8 @@ namespace LocalGPT.Services
             {
                 var prompt = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilParticipantSystemPromptTemplate);
 
-                return prompt
+                var recovery = runtimePolicy.GetString(LocalGptRuntimeValue.HelpEscalatorGlobalInstruction);
+                return (prompt + Environment.NewLine + recovery)
                     .Replace("__LOCALGPT_MODEL_NAME__", modelName ?? string.Empty, StringComparison.Ordinal)
                     .Replace("__LOCALGPT_COUNCIL_MEMBERS__", string.Join(", ", councilMembers ?? []), StringComparison.Ordinal);
             }

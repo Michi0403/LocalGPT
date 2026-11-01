@@ -256,6 +256,8 @@ namespace LocalGPT
 
                 builder.Services.AddSingleton<IOrganicCouncilBlueprintSeedDataService, OrganicCouncilBlueprintSeedDataService>();
                 builder.Services.AddSingleton<IHumanCollaborationService, HumanCollaborationService>();
+                builder.Services.AddSingleton<IAiHelpEscalatorService, AiHelpEscalatorService>();
+                builder.Services.AddScoped<IAiHelpCuratorService, AiHelpCuratorService>();
                 builder.Services.AddSingleton<ICouncilXRoundService, CouncilXRoundService>();
                 builder.Services.AddSingleton<ICouncilLiveSessionService, CouncilLiveSessionService>();
                 // Session-owned Hyperlight execution. No host execution fallback or browser-owned task.

@@ -72,14 +72,19 @@ public sealed partial class GoalExecutionService
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt(LocalGptRuntimeValue.GoalPlannerTimeoutSeconds))));
             var response = await client.GetResponseAsync(
-                [new ChatMessage(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.GoalKeyaccountManagerSystemPrompt)),
+                [new ChatMessage(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.GoalKeyaccountManagerSystemPrompt)
+                    + Environment.NewLine + runtimePolicy.GetString(LocalGptRuntimeValue.HelpEscalatorGlobalInstruction)),
                  new ChatMessage(ChatRole.User, reviewInput)],
                 new ChatOptions { MaxOutputTokens = 512, Temperature = 0f }, timeout.Token).ConfigureAwait(false);
             var text = System.Net.WebUtility.HtmlDecode(response.Text ?? string.Empty);
-            var start = text.IndexOf('{');
-            var end = text.LastIndexOf('}');
-            if (start < 0 || end <= start) return review;
-            using var document = JsonDocument.Parse(text.Substring(start, end - start + 1));
+            using var document = ReadKeyaccountReviewObject(text);
+            if (document is null)
+            {
+                review.NeedsHumanReview = true;
+                review.Reason = "Keyaccount reviewer returned no valid JSON review; original Council evidence is preserved";
+                logger.LogWarning("Keyaccount reviewer for Council run {RunId} returned no valid bounded JSON review; response content was omitted.", result.RunId);
+                return review;
+            }
             var data = document.RootElement;
             if (!data.TryGetProperty("complete", out var complete) ||
                 complete.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return review;
@@ -123,6 +128,72 @@ public sealed partial class GoalExecutionService
             review.Reason = "Keyaccount review could not be completed; inspect the Council log";
             return review;
         }
+    }
+
+    /// <summary>
+    /// Selects a complete reviewer JSON object from mixed model prose without concatenating separate
+    /// objects or trailing text. Invalid candidates are not completion evidence.
+    /// </summary>
+    /// <param name="text">Untrusted response body.</param>
+    /// <returns>The first valid review object, or null if no such object exists.</returns>
+    private JsonDocument? ReadKeyaccountReviewObject(string text)
+    {
+        // The reviewer is restricted to 512 output tokens. The explicit cap also bounds
+        // defensive scanning if a provider ignores that limit.
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+        var limit = Math.Min(text.Length, 32768);
+        var start = -1;
+        var depth = 0;
+        var quoted = false;
+        var escaped = false;
+        for (var cursor = 0; cursor < limit; cursor++)
+        {
+            var character = text[cursor];
+            if (start < 0)
+            {
+                if (character != '{') continue;
+                start = cursor;
+                depth = 1;
+                quoted = false;
+                escaped = false;
+                continue;
+            }
+            if (quoted)
+            {
+                if (escaped) escaped = false;
+                else if (character == '\\') escaped = true;
+                else if (character == '"') quoted = false;
+                continue;
+            }
+            if (character == '"') { quoted = true; continue; }
+            if (character == '{') depth++;
+            else if (character == '}' && --depth == 0)
+            {
+                // A single balanced object is a candidate; prose after it is not JSON.
+                // Avoid speculative parser exceptions for obvious pseudo-JSON such as {v:1}.
+                var bodyStart = start + 1;
+                while (bodyStart < cursor && char.IsWhiteSpace(text[bodyStart])) bodyStart++;
+                if (bodyStart == cursor || text[bodyStart] == '"')
+                {
+                    try
+                    {
+                        var candidate = JsonDocument.Parse(text.AsMemory(start, cursor - start + 1));
+                        if (candidate.RootElement.ValueKind == JsonValueKind.Object &&
+                            candidate.RootElement.TryGetProperty("complete", out var complete) &&
+                            complete.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                            return candidate;
+                        candidate.Dispose();
+                    }
+                    catch (JsonException)
+                    {
+                        // A malformed LLM review is not completion evidence or an operation crash.
+                    }
+                }
+                start = -1;
+            }
+        }
+        return null;
     }
 
     /// <summary>Extracts a bounded, untrusted reviewer JSON string without trusting it as a capability.</summary>

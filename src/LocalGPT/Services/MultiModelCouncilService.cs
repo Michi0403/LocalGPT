@@ -59,6 +59,8 @@ namespace LocalGPT.Services
         /// Stores the human collaboration service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly IHumanCollaborationService humanCollaboration;
+        /// <summary>Shared bounded help escalation for exhausted Council member recovery.</summary>
+        private readonly IAiHelpEscalatorService aiHelpEscalator;
         /// <summary>
         /// Stores the council x round service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
@@ -166,6 +168,7 @@ namespace LocalGPT.Services
         /// <param name="codeGenerationWorkflow">Injected dependency used by the service.</param>
         /// <param name="codeGenerationPlanService">Injected dependency used by the service.</param>
         /// <param name="humanCollaboration">Injected dependency used by the service.</param>
+        /// <param name="aiHelpEscalator">Shared bounded diagnostic escalation after Council retries are exhausted.</param>
         /// <param name="councilXRounds">Injected dependency used by the service.</param>
         /// <param name="deferredDxAiInvocations">Injected dependency used by the service.</param>
         /// <param name="uploadWorkspaces">Upload-workspace service used by deterministic Council curation gates.</param>
@@ -202,6 +205,7 @@ namespace LocalGPT.Services
             ICodeGenerationWorkflowService codeGenerationWorkflow,
             ICouncilCodeGenerationPlanService codeGenerationPlanService,
             IHumanCollaborationService humanCollaboration,
+            IAiHelpEscalatorService aiHelpEscalator,
             ICouncilXRoundService councilXRounds,
             IDeferredDxAiInvocationService deferredDxAiInvocations,
             IChatUploadWorkspaceService uploadWorkspaces,
@@ -238,6 +242,7 @@ namespace LocalGPT.Services
             this.codeGenerationWorkflow = codeGenerationWorkflow;
             this.codeGenerationPlanService = codeGenerationPlanService;
             this.humanCollaboration = humanCollaboration;
+            this.aiHelpEscalator = aiHelpEscalator;
             this.councilXRounds = councilXRounds;
             this.deferredDxAiInvocations = deferredDxAiInvocations;
             this.uploadWorkspaces = uploadWorkspaces;

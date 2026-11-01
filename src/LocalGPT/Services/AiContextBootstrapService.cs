@@ -24,6 +24,7 @@ namespace LocalGPT.Services
     /// <param name="councilText">Council text service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
     /// <param name="devExpressChat">Dev express chat service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
     /// <param name="catalog">Local gpt catalog service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="runtimePolicy">Database-owned global AI help escalation instruction.</param>
     public class AiContextBootstrapService(
         IChatMemoryService chatMemory,
         IPromptConfigService prompts,
@@ -39,7 +40,8 @@ namespace LocalGPT.Services
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
         DevExpressChatService devExpressChat,
-        LocalGptCatalogService catalog) : IAiContextBootstrapService
+        LocalGptCatalogService catalog,
+        ILocalGptRuntimePolicyDataService runtimePolicy) : IAiContextBootstrapService
     {
        
 
@@ -56,6 +58,7 @@ namespace LocalGPT.Services
                     .AppendLine(await prompts.GetPromptAsync("AssistantOperationPolicy", cancellationToken: cancellationToken).ConfigureAwait(false))
                     .AppendLine("Available LocalGPT diagnostic routes and DI-backed DXAIFunctions:")
                     .AppendLine(devExpressChat.BuildPromptBriefing())
+                    .AppendLine(runtimePolicy.GetString(LocalGptRuntimeValue.HelpEscalatorGlobalInstruction))
                     .AppendLine();
 
                 var runtimeIdentity = BuildRuntimeIdentityBriefing();

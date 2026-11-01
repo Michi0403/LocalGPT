@@ -6,7 +6,6 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $unsupportedContainsPattern = '\.Contains\([^\r\n]*,\s*\[(?:System\.)?StringComparison\]::'
 $unsupportedPathRelativePattern = '\[(?:System\.)?IO\.Path\]::GetRelativePath\s*\('
-$unsupportedArgumentListPattern = '\.ArgumentList(?:\.|\s*=)'
 $unsupportedKillTreePattern = '\.Kill\(\s*\$true\s*\)'
 $readOnlyPlatformVariableAssignmentPattern = '(?i)\$(?:IsWindows|IsLinux|IsMacOS|IsCoreCLR)\s*='
 $wrappedConvertFromJsonPattern = '@\(\s*ConvertFrom-Json\b'
@@ -129,9 +128,24 @@ foreach ($file in $scriptFiles) {
         $failures.Add("${relative}:$line uses String.Contains(value, StringComparison), which is unavailable in Windows PowerShell 5.1. Use String.IndexOf(value, comparison) instead.")
     }
 
+    # Only actual member access is forbidden, not string literals containing a C#
+    # source-policy pattern (as in Assert-SessionSandboxIsolation.ps1). A raw text
+    # regex incorrectly blocked all macOS release builds with three false positives.
+    # The PowerShell AST still finds executable $startInfo.ArgumentList.Add(...) usage.
+    $argumentListAccesses = $scriptAst.FindAll({
+        param($node)
+        return $node -is [System.Management.Automation.Language.MemberExpressionAst] -and
+            $node.Member -is [System.Management.Automation.Language.StringConstantExpressionAst] -and
+            [string]::Equals($node.Member.Value, 'ArgumentList', [StringComparison]::OrdinalIgnoreCase)
+    }, $true)
+    foreach ($memberAccess in $argumentListAccesses) {
+        $relative = Get-RepositoryRelativePath -Path $file.FullName
+        $line = $memberAccess.Extent.StartLineNumber
+        $failures.Add("${relative}:$line uses ProcessStartInfo.ArgumentList directly, which is unavailable on Windows PowerShell 5.1/.NET Framework. Use the portable process-argument helper instead.")
+    }
+
     foreach ($compatibilityPattern in @(
         [pscustomobject]@{ Pattern = $unsupportedPathRelativePattern; Message = 'uses Path.GetRelativePath directly, which is unavailable on Windows PowerShell 5.1/.NET Framework. Use the portable reflection/URI helper instead.' },
-        [pscustomobject]@{ Pattern = $unsupportedArgumentListPattern; Message = 'uses ProcessStartInfo.ArgumentList directly, which is unavailable on Windows PowerShell 5.1/.NET Framework. Use the portable process-argument helper instead.' },
         [pscustomobject]@{ Pattern = $unsupportedKillTreePattern; Message = 'uses Process.Kill(true), which is unavailable on Windows PowerShell 5.1/.NET Framework. Use the portable process-stop helper instead.' }
     )) {
         foreach ($match in [regex]::Matches($content, $compatibilityPattern.Pattern)) {
@@ -298,6 +312,19 @@ if (Test-Path -LiteralPath $pagesScript -PathType Leaf) {
 }
 
 if ($failures.Count -gt 0) {
+    # MSBuild/Visual Studio's Error List understands standard file(line,column)
+    # diagnostics. Preserve the complete failure list for direct pwsh invocations.
+    foreach ($failure in $failures) {
+        if ($failure -match '^(?<file>[^:]+):(?<line>[0-9]+) (?<detail>.+)$') {
+            $sourceFile = Join-Path $root $Matches['file']
+            $sourceLine = $Matches['line']
+            $detail = $Matches['detail']
+            Write-Output "${sourceFile}($sourceLine,1): error LGPS5101: $detail"
+        }
+        else {
+            Write-Output "${PSCommandPath}(1,1): error LGPS5101: $failure"
+        }
+    }
     throw "PowerShell compatibility validation failed:`n - $($failures -join "`n - ")"
 }
 

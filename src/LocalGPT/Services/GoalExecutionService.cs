@@ -16,6 +16,7 @@ namespace LocalGPT.Services;
 /// <param name="providerModels">Bounded planning-only inference with registered model routes.</param>
 /// <param name="runtimePolicy">Database-configurable planner instructions and limits.</param>
 /// <param name="ledger">Durable step checkpoints and per-goal coordination.</param>
+/// <param name="aiHelpEscalator">Shared recovery diagnostics for exhausted goal steps.</param>
 /// <param name="wirePeers">Live advertised 1-Wire peer capabilities.</param>
 /// <param name="wireConnections">Authoritative active 1-Wire connection state.</param>
 public sealed partial class GoalExecutionService(
@@ -26,6 +27,7 @@ public sealed partial class GoalExecutionService(
     IProviderModelRuntimeService providerModels,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     IGoalExecutionLedgerService ledger,
+    IAiHelpEscalatorService aiHelpEscalator,
     IOneWirePeerRegistry wirePeers,
     IOneWireConnectionRegistry wireConnections,
     ILogger<GoalExecutionService> logger) : IGoalExecutionService

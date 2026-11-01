@@ -424,6 +424,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>Serializes writes to the active Chat ID so concurrent saves cannot fork one conversation.</summary>
+    private readonly SemaphoreSlim chatConversationSaveGate = new(1, 1);
+
     /// <summary>
     /// Persists messages for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
@@ -438,6 +441,9 @@ namespace LocalGPT.Components.Pages
             if (ChatClientProvider?.SelectedSession is null || messages.Count == 0)
                 return;
 
+            await chatConversationSaveGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
             var signature = CouncilText.CreateMessageSignature(messages, Logger);
             if (!force && signature == lastSavedSignature)
                 return;
@@ -458,6 +464,27 @@ namespace LocalGPT.Components.Pages
                 ActiveConversationId = persistedId;
                 SessionContext.SetConversation(persistedId);
                 lastSavedSignature = signature;
+                // Publish immediately; the next render is not guaranteed before a circuit dies.
+                if (!isDisposed && interactiveAttached)
+                {
+                    try
+                    {
+                        await InvokeAsync(() => JS.InvokeVoidAsync("localGptReconnect.setConversation", persistedId.ToString()).AsTask()).ConfigureAwait(false);
+                        lastReconnectConversationId = persistedId;
+                    }
+                    catch (JSDisconnectedException)
+                    {
+                        Logger.LogDebug("Saved Chat {ConversationId}; browser recovery bridge is disconnected.", persistedId);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        Logger.LogDebug("Saved Chat {ConversationId}; browser recovery publication was cancelled.", persistedId);
+                    }
+                    catch (JSException exception)
+                    {
+                        Logger.LogDebug(exception, "Saved Chat {ConversationId}; recovery identity will be republished after render.", persistedId);
+                    }
+                }
                 RefreshFeedbackTargets(messages);
                 await RefreshMemoryAsync().ConfigureAwait(false);
                 memoryStatus = $"Memory saved at {DateTime.Now:t}.";
@@ -474,6 +501,11 @@ namespace LocalGPT.Components.Pages
             finally
             {
                 isMemoryBusy = false;
+            }
+            }
+            finally
+            {
+                chatConversationSaveGate.Release();
             }
         }
         catch (Exception ex)

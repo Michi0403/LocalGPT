@@ -84,7 +84,8 @@ public sealed partial class GoalExecutionService
                 runtimePolicy.GetInt(LocalGptRuntimeValue.GoalPlannerTimeoutSeconds))));
             var response = await client.GetResponseAsync(
                 [new ChatMessage(ChatRole.System,
-                    runtimePolicy.GetString(LocalGptRuntimeValue.GoalSemanticPlannerSystemPrompt)),
+                    runtimePolicy.GetString(LocalGptRuntimeValue.GoalSemanticPlannerSystemPrompt)
+                    + Environment.NewLine + runtimePolicy.GetString(LocalGptRuntimeValue.HelpEscalatorGlobalInstruction)),
                  new ChatMessage(ChatRole.User, catalog)],
                 new ChatOptions
                 {

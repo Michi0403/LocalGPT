@@ -750,10 +750,49 @@ namespace LocalGPT.Components.Pages
             if (councilSession is null)
                 return false;
 
+            // Recovery first loads the persisted Chat into its original provider session.
+            // A Council run uses a different DevExpress session: transfer that same history
+            // into the visible Council session before attaching the run marker. Otherwise
+            // a successful reload appears to erase the previous conversation.
+            if (firstAttachmentToRun && ActiveConversationId is Guid &&
+                ChatClientProvider.SelectedSession is { } restoredChatSession &&
+                !ReferenceEquals(restoredChatSession, councilSession) &&
+                restoredChatSession.Messages.Count > 0)
+            {
+                // The Council session may already hold a small run marker or recent user
+                // continuations. Merge by the longest ordered overlap instead of clearing
+                // those messages or duplicating the restored prefix.
+                var restoredMessages = restoredChatSession.Messages.ToList();
+                var visibleMessages = councilSession.Messages.ToList();
+                var overlap = 0;
+                for (var count = Math.Min(restoredMessages.Count, visibleMessages.Count); count > 0; count--)
+                {
+                    var same = true;
+                    for (var index = 0; index < count; index++)
+                    {
+                        var prior = restoredMessages[restoredMessages.Count - count + index];
+                        var current = visibleMessages[index];
+                        if (prior.Role != current.Role ||
+                            !string.Equals(prior.Content, current.Content, StringComparison.Ordinal))
+                        {
+                            same = false;
+                            break;
+                        }
+                    }
+                    if (!same) continue;
+                    overlap = count;
+                    break;
+                }
+                councilSession.Messages.Clear();
+                councilSession.Messages.AddRange(restoredMessages);
+                councilSession.Messages.AddRange(visibleMessages.Skip(overlap));
+                Logger.LogInformation("Rejoined Council {RunId} using the already restored Chat {ConversationId}; no new conversation was created.", runId, ActiveConversationId);
+            }
+
             // A new browser tab owns a different circuit. Restore only the SQLite chat history
             // whose persisted Council marker matches this exact run; never load an unrelated
             // conversation merely because it was saved more recently.
-            if (firstAttachmentToRun && !councilSession.Messages.Any(message =>
+            if (firstAttachmentToRun && ActiveConversationId is null && !councilSession.Messages.Any(message =>
                 message.Role == ChatMessageRole.Assistant &&
                 CouncilText.ContainsText(message.Content, $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->", StringComparison.Ordinal)))
             {

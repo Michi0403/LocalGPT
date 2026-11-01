@@ -27,6 +27,23 @@
   </PropertyGroup>
 
 
+  <!-- Fail standard Debug/Release/IDE builds on cross-platform PowerShell defects.
+       Do not defer this compatibility audit until Build-Release.ps1 is invoked. -->
+  <PropertyGroup>
+    <PowerShellCompatibilityScript>$(MSBuildThisFileDirectory)build/Assert-PowerShellCompatibility.ps1</PowerShellCompatibilityScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptPowerShellCompatibility"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(PowerShellCompatibilityScript)')"
+           Text="Missing mandatory Debug/Release PowerShell compatibility guard: $(PowerShellCompatibilityScript)" />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(PowerShellCompatibilityScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+  </Target>
+
   <PropertyGroup>
     <RepositoryPowerShellBoundaryScript>$(MSBuildThisFileDirectory)build/Assert-RepositoryPowerShellBoundary.ps1</RepositoryPowerShellBoundaryScript>
     <RuntimePluginCallbackScript>$(MSBuildThisFileDirectory)build/Assert-RuntimePluginSourceCallbacks.ps1</RuntimePluginCallbackScript>
@@ -392,6 +409,18 @@
           Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(RazorFormEncapsulationGuardScript)')" Text="Missing mandatory Razor form encapsulation guard." />
     <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(RazorFormEncapsulationGuardScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
+          StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+  <!-- Universal AI Help Escalator source contract is mandatory for normal Debug and Release builds. -->
+  <PropertyGroup>
+    <AiHelpEscalationGuardScript>$(MSBuildThisFileDirectory)build/Assert-AiHelpEscalator.ps1</AiHelpEscalationGuardScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptAiHelpEscalation"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(AiHelpEscalationGuardScript)')" Text="Missing mandatory AI help escalation contract guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(AiHelpEscalationGuardScript)&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
           StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>

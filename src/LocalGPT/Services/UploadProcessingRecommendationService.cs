@@ -74,7 +74,8 @@ public sealed class UploadProcessingRecommendationService(
                 var prompt = BuildPrompt(request, gate, relevantKnowledge, teamCandidates, processingRoutes);
                 var response = await client.GetResponseAsync(
                     [
-                        new ChatMessage(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.UploadProcessingAdvisorSystemPrompt)),
+                        new ChatMessage(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.UploadProcessingAdvisorSystemPrompt)
+                            + Environment.NewLine + runtimePolicy.GetString(LocalGptRuntimeValue.HelpEscalatorGlobalInstruction)),
                         new ChatMessage(ChatRole.User, prompt)
                     ],
                     new ChatOptions { MaxOutputTokens = 1_600, Temperature = 0.1f, Tools = [] },

@@ -44,6 +44,8 @@ namespace LocalGPT.Components.Pages
     private Guid? lastReconnectCouncilRunId;
     /// <summary>Tracks whether the reconnect bridge has received its initial null/non-null run value.</summary>
     private bool reconnectCouncilRunPublished;
+    /// <summary>Last persisted Chat identity published to the browser's per-tab recovery bridge.</summary>
+    private Guid? lastReconnectConversationId;
     /// <summary>Records that live Council service notifications belong to this interactive component instance, not its prerender instance.</summary>
     private bool interactiveCouncilSubscriptionsAttached;
 
@@ -91,6 +93,13 @@ namespace LocalGPT.Components.Pages
                 lastCouncilComposerAvailability = composerAvailable;
             }
 
+            // Preserve the exact saved Chat identity independently of the Council run.
+            // Null during initial rendering must NOT erase the previous circuit's identity.
+            if (ActiveConversationId is Guid conversationId && lastReconnectConversationId != conversationId)
+            {
+                await JS.InvokeVoidAsync("localGptReconnect.setConversation", conversationId.ToString()).ConfigureAwait(true);
+                lastReconnectConversationId = conversationId;
+            }
             var runningCouncilRunId = ResolveRunningCouncilRunId();
             if (!reconnectCouncilRunPublished || lastReconnectCouncilRunId != runningCouncilRunId)
             {
@@ -325,6 +334,8 @@ namespace LocalGPT.Components.Pages
             openedCouncilEvidenceStep = null;
             LoadCouncilRunConfiguration(null);
             await JS.InvokeVoidAsync("localGptReconnect.clearCouncilRun");
+            await JS.InvokeVoidAsync("localGptReconnect.clearConversation");
+            lastReconnectConversationId = null;
             await JS.InvokeVoidAsync("localGptChatUi.clearLiveUserMessages").ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -932,6 +943,8 @@ namespace LocalGPT.Components.Pages
             councilSession.Messages.Clear();
             ActiveConversationId = null;
             SessionContext.SetConversation(null);
+            await JS.InvokeVoidAsync("localGptReconnect.clearConversation").ConfigureAwait(true);
+            lastReconnectConversationId = null;
             SelectedConversation = null;
             FeedbackTargets.Clear();
             SavedFeedback.Clear();

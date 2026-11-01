@@ -97,6 +97,7 @@ public sealed class CouncilAutomaticFunctionPolicyService(
             // privilege of a named team or of the Learning Round. Approval/policy still applies.
             var exposed = preferred
                 .Concat(["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file",
+                    "ai.help.report_attempt", "ai.help.status",
                     "dxai.tools.discover", "dxai.tools.preview", "dxai.tools.invoke"])
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)

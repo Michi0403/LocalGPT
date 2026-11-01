@@ -552,6 +552,20 @@ public enum LocalGptRuntimeValue
     /// <summary>Maximum seconds allowed for the planning-only model call.</summary>
     GoalPlannerTimeoutSeconds,
     CouncilParticipantSystemPromptTemplate,
+    /// <summary>Universal AI recovery guidance injected into all chat and Council roles.</summary>
+    HelpEscalatorGlobalInstruction,
+    /// <summary>System instruction for a tool-free independent curator call.</summary>
+    HelpEscalatorCuratorSystemPrompt,
+    /// <summary>Optional provider-qualified curator model key; blank selects a configured available model.</summary>
+    HelpEscalatorCuratorModelKey,
+    /// <summary>Number of distinct unguided failures before the single curator consultation.</summary>
+    HelpEscalatorUnguidedFailureLimit,
+    /// <summary>Bounded curator request deadline, in seconds.</summary>
+    HelpEscalatorCuratorTimeoutSeconds,
+    /// <summary>Maximum retained inactive help task records in application-owned runtime storage.</summary>
+    HelpEscalatorMaximumRetainedTasks,
+    /// <summary>User-editable instruction returned on the first failed attempt.</summary>
+    HelpEscalatorAlternativeInstruction,
     /// <summary>Database-backed system prompt template describing the read-only upload workspace to the model.</summary>
     UploadWorkspaceSystemPromptTemplate,
     /// <summary>Database-backed system prompt template for Minecraft project assistance.</summary>
