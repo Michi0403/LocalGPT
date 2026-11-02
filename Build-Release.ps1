@@ -63,12 +63,16 @@ $wslCommonScript = Join-Path $root 'build/WslRelease.Common.ps1'
 if (-not (Test-Path -LiteralPath $wslCommonScript -PathType Leaf)) { throw "WSL release helper is missing: $wslCommonScript" }
 . $wslCommonScript
 & (Join-Path $root 'build/Assert-PowerShellCompatibility.ps1')
+& (Join-Path $root 'build/Assert-ProjectVersionResolution.ps1')
+# Check platform ownership and sandbox isolation before licensing/Node provisioning:
+# the same contracts must fail early on every release host, not after setup work.
+& (Join-Path $root 'build/Assert-CrossPlatformBoundaries.ps1')
+& (Join-Path $root 'build/Assert-SessionSandboxIsolation.ps1')
 & (Join-Path $root 'build/Assert-InstallerLayout.ps1')
 & (Join-Path $root 'build/Assert-NetworkCertificateContract.ps1')
 & (Join-Path $root 'build/Assert-InteractiveFormsAndPairing.ps1')
 & (Join-Path $root 'build/Assert-RazorFormEncapsulation.ps1')
 & (Join-Path $root 'build/Initialize-BuildPrerequisites.ps1') -AllowMissingDevExpressLicense:$AllowMissingDevExpressLicense -SkipDocumentationNodeProvisioning:($WslChildBuild -and -not [string]::IsNullOrWhiteSpace($PreparedDocumentationRoot))
-& (Join-Path $root 'build/Assert-CrossPlatformBoundaries.ps1')
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
@@ -165,19 +169,6 @@ function Get-HostDefaultRuntimes {
     }
 }
 
-function Resolve-ProjectVersion {
-    param([Parameter(Mandatory)][string]$ProjectPath)
-
-    [xml]$project = Get-Content -LiteralPath $ProjectPath -Raw
-    $versions = @(
-        $project.Project.PropertyGroup |
-            ForEach-Object { [string]$_.Version } |
-            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    )
-    if ($versions.Count -eq 0) { throw "Project version was not found in $ProjectPath" }
-    return $versions[0]
-}
-
 function Assert-LocalGptDocumentationPayload {
     param(
         [Parameter(Mandatory)][string]$DocumentationRoot,
@@ -243,7 +234,7 @@ function Assert-LocalGptDocumentationPayload {
     Write-Host "Verified complete LocalGPT $Version DocFX modern HTML and compressed embedded PDF documentation in $DocumentationRoot" -ForegroundColor Green
 }
 
-$appVersion = Resolve-ProjectVersion -ProjectPath $appProject
+$appVersion = & (Join-Path $root 'build/Get-ProjectVersion.ps1') -ProjectPath $appProject
 if ($appVersion -notmatch '^\d+\.[0-9]\.[0-9]$') {
     throw "LocalGPT application release version '$appVersion' must follow the repository's Major.Minor.Patch convention with single-digit minor/patch fields. Update LocalGPT.csproj before packaging."
 }

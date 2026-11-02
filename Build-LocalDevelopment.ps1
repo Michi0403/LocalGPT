@@ -22,8 +22,10 @@ function Initialize-BuildConsoleEncoding {
 Initialize-BuildConsoleEncoding
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 & (Join-Path $root 'build/Assert-PowerShellCompatibility.ps1')
-& (Join-Path $root 'build/Initialize-BuildPrerequisites.ps1') -AllowMissingDevExpressLicense:$AllowMissingDevExpressLicense
+& (Join-Path $root 'build/Assert-ProjectVersionResolution.ps1')
 & (Join-Path $root 'build/Assert-CrossPlatformBoundaries.ps1')
+& (Join-Path $root 'build/Assert-SessionSandboxIsolation.ps1')
+& (Join-Path $root 'build/Initialize-BuildPrerequisites.ps1') -AllowMissingDevExpressLicense:$AllowMissingDevExpressLicense
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
@@ -53,19 +55,6 @@ function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
     & dotnet @Arguments
     if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
-}
-
-function Resolve-ProjectVersion {
-    param([Parameter(Mandatory)][string]$ProjectPath)
-
-    [xml]$project = Get-Content -LiteralPath $ProjectPath -Raw
-    $versions = @(
-        $project.Project.PropertyGroup |
-            ForEach-Object { [string]$_.Version } |
-            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    )
-    if ($versions.Count -eq 0) { throw "Project version was not found in $ProjectPath" }
-    return $versions[0]
 }
 
 function Assert-LocalGptDocumentation {
@@ -103,7 +92,7 @@ function Assert-LocalGptDocumentation {
     Write-Host "Verified complete LocalGPT $Version DocFX modern HTML, XML API reference and HTML-backed PDF documentation." -ForegroundColor Green
 }
 
-$appVersion = Resolve-ProjectVersion -ProjectPath $appProject
+$appVersion = & (Join-Path $root 'build/Get-ProjectVersion.ps1') -ProjectPath $appProject
 
 if ($Clean) {
     Get-ChildItem $solutionRoot -Directory -Recurse -Force |
@@ -167,7 +156,7 @@ if (-not (Test-Path -LiteralPath $documentationXml -PathType Leaf)) { throw "Doc
 # Debug/development entrypoint owns its documentation merge helper prerequisites,
 # just like the release entrypoint. No separate dotnet pack/tool install step.
 $releasePackagingProject = Join-Path $solutionRoot 'LocalGPT.ReleasePackaging/LocalGPT.ReleasePackaging.csproj'
-$releasePackagingVersion = Resolve-ProjectVersion -ProjectPath $releasePackagingProject
+$releasePackagingVersion = & (Join-Path $root 'build/Get-ProjectVersion.ps1') -ProjectPath $releasePackagingProject
 $packagingToolOutput = @(& (Join-Path $root 'build/Ensure-ReleasePackagingPackage.ps1') -Configuration $Configuration -Version $releasePackagingVersion)
 if ($packagingToolOutput.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$packagingToolOutput[0])) {
     throw "LocalGPT development packaging helper preparation did not return exactly one executable."

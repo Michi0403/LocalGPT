@@ -25,6 +25,24 @@ Assert-SourceContains $provider 'start\.ArgumentList\.Add\("--scratch-mb"\)' 'bo
 Assert-SourceContains $provider 'hyperlight-powershell' 'PowerShell as isolated guest, not host fallback'
 Assert-SourceContains $provider 'File.Exists\(guestImage\)' 'guest image required before launch'
 Assert-SourceContains $provider 'VerifyBundledRuntime' 'guest and bundled executable integrity checked before execution'
+Assert-SourceContains $provider 'platformRuntime\.GetNativeExecutableName\("hluk"\)' 'platform-native CLI in provider launch'
+Assert-SourceContains $backend 'platformRuntime\.GetNativeExecutableName\("hluk"\)' 'platform-native CLI in runtime readiness'
+# Check each platform implementation separately. A matching method in the wrong
+# class must never satisfy the Windows or Unix sandbox contract.
+$platformSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/PlatformRuntimeServices.cs'))
+$windowsStart = $platformSource.IndexOf('public sealed class WindowsPlatformRuntimeService', [StringComparison]::Ordinal)
+$unixStart = $platformSource.IndexOf('public sealed class UnixPlatformRuntimeService', [StringComparison]::Ordinal)
+if ($windowsStart -lt 0 -or $unixStart -le $windowsStart) {
+    throw 'Session sandbox platform contract: Windows and Unix platform implementations are missing or out of order.'
+}
+$windowsSource = $platformSource.Substring($windowsStart, $unixStart - $windowsStart)
+$unixSource = $platformSource.Substring($unixStart)
+if (-not [regex]::IsMatch($windowsSource, 'GetNativeExecutableName\(string baseName\) => baseName \+ "\.exe"')) {
+    throw 'Session sandbox platform contract: WindowsPlatformRuntimeService must resolve hluk.exe.'
+}
+if (-not [regex]::IsMatch($unixSource, 'GetNativeExecutableName\(string baseName\) => baseName;')) {
+    throw 'Session sandbox platform contract: UnixPlatformRuntimeService must resolve hluk without a Windows extension.'
+}
 Assert-SourceContains 'src/LocalGPT/LocalGPT.csproj' 'ProvisionLocalGptHyperlightGuestsForBuild' 'first build provisions guests'
 Assert-SourceContains 'src/LocalGPT/LocalGPT.csproj' 'ProvisionLocalGptHyperlightGuestsForPublish' 'native publish requires bundled guests'
 Assert-SourceContains 'build/Provision-HyperlightGuestRuntimes.ps1' 'SHA256SUMS' 'upstream executable SHA256 verification'

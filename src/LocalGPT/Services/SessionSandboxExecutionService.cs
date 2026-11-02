@@ -40,12 +40,13 @@ public sealed class SessionSandboxExecutionService : ISessionSandboxExecutionSer
     /// <summary>Initializes the backend and reloads bounded persistent evidence.</summary>
     public SessionSandboxExecutionService(
         IEnumerable<ISessionSandboxExecutionProvider> availableProviders,
-        ILogger<SessionSandboxExecutionService> logger)
+        ILogger<SessionSandboxExecutionService> logger,
+        IPlatformRuntimeService platformRuntime)
     {
         this.logger = logger;
         providers = availableProviders.ToDictionary(item => item.Id, StringComparer.Ordinal);
         var bundleRoot = Path.Combine(AppContext.BaseDirectory, "hyperlight");
-        var cli = Path.Combine(bundleRoot, "bin", OperatingSystem.IsWindows() ? "hluk.exe" : "hluk");
+        var cli = Path.Combine(bundleRoot, "bin", platformRuntime.GetNativeExecutableName("hluk"));
         var manifest = Path.Combine(bundleRoot, "runtimes", "manifest.json");
         RuntimeReadiness = providers.Values.SelectMany(provider => provider.Languages)
             .Select(language =>

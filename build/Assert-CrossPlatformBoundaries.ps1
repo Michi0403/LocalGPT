@@ -34,6 +34,9 @@ if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
     throw 'LocalGPT project file is missing from the cross-platform boundary audit.'
 }
 $projectSource = [IO.File]::ReadAllText($projectPath)
+$versionMatch = [regex]::Match($projectSource, '<Version>\s*(?<Version>[^<]+?)\s*</Version>')
+$sourceVersion = if ($versionMatch.Success) { $versionMatch.Groups['Version'].Value } else { 'unknown' }
+Write-Host "Cross-platform preflight: LocalGPT $sourceVersion from $root (checking the actual extracted source tree)."
 foreach ($package in @(
     'System.Drawing.Common',
     'System.Data.OleDb',
@@ -73,11 +76,17 @@ foreach ($file in (Get-ChildItem -LiteralPath $app -Recurse -File -Filter '*.cs'
     if ([regex]::IsMatch($source, $drawingPattern)) {
         $failures.Add("$relative uses backend GDI/System.Drawing APIs")
     }
-    if ([regex]::IsMatch($source, $osPattern) -and $approvedOsBranches -cnotcontains $relative) {
-        $failures.Add("$relative branches on the OS outside a reviewed composition/platform boundary")
+    if ($approvedOsBranches -cnotcontains $relative) {
+        foreach ($match in [regex]::Matches($source, $osPattern)) {
+            $line = [regex]::Matches($source.Substring(0, $match.Index), "`r`n|`r|`n").Count + 1
+            $failures.Add("${relative}:$line branches on the OS outside a reviewed composition/platform boundary ($($match.Value)); use IPlatformRuntimeService instead")
+        }
     }
-    if ([regex]::IsMatch($source, $windowsDetailPattern) -and $approvedWindowsDetails -cnotcontains $relative) {
-        $failures.Add("$relative contains Windows executable/environment assumptions outside a reviewed platform boundary")
+    if ($approvedWindowsDetails -cnotcontains $relative) {
+        foreach ($match in [regex]::Matches($source, $windowsDetailPattern)) {
+            $line = [regex]::Matches($source.Substring(0, $match.Index), "`r`n|`r|`n").Count + 1
+            $failures.Add("${relative}:$line contains a Windows-only executable/environment assumption outside a reviewed platform boundary ($($match.Value))")
+        }
     }
 }
 if ($sourceCount -eq 0) { $failures.Add('No C# sources were found for the cross-platform boundary audit.') }
@@ -120,13 +129,26 @@ else {
         $unixSource = $platformSource.Substring($unixStart)
         foreach ($expected in @(
             'public StringComparer PathComparer => StringComparer.Ordinal;',
-            'public StringComparison PathComparison => StringComparison.Ordinal;'
+            'public StringComparison PathComparison => StringComparison.Ordinal;',
+            'public string GetNativeExecutableName(string baseName) => baseName;'
         )) {
             if ($unixSource.IndexOf($expected, [StringComparison]::Ordinal) -lt 0) {
-                $failures.Add("Unix platform path comparison must remain ordinal: $expected")
+                $failures.Add("UnixPlatformRuntimeService must retain its path and native executable contract: $expected")
             }
             else { $contractCount++ }
         }
+    }
+    $windowsStart = $platformSource.IndexOf('public sealed class WindowsPlatformRuntimeService', [StringComparison]::Ordinal)
+    if ($windowsStart -lt 0 -or $unixStart -le $windowsStart) {
+        $failures.Add('Missing or misordered WindowsPlatformRuntimeService; cannot verify Windows executable naming within its own class.')
+    }
+    else {
+        $windowsSource = $platformSource.Substring($windowsStart, $unixStart - $windowsStart)
+        $expected = 'public string GetNativeExecutableName(string baseName) => baseName + ".exe";'
+        if ($windowsSource.IndexOf($expected, [StringComparison]::Ordinal) -lt 0) {
+            $failures.Add("WindowsPlatformRuntimeService must implement native executable naming within its own class: $expected")
+        }
+        else { $contractCount++ }
     }
 }
 
@@ -146,6 +168,40 @@ foreach ($contract in @(
 )) {
     Assert-SourceContains -RelativePath $contract.File -Expected $contract.Text
 }
+# Host-native sandbox executable naming is a platform concern. Guard both platform
+# implementations and the consumer wiring: a host-only success must not hide an
+# incorrect Windows/Unix counterpart or a future direct OS branch in the sandbox.
+foreach ($contract in @(
+    [pscustomobject]@{ File = 'src/LocalGPT/Interfaces/IPlatformRuntimeService.cs'; Text = 'string GetNativeExecutableName(string baseName);' },
+    [pscustomobject]@{ File = 'src/LocalGPT/Services/HyperlightUnikraftSessionSandboxProvider.cs'; Text = 'platformRuntime.GetNativeExecutableName("hluk")' },
+    [pscustomobject]@{ File = 'src/LocalGPT/Services/SessionSandboxExecutionService.cs'; Text = 'platformRuntime.GetNativeExecutableName("hluk")' }
+)) {
+    Assert-SourceContains -RelativePath $contract.File -Expected $contract.Text
+}
+
+# Fail with explicit file evidence when an old source file is combined with a newer
+# validator during extraction or checkout. Do not waive the OS architecture rule.
+$inconsistentSandboxSources = [System.Collections.Generic.List[string]]::new()
+foreach ($relative in @(
+    'src/LocalGPT/Services/HyperlightUnikraftSessionSandboxProvider.cs',
+    'src/LocalGPT/Services/SessionSandboxExecutionService.cs'
+)) {
+    $path = Join-Path $root $relative
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { continue }
+    $source = [IO.File]::ReadAllText($path)
+    $directOsBranch = [regex]::Match($source, $osPattern)
+    $hasPortableCall = $source.IndexOf('platformRuntime.GetNativeExecutableName("hluk")', [StringComparison]::Ordinal) -ge 0
+    if ($directOsBranch.Success -and -not $hasPortableCall) {
+        $line = [regex]::Matches($source.Substring(0, $directOsBranch.Index), "`r`n|`r|`n").Count + 1
+        $digest = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.Substring(0, 16)
+        $inconsistentSandboxSources.Add("${relative}:$line (SHA256 prefix $digest)")
+    }
+}
+if ($inconsistentSandboxSources.Count -gt 0) {
+    $failures.Add('Source/validator revision mismatch: the cross-platform guard expects IPlatformRuntimeService, but older sandbox OS-branch implementations are present at ' +
+        ($inconsistentSandboxSources -join '; ') + '. Extract the COMPLETE source archive into a NEW EMPTY directory and launch Build-Release.ps1 from that directory. Do not merge source archives or copy only the build/ scripts.')
+}
+
 foreach ($registration in @(
     'IPlatformRuntimeService, WindowsPlatformRuntimeService',
     'IPlatformRuntimeService, UnixPlatformRuntimeService',

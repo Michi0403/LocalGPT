@@ -19,6 +19,9 @@ public sealed class WindowsPlatformRuntimeService : IPlatformRuntimeService
     /// <inheritdoc />
     public string ProviderBootstrapToken => "windows";
 
+    /// <inheritdoc />
+    public string GetNativeExecutableName(string baseName) => baseName + ".exe";
+
     /// <summary>
     /// Gets the path comparer used by this windows platform runtime instance to locate the associated file-system resource.
     /// </summary>
@@ -168,6 +171,9 @@ public sealed class UnixPlatformRuntimeService : IPlatformRuntimeService
     /// </summary>
     /// <inheritdoc />
     public string ProviderBootstrapToken => isMacOS ? "macos" : isLinux ? "linux" : "other";
+
+    /// <inheritdoc />
+    public string GetNativeExecutableName(string baseName) => baseName;
 
     /// <summary>
     /// Gets the path comparer used by this unix platform runtime instance to locate the associated file-system resource.

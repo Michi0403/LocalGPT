@@ -21,6 +21,11 @@ $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'
 $env:NUGET_PACKAGES = Join-Path $logRoot 'nuget-packages'
 $env:NUGET_HTTP_CACHE_PATH = Join-Path $logRoot 'nuget-http-cache'
 & (Join-Path $PSScriptRoot 'Assert-PowerShellCompatibility.ps1')
+& (Join-Path $PSScriptRoot 'Assert-ProjectVersionResolution.ps1')
+# Compile-only releases must enforce the same platform and sandbox source contracts
+# as full releases before compiling or preparing downstream artifacts.
+& (Join-Path $PSScriptRoot 'Assert-CrossPlatformBoundaries.ps1')
+& (Join-Path $PSScriptRoot 'Assert-SessionSandboxIsolation.ps1')
 & (Join-Path $PSScriptRoot 'Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $PSScriptRoot 'Assert-JavaScriptDiagnostics.ps1')
 

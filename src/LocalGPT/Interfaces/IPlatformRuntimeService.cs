@@ -18,6 +18,11 @@ public interface IPlatformRuntimeService
     /// <value>The provider bootstrap token value exposed by <see cref="IPlatformRuntimeService"/>.</value>
     string ProviderBootstrapToken { get; }
 
+    /// <summary>Returns the host-native filename for an executable without invoking any shell or host interpreter.</summary>
+    /// <param name="baseName">Executable base name without a platform extension.</param>
+    /// <returns>The executable filename for the host platform.</returns>
+    string GetNativeExecutableName(string baseName);
+
     /// <summary>Gets the comparer that matches the host filesystem's path semantics.</summary>
     /// <value>The path comparer value exposed by <see cref="IPlatformRuntimeService"/>.</value>
     StringComparer PathComparer { get; }

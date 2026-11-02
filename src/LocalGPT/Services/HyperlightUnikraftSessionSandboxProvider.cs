@@ -10,7 +10,7 @@ namespace LocalGPT.Services;
 /// Hyperlight Unikraft (`hluk`) provider. The guest has no network or host mounts by default.
 /// The CLI receives only one temporary source file; it never launches Python, dotnet, or a shell on the host.
 /// </summary>
-public sealed class HyperlightUnikraftSessionSandboxProvider : ISessionSandboxExecutionProvider
+public sealed class HyperlightUnikraftSessionSandboxProvider(IPlatformRuntimeService platformRuntime) : ISessionSandboxExecutionProvider
 {
     /// <summary>Stable Hyperlight Unikraft provider ID.</summary>
     public string Id => "hyperlight-unikraft";
@@ -35,7 +35,7 @@ public sealed class HyperlightUnikraftSessionSandboxProvider : ISessionSandboxEx
         if (!string.IsNullOrWhiteSpace(configuredPath) && (!Path.IsPathFullyQualified(configuredPath) || !File.Exists(configuredPath)))
             throw new InvalidOperationException("LOCALGPT_HLUK_PATH must point to an existing absolute hluk executable path.");
         var bundledExecutable = Path.Combine(AppContext.BaseDirectory, "hyperlight", "bin",
-            OperatingSystem.IsWindows() ? "hluk.exe" : "hluk");
+            platformRuntime.GetNativeExecutableName("hluk"));
         var guestImage = Path.Combine(AppContext.BaseDirectory, "hyperlight", "runtimes", language.Runtime + ".cpio");
         if (!File.Exists(guestImage))
             throw new InvalidOperationException($"Hyperlight {language.Runtime} guest image was not provisioned for this installation. Run the repository PowerShell provisioning/build step; no host interpreter will run the submitted code.");
