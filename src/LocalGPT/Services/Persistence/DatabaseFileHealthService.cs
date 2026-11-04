@@ -39,13 +39,22 @@ public sealed class DatabaseFileHealthService(
                 ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
             Directory.CreateDirectory(directory);
 
-            if (File.Exists(GetRecoveryMarkerPath()))
+            // A previous crash may leave a marker after the original files were already
+            // preserved. A marker is NOT evidence that the current database is corrupt.
+            var pendingRecovery = File.Exists(GetRecoveryMarkerPath());
+            if (pendingRecovery)
             {
                 logger.LogWarning(
-                    "A pending SQLite recovery marker exists for {DatabasePath}; preserving the current files before database initialization.",
+                    "An unfinished SQLite recovery marker exists for {DatabasePath}; checking the live database before taking any action.",
                     DatabasePath);
-                await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
-                return;
+                if (!File.Exists(DatabasePath) && !DatabaseSuffixes.Skip(1).Any(suffix => File.Exists(DatabasePath + suffix)))
+                {
+                    logger.LogWarning(
+                        "SQLite recovery marker for {DatabasePath} has no remaining live database files; clearing the stale marker.",
+                        DatabasePath);
+                    TryDeleteRecoveryMarker();
+                    return;
+                }
             }
 
             if (!File.Exists(DatabasePath))
@@ -68,11 +77,20 @@ public sealed class DatabaseFileHealthService(
             }
 
             if (quickCheck == DatabaseProbeResult.Inconclusive)
+            {
+                if (pendingRecovery)
+                    throw new InvalidOperationException("SQLite recovery was interrupted and database integrity cannot be confirmed. Preserving all files; no automatic replacement will occur.");
                 return;
+            }
 
             var writeProbe = await RunWriteProbeAsync(cancellationToken).ConfigureAwait(false);
             if (writeProbe == DatabaseProbeResult.Corrupt)
                 await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
+            else if (pendingRecovery && writeProbe == DatabaseProbeResult.Healthy)
+            {
+                logger.LogWarning("SQLite database {DatabasePath} passed both integrity probes; removing an obsolete recovery marker without resetting data.", DatabasePath);
+                TryDeleteRecoveryMarker();
+            }
     
     }
     catch (Exception __serviceMethodException)
@@ -129,34 +147,81 @@ public sealed class DatabaseFileHealthService(
     {
     try
     {
-            WriteRecoveryMarker();
-
-            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-            var parent = Path.GetDirectoryName(DatabasePath)
-                ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
-            var backupDirectory = Path.Combine(parent, "CorruptDatabaseBackups", timestamp);
-            Directory.CreateDirectory(backupDirectory);
-
-            foreach (var suffix in DatabaseSuffixes)
+            // Callers may observe transient SQLite errors (or a stale recovery marker).
+            // Recheck the actual on-disk database before preserving and replacing it.
+            var baseDatabasePresent = File.Exists(DatabasePath);
+            if (baseDatabasePresent)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var sourcePath = DatabasePath + suffix;
-                if (!File.Exists(sourcePath))
-                    continue;
-
-                var backupPath = Path.Combine(backupDirectory, Path.GetFileName(sourcePath));
-                if (TryMoveToBackup(sourcePath, backupPath))
-                    continue;
-
-                TryQuarantineOrDelete(sourcePath, $"{sourcePath}.malformed-{timestamp}");
+                var verified = await RunQuickCheckAsync(cancellationToken).ConfigureAwait(false);
+                if (verified == DatabaseProbeResult.Healthy)
+                {
+                    logger.LogWarning("SQLite database {DatabasePath} is healthy on recheck; refusing unnecessary recovery.", DatabasePath);
+                    TryDeleteRecoveryMarker();
+                    return;
+                }
+                if (verified == DatabaseProbeResult.Inconclusive)
+                    throw new InvalidOperationException("SQLite corruption cannot be confirmed. The original database and sidecars were left untouched.");
+            }
+            else if (!DatabaseSuffixes.Skip(1).Any(suffix => File.Exists(DatabasePath + suffix)))
+            {
+                // No live files remain; a prior interrupted preservation may already
+                // have completed. Allow first-run initialization without repeating it.
+                logger.LogWarning("SQLite recovery found no live files at {DatabasePath}; no database files were removed.", DatabasePath);
+                TryDeleteRecoveryMarker();
+                return;
             }
 
-            logger.LogWarning(
-                "Preserved confirmed malformed SQLite files in {BackupDirectory}. A clean database will be created during initialization.",
-                backupDirectory);
+            // An explicit recovery may recreate an unusable store, but only after
+            // preserving EVERY existing database/WAL/SHM file. Never delete a file if
+            // moving it to backup fails. A partial move must be rolled back.
+            WriteRecoveryMarker();
+            var parent = Path.GetDirectoryName(DatabasePath)
+                ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
+            var backupDirectory = Path.Combine(parent, "CorruptDatabaseBackups",
+                $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(backupDirectory);
+            var moved = new List<(string Original, string Backup)>();
+            try
+            {
+                foreach (var suffix in DatabaseSuffixes)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var sourcePath = DatabasePath + suffix;
+                    if (!File.Exists(sourcePath))
+                        continue;
+                    var backupPath = Path.Combine(backupDirectory, Path.GetFileName(sourcePath));
+                    File.Move(sourcePath, backupPath);
+                    moved.Add((sourcePath, backupPath));
+                }
+            }
+            catch (Exception moveException)
+            {
+                var restorationFailed = false;
+                for (var index = moved.Count - 1; index >= 0; index--)
+                {
+                    var item = moved[index];
+                    try
+                    {
+                        File.Move(item.Backup, item.Original);
+                    }
+                    catch (Exception rollbackException)
+                    {
+                        restorationFailed = true;
+                        logger.LogCritical(rollbackException,
+                            "Could not restore SQLite file {File} after recovery failed. Its preserved copy is at {Backup}.",
+                            item.Original, item.Backup);
+                    }
+                }
+                if (restorationFailed)
+                    throw new IOException($"SQLite preservation failed and rollback is incomplete. Inspect {backupDirectory}; initialization must not continue.", moveException);
+                throw;
+            }
 
-            if (!DatabaseSuffixes.Any(suffix => File.Exists(DatabasePath + suffix)))
-                TryDeleteRecoveryMarker();
+            logger.LogCritical(
+                "SQLite recovery reason {RecoveryReason}: preserved {FileCount} original database/WAL/SHM file(s) at {BackupDirectory} before allowing initialization. Previous user records may require manual salvage from this backup.",
+                baseDatabasePresent ? "confirmed database corruption" : "missing database with orphaned sidecars",
+                moved.Count, backupDirectory);
+            TryDeleteRecoveryMarker();
 
             await Task.CompletedTask.ConfigureAwait(false);
     
@@ -286,51 +351,6 @@ public sealed class DatabaseFileHealthService(
 }
 
     /// <summary>
-    /// Attempts to move to backup as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="sourcePath">Source path value supplied to the database file health operation and used when producing its result.</param>
-    /// <param name="backupPath">Backup path value supplied to the database file health operation and used when producing its result.</param>
-    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    private bool TryMoveToBackup(string sourcePath, string backupPath)
-    {
-        try
-        {
-            File.Move(sourcePath, backupPath, overwrite: true);
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogWarning(ex, "Could not move SQLite file {SourcePath} to {BackupPath}.", sourcePath, backupPath);
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Attempts to quarantine or delete as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="sourcePath">Source path value supplied to the database file health operation and used when producing its result.</param>
-    /// <param name="fallbackPath">Fallback path value supplied to the database file health operation and used when producing its result.</param>
-    private void TryQuarantineOrDelete(string sourcePath, string fallbackPath)
-    {
-        try
-        {
-            File.Move(sourcePath, fallbackPath, overwrite: true);
-        }
-        catch (Exception moveException) when (moveException is IOException or UnauthorizedAccessException)
-        {
-            logger.LogWarning(moveException, "Could not quarantine SQLite file {SourcePath}; attempting deletion.", sourcePath);
-            try
-            {
-                File.Delete(sourcePath);
-            }
-            catch (Exception deleteException) when (deleteException is IOException or UnauthorizedAccessException)
-            {
-                logger.LogError(deleteException, "Could not remove SQLite file {SourcePath}.", sourcePath);
-            }
-        }
-    }
-
-    /// <summary>
     /// Retrieves recovery marker path as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <returns>The string produced by the operation.</returns>
@@ -360,7 +380,8 @@ public sealed class DatabaseFileHealthService(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.LogWarning(ex, "Could not write the SQLite recovery marker for {DatabasePath}.", DatabasePath);
+            logger.LogError(ex, "Could not write the SQLite recovery marker for {DatabasePath}; refusing to move any database files.", DatabasePath);
+            throw;
         }
     }
 

@@ -352,11 +352,11 @@ public partial class ChatGameConsole
             await HumanCollaboration.ResolveRequestAsync(
                 request.Id,
                 new HumanDecisionSubmission(null, command.Trim(), string.Empty),
-                consoleRenderCancellation.Token).ConfigureAwait(true);
+                consoleRenderToken).ConfigureAwait(true);
             hotSeatText = string.Empty;
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
         }
-        catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (consoleRenderToken.IsCancellationRequested)
         {
             // Component teardown cancels a still-pending player submission.
         }
@@ -425,13 +425,13 @@ public partial class ChatGameConsole
             var resolved = await HumanCollaboration.ResolveRequestAsync(
                 request.Id,
                 new HumanDecisionSubmission(approved, normalizedResponse, normalizedReason),
-                consoleRenderCancellation.Token).ConfigureAwait(true);
+                consoleRenderToken).ConfigureAwait(true);
             if (approved == true && resolved is not null)
                 QueueApprovedGameInteractionExecution(request.Id);
             gameInteractionText = string.Empty;
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
         }
-        catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (consoleRenderToken.IsCancellationRequested)
         {
             // Component teardown cancels a still-pending in-game response.
         }
@@ -476,7 +476,7 @@ public partial class ChatGameConsole
                     StateHasChanged();
                 }).ConfigureAwait(false);
             },
-            consoleRenderCancellation.Token);
+            consoleRenderToken);
     
         }
         catch (Exception __componentMethodException)
@@ -530,12 +530,18 @@ public partial class ChatGameConsole
     {
         try
         {
+        if (disposed)
+            return;
         if (snapshot is not null && snapshot.Id != sessionId && CouncilRunId is null && ConversationId is null)
             return;
         _ = InvokeAsync(async () =>
         {
+            if (disposed)
+                return;
             var hadSnapshot = snapshot is not null;
             var candidate = await Games.GetAsync(sessionId).ConfigureAwait(true);
+            if (disposed)
+                return;
             if (candidate is null || !MatchesCurrentGameContext(candidate))
                 return;
             if (string.Equals(SuggestedTeamKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
@@ -570,7 +576,7 @@ public partial class ChatGameConsole
             return;
         Interlocked.Exchange(ref consoleRenderPending, 1);
         if (Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
-            TaskRunner.Run(nameof(ChatGameConsole), nameof(RefreshConsoleRenderAsync), _ => RefreshConsoleRenderAsync(), consoleRenderCancellation.Token);
+            TaskRunner.Run(nameof(ChatGameConsole), nameof(RefreshConsoleRenderAsync), _ => RefreshConsoleRenderAsync(), consoleRenderToken);
     
         }
         catch (Exception __componentMethodException)
@@ -586,9 +592,9 @@ public partial class ChatGameConsole
     {
         try
         {
-            while (!consoleRenderCancellation.IsCancellationRequested)
+            while (!consoleRenderToken.IsCancellationRequested)
             {
-                await Task.Delay(250, consoleRenderCancellation.Token).ConfigureAwait(false);
+                await Task.Delay(250, consoleRenderToken).ConfigureAwait(false);
                 Interlocked.Exchange(ref consoleRenderPending, 0);
                 await InvokeAsync(() =>
                 {
@@ -599,7 +605,7 @@ public partial class ChatGameConsole
                     break;
             }
         }
-        catch (OperationCanceledException) when (consoleRenderCancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (consoleRenderToken.IsCancellationRequested)
         {
             // Component disposal cancels delayed progress rendering.
         }
@@ -616,9 +622,9 @@ public partial class ChatGameConsole
             Interlocked.Exchange(ref consoleRenderWorkerRunning, 0);
             if (!disposed
                 && Volatile.Read(ref consoleRenderPending) != 0
-                && !consoleRenderCancellation.IsCancellationRequested
+                && !consoleRenderToken.IsCancellationRequested
                 && Interlocked.CompareExchange(ref consoleRenderWorkerRunning, 1, 0) == 0)
-                TaskRunner.Run(nameof(ChatGameConsole), nameof(RefreshConsoleRenderAsync), _ => RefreshConsoleRenderAsync(), consoleRenderCancellation.Token);
+                TaskRunner.Run(nameof(ChatGameConsole), nameof(RefreshConsoleRenderAsync), _ => RefreshConsoleRenderAsync(), consoleRenderToken);
         }
     }
 

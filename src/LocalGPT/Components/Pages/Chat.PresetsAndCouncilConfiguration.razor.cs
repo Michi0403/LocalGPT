@@ -84,7 +84,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            return LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token);
+            return LoadHardwarePerformancePresetsAsync(componentLifetimeToken);
         }
         catch (Exception __componentMethodException)
         {
@@ -122,7 +122,7 @@ namespace LocalGPT.Components.Pages
             if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
             {
                 applied = await HardwarePerformancePresets
-                    .ApplyPresetToRunAsync(preset.Id, runId, userConfirmed: true, componentLifetimeCts.Token)
+                    .ApplyPresetToRunAsync(preset.Id, runId, userConfirmed: true, componentLifetimeToken)
                     .ConfigureAwait(false);
                 await InvokeAsync(() =>
                 {
@@ -139,7 +139,7 @@ namespace LocalGPT.Components.Pages
                 // matching, road copying, normalization and session token-ceiling changes.
                 SavePreparationConfiguration();
                 applied = await HardwarePerformancePresets
-                    .ApplyPresetToPreparationAsync(preset.Id, userConfirmed: true, componentLifetimeCts.Token)
+                    .ApplyPresetToPreparationAsync(preset.Id, userConfirmed: true, componentLifetimeToken)
                     .ConfigureAwait(false);
                 var preparation = CouncilRunConfigurations.GetPreparation();
                 await InvokeAsync(() =>
@@ -153,7 +153,7 @@ namespace LocalGPT.Components.Pages
                 }).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException) when (componentLifetimeCts.IsCancellationRequested || isDisposed)
+        catch (OperationCanceledException) when (componentLifetimeToken.IsCancellationRequested || isDisposed)
         {
             Logger.LogDebug("Hardware performance preset application was cancelled during Chat teardown.");
         }
@@ -220,9 +220,9 @@ namespace LocalGPT.Components.Pages
                     IsUserApproved = true
                 };
                 var saved = await HardwarePerformancePresets
-                    .SavePresetAsync(preset, userConfirmed: true, componentLifetimeCts.Token)
+                    .SavePresetAsync(preset, userConfirmed: true, componentLifetimeToken)
                     .ConfigureAwait(false);
-                await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
+                await LoadHardwarePerformancePresetsAsync(componentLifetimeToken).ConfigureAwait(false);
                 SelectedHardwarePerformancePreset = HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == saved.Id) ?? saved;
                 HardwarePerformancePresetName = saved.Name;
                 Notifier.ShowSuccess(toastName, "The hardware performance preset was saved to SQLite.", "Performance preset saved");
@@ -258,11 +258,11 @@ namespace LocalGPT.Components.Pages
             {
                 var id = SelectedHardwarePerformancePreset.Id;
                 await HardwarePerformancePresets
-                    .DeletePresetAsync(id, userConfirmed: true, componentLifetimeCts.Token)
+                    .DeletePresetAsync(id, userConfirmed: true, componentLifetimeToken)
                     .ConfigureAwait(false);
                 SelectedHardwarePerformancePreset = null;
                 HardwarePerformancePresetName = string.Empty;
-                await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
+                await LoadHardwarePerformancePresetsAsync(componentLifetimeToken).ConfigureAwait(false);
                 Notifier.ShowSuccess(toastName, "The hardware performance preset was deleted. Current road values were left unchanged.", "Performance preset deleted");
             }
             finally

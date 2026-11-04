@@ -90,7 +90,7 @@ public sealed class AsciiChatTextService
     {
         try
         {
-            if (messages.Count == 0)
+            if (messages.Count == 0 && participantActivities.Count == 0)
             {
                 return "┌─ LOCALGPT ASCII CHAT ─────────────────────────────────────────────────────────┐" + Environment.NewLine
                     + "│ This terminal mirrors the current /chat conversation.                         │" + Environment.NewLine

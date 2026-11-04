@@ -3444,3 +3444,10 @@
 .chat-council-history-content { display: grid; gap: 0.5rem; }
 .chat-council-history-content > details { padding: 0.5rem; border: 1px solid var(--bs-border-color); border-radius: 0.375rem; }
 .chat-council-history-content pre { max-height: 32rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bs-body-bg); padding: 0.75rem; }
+
+/* 6.8.5: server-owned Council evidence must not depend on a cached DxAIChat message template. */
+.chat-council-live-replay { margin:.7rem 0; padding:.8rem; min-width:0; max-height:min(48dvh, 40rem); overflow:auto; border:1px solid var(--bs-info, #5cb9d1); border-radius:.6rem; background:var(--bs-body-bg, #18191b); }
+.chat-council-live-replay header { display:flex; gap:.6rem; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:.55rem; }
+.chat-council-live-replay pre { margin:.4rem 0; padding:.65rem; white-space:pre-wrap; overflow-wrap:anywhere; max-height:20rem; overflow:auto; background:rgba(0,0,0,.15); }
+.chat-council-live-member { margin-top:.45rem; border-top:1px solid var(--bs-border-color, #666); padding-top:.35rem; }
+.chat-council-live-member summary { cursor:pointer; }

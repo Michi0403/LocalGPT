@@ -1,0 +1,929 @@
+--- a/src/LocalGPTInstallerConsole/Program.cs
++++ b/src/LocalGPTInstallerConsole/Program.cs
+@@ -646,43 +646,43 @@
+                 throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
+ 
+             var targetPath = Path.Combine(localAppData, "LocalGPT");
+ 
+-            // Force refresh of application binaries must never erase the user database,
+-            // MFA material, certificates, learning assets or the persistent setup log.
+-            // The explicit --uninstall command remains the separate destructive workflow.
+-            if (options.ForceDelete)
+-            {
+-                DeleteIfExists(Path.Combine(targetPath, "winx64"), logger);
+-                DeleteIfExists(Path.Combine(targetPath, "setupwinx64"), logger);
+-            }
+-
++            // Download and validate BOTH ZIPs before touching either installed payload.
++            // --force-delete never deletes the per-user LocalGPT root or database.
+             Directory.CreateDirectory(targetPath);
+-
+-            logger.LogInformation($"Extracting LocalGPT app '{zipPath}' to '{targetPath}' canonical winx64 directory");
+-            InstallPortableReleaseAsset(zipPath, targetPath, "winx64", "LocalGPT.exe", logger);
+-
++            // Prevent two setup processes from interleaving canonical directory swaps.
++            using var deploymentLock = new FileStream(
++                Path.Combine(targetPath, ".localgpt-deployment.lock"),
++                FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+             var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
+-
+             await DownloadLatestReleaseAssetAsync(
+                 typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug,
+                 setupZipPath,
+                 logger,
+                 options,
+                 setupAsset: true).ConfigureAwait(false);
+ 
+-            logger.LogInformation($"Extracting LocalGPT setup/bootstrap '{setupZipPath}' to '{targetPath}' canonical setupwinx64 directory");
+-            InstallPortableReleaseAsset(setupZipPath, targetPath, "setupwinx64", "Start.cmd", logger);
+-
+-            // Missing canonical files are a failed installation, never an installation success.
+-            if (!File.Exists(Path.Combine(targetPath, "winx64", "LocalGPT.exe"))
+-                || !File.Exists(Path.Combine(targetPath, "setupwinx64", "Start.cmd")))
+-                throw new InvalidDataException("Installed LocalGPT layout is incomplete; refusing to provision shortcuts or report success.");
+-
+-            // After verifying both new canonical payloads, isolate the exact legacy
+-            // release-wrapper directories left by earlier installers. Never sweep
+-            // arbitrary data folders or erase anything that could contain user edits.
+-            RecoverLegacyVersionedInstallFolders(targetPath, logger);
++            StagedPortableReleaseAsset? appStage = null;
++            StagedPortableReleaseAsset? setupStage = null;
++            try
++            {
++                appStage = PreparePortableReleaseAsset(zipPath, targetPath, "winx64", "LocalGPT.exe", logger);
++                setupStage = PreparePortableReleaseAsset(setupZipPath, targetPath, "setupwinx64", "Start.cmd", logger);
++                CommitPortableReleaseAssets(targetPath, appStage, setupStage, logger);
++            }
++            finally
++            {
++                if (appStage is not null)
++                    RemoveInstallerOwnedTemporaryDirectory(appStage.StageRoot, logger);
++                if (setupStage is not null)
++                    RemoveInstallerOwnedTemporaryDirectory(setupStage.StageRoot, logger);
++            }
++
++            // Cleanup only after both canonical assets are activated and verified.
++            // Unlike the old implementation, exact obsolete generated wrappers are
++            // actually deleted, including wrappers quarantined by previous releases.
++            RemoveLegacyVersionedInstallFolders(targetPath, logger);
+ 
+             logger.LogDebug($"LocalGPT installed to '{targetPath}'.");
+             logger.LogInformation($"LocalGPT app and setup/bootstrap files now reside in '{targetPath}'.");
+         }
+@@ -696,25 +696,30 @@
+             throw;
+         }
+     }
+ 
+-    /// <summary>
+-    /// Installs a versioned or legacy-flat release ZIP into the canonical, stable payload directory.
+-    /// The release archiver may wrap files in a versioned top-level folder; this packaging
+-    /// detail must never become an installation path or a shortcut target.
+-    /// </summary>
+-    /// <param name="zipPath">The already-downloaded application or setup archive.</param>
+-    /// <param name="installRoot">The per-user LocalGPT data directory.</param>
+-    /// <param name="canonicalFolder">The stable runtime folder name (winx64 or setupwinx64).</param>
+-    /// <param name="requiredFile">A file required immediately within the runtime folder.</param>
++    /// <summary>Represents one validated release payload staged under the installation root.</summary>
++    /// <param name="StageRoot">Installer-owned temporary directory that may be deleted after installation.</param>
++    /// <param name="PayloadRoot">Normalized root containing the required launch file.</param>
++    /// <param name="CanonicalFolder">Canonical destination directory name.</param>
++    /// <param name="RequiredFile">Expected root-level executable or script.</param>
++    private sealed record StagedPortableReleaseAsset(string StageRoot, string PayloadRoot, string CanonicalFolder, string RequiredFile);
++
++    /// <summary>
++    /// Validates and stages a versioned or flat release archive without modifying the
++    /// existing canonical installation. Both app and bootstrap are staged first.
++    /// </summary>
++    /// <param name="zipPath">Already-downloaded archive.</param>
++    /// <param name="installRoot">Per-user installation root.</param>
++    /// <param name="canonicalFolder">Stable binary directory.</param>
++    /// <param name="requiredFile">Root-level payload marker.</param>
+     /// <param name="logger">Installer diagnostics.</param>
+-    private static void InstallPortableReleaseAsset(string zipPath, string installRoot, string canonicalFolder, string requiredFile, ILogger logger)
++    /// <returns>The validated staged payload.</returns>
++    private static StagedPortableReleaseAsset PreparePortableReleaseAsset(string zipPath, string installRoot, string canonicalFolder, string requiredFile, ILogger logger)
+     {
+         if (canonicalFolder is not ("winx64" or "setupwinx64"))
+             throw new ArgumentOutOfRangeException(nameof(canonicalFolder), "Unknown canonical Windows payload folder.");
+ 
+-        // Validate all entries BEFORE extraction, including ZIP traversal and symlink entries.
+-        // Reject mixed archive layouts rather than accidentally deploying an unexpected root.
+         string? wrapper = null;
+         using (var archive = ZipFile.OpenRead(zipPath))
+         {
+             var entries = archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name)).ToArray();
+@@ -741,91 +746,261 @@
+             }
+ 
+             var expectedArchiveFile = wrapper is null ? requiredFile : $"{wrapper}/{requiredFile}";
+             if (!entries.Any(entry => entry.FullName.Replace('\\', '/').Equals(expectedArchiveFile, StringComparison.OrdinalIgnoreCase)))
+-                throw new InvalidDataException($"LocalGPT release archive lacks the root-level {requiredFile} payload; expected entry '{expectedArchiveFile}'.");
+-            logger.LogInformation("Validated {Count} release files; archive wrapper={Wrapper}; destination={Destination}.", entries.Length, wrapper ?? "(flat)", canonicalFolder);
+-        }
+-
+-        var stage = Path.Combine(installRoot, $".localgpt-install-{Guid.NewGuid():N}");
+-        try
+-        {
+-            ExtractZipWithFallback(zipPath, stage, logger);
+-            var source = wrapper is null ? stage : Path.Combine(stage, wrapper);
++                throw new InvalidDataException($"LocalGPT release archive lacks root-level {requiredFile}; expected '{expectedArchiveFile}'.");
++            logger.LogInformation("Validated {Count} release entries; wrapper={Wrapper}; destination={Destination}.",
++                entries.Length, wrapper ?? "(flat)", canonicalFolder);
++        }
++
++        var stage = Path.Combine(installRoot, $".localgpt-stage-{Guid.NewGuid():N}");
++        try
++        {
++            var extractRoot = Path.Combine(stage, "extracted");
++            ExtractZipWithFallback(zipPath, extractRoot, logger);
++            var source = wrapper is null ? extractRoot : Path.Combine(extractRoot, wrapper);
+             if (!File.Exists(Path.Combine(source, requiredFile)))
+-                throw new InvalidDataException($"LocalGPT release extraction did not produce {requiredFile} in its validated payload root.");
+-            var target = Path.Combine(installRoot, canonicalFolder);
+-            Directory.CreateDirectory(target);
+-            CopyReleasePayload(source, target);
+-            if (!File.Exists(Path.Combine(target, requiredFile)))
+-                throw new InvalidDataException($"LocalGPT release deployment failed: {requiredFile} missing from {target}.");
+-            logger.LogInformation("Installed LocalGPT payload at canonical directory: {Destination}", target);
++                throw new InvalidDataException($"Staged LocalGPT release lacks {requiredFile} in its normalized root.");
++            return new StagedPortableReleaseAsset(stage, source, canonicalFolder, requiredFile);
++        }
++        catch
++        {
++            RemoveInstallerOwnedTemporaryDirectory(stage, logger);
++            throw;
++        }
++    }
++
++    /// <summary>
++    /// Commits both validated payloads using directory moves on the same volume.
++    /// If either activation fails, the old installations are restored. Never touches
++    /// the database, Council logs, user projects or the rest of the AppData root.
++    /// </summary>
++    /// <param name="installRoot">Per-user installation root.</param>
++    /// <param name="application">Validated app payload.</param>
++    /// <param name="setup">Validated bootstrap payload.</param>
++    /// <param name="logger">Installer diagnostics.</param>
++    private static void CommitPortableReleaseAssets(string installRoot, StagedPortableReleaseAsset application,
++        StagedPortableReleaseAsset setup, ILogger logger)
++    {
++        var rollbackRoot = Path.Combine(installRoot, $".localgpt-rollback-{Guid.NewGuid():N}");
++        var activated = new List<string>();
++        var previous = new List<(string Target, string Backup)>();
++        var restored = false;
++        var committed = false;
++        Directory.CreateDirectory(rollbackRoot);
++        try
++        {
++            foreach (var asset in new[] { application, setup })
++            {
++                var target = Path.Combine(installRoot, asset.CanonicalFolder);
++                if (Directory.Exists(target))
++                {
++                    if ((File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0)
++                        throw new InvalidDataException($"Canonical installation folder is a link: {target}");
++                    var backup = Path.Combine(rollbackRoot, asset.CanonicalFolder);
++                    Directory.Move(target, backup);
++                    previous.Add((target, backup));
++                }
++                Directory.Move(asset.PayloadRoot, target);
++                activated.Add(target);
++                if (!File.Exists(Path.Combine(target, asset.RequiredFile)))
++                    throw new InvalidDataException($"Canonical installation is incomplete: {target}");
++            }
++            if (!File.Exists(Path.Combine(installRoot, "winx64", "LocalGPT.exe"))
++                || !File.Exists(Path.Combine(installRoot, "setupwinx64", "Start.cmd")))
++                throw new InvalidDataException("Both canonical payloads must be available before installation succeeds.");
++            committed = true;
++            logger.LogInformation("Atomically deployed LocalGPT to {Application} and {Setup}.",
++                Path.Combine(installRoot, "winx64"), Path.Combine(installRoot, "setupwinx64"));
++        }
++        catch (Exception commitException)
++        {
++            var rollbackFailed = false;
++            foreach (var target in activated.AsEnumerable().Reverse())
++            {
++                try
++                {
++                    if (Directory.Exists(target))
++                        Directory.Move(target, Path.Combine(rollbackRoot, "failed-" + Path.GetFileName(target)));
++                }
++                catch (Exception rollbackException)
++                {
++                    rollbackFailed = true;
++                    logger.LogCritical(rollbackException, "Unable to evacuate failed new LocalGPT payload {Target}.", target);
++                }
++            }
++            foreach (var old in previous.AsEnumerable().Reverse())
++            {
++                try
++                {
++                    if (Directory.Exists(old.Backup))
++                        Directory.Move(old.Backup, old.Target);
++                }
++                catch (Exception rollbackException)
++                {
++                    rollbackFailed = true;
++                    logger.LogCritical(rollbackException,
++                        "Unable to restore previous LocalGPT installation {Target}; preserved at {Backup}.", old.Target, old.Backup);
++                }
++            }
++            restored = !rollbackFailed;
++            if (rollbackFailed)
++                throw new IOException($"LocalGPT installation failed and rollback was incomplete. Inspect {rollbackRoot}; user data was not touched.", commitException);
++            throw;
+         }
+         finally
+         {
+-            if (Directory.Exists(stage))
+-                Directory.Delete(stage, recursive: true);
+-        }
+-    }
+-
+-    /// <summary>
+-    /// Removes old installer-generated, version-bearing payload folders from the user-data
+-    /// root by safely moving them into an isolated recovery area after BOTH canonical
+-    /// payloads are installed. Preserves every byte; users can inspect old contents
+-    /// before deleting the recovery directory. Never searches recursively.
+-    /// </summary>
+-    /// <param name="installRoot">Canonical LocalGPT user-data directory.</param>
++            if (committed || restored)
++                RemoveInstallerOwnedTemporaryDirectory(rollbackRoot, logger);
++            else
++                logger.LogWarning("Retaining installer rollback evidence in {RollbackRoot} after incomplete rollback.", rollbackRoot);
++        }
++    }
++
++    /// <summary>Removes only a uniquely named, installer-owned staging or rollback folder.</summary>
++    /// <param name="directory">Temporary directory.</param>
+     /// <param name="logger">Installer diagnostics.</param>
+-    private static void RecoverLegacyVersionedInstallFolders(string installRoot, ILogger logger)
++    private static void RemoveInstallerOwnedTemporaryDirectory(string directory, ILogger logger)
++    {
++        var name = Path.GetFileName(directory);
++        if (!name.StartsWith(".localgpt-stage-", StringComparison.OrdinalIgnoreCase)
++            && !name.StartsWith(".localgpt-rollback-", StringComparison.OrdinalIgnoreCase))
++            throw new ArgumentException("Refusing to remove a directory not owned by the installer.", nameof(directory));
++        try
++        {
++            if (Directory.Exists(directory) && (File.GetAttributes(directory) & FileAttributes.ReparsePoint) == 0)
++                Directory.Delete(directory, recursive: true);
++        }
++        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
++        {
++            logger.LogWarning(ex, "Could not clean up installer temporary directory {Directory}.", directory);
++        }
++    }
++
++    /// <summary>
++    /// Deletes obsolete generated release ZIP wrappers after BOTH canonical payloads
++    /// have been installed. Also cleans the former recovery quarantine. This is an
++    /// explicit cleanup of known installer debris, never a general AppData sweep.
++    /// </summary>
++    /// <param name="installRoot">Canonical LocalGPT per-user directory.</param>
++    /// <param name="logger">Installer diagnostics.</param>
++    private static void RemoveLegacyVersionedInstallFolders(string installRoot, ILogger logger)
+     {
+         if (!File.Exists(Path.Combine(installRoot, "winx64", "LocalGPT.exe")) ||
+             !File.Exists(Path.Combine(installRoot, "setupwinx64", "Start.cmd")))
+-            throw new InvalidOperationException("Cannot repair legacy installer folders before both canonical applications have been verified.");
+-
+-        // The known broken installer left e.g. LocalGPT-6.4.1-win-x64 and
+-        // LocalGPT-Setup-6.4.1-win-x64 in the SAME directory as persistent data.
+-        // Check only direct children and require the expected root executable.
+-        // Treat the old directory as evidence: move it rather than deleting it.
+-        foreach (var legacyPath in Directory.EnumerateDirectories(installRoot, "*", SearchOption.TopDirectoryOnly))
++            throw new InvalidOperationException("Cannot delete old version folders before the two canonical payloads are installed.");
++
++        RemoveKnownLegacyFoldersInDirectory(installRoot, logger);
++        var previousRecovery = Path.Combine(installRoot, "runtime", "recovered-installer-payloads");
++        if (Directory.Exists(previousRecovery) &&
++            (File.GetAttributes(previousRecovery) & FileAttributes.ReparsePoint) == 0)
++        {
++            RemoveKnownLegacyFoldersInDirectory(previousRecovery, logger);
++            try
++            {
++                if (!Directory.EnumerateFileSystemEntries(previousRecovery).Any())
++                    Directory.Delete(previousRecovery);
++            }
++            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
++            {
++                logger.LogWarning(ex, "Could not remove the now-empty former installer quarantine {Directory}.", previousRecovery);
++            }
++        }
++    }
++
++    /// <summary>Deletes exact generated wrapper folders without traversing unrelated user-data directories.</summary>
++    /// <param name="parent">Root directory containing possible obsolete release folders.</param>
++    /// <param name="logger">Installer diagnostics.</param>
++    private static void RemoveKnownLegacyFoldersInDirectory(string parent, ILogger logger)
++    {
++        foreach (var legacyPath in Directory.EnumerateDirectories(parent, "*", SearchOption.TopDirectoryOnly))
+         {
+             var name = Path.GetFileName(legacyPath);
+             if (!TryIdentifyLegacyReleaseWrapper(name, out var requiredFile))
+                 continue;
+-
+             try
+             {
+-                if ((File.GetAttributes(legacyPath) & FileAttributes.ReparsePoint) != 0 ||
+-                    !File.Exists(Path.Combine(legacyPath, requiredFile)))
+-                {
+-                    logger.LogWarning("Legacy release folder {Folder} has no expected payload or is a reparse point; preserving it for manual review.", legacyPath);
++                if ((File.GetAttributes(legacyPath) & FileAttributes.ReparsePoint) != 0)
++                {
++                    logger.LogWarning("Refusing to delete linked legacy folder {Folder}.", legacyPath);
+                     continue;
+                 }
+-
+-                var recoveryRoot = Path.Combine(installRoot, "runtime", "recovered-installer-payloads");
+-                Directory.CreateDirectory(recoveryRoot);
+-                var recoveryPath = Path.Combine(recoveryRoot, name);
+-                if (Directory.Exists(recoveryPath) || File.Exists(recoveryPath))
+-                    recoveryPath = Path.Combine(recoveryRoot, $"{name}-{Guid.NewGuid():N}");
+-
+-                Directory.Move(legacyPath, recoveryPath);
+-                logger.LogWarning("Recovered obsolete LocalGPT release folder {OldFolder} to {RecoveryFolder}. Canonical application and setup were verified; the original contents were preserved for manual review.", legacyPath, recoveryPath);
++                if (!IsKnownReleasePayloadFolder(legacyPath, requiredFile, logger))
++                {
++                    logger.LogWarning("Versioned folder {Folder} contains unknown or persistent content; preserving it for manual inspection.", legacyPath);
++                    continue;
++                }
++                Directory.Delete(legacyPath, recursive: true);
++                logger.LogWarning("Deleted obsolete installer-generated release folder {Folder} after verifying both canonical payloads.", legacyPath);
+             }
+             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+             {
+-                // A running old application may lock an executable. Installation is
+-                // otherwise valid; log the skipped cleanup instead of hiding it.
+-                logger.LogWarning(ex, "Unable to isolate old LocalGPT release folder {Folder}; the canonical installation remains intact.", legacyPath);
+-            }
+-        }
+-    }
+-
+-    /// <summary>
+-    /// Recognizes ONLY the obsolete versioned ZIP root layouts generated by
+-    /// maintained releases. Names and payload markers must both match.
+-    /// </summary>
+-    /// <param name="folderName">A direct child folder name under LocalGPT user data.</param>
+-    /// <param name="requiredFile">The marker executable expected inside that folder.</param>
+-    /// <returns>True for an exact generated release wrapper with a three-part version.</returns>
++                logger.LogWarning(ex, "Unable to delete old LocalGPT installer folder {Folder}; the canonical installation remains intact.", legacyPath);
++            }
++        }
++    }
++
++    /// <summary>Recognizes old binary payloads, including incomplete ones, while protecting user-owned data.</summary>
++    /// <param name="path">Candidate exact-version release wrapper.</param>
++    /// <param name="requiredFile">Expected canonical payload marker.</param>
++    /// <param name="logger">Installer diagnostics.</param>
++    /// <returns>True only when the contents are recognizable installer-generated files.</returns>
++    private static bool IsKnownReleasePayloadFolder(string path, string requiredFile, ILogger logger)
++    {
++        var foundPayloadMarker = File.Exists(Path.Combine(path, requiredFile))
++            || File.Exists(Path.Combine(path, "LocalGPT.dll"))
++            || File.Exists(Path.Combine(path, "LocalGPTInstallerConsole.dll"))
++            || File.Exists(Path.Combine(path, "LocalGPT.deps.json"))
++            || File.Exists(Path.Combine(path, "LocalGPTInstallerConsole.deps.json"));
++        var foundAnyFile = false;
++        var directories = new Stack<string>();
++        directories.Push(path);
++        while (directories.Count > 0)
++        {
++            var current = directories.Pop();
++            foreach (var item in Directory.EnumerateFileSystemEntries(current, "*", SearchOption.TopDirectoryOnly))
++            {
++                var attributes = File.GetAttributes(item);
++                if ((attributes & FileAttributes.ReparsePoint) != 0)
++                    return false;
++                var name = Path.GetFileName(item);
++                if ((attributes & FileAttributes.Directory) != 0)
++                {
++                    if (name.Equals("CouncilLogs", StringComparison.OrdinalIgnoreCase)
++                        || name.Equals("Projects", StringComparison.OrdinalIgnoreCase)
++                        || name.Equals("UserData", StringComparison.OrdinalIgnoreCase)
++                        || name.Equals("Backups", StringComparison.OrdinalIgnoreCase)
++                        || name.Equals("runtime", StringComparison.OrdinalIgnoreCase))
++                        return false;
++                    directories.Push(item);
++                    continue;
++                }
++                foundAnyFile = true;
++                var extension = Path.GetExtension(item);
++                if (extension.Equals(".db", StringComparison.OrdinalIgnoreCase)
++                    || extension.Equals(".sqlite", StringComparison.OrdinalIgnoreCase)
++                    || extension.Equals(".sqlite3", StringComparison.OrdinalIgnoreCase)
++                    || extension.Equals(".db3", StringComparison.OrdinalIgnoreCase)
++                    || extension.Equals(".bak", StringComparison.OrdinalIgnoreCase)
++                    || extension.Equals(".backup", StringComparison.OrdinalIgnoreCase)
++                    || extension.Equals(".pfx", StringComparison.OrdinalIgnoreCase)
++                    || extension.Equals(".pem", StringComparison.OrdinalIgnoreCase)
++                    || extension.Equals(".key", StringComparison.OrdinalIgnoreCase)
++                    || name.EndsWith("-wal", StringComparison.OrdinalIgnoreCase)
++                    || name.EndsWith("-shm", StringComparison.OrdinalIgnoreCase)
++                    || name.EndsWith("-journal", StringComparison.OrdinalIgnoreCase))
++                    return false;
++            }
++        }
++        if (!foundPayloadMarker && foundAnyFile)
++            logger.LogWarning("Incomplete old installer folder {Folder} has no known executable or DLL marker; preserving for review.", path);
++        return foundPayloadMarker || !foundAnyFile;
++    }
++
++    /// <summary>Recognizes only exact three-part versioned wrappers generated by the release archiver.</summary>
++    /// <param name="folderName">Direct child folder name.</param>
++    /// <param name="requiredFile">Expected root-level payload marker.</param>
++    /// <returns>True for a generated obsolete release wrapper.</returns>
+     private static bool TryIdentifyLegacyReleaseWrapper(string folderName, out string requiredFile)
+     {
+         requiredFile = string.Empty;
+         const string suffix = "-win-x64";
+@@ -842,29 +1017,8 @@
+         requiredFile = prefix == "LocalGPT-Setup-" ? "Start.cmd" : "LocalGPT.exe";
+         return true;
+     }
+ 
+-    /// <summary>Copies validated release files into the canonical runtime folder without touching user data.</summary>
+-    /// <param name="source">Validated staged payload root.</param>
+-    /// <param name="target">Canonical version-independent runtime directory.</param>
+-    private static void CopyReleasePayload(string source, string target)
+-    {
+-        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+-        {
+-            if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
+-                throw new InvalidDataException($"Release payload contains a directory link: {directory}");
+-            Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
+-        }
+-        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+-        {
+-            if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
+-                throw new InvalidDataException($"Release payload contains a file link: {file}");
+-            var destination = Path.Combine(target, Path.GetRelativePath(source, file));
+-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+-            File.Copy(file, destination, overwrite: true);
+-        }
+-    }
+-
+     /// <summary>
+     /// Performs uninstall LocalGPT windows for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+     /// </summary>
+     /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+@@ -1481,10 +1635,9 @@
+             }
+ 
+             var knownCandidates = new[]
+             {
+-            Path.Combine(localGptRoot, "winx64", "LocalGPT.exe"),
+-            Path.Combine(localGptRoot, "LocalGPT.exe")
++            Path.Combine(localGptRoot, "winx64", "LocalGPT.exe")
+         };
+ 
+             foreach (var candidate in knownCandidates)
+             {
+@@ -1496,22 +1649,10 @@
+                     return candidate;
+                 }
+             }
+ 
+-            logger.LogWarning($"Known LocalGPT executable paths failed. Searching recursively under: {localGptRoot}");
+-
+-            var recursiveCandidate = EnumerateFilesSafe(localGptRoot, "LocalGPT.exe", logger)
+-                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
+-                .ThenBy(path => path.Length)
+-                .FirstOrDefault();
+-
+-            if (!string.IsNullOrWhiteSpace(recursiveCandidate) && File.Exists(recursiveCandidate))
+-            {
+-                logger.LogInformation($"Resolved LocalGPT executable recursively: {recursiveCandidate}");
+-                return recursiveCandidate;
+-            }
+-
+-            logger.LogWarning($"Could not find LocalGPT.exe under: {localGptRoot}");
++            logger.LogError("Canonical LocalGPT executable is missing at {Executable}. Refusing to run arbitrary older DLLs from versioned folders.",
++                Path.Combine(localGptRoot, "winx64", "LocalGPT.exe"));
+             return null;
+         }
+         catch (Exception ex)
+         {
+--- a/src/LocalGPT/Services/Persistence/DatabaseFileHealthService.cs
++++ b/src/LocalGPT/Services/Persistence/DatabaseFileHealthService.cs
+@@ -38,15 +38,24 @@
+             var directory = Path.GetDirectoryName(DatabasePath)
+                 ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
+             Directory.CreateDirectory(directory);
+ 
+-            if (File.Exists(GetRecoveryMarkerPath()))
++            // A previous crash may leave a marker after the original files were already
++            // preserved. A marker is NOT evidence that the current database is corrupt.
++            var pendingRecovery = File.Exists(GetRecoveryMarkerPath());
++            if (pendingRecovery)
+             {
+                 logger.LogWarning(
+-                    "A pending SQLite recovery marker exists for {DatabasePath}; preserving the current files before database initialization.",
++                    "An unfinished SQLite recovery marker exists for {DatabasePath}; checking the live database before taking any action.",
+                     DatabasePath);
+-                await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
+-                return;
++                if (!File.Exists(DatabasePath) && !DatabaseSuffixes.Skip(1).Any(suffix => File.Exists(DatabasePath + suffix)))
++                {
++                    logger.LogWarning(
++                        "SQLite recovery marker for {DatabasePath} has no remaining live database files; clearing the stale marker.",
++                        DatabasePath);
++                    TryDeleteRecoveryMarker();
++                    return;
++                }
+             }
+ 
+             if (!File.Exists(DatabasePath))
+             {
+@@ -67,13 +76,22 @@
+                 return;
+             }
+ 
+             if (quickCheck == DatabaseProbeResult.Inconclusive)
++            {
++                if (pendingRecovery)
++                    throw new InvalidOperationException("SQLite recovery was interrupted and database integrity cannot be confirmed. Preserving all files; no automatic replacement will occur.");
+                 return;
++            }
+ 
+             var writeProbe = await RunWriteProbeAsync(cancellationToken).ConfigureAwait(false);
+             if (writeProbe == DatabaseProbeResult.Corrupt)
+                 await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
++            else if (pendingRecovery && writeProbe == DatabaseProbeResult.Healthy)
++            {
++                logger.LogWarning("SQLite database {DatabasePath} passed both integrity probes; removing an obsolete recovery marker without resetting data.", DatabasePath);
++                TryDeleteRecoveryMarker();
++            }
+     
+     }
+     catch (Exception __serviceMethodException)
+     {
+@@ -128,36 +146,83 @@
+     public async Task RecoverMalformedDatabaseAsync(CancellationToken cancellationToken = default)
+     {
+     try
+     {
++            // Callers may observe transient SQLite errors (or a stale recovery marker).
++            // Recheck the actual on-disk database before preserving and replacing it.
++            var baseDatabasePresent = File.Exists(DatabasePath);
++            if (baseDatabasePresent)
++            {
++                var verified = await RunQuickCheckAsync(cancellationToken).ConfigureAwait(false);
++                if (verified == DatabaseProbeResult.Healthy)
++                {
++                    logger.LogWarning("SQLite database {DatabasePath} is healthy on recheck; refusing unnecessary recovery.", DatabasePath);
++                    TryDeleteRecoveryMarker();
++                    return;
++                }
++                if (verified == DatabaseProbeResult.Inconclusive)
++                    throw new InvalidOperationException("SQLite corruption cannot be confirmed. The original database and sidecars were left untouched.");
++            }
++            else if (!DatabaseSuffixes.Skip(1).Any(suffix => File.Exists(DatabasePath + suffix)))
++            {
++                // No live files remain; a prior interrupted preservation may already
++                // have completed. Allow first-run initialization without repeating it.
++                logger.LogWarning("SQLite recovery found no live files at {DatabasePath}; no database files were removed.", DatabasePath);
++                TryDeleteRecoveryMarker();
++                return;
++            }
++
++            // An explicit recovery may recreate an unusable store, but only after
++            // preserving EVERY existing database/WAL/SHM file. Never delete a file if
++            // moving it to backup fails. A partial move must be rolled back.
+             WriteRecoveryMarker();
+-
+-            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+             var parent = Path.GetDirectoryName(DatabasePath)
+                 ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
+-            var backupDirectory = Path.Combine(parent, "CorruptDatabaseBackups", timestamp);
++            var backupDirectory = Path.Combine(parent, "CorruptDatabaseBackups",
++                $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
+             Directory.CreateDirectory(backupDirectory);
+-
+-            foreach (var suffix in DatabaseSuffixes)
+-            {
+-                cancellationToken.ThrowIfCancellationRequested();
+-                var sourcePath = DatabasePath + suffix;
+-                if (!File.Exists(sourcePath))
+-                    continue;
+-
+-                var backupPath = Path.Combine(backupDirectory, Path.GetFileName(sourcePath));
+-                if (TryMoveToBackup(sourcePath, backupPath))
+-                    continue;
+-
+-                TryQuarantineOrDelete(sourcePath, $"{sourcePath}.malformed-{timestamp}");
+-            }
+-
+-            logger.LogWarning(
+-                "Preserved confirmed malformed SQLite files in {BackupDirectory}. A clean database will be created during initialization.",
+-                backupDirectory);
+-
+-            if (!DatabaseSuffixes.Any(suffix => File.Exists(DatabasePath + suffix)))
+-                TryDeleteRecoveryMarker();
++            var moved = new List<(string Original, string Backup)>();
++            try
++            {
++                foreach (var suffix in DatabaseSuffixes)
++                {
++                    cancellationToken.ThrowIfCancellationRequested();
++                    var sourcePath = DatabasePath + suffix;
++                    if (!File.Exists(sourcePath))
++                        continue;
++                    var backupPath = Path.Combine(backupDirectory, Path.GetFileName(sourcePath));
++                    File.Move(sourcePath, backupPath);
++                    moved.Add((sourcePath, backupPath));
++                }
++            }
++            catch (Exception moveException)
++            {
++                var restorationFailed = false;
++                for (var index = moved.Count - 1; index >= 0; index--)
++                {
++                    var item = moved[index];
++                    try
++                    {
++                        File.Move(item.Backup, item.Original);
++                    }
++                    catch (Exception rollbackException)
++                    {
++                        restorationFailed = true;
++                        logger.LogCritical(rollbackException,
++                            "Could not restore SQLite file {File} after recovery failed. Its preserved copy is at {Backup}.",
++                            item.Original, item.Backup);
++                    }
++                }
++                if (restorationFailed)
++                    throw new IOException($"SQLite preservation failed and rollback is incomplete. Inspect {backupDirectory}; initialization must not continue.", moveException);
++                throw;
++            }
++
++            logger.LogCritical(
++                "SQLite recovery reason {RecoveryReason}: preserved {FileCount} original database/WAL/SHM file(s) at {BackupDirectory} before allowing initialization. Previous user records may require manual salvage from this backup.",
++                baseDatabasePresent ? "confirmed database corruption" : "missing database with orphaned sidecars",
++                moved.Count, backupDirectory);
++            TryDeleteRecoveryMarker();
+ 
+             await Task.CompletedTask.ConfigureAwait(false);
+     
+     }
+@@ -285,53 +350,8 @@
+     }
+ }
+ 
+     /// <summary>
+-    /// Attempts to move to backup as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+-    /// </summary>
+-    /// <param name="sourcePath">Source path value supplied to the database file health operation and used when producing its result.</param>
+-    /// <param name="backupPath">Backup path value supplied to the database file health operation and used when producing its result.</param>
+-    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
+-    private bool TryMoveToBackup(string sourcePath, string backupPath)
+-    {
+-        try
+-        {
+-            File.Move(sourcePath, backupPath, overwrite: true);
+-            return true;
+-        }
+-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+-        {
+-            logger.LogWarning(ex, "Could not move SQLite file {SourcePath} to {BackupPath}.", sourcePath, backupPath);
+-            return false;
+-        }
+-    }
+-
+-    /// <summary>
+-    /// Attempts to quarantine or delete as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+-    /// </summary>
+-    /// <param name="sourcePath">Source path value supplied to the database file health operation and used when producing its result.</param>
+-    /// <param name="fallbackPath">Fallback path value supplied to the database file health operation and used when producing its result.</param>
+-    private void TryQuarantineOrDelete(string sourcePath, string fallbackPath)
+-    {
+-        try
+-        {
+-            File.Move(sourcePath, fallbackPath, overwrite: true);
+-        }
+-        catch (Exception moveException) when (moveException is IOException or UnauthorizedAccessException)
+-        {
+-            logger.LogWarning(moveException, "Could not quarantine SQLite file {SourcePath}; attempting deletion.", sourcePath);
+-            try
+-            {
+-                File.Delete(sourcePath);
+-            }
+-            catch (Exception deleteException) when (deleteException is IOException or UnauthorizedAccessException)
+-            {
+-                logger.LogError(deleteException, "Could not remove SQLite file {SourcePath}.", sourcePath);
+-            }
+-        }
+-    }
+-
+-    /// <summary>
+     /// Retrieves recovery marker path as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+     /// </summary>
+     /// <returns>The string produced by the operation.</returns>
+     private string GetRecoveryMarkerPath() {
+@@ -359,9 +379,10 @@
+             File.WriteAllText(GetRecoveryMarkerPath(), $"SQLite recovery requested at {DateTimeOffset.UtcNow:O}{Environment.NewLine}");
+         }
+         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+         {
+-            logger.LogWarning(ex, "Could not write the SQLite recovery marker for {DatabasePath}.", DatabasePath);
++            logger.LogError(ex, "Could not write the SQLite recovery marker for {DatabasePath}; refusing to move any database files.", DatabasePath);
++            throw;
+         }
+     }
+ 
+     /// <summary>
+--- a/build/Assert-InstallerLayout.ps1
++++ b/build/Assert-InstallerLayout.ps1
+@@ -1,5 +1,5 @@
+-# Fail-closed source-only release/install layout contract. Windows PowerShell 5.1 and pwsh compatible.
++# Windows PowerShell 5.1 / pwsh source contract for atomic installer deployment.
+ param([string]$RepositoryRoot = '')
+ $ErrorActionPreference = 'Stop'
+ Set-StrictMode -Version Latest
+ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) { $RepositoryRoot = Split-Path -Parent $PSScriptRoot }
+@@ -10,60 +10,73 @@
+ }
+ $source = [IO.File]::ReadAllText($installer)
+ $builder = [IO.File]::ReadAllText($release)
+ $checks = @(
+-    @{ Text = 'InstallPortableReleaseAsset(zipPath, targetPath, "winx64", "LocalGPT.exe", logger)'; Explain = 'Application ZIP must install into the stable winx64 directory.' },
+-    @{ Text = 'InstallPortableReleaseAsset(setupZipPath, targetPath, "setupwinx64", "Start.cmd", logger)'; Explain = 'Setup ZIP must install into the stable setupwinx64 directory.' },
+-    @{ Text = 'ExtractZipWithFallback(zipPath, stage, logger)'; Explain = 'Release archive extraction must be staged before the install root.' },
+-    @{ Text = 'var source = wrapper is null ? stage : Path.Combine(stage, wrapper)'; Explain = 'ZIP root wrappers must be stripped before deployment.' },
+-    @{ Text = 'CopyReleasePayload(source, target)'; Explain = 'Only the unwrapped staged payload can be copied into its canonical folder.' },
+-    @{ Text = 'DeleteIfExists(Path.Combine(targetPath, "winx64"), logger)'; Explain = 'Force refresh must affect only version-independent installed application binaries.' },
+-    @{ Text = 'DeleteIfExists(Path.Combine(targetPath, "setupwinx64"), logger)'; Explain = 'Force refresh must affect only version-independent setup binaries.' },
+-    @{ Text = 'if (!File.Exists(Path.Combine(targetPath, "winx64", "LocalGPT.exe"))'; Explain = 'Installer must verify the canonical executable before reporting success.' },
+-    @{ Text = '|| !File.Exists(Path.Combine(targetPath, "setupwinx64", "Start.cmd")))'; Explain = 'Installer must verify the canonical launcher before reporting success.' },
+-    @{ Text = 'var cmdPath = Path.Combine(localGptRoot, "setupwinx64", cmdFileName)'; Explain = 'Shortcut targets must resolve only to canonical setupwinx64.' },
+-    @{ Text = 'throw new FileNotFoundException($"LocalGPT canonical setup shortcut target is missing:'; Explain = 'A missing shortcut target must fail instead of recursively targeting stale version folders.' },
+-    @{ Text = 'RecoverLegacyVersionedInstallFolders(targetPath, logger)'; Explain = 'Successful installation must recover old generated ZIP-wrapper folders.' },
+-    @{ Text = 'Directory.EnumerateDirectories(installRoot, "*", SearchOption.TopDirectoryOnly)'; Explain = 'Legacy recovery must inspect only direct user-data children.' },
+-    @{ Text = 'TryIdentifyLegacyReleaseWrapper(name, out var requiredFile)'; Explain = 'Legacy recovery must strictly identify versioned release payloads.' },
+-    @{ Text = 'Directory.Move(legacyPath, recoveryPath)'; Explain = 'Legacy wrappers must be preserved in quarantine rather than deleted.' },
+-    @{ Text = '"runtime", "recovered-installer-payloads"'; Explain = 'Recovered release folders must be placed outside the canonical application and setup.' },
+-    @{ Text = 'Version.TryParse(versionText, out var version)'; Explain = 'Versioned folders must be validated as exact version wrappers.' },
+-    @{ Text = 'FileAttributes.ReparsePoint'; Explain = 'Reparse-point folders must never be moved by the recovery pass.' }
++    @{ Text = 'PreparePortableReleaseAsset(zipPath, targetPath, "winx64", "LocalGPT.exe", logger)'; Explain = 'App ZIP must be staged for stable winx64.' },
++    @{ Text = 'PreparePortableReleaseAsset(setupZipPath, targetPath, "setupwinx64", "Start.cmd", logger)'; Explain = 'Setup ZIP must be staged for stable setupwinx64.' },
++    @{ Text = 'CommitPortableReleaseAssets(targetPath, appStage, setupStage, logger)'; Explain = 'Both validated payloads must be committed together.' },
++    @{ Text = 'ExtractZipWithFallback(zipPath, extractRoot, logger)'; Explain = 'Archive extraction must occur only inside a temporary directory.' },
++    @{ Text = 'var source = wrapper is null ? extractRoot : Path.Combine(extractRoot, wrapper)'; Explain = 'A versioned ZIP wrapper must not become an installation directory.' },
++    @{ Text = 'if (!entries.Any(entry => entry.FullName.Replace'; Explain = 'The expected root-level marker must be checked before installation.' },
++    @{ Text = 'Directory.Move(target, backup)'; Explain = 'The previous installation must be backed up before activating a new payload.' },
++    @{ Text = 'Directory.Move(asset.PayloadRoot, target)'; Explain = 'The staged validated payload must be activated at the canonical path.' },
++    @{ Text = 'Directory.Move(old.Backup, old.Target)'; Explain = 'Failed installer activation must restore the previous payload.' },
++    @{ Text = 'FileAttributes.ReparsePoint'; Explain = 'Installer must reject links in install and cleanup paths.' },
++    @{ Text = 'RemoveLegacyVersionedInstallFolders(targetPath, logger)'; Explain = 'Old versioned wrapper cleanup must run after both installations succeed.' },
++    @{ Text = 'RemoveKnownLegacyFoldersInDirectory(previousRecovery, logger)'; Explain = 'Old releases quarantined by the earlier installer must also be cleaned.' },
++    @{ Text = 'Directory.Delete(legacyPath, recursive: true)'; Explain = 'Confirmed obsolete wrapper directories must be deleted, not merely moved.' },
++    @{ Text = 'TryIdentifyLegacyReleaseWrapper(name, out var requiredFile)'; Explain = 'Cleanup must recognize only exact versioned release folders.' },
++    @{ Text = 'IsKnownReleasePayloadFolder(legacyPath, requiredFile, logger)'; Explain = 'Cleanup must protect unknown/user-owned data.' },
++    @{ Text = 'Version.TryParse(versionText, out var version)'; Explain = 'Cleanup must validate all three version components.' },
++    @{ Text = 'var cmdPath = Path.Combine(localGptRoot, "setupwinx64", cmdFileName)'; Explain = 'Shortcuts must target the canonical setup folder.' },
++    @{ Text = 'throw new FileNotFoundException($"LocalGPT canonical setup shortcut target is missing:'; Explain = 'Missing canonical shortcut targets must fail closed.' }
+ )
+ foreach ($check in $checks) {
+     if (-not $source.Contains([string]$check.Text)) {
+         throw "INSTALLLAYOUT0002: $($check.Explain) See $installer."
+     }
+ }
+ if (-not $builder.Contains('New-PortableReleaseArchive -SourceDirectory $appFolder -DestinationPath $appZip -RootFolderName $appRootFolderName') -or
+     -not $builder.Contains('New-PortableReleaseArchive -SourceDirectory $setupFolder -DestinationPath $setupZip -RootFolderName $setupRootFolderName')) {
+-    throw "INSTALLLAYOUT0003: Release payload wrapper contract changed: $release"
++    throw "INSTALLLAYOUT0003: Build-Release archive layout unexpectedly changed: $release"
+ }
+-# Reject accidental regression to extracting into AppData root without canonical normalization.
+-$installBegin = $source.IndexOf('private static async Task InstallLocalGptAsync(')
+-$installEnd = $source.IndexOf('private static void InstallPortableReleaseAsset(', $installBegin)
+-if ($installBegin -lt 0 -or $installEnd -le $installBegin) { throw 'INSTALLLAYOUT0005: Installer method boundary missing.' }
+-$installSection = $source.Substring($installBegin, $installEnd - $installBegin)
+-if ($installSection.Contains('DeleteIfExists(targetPath, logger)')) {
+-    throw "INSTALLLAYOUT0006: Installer --force-delete must not remove persistent AppData user state: $installer"
++$installBegin = $source.IndexOf('private static async Task InstallLocalGptAsync(', [StringComparison]::Ordinal)
++$installEnd = $source.IndexOf('private sealed record StagedPortableReleaseAsset(', $installBegin, [StringComparison]::Ordinal)
++if ($installBegin -lt 0 -or $installEnd -le $installBegin) { throw 'INSTALLLAYOUT0004: Installer method boundary missing.' }
++$section = $source.Substring($installBegin, $installEnd - $installBegin)
++$setupDownload = $section.IndexOf('setupAsset: true', [StringComparison]::Ordinal)
++$appStage = $section.IndexOf('appStage = PreparePortableReleaseAsset(', [StringComparison]::Ordinal)
++$setupStage = $section.IndexOf('setupStage = PreparePortableReleaseAsset(', [StringComparison]::Ordinal)
++$commit = $section.IndexOf('CommitPortableReleaseAssets(', [StringComparison]::Ordinal)
++$cleanup = $section.IndexOf('RemoveLegacyVersionedInstallFolders(', [StringComparison]::Ordinal)
++if ($setupDownload -lt 0 -or $appStage -le $setupDownload -or $setupStage -le $appStage -or $commit -le $setupStage -or $cleanup -le $commit) {
++    throw 'INSTALLLAYOUT0005: Both ZIPs must be downloaded and staged before commit, with cleanup strictly after successful commit.'
+ }
+-if ($installSection.Contains('ExtractZipWithFallback(zipPath, targetPath, logger)') -or $installSection.Contains('ExtractZipWithFallback(setupZipPath, targetPath, logger)')) {
+-    throw "INSTALLLAYOUT0004: ZIP extraction directly into LocalGPT data root reintroduced: $installer"
++if ($section.Contains('DeleteIfExists(targetPath, logger)') -or
++    $section.Contains('ExtractZipWithFallback(zipPath, targetPath, logger)') -or
++    $section.Contains('DeleteIfExists(Path.Combine(targetPath, "winx64"), logger)')) {
++    throw 'INSTALLLAYOUT0006: Installation must never delete the user-data root or either canonical payload before staging and rollback.'
+ }
+-# Recovery is post-install only; it must never run before both payloads are checked.
+-$recoveryCall = $installSection.IndexOf('RecoverLegacyVersionedInstallFolders(targetPath, logger)')
+-$canonicalCheck = $installSection.IndexOf('if (!File.Exists(Path.Combine(targetPath, "winx64", "LocalGPT.exe"))')
+-if ($recoveryCall -lt 0 -or $canonicalCheck -lt 0 -or $recoveryCall -lt $canonicalCheck) {
+-    throw 'INSTALLLAYOUT0007: Legacy folder recovery may only occur after canonical install validation.'
++$commitBegin = $source.IndexOf('private static void CommitPortableReleaseAssets(', [StringComparison]::Ordinal)
++$commitEnd = $source.IndexOf('private static void RemoveInstallerOwnedTemporaryDirectory(', $commitBegin, [StringComparison]::Ordinal)
++$commitSection = $source.Substring($commitBegin, $commitEnd - $commitBegin)
++if (-not $commitSection.Contains('catch (Exception commitException)') -or
++    -not $commitSection.Contains('previous.AsEnumerable().Reverse()') -or
++    -not $commitSection.Contains('if (rollbackFailed)')) {
++    throw 'INSTALLLAYOUT0007: Transactional installer rollback is missing.'
+ }
+-$recoveryMethodStart = $source.IndexOf('private static void RecoverLegacyVersionedInstallFolders(')
+-$recoveryMethodEnd = $source.IndexOf('private static void CopyReleasePayload(', $recoveryMethodStart)
+-if ($recoveryMethodStart -lt 0 -or $recoveryMethodEnd -lt $recoveryMethodStart) {
+-    throw 'INSTALLLAYOUT0008: Recovery boundary missing.'
++$cleanupBegin = $source.IndexOf('private static void RemoveLegacyVersionedInstallFolders(', [StringComparison]::Ordinal)
++$cleanupEnd = $source.IndexOf('private static bool TryIdentifyLegacyReleaseWrapper(', $cleanupBegin, [StringComparison]::Ordinal)
++if ($cleanupBegin -lt 0 -or $cleanupEnd -le $cleanupBegin) { throw 'INSTALLLAYOUT0008: Legacy cleanup boundary missing.' }
++$cleanupSection = $source.Substring($cleanupBegin, $cleanupEnd - $cleanupBegin)
++if ($cleanupSection.Contains('Directory.Move(legacyPath') -or $cleanupSection.Contains('SearchOption.AllDirectories')) {
++    throw 'INSTALLLAYOUT0009: Legacy wrappers must be deleted after validation; cleanup must only enumerate direct children.'
+ }
+-$recoverySection = $source.Substring($recoveryMethodStart, $recoveryMethodEnd - $recoveryMethodStart)
+-if ($recoverySection.Contains('Directory.Delete(') -or $recoverySection.Contains('File.Delete(') -or
+-    $recoverySection.Contains('SearchOption.AllDirectories')) {
+-    throw 'INSTALLLAYOUT0009: Recovery must not delete data or recurse into unrelated user folders.'
++$exeBegin = $source.IndexOf('private static string? FindLocalGptExecutable(', [StringComparison]::Ordinal)
++$exeEnd = $source.IndexOf('private static int GetRelativePathDepth(', $exeBegin, [StringComparison]::Ordinal)
++if ($exeBegin -lt 0 -or $exeEnd -le $exeBegin) { throw 'INSTALLLAYOUT0010: Executable resolver boundary missing.' }
++$exeSection = $source.Substring($exeBegin, $exeEnd - $exeBegin)
++if ($exeSection.Contains('EnumerateFilesSafe(') -or $exeSection.Contains('Path.Combine(localGptRoot, "LocalGPT.exe")')) {
++    throw 'INSTALLLAYOUT0011: Executable fallback must not select arbitrary old versioned installations.'
+ }
+-Write-Host 'INSTALLLAYOUT: canonical runtime folders, ZIP wrapper normalization, staged install and shortcut targets verified.'
++& (Join-Path $PSScriptRoot 'Assert-DatabaseRecoverySafety.ps1') -RepositoryRoot $RepositoryRoot
++Write-Host 'INSTALLLAYOUT: atomic staged Windows installation, rollback, canonical shortcuts, safe deletion of obsolete wrappers and SQLite preservation guards verified.'
+--- a/src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj
++++ b/src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj
+@@ -2,9 +2,9 @@
+ 
+   <PropertyGroup>
+     <OutputType>Exe</OutputType>
+     <TargetFramework>net10.0</TargetFramework>
+-    <Version>4.9.9</Version>
++    <Version>5.0.0</Version>
+     <Product>LocalGPT Setup</Product>
+     <ApplicationIcon>..\LocalGPT\wwwroot\favicon.ico</ApplicationIcon>
+     <Nullable>enable</Nullable>
+     <InvariantGlobalization>true</InvariantGlobalization>
+--- a/src/LocalGPT/LocalGPT.csproj
++++ b/src/LocalGPT/LocalGPT.csproj
+@@ -1,7 +1,7 @@
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+   <PropertyGroup>
+-    <Version>6.8.7</Version>
++    <Version>6.8.8</Version>
+     <Product>LocalGPT</Product>
+     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
+ 	  <TargetFramework>net10.0</TargetFramework>
+     <Nullable>enable</Nullable>
+--- /dev/null
++++ b/build/Assert-DatabaseRecoverySafety.ps1
+@@ -0,0 +1,41 @@
++# Verify the owner of SQLite startup self-recovery preserves data on uncertain probes.
++param([string]$RepositoryRoot = '')
++$ErrorActionPreference = 'Stop'
++Set-StrictMode -Version Latest
++if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) { $RepositoryRoot = Split-Path -Parent $PSScriptRoot }
++$path = Join-Path $RepositoryRoot 'src/LocalGPT/Services/Persistence/DatabaseFileHealthService.cs'
++if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'DBRECOVERY0001: Database health owner missing.' }
++$source = [IO.File]::ReadAllText($path)
++$checks = @(
++    'var pendingRecovery = File.Exists(GetRecoveryMarkerPath())',
++    'A marker is NOT evidence that the current database is corrupt',
++    'var quickCheck = await RunQuickCheckAsync(cancellationToken)',
++    'if (quickCheck == DatabaseProbeResult.Inconclusive)',
++    'var verified = await RunQuickCheckAsync(cancellationToken)',
++    'if (verified == DatabaseProbeResult.Healthy)',
++    'if (verified == DatabaseProbeResult.Inconclusive)',
++    'var moved = new List<(string Original, string Backup)>()',
++    'File.Move(sourcePath, backupPath)',
++    'File.Move(item.Backup, item.Original)',
++    'if (restorationFailed)',
++    'TryDeleteRecoveryMarker()',
++    'logger.LogCritical(',
++    'CorruptDatabaseBackups'
++)
++foreach ($token in $checks) {
++    if (-not $source.Contains($token)) { throw "DBRECOVERY0002: SQLite preservation contract missing '$token': $path" }
++}
++$begin = $source.IndexOf('public async Task RecoverMalformedDatabaseAsync(', [StringComparison]::Ordinal)
++$end = $source.IndexOf('private async Task<DatabaseProbeResult> RunQuickCheckAsync(', $begin, [StringComparison]::Ordinal)
++if ($begin -lt 0 -or $end -le $begin) { throw 'DBRECOVERY0003: Cannot verify SQLite recovery method.' }
++$recovery = $source.Substring($begin, $end - $begin)
++$verifiedIndex = $recovery.IndexOf('var verified = await RunQuickCheckAsync(', [StringComparison]::Ordinal)
++$moveIndex = $recovery.IndexOf('File.Move(sourcePath, backupPath)', [StringComparison]::Ordinal)
++if ($verifiedIndex -lt 0 -or $moveIndex -le $verifiedIndex) {
++    throw 'DBRECOVERY0004: Database corruption must be reverified before live files are moved.'
++}
++if ($source.Contains('TryQuarantineOrDelete') -or $recovery.Contains('File.Delete(sourcePath)') -or
++    $recovery.Contains('overwrite: true')) {
++    throw 'DBRECOVERY0005: Recovery must never delete original DB/WAL/SHM files or overwrite a previous backup.'
++}
++Write-Host 'DBRECOVERY: stale recovery markers reverified, original SQLite DB/WAL/SHM preserved with rollback and logged recreation.'

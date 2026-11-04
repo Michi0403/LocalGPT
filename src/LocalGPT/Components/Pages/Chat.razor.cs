@@ -851,6 +851,14 @@ namespace LocalGPT.Components.Pages
     /// Stores the cancellation source used by <see cref="Chat"/> to stop its current background or asynchronous operation.
     /// </summary>
     readonly CancellationTokenSource componentLifetimeCts = new();
+    /// <summary>Preserves the component lifetime cancellation token after its source has been disposed by the renderer.</summary>
+    private readonly CancellationToken componentLifetimeToken;
+
+    /// <summary>Captures the cancellation token before an asynchronous Council or ASCII callback can outlive this Chat instance.</summary>
+    public Chat()
+    {
+        componentLifetimeToken = componentLifetimeCts.Token;
+    }
     /// <summary>
     /// Stores the internal auto save started state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>
@@ -874,7 +882,7 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Stores the internal is disposed state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>
-    bool isDisposed;
+    volatile bool isDisposed;
     /// <summary>
     /// Stores the internal collaboration snapshot state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>
@@ -1064,7 +1072,7 @@ namespace LocalGPT.Components.Pages
     /// <value>The is selected council session attached value exposed by <see cref="Chat"/>.</value>
     bool IsSelectedCouncilSessionAttached =>
         SelectedCouncilRunId is Guid runId
-        && (AttachedLiveCouncilRunId == runId || RejoinCouncilRunId == runId)
+        && AttachedLiveCouncilRunId == runId
         && CouncilLiveSessions.GetSummary(runId)?.IsRunning == true;
     /// <summary>
     /// Gets a value indicating whether join selected council run applies to the chat state.
@@ -1188,6 +1196,8 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
+        if (isDisposed || componentLifetimeToken.IsCancellationRequested)
+            return Task.CompletedTask;
         asciiGameAvailable = available;
         return InvokeAsync(StateHasChanged);
     
@@ -1347,16 +1357,16 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-        // The renderer may dispose this component between a Council notification and
-        // the mirror worker launch. Never read Token from a disposed source.
-        if (isDisposed || componentLifetimeCts.IsCancellationRequested || !showGameConsole)
+        // The source can be disposed by a concurrent renderer teardown. Read only
+        // the token captured at construction, never CancellationTokenSource.Token here.
+        if (isDisposed || componentLifetimeToken.IsCancellationRequested || !showGameConsole)
             return;
         if (Interlocked.CompareExchange(ref asciiMirrorLoopRunning, 1, 0) != 0)
             return;
 
         try
         {
-            var lifetimeToken = componentLifetimeCts.Token;
+            var lifetimeToken = componentLifetimeToken;
             if (isDisposed || lifetimeToken.IsCancellationRequested)
             {
                 Interlocked.Exchange(ref asciiMirrorLoopRunning, 0);
@@ -1426,7 +1436,16 @@ namespace LocalGPT.Components.Pages
             Guid? councilRunId = null;
             await InvokeAsync(() =>
             {
-                if (DxAiChat is not null)
+                councilRunId = AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? ActiveCouncilInteractionRunId;
+                // During provider streaming the server-owned Council session is authoritative.
+                // Repeated SaveMessages() forces DxAIChat to walk a large rendered transcript
+                // on the Blazor dispatcher and can starve SignalR heartbeat processing.
+                if (councilRunId is Guid activeRunId && CouncilLiveSessions.GetSummary(activeRunId)?.IsRunning == true)
+                {
+                    captured = ChatClientProvider?.SelectedSession?.Messages?.ToList() ?? [];
+                    MergeAuthoritativeLiveCouncilMessage(captured);
+                }
+                else if (DxAiChat is not null)
                 {
                     captured = DxAiChat.SaveMessages().ToList();
                     MergeAuthoritativeLiveCouncilMessage(captured);
@@ -1435,8 +1454,6 @@ namespace LocalGPT.Components.Pages
                 {
                     captured = sessionMessages.ToList();
                 }
-
-                councilRunId = AttachedLiveCouncilRunId ?? RejoinCouncilRunId ?? ActiveCouncilInteractionRunId;
             }).ConfigureAwait(false);
 
             if (captured.Count == 0 && ChatClientProvider?.SelectedSession?.Messages is { Count: > 0 } fallbackMessages)

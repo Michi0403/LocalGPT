@@ -78,7 +78,7 @@ namespace LocalGPT.Components.Pages
                         nameof(Chat),
                         "InitializeChatState",
                         InitializeChatStateAsync,
-                        componentLifetimeCts.Token);
+                        componentLifetimeToken);
                 }
                 ScheduleChatRuntimeActivation();
             }
@@ -100,13 +100,18 @@ namespace LocalGPT.Components.Pages
                 await JS.InvokeVoidAsync("localGptReconnect.setConversation", conversationId.ToString()).ConfigureAwait(true);
                 lastReconnectConversationId = conversationId;
             }
-            var runningCouncilRunId = ResolveRunningCouncilRunId();
-            if (!reconnectCouncilRunPublished || lastReconnectCouncilRunId != runningCouncilRunId)
+            var recoverableCouncilRunId = ResolveRunningCouncilRunId();
+            if (recoverableCouncilRunId is null && openedCouncilArchive is { } selectedArchive
+                && SelectedCouncilRunId == selectedArchive.RunId)
+                recoverableCouncilRunId = selectedArchive.RunId;
+            // A completed selected run must survive a full browser reload just like a live one.
+            // Do not publish an unverified stale ID before background restoration finishes.
+            if (!reconnectCouncilRunPublished || lastReconnectCouncilRunId != recoverableCouncilRunId)
             {
                 await JS.InvokeVoidAsync(
                     "localGptReconnect.setCouncilRun",
-                    runningCouncilRunId?.ToString()).ConfigureAwait(true);
-                lastReconnectCouncilRunId = runningCouncilRunId;
+                    recoverableCouncilRunId?.ToString()).ConfigureAwait(true);
+                lastReconnectCouncilRunId = recoverableCouncilRunId;
                 reconnectCouncilRunPublished = true;
             }
         }
@@ -214,7 +219,7 @@ namespace LocalGPT.Components.Pages
                     return;
                 await InvokeAsync(TryStartChatRuntimeAsync).ConfigureAwait(false);
             },
-            componentLifetimeCts.Token);
+            componentLifetimeToken);
     
         }
         catch (Exception __componentMethodException)
@@ -272,13 +277,20 @@ namespace LocalGPT.Components.Pages
             if (RejoinCouncilRunId is Guid rejoinRunId)
             {
                 var attached = await AttachToLiveCouncilSessionAsync(rejoinRunId, reloadChatControl: !initialMessagesLoaded).ConfigureAwait(false);
-                if (!attached)
-                {
-                    openedCouncilArchive = CouncilSpooler.GetSnapshot(rejoinRunId);
-                    if (openedCouncilArchive is not null) SelectedCouncilRunId = rejoinRunId;
-                }
+                // Restoring a run also restores its already recorded transcript and evidence;
+                // the user must not need to click "Load selected transcript & evidence".
+                openedCouncilArchive = CouncilSpooler.GetSnapshot(rejoinRunId);
+                if (openedCouncilArchive is not null || attached)
+                    SelectedCouncilRunId = rejoinRunId;
+                // A finished Council no longer has a live snapshot. Rehydrate its exact
+                // saved Chat or spool-backed projection instead of showing an empty DxAIChat.
+                if (!attached && openedCouncilArchive is { } restoredArchive)
+                    await RestoreCouncilChatFromSpoolAsync(rejoinRunId, restoredArchive).ConfigureAwait(false);
             }
 
+            // A restored team preference can arrive after the initial team list.
+            // Re-open required game presentation without starting another game or Council.
+            await EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync().ConfigureAwait(true);
             StartAutoSaveLoop();
             StartInitialModelRefresh();
             ScheduleDirectCouncilStarterDispatch();
@@ -558,7 +570,7 @@ namespace LocalGPT.Components.Pages
                 nameof(Chat),
                 "RefreshServiceBackedChatConfigurationOnOpen",
                 RefreshServiceBackedChatConfigurationAsync,
-                componentLifetimeCts.Token);
+                componentLifetimeToken);
 
             if (!isModelRefreshBusy)
             {
@@ -566,7 +578,7 @@ namespace LocalGPT.Components.Pages
                     nameof(Chat),
                     "RefreshProvidersOnChatConfigurationOpen",
                     cancellationToken => DiscoverAndApplyOllamaModelsAsync(showToast: false, cancellationToken),
-                    componentLifetimeCts.Token);
+                    componentLifetimeToken);
             }
         }
 
@@ -659,7 +671,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-        await DiscoverAndApplyOllamaModelsAsync(showToast: true, componentLifetimeCts.Token).ConfigureAwait(false);
+        await DiscoverAndApplyOllamaModelsAsync(showToast: true, componentLifetimeToken).ConfigureAwait(false);
     
         }
         catch (Exception __componentMethodException)
@@ -678,7 +690,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-        await DiscoverAndApplyOllamaModelsAsync(showToast, componentLifetimeCts.Token).ConfigureAwait(false);
+        await DiscoverAndApplyOllamaModelsAsync(showToast, componentLifetimeToken).ConfigureAwait(false);
     
         }
         catch (Exception __componentMethodException)
@@ -847,7 +859,7 @@ namespace LocalGPT.Components.Pages
                     return;
                 await InvokeAsync(AutoStartRequestedCouncilPromptAsync).ConfigureAwait(false);
             },
-            componentLifetimeCts.Token);
+            componentLifetimeToken);
     
         }
         catch (Exception __componentMethodException)

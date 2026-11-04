@@ -236,7 +236,25 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
+            // Do not create a fresh Council request on behalf of a disposed chat circuit.
+            if (isDisposed || componentLifetimeToken.IsCancellationRequested)
+                throw new OperationCanceledException(componentLifetimeToken);
             EnsureRequiredAsciiSurfaceState();
+            if (showGameConsole)
+            {
+                // A Council request factory can run outside the Blazor renderer. Updating the
+                // popup flag alone does not render the required game until the user clicks it.
+                TaskRunner.Run(nameof(Chat), "OpenRequiredAsciiCouncilSurface", async cancellationToken =>
+                {
+                    if (cancellationToken.IsCancellationRequested || isDisposed)
+                        return;
+                    await InvokeAsync(() =>
+                    {
+                        if (!isDisposed)
+                            StateHasChanged();
+                    }).ConfigureAwait(false);
+                }, componentLifetimeToken);
+            }
             SavePreparationConfiguration();
             var selectedModels = DiagnosticCouncilModelNames.Count > 0
             ? DiagnosticCouncilModelNames
@@ -303,11 +321,19 @@ namespace LocalGPT.Components.Pages
             ownsLiveCouncilStream = true;
             return request;
         }
+        catch (OperationCanceledException ex) when (isDisposed || componentLifetimeToken.IsCancellationRequested)
+        {
+            Logger.LogDebug(ex, "Council request preparation was canceled because the Chat circuit ended; no Council run was started.");
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "Exception");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            return new();
+            if (!isDisposed)
+                Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            // A fabricated empty request can silently select another team or model pool.
+            // CouncilChatClient handles a failed request factory without starting a run.
+            throw;
         }
 
     }

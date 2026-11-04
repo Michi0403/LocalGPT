@@ -26,7 +26,7 @@
     <DxFormLayoutItem ColSpanMd="12">
         <Template Context="formItemContext002">
         <div id="@elementId"
-         class="chat-game-console @(operatorMode ? "chat-game-console-operator" : conversationMode ? "chat-game-console-conversation" : snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
+         class="chat-game-console @(IsKernelTournament ? "chat-game-console-tournament" : string.Empty) @(operatorMode ? "chat-game-console-operator" : conversationMode ? "chat-game-console-conversation" : snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
          tabindex="0"
          data-localgpt-game-console
          data-localgpt-copyable="true"

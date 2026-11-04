@@ -90,7 +90,16 @@ public sealed partial class CouncilChatClient(
 
         var requestMessages = messages.ToList();
         var request = CreateRequest(requestMessages);
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null)
+        {
+            // A stale Blazor circuit can outlive the component that supplied requestFactory.
+            // Never turn this failed UI request into a null-argument exception or start a
+            // second Council run. The backend Council, if any, remains available for rejoin.
+            if (!cancellationToken.IsCancellationRequested)
+                yield return councilRuntime.CreateUpdate(
+                    "This Chat circuit could not prepare a Council request. Reconnect and rejoin the existing Council transcript; no new Council run was started.", logger);
+            yield break;
+        }
         if (request.ModelNames.Count == 0 && request.ModelSelections.Count == 0)
         {
             // A goal can start with no manually selected Council members. Resolve suitable
@@ -311,7 +320,8 @@ public sealed partial class CouncilChatClient(
         try
         {
             var request = CreateRequest(messages);
-            ArgumentNullException.ThrowIfNull(request);
+            if (request is null)
+                return "The Chat circuit could not prepare this Council request. Reconnect and rejoin any existing Council session; no new run was started.";
             if (request.UnavailableModelSelections.Count > 0)
                 return councilText.ProviderUnavailableRunNotice(request.UnavailableModelSelections, logger);
 
@@ -371,6 +381,12 @@ public sealed partial class CouncilChatClient(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             return request;
+        }
+        catch (OperationCanceledException ex)
+        {
+            // Cancellation during navigation or circuit disposal is not a provider error.
+            logger.LogDebug(ex, "Council request factory belongs to an expired Chat circuit; no Council run started.");
+            return null;
         }
         catch (Exception ex)
         {

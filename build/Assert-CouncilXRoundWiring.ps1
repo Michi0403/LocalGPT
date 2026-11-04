@@ -27,6 +27,17 @@ $required = @(
     @{ Path = 'src/LocalGPT/Components/Shared/UploadProcessingAdvisor.razor'; Tokens = @('Check local OCR availability', 'Run OCR on quarantined image', 'RecognizeWorkspaceImageAsync') }
     @{ Path = 'src/LocalGPT/Services/WorkspaceVisionOcrService.cs'; Tokens = @('normalizedRelative = "original/" + normalizedRelative;', 'segment is "." or ".."', 'FileAttributes.ReparsePoint', 'ResolveWorkspaceFile(workspaceRoot, normalizedRelative, logger)') }
     @{ Path = 'src/LocalGPT/Services/UploadProcessingRecommendationService.cs'; Tokens = @('if (imageOnly)', 'return await PersistAsync(fallback, cancellationToken).ConfigureAwait(false);', 'capability.StartsWith("localgpt.vision."', 'capability.EndsWith(".ocr"') }
+    # 6.8.5: source-level negative controls for missing Council transcript, ASCII lanes,
+    # game popup visibility, browser rejoin identity and tournament-only styling.
+    @{ Path = 'src/LocalGPT/Services/AsciiChatTextService.cs'; Tokens = @('messages.Count == 0 && participantActivities.Count == 0', 'AppendCouncilParticipantActivities(builder, participantActivities)') }
+    @{ Path = 'src/LocalGPT/Components/Pages/Chat.razor'; Tokens = @('<div class="chat-council-live-replay" role="region"', 'data-testid="chat-council-live-replay"', 'CouncilLiveSessions.GetTranscriptForDisplay(currentLiveCouncil.RunId)', 'LiveCouncilParticipantActivities(currentLiveCouncil.RunId)') }
+    @{ Path = 'src/LocalGPT/Components/Pages/Chat.razor.cs'; Tokens = @('During provider streaming the server-owned Council session is authoritative.', 'CouncilLiveSessions.GetSummary(activeRunId)?.IsRunning == true') }
+    @{ Path = 'src/LocalGPT/Components/Pages/Chat.ProviderRuntime.razor.cs'; Tokens = @('OpenRequiredAsciiCouncilSurface', 'InvokeAsync(() =>', 'EnsureRequiredAsciiSurfaceState();') }
+    @{ Path = 'src/LocalGPT/Components/Pages/Chat.Lifecycle.razor.cs'; Tokens = @('openedCouncilArchive = CouncilSpooler.GetSnapshot(rejoinRunId)') }
+    @{ Path = 'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs'; Tokens = @('openedCouncilArchive = CouncilSpooler.GetSnapshot(selectedRunId)') }
+    @{ Path = 'src/LocalGPT/Components/Shared/ChatGameConsole.razor'; Tokens = @('IsKernelTournament ? "chat-game-console-tournament"') }
+    @{ Path = 'src/LocalGPT/Components/Shared/ChatGameConsole.razor.css'; Tokens = @('.chat-game-console-tournament .chat-game-screen') }
+    @{ Path = 'src/LocalGPT/wwwroot/js/localgpt-reconnect.js'; Tokens = @('new MutationObserver(observeModal).observe(document.body, { childList: true });', 'sessionStorage.getItem(storageKey)') }
 
 
 )
@@ -45,7 +56,9 @@ foreach ($entry in $required) {
 # not a substitute for host-side verification of Blazor stream timeouts.
 $chatLifetimeSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.razor.cs'))
 foreach ($contract in @(
-    'if (isDisposed || componentLifetimeCts.IsCancellationRequested || !showGameConsole)',
+    'if (isDisposed || componentLifetimeToken.IsCancellationRequested || !showGameConsole)',
+    'componentLifetimeToken = componentLifetimeCts.Token;',
+    'var lifetimeToken = componentLifetimeToken;',
     'catch (ObjectDisposedException) when (isDisposed)',
     'Interlocked.Exchange(ref asciiMirrorLoopRunning, 0);',
     'if (!isDisposed && !cancellationToken.IsCancellationRequested && Volatile.Read(ref showGameConsole))'
@@ -54,9 +67,83 @@ foreach ($contract in @(
         $findings.Add('Chat.razor.cs: missing disposal-safe ASCII mirror contract: ' + $contract)
     }
 }
+# The Council/game lifetime token must be captured once while its source is alive.
+# This rejects a seemingly guarded .Token access that can still throw after circuit disposal.
+$chatPartials = @(Get-ChildItem -LiteralPath (Join-Path $root 'src/LocalGPT/Components/Pages') -File -Filter 'Chat*.cs')
+foreach ($partial in $chatPartials) {
+    $text = [IO.File]::ReadAllText($partial.FullName)
+    $withoutConstructor = $text.Replace('componentLifetimeToken = componentLifetimeCts.Token;', '')
+    if ($withoutConstructor.IndexOf('componentLifetimeCts.Token', [StringComparison]::Ordinal) -ge 0) {
+        $findings.Add($partial.Name + ': cancellation source Token is read after construction; use the cached componentLifetimeToken.')
+    }
+}
+$consoleStateSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Shared/ChatGameConsole.StateAndConversation.razor.cs'))
+$consoleWorkerSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Shared/ChatGameConsole.GameInteractionAndRender.razor.cs'))
+foreach ($contract in @(
+    'consoleRenderToken = consoleRenderCancellation.Token;',
+    'snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);',
+    'if (snapshot is not null && !operatorMode)',
+    'return candidate.CouncilRunId == councilRunId;',
+    'return councilGame;'
+)) {
+    if ($consoleStateSource.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+        $findings.Add('ChatGameConsole.StateAndConversation.razor.cs: missing game/circuit recovery contract: ' + $contract)
+    }
+}
+foreach ($contract in @(
+    'if (disposed)',
+    'consoleRenderToken.IsCancellationRequested',
+    'consoleRenderToken)'
+)) {
+    if ($consoleWorkerSource.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+        $findings.Add('ChatGameConsole.GameInteractionAndRender.razor.cs: missing disposed console worker contract: ' + $contract)
+    }
+}
+# Both initial mount and later run changes must reveal a prebootstrapped game.
+$gamePresentationCount = ([regex]::Matches($consoleStateSource,
+    'if \(snapshot is not null && !operatorMode\)\s*conversationMode = false;')).Count
+if ($gamePresentationCount -lt 2) {
+    $findings.Add('ChatGameConsole.StateAndConversation.razor.cs: both initial mount and later attachment must enter Game mode for a recovered game.')
+}
+if ($consoleWorkerSource.IndexOf('consoleRenderCancellation.Token', [StringComparison]::Ordinal) -ge 0) {
+    $findings.Add('ChatGameConsole.GameInteractionAndRender.razor.cs: disposed console source Token must not be read by callbacks.')
+}
+$providerRuntimeSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.ProviderRuntime.razor.cs'))
+if ($providerRuntimeSource.IndexOf('throw;', [StringComparison]::Ordinal) -lt 0 -or
+    $providerRuntimeSource.IndexOf('A fabricated empty request', [StringComparison]::Ordinal) -lt 0) {
+    $findings.Add('Chat.ProviderRuntime.razor.cs: broken Council request creation must fail closed, never create a default Council run.')
+}
+
 $chatSessionRenderingSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs'))
-if ($chatSessionRenderingSource.IndexOf('await Task.Delay(750, cancellationToken).ConfigureAwait(false);', [StringComparison]::Ordinal) -lt 0) {
-    $findings.Add('Chat.LiveCouncil.razor.cs: session list refresh must remain debounced during Council streaming.')
+# Inspect the session-list refresh owner, not an arbitrary Task.Delay in the file.
+# The current 1500 ms interval deliberately reduces background UI work; require a
+# bounded cancellable debounce instead of pinning one particular millisecond value.
+$sessionRefreshMethod = [regex]::Match($chatSessionRenderingSource,
+    '(?s)\bprivate\s+void\s+ScheduleLiveCouncilListRefresh\s*\(\s*\)\s*\{(?<body>.*?)\r?\n    \}')
+if (-not $sessionRefreshMethod.Success) {
+    $findings.Add('Chat.LiveCouncil.razor.cs: session list refresh owner could not be located.')
+}
+else {
+    $sessionRefreshBody = $sessionRefreshMethod.Groups['body'].Value
+    $sessionDebounce = [regex]::Match($sessionRefreshBody,
+        'await\s+Task\.Delay\(\s*(?<milliseconds>\d+)\s*,\s*cancellationToken\s*\)\.ConfigureAwait\(false\);')
+    $debounceMilliseconds = 0
+    if (-not $sessionDebounce.Success -or
+        -not [int]::TryParse($sessionDebounce.Groups['milliseconds'].Value, [ref]$debounceMilliseconds) -or
+        $debounceMilliseconds -lt 500 -or $debounceMilliseconds -gt 5000) {
+        $findings.Add('Chat.LiveCouncil.razor.cs: session list refresh requires a cancellable 500-5000 ms debounce during Council streaming.')
+    }
+    foreach ($contract in @(
+        'Interlocked.Exchange(ref liveCouncilListRefreshScheduled, 1)',
+        'Interlocked.Exchange(ref liveCouncilListRefreshScheduled, 0)',
+        'cancellationToken.IsCancellationRequested',
+        'componentLifetimeToken.IsCancellationRequested',
+        '!interactiveAttached'
+    )) {
+        if ($sessionRefreshBody.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+            $findings.Add('Chat.LiveCouncil.razor.cs: session refresh missing scheduling/disposal contract: ' + $contract)
+        }
+    }
 }
 
 # Server-owned Council runs must recover automatically when Blazor rejects a
@@ -228,6 +315,40 @@ foreach ($contract in @('serviceScopeFactory.CreateAsyncScope()', 'liveSessions.
         $findings.Add('CouncilChatClient.cs: background owner contract missing: ' + $contract)
     }
 }
+# 6.8.7: a disposed Chat circuit must not turn a request-factory cancellation
+# into ArgumentNullException or launch a second backend Council run.
+$clientRequestStart = $clientSource.IndexOf('var requestMessages = messages.ToList();', [StringComparison]::Ordinal)
+$clientRequestGuard = if ($clientRequestStart -ge 0) { $clientSource.IndexOf('if (request is null)', $clientRequestStart, [StringComparison]::Ordinal) } else { -1 }
+$clientPlanStart = if ($clientRequestStart -ge 0) { $clientSource.IndexOf('if (request.ModelNames.Count == 0', $clientRequestStart, [StringComparison]::Ordinal) } else { -1 }
+if ($clientRequestStart -lt 0 -or $clientRequestGuard -lt 0 -or $clientPlanStart -lt 0 -or $clientRequestGuard -ge $clientPlanStart) {
+    $findings.Add('CouncilChatClient.cs: reject a failed or disposed-circuit request before accessing model lists.')
+}
+$clientNonStreamingStart = $clientSource.IndexOf('private async Task<string> RunCouncilAsync', [StringComparison]::Ordinal)
+$clientNonStreamingGuard = if ($clientNonStreamingStart -ge 0) { $clientSource.IndexOf('if (request is null)', $clientNonStreamingStart, [StringComparison]::Ordinal) } else { -1 }
+$clientNonStreamingModels = if ($clientNonStreamingStart -ge 0) { $clientSource.IndexOf('request.UnavailableModelSelections.Count', $clientNonStreamingStart, [StringComparison]::Ordinal) } else { -1 }
+if ($clientNonStreamingStart -lt 0 -or $clientNonStreamingGuard -lt 0 -or $clientNonStreamingModels -lt 0 -or $clientNonStreamingGuard -ge $clientNonStreamingModels) {
+    $findings.Add('CouncilChatClient.cs: non-streaming Council must not dereference a missing request.')
+}
+$liveCouncilUi = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs'))
+$selectStart = $liveCouncilUi.IndexOf('private async Task SelectCouncilSessionAsync(', [StringComparison]::Ordinal)
+$selectEnd = if ($selectStart -ge 0) { $liveCouncilUi.IndexOf('private async Task OpenSelectedCouncilHistoryAsync(', $selectStart, [StringComparison]::Ordinal) } else { -1 }
+if ($selectStart -lt 0 -or $selectEnd -lt 0 -or $liveCouncilUi.Substring($selectStart, $selectEnd - $selectStart).IndexOf('await OpenSelectedCouncilHistoryAsync()', [StringComparison]::Ordinal) -lt 0) {
+    $findings.Add('Chat.LiveCouncil.razor.cs: selecting a Council run must automatically restore its transcript.')
+}
+$historyStart = $liveCouncilUi.IndexOf('private async Task OpenSelectedCouncilHistoryAsync(', [StringComparison]::Ordinal)
+$historyEnd = if ($historyStart -ge 0) { $liveCouncilUi.IndexOf('private void ToggleCouncilEvidenceStep(', $historyStart, [StringComparison]::Ordinal) } else { -1 }
+if ($historyStart -lt 0 -or $historyEnd -lt 0) {
+    $findings.Add('Chat.LiveCouncil.razor.cs: Council history attachment boundary is missing.')
+}
+else {
+    $history = $liveCouncilUi.Substring($historyStart, $historyEnd - $historyStart)
+    foreach ($contract in @('receipt is null && liveSnapshot is null', 'if (liveSnapshot is not null)', 'AttachToLiveCouncilSessionAsync(runId, reloadChatControl: true)')) {
+        if ($history.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+            $findings.Add('Chat.LiveCouncil.razor.cs: live Council rejoin must not depend on an existing spool checkpoint: ' + $contract)
+        }
+    }
+}
+
 $chatJsPath = Join-Path $root 'src/LocalGPT/wwwroot/js/localgpt-chat-ui.js'
 $chatJs = [IO.File]::ReadAllText($chatJsPath)
 $nativeStopStart = $chatJs.IndexOf("nativeStop.addEventListener('click'", [StringComparison]::Ordinal)

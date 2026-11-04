@@ -174,13 +174,21 @@ public partial class ChatGameConsole
     /// <summary>
     /// Stores whether asynchronous teardown has already started so duplicate renderer disposal calls remain harmless.
     /// </summary>
-    private bool disposed;
+    private volatile bool disposed;
     /// <summary>Marks that one or more shared-console events arrived since the previous bounded renderer refresh.</summary>
     private int consoleRenderPending;
     /// <summary>Ensures only one delayed shared-console renderer worker runs for this component.</summary>
     private int consoleRenderWorkerRunning;
     /// <summary>Cancels delayed console renderer work when this component is disposed.</summary>
     private readonly CancellationTokenSource consoleRenderCancellation = new();
+    /// <summary>Cached cancellation token safe to read after a circuit tears down its render worker.</summary>
+    private readonly CancellationToken consoleRenderToken;
+
+    /// <summary>Captures the console worker token before browser events can race renderer disposal.</summary>
+    public ChatGameConsole()
+    {
+        consoleRenderToken = consoleRenderCancellation.Token;
+    }
     /// <summary>Remembers the last game-input state sent to JavaScript so unrelated renders do not repeat interop calls.</summary>
     private bool? lastJsInputEnabled;
     /// <summary>Remembers the last scale mode sent to JavaScript so unrelated renders do not repeat interop calls.</summary>
@@ -385,21 +393,18 @@ public partial class ChatGameConsole
     {
         try
         {
-        if (ConversationId is Guid conversationId)
-        {
-            var conversationGame = await Games.GetActiveAsync(conversationId).ConfigureAwait(true);
-            if (conversationGame is not null)
-                return conversationGame;
-        }
-
         if (CouncilRunId is Guid councilRunId)
         {
             var councilGame = string.Equals(SuggestedTeamKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
                 ? await Games.GetActiveForCouncilRunAsync(councilRunId, "kernel-creature-tournament").ConfigureAwait(true)
                 : await Games.GetActiveForCouncilRunAsync(councilRunId).ConfigureAwait(true);
-            if (councilGame is not null)
-                return councilGame;
+            // A run-bound terminal must never attach a different game merely because
+            // both sessions once shared the same Chat conversation.
+            return councilGame;
         }
+
+        if (ConversationId is Guid conversationId)
+            return await Games.GetActiveAsync(conversationId).ConfigureAwait(true);
 
         return ConversationId is null && CouncilRunId is null
             ? await Games.GetActiveAsync(null).ConfigureAwait(true)
@@ -420,11 +425,11 @@ public partial class ChatGameConsole
     {
         try
         {
-        if (ConversationId is Guid conversationId && candidate.ConversationId == conversationId)
-            return true;
-        if (CouncilRunId is Guid councilRunId && candidate.CouncilRunId == councilRunId)
-            return true;
-        return ConversationId is null && CouncilRunId is null;
+        if (CouncilRunId is Guid councilRunId)
+            return candidate.CouncilRunId == councilRunId;
+        if (ConversationId is Guid conversationId)
+            return candidate.ConversationId == conversationId;
+        return true;
     
         }
         catch (Exception __componentMethodException)
@@ -450,6 +455,10 @@ public partial class ChatGameConsole
         if (availableShells.Count > 0 && !availableShells.Any(item => item.Shell == operatorShell))
             operatorShell = availableShells[0].Shell;
         snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);
+        // A prebootstrapped Council game may precede the terminal component's mount.
+        // Showing Chat by default in that case hides the running game's frame entirely.
+        if (snapshot is not null && !operatorMode)
+            conversationMode = false;
         await RefreshPlayableRevisionsAsync().ConfigureAwait(true);
         await ReportGameAvailabilityAsync().ConfigureAwait(true);
         await RefreshHotSeatRequestAsync().ConfigureAwait(true);
@@ -472,7 +481,11 @@ public partial class ChatGameConsole
         try
         {
         if (snapshot is null || !MatchesCurrentGameContext(snapshot))
+        {
             snapshot = await ResolveActiveGameAsync().ConfigureAwait(true);
+            if (snapshot is not null && !operatorMode)
+                conversationMode = false;
+        }
         await ReportGameAvailabilityAsync().ConfigureAwait(true);
 
         // Game/operator presentation does not need to rebuild the complete chat transcript for every streamed token.

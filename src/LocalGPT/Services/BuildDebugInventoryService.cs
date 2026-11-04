@@ -48,7 +48,13 @@ namespace LocalGPT.Services
                 if (captureRoot is not null)
                     Directory.CreateDirectory(captureRoot);
 
-                foreach (var item in EnumerateDebugFiles().OrderByDescending(item => item.File.LastWriteTimeUtc).Take(250))
+                // The recursive bin/obj scan is synchronous file-system work. Never run it on the caller's
+                // (possibly Blazor renderer) thread, and let a canceled chat request stop it.
+                var debugFiles = await Task.Run(
+                    () => EnumerateDebugFiles(cancellationToken).OrderByDescending(item => item.File.LastWriteTimeUtc).Take(250).ToList(),
+                    cancellationToken).ConfigureAwait(false);
+
+                foreach (var item in debugFiles)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -140,13 +146,15 @@ namespace LocalGPT.Services
         /// <summary>
         /// Performs enumerate debug files as part of the build debug inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that stops the recursive scan when the owning chat request is canceled.</param>
         /// <returns>The collection produced by the operation.</returns>
-        private IEnumerable<(FileInfo File, string SourceArea)> EnumerateDebugFiles()
+        private IEnumerable<(FileInfo File, string SourceArea)> EnumerateDebugFiles(CancellationToken cancellationToken)
         {
             try
             {
                 foreach (var target in councilRuntime.GetSearchRoots(logger))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!Directory.Exists(target.Path))
                         continue;
 
@@ -154,8 +162,16 @@ namespace LocalGPT.Services
                     try
                     {
                         files = Directory.EnumerateFiles(target.Path, "*.*", SearchOption.AllDirectories)
-                            .Where(path => catalog.DebugExtensions.Contains(Path.GetExtension(path)))
+                            .Where(path =>
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                return catalog.DebugExtensions.Contains(Path.GetExtension(path));
+                            })
                             .ToList();
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -165,6 +181,7 @@ namespace LocalGPT.Services
 
                     foreach (var file in files)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         FileInfo info;
                         try
                         {

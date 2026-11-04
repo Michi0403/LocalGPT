@@ -23,7 +23,7 @@
     function readRunId() {
         try {
             const fromUrl = new URL(location.href).searchParams.get('rejoinCouncilRunId') || '';
-            const value = confirmedRunId || (guidPattern.test(fromUrl) ? fromUrl : '') || sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey) || '';
+            const value = confirmedRunId || (guidPattern.test(fromUrl) ? fromUrl : '') || sessionStorage.getItem(storageKey) || '';
             return guidPattern.test(value) ? value : '';
         } catch (error) {
             report('readRunId', error);
@@ -58,11 +58,9 @@
             const normalized = String(value || '').trim();
             if (!guidPattern.test(normalized)) {
                 sessionStorage.removeItem(storageKey);
-                localStorage.removeItem(storageKey);
                 return;
             }
             sessionStorage.setItem(storageKey, normalized);
-            localStorage.setItem(storageKey, normalized);
         } catch (error) {
             report('writeRunId', error);
         }
@@ -345,7 +343,10 @@
       try {
                 clearBackForwardCacheMarker();
                 observeModal();
-                new MutationObserver(observeModal).observe(document.documentElement, { childList: true, subtree: true });
+                // The reconnect modal is a direct body child, and its buttons use delegated
+                // clicks. Observing the entire document subtree here inspected every live
+                // Council token/DevExpress render and amplified main-thread contention.
+                new MutationObserver(observeModal).observe(document.body, { childList: true });
 
                 // Capture-phase delegation keeps the recovery controls browser-owned and clickable even when
                 // the Blazor circuit is dead or a reconnect render replaced the modal's descendants.

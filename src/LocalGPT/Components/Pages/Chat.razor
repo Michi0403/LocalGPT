@@ -606,6 +606,41 @@
                 </BodyContentTemplate>
             </DxPopup>
         }
+        @if (ActiveLiveCouncilSession is { } currentLiveCouncil)
+        {
+            // This panel is independent of DevExpress' cached message content template. It
+            // remains current when its marker message stops being rerendered during long runs.
+            var liveTranscript = CouncilLiveSessions.GetTranscriptForDisplay(currentLiveCouncil.RunId);
+            var liveActivities = LiveCouncilParticipantActivities(currentLiveCouncil.RunId);
+            <div class="chat-council-live-replay" role="region" aria-label="Live Council transcript and function activity" data-testid="chat-council-live-replay">
+                <header>
+                    <strong>Live Council · @ShortCouncilRunId(currentLiveCouncil.RunId)</strong>
+                    <span>@currentLiveCouncil.StatusMessage · @liveActivities.Count participant lanes</span>
+                </header>
+                @if (!string.IsNullOrWhiteSpace(liveTranscript))
+                {
+                    <pre class="chat-council-live-transcript" aria-label="Ordered live Council transcript">@liveTranscript</pre>
+                }
+                else
+                {
+                    <p>Council is running. Waiting for the first provider response or function result…</p>
+                }
+                @foreach (var activity in liveActivities)
+                {
+                    <details @key="activity.ActivityKey" class="chat-council-live-member" open="@activity.IsRunning">
+                        <summary>@activity.Role · @activity.ModelName · @activity.StatusMessage</summary>
+                        @if (!string.IsNullOrWhiteSpace(activity.Content))
+                        {
+                            <pre>@activity.Content</pre>
+                        }
+                        @if (!activity.IsRunning && !string.IsNullOrWhiteSpace(activity.FinalContent))
+                        {
+                            <pre>@activity.FinalContent</pre>
+                        }
+                    </details>
+                }
+            </div>
+        }
         @if (RunningLiveCouncilSessions.Count > 0 && ActiveLiveCouncilSession is null)
         {
             var newestLiveSession = RunningLiveCouncilSessions[0];
@@ -623,6 +658,10 @@
                 <summary>Saved Council transcript · @ShortCouncilRunId(archive.RunId) · @archive.Status · @archive.Phase</summary>
                 <div class="chat-council-history-content">
                     <p>Evidence from this exact backend run, including completed steps and failure details.</p>
+                    @if (!string.IsNullOrWhiteSpace(archive.Prompt))
+                    {
+                        <details><summary>Original Council request (full text)</summary><pre>@archive.Prompt</pre></details>
+                    }
                     @if (!string.IsNullOrWhiteSpace(archive.FinalAnswer))
                     {
                         <details open><summary>Final Council answer</summary><pre>@archive.FinalAnswer</pre></details>
@@ -728,11 +767,18 @@
                     <div class="demo-chat-content" data-localgpt-details-host data-localgpt-copyable="true">
                         @(new MarkupString(ChatContentRenderer.Render(
                             liveCouncilMessage is not null
-                                ? LiveCouncilTranscript(liveCouncilMessage.RunId, messageContext.Content)
+                                ? (liveCouncilMessage.IsRunning
+                                    ? "Council is running. The live transcript, participant responses and function activity are displayed in the independent Council feed above."
+                                    : LiveCouncilTranscript(liveCouncilMessage.RunId, messageContext.Content))
                                 : messageContext.Content)))
                         @if (liveCouncilMessage is not null)
                         {
-                            var participantActivities = LiveCouncilParticipantActivities(liveCouncilMessage.RunId);
+                            // The running feed above renders bounded raw activity without repeatedly
+                            // Markdown-rendering all 14 participant lanes inside DevExpress' cached template.
+                            // Finished runs retain their original detailed inspection controls here.
+                            IReadOnlyList<CouncilLiveParticipantActivitySnapshot> participantActivities = liveCouncilMessage.IsRunning
+                                ? Array.Empty<CouncilLiveParticipantActivitySnapshot>()
+                                : LiveCouncilParticipantActivities(liveCouncilMessage.RunId);
                             @if (participantActivities.Count > 0)
                             {
                                 <DxFormLayout CssClass="razor-section-layout-owner">

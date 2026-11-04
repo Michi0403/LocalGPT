@@ -1099,3 +1099,24 @@ dxbl-popup-root > dxbl-popup-cell > dxbl-modal dxbl-modal-dialog.dxbl-popup:has(
         grid-template-rows: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* 6.8.5: fill the actual modal chain when the ASCII surface owns browser fullscreen. */
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen > dxbl-popup-cell,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen dxbl-modal,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen dxbl-modal-dialog:has(.chat-game-popup-body),
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen dxbl-modal-dialog:has(.chat-game-popup-body) > .dxbl-modal-content,
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen dxbl-modal-dialog:has(.chat-game-popup-body) .dxbl-modal-body {
+    box-sizing:border-box !important;
+    width:100vw !important;
+    height:100dvh !important;
+    max-width:none !important;
+    max-height:none !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow:hidden !important;
+}
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen dxbl-modal-dialog:has(.chat-game-popup-body) > .dxbl-modal-content { display:flex !important; flex-direction:column !important; }
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen dxbl-modal-dialog:has(.chat-game-popup-body) .dxbl-modal-body { flex:1 1 auto !important; height:auto !important; }
+dxbl-popup-root.localgpt-game-fullscreen-host:fullscreen .chat-game-popup-body { display:grid !important; grid-template-rows:auto minmax(0,1fr) !important; }

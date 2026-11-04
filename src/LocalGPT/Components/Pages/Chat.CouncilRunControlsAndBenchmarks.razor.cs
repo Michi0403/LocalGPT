@@ -332,7 +332,7 @@ namespace LocalGPT.Components.Pages
                     LoadCouncilRunConfiguration(runId);
                     StateHasChanged();
                 }),
-                componentLifetimeCts.Token);
+                componentLifetimeToken);
         }
         catch (ObjectDisposedException) when (isDisposed)
         {
@@ -675,7 +675,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-        await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
+        await LoadHardwarePerformancePresetsAsync(componentLifetimeToken).ConfigureAwait(false);
         modelStatus = $"Benchmark saved hardware performance preset '{preset.Name}'. Select it in Hardware spooler to apply it without changing Council membership.";
     
         }

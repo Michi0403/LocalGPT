@@ -174,27 +174,50 @@ if ($catalog -match 'static\s+(?:readonly\s+)?HashSet<') {
     $errors.Add('LocalGptCatalogService must not expose mutable static HashSet state.')
 }
 
-foreach ($component in @(
-    'Components/Layout/HumanCollaborationInbox.razor',
-    'Components/Routes.razor',
-    'Components/Pages/Chat.razor')) {
-    $path = Join-Path $sourceRoot $component
-    $text = Get-Content -LiteralPath $path -Raw
-    foreach ($token in @(
-        '@inject ISupervisedTaskRunner TaskRunner',
-        'CancellationTokenSource',
-        'isDisposed',
-        'catch (ObjectDisposedException) when (isDisposed)')) {
-        if (-not ($text.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
-            $errors.Add("$component must retain supervised lifetime token '$token'.")
-        }
+# Match each lifecycle boundary to the component that actually owns the worker.
+# Routes only owns a synchronous location event; a cancellation source there would be
+# meaningless. Chat's worker moved into typed Razor partials, not the markup file.
+$humanInbox = Get-Content -LiteralPath (Join-Path $sourceRoot 'Components/Layout/HumanCollaborationInbox.razor') -Raw
+foreach ($token in @(
+    '@inject ISupervisedTaskRunner TaskRunner',
+    'CancellationTokenSource',
+    'isDisposed',
+    'catch (ObjectDisposedException) when (isDisposed)'
+)) {
+    if ($humanInbox.IndexOf($token, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("HumanCollaborationInbox.razor must retain supervised lifetime contract '$token'.")
     }
 }
-
-$chatPath = Join-Path $sourceRoot 'Components/Pages/Chat.razor'
-$chat = Get-Content -LiteralPath $chatPath -Raw
-if (-not ($chat.IndexOf('CancellationTokenSource.CreateLinkedTokenSource(componentLifetimeCts.Token)', [StringComparison]::Ordinal) -ge 0)) {
-    $errors.Add('Chat autosave must remain linked to the owning component lifetime token.')
+$routesSource = Get-Content -LiteralPath (Join-Path $sourceRoot 'Components/Routes.razor') -Raw
+foreach ($token in @('NavigationManager.LocationChanged += HandleLocationChanged',
+                    'NavigationManager.LocationChanged -= HandleLocationChanged', 'if (isDisposed)')) {
+    if ($routesSource.IndexOf($token, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("Routes.razor must retain its synchronous event disposal contract '$token'.")
+    }
+}
+$chatRazor = Get-Content -LiteralPath (Join-Path $sourceRoot 'Components/Pages/Chat.razor') -Raw
+$chatCodeBehind = Get-Content -LiteralPath (Join-Path $sourceRoot 'Components/Pages/Chat.razor.cs') -Raw
+$chatAutosave = Get-Content -LiteralPath (Join-Path $sourceRoot 'Components/Pages/Chat.PersistenceAndMemory.razor.cs') -Raw
+foreach ($token in @('@inject ISupervisedTaskRunner TaskRunner')) {
+    if ($chatRazor.IndexOf($token, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("Chat.razor is missing '$token'.")
+    }
+}
+foreach ($token in @('readonly CancellationTokenSource componentLifetimeCts',
+                    'componentLifetimeToken = componentLifetimeCts.Token;',
+                    'componentLifetimeCts.Cancel();',
+                    'componentLifetimeCts.Dispose();',
+                    'if (isDisposed || componentLifetimeToken.IsCancellationRequested')) {
+    $combinedChat = $chatCodeBehind + $chatAutosave +
+        (Get-Content -LiteralPath (Join-Path $sourceRoot 'Components/Pages/Chat.LiveCouncil.razor.cs') -Raw)
+    if ($combinedChat.IndexOf($token, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("Chat lifecycle partials must retain '$token'.")
+    }
+}
+foreach ($token in @('"AutoSaveLoop"', 'AutoSaveLoopAsync,', 'componentLifetimeToken);')) {
+    if ($chatAutosave.IndexOf($token, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("Chat autosave must remain supervised and linked to its owning component lifetime: missing '$token'.")
+    }
 }
 
 if ($errors.Count -gt 0) {

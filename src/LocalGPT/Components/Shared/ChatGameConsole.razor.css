@@ -865,3 +865,40 @@
         flex: 1 1 10rem;
     }
 }
+
+/* 6.8.5: VGA-era tournament presentation; classic ASCII/green remains for all other games. */
+.chat-game-console-tournament {
+    --tournament-cyan: #50eaff;
+    --tournament-pink: #ff70da;
+    --tournament-yellow: #ffea6a;
+    background: #030a22;
+    border-color: var(--tournament-cyan);
+    border-radius: .3rem;
+    box-shadow: inset 0 0 0 1px #35449c, 0 0 1.1rem rgba(55, 75, 225, .25);
+}
+.chat-game-console-tournament .chat-game-console-header {
+    background: linear-gradient(90deg, #122b85, #631c7b 65%, #0e4972);
+    color: #fcfcff;
+    border-bottom: 2px solid var(--tournament-pink);
+    text-shadow: 1px 1px #09103a;
+}
+.chat-game-console-tournament .chat-game-console-footer {
+    background: #182b74;
+    color: #f7f3ac;
+    border-top: 2px solid var(--tournament-cyan);
+}
+.chat-game-console-tournament .chat-game-stage,
+.chat-game-console-tournament .chat-game-screen-viewport {
+    background: #020818;
+}
+.chat-game-console-tournament .chat-game-screen {
+    color: #c5edff;
+    background: #020818;
+    text-shadow: 0 0 .3rem rgba(64, 180, 255, .25);
+}
+.chat-game-console-tournament .chat-game-animation-subtitle {
+    color: var(--tournament-yellow);
+    border-color: var(--tournament-pink);
+    background: rgba(10, 14, 55, .94);
+    text-shadow: 0 0 .4rem #29439d;
+}

@@ -647,22 +647,14 @@ internal static class Program
 
             var targetPath = Path.Combine(localAppData, "LocalGPT");
 
-            // Force refresh of application binaries must never erase the user database,
-            // MFA material, certificates, learning assets or the persistent setup log.
-            // The explicit --uninstall command remains the separate destructive workflow.
-            if (options.ForceDelete)
-            {
-                DeleteIfExists(Path.Combine(targetPath, "winx64"), logger);
-                DeleteIfExists(Path.Combine(targetPath, "setupwinx64"), logger);
-            }
-
+            // Download and validate BOTH ZIPs before touching either installed payload.
+            // --force-delete never deletes the per-user LocalGPT root or database.
             Directory.CreateDirectory(targetPath);
-
-            logger.LogInformation($"Extracting LocalGPT app '{zipPath}' to '{targetPath}' canonical winx64 directory");
-            InstallPortableReleaseAsset(zipPath, targetPath, "winx64", "LocalGPT.exe", logger);
-
+            // Prevent two setup processes from interleaving canonical directory swaps.
+            using var deploymentLock = new FileStream(
+                Path.Combine(targetPath, ".localgpt-deployment.lock"),
+                FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
             var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
-
             await DownloadLatestReleaseAssetAsync(
                 typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug,
                 setupZipPath,
@@ -670,18 +662,26 @@ internal static class Program
                 options,
                 setupAsset: true).ConfigureAwait(false);
 
-            logger.LogInformation($"Extracting LocalGPT setup/bootstrap '{setupZipPath}' to '{targetPath}' canonical setupwinx64 directory");
-            InstallPortableReleaseAsset(setupZipPath, targetPath, "setupwinx64", "Start.cmd", logger);
+            StagedPortableReleaseAsset? appStage = null;
+            StagedPortableReleaseAsset? setupStage = null;
+            try
+            {
+                appStage = PreparePortableReleaseAsset(zipPath, targetPath, "winx64", "LocalGPT.exe", logger);
+                setupStage = PreparePortableReleaseAsset(setupZipPath, targetPath, "setupwinx64", "Start.cmd", logger);
+                CommitPortableReleaseAssets(targetPath, appStage, setupStage, logger);
+            }
+            finally
+            {
+                if (appStage is not null)
+                    RemoveInstallerOwnedTemporaryDirectory(appStage.StageRoot, logger);
+                if (setupStage is not null)
+                    RemoveInstallerOwnedTemporaryDirectory(setupStage.StageRoot, logger);
+            }
 
-            // Missing canonical files are a failed installation, never an installation success.
-            if (!File.Exists(Path.Combine(targetPath, "winx64", "LocalGPT.exe"))
-                || !File.Exists(Path.Combine(targetPath, "setupwinx64", "Start.cmd")))
-                throw new InvalidDataException("Installed LocalGPT layout is incomplete; refusing to provision shortcuts or report success.");
-
-            // After verifying both new canonical payloads, isolate the exact legacy
-            // release-wrapper directories left by earlier installers. Never sweep
-            // arbitrary data folders or erase anything that could contain user edits.
-            RecoverLegacyVersionedInstallFolders(targetPath, logger);
+            // Cleanup only after both canonical assets are activated and verified.
+            // Unlike the old implementation, exact obsolete generated wrappers are
+            // actually deleted, including wrappers quarantined by previous releases.
+            RemoveLegacyVersionedInstallFolders(targetPath, logger);
 
             logger.LogDebug($"LocalGPT installed to '{targetPath}'.");
             logger.LogInformation($"LocalGPT app and setup/bootstrap files now reside in '{targetPath}'.");
@@ -697,23 +697,28 @@ internal static class Program
         }
     }
 
+    /// <summary>Represents one validated release payload staged under the installation root.</summary>
+    /// <param name="StageRoot">Installer-owned temporary directory that may be deleted after installation.</param>
+    /// <param name="PayloadRoot">Normalized root containing the required launch file.</param>
+    /// <param name="CanonicalFolder">Canonical destination directory name.</param>
+    /// <param name="RequiredFile">Expected root-level executable or script.</param>
+    private sealed record StagedPortableReleaseAsset(string StageRoot, string PayloadRoot, string CanonicalFolder, string RequiredFile);
+
     /// <summary>
-    /// Installs a versioned or legacy-flat release ZIP into the canonical, stable payload directory.
-    /// The release archiver may wrap files in a versioned top-level folder; this packaging
-    /// detail must never become an installation path or a shortcut target.
+    /// Validates and stages a versioned or flat release archive without modifying the
+    /// existing canonical installation. Both app and bootstrap are staged first.
     /// </summary>
-    /// <param name="zipPath">The already-downloaded application or setup archive.</param>
-    /// <param name="installRoot">The per-user LocalGPT data directory.</param>
-    /// <param name="canonicalFolder">The stable runtime folder name (winx64 or setupwinx64).</param>
-    /// <param name="requiredFile">A file required immediately within the runtime folder.</param>
+    /// <param name="zipPath">Already-downloaded archive.</param>
+    /// <param name="installRoot">Per-user installation root.</param>
+    /// <param name="canonicalFolder">Stable binary directory.</param>
+    /// <param name="requiredFile">Root-level payload marker.</param>
     /// <param name="logger">Installer diagnostics.</param>
-    private static void InstallPortableReleaseAsset(string zipPath, string installRoot, string canonicalFolder, string requiredFile, ILogger logger)
+    /// <returns>The validated staged payload.</returns>
+    private static StagedPortableReleaseAsset PreparePortableReleaseAsset(string zipPath, string installRoot, string canonicalFolder, string requiredFile, ILogger logger)
     {
         if (canonicalFolder is not ("winx64" or "setupwinx64"))
             throw new ArgumentOutOfRangeException(nameof(canonicalFolder), "Unknown canonical Windows payload folder.");
 
-        // Validate all entries BEFORE extraction, including ZIP traversal and symlink entries.
-        // Reject mixed archive layouts rather than accidentally deploying an unexpected root.
         string? wrapper = null;
         using (var archive = ZipFile.OpenRead(zipPath))
         {
@@ -742,89 +747,259 @@ internal static class Program
 
             var expectedArchiveFile = wrapper is null ? requiredFile : $"{wrapper}/{requiredFile}";
             if (!entries.Any(entry => entry.FullName.Replace('\\', '/').Equals(expectedArchiveFile, StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidDataException($"LocalGPT release archive lacks the root-level {requiredFile} payload; expected entry '{expectedArchiveFile}'.");
-            logger.LogInformation("Validated {Count} release files; archive wrapper={Wrapper}; destination={Destination}.", entries.Length, wrapper ?? "(flat)", canonicalFolder);
+                throw new InvalidDataException($"LocalGPT release archive lacks root-level {requiredFile}; expected '{expectedArchiveFile}'.");
+            logger.LogInformation("Validated {Count} release entries; wrapper={Wrapper}; destination={Destination}.",
+                entries.Length, wrapper ?? "(flat)", canonicalFolder);
         }
 
-        var stage = Path.Combine(installRoot, $".localgpt-install-{Guid.NewGuid():N}");
+        var stage = Path.Combine(installRoot, $".localgpt-stage-{Guid.NewGuid():N}");
         try
         {
-            ExtractZipWithFallback(zipPath, stage, logger);
-            var source = wrapper is null ? stage : Path.Combine(stage, wrapper);
+            var extractRoot = Path.Combine(stage, "extracted");
+            ExtractZipWithFallback(zipPath, extractRoot, logger);
+            var source = wrapper is null ? extractRoot : Path.Combine(extractRoot, wrapper);
             if (!File.Exists(Path.Combine(source, requiredFile)))
-                throw new InvalidDataException($"LocalGPT release extraction did not produce {requiredFile} in its validated payload root.");
-            var target = Path.Combine(installRoot, canonicalFolder);
-            Directory.CreateDirectory(target);
-            CopyReleasePayload(source, target);
-            if (!File.Exists(Path.Combine(target, requiredFile)))
-                throw new InvalidDataException($"LocalGPT release deployment failed: {requiredFile} missing from {target}.");
-            logger.LogInformation("Installed LocalGPT payload at canonical directory: {Destination}", target);
+                throw new InvalidDataException($"Staged LocalGPT release lacks {requiredFile} in its normalized root.");
+            return new StagedPortableReleaseAsset(stage, source, canonicalFolder, requiredFile);
         }
-        finally
+        catch
         {
-            if (Directory.Exists(stage))
-                Directory.Delete(stage, recursive: true);
+            RemoveInstallerOwnedTemporaryDirectory(stage, logger);
+            throw;
         }
     }
 
     /// <summary>
-    /// Removes old installer-generated, version-bearing payload folders from the user-data
-    /// root by safely moving them into an isolated recovery area after BOTH canonical
-    /// payloads are installed. Preserves every byte; users can inspect old contents
-    /// before deleting the recovery directory. Never searches recursively.
+    /// Commits both validated payloads using directory moves on the same volume.
+    /// If either activation fails, the old installations are restored. Never touches
+    /// the database, Council logs, user projects or the rest of the AppData root.
     /// </summary>
-    /// <param name="installRoot">Canonical LocalGPT user-data directory.</param>
+    /// <param name="installRoot">Per-user installation root.</param>
+    /// <param name="application">Validated app payload.</param>
+    /// <param name="setup">Validated bootstrap payload.</param>
     /// <param name="logger">Installer diagnostics.</param>
-    private static void RecoverLegacyVersionedInstallFolders(string installRoot, ILogger logger)
+    private static void CommitPortableReleaseAssets(string installRoot, StagedPortableReleaseAsset application,
+        StagedPortableReleaseAsset setup, ILogger logger)
+    {
+        var rollbackRoot = Path.Combine(installRoot, $".localgpt-rollback-{Guid.NewGuid():N}");
+        var activated = new List<string>();
+        var previous = new List<(string Target, string Backup)>();
+        var restored = false;
+        var committed = false;
+        Directory.CreateDirectory(rollbackRoot);
+        try
+        {
+            foreach (var asset in new[] { application, setup })
+            {
+                var target = Path.Combine(installRoot, asset.CanonicalFolder);
+                if (Directory.Exists(target))
+                {
+                    if ((File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0)
+                        throw new InvalidDataException($"Canonical installation folder is a link: {target}");
+                    var backup = Path.Combine(rollbackRoot, asset.CanonicalFolder);
+                    Directory.Move(target, backup);
+                    previous.Add((target, backup));
+                }
+                Directory.Move(asset.PayloadRoot, target);
+                activated.Add(target);
+                if (!File.Exists(Path.Combine(target, asset.RequiredFile)))
+                    throw new InvalidDataException($"Canonical installation is incomplete: {target}");
+            }
+            if (!File.Exists(Path.Combine(installRoot, "winx64", "LocalGPT.exe"))
+                || !File.Exists(Path.Combine(installRoot, "setupwinx64", "Start.cmd")))
+                throw new InvalidDataException("Both canonical payloads must be available before installation succeeds.");
+            committed = true;
+            logger.LogInformation("Atomically deployed LocalGPT to {Application} and {Setup}.",
+                Path.Combine(installRoot, "winx64"), Path.Combine(installRoot, "setupwinx64"));
+        }
+        catch (Exception commitException)
+        {
+            var rollbackFailed = false;
+            foreach (var target in activated.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    if (Directory.Exists(target))
+                        Directory.Move(target, Path.Combine(rollbackRoot, "failed-" + Path.GetFileName(target)));
+                }
+                catch (Exception rollbackException)
+                {
+                    rollbackFailed = true;
+                    logger.LogCritical(rollbackException, "Unable to evacuate failed new LocalGPT payload {Target}.", target);
+                }
+            }
+            foreach (var old in previous.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    if (Directory.Exists(old.Backup))
+                        Directory.Move(old.Backup, old.Target);
+                }
+                catch (Exception rollbackException)
+                {
+                    rollbackFailed = true;
+                    logger.LogCritical(rollbackException,
+                        "Unable to restore previous LocalGPT installation {Target}; preserved at {Backup}.", old.Target, old.Backup);
+                }
+            }
+            restored = !rollbackFailed;
+            if (rollbackFailed)
+                throw new IOException($"LocalGPT installation failed and rollback was incomplete. Inspect {rollbackRoot}; user data was not touched.", commitException);
+            throw;
+        }
+        finally
+        {
+            if (committed || restored)
+                RemoveInstallerOwnedTemporaryDirectory(rollbackRoot, logger);
+            else
+                logger.LogWarning("Retaining installer rollback evidence in {RollbackRoot} after incomplete rollback.", rollbackRoot);
+        }
+    }
+
+    /// <summary>Removes only a uniquely named, installer-owned staging or rollback folder.</summary>
+    /// <param name="directory">Temporary directory.</param>
+    /// <param name="logger">Installer diagnostics.</param>
+    private static void RemoveInstallerOwnedTemporaryDirectory(string directory, ILogger logger)
+    {
+        var name = Path.GetFileName(directory);
+        if (!name.StartsWith(".localgpt-stage-", StringComparison.OrdinalIgnoreCase)
+            && !name.StartsWith(".localgpt-rollback-", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Refusing to remove a directory not owned by the installer.", nameof(directory));
+        try
+        {
+            if (Directory.Exists(directory) && (File.GetAttributes(directory) & FileAttributes.ReparsePoint) == 0)
+                Directory.Delete(directory, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Could not clean up installer temporary directory {Directory}.", directory);
+        }
+    }
+
+    /// <summary>
+    /// Deletes obsolete generated release ZIP wrappers after BOTH canonical payloads
+    /// have been installed. Also cleans the former recovery quarantine. This is an
+    /// explicit cleanup of known installer debris, never a general AppData sweep.
+    /// </summary>
+    /// <param name="installRoot">Canonical LocalGPT per-user directory.</param>
+    /// <param name="logger">Installer diagnostics.</param>
+    private static void RemoveLegacyVersionedInstallFolders(string installRoot, ILogger logger)
     {
         if (!File.Exists(Path.Combine(installRoot, "winx64", "LocalGPT.exe")) ||
             !File.Exists(Path.Combine(installRoot, "setupwinx64", "Start.cmd")))
-            throw new InvalidOperationException("Cannot repair legacy installer folders before both canonical applications have been verified.");
+            throw new InvalidOperationException("Cannot delete old version folders before the two canonical payloads are installed.");
 
-        // The known broken installer left e.g. LocalGPT-6.4.1-win-x64 and
-        // LocalGPT-Setup-6.4.1-win-x64 in the SAME directory as persistent data.
-        // Check only direct children and require the expected root executable.
-        // Treat the old directory as evidence: move it rather than deleting it.
-        foreach (var legacyPath in Directory.EnumerateDirectories(installRoot, "*", SearchOption.TopDirectoryOnly))
+        RemoveKnownLegacyFoldersInDirectory(installRoot, logger);
+        var previousRecovery = Path.Combine(installRoot, "runtime", "recovered-installer-payloads");
+        if (Directory.Exists(previousRecovery) &&
+            (File.GetAttributes(previousRecovery) & FileAttributes.ReparsePoint) == 0)
+        {
+            RemoveKnownLegacyFoldersInDirectory(previousRecovery, logger);
+            try
+            {
+                if (!Directory.EnumerateFileSystemEntries(previousRecovery).Any())
+                    Directory.Delete(previousRecovery);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Could not remove the now-empty former installer quarantine {Directory}.", previousRecovery);
+            }
+        }
+    }
+
+    /// <summary>Deletes exact generated wrapper folders without traversing unrelated user-data directories.</summary>
+    /// <param name="parent">Root directory containing possible obsolete release folders.</param>
+    /// <param name="logger">Installer diagnostics.</param>
+    private static void RemoveKnownLegacyFoldersInDirectory(string parent, ILogger logger)
+    {
+        foreach (var legacyPath in Directory.EnumerateDirectories(parent, "*", SearchOption.TopDirectoryOnly))
         {
             var name = Path.GetFileName(legacyPath);
             if (!TryIdentifyLegacyReleaseWrapper(name, out var requiredFile))
                 continue;
-
             try
             {
-                if ((File.GetAttributes(legacyPath) & FileAttributes.ReparsePoint) != 0 ||
-                    !File.Exists(Path.Combine(legacyPath, requiredFile)))
+                if ((File.GetAttributes(legacyPath) & FileAttributes.ReparsePoint) != 0)
                 {
-                    logger.LogWarning("Legacy release folder {Folder} has no expected payload or is a reparse point; preserving it for manual review.", legacyPath);
+                    logger.LogWarning("Refusing to delete linked legacy folder {Folder}.", legacyPath);
                     continue;
                 }
-
-                var recoveryRoot = Path.Combine(installRoot, "runtime", "recovered-installer-payloads");
-                Directory.CreateDirectory(recoveryRoot);
-                var recoveryPath = Path.Combine(recoveryRoot, name);
-                if (Directory.Exists(recoveryPath) || File.Exists(recoveryPath))
-                    recoveryPath = Path.Combine(recoveryRoot, $"{name}-{Guid.NewGuid():N}");
-
-                Directory.Move(legacyPath, recoveryPath);
-                logger.LogWarning("Recovered obsolete LocalGPT release folder {OldFolder} to {RecoveryFolder}. Canonical application and setup were verified; the original contents were preserved for manual review.", legacyPath, recoveryPath);
+                if (!IsKnownReleasePayloadFolder(legacyPath, requiredFile, logger))
+                {
+                    logger.LogWarning("Versioned folder {Folder} contains unknown or persistent content; preserving it for manual inspection.", legacyPath);
+                    continue;
+                }
+                Directory.Delete(legacyPath, recursive: true);
+                logger.LogWarning("Deleted obsolete installer-generated release folder {Folder} after verifying both canonical payloads.", legacyPath);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // A running old application may lock an executable. Installation is
-                // otherwise valid; log the skipped cleanup instead of hiding it.
-                logger.LogWarning(ex, "Unable to isolate old LocalGPT release folder {Folder}; the canonical installation remains intact.", legacyPath);
+                logger.LogWarning(ex, "Unable to delete old LocalGPT installer folder {Folder}; the canonical installation remains intact.", legacyPath);
             }
         }
     }
 
-    /// <summary>
-    /// Recognizes ONLY the obsolete versioned ZIP root layouts generated by
-    /// maintained releases. Names and payload markers must both match.
-    /// </summary>
-    /// <param name="folderName">A direct child folder name under LocalGPT user data.</param>
-    /// <param name="requiredFile">The marker executable expected inside that folder.</param>
-    /// <returns>True for an exact generated release wrapper with a three-part version.</returns>
+    /// <summary>Recognizes old binary payloads, including incomplete ones, while protecting user-owned data.</summary>
+    /// <param name="path">Candidate exact-version release wrapper.</param>
+    /// <param name="requiredFile">Expected canonical payload marker.</param>
+    /// <param name="logger">Installer diagnostics.</param>
+    /// <returns>True only when the contents are recognizable installer-generated files.</returns>
+    private static bool IsKnownReleasePayloadFolder(string path, string requiredFile, ILogger logger)
+    {
+        var foundPayloadMarker = File.Exists(Path.Combine(path, requiredFile))
+            || File.Exists(Path.Combine(path, "LocalGPT.dll"))
+            || File.Exists(Path.Combine(path, "LocalGPTInstallerConsole.dll"))
+            || File.Exists(Path.Combine(path, "LocalGPT.deps.json"))
+            || File.Exists(Path.Combine(path, "LocalGPTInstallerConsole.deps.json"));
+        var foundAnyFile = false;
+        var directories = new Stack<string>();
+        directories.Push(path);
+        while (directories.Count > 0)
+        {
+            var current = directories.Pop();
+            foreach (var item in Directory.EnumerateFileSystemEntries(current, "*", SearchOption.TopDirectoryOnly))
+            {
+                var attributes = File.GetAttributes(item);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                    return false;
+                var name = Path.GetFileName(item);
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    if (name.Equals("CouncilLogs", StringComparison.OrdinalIgnoreCase)
+                        || name.Equals("Projects", StringComparison.OrdinalIgnoreCase)
+                        || name.Equals("UserData", StringComparison.OrdinalIgnoreCase)
+                        || name.Equals("Backups", StringComparison.OrdinalIgnoreCase)
+                        || name.Equals("runtime", StringComparison.OrdinalIgnoreCase))
+                        return false;
+                    directories.Push(item);
+                    continue;
+                }
+                foundAnyFile = true;
+                var extension = Path.GetExtension(item);
+                if (extension.Equals(".db", StringComparison.OrdinalIgnoreCase)
+                    || extension.Equals(".sqlite", StringComparison.OrdinalIgnoreCase)
+                    || extension.Equals(".sqlite3", StringComparison.OrdinalIgnoreCase)
+                    || extension.Equals(".db3", StringComparison.OrdinalIgnoreCase)
+                    || extension.Equals(".bak", StringComparison.OrdinalIgnoreCase)
+                    || extension.Equals(".backup", StringComparison.OrdinalIgnoreCase)
+                    || extension.Equals(".pfx", StringComparison.OrdinalIgnoreCase)
+                    || extension.Equals(".pem", StringComparison.OrdinalIgnoreCase)
+                    || extension.Equals(".key", StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith("-wal", StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith("-shm", StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith("-journal", StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+        }
+        if (!foundPayloadMarker && foundAnyFile)
+            logger.LogWarning("Incomplete old installer folder {Folder} has no known executable or DLL marker; preserving for review.", path);
+        return foundPayloadMarker || !foundAnyFile;
+    }
+
+    /// <summary>Recognizes only exact three-part versioned wrappers generated by the release archiver.</summary>
+    /// <param name="folderName">Direct child folder name.</param>
+    /// <param name="requiredFile">Expected root-level payload marker.</param>
+    /// <returns>True for a generated obsolete release wrapper.</returns>
     private static bool TryIdentifyLegacyReleaseWrapper(string folderName, out string requiredFile)
     {
         requiredFile = string.Empty;
@@ -841,27 +1016,6 @@ internal static class Program
             return false;
         requiredFile = prefix == "LocalGPT-Setup-" ? "Start.cmd" : "LocalGPT.exe";
         return true;
-    }
-
-    /// <summary>Copies validated release files into the canonical runtime folder without touching user data.</summary>
-    /// <param name="source">Validated staged payload root.</param>
-    /// <param name="target">Canonical version-independent runtime directory.</param>
-    private static void CopyReleasePayload(string source, string target)
-    {
-        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
-        {
-            if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
-                throw new InvalidDataException($"Release payload contains a directory link: {directory}");
-            Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
-        }
-        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
-        {
-            if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
-                throw new InvalidDataException($"Release payload contains a file link: {file}");
-            var destination = Path.Combine(target, Path.GetRelativePath(source, file));
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            File.Copy(file, destination, overwrite: true);
-        }
     }
 
     /// <summary>
@@ -1482,8 +1636,7 @@ internal static class Program
 
             var knownCandidates = new[]
             {
-            Path.Combine(localGptRoot, "winx64", "LocalGPT.exe"),
-            Path.Combine(localGptRoot, "LocalGPT.exe")
+            Path.Combine(localGptRoot, "winx64", "LocalGPT.exe")
         };
 
             foreach (var candidate in knownCandidates)
@@ -1497,20 +1650,8 @@ internal static class Program
                 }
             }
 
-            logger.LogWarning($"Known LocalGPT executable paths failed. Searching recursively under: {localGptRoot}");
-
-            var recursiveCandidate = EnumerateFilesSafe(localGptRoot, "LocalGPT.exe", logger)
-                .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
-                .ThenBy(path => path.Length)
-                .FirstOrDefault();
-
-            if (!string.IsNullOrWhiteSpace(recursiveCandidate) && File.Exists(recursiveCandidate))
-            {
-                logger.LogInformation($"Resolved LocalGPT executable recursively: {recursiveCandidate}");
-                return recursiveCandidate;
-            }
-
-            logger.LogWarning($"Could not find LocalGPT.exe under: {localGptRoot}");
+            logger.LogError("Canonical LocalGPT executable is missing at {Executable}. Refusing to run arbitrary older DLLs from versioned folders.",
+                Path.Combine(localGptRoot, "winx64", "LocalGPT.exe"));
             return null;
         }
         catch (Exception ex)

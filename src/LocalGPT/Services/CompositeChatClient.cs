@@ -149,7 +149,7 @@ public class CompositeChatClient : IChatClient
             if (selectedSession is null)
                 throw new InvalidOperationException("No chat client session is selected.");
 
-            var enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken).ConfigureAwait(false);
+            var enrichedMessages = await AddBootstrapContextOffDispatcherAsync(messages, cancellationToken).ConfigureAwait(false);
             var resolvedOptions = await ApplyDefaultOptionsAsync(options, cancellationToken).ConfigureAwait(false);
             return await GetResponseAndReportAsync(selectedSession, enrichedMessages, resolvedOptions, cancellationToken).ConfigureAwait(false);
         }
@@ -443,7 +443,7 @@ public class CompositeChatClient : IChatClient
         string? startupFailure = null;
         try
         {
-            enrichedMessages = await AddBootstrapContextAsync(messages, cancellationToken).ConfigureAwait(false);
+            enrichedMessages = await AddBootstrapContextOffDispatcherAsync(messages, cancellationToken).ConfigureAwait(false);
             resolvedOptions = await ApplyDefaultOptionsAsync(options, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -656,6 +656,35 @@ public class CompositeChatClient : IChatClient
 
 
 
+
+    /// <summary>
+    /// Runs <see cref="AddBootstrapContextAsync"/> on the thread pool so the Blazor renderer dispatcher stays free while a chat or Council request is prepared.
+    /// </summary>
+    /// <remarks>
+    /// The enrichment reads SQLite (memory, knowledge, prompts, application logs), can extract and hash uploaded archives,
+    /// and recursively scans build output for debug symbols. Microsoft.Data.Sqlite and several file APIs complete their
+    /// "async" methods synchronously, so awaiting the enrichment directly executes it on the dispatcher that invoked the
+    /// chat client. While the dispatcher is blocked, ASP.NET Core cannot claim pending .NET-to-JS streams within their
+    /// 10-second window (CircuitHost.TryClaimPendingStream) and terminates the circuit before any Council run starts.
+    /// The work stays awaited and cancellation-aware; only its starting thread changes.
+    /// </remarks>
+    /// <param name="messages">Chat message dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The enriched message collection produced by <see cref="AddBootstrapContextAsync"/>.</returns>
+    private Task<IReadOnlyList<ChatMessage>> AddBootstrapContextOffDispatcherAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Materialize on the caller's thread: the source enumerable may belong to the DevExpress chat control.
+            var messageSnapshot = messages.ToList();
+            return Task.Run(() => AddBootstrapContextAsync(messageSnapshot, cancellationToken), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not schedule chat request enrichment off the renderer dispatcher.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Adds bootstrap context for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.

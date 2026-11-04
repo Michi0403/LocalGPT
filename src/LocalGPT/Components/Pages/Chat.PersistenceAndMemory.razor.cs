@@ -913,7 +913,7 @@ namespace LocalGPT.Components.Pages
                         await InvokeAsync(() => Notifier.ShowWarning(toastName, "Local model refresh failed. Configured sessions remain available; see local logs for details.", "Model refresh warning")).ConfigureAwait(false);
                     }
                 },
-                componentLifetimeCts.Token);
+                componentLifetimeToken);
         }
         catch (Exception ex)
         {
@@ -938,7 +938,7 @@ namespace LocalGPT.Components.Pages
             nameof(Chat),
             "AutoSaveLoop",
             AutoSaveLoopAsync,
-            componentLifetimeCts.Token);
+            componentLifetimeToken);
     
         }
         catch (Exception __componentMethodException)
