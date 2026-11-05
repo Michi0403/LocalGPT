@@ -115,6 +115,10 @@ public interface ICouncilLiveSessionService
     /// <param name="runId">Identifier of the live Council run.</param>
     /// <returns>Participant activity snapshots bounded for recurrent browser rendering.</returns>
     IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivitiesForDisplay(Guid runId);
+    /// <summary>Returns complete, untruncated participant lanes for the plain-text ASCII terminal, reusing unchanged lane text snapshots.</summary>
+    /// <param name="runId">Identifier of the live Council run.</param>
+    /// <returns>Complete participant activity snapshots, or an empty collection when the run is unknown.</returns>
+    IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivitiesForTerminal(Guid runId);
     /// <summary>Returns only the current ordered live transcript without copying all participant-lane stream buffers.</summary>
     /// <param name="runId">Identifier of the live Council run.</param>
     /// <returns>The newest transient transcript or an empty string when the run is unknown.</returns>

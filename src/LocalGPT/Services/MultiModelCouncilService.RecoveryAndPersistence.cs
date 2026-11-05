@@ -54,7 +54,8 @@ namespace LocalGPT.Services
                 """));
 
                 var builder = new StringBuilder();
-                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger);
+                // Council recovery streams are bounded workflow steps: the repetition guard is always on (6.9.4).
+                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger, forceEnabled: true);
                 using var recoveryCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var streamId = Guid.NewGuid().ToString("N");
                 var streamPanelOpened = streamUpdate is not null;
@@ -177,7 +178,8 @@ namespace LocalGPT.Services
                 """));
 
                 var builder = new StringBuilder();
-                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger);
+                // Council recovery streams are bounded workflow steps: the repetition guard is always on (6.9.4).
+                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger, forceEnabled: true);
                 using var recoveryCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var streamId = Guid.NewGuid().ToString("N");
                 var streamPanelOpened = streamUpdate is not null;

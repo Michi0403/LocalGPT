@@ -20,8 +20,9 @@ namespace LocalGPT.Services
         /// </summary>
         /// <remarks>
         /// The participant's low-level safe retry has already run before this method is reached. Round recovery is a separate,
-        /// persisted workflow policy. Alternate members are selected only from the role's existing provider-qualified Social Team
-        /// pool and therefore never create a hidden model-selection policy outside the saved team configuration.
+        /// persisted workflow policy. Each attempt is decided by goal execution's recovery helper (<see cref="IGoalRecoveryHelperService"/>):
+        /// the role's configured members come first, then other members of the same run when they are suitable. No member, provider
+        /// or AI host outside the current run is ever used; paired-role substitution waits for the local user's approval.
         /// </remarks>
         /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
@@ -130,33 +131,113 @@ namespace LocalGPT.Services
                     return [];
 
                 var recoverySteps = new List<MultiModelCouncilStep>();
+                var recoveryPool = BuildConfiguredRoundRecoveryPool(definition, executionMode, participants, roleAssignment, roleAssignments);
+                var maximumAttempts = Math.Clamp(
+                    definition.MemberFailureRecoveryAttempts,
+                    0,
+                    runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumMemberRecoveryAttempts);
+                var sameMemberOnly =
+                    definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.RetrySameMember ||
+                    string.Equals(executionMode, "AssignedModelSingle", StringComparison.Ordinal);
+                var isPairedRole =
+                    !string.IsNullOrWhiteSpace(roleAssignment.Definition?.PairedRole) ||
+                    team.Roles.Any(role => string.Equals(role.PairedRole, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase)) ||
+                    rolePairings.Any(pairing => string.Equals(pairing.RoleName, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase));
                 for (var slotIndex = 0; slotIndex < failedSlots.Count; slotIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var failedModel = failedSlots[slotIndex];
+                    var failedStep = primarySteps.LastOrDefault(step =>
+                        string.Equals(step.ModelName, failedModel, StringComparison.OrdinalIgnoreCase));
+                    var failureKind = failedStep is null
+                        ? GoalMemberFailureKind.NoStep
+                        : failedStep.HostUnreachable
+                            ? GoalMemberFailureKind.HostUnreachable
+                            : failedStep.RepetitionWatchdogStopped
+                                ? GoalMemberFailureKind.RepetitionWatchdog
+                                : string.IsNullOrWhiteSpace(failedStep.Error)
+                                    ? GoalMemberFailureKind.EmptyAnswer
+                                    : GoalMemberFailureKind.ProviderFailure;
                     var attemptedModels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    if (definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool)
-                        attemptedModels.Add(failedModel); // RunParticipantAsync already exhausted its same-member safe fallback.
-                    var recovered = false;
+                    // RunParticipantAsync already exhausted its same-member safe fallback, except after a repetition-watchdog stop:
+                    // that path never retries, so the configured "same member, then role pool" order starts with the same member.
+                    // A member whose AI host is unavailable in this run is not retried on that host.
+                    if ((definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool
+                         && failureKind != GoalMemberFailureKind.RepetitionWatchdog)
+                        || failureKind == GoalMemberFailureKind.HostUnreachable)
+                        attemptedModels.Add(failedModel);
+                    var hostKeys = participants
+                        .Append(failedModel)
+                        .Where(member => !string.IsNullOrWhiteSpace(member))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(member => member, member => GetCouncilExecutionHostKey(member), StringComparer.OrdinalIgnoreCase);
+                    if (failureKind == GoalMemberFailureKind.HostUnreachable
+                        && hostKeys.TryGetValue(failedModel, out var unreachableHost))
+                    {
+                        var hostWarning = goalRecovery.BuildHostDownWarning(unreachableHost);
+                        if (!string.IsNullOrWhiteSpace(hostWarning) && !result.Warnings.Contains(hostWarning))
+                            result.Warnings.Add(hostWarning);
+                    }
 
-                    for (var attemptIndex = 0; attemptIndex < Math.Clamp(definition.MemberFailureRecoveryAttempts, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumMemberRecoveryAttempts); attemptIndex++)
+                    var failedPairing = rolePairings.FirstOrDefault(pairing =>
+                        string.Equals(pairing.RoleName, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(pairing.Participant, failedModel, StringComparison.OrdinalIgnoreCase));
+                    logger.LogInformation(
+                        "Council round recovery for run {RunId}, step {StepKey}, round {Round}: member {FailedModel} has no usable answer ({FailureKind}); policy {RecoveryMode}, up to {Attempts} attempt(s), paired role {IsPairedRole}.",
+                        result.RunId,
+                        definition.Key,
+                        round,
+                        failedModel,
+                        failureKind,
+                        definition.MemberFailureRecoveryMode,
+                        maximumAttempts,
+                        isPairedRole);
+                    var recovered = false;
+                    var leftEmptyByDecision = false;
+
+                    for (var attemptIndex = 0; attemptIndex < maximumAttempts; attemptIndex++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        var recoveryModel = SelectConfiguredRoundRecoveryParticipant(
-                            result,
-                            team,
-                            definition,
-                            executionMode,
-                            participants,
-                            roleAssignment,
-                            roleAssignments,
-                            failedModel,
-                            attemptedModels);
+                        var decision = await goalRecovery.DecideMemberRecoveryAsync(new GoalMemberRecoveryContext
+                        {
+                            RunId = result.RunId,
+                            TeamKey = team.Key,
+                            WorkflowStepKey = definition.Key,
+                            RoleName = roleAssignment.RoleName,
+                            Round = round,
+                            FailedModel = failedModel,
+                            FailureKind = failureKind,
+                            RecoveryMode = definition.MemberFailureRecoveryMode,
+                            SameMemberOnly = sameMemberOnly,
+                            AttemptNumber = attemptIndex + 1,
+                            RunParticipants = participants,
+                            RolePool = OrderParticipantsByObservedHealth(result, recoveryPool.Pool).ToList(),
+                            ReservedByOtherRoles = recoveryPool.Reserved,
+                            AttemptedModels = attemptedModels.ToList(),
+                            HostKeys = hostKeys,
+                            IsPairedRole = isPairedRole,
+                            PairedRoleName = failedPairing?.PairedRoleName ?? roleAssignment.Definition?.PairedRole ?? string.Empty,
+                            PairedParticipant = failedPairing?.PairedParticipant ?? string.Empty,
+                            RunSteps = result.Steps.ToList()
+                        }, cancellationToken).ConfigureAwait(false);
+
+                        if (decision.Action == GoalMemberRecoveryAction.SkipSlot || string.IsNullOrWhiteSpace(decision.ModelName))
+                        {
+                            leftEmptyByDecision = true;
+                            result.Warnings.Add($"Configured round '{definition.DisplayName}': {decision.Reason}.");
+                            request.ProgressMessage?.Invoke($"Configured round '{definition.DisplayName}': {decision.Reason}.");
+                            break;
+                        }
+
+                        var recoveryModel = decision.ModelName;
                         attemptedModels.Add(recoveryModel);
+                        var attemptPairings = decision.SubstitutesPairedSlot
+                            ? BuildSubstitutedRolePairings(rolePairings, roleAssignment.RoleName, failedModel, recoveryModel)
+                            : rolePairings;
 
                         var recoveryPhase = $"{phase} · automatic member recovery {slotIndex + 1}.{attemptIndex + 1}";
                         request.ProgressMessage?.Invoke(
-                            $"Configured round '{definition.DisplayName}' is repairing failed required member work from {failedModel} with {recoveryModel} (recovery {attemptIndex + 1}/{definition.MemberFailureRecoveryAttempts}). The failed attempt remains preserved in Council evidence.");
+                            $"Configured round '{definition.DisplayName}' is repairing failed required member work from {failedModel} with {recoveryModel} (recovery {attemptIndex + 1}/{maximumAttempts}): {decision.Reason}. The failed attempt remains preserved in Council evidence.");
 
                         var transcript = BuildConfiguredWorkflowTranscript(result, team, definition, roleAssignment, round);
                         await RunConfiguredParticipantAsync(
@@ -167,7 +248,7 @@ namespace LocalGPT.Services
                             baseUri,
                             participants,
                             roleAssignment,
-                            rolePairings,
+                            attemptPairings,
                             recoveryModel,
                             round,
                             recoveryPhase,
@@ -205,6 +286,17 @@ namespace LocalGPT.Services
                         recoveryStep.XRoundCause = xRoundCause ?? string.Empty;
                         recoverySteps.Add(recoveryStep);
 
+                        logger.LogInformation(
+                            "Council round recovery for run {RunId}, step {StepKey}: attempt {Attempt} for {FailedModel} used {RecoveryModel} ({Action}, other role {FromOtherRole}, paired substitute {PairedSubstitute}) and {Outcome}.",
+                            result.RunId,
+                            definition.Key,
+                            attemptIndex + 1,
+                            failedModel,
+                            recoveryModel,
+                            decision.Action,
+                            decision.FromOtherRole,
+                            decision.SubstitutesPairedSlot,
+                            IsUsableConfiguredRoundStep(recoveryStep) ? "recovered the slot" : "did not produce a usable answer");
                         if (IsUsableConfiguredRoundStep(recoveryStep))
                         {
                             recovered = true;
@@ -214,10 +306,10 @@ namespace LocalGPT.Services
                         }
                     }
 
-                    if (!recovered)
+                    if (!recovered && !leftEmptyByDecision)
                     {
                         result.Warnings.Add(
-                            $"Configured round '{definition.DisplayName}' could not recover required member work originally assigned to {failedModel} after {definition.MemberFailureRecoveryAttempts} round-level recovery turn(s). The failure remains explicit; LocalGPT did not silently drop or fabricate this member result.");
+                            $"Configured round '{definition.DisplayName}' could not recover required member work originally assigned to {failedModel} after {maximumAttempts} round-level recovery turn(s). The failure remains explicit; LocalGPT did not silently drop or fabricate this member result.");
                         // This round has already consumed its existing recovery policy. Report
                         // the observed stall to the shared service; do not schedule another
                         // Council retry, change its tool permissions, or conceal the failure.
@@ -296,36 +388,25 @@ namespace LocalGPT.Services
             }
         }
 
-        /// <summary>Selects the same member first and, when permitted, a healthy alternate from the persisted role pool.</summary>
-        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="executionMode">Execution mode value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
-        /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="roleAssignments">Council role runtime assignment dependency used by the multi model council workflow to provide the corresponding application capability.</param>
-        /// <param name="failedModel">Failed model value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="attemptedModels">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
-        /// <returns>The string produced by the operation.</returns>
-        private string SelectConfiguredRoundRecoveryParticipant(
-            MultiModelCouncilResult result,
-            OrganicCouncilTeamDefinition team,
+        /// <summary>
+        /// Returns the configured members of the failed role in this run and the members that other roles of the same
+        /// distinct-assignment group reserve. Reserved members are not used for this role unless the role allows distinct fallback.
+        /// </summary>
+        /// <param name="definition">Configured workflow step.</param>
+        /// <param name="executionMode">Execution mode of the step.</param>
+        /// <param name="participants">Active members of the run.</param>
+        /// <param name="roleAssignment">Runtime assignment of the failed role.</param>
+        /// <param name="roleAssignments">Runtime assignments of all roles of the run.</param>
+        /// <returns>The role pool (members of the run only) and the reserved members.</returns>
+        private (IReadOnlyList<string> Pool, IReadOnlyList<string> Reserved) BuildConfiguredRoundRecoveryPool(
             CouncilWorkflowStepDefinition definition,
             string executionMode,
             IReadOnlyList<string> participants,
             CouncilRoleRuntimeAssignment roleAssignment,
-            IDictionary<string, CouncilRoleRuntimeAssignment> roleAssignments,
-            string failedModel,
-            IReadOnlySet<string> attemptedModels)
+            IDictionary<string, CouncilRoleRuntimeAssignment> roleAssignments)
         {
             try
             {
-                var mustRetrySame =
-                    definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.RetrySameMember ||
-                    string.Equals(executionMode, "AssignedModelSingle", StringComparison.Ordinal);
-                if (mustRetrySame)
-                    return failedModel;
-
                 var roleDefinition = roleAssignment.Definition;
                 IEnumerable<string> configuredPool;
                 if (roleDefinition is not null &&
@@ -334,14 +415,22 @@ namespace LocalGPT.Services
                     configuredPool = roleDefinition.AssignedModelKeys
                         .Where(key => participants.Contains(key, StringComparer.OrdinalIgnoreCase));
                 }
+                else if (roleAssignment.AiParticipants.Count > 0)
+                {
+                    configuredPool = roleAssignment.AiParticipants
+                        .Where(member => participants.Contains(member, StringComparer.OrdinalIgnoreCase));
+                }
                 else
                 {
                     configuredPool = participants;
                 }
 
-                if (roleDefinition is not null && !string.IsNullOrWhiteSpace(roleDefinition.DistinctAiAssignmentGroup))
+                IReadOnlyList<string> reserved = [];
+                if (roleDefinition is not null &&
+                    !string.IsNullOrWhiteSpace(roleDefinition.DistinctAiAssignmentGroup) &&
+                    !roleDefinition.AllowDistinctAiAssignmentFallback)
                 {
-                    var reservedByOtherRoles = roleAssignments.Values
+                    reserved = roleAssignments.Values
                         .Where(assignment =>
                             !string.Equals(assignment.RoleName, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase) &&
                             assignment.Definition is not null &&
@@ -350,34 +439,60 @@ namespace LocalGPT.Services
                                 roleDefinition.DistinctAiAssignmentGroup,
                                 StringComparison.OrdinalIgnoreCase))
                         .SelectMany(assignment => assignment.AiParticipants)
-                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                    configuredPool = configuredPool.Where(model => !reservedByOtherRoles.Contains(model));
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
                 }
 
-                var candidates = configuredPool
+                var reservedSet = reserved.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var pool = configuredPool
+                    .Where(member => !reservedSet.Contains(member))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Where(model => !attemptedModels.Contains(model))
                     .ToList();
-                if (candidates.Count == 0)
-                    return failedModel;
-
-                // Prefer escaping the provider/host road that just failed, then use LocalGPT's existing observed-health order.
-                var failedHost = GetCouncilExecutionHostKey(failedModel);
-                var healthyOrder = OrderParticipantsByObservedHealth(result, candidates).ToList();
-                var alternate = healthyOrder
-                    .OrderBy(model => string.Equals(GetCouncilExecutionHostKey(model), failedHost, StringComparison.OrdinalIgnoreCase) ? 1 : 0)
-                    .ThenBy(model => healthyOrder.IndexOf(model))
-                    .FirstOrDefault();
-                return alternate ?? failedModel;
+                return (pool, reserved);
             }
             catch (Exception ex)
             {
                 logger.LogError(
                     ex,
-                    "Failed to select a configured round recovery participant for team {TeamKey}, role {RoleName}, failed model {FailedModel}.",
-                    team.Key,
+                    "Failed to build the configured round recovery pool for step {StepKey}, role {RoleName}, mode {ExecutionMode}.",
+                    definition.Key,
                     roleAssignment.RoleName,
-                    failedModel);
+                    executionMode);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Lets an approved substitute inherit the failed member's pairing for one recovery turn: the failed member's pairing is
+        /// re-addressed to the substitute and the substitute's own pairing in that role is left out of this turn.
+        /// </summary>
+        /// <param name="rolePairings">Pairings of the run.</param>
+        /// <param name="roleName">Paired role of the failed slot.</param>
+        /// <param name="failedModel">Member originally assigned to the slot.</param>
+        /// <param name="substituteModel">Member answering for the slot.</param>
+        /// <returns>The pairings used for the substitute's recovery turn.</returns>
+        private IReadOnlyList<CouncilParticipantPairing> BuildSubstitutedRolePairings(
+            IReadOnlyList<CouncilParticipantPairing> rolePairings,
+            string roleName,
+            string failedModel,
+            string substituteModel)
+        {
+            try
+            {
+                return rolePairings
+                    .Where(pairing => !(
+                        string.Equals(pairing.RoleName, roleName, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(pairing.Participant, substituteModel, StringComparison.OrdinalIgnoreCase)))
+                    .Select(pairing =>
+                        string.Equals(pairing.RoleName, roleName, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(pairing.Participant, failedModel, StringComparison.OrdinalIgnoreCase)
+                            ? pairing with { Participant = substituteModel }
+                            : pairing)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to re-address the pairing of {FailedModel} to {SubstituteModel} in role {RoleName}.", failedModel, substituteModel, roleName);
                 throw;
             }
         }

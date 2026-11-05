@@ -278,6 +278,45 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         }
     }
 
+    /// <summary>Reads compact member outcomes of recent retained runs without cloning transcripts or thinking buffers.</summary>
+    /// <param name="takeRuns">Maximum number of recent runs to read.</param>
+    /// <param name="excludeRunId">Run to leave out, normally the run that asks for evidence.</param>
+    /// <returns>One outcome per retained member step, newest runs first.</returns>
+    public IReadOnlyList<CouncilMemberOutcome> GetMemberOutcomes(int takeRuns, Guid? excludeRunId = null)
+    {
+        try
+        {
+            if (takeRuns <= 0)
+                return [];
+
+            lock (mutationGate)
+            {
+                return runs.Values
+                    .Where(item => excludeRunId is not Guid excluded || item.RunId != excluded)
+                    .OrderByDescending(item => item.UpdatedAtUtc)
+                    .Take(Math.Clamp(takeRuns, 1, QueryParameters.CouncilSpoolerMaximum))
+                    .SelectMany(item => item.Steps.Select(step => new CouncilMemberOutcome
+                    {
+                        RunId = item.RunId,
+                        CouncilTeamKey = item.CouncilTeamKey,
+                        ModelName = step.ModelName,
+                        Role = step.Role,
+                        Round = step.Round,
+                        Succeeded = string.IsNullOrWhiteSpace(step.Error) && !string.IsNullOrWhiteSpace(step.VisibleContent),
+                        Failed = !string.IsNullOrWhiteSpace(step.Error),
+                        HostUnreachable = step.HostUnreachable,
+                        DurationSeconds = step.DurationSeconds
+                    }))
+                    .ToList();
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading retained Council member outcomes failed.");
+            throw;
+        }
+    }
+
     /// <summary>
     /// Retrieves a Council run snapshot for the selected run, including retained step evidence.
     /// </summary>
@@ -456,7 +495,10 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         StartedAtUtc = source.StartedAtUtc,
         CompletedAtUtc = source.CompletedAtUtc,
         DurationSeconds = source.DurationSeconds,
-        Error = source.Error
+        Error = source.Error,
+        RecoveryTargetModelName = source.RecoveryTargetModelName,
+        RepetitionWatchdogStopped = source.RepetitionWatchdogStopped,
+        HostUnreachable = source.HostUnreachable
     };
     }
     catch (Exception __serviceMethodException)

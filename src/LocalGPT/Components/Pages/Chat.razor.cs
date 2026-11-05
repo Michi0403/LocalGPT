@@ -26,6 +26,7 @@ using System.Dynamic;
 using System.Globalization;
 using LocalGPT.Components.Shared;
 using Microsoft.AspNetCore.Components;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -969,6 +970,22 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     int liveCouncilListRefreshScheduled;
     /// <summary>
+    /// Remembers the running Council this circuit already tried to attach to automatically after the session list
+    /// selected it, so a failed or declined automatic attachment is not retried on every live update.
+    /// </summary>
+    Guid? automaticLiveCouncilAttachRunId;
+    /// <summary>
+    /// Set when the user explicitly starts a new chat; a running Council must then not be attached automatically again.
+    /// </summary>
+    bool automaticLiveCouncilAttachSuppressed;
+    /// <summary>Whether the Live Council feed also renders the ordered transcript (it is always rendered inside the Council chat message).</summary>
+    bool liveFeedTranscriptVisible;
+    /// <summary>Council run whose chat restore was requested before the provider sessions (including the Council session) existed.</summary>
+    Guid? pendingCouncilChatRestoreRunId;
+    /// <summary>Gets the activity key whose answer and provider evidence are open in the evidence popup.</summary>
+    /// <value>The inspected lane key, or <see langword="null"/> when the popup is closed.</value>
+    string? InspectedCouncilActivityKey => CouncilEvidencePopupVisible ? InspectedCouncilActivity?.ActivityKey : null;
+    /// <summary>
     /// Stores the internal owns live council stream state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>
     bool ownsLiveCouncilStream;
@@ -1011,23 +1028,45 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    /// <summary>
-    /// Performs live council transcript for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
-    /// </summary>
-    /// <param name="runId">Identifier of the run to use for this operation.</param>
-    /// <param name="fallbackContent">Fallback content value supplied to the chat operation and used when producing its result.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string LiveCouncilTranscript(Guid runId, string fallbackContent)
+    /// <summary>Caches rendered HTML per immutable message content, so an unchanged (possibly multi-megabyte) restored Council message is not re-rendered on every chat update.</summary>
+    private readonly ConditionalWeakTable<string, string> renderedChatMessageHtml = new();
+
+    /// <summary>Renders one chat message through <see cref="IChatContentRenderer"/>, reusing the HTML of unchanged content.</summary>
+    /// <param name="content">Message content as stored in the chat control.</param>
+    /// <returns>Sanitized HTML for the message.</returns>
+    private string RenderChatMessageHtml(string? content)
     {
         try
         {
-        var latestTranscript = CouncilLiveSessions.GetTranscriptForDisplay(runId);
-        return string.IsNullOrWhiteSpace(latestTranscript) ? fallbackContent : latestTranscript;
-    
+            if (string.IsNullOrEmpty(content))
+                return string.Empty;
+            if (renderedChatMessageHtml.TryGetValue(content, out var cached))
+                return cached;
+            var html = ChatContentRenderer.Render(content);
+            renderedChatMessageHtml.AddOrUpdate(content, html);
+            return html;
         }
         catch (Exception __componentMethodException)
         {
-            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncilTranscript failed.");
+            Logger.LogError(__componentMethodException, "Component method Chat.RenderChatMessageHtml failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Returns the placeholder text of the in-chat Council transcript until its first projection is available.</summary>
+    /// <param name="session">Live Council summary linked to the chat message.</param>
+    /// <returns>A running or finished placeholder text.</returns>
+    private string LiveCouncilWaitingText(CouncilLiveSessionSummary session)
+    {
+        try
+        {
+            return session.IsRunning
+                ? "Council is running. Waiting for the first provider response or function result…"
+                : "Loading the finished Council transcript…";
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncilWaitingText failed.");
             throw;
         }
     }
@@ -1459,8 +1498,9 @@ namespace LocalGPT.Components.Pages
             if (captured.Count == 0 && ChatClientProvider?.SelectedSession?.Messages is { Count: > 0 } fallbackMessages)
                 captured = fallbackMessages.ToList();
 
+            // 6.9.4: the ASCII terminal mirrors complete lanes (no head/tail window); unchanged lanes are reused snapshots.
             var participantActivities = councilRunId is Guid activeRunId
-                ? CouncilLiveSessions.GetParticipantActivitiesForDisplay(activeRunId).ToList()
+                ? CouncilLiveSessions.GetParticipantActivitiesForTerminal(activeRunId).ToList()
                 : [];
             var participantSignature = AsciiText.BuildParticipantSignature(participantActivities);
             var signature = $"{CouncilText.CreateMessageSignature(captured, Logger)}\u001d{councilRunId?.ToString("N") ?? string.Empty}\u001d{participantSignature}";

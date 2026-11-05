@@ -619,6 +619,12 @@ namespace LocalGPT.BusinessObjects
         /// <summary>Gets or sets the originally assigned model slot represented by an automatic alternate-member recovery step.</summary>
         /// <value>The failed/original model name when this step was produced by a healthy alternate; otherwise an empty string.</value>
         public string RecoveryTargetModelName { get; set; } = string.Empty;
+        /// <summary>Gets or sets whether this failed step was stopped by the repetition watchdog, so no same-member retry has happened yet.</summary>
+        /// <value><see langword="true"/> when the participant request ended through the repetition watchdog without a usable answer.</value>
+        public bool RepetitionWatchdogStopped { get; set; }
+        /// <summary>Gets or sets whether this failed step is attributed to an AI host that did not answer in this run (outage wait plus one reachability check, or a host excluded for the run).</summary>
+        /// <value><see langword="true"/> when the goal recovery helper marked the member's host down or excluded for the run.</value>
+        public bool HostUnreachable { get; set; }
 
         /// <summary>
         /// Gets or sets the provider name value that forms part of the multi model council step state consumed or produced by the surrounding workflow.

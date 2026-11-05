@@ -262,6 +262,9 @@ namespace LocalGPT.Components.Pages
                 var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id).ConfigureAwait(false);
                 if (snapshot is null)
                     return;
+                // A saved Council message can hold only its run marker (process restart, second window). Complete it from the
+                // live transcript or the durable spool so the chat box shows the Council and the conversation can continue here.
+                var loadedMessages = MaterializeCouncilMessages(snapshot.Messages);
 
                 var restoredSession = ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
                     string.Equals(session.Name, snapshot.ProviderName, StringComparison.OrdinalIgnoreCase));
@@ -283,9 +286,10 @@ namespace LocalGPT.Components.Pages
                 await LoadSelectedChatProjectDetailsAsync(snapshot.ProjectId).ConfigureAwait(false);
                 SelectedConversation = conversation;
                 canonicalConversationMessages.Clear();
-                canonicalConversationMessages.AddRange(snapshot.Messages);
+                canonicalConversationMessages.AddRange(loadedMessages);
                 restoredSession.Messages.Clear();
-                restoredSession.Messages.AddRange(snapshot.Messages);
+                restoredSession.Messages.AddRange(loadedMessages);
+                // Signature of the stored messages: a completed Council message is written back by the next regular save.
                 lastSavedSignature = CouncilText.CreateMessageSignature(snapshot.Messages, Logger);
                 memoryStatus = string.Equals(restoredSession.Name, snapshot.ProviderName, StringComparison.OrdinalIgnoreCase)
                     ? $"Loaded chat: {snapshot.Title} · restored {restoredSession.Name}"
@@ -297,7 +301,7 @@ namespace LocalGPT.Components.Pages
                     await InvokeAsync(() =>
                     {
                         if (DxAiChat is not null)
-                            DxAiChat.LoadMessages(snapshot.Messages);
+                            DxAiChat.LoadMessages(loadedMessages);
                     }).ConfigureAwait(false);
                 }
 

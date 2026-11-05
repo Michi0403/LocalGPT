@@ -1,0 +1,12 @@
+# LocalGPT 3.6.5 — macOS architecture diagnostics, Future2 positioning, and license clarification
+
+- Fixes the 3.6.4 launcher bug that could classify an Apple-Silicon Mac as Intel when the shell process reported `x86_64` under Rosetta. Hardware architecture is now derived from macOS ARM64 capability first, while process architecture and Rosetta translation state are logged separately.
+- Re-executes the launcher with the native ARM64 system shell when an Apple-Silicon launch is translated, preventing the launcher itself from carrying a stale Rosetta execution context into startup diagnostics.
+- Logs the exact packaged LocalGPT executable architecture before startup and points architecture failures to a package-generated native inventory rather than showing a generic Intel/ARM accusation.
+- Extends package-time macOS validation to inventory every Mach-O file after non-target Apple runtime folders are removed. The full `file` result for every component is stored at `Contents/Resources/native-architecture-manifest.txt`. Any component that lacks the RID architecture stops the package build and prints the exact offending relative path.
+- Adds explicit LaunchServices architecture priority metadata to macOS bundles and requires native execution for the ARM64 bundle, reducing ambiguity for Finder/LaunchServices on Apple Silicon.
+- Updates the LocalGPT README to state the Future2 mission directly: user-owned, human-authoritative, local-first AI/software infrastructure that can scale from one machine through explicitly authorized devices/robots to independently operated AI centers; centralized corporate/government services remain optional integrations rather than technical authorities.
+- Clarifies DevExpress documentation. Project-owned source remains Apache-2.0; DevExpress remains proprietary and separately governed. The repository documents the developer/build license boundary without inventing a blanket end-user license requirement beyond DevExpress's own terms.
+- Updates the DevExpress third-party notice to match the current repository configuration: .NET package restore uses NuGet.org while the developer license identity is a separate build-time concern.
+- Preserves the 3.6.4 async-continuation policy repair, dynamic macOS port selection, visible Terminal startup diagnostics, writable user-data checks, stale-process cleanup, Ollama/LM Studio helper, durable docs cache, and existing InteractiveServer boundaries.
+- Version advanced from 3.6.4 to 3.6.5.

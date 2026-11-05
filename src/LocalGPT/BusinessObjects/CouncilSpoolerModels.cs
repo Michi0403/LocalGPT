@@ -87,3 +87,35 @@ public sealed class CouncilSpoolerRunSummary
     /// <summary>Selected saved team key.</summary>
     public string CouncilTeamKey { get; init; } = string.Empty;
 }
+
+/// <summary>Compact outcome of one retained Council member step, without prompts, thinking or answer text.</summary>
+public sealed class CouncilMemberOutcome
+{
+    /// <summary>Gets the Council run identifier.</summary>
+    /// <value>The retained run.</value>
+    public Guid RunId { get; init; }
+    /// <summary>Gets the saved team key of the run.</summary>
+    /// <value>The team key.</value>
+    public string CouncilTeamKey { get; init; } = string.Empty;
+    /// <summary>Gets the provider-qualified member.</summary>
+    /// <value>The member that produced the step.</value>
+    public string ModelName { get; init; } = string.Empty;
+    /// <summary>Gets the role of the step.</summary>
+    /// <value>The configured role, possibly with a recovery suffix.</value>
+    public string Role { get; init; } = string.Empty;
+    /// <summary>Gets the logical round.</summary>
+    /// <value>The round of the step.</value>
+    public int Round { get; init; }
+    /// <summary>Gets whether the step produced a usable answer.</summary>
+    /// <value><see langword="true"/> for a step without error and with visible text.</value>
+    public bool Succeeded { get; init; }
+    /// <summary>Gets whether the step failed with an error.</summary>
+    /// <value><see langword="true"/> when the step carries an error.</value>
+    public bool Failed { get; init; }
+    /// <summary>Gets whether the AI host was unreachable for the step.</summary>
+    /// <value><see langword="true"/> for host outages.</value>
+    public bool HostUnreachable { get; init; }
+    /// <summary>Gets the provider execution time.</summary>
+    /// <value>Seconds.</value>
+    public double DurationSeconds { get; init; }
+}

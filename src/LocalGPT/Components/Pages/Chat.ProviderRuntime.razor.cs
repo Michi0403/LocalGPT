@@ -119,6 +119,9 @@ namespace LocalGPT.Components.Pages
                     previousSelection,
                     ChatClientProvider.SelectedSession.Name);
             }
+
+            // A Council restore requested during startup (rejoin link, reconnect) waits for the Council session; it exists now.
+            SchedulePendingCouncilChatRestore();
         }
         catch (Exception ex)
         {

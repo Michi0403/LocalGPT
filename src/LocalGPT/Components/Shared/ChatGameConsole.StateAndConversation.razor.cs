@@ -235,8 +235,8 @@ public partial class ChatGameConsole
     private bool operatorMode;
     /// <summary>Stores whether the shared ASCII surface is rendering the canonical chat transcript instead of a game frame.</summary>
     private bool conversationMode = true;
-    /// <summary>Stores the current plain-text rendering of the canonical /chat history.</summary>
-    private string asciiConversationText = string.Empty;
+    /// <summary>Stores the complete plain-text rendering of the canonical /chat history as ordered blocks; unchanged blocks keep their string identity so only changed blocks are sent to the browser.</summary>
+    private IReadOnlyList<string> asciiConversationBlocks = [];
     /// <summary>Stores the newest bounded ASCII animation frames extracted from the canonical chat history.</summary>
     private IReadOnlyList<string> asciiSequenceFrames = [];
     /// <summary>Remembers the newest animation payload sent to JavaScript so unrelated renders do not restart playback.</summary>
@@ -512,7 +512,7 @@ public partial class ChatGameConsole
     {
         try
         {
-        asciiConversationText = AsciiText.BuildConversationTranscript(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName);
+        asciiConversationBlocks = AsciiText.BuildConversationTranscriptBlocks(ConversationMessages, CouncilParticipantActivities, AssistantDisplayName);
         asciiSequenceFrames = AsciiText.ExtractSequenceFrames(ConversationMessages, CouncilParticipantActivities);
     
         }
@@ -618,9 +618,9 @@ public partial class ChatGameConsole
                 lastJsSequenceSignature = sequenceSignature;
             }
 
-            var conversationSignature = conversationMode
-                ? AsciiText.BuildSequenceSignature([asciiConversationText])
-                : string.Empty;
+            // A single transcript string never produced a sequence signature (BuildSequenceSignature needs two frames), so
+            // conversation growth is followed by the browser tail observer instead of a full layout refresh. Keep that behavior.
+            var conversationSignature = string.Empty;
             var layoutSignature = AsciiText.BuildConsoleLayoutSignature(
                 operatorMode ? "operator" : conversationMode ? "conversation" : "game",
                 $"{fullscreenScaleMode}:{gameDisplayMode}",

@@ -35,6 +35,68 @@ namespace LocalGPT.Services
                         return compact.Length <= maximum ? compact : compact[..maximum].TrimEnd();
                     }
 
+                    // Small models copy prompt placeholders such as "<one short trainer line>" and repeat their own sentence.
+                    // Spoken lines keep only real text: entities decoded, placeholders removed, repeated sentences shown once.
+                    static string CleanSpokenLine(string? value)
+                    {
+                        var text = System.Net.WebUtility.HtmlDecode(value ?? string.Empty);
+                        var withoutPlaceholders = new StringBuilder(text.Length);
+                        var index = 0;
+                        while (index < text.Length)
+                        {
+                            var open = text.IndexOf('<', index);
+                            var close = open < 0 ? -1 : text.IndexOf('>', open + 1);
+                            if (open < 0 || close < 0)
+                            {
+                                withoutPlaceholders.Append(text, index, text.Length - index);
+                                break;
+                            }
+                            withoutPlaceholders.Append(text, index, open - index);
+                            var inner = text.AsSpan(open + 1, close - open - 1);
+                            var isPlaceholder = inner.Length is >= 3 and <= 120
+                                && char.IsLetter(inner[0])
+                                && inner.Contains(' ')
+                                && inner.IndexOfAny('<', '=', '"') < 0;
+                            if (!isPlaceholder)
+                                withoutPlaceholders.Append(text, open, close - open + 1);
+                            index = close + 1;
+                        }
+
+                        var cleaned = withoutPlaceholders.ToString();
+                        var sentences = new List<string>();
+                        var sentenceStart = 0;
+                        for (var position = 0; position < cleaned.Length; position++)
+                        {
+                            if (cleaned[position] is '.' or '!' or '?' && (position + 1 == cleaned.Length || char.IsWhiteSpace(cleaned[position + 1])))
+                            {
+                                sentences.Add(cleaned[sentenceStart..(position + 1)].Trim());
+                                sentenceStart = position + 1;
+                            }
+                        }
+                        if (sentenceStart < cleaned.Length)
+                            sentences.Add(cleaned[sentenceStart..].Trim());
+                        var unique = new List<string>();
+                        foreach (var sentence in sentences)
+                        {
+                            if (sentence.Length > 0 && !unique.Contains(sentence, StringComparer.OrdinalIgnoreCase))
+                                unique.Add(sentence);
+                        }
+                        return string.Join(' ', unique);
+                    }
+
+                    // Joins presentation values once each, so identical trainer and creature lines are not repeated.
+                    static string JoinDistinct(string separator, params string?[] values)
+                    {
+                        var unique = new List<string>();
+                        foreach (var value in values)
+                        {
+                            var trimmed = (value ?? string.Empty).Trim();
+                            if (trimmed.Length > 0 && !unique.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+                                unique.Add(trimmed);
+                        }
+                        return string.Join(separator, unique);
+                    }
+
                     static string SafeName(string? value, string fallback)
                     {
                         var compact = Compact(value, 28);
@@ -54,7 +116,7 @@ namespace LocalGPT.Services
                         {
                             var trimmed = line.Trim();
                             if (trimmed.StartsWith(tag + ":", StringComparison.OrdinalIgnoreCase))
-                                return Compact(trimmed[(tag.Length + 1)..], 96);
+                                return Compact(CleanSpokenLine(trimmed[(tag.Length + 1)..]), 96);
                         }
                         return string.Empty;
                     }
@@ -400,7 +462,73 @@ namespace LocalGPT.Services
                         return Compact(string.Join(" ", names), 70);
                     }
 
+                    var battleStyleRuns = new Dictionary<string, List<CouncilAsciiStyleRun>>(StringComparer.Ordinal);
+
+                    KernelBattleSide? BattleSide(CouncilKernelTournamentFighterState? fighter, string pose, int? health, string statement)
+                    {
+                        if (fighter is null)
+                            return null;
+                        var active = ActiveCreature(fighter);
+                        return new KernelBattleSide
+                        {
+                            TrainerName = ShortModel(fighter.TrainerModelName),
+                            TrainerAction = string.IsNullOrWhiteSpace(fighter.LastTrainerAction) || fighter.LastTrainerAction == "NONE" ? "READY" : fighter.LastTrainerAction,
+                            CreatureName = fighter.CreatureName,
+                            Species = Compact(fighter.CreatureSpecies, 22),
+                            Health = health ?? fighter.Health,
+                            Statement = Compact(string.IsNullOrWhiteSpace(statement) ? fighter.TrainerGreeting : statement, 160),
+                            SwitchesUsed = fighter.SwitchesUsedInCurrentFight,
+                            Roster = fighter.CreatureRoster.Select(creature => (Math.Max(0, creature.Health), creature.IsActive)).ToList(),
+                            SpriteRows = active?.SpriteRows ?? new List<string>(),
+                            SpriteKind = active?.SpriteKind ?? string.Empty,
+                            SpritePalette = active?.SpritePalette ?? new List<int>(),
+                            SpriteAuthor = active?.SpriteAuthorModelName is { Length: > 0 } author ? ShortModel(author) : ShortModel(fighter.CreatureModelName),
+                            Pose = pose
+                        };
+                    }
+
+                    // The handheld-style ANSI battle screen is the tournament presentation. The original
+                    // 70s ASCII arena remains for terminals too small to hold two sprites and the info boxes.
                     string MakeFrame(
+                        string headline,
+                        CouncilKernelTournamentFighterState? left,
+                        CouncilKernelTournamentFighterState? right,
+                        string body,
+                        string footer,
+                        string leftPose = "idle",
+                        string rightPose = "idle",
+                        int? leftHealth = null,
+                        int? rightHealth = null,
+                        string centerEffect = "VS",
+                        string hudMotif = "",
+                        string leftStatement = "",
+                        string rightStatement = "")
+                    {
+                        if (session.FrameWidth < 72 || session.FrameHeight < 26)
+                            return MakeClassicFrame(headline, left, right, body, footer, leftPose, rightPose, leftHealth, rightHealth, centerEffect, hudMotif, leftStatement, rightStatement);
+                        var scene = new KernelBattleScene
+                        {
+                            Headline = Compact(headline, 60),
+                            Body = body ?? string.Empty,
+                            Footer = footer ?? string.Empty,
+                            CenterEffect = Compact(centerEffect, 16),
+                            HudMotif = Compact(hudMotif, 42),
+                            Round = Math.Max(1, session.TournamentRound),
+                            Exchange = Math.Max(0, session.TournamentExchange),
+                            StartingHealth = session.TournamentRules.StartingHealth,
+                            MaximumSwitches = session.TournamentRules.MaximumCreatureSwitchesPerFight,
+                            TimelineRecent = Compact(TimelineLine(0), 180),
+                            TimelinePrevious = Compact(TimelineLine(1), 180),
+                            Left = BattleSide(left, leftPose, leftHealth, leftStatement),
+                            Right = BattleSide(right, rightPose, rightHealth, rightStatement),
+                            SameFighter = left is not null && ReferenceEquals(left, right)
+                        };
+                        var rendered = RenderKernelBattleFrame(session.FrameWidth, session.FrameHeight, scene);
+                        battleStyleRuns[rendered.Text] = rendered.Runs;
+                        return rendered.Text;
+                    }
+
+                    string MakeClassicFrame(
                         string headline,
                         CouncilKernelTournamentFighterState? left,
                         CouncilKernelTournamentFighterState? right,
@@ -552,10 +680,53 @@ namespace LocalGPT.Services
                             Health = session.TournamentRules.StartingHealth
                         }).ToList();
 
+                        static (List<string> Rows, string Kind, List<int> Palette) SanitizeMemberSprite(CouncilKernelTournamentContestantSeed? seed)
+                        {
+                            int[] defaults = [16, 75, 25, 220, 231];
+                            var palette = Enumerable.Range(0, defaults.Length)
+                                .Select(index => seed is not null && index < seed.CreatureSpritePalette.Count
+                                    ? Math.Clamp(seed.CreatureSpritePalette[index], 0, 255)
+                                    : defaults[index])
+                                .ToList();
+                            if (seed is null || seed.CreatureSprite.Count == 0)
+                                return (new List<string>(), string.Empty, palette);
+                            if (string.Equals(seed.CreatureSpriteKind, "pixel", StringComparison.Ordinal))
+                            {
+                                var pixelRows = seed.CreatureSprite.Take(16)
+                                    .Select(row => new string((row ?? string.Empty).Take(20).Select(cell => ".#+-*o".Contains(cell) ? cell : '.').ToArray()))
+                                    .ToList();
+                                return pixelRows.Any(row => row.Any(cell => cell != '.'))
+                                    ? (pixelRows, "pixel", palette)
+                                    : (new List<string>(), string.Empty, palette);
+                            }
+                            if (string.Equals(seed.CreatureSpriteKind, "ascii", StringComparison.Ordinal))
+                            {
+                                var asciiRows = seed.CreatureSprite.Take(14)
+                                    .Select(row => new string((row ?? string.Empty).Take(36).Select(cell => cell >= ' ' && cell <= '~' ? cell : ' ').ToArray()).TrimEnd())
+                                    .ToList();
+                                return asciiRows.Any(row => row.Length > 0)
+                                    ? (asciiRows, "ascii", palette)
+                                    : (new List<string>(), string.Empty, palette);
+                            }
+                            return (new List<string>(), string.Empty, palette);
+                        }
+
+                        static List<int> SpriteVariantPalette(IReadOnlyList<int> palette, int slot)
+                        {
+                            // Reserve partners keep the member's drawing and the member's own colors, only rearranged.
+                            return (slot % 3) switch
+                            {
+                                1 => new List<int> { palette[0], palette[3], palette[1], palette[2], palette[4] },
+                                2 => new List<int> { palette[0], palette[2], palette[3], palette[1], palette[4] },
+                                _ => palette.ToList()
+                            };
+                        }
+
                         var usedCreatureNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         for (var fighterIndex = 0; fighterIndex < session.TournamentFighters.Count; fighterIndex++)
                         {
                             var fighter = session.TournamentFighters[fighterIndex];
+                            var memberSprite = SanitizeMemberSprite(fighterIndex < contestants.Count ? contestants[fighterIndex] : null);
                             if (!usedCreatureNames.Add(fighter.CreatureName))
                             {
                                 var qualifiedName = SafeName($"{fighter.CreatureName}-{ShortModel(fighter.CreatureModelName)}", $"Kernel Creature {fighterIndex + 1}");
@@ -587,7 +758,11 @@ namespace LocalGPT.Services
                                     Health = session.TournamentRules.StartingHealth,
                                     IsActive = slot == 0,
                                     IsResting = slot != 0,
-                                    Rig = BuildCreatureRig($"{fighter.CreatureModelName}|{slot}", descriptor)
+                                    Rig = BuildCreatureRig($"{fighter.CreatureModelName}|{slot}", descriptor),
+                                    SpriteRows = memberSprite.Rows.ToList(),
+                                    SpriteKind = memberSprite.Kind,
+                                    SpritePalette = SpriteVariantPalette(memberSprite.Palette, slot),
+                                    SpriteAuthorModelName = fighter.CreatureModelName
                                 };
                             }).ToList();
                             fighter.ActiveCreatureId = fighter.CreatureRoster[0].CreatureId;
@@ -625,7 +800,7 @@ namespace LocalGPT.Services
                             .ToList();
                         frames.AddRange(presentationFrames);
                         var pairingText = string.Join("  |  ", session.TournamentFighters.Select(item => item.CreatureName));
-                        var openingHud = Compact(string.Join(" <> ", new[] { activeLeft?.CreatureName, activeRight?.CreatureName }.Where(value => !string.IsNullOrWhiteSpace(value))), 42);
+                        var openingHud = Compact(JoinDistinct(" <> ", activeLeft?.CreatureName, activeRight?.CreatureName), 42);
                         AddTimeline("READY", activeLeft, activeRight, $"Bracket ready; {session.TournamentRules.CreaturesPerTrainer} creature slots per trainer, {session.TournamentRules.MaximumCreatureSwitchesPerFight} trainer switches per fight.");
                         frames.Add(MakeFrame(
                             $"ROUND {session.TournamentRound} // ARENA WAKE",
@@ -644,7 +819,7 @@ namespace LocalGPT.Services
                             activeLeft,
                             activeRight,
                             "Trainers enter with their own opening lines; creatures answer from their persistent rigs.",
-                            Compact(string.Join(" / ", new[] { activeLeft?.CreatureVoice, activeRight?.CreatureVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                            Compact(JoinDistinct(" / ", activeLeft?.CreatureVoice, activeRight?.CreatureVoice), 160),
                             "command",
                             "command",
                             centerEffect: "HELLO",
@@ -655,7 +830,7 @@ namespace LocalGPT.Services
                             $"ROUND {session.TournamentRound} // CREATURE SALUTE",
                             activeLeft,
                             activeRight,
-                            Compact(string.Join(" / ", new[] { activeLeft?.CreatureVoice, activeRight?.CreatureVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                            Compact(JoinDistinct(" / ", activeLeft?.CreatureVoice, activeRight?.CreatureVoice), 160),
                             pairingText,
                             "victory",
                             "victory",
@@ -808,7 +983,7 @@ namespace LocalGPT.Services
                         var rightHud = ReadTaggedValue(rightTrainer, "HUD");
                         var leftEffect = ReadTaggedValue(leftCreature, "EFFECT");
                         var rightEffect = ReadTaggedValue(rightCreature, "EFFECT");
-                        var exchangeHud = Compact(string.Join(" <> ", new[] { leftHud, rightHud }.Where(value => !string.IsNullOrWhiteSpace(value))), 42);
+                        var exchangeHud = Compact(JoinDistinct(" <> ", leftHud, rightHud), 42);
                         if (string.IsNullOrWhiteSpace(exchangeHud))
                             exchangeHud = Compact($"{activeLeft.CreatureName} // {activeRight.CreatureName} // E{session.TournamentExchange}", 42);
                         var leftPose = leftMove switch { "GUARD" => "guard", "RECOVER" => "recover", "WAIT" => "idle", _ => "attack" };
@@ -821,7 +996,7 @@ namespace LocalGPT.Services
                                 $"ROUND {session.TournamentRound} // MATCH GREETING",
                                 activeLeft,
                                 activeRight,
-                                Compact(string.Join(" / ", new[] { leftTrainerVoice, rightTrainerVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                                Compact(JoinDistinct(" / ", leftTrainerVoice, rightTrainerVoice), 160),
                                 "Fresh trainer statements and a newly generated arena HUD open this legal match.",
                                 "command",
                                 "command",
@@ -835,8 +1010,8 @@ namespace LocalGPT.Services
                                 "CREATURE GREETING // READY STANCE",
                                 activeLeft,
                                 activeRight,
-                                Compact(string.Join(" / ", new[] { leftVoice, rightVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
-                                Compact(string.Join("     ", new[] { leftEffect, rightEffect }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                                Compact(JoinDistinct(" / ", leftVoice, rightVoice), 160),
+                                Compact(JoinDistinct("     ", leftEffect, rightEffect), 160),
                                 "victory",
                                 "victory",
                                 leftBefore,
@@ -864,8 +1039,8 @@ namespace LocalGPT.Services
                             "CREATURES MOVE // WIND-UP",
                             activeLeft,
                             activeRight,
-                            Compact(string.Join(" / ", new[] { leftFlavor, rightFlavor }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
-                            Compact(string.Join("     ", new[] { leftEffect, rightEffect }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                            Compact(JoinDistinct(" / ", leftFlavor, rightFlavor), 160),
+                            Compact(JoinDistinct("     ", leftEffect, rightEffect), 160),
                             leftPose,
                             rightPose,
                             leftBefore,
@@ -913,7 +1088,7 @@ namespace LocalGPT.Services
                             activeLeft,
                             activeRight,
                             $"{leftMove}  <<< *** >>>  {rightMove}",
-                            Compact(string.Join(" / ", new[] { leftVoice, rightVoice }.Where(value => !string.IsNullOrWhiteSpace(value))), 160),
+                            Compact(JoinDistinct(" / ", leftVoice, rightVoice), 160),
                             leftPose,
                             rightPose,
                             leftBefore,
@@ -1007,13 +1182,15 @@ namespace LocalGPT.Services
                             exchangeHud,
                             leftTrainerVoice,
                             rightTrainerVoice));
-                        session.AnimationSubtitle = Compact(string.Join(" ", new[] { leftTrainerVoice, leftVoice, rightTrainerVoice, rightVoice, consequence }.Where(value => !string.IsNullOrWhiteSpace(value))), 360);
+                        session.AnimationSubtitle = Compact(CleanSpokenLine(JoinDistinct(" ", leftTrainerVoice, leftVoice, rightTrainerVoice, rightVoice, consequence)), 360);
                         summary = BuildTournamentSummary(session, consequence, false);
                     }
 
                     session.AnimationFrames = frames.Select(frame => NormalizeFrame(frame, session.FrameWidth, session.FrameHeight)).ToList();
                     session.AnimationFrameStyleRuns = session.AnimationFrames
-                        .Select(frame => BuildSemanticAsciiStyleRuns(session.GameKey, session.RuntimeProfile, frame, session.FrameWidth, session.FrameHeight))
+                        .Select(frame => battleStyleRuns.TryGetValue(frame, out var battleRuns)
+                            ? NormalizeAsciiStyleRuns(battleRuns, session.FrameWidth, session.FrameHeight, CouncilAsciiColorMode.TerminalDefault)
+                            : BuildSemanticAsciiStyleRuns(session.GameKey, session.RuntimeProfile, frame, session.FrameWidth, session.FrameHeight))
                         .ToList();
                     session.AnimationSubtitleStyle = new CouncilAsciiTextStyle
                     {

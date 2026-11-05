@@ -386,6 +386,220 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds the complete chat representation of one recorded Council run from its durable spool: the live-Council marker, a short
+        /// header, one collapsed panel per recorded step in the same panel format as the live transcript (thinking, visible answer, error),
+        /// the saved warnings and the final answer. Nothing is shortened; the chat shows what the saved evidence contains.
+        /// </summary>
+        /// <param name="receipt">Durable Council spool snapshot of the run.</param>
+        /// <param name="liveMessageMarker">Exact live-Council marker of the run, kept so the message stays linked to its run and evidence.</param>
+        /// <returns>Markdown/HTML chat content for the run, or an empty string when the snapshot cannot be formatted.</returns>
+        public string BuildCouncilChatTranscriptFromSpool(CouncilSpoolerSnapshot receipt, string liveMessageMarker)
+        {
+            try
+            {
+                ArgumentNullException.ThrowIfNull(receipt);
+                var steps = receipt.Steps.OrderBy(step => step.SortOrder).ToList();
+                var members = receipt.ModelNames.Count > 0 ? string.Join(", ", receipt.ModelNames) : "no recorded members";
+                var builder = new StringBuilder();
+                builder.Append(liveMessageMarker).Append('\n');
+                builder.Append("_AI Council · ").Append(receipt.CouncilTeamKey).Append(" · ").Append(receipt.Status)
+                    .Append(" · round ").Append(receipt.CurrentRound.ToString(CultureInfo.InvariantCulture)).Append(" · ").Append(receipt.Phase)
+                    .Append(". Restored from the saved Council evidence: ").Append(steps.Count.ToString(CultureInfo.InvariantCulture))
+                    .Append(" recorded step(s); members: ").Append(members).Append("._\n\n");
+
+                foreach (var step in steps)
+                {
+                    var streamId = CreateRestoredCouncilStreamId(receipt.RunId, step.SortOrder);
+                    var label = $"Round {step.Round} · {step.Phase} · {step.Role} · {step.ModelName}";
+                    builder.Append("<details class=\"council-step\" data-localgpt-stream-id=\"").Append(streamId).Append("\"><summary>")
+                        .Append(WebUtility.HtmlEncode(label)).Append("</summary>\n\n");
+                    if (!string.IsNullOrWhiteSpace(step.Thinking))
+                    {
+                        builder.Append("<details class=\"model-thinking\"><summary>Model thinking</summary>\n\n")
+                            .Append(step.Thinking.Trim()).Append("\n\n</details>\n\n");
+                    }
+                    var visible = string.IsNullOrWhiteSpace(step.VisibleContent) ? step.Content : step.VisibleContent;
+                    if (!string.IsNullOrWhiteSpace(visible))
+                        builder.Append(visible.Trim()).Append("\n\n");
+                    if (!string.IsNullOrWhiteSpace(step.Error))
+                        builder.Append("> **Provider error:** ").Append(step.Error.Trim()).Append("\n\n");
+                    builder.Append("</details><!--localgpt-council-stream-complete:").Append(streamId).Append("-->\n\n");
+                }
+
+                foreach (var warning in receipt.Warnings.Where(item => !string.IsNullOrWhiteSpace(item)))
+                    builder.Append("> ").Append(warning.Trim()).Append("\n\n");
+                if (!string.IsNullOrWhiteSpace(receipt.FinalAnswer))
+                    builder.Append(receipt.FinalAnswer.Trim()).Append('\n');
+                return builder.ToString();
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Building a chat transcript from the saved Council spool failed; content was omitted.");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Chooses the most complete content for one Council chat message. All candidates describe the same run and only grow over time, so the
+        /// longest one is the most complete: the saved chat copy (which may hold only the run marker or a stream with dropped chunks), the
+        /// in-memory live transcript of a finished run, or the transcript rebuilt from the durable spool.
+        /// </summary>
+        /// <param name="currentContent">Content currently stored for the Council message.</param>
+        /// <param name="liveMessageMarker">Exact live-Council marker of the run.</param>
+        /// <param name="liveTranscript">In-memory ordered transcript, or an empty value when the process no longer holds the run.</param>
+        /// <param name="spoolTranscript">Transcript built by <see cref="BuildCouncilChatTranscriptFromSpool"/>, or an empty value.</param>
+        /// <returns>The current content instance when nothing more complete exists; otherwise the more complete content.</returns>
+        public string SelectMostCompleteCouncilMessage(string? currentContent, string liveMessageMarker, string? liveTranscript, string? spoolTranscript)
+        {
+            try
+            {
+                var best = currentContent ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(liveTranscript))
+                {
+                    var live = liveTranscript.Contains(liveMessageMarker, StringComparison.Ordinal)
+                        ? liveTranscript
+                        : liveMessageMarker + "\n" + liveTranscript;
+                    if (live.Length > best.Length)
+                        best = live;
+                }
+                if (!string.IsNullOrWhiteSpace(spoolTranscript) && spoolTranscript.Length > best.Length)
+                    best = spoolTranscript;
+                return best;
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Selecting the most complete Council message failed; the stored content is kept.");
+                return currentContent ?? string.Empty;
+            }
+        }
+
+        /// <summary>Creates a stable 32-hex panel identifier for one restored step, so the renderer isolates each step like a live stream panel.</summary>
+        /// <param name="runId">Council run identifier.</param>
+        /// <param name="sortOrder">Recorded step order.</param>
+        /// <returns>A lowercase 32-character hexadecimal identifier unique per run and step.</returns>
+        private string CreateRestoredCouncilStreamId(Guid runId, int sortOrder)
+        {
+            try
+            {
+                var bytes = runId.ToByteArray();
+                var order = BitConverter.GetBytes(sortOrder);
+                for (var index = 0; index < order.Length; index++)
+                    bytes[12 + index] ^= order[index];
+                return new Guid(bytes).ToString("N");
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Creating a restored Council panel identifier failed.");
+                return Guid.NewGuid().ToString("N");
+            }
+        }
+
+        /// <summary>
+        /// Returns the newest part of a Markdown stream for a bounded preview (for example one Council lane card). The cut is moved to a line start,
+        /// and a code fence that was open at the cut is reopened, so the preview renders like the original. The complete text is not changed.
+        /// </summary>
+        /// <param name="text">Complete Markdown stream.</param>
+        /// <param name="maximumCharacters">Maximum characters of the preview.</param>
+        /// <returns>The complete text when it fits, otherwise a marked newest region.</returns>
+        public string TakeMarkdownTail(string? text, int maximumCharacters)
+        {
+            try
+            {
+                var value = text ?? string.Empty;
+                if (maximumCharacters <= 0 || value.Length <= maximumCharacters)
+                    return value;
+
+                var start = value.Length - maximumCharacters;
+                var lineBreak = value.IndexOf('\n', start);
+                if (lineBreak >= 0 && lineBreak + 1 < value.Length)
+                    start = lineBreak + 1;
+                var fencesBeforeCut = 0;
+                for (var fence = value.IndexOf("```", 0, StringComparison.Ordinal);
+                     fence >= 0 && fence < start;
+                     fence = value.IndexOf("```", fence + 3, StringComparison.Ordinal))
+                {
+                    fencesBeforeCut++;
+                }
+                var reopenFence = fencesBeforeCut % 2 == 1 ? "```\n" : string.Empty;
+                return "_… earlier output of this lane is shown in the ordered transcript above …_\n\n" + reopenFence + value[start..];
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Taking a Markdown preview tail failed; content was omitted.");
+                return text ?? string.Empty;
+            }
+        }
+
+        /// <summary>Finds the end of the next completed provider-stream segment in an ordered live Council transcript.</summary>
+        /// <param name="transcript">Ordered live Council transcript.</param>
+        /// <param name="startIndex">Index at which the search starts.</param>
+        /// <returns>The index directly after the next <c>&lt;!--localgpt-council-stream-complete:…--&gt;</c> delimiter, or -1 when no completed segment follows.</returns>
+        public int FindCouncilStreamSegmentEnd(string? transcript, int startIndex)
+        {
+            try
+            {
+                const string delimiterStart = "<!--localgpt-council-stream-complete:";
+                const string delimiterEnd = "-->";
+                if (string.IsNullOrEmpty(transcript) || startIndex < 0 || startIndex >= transcript.Length)
+                    return -1;
+                var markerStart = transcript.IndexOf(delimiterStart, startIndex, StringComparison.Ordinal);
+                if (markerStart < 0)
+                    return -1;
+                var markerEnd = transcript.IndexOf(delimiterEnd, markerStart + delimiterStart.Length, StringComparison.Ordinal);
+                return markerEnd < 0 ? -1 : markerEnd + delimiterEnd.Length;
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Finding a completed Council stream segment failed; transcript content was omitted.");
+                return -1;
+            }
+        }
+
+        /// <summary>Returns up to <paramref name="maximumCharacters"/> characters directly before <paramref name="endIndex"/> as a probe for an append-only text.</summary>
+        /// <param name="text">Append-only text, for example a live Council transcript.</param>
+        /// <param name="endIndex">Exclusive end of the probe.</param>
+        /// <param name="maximumCharacters">Maximum probe length.</param>
+        /// <returns>The probe text, or an empty string when no characters precede <paramref name="endIndex"/>.</returns>
+        public string TakeTextProbeBefore(string? text, int endIndex, int maximumCharacters)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(text) || endIndex <= 0 || maximumCharacters <= 0)
+                    return string.Empty;
+                var end = Math.Min(endIndex, text.Length);
+                var length = Math.Min(maximumCharacters, end);
+                return text.Substring(end - length, length);
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Taking an append-only text probe failed; content was omitted.");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>Returns whether <paramref name="text"/> still contains <paramref name="probe"/> directly before <paramref name="endIndex"/> (the text was only appended to).</summary>
+        /// <param name="text">Current text.</param>
+        /// <param name="endIndex">Exclusive end at which the probe was taken.</param>
+        /// <param name="probe">Probe returned by <see cref="TakeTextProbeBefore"/>.</param>
+        /// <returns><see langword="true"/> when the text still ends with the probe at that position.</returns>
+        public bool HasTextProbeBefore(string? text, int endIndex, string? probe)
+        {
+            try
+            {
+                var value = text ?? string.Empty;
+                var expected = probe ?? string.Empty;
+                if (endIndex < expected.Length || endIndex > value.Length)
+                    return false;
+                return value.AsSpan(endIndex - expected.Length, expected.Length).SequenceEqual(expected.AsSpan());
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Checking an append-only text probe failed; content was omitted.");
+                return false;
+            }
+        }
+
         /// <summary>Tests text membership through the service boundary so UI and controllers do not own filtering semantics.</summary>
         /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
         /// <param name="fragment">Fragment value supplied to the council text operation and used when producing its result.</param>

@@ -128,21 +128,188 @@ namespace LocalGPT.Services
                     throw new InvalidOperationException("The Kernel Creature Tournament workflow requires its prebootstrapped deterministic game session.");
                 }
 
+                // Provider streams are HTML-encoded for the chat transcript. The tournament grid renders
+                // through textContent, so it needs the plain text back: decode at most twice (double-encoded
+                // transcript copies), then drop characters that do not occupy exactly one terminal cell.
+                static string PlainModelText(string? content)
+                {
+                    var text = content ?? string.Empty;
+                    for (var pass = 0; pass < 2 && text.Contains('&', StringComparison.Ordinal); pass++)
+                    {
+                        var decoded = System.Net.WebUtility.HtmlDecode(text);
+                        if (string.Equals(decoded, text, StringComparison.Ordinal))
+                            break;
+                        text = decoded;
+                    }
+                    var plain = new System.Text.StringBuilder(text.Length);
+                    foreach (var character in text)
+                    {
+                        if (char.IsSurrogate(character) || character is '\uFE0F' or '\u200D' or '\u200B' or '\uFEFF')
+                            continue;
+                        if (char.IsControl(character) && character is not '\n' and not '\r' and not '\t')
+                            continue;
+                        plain.Append(character);
+                    }
+                    return plain.ToString();
+                }
+
+                // Small models sometimes copy the prompt's angle-bracket placeholder instead of filling it.
+                static bool IsTemplatePlaceholder(string value)
+                {
+                    var trimmed = (value ?? string.Empty).Trim();
+                    return trimmed.Length >= 3 && trimmed.Length <= 120
+                        && trimmed[0] == '<' && trimmed[^1] == '>'
+                        && trimmed.IndexOfAny(['<', '>'], 1, trimmed.Length - 2) < 0;
+                }
+
+                // Removes echoed prompt placeholders ("<one short trainer line>") inside a value; HTML-like tags are kept.
+                static string StripPromptPlaceholders(string value)
+                {
+                    var text = value ?? string.Empty;
+                    var result = new System.Text.StringBuilder(text.Length);
+                    var index = 0;
+                    while (index < text.Length)
+                    {
+                        var open = text.IndexOf('<', index);
+                        var close = open < 0 ? -1 : text.IndexOf('>', open + 1);
+                        if (open < 0 || close < 0)
+                        {
+                            result.Append(text, index, text.Length - index);
+                            break;
+                        }
+                        result.Append(text, index, open - index);
+                        var inner = text.AsSpan(open + 1, close - open - 1);
+                        var isPlaceholder = inner.Length is >= 3 and <= 120
+                            && char.IsLetter(inner[0])
+                            && inner.Contains(' ')
+                            && inner.IndexOfAny('<', '=', '"') < 0;
+                        if (!isPlaceholder)
+                            result.Append(text, open, close - open + 1);
+                        index = close + 1;
+                    }
+                    return string.Join(' ', result.ToString().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+                }
+
                 static string ReadTag(string content, string tag)
                 {
-                    foreach (var line in (content ?? string.Empty).Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n'))
+                    foreach (var line in PlainModelText(content).Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n'))
                     {
                         var trimmed = line.Trim();
                         if (trimmed.StartsWith(tag + ":", StringComparison.OrdinalIgnoreCase))
-                            return string.Join(' ', trimmed[(tag.Length + 1)..].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+                        {
+                            var value = string.Join(' ', trimmed[(tag.Length + 1)..].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+                            return IsTemplatePlaceholder(value) ? string.Empty : StripPromptPlaceholders(value);
+                        }
                     }
                     return string.Empty;
+                }
+
+                // The Kernel Creature member draws its own battle sprite. Pixel legend: . empty, # outline,
+                // + body, - shade, * accent, o eye; a few common aliases are normalized. Rows that are not
+                // legend-only but are printable ASCII are kept as member-authored ASCII art instead.
+                static (List<string> Rows, string Kind, List<int> Palette) ReadSprite(string content)
+                {
+                    var lines = PlainModelText(content).Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n');
+                    int[] palette = [16, 75, 25, 220, 231];
+                    string[] paletteKeys = ["outline", "body", "shade", "accent", "eye"];
+                    foreach (var line in lines)
+                    {
+                        var trimmed = line.Trim();
+                        if (!trimmed.StartsWith("COLORS:", StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        foreach (var token in trimmed["COLORS:".Length..].Split([' ', ',', ';', '\t'], StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            var separator = token.IndexOfAny(['=', ':']);
+                            if (separator <= 0)
+                                continue;
+                            var keyIndex = Array.FindIndex(paletteKeys, key => key.Equals(token[..separator].Trim(), StringComparison.OrdinalIgnoreCase));
+                            if (keyIndex >= 0 && int.TryParse(token[(separator + 1)..].Trim(), out var color) && color is >= 0 and <= 255)
+                                palette[keyIndex] = color;
+                        }
+                        break;
+                    }
+
+                    static char PixelLegend(char value) => value switch
+                    {
+                        '.' or ' ' or '_' or '`' => '.',
+                        '#' or '@' or 'X' => '#',
+                        '+' or '=' or '\u2588' => '+',
+                        '-' or '~' or ':' or '\u2593' or '\u2591' => '-',
+                        '*' or '%' or '^' or '\u2592' => '*',
+                        'o' or 'O' or '0' => 'o',
+                        _ => '\0'
+                    };
+
+                    var markerIndex = Array.FindIndex(lines, line => line.TrimStart().StartsWith("SPRITE:", StringComparison.OrdinalIgnoreCase));
+                    var candidates = new List<string>();
+                    var start = markerIndex >= 0 ? markerIndex : Array.FindIndex(lines, line => line.TrimStart().StartsWith("```", StringComparison.Ordinal));
+                    if (start < 0)
+                        return (new List<string>(), string.Empty, palette.ToList());
+                    if (markerIndex >= 0)
+                    {
+                        var inline = lines[markerIndex].TrimStart()["SPRITE:".Length..].TrimEnd();
+                        if (!string.IsNullOrWhiteSpace(inline))
+                            candidates.Add(inline);
+                    }
+                    for (var index = start + 1; index < lines.Length && candidates.Count < 24; index++)
+                    {
+                        var line = lines[index].TrimEnd();
+                        var trimmed = line.Trim();
+                        if (trimmed.StartsWith("```", StringComparison.Ordinal))
+                        {
+                            if (candidates.Count > 0)
+                                break;
+                            continue;
+                        }
+                        if (trimmed.Length == 0)
+                        {
+                            if (candidates.Count > 0)
+                                break;
+                            continue;
+                        }
+                        var colon = trimmed.IndexOf(':');
+                        if (colon > 1 && colon <= 12 && trimmed[..colon].All(char.IsLetter))
+                            break;
+                        candidates.Add(line);
+                    }
+
+                    if (candidates.Count >= 4 && candidates.All(row => row.Length <= 32 && row.All(cell => PixelLegend(cell) != '\0')))
+                    {
+                        var rows = candidates.Select(row => new string(row.Select(PixelLegend).ToArray())).ToList();
+                        var width = rows.Max(row => row.Length);
+                        rows = rows.Select(row => row.PadRight(width, '.')).ToList();
+                        while (rows.Count > 0 && rows[0].All(cell => cell == '.')) rows.RemoveAt(0);
+                        while (rows.Count > 0 && rows[^1].All(cell => cell == '.')) rows.RemoveAt(rows.Count - 1);
+                        if (rows.Count > 0)
+                        {
+                            var firstColumn = Enumerable.Range(0, width).FirstOrDefault(column => rows.Any(row => row[column] != '.'));
+                            var lastColumn = Enumerable.Range(0, width).Reverse().FirstOrDefault(column => rows.Any(row => row[column] != '.'));
+                            rows = rows.Select(row => row[firstColumn..(lastColumn + 1)]).ToList();
+                        }
+                        var filled = rows.Sum(row => row.Count(cell => cell != '.'));
+                        // A drawing needs a shape: identical rows (bars, stripes) are not a creature.
+                        var distinctRows = rows.Distinct(StringComparer.Ordinal).Count();
+                        if (rows.Count >= 4 && filled >= 8 && distinctRows >= 3)
+                            return (rows.Take(16).Select(row => row.Length > 20 ? row[..20] : row).ToList(), "pixel", palette.ToList());
+                    }
+
+                    var art = candidates
+                        .Where(row => !IsTemplatePlaceholder(row) && row.All(cell => cell >= ' ' && cell <= '~'))
+                        .Take(14)
+                        .Select(row => row.Length > 36 ? row[..36] : row)
+                        .ToList();
+                    if (art.Count >= 3 && art.Count == Math.Min(candidates.Count, 14) && art.Select(row => row.Trim()).Distinct(StringComparer.Ordinal).Count() >= 3)
+                    {
+                        var indent = art.Where(row => row.Trim().Length > 0).Select(row => row.Length - row.TrimStart().Length).DefaultIfEmpty(0).Min();
+                        return (art.Select(row => row.Length >= indent ? row[indent..] : row).ToList(), "ascii", palette.ToList());
+                    }
+                    return (new List<string>(), string.Empty, palette.ToList());
                 }
 
                 static IReadOnlyList<string> ReadAsciiFrames(string content)
                 {
                     var frames = new List<string>();
-                    var lines = (content ?? string.Empty).Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n');
+                    var lines = PlainModelText(content).Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n');
                     List<string>? frameLines = null;
                     foreach (var line in lines)
                     {
@@ -157,7 +324,11 @@ namespace LocalGPT.Services
                         if (trimmed.StartsWith("```", StringComparison.Ordinal))
                         {
                             var frame = string.Join('\n', frameLines).TrimEnd();
-                            if (!string.IsNullOrWhiteSpace(frame))
+                            // A frame made only of echoed placeholders ("<complete frame 1>") is not art.
+                            var echoedPlaceholderOnly = frameLines
+                                .Where(frameLine => !string.IsNullOrWhiteSpace(frameLine))
+                                .All(IsTemplatePlaceholder);
+                            if (!string.IsNullOrWhiteSpace(frame) && !echoedPlaceholderOnly)
                                 frames.Add(frame.Length > 12_000 ? frame[..12_000] : frame);
                             frameLines = null;
                             if (frames.Count >= 6)
@@ -193,6 +364,7 @@ namespace LocalGPT.Services
                         creatureName = ReadTag(trainerSelection?.VisibleContent ?? trainerSelection?.Content ?? string.Empty, "NAME");
                     var trainerContent = trainerSelection?.VisibleContent ?? trainerSelection?.Content ?? string.Empty;
                     var creatureContent = introduction?.VisibleContent ?? introduction?.Content ?? string.Empty;
+                    var memberSprite = ReadSprite(creatureContent);
                     contestants.Add(new CouncilKernelTournamentContestantSeed
                     {
                         TrainerModelName = pairing.Participant,
@@ -203,7 +375,10 @@ namespace LocalGPT.Services
                         CreatureForm = ReadTag(creatureContent, "FORM"),
                         CreatureTrait = ReadTag(creatureContent, "TRAIT"),
                         CreatureVoice = ReadTag(creatureContent, "VOICE"),
-                        TrainerGreeting = ReadTag(trainerContent, "CHALLENGE")
+                        TrainerGreeting = ReadTag(trainerContent, "CHALLENGE"),
+                        CreatureSprite = memberSprite.Rows,
+                        CreatureSpriteKind = memberSprite.Kind,
+                        CreatureSpritePalette = memberSprite.Palette
                     });
                 }
 
@@ -220,7 +395,7 @@ namespace LocalGPT.Services
                     {
                         Role = string.Equals(step.WorkflowStepKey, "trainer-round-command", StringComparison.OrdinalIgnoreCase) ? "Creature Trainer" : "Kernel Creature",
                         ModelName = string.IsNullOrWhiteSpace(step.RecoveryTargetModelName) ? step.ModelName : step.RecoveryTargetModelName,
-                        Content = step.VisibleContent ?? step.Content ?? string.Empty
+                        Content = PlainModelText(step.VisibleContent ?? step.Content ?? string.Empty)
                     })
                     .ToList();
 

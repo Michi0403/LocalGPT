@@ -35,6 +35,16 @@ public interface IProviderModelRuntimeService
         TimeSpan maximumWait,
         CancellationToken cancellationToken = default);
     /// <summary>
+    /// Checks the exact model's provider host exactly once, without waiting or retrying, so callers can tell an unreachable host
+    /// from a reachable host that does not list the model.
+    /// </summary>
+    /// <param name="model">Exact provider-qualified model reference whose host should be checked.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The reachability result; provider kinds without a host check return <see cref="ProviderHostReachability.NotSupported"/>.</returns>
+    Task<ProviderHostReachability> ProbeHostOnceAsync(
+        ProviderModelReference model,
+        CancellationToken cancellationToken = default);
+    /// <summary>
     /// Performs remember as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="model">Model value supplied to the provider model runtime operation and used when producing its result.</param>

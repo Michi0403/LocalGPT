@@ -141,6 +141,44 @@ namespace LocalGPT.Services
                             $"Settings revision {runtimeLease.Revision}; {accelerationSummary}; output={maxOutputTokens}; context={maxContextTokens}.");
                     }
 
+                    if (allowRecovery
+                        && councilRunId is Guid admissionRunId
+                        && providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // A host that the goal recovery helper marked down in this run is checked once instead of being
+                        // sent a full request; an excluded host is not contacted at all. Round recovery continues the slot.
+                        var admission = await goalRecovery
+                            .AdmitHostAsync(admissionRunId, GetCouncilExecutionHostKey(modelName), modelName, providerModel, cancellationToken)
+                            .ConfigureAwait(false);
+                        if (!admission.IsAllowed)
+                        {
+                            stopwatch.Stop();
+                            var hostStep = new MultiModelCouncilStep
+                            {
+                                Round = round,
+                                Phase = phase,
+                                ModelName = modelName,
+                                ProviderName = providerModel.ProviderName,
+                                ProviderEndpoint = providerModel.Endpoint,
+                                ProviderModelName = providerModel.ModelName,
+                                CouncilMembers = councilMembers.ToList(),
+                                Role = role,
+                                Content = $"**{admission.Message}**",
+                                VisibleContent = $"**{admission.Message}**",
+                                StartedAtUtc = DateTime.UtcNow,
+                                CompletedAtUtc = DateTime.UtcNow,
+                                DurationSeconds = 0,
+                                Error = admission.Message,
+                                HostUnreachable = true
+                            };
+                            ApplyHardwarePlan(hostStep, executionPlan);
+                            progressMessage?.Invoke(admission.Message);
+                            streamUpdate?.Invoke(
+                                Environment.NewLine + Environment.NewLine + "> " + WebUtility.HtmlEncode(admission.Message) + Environment.NewLine + Environment.NewLine);
+                            return hostStep;
+                        }
+                    }
+
                     // DurationSeconds is provider execution time, not time spent waiting for this host/lane lease.
                     // This keeps small-model timing comparable in large sequential-per-host Councils.
                     started = DateTime.UtcNow;
@@ -225,14 +263,10 @@ namespace LocalGPT.Services
                         }
 
                         var attemptBuilder = new StringBuilder();
-                        var enforceBoundedGameRepetitionGuard =
-                            (string.Equals(role, "Creature Trainer", StringComparison.OrdinalIgnoreCase)
-                                && string.Equals(phase, "Trainer selection", StringComparison.OrdinalIgnoreCase))
-                            || (string.Equals(role, "Kernel Creature", StringComparison.OrdinalIgnoreCase)
-                                && string.Equals(phase, "Creature introduction", StringComparison.OrdinalIgnoreCase))
-                            || (string.Equals(role, "ASCII Team Artist", StringComparison.OrdinalIgnoreCase)
-                                && string.Equals(phase, "Team building ASCII", StringComparison.OrdinalIgnoreCase));
-                        var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger, enforceBoundedGameRepetitionGuard);
+                        // 6.9.4: every Council participant stream is a bounded workflow step with its own failure policy, so the
+                        // repetition guard is always on here (before, only three game phases forced it and e.g. "Trainer commands"
+                        // loops ran until the token limit). The general operator switch still governs non-Council chat streams.
+                        var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger, forceEnabled: true);
                         using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
                         using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
                         var liveInputSignal = new TaskCompletionSource<IReadOnlyList<HumanCouncilContribution>>(
@@ -269,6 +303,41 @@ namespace LocalGPT.Services
                                     var repetitionFailure = repetitionWatchdog.Observe(update.Text);
                                     if (repetitionFailure is not null)
                                     {
+                                        var loopedAttempt = attemptBuilder.ToString();
+                                        var salvagedAttempt = repetitionWatchdog.TrimRepeatedTail(loopedAttempt);
+                                        if (!string.IsNullOrWhiteSpace(salvagedAttempt) && salvagedAttempt.Length < loopedAttempt.Length)
+                                        {
+                                            // The model printed the same block again and again. Keep everything before the loop plus its first
+                                            // copy as this participant's answer, stop only this provider request and continue the workflow.
+                                            var removedCharacters = loopedAttempt.Length - salvagedAttempt.Length;
+                                            attemptBuilder.Length = salvagedAttempt.Length;
+                                            allContent.Length -= removedCharacters;
+                                            streamCts.Cancel();
+                                            logger.LogWarning(
+                                                "Council repetition watchdog stopped {ModelName} in {Phase}/{Role}: {PeriodTokens}-token cycle at {Agreement:P1} agreement after {ObservedSeconds:0.0}s; kept the first copy and removed {RemovedCharacters} repeated characters.",
+                                                modelName,
+                                                phase,
+                                                role,
+                                                repetitionFailure.PeriodTokens,
+                                                repetitionFailure.Agreement,
+                                                repetitionFailure.ObservedSeconds,
+                                                removedCharacters);
+                                            progressMessage?.Invoke(
+                                                $"Repetition watchdog stopped a repeated-output loop from {modelName} during {phase}; LocalGPT kept the first copy as the answer and continues the workflow.");
+                                            streamUpdate?.Invoke(
+                                                $"\n\n> **LocalGPT repetition watchdog:** {WebUtility.HtmlEncode(modelName)} kept printing the same text. Only this provider request was stopped; " +
+                                                $"the first copy is kept as the answer and {removedCharacters} repeated characters were removed from it. {WebUtility.HtmlEncode(repetitionFailure.Message)}\n\n");
+                                            break;
+                                        }
+
+                                        logger.LogWarning(
+                                            "Council repetition watchdog stopped {ModelName} in {Phase}/{Role}: {PeriodTokens}-token cycle at {Agreement:P1} agreement after {ObservedSeconds:0.0}s; no character-exact first copy could be kept.",
+                                            modelName,
+                                            phase,
+                                            role,
+                                            repetitionFailure.PeriodTokens,
+                                            repetitionFailure.Agreement,
+                                            repetitionFailure.ObservedSeconds);
                                         progressMessage?.Invoke(
                                             $"Repetition watchdog stopped runaway generation from {modelName} during {phase}; LocalGPT will preserve the partial stream and apply the configured workflow failure policy without an immediate same-model retry.");
                                         streamUpdate?.Invoke(
@@ -546,7 +615,8 @@ namespace LocalGPT.Services
                         StartedAtUtc = started,
                         CompletedAtUtc = DateTime.UtcNow,
                         DurationSeconds = stopwatch.Elapsed.TotalSeconds,
-                        Error = message
+                        Error = message,
+                        HostUnreachable = IsCouncilHostUnavailableForCurrentRun(modelName)
                     };
                     ApplyHardwarePlan(timeoutStep, executionPlan);
                     return timeoutStep;
@@ -581,7 +651,9 @@ namespace LocalGPT.Services
                         StartedAtUtc = started,
                         CompletedAtUtc = DateTime.UtcNow,
                         DurationSeconds = stopwatch.Elapsed.TotalSeconds,
-                        Error = ex.Message
+                        Error = ex.Message,
+                        RepetitionWatchdogStopped = ex is ProviderStreamRepetitionException,
+                        HostUnreachable = ex is not ProviderStreamRepetitionException && IsCouncilHostUnavailableForCurrentRun(modelName)
                     };
                     ApplyHardwarePlan(failedStep, executionPlan);
                     return failedStep;

@@ -256,7 +256,7 @@
         <div class="ascii-sequence-player" aria-label="ASCII animation from the latest chat message">
                     <header>
                         <strong>ASCII SEQUENCE</strong>
-                        <small>@asciiSequenceFrames.Count frames · pauses with the page/window</small>
+                        <small>@asciiSequenceFrames.Count frames · pauses while the page is hidden</small>
                     </header>
                     <pre class="chat-game-screen ascii-sequence-screen" data-ascii-sequence-screen>@asciiSequenceFrames[0]</pre>
                 </div>
@@ -265,7 +265,7 @@
 </DxFormLayout>
             }
             <div class="ascii-conversation-output" role="log" aria-live="polite" aria-label="ASCII rendering of the current chat conversation">
-                <pre class="chat-game-screen">@asciiConversationText</pre>
+                <pre class="chat-game-screen">@foreach (var conversationBlock in asciiConversationBlocks){@conversationBlock}</pre>
             </div>
             <footer class="ascii-conversation-footer">
                 <span>Shared /chat history · replayable when switching views</span>

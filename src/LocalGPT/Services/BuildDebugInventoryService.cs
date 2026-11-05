@@ -25,6 +25,15 @@ namespace LocalGPT.Services
         /// <value>The artifact root value exposed by <see cref="BuildDebugInventoryService"/>.</value>
         public string ArtifactRoot { get; } = LocalGptApplicationDataPaths.ResolveUserPath("BuildDebugFiles");
 
+        /// <summary>How long a symbol-file listing is reused for chat briefings before bin/obj are scanned again.</summary>
+        private readonly TimeSpan debugFileListingLifetime = TimeSpan.FromMinutes(5);
+        /// <summary>Serializes recursive bin/obj scans so parallel chat requests share one scan instead of starting several.</summary>
+        private readonly SemaphoreSlim debugFileScanGate = new(1, 1);
+        /// <summary>Most recent bounded symbol-file listing (newest 250 files) reused by briefings.</summary>
+        private IReadOnlyList<(FileInfo File, string SourceArea)>? cachedDebugFiles;
+        /// <summary>UTC time at which <see cref="cachedDebugFiles"/> was produced.</summary>
+        private DateTime cachedDebugFilesAtUtc;
+
         /// <summary>
         /// Performs capture as part of the build debug inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
@@ -49,10 +58,9 @@ namespace LocalGPT.Services
                     Directory.CreateDirectory(captureRoot);
 
                 // The recursive bin/obj scan is synchronous file-system work. Never run it on the caller's
-                // (possibly Blazor renderer) thread, and let a canceled chat request stop it.
-                var debugFiles = await Task.Run(
-                    () => EnumerateDebugFiles(cancellationToken).OrderByDescending(item => item.File.LastWriteTimeUtc).Take(250).ToList(),
-                    cancellationToken).ConfigureAwait(false);
+                // (possibly Blazor renderer) thread, and let a canceled chat request stop it. Chat briefings reuse
+                // a recent listing; an explicit copy request always scans again.
+                var debugFiles = await GetDebugFilesAsync(forceRefresh: copyFiles, cancellationToken).ConfigureAwait(false);
 
                 foreach (var item in debugFiles)
                 {
@@ -91,6 +99,57 @@ namespace LocalGPT.Services
                 };
             }
            
+        }
+
+        /// <summary>
+        /// Returns the newest symbol files, reusing a listing younger than <see cref="debugFileListingLifetime"/> unless a refresh is forced.
+        /// Every chat request asks for a briefing; without this reuse each one walked all bin/obj trees again.
+        /// </summary>
+        /// <param name="forceRefresh">Whether a fresh recursive scan is required (explicit diagnostics copy).</param>
+        /// <param name="cancellationToken">Cancellation token that stops waiting for, or performing, the scan.</param>
+        /// <returns>The newest symbol files, at most 250.</returns>
+        private async Task<IReadOnlyList<(FileInfo File, string SourceArea)>> GetDebugFilesAsync(bool forceRefresh, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (!forceRefresh
+                    && Volatile.Read(ref cachedDebugFiles) is { } fresh
+                    && DateTime.UtcNow - cachedDebugFilesAtUtc < debugFileListingLifetime)
+                {
+                    return fresh;
+                }
+
+                await debugFileScanGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    if (!forceRefresh
+                        && cachedDebugFiles is { } scannedMeanwhile
+                        && DateTime.UtcNow - cachedDebugFilesAtUtc < debugFileListingLifetime)
+                    {
+                        return scannedMeanwhile;
+                    }
+
+                    IReadOnlyList<(FileInfo File, string SourceArea)> scanned = await Task.Run(
+                        () => EnumerateDebugFiles(cancellationToken).OrderByDescending(item => item.File.LastWriteTimeUtc).Take(250).ToList(),
+                        cancellationToken).ConfigureAwait(false);
+                    cachedDebugFilesAtUtc = DateTime.UtcNow;
+                    Volatile.Write(ref cachedDebugFiles, scanned);
+                    return scanned;
+                }
+                finally
+                {
+                    debugFileScanGate.Release();
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not list build debug symbol files; force refresh {ForceRefresh}.", forceRefresh);
+                throw;
+            }
         }
 
         /// <summary>

@@ -62,6 +62,10 @@ namespace LocalGPT.Services
         /// <summary>Shared bounded help escalation for exhausted Council member recovery.</summary>
         private readonly IAiHelpEscalatorService aiHelpEscalator;
         /// <summary>
+        /// Goal execution's recovery helper: decides how failed member slots continue and handles AI host outages inside the members and hosts of the current run.
+        /// </summary>
+        private readonly IGoalRecoveryHelperService goalRecovery;
+        /// <summary>
         /// Stores the council x round service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly ICouncilXRoundService councilXRounds;
@@ -169,6 +173,7 @@ namespace LocalGPT.Services
         /// <param name="codeGenerationPlanService">Injected dependency used by the service.</param>
         /// <param name="humanCollaboration">Injected dependency used by the service.</param>
         /// <param name="aiHelpEscalator">Shared bounded diagnostic escalation after Council retries are exhausted.</param>
+        /// <param name="goalRecovery">Goal execution's recovery helper for failed member slots and AI host outages of a run.</param>
         /// <param name="councilXRounds">Injected dependency used by the service.</param>
         /// <param name="deferredDxAiInvocations">Injected dependency used by the service.</param>
         /// <param name="uploadWorkspaces">Upload-workspace service used by deterministic Council curation gates.</param>
@@ -206,6 +211,7 @@ namespace LocalGPT.Services
             ICouncilCodeGenerationPlanService codeGenerationPlanService,
             IHumanCollaborationService humanCollaboration,
             IAiHelpEscalatorService aiHelpEscalator,
+            IGoalRecoveryHelperService goalRecovery,
             ICouncilXRoundService councilXRounds,
             IDeferredDxAiInvocationService deferredDxAiInvocations,
             IChatUploadWorkspaceService uploadWorkspaces,
@@ -243,6 +249,7 @@ namespace LocalGPT.Services
             this.codeGenerationPlanService = codeGenerationPlanService;
             this.humanCollaboration = humanCollaboration;
             this.aiHelpEscalator = aiHelpEscalator;
+            this.goalRecovery = goalRecovery;
             this.councilXRounds = councilXRounds;
             this.deferredDxAiInvocations = deferredDxAiInvocations;
             this.uploadWorkspaces = uploadWorkspaces;

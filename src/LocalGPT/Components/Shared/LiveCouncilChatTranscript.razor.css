@@ -1,0 +1,15 @@
+.localgpt-live-council-chat-transcript {
+    display: block;
+    min-width: 0;
+}
+
+.localgpt-live-council-chat-segment {
+    /* Segment wrappers only partition the render tree; they must not change the transcript layout. */
+    display: contents;
+}
+
+.localgpt-live-council-chat-waiting {
+    margin: 0;
+    opacity: .8;
+    font-style: italic;
+}

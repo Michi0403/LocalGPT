@@ -240,6 +240,18 @@ public sealed class CouncilKernelTournamentCreatureState
     /// <summary>Gets or sets the persistent ASCII actor rig for this creature.</summary>
     /// <value>The rig value exposed by <see cref="CouncilKernelTournamentCreatureState"/>.</value>
     public CouncilAsciiActorRig Rig { get; set; } = new();
+    /// <summary>Gets or sets the battle sprite rows drawn by the Kernel Creature Council member itself.</summary>
+    /// <value>Pixel rows using the sprite legend (<c>.</c> empty, <c>#</c> outline, <c>+</c> body, <c>-</c> shade, <c>*</c> accent, <c>o</c> eye) or member-authored ASCII art rows; empty when the member supplied no usable sprite.</value>
+    public List<string> SpriteRows { get; set; } = [];
+    /// <summary>Gets or sets how <see cref="SpriteRows"/> is interpreted by the battle renderer.</summary>
+    /// <value><c>pixel</c> for legend pixels, <c>ascii</c> for member-authored ASCII art, or empty when no sprite exists.</value>
+    public string SpriteKind { get; set; } = string.Empty;
+    /// <summary>Gets or sets the member-chosen xterm-256 palette for the sprite.</summary>
+    /// <value>Five indexed colors in the order outline, body, shade, accent, eye.</value>
+    public List<int> SpritePalette { get; set; } = [];
+    /// <summary>Gets or sets the Council member model that authored this sprite.</summary>
+    /// <value>The provider-qualified model name, shown so engine fallbacks are never mistaken for member art.</value>
+    public string SpriteAuthorModelName { get; set; } = string.Empty;
 }
 
 /// <summary>Stores one compact engine event shown as the trainer/creature team timeline between exchanges.</summary>
@@ -317,6 +329,15 @@ public sealed class CouncilKernelTournamentContestantSeed
     /// <summary>Gets or sets the trainer's compact opening greeting authored during team selection.</summary>
     /// <value>The trainer greeting value exposed by <see cref="CouncilKernelTournamentContestantSeed"/>.</value>
     public string TrainerGreeting { get; set; } = string.Empty;
+    /// <summary>Gets or sets the sprite rows the Kernel Creature member drew during its introduction.</summary>
+    /// <value>Normalized sprite rows; empty when the member supplied no usable sprite.</value>
+    public List<string> CreatureSprite { get; set; } = [];
+    /// <summary>Gets or sets how <see cref="CreatureSprite"/> is interpreted.</summary>
+    /// <value><c>pixel</c>, <c>ascii</c>, or empty.</value>
+    public string CreatureSpriteKind { get; set; } = string.Empty;
+    /// <summary>Gets or sets the member-chosen sprite palette.</summary>
+    /// <value>Five xterm-256 colors in the order outline, body, shade, accent, eye.</value>
+    public List<int> CreatureSpritePalette { get; set; } = [];
 }
 
 /// <summary>Captures the latest bounded AI-authored trainer or creature evidence for one tournament exchange.</summary>

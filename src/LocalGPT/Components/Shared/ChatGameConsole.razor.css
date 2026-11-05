@@ -894,11 +894,20 @@
 .chat-game-console-tournament .chat-game-screen {
     color: #c5edff;
     background: #020818;
-    text-shadow: 0 0 .3rem rgba(64, 180, 255, .25);
+    /* ANSI battle pixels are colored block cells; a glow would bleed across neighbouring pixels. */
+    text-shadow: none;
 }
 .chat-game-console-tournament .chat-game-animation-subtitle {
-    color: var(--tournament-yellow);
-    border-color: var(--tournament-pink);
-    background: rgba(10, 14, 55, .94);
-    text-shadow: 0 0 .4rem #29439d;
+    /* The battle view shows the exchange text in its own message box; the overlay would cover it.
+       Keep the subtitle for screen readers only. */
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
 }

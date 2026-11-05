@@ -294,6 +294,7 @@ namespace LocalGPT.Components.Pages
             StartAutoSaveLoop();
             StartInitialModelRefresh();
             ScheduleDirectCouncilStarterDispatch();
+            ScheduleAutomaticLiveCouncilAttach();
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
             Logger.LogInformation($"Chat runtime activated after DevExpress initialization completed; the UI remains responsive while supervised work runs off-dispatcher.");
             ComponentActivity.RecordInformation(nameof(Chat), nameof(TryStartChatRuntimeAsync), "The Chat runtime activated after the DevExpress initialization callback completed.");
@@ -335,6 +336,7 @@ namespace LocalGPT.Components.Pages
             feedbackStatus = string.Empty;
             lastSavedSignature = string.Empty;
             memoryStatus = "New empty chat started.";
+            automaticLiveCouncilAttachSuppressed = true;
             DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
             RejoinCouncilRunId = null;
             AttachedLiveCouncilRunId = null;

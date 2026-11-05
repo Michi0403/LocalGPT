@@ -1,0 +1,319 @@
+@inject ICouncilLiveSessionService CouncilLiveSessions
+@inject IChatContentRenderer ChatContentRenderer
+@inject CouncilTextService CouncilText
+@inject ILogger<LiveCouncilChatTranscript> Logger
+@inject ISupervisedTaskRunner TaskRunner
+@implements IDisposable
+
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner LiveCouncilChatTranscript">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+<div class="localgpt-live-council-chat-transcript" data-testid="live-council-chat-transcript" aria-live="off">
+    @if (renderedSegments.Count == 0 && string.IsNullOrEmpty(renderedTail))
+    {
+        <p class="localgpt-live-council-chat-waiting">@WaitingText</p>
+    }
+    @foreach (var segment in renderedSegments)
+    {
+        <div @key="segment.Key" class="localgpt-live-council-chat-segment">@((MarkupString)segment.Html)</div>
+    }
+    @if (!string.IsNullOrEmpty(renderedTail))
+    {
+        <div class="localgpt-live-council-chat-segment is-live">@((MarkupString)renderedTail)</div>
+    }
+</div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
+@code {
+    /// <summary>Gets or sets the server-owned live Council run whose ordered transcript is shown.</summary>
+    /// <value>The live Council run identifier; a changed value restarts the incremental projection.</value>
+    [Parameter]
+    public Guid RunId { get; set; }
+
+    /// <summary>Gets or sets the text shown until the first transcript projection is available.</summary>
+    /// <value>A short waiting message rendered before any provider output exists.</value>
+    [Parameter]
+    public string WaitingText { get; set; } = "Council is running. Waiting for the first provider response or function result…";
+
+    /// <summary>Minimum delay between two visible transcript refreshes while provider streams keep changing.</summary>
+    private const int LiveRefreshIntervalMilliseconds = 1000;
+    /// <summary>Number of characters before the completed-segment boundary used to detect a trimmed or replaced server transcript.</summary>
+    private const int PrefixProbeCharacters = 96;
+
+    /// <summary>One completed transcript segment rendered once and reused by every later refresh.</summary>
+    /// <param name="Key">Stable render key so Blazor only appends new segments instead of resending older ones.</param>
+    /// <param name="Html">Sanitized HTML produced by <see cref="IChatContentRenderer"/> for this completed segment.</param>
+    private sealed record LiveCouncilTranscriptSegment(int Key, string Html);
+
+    /// <summary>One prepared projection handed from the background worker to the renderer.</summary>
+    /// <param name="RunId">Run the projection belongs to; stale projections for another run are ignored.</param>
+    /// <param name="Segments">Immutable list of completed segments.</param>
+    /// <param name="TailHtml">Rendered HTML of the still-open provider stream at the end of the transcript.</param>
+    private sealed record LiveCouncilTranscriptProjection(Guid RunId, IReadOnlyList<LiveCouncilTranscriptSegment> Segments, string TailHtml);
+
+    /// <summary>Completed segments currently shown; replaced as a whole on the renderer thread.</summary>
+    private IReadOnlyList<LiveCouncilTranscriptSegment> renderedSegments = [];
+    /// <summary>Rendered HTML of the open tail currently shown.</summary>
+    private string renderedTail = string.Empty;
+    /// <summary>Run currently observed by this component instance.</summary>
+    private Guid observedRunId;
+
+    /// <summary>Worker-owned list of completed segments; only the single refresh worker mutates it.</summary>
+    private readonly List<LiveCouncilTranscriptSegment> workerSegments = [];
+    /// <summary>Run the worker-owned projection state belongs to.</summary>
+    private Guid workerRunId;
+    /// <summary>Transcript characters already covered by completed segments.</summary>
+    private int workerConsumedLength;
+    /// <summary>Transcript text immediately before <see cref="workerConsumedLength"/> at the time it was consumed.</summary>
+    private string workerConsumedProbe = string.Empty;
+    /// <summary>Source text of the open tail rendered last time, used to skip unchanged Markdown work.</summary>
+    private string workerTailSource = string.Empty;
+    /// <summary>Rendered HTML of <see cref="workerTailSource"/>.</summary>
+    private string workerTailHtml = string.Empty;
+    /// <summary>Next stable render key for a completed segment.</summary>
+    private int workerNextSegmentKey;
+    /// <summary>Whether the worker must publish a projection even when nothing changed (first pass or reset).</summary>
+    private bool workerPublishRequired = true;
+
+    /// <summary>Marks that one or more Council changes arrived since the previous refresh.</summary>
+    private int renderPending;
+    /// <summary>Ensures only one refresh worker runs for this component.</summary>
+    private int renderWorkerRunning;
+    /// <summary>Requests that the next worker pass runs without the refresh delay.</summary>
+    private int immediateRefreshRequested = 1;
+    /// <summary>Cancels a pending refresh when the component is disposed.</summary>
+    private readonly CancellationTokenSource renderCancellation = new();
+    /// <summary>Tracks disposal so late Council events cannot schedule more renderer work.</summary>
+    private bool disposed;
+
+    /// <summary>Subscribes to the server-owned live Council session and schedules the first projection off the renderer dispatcher.</summary>
+    protected override void OnInitialized()
+    {
+        Logger.LogDebug("Component method LiveCouncilChatTranscript.OnInitialized completed.");
+        try
+        {
+            observedRunId = RunId;
+            CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
+            ScheduleRefresh(immediate: true);
+        }
+        catch (Exception exception)
+        {
+            CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
+            throw new InvalidOperationException("Initializing the live Council chat transcript failed.", exception);
+        }
+    }
+
+    /// <summary>Restarts the projection when the caller binds the component to another Council run.</summary>
+    protected override void OnParametersSet()
+    {
+        Logger.LogDebug("Component method LiveCouncilChatTranscript.OnParametersSet completed.");
+        try
+        {
+            if (observedRunId == RunId)
+                return;
+            observedRunId = RunId;
+            renderedSegments = [];
+            renderedTail = string.Empty;
+            ScheduleRefresh(immediate: true);
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException("Rebinding the live Council chat transcript failed.", exception);
+        }
+    }
+
+    /// <summary>Coalesces high-frequency Council stream events for the observed run into one bounded refresh worker.</summary>
+    /// <param name="runId">Run whose server-owned live state changed.</param>
+    private void OnCouncilLiveSessionChanged(Guid runId)
+    {
+        try
+        {
+            if (disposed || runId != observedRunId)
+                return;
+            ScheduleRefresh(immediate: false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Scheduling a live Council chat transcript refresh failed for run {RunId}.", runId);
+        }
+    }
+
+    /// <summary>Marks a refresh as pending and starts the single refresh worker when it is idle.</summary>
+    /// <param name="immediate">Whether the next pass should skip the refresh delay.</param>
+    private void ScheduleRefresh(bool immediate)
+    {
+        try
+        {
+            if (disposed)
+                return;
+            if (immediate)
+                Interlocked.Exchange(ref immediateRefreshRequested, 1);
+            Interlocked.Exchange(ref renderPending, 1);
+            if (Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
+                TaskRunner.Run(nameof(LiveCouncilChatTranscript), nameof(RefreshRenderAsync), _ => RefreshRenderAsync(), renderCancellation.Token);
+        }
+        catch (Exception exception)
+        {
+            Interlocked.Exchange(ref renderWorkerRunning, 0);
+            Logger.LogWarning(exception, "Starting the live Council chat transcript refresh worker failed.");
+        }
+    }
+
+    /// <summary>Publishes at most one transcript projection per second; Markdown rendering runs on the thread pool, never on the renderer dispatcher.</summary>
+    /// <returns>A task that completes when the newest projection is visible or the component was disposed.</returns>
+    private async Task RefreshRenderAsync()
+    {
+        try
+        {
+            while (!renderCancellation.IsCancellationRequested)
+            {
+                if (Interlocked.Exchange(ref immediateRefreshRequested, 0) == 0)
+                    await Task.Delay(LiveRefreshIntervalMilliseconds, renderCancellation.Token).ConfigureAwait(false);
+                Interlocked.Exchange(ref renderPending, 0);
+
+                var runId = observedRunId;
+                var projection = await Task.Run(() => BuildProjection(runId), renderCancellation.Token).ConfigureAwait(false);
+                if (projection is not null)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        if (disposed || projection.RunId != observedRunId)
+                            return;
+                        renderedSegments = projection.Segments;
+                        renderedTail = projection.TailHtml;
+                        StateHasChanged();
+                    }).ConfigureAwait(false);
+                }
+
+                if (Volatile.Read(ref renderPending) == 0)
+                    break;
+            }
+        }
+        catch (OperationCanceledException) when (renderCancellation.IsCancellationRequested)
+        {
+            // Component disposal cancels the delayed refresh.
+        }
+        catch (ObjectDisposedException)
+        {
+            // A disconnected browser circuit may dispose the renderer while a refresh is pending.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "A live Council chat transcript refresh failed; the next Council change retries it.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref renderWorkerRunning, 0);
+            if (!disposed
+                && Volatile.Read(ref renderPending) != 0
+                && !renderCancellation.IsCancellationRequested
+                && Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
+                TaskRunner.Run(nameof(LiveCouncilChatTranscript), nameof(RefreshRenderAsync), _ => RefreshRenderAsync(), renderCancellation.Token);
+        }
+    }
+
+    /// <summary>
+    /// Renders newly completed provider-stream segments once and re-renders only the open tail. Completed segments keep their
+    /// HTML and render key, so Blazor sends only new or changed segments to the browser instead of the whole transcript.
+    /// </summary>
+    /// <param name="runId">Run to project.</param>
+    /// <returns>The new projection, or <see langword="null"/> when nothing visible changed.</returns>
+    private LiveCouncilTranscriptProjection? BuildProjection(Guid runId)
+    {
+        try
+        {
+            if (workerRunId != runId)
+                ResetWorkerProjection(runId);
+
+            var transcript = CouncilLiveSessions.GetTranscriptForDisplay(runId) ?? string.Empty;
+            if (!CouncilText.HasTextProbeBefore(transcript, workerConsumedLength, workerConsumedProbe))
+            {
+                // The server trimmed or replaced its transient transcript buffer; rebuild from the new text once.
+                ResetWorkerProjection(runId);
+            }
+
+            var changed = workerPublishRequired;
+            // Completed provider streams end with the Council's stream-completion delimiter; each one becomes a stable segment.
+            for (var segmentEnd = CouncilText.FindCouncilStreamSegmentEnd(transcript, workerConsumedLength);
+                 segmentEnd > workerConsumedLength;
+                 segmentEnd = CouncilText.FindCouncilStreamSegmentEnd(transcript, workerConsumedLength))
+            {
+                var segmentHtml = ChatContentRenderer.Render(transcript[workerConsumedLength..segmentEnd]);
+                if (!string.IsNullOrWhiteSpace(segmentHtml))
+                    workerSegments.Add(new LiveCouncilTranscriptSegment(workerNextSegmentKey++, segmentHtml));
+                workerConsumedLength = segmentEnd;
+                workerTailSource = string.Empty;
+                workerTailHtml = string.Empty;
+                changed = true;
+            }
+
+            workerConsumedProbe = CouncilText.TakeTextProbeBefore(transcript, workerConsumedLength, PrefixProbeCharacters);
+
+            var tailSource = transcript[workerConsumedLength..];
+            if (!string.Equals(tailSource, workerTailSource, StringComparison.Ordinal))
+            {
+                workerTailSource = tailSource;
+                workerTailHtml = string.IsNullOrWhiteSpace(tailSource) ? string.Empty : ChatContentRenderer.Render(tailSource);
+                changed = true;
+            }
+
+            if (!changed)
+                return null;
+            workerPublishRequired = false;
+            return new LiveCouncilTranscriptProjection(runId, workerSegments.ToArray(), workerTailHtml);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Projecting the live Council transcript for run {RunId} failed; transcript content was omitted from logs.", runId);
+            return null;
+        }
+    }
+
+    /// <summary>Clears the worker-owned incremental projection so the next pass rebuilds it for <paramref name="runId"/>.</summary>
+    /// <param name="runId">Run the rebuilt projection belongs to.</param>
+    private void ResetWorkerProjection(Guid runId)
+    {
+        try
+        {
+            workerRunId = runId;
+            workerSegments.Clear();
+            workerConsumedLength = 0;
+            workerConsumedProbe = string.Empty;
+            workerTailSource = string.Empty;
+            workerTailHtml = string.Empty;
+            workerPublishRequired = true;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Resetting the live Council chat transcript projection failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Unsubscribes from Council changes and cancels any pending refresh.</summary>
+    public void Dispose()
+    {
+        Logger.LogDebug("Component method LiveCouncilChatTranscript.Dispose completed.");
+        try
+        {
+            if (disposed)
+                return;
+            disposed = true;
+            CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
+            renderCancellation.Cancel();
+            renderCancellation.Dispose();
+            GC.SuppressFinalize(this);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposal is idempotent even if the browser circuit tears down concurrently.
+        }
+    }
+}

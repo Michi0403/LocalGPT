@@ -3449,5 +3449,7 @@
 .chat-council-live-replay { margin:.7rem 0; padding:.8rem; min-width:0; max-height:min(48dvh, 40rem); overflow:auto; border:1px solid var(--bs-info, #5cb9d1); border-radius:.6rem; background:var(--bs-body-bg, #18191b); }
 .chat-council-live-replay header { display:flex; gap:.6rem; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:.55rem; }
 .chat-council-live-replay pre { margin:.4rem 0; padding:.65rem; white-space:pre-wrap; overflow-wrap:anywhere; max-height:20rem; overflow:auto; background:rgba(0,0,0,.15); }
+.chat-council-live-replay .chat-council-live-transcript { margin:.4rem 0; padding:.65rem; max-height:24rem; overflow:auto; overflow-wrap:anywhere; border-radius:.4rem; background:rgba(0,0,0,.15); }
+.chat-council-live-replay .chat-council-live-transcript-hint { margin:.3rem 0; opacity:.85; }
 .chat-council-live-member { margin-top:.45rem; border-top:1px solid var(--bs-border-color, #666); padding-top:.35rem; }
 .chat-council-live-member summary { cursor:pointer; }

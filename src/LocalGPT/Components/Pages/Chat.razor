@@ -610,21 +610,32 @@
         {
             // This panel is independent of DevExpress' cached message content template. It
             // remains current when its marker message stops being rerendered during long runs.
-            var liveTranscript = CouncilLiveSessions.GetTranscriptForDisplay(currentLiveCouncil.RunId);
+            var liveTranscriptAvailable = CouncilLiveSessions.GetTranscriptForDisplay(currentLiveCouncil.RunId).Length > 0;
             var liveActivities = LiveCouncilParticipantActivities(currentLiveCouncil.RunId);
             <div class="chat-council-live-replay" role="region" aria-label="Live Council transcript and function activity" data-testid="chat-council-live-replay">
                 <header>
                     <strong>Live Council · @ShortCouncilRunId(currentLiveCouncil.RunId)</strong>
                     <span>@currentLiveCouncil.StatusMessage · @liveActivities.Count participant lanes</span>
                 </header>
-                @if (!string.IsNullOrWhiteSpace(liveTranscript))
+                @if (liveFeedTranscriptVisible)
                 {
-                    <pre class="chat-council-live-transcript" aria-label="Ordered live Council transcript">@liveTranscript</pre>
+                    <div class="chat-council-live-transcript" aria-label="Ordered live Council transcript">
+                        <LiveCouncilChatTranscript RunId="@currentLiveCouncil.RunId" />
+                    </div>
+                }
+                else if (liveTranscriptAvailable)
+                {
+                    <p class="chat-council-live-transcript-hint">The ordered transcript is rendered inside the Council chat message below. Participant lanes stay listed here.</p>
                 }
                 else
                 {
                     <p>Council is running. Waiting for the first provider response or function result…</p>
                 }
+                <DxButton CssClass="localgpt-rounded-action"
+                          Text="@LiveFeedTranscriptToggleText"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Click="ToggleLiveFeedTranscript" />
                 @foreach (var activity in liveActivities)
                 {
                     <details @key="activity.ActivityKey" class="chat-council-live-member" open="@activity.IsRunning">
@@ -765,74 +776,24 @@
                         var liveCouncilMessage = ResolveLiveCouncilMessage(messageContext.Content);
                     }
                     <div class="demo-chat-content" data-localgpt-details-host data-localgpt-copyable="true">
-                        @(new MarkupString(ChatContentRenderer.Render(
-                            liveCouncilMessage is not null
-                                ? (liveCouncilMessage.IsRunning
-                                    ? "Council is running. The live transcript, participant responses and function activity are displayed in the independent Council feed above."
-                                    : LiveCouncilTranscript(liveCouncilMessage.RunId, messageContext.Content))
-                                : messageContext.Content)))
                         @if (liveCouncilMessage is not null)
                         {
-                            // The running feed above renders bounded raw activity without repeatedly
-                            // Markdown-rendering all 14 participant lanes inside DevExpress' cached template.
-                            // Finished runs retain their original detailed inspection controls here.
-                            IReadOnlyList<CouncilLiveParticipantActivitySnapshot> participantActivities = liveCouncilMessage.IsRunning
-                                ? Array.Empty<CouncilLiveParticipantActivitySnapshot>()
-                                : LiveCouncilParticipantActivities(liveCouncilMessage.RunId);
-                            @if (participantActivities.Count > 0)
-                            {
-                                <DxFormLayout CssClass="razor-section-layout-owner">
-    <DxFormLayoutItem ColSpanMd="12">
-        <Template Context="formItemContext007">
-        <div class="localgpt-live-participant-board" aria-label="Live parallel Council activity">
-                                    <header>
-                                        <strong>Live Council lanes</strong>
-                                        <small>Each AI host/model updates independently; the final transcript remains ordered.</small>
-                                    </header>
-                                    @foreach (var activity in participantActivities)
-                                    {
-                                        <div class="localgpt-live-participant-card" @key="activity.ActivityKey">
-                                            <div class="localgpt-live-participant-heading">
-                                                <span class="localgpt-live-participant-state @(activity.IsRunning ? "is-running" : "is-complete")" aria-hidden="true"></span>
-                                                <span>
-                                                    <strong>@activity.ModelName</strong>
-                                                    <small>@activity.Phase · @activity.Role · @activity.RouteLabel</small>
-                                                </span>
-                                                <em>@activity.StatusMessage</em>
-                                                @if (!activity.IsRunning)
-                                                {
-                                                    <DxButton CssClass="localgpt-live-participant-evidence-button"
-                                                              RenderStyle="ButtonRenderStyle.Secondary" RenderStyleMode="ButtonRenderStyleMode.Outline"
-                                                              Click="@(() => ToggleCompletedCouncilActivityEvidence(liveCouncilMessage.RunId, activity))">
-                                                        @(CouncilEvidencePopupVisible && InspectedCouncilActivity?.ActivityKey == activity.ActivityKey
-                                                            ? "Hide answer and provider evidence" : "Inspect answer, thinking and provider evidence")
-                                                    </DxButton>
-                                                }
-                                            </div>
-                                            @if (activity.IsRunning)
-                                            {
-                                                @if (!string.IsNullOrWhiteSpace(activity.Content))
-                                                {
-                                                    <details class="localgpt-live-participant-stream-history" open>
-                                                        <summary>Live thinking, functions and provider stream</summary>
-                                                        <div class="localgpt-live-participant-content" data-localgpt-details-host>
-                                                            @(new MarkupString(ChatContentRenderer.Render(activity.Content)))
-                                                        </div>
-                                                    </details>
-                                                }
-                                                else
-                                                {
-                                                    <p class="localgpt-live-participant-waiting">Waiting for streamed model output…</p>
-                                                }
-                                            }
-
-                                        </div>
-                                    }
-                                </div>
-    </Template>
-    </DxFormLayoutItem>
-</DxFormLayout>
-                            }
+                            // Running and finished in-memory Councils are rendered by a self-refreshing child component: Markdown runs
+                            // off the renderer dispatcher, at most once per second, and completed provider streams are sent only once.
+                            // A finished transcript is therefore not re-rendered on every later chat update.
+                            <LiveCouncilChatTranscript RunId="@liveCouncilMessage.RunId" WaitingText="@LiveCouncilWaitingText(liveCouncilMessage)" />
+                        }
+                        else
+                        {
+                            @(new MarkupString(RenderChatMessageHtml(messageContext.Content)))
+                        }
+                        @if (liveCouncilMessage is not null)
+                        {
+                            // Graphical participant lanes under the full transcript, for running and finished runs. The board refreshes itself
+                            // (at most once per second, off the renderer dispatcher) and renders only expanded lane streams.
+                            <LiveCouncilLaneBoard RunId="@liveCouncilMessage.RunId"
+                                                  InspectedActivityKey="@InspectedCouncilActivityKey"
+                                                  InspectRequested="@((string activityKey) => ToggleCouncilLaneEvidence(liveCouncilMessage.RunId, activityKey))" />
                             <div class="localgpt-message-utility-row localgpt-live-update-footer">
                                 <span class="localgpt-rejoined-live-status" role="status" aria-live="polite">
                                     @if (liveCouncilMessage.IsRunning)

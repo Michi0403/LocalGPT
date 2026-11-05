@@ -174,6 +174,7 @@ public sealed class CouncilLiveSessionService(
                 AppendWithBlockBoundary(activity.Content, text);
                 if (activity.Content.Length > MaxParticipantActivityCharacters)
                     activity.Content.Remove(0, activity.Content.Length - ParticipantActivityTrimTargetCharacters);
+                activity.ContentVersion++;
                 activity.StatusMessage = "Streaming live from the model runtime.";
                 activity.UpdatedAtUtc = DateTime.UtcNow;
                 state.UpdatedAtUtc = activity.UpdatedAtUtc;
@@ -535,6 +536,52 @@ public sealed class CouncilLiveSessionService(
         }
     }
 
+
+    /// <summary>
+    /// Returns complete participant lanes for the plain-text ASCII terminal. Each lane's stream text is materialized only when it changed
+    /// since the previous call, so completed lanes are returned as the same string instances without copying their buffers again.
+    /// </summary>
+    /// <param name="runId">Identifier of the live Council run.</param>
+    /// <returns>Untruncated participant activity snapshots, or an empty collection when the run is unknown.</returns>
+    public IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivitiesForTerminal(Guid runId)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return [];
+            lock (state.SyncRoot)
+            {
+                return state.ParticipantActivities.Values
+                    .OrderBy(activity => activity.StartedAtUtc)
+                    .Select(activity =>
+                    {
+                        if (activity.ContentSnapshotVersion != activity.ContentVersion)
+                        {
+                            activity.ContentSnapshot = activity.Content.ToString();
+                            activity.ContentSnapshotVersion = activity.ContentVersion;
+                        }
+                        return new CouncilLiveParticipantActivitySnapshot(
+                            activity.ActivityKey,
+                            activity.ModelName,
+                            activity.Phase,
+                            activity.Role,
+                            activity.RouteLabel,
+                            activity.StatusMessage,
+                            activity.ContentSnapshot,
+                            activity.FinalContent,
+                            activity.IsRunning,
+                            activity.StartedAtUtc,
+                            activity.UpdatedAtUtc);
+                    })
+                    .ToArray();
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading complete live Council participant lanes for the ASCII terminal failed for run {RunId}.", runId);
+            throw;
+        }
+    }
 
     /// <summary>Returns browser-safe participant projections without repeatedly copying and Markdown-rendering every historical transient token.</summary>
     /// <param name="runId">Identifier of the live Council run.</param>

@@ -125,3 +125,9 @@ docs/.tools/
 docs/.print-book/
 docs/LocalGPT-*.pdf
 src/LocalGPT/wwwroot/help-docs/
+
+# maintenance/: changelogs are published (maintenance/changelogs, any sub-folders). Validation records,
+# manual-merge patches, guard logs, older review reports and the local README stay in the working copy
+# and in release ZIPs but are not published.
+/maintenance/*
+!/maintenance/changelogs/

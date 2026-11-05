@@ -108,20 +108,33 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>
-    /// Restores an exact Council conversation from SQLite when it can be identified by its run marker.
-    /// Otherwise projects the *selected* durable Council spool into Chat without changing SQLite.
-    /// This is a presentation recovery path, not a new Council execution or database recovery.
+    /// Restores a recorded Council into the chat box so the conversation can be continued there (with the Council or, through
+    /// "reuse context when switching", with another session). The saved SQLite chat is preferred because it carries the user's own
+    /// follow-up messages; its Council message is then completed from the best durable source (see <see cref="MaterializeCouncilMessages"/>).
+    /// Without a saved chat the conversation is rebuilt from the selected durable spool. SQLite is not changed here; the next regular
+    /// save stores the completed message in the same conversation.
     /// </summary>
+    /// <param name="runId">Selected Council run.</param>
+    /// <param name="receipt">Durable spool snapshot of that run.</param>
+    /// <returns>A task that completes when the chat box shows the restored conversation.</returns>
     private async Task RestoreCouncilChatFromSpoolAsync(Guid runId, CouncilSpoolerSnapshot receipt)
     {
         if (isDisposed || ChatClientProvider is null || receipt.RunId != runId)
+        {
+            Logger.LogInformation("Council {RunId} chat restore skipped: the chat circuit or provider list is not ready.", runId);
             return;
+        }
         try
         {
             var councilSession = ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
                 string.Equals(session.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase));
             if (councilSession is null)
+            {
+                // On startup a rejoin can arrive before the provider sessions are built. Remember it; the session rebuild resumes it.
+                pendingCouncilChatRestoreRunId = runId;
+                Logger.LogInformation("Council {RunId} chat restore deferred until the provider sessions (including the Council session) are ready.", runId);
                 return;
+            }
 
             var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
             ChatMemoryConversationSnapshot? saved = null;
@@ -145,9 +158,11 @@ namespace LocalGPT.Components.Pages
             {
                 // This bounded search is only run when the user selects or explicitly rejoins
                 // a run. Never scan SQLite during a streaming heartbeat/render callback.
+                // The provider name is not a filter: the user may have continued the same chat with another session.
                 var recent = await ChatMemory.GetConversationsAsync(take: 100, cancellationToken: componentLifetimeToken).ConfigureAwait(false);
-                foreach (var summary in recent.Where(item =>
-                    string.Equals(item.ProviderName, councilSession.Name, StringComparison.OrdinalIgnoreCase)))
+                // Council chats first (most recent first within each group), then chats continued with another session.
+                foreach (var summary in recent.OrderBy(item =>
+                    string.Equals(item.ProviderName, councilSession.Name, StringComparison.OrdinalIgnoreCase) ? 0 : 1))
                 {
                     var candidate = await ChatMemory.LoadConversationAsync(summary.Id, componentLifetimeToken).ConfigureAwait(false);
                     if (candidate is null || !HasCouncilRunMarker(candidate, marker))
@@ -158,9 +173,12 @@ namespace LocalGPT.Components.Pages
                 }
             }
 
-            // Build the UI payload off the renderer. A spool projection is deliberately bounded:
-            // the full original steps, thinking and errors remain in openedCouncilArchive above.
-            var restoredMessages = saved?.Messages.ToList() ?? BuildCouncilSpoolChatProjection(receipt);
+            // Build the UI payload off the renderer: completing a Council message can create a multi-megabyte string.
+            var sourceMessages = saved?.Messages.ToList() ?? BuildCouncilSpoolChatConversation(receipt, marker);
+            var restoredMessages = MaterializeCouncilMessages(sourceMessages, receipt);
+            var originalCouncilCharacters = sourceMessages.Where(message => message.Role == ChatMessageRole.Assistant).Sum(message => message.Content?.Length ?? 0);
+            var restoredCouncilCharacters = restoredMessages.Where(message => message.Role == ChatMessageRole.Assistant).Sum(message => message.Content?.Length ?? 0);
+            var applied = false;
             await InvokeAsync(() =>
             {
                 if (isDisposed || SelectedCouncilRunId != runId || DxAiChat is null)
@@ -182,16 +200,33 @@ namespace LocalGPT.Components.Pages
                 else
                     SessionContext.SetConversation(null);
                 SelectedConversation = savedSummary ?? SavedConversations.FirstOrDefault(item => item.Id == saved?.Id);
-                lastSavedSignature = CouncilText.CreateMessageSignature(restoredMessages, Logger);
+                // The signature of the *stored* messages: when the Council message was completed, the next regular save
+                // writes the completed version into the same SQLite conversation, so the chat stays complete after the spool is gone.
+                lastSavedSignature = CouncilText.CreateMessageSignature(saved is not null ? sourceMessages : restoredMessages, Logger);
                 memoryStatus = saved is not null
-                    ? $"Restored saved Council chat {ShortCouncilRunId(runId)} and full evidence."
-                    : $"Restored Council {ShortCouncilRunId(runId)} from durable evidence; no matching SQLite chat was found.";
+                    ? $"Restored saved Council chat {ShortCouncilRunId(runId)} and full evidence. You can continue the conversation here."
+                    : $"Restored Council {ShortCouncilRunId(runId)} from its saved evidence. You can continue the conversation here.";
                 DxAiChat.LoadMessages(councilSession.Messages);
                 RefreshFeedbackTargets(restoredMessages);
+                applied = true;
                 StateHasChanged();
             }).ConfigureAwait(false);
-            Logger.LogInformation("Restored Council {RunId} into Chat from {RecoverySource} without creating another Council run.",
-                runId, saved is null ? "durable spool" : "exact SQLite conversation");
+            if (applied)
+            {
+                if (pendingCouncilChatRestoreRunId == runId)
+                    pendingCouncilChatRestoreRunId = null;
+                Logger.LogInformation(
+                    "Restored Council {RunId} into Chat from {RecoverySource} ({MessageCount} messages; Council content {OriginalCharacters} -> {RestoredCharacters} characters) without creating another Council run.",
+                    runId,
+                    saved is null ? "durable spool" : $"SQLite conversation {saved.Id}",
+                    restoredMessages.Count,
+                    originalCouncilCharacters,
+                    restoredCouncilCharacters);
+            }
+            else
+            {
+                Logger.LogInformation("Council {RunId} chat restore was not applied because the selection changed or the chat control is not attached.", runId);
+            }
         }
         catch (OperationCanceledException) when (componentLifetimeToken.IsCancellationRequested || isDisposed)
         {
@@ -207,58 +242,153 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>Resumes a Council chat restore that was requested before the provider sessions existed. Called after the sessions are rebuilt.</summary>
+    private void SchedulePendingCouncilChatRestore()
+    {
+        try
+        {
+            if (isDisposed || pendingCouncilChatRestoreRunId is not Guid runId || ChatClientProvider is null)
+                return;
+            if (!ChatClientProvider.AvailableChatClients.Any(session =>
+                    string.Equals(session.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            pendingCouncilChatRestoreRunId = null;
+            TaskRunner.Run(
+                nameof(Chat),
+                "DeferredCouncilChatRestore",
+                async cancellationToken =>
+                {
+                    if (cancellationToken.IsCancellationRequested || isDisposed)
+                        return;
+                    var receipt = CouncilSpooler.GetSnapshot(runId);
+                    if (receipt is null)
+                    {
+                        Logger.LogInformation("Deferred Council {RunId} chat restore found no durable spool entry any more.", runId);
+                        return;
+                    }
+                    await RestoreCouncilChatFromSpoolAsync(runId, receipt).ConfigureAwait(false);
+                },
+                componentLifetimeToken);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Resuming a deferred Council chat restore failed.");
+        }
+    }
+
+    /// <summary>Opens or closes the full answer and provider evidence of one Council lane from the lane board.</summary>
+    /// <param name="runId">Council run of the lane.</param>
+    /// <param name="activityKey">Lane identity.</param>
+    private void ToggleCouncilLaneEvidence(Guid runId, string activityKey)
+    {
+        try
+        {
+            if (CouncilEvidencePopupVisible && string.Equals(InspectedCouncilActivity?.ActivityKey, activityKey, StringComparison.Ordinal))
+            {
+                CouncilEvidencePopupVisible = false;
+                InspectedCouncilActivity = null;
+            }
+            else
+            {
+                // Lane cards carry bounded projections; the evidence view loads the authoritative server-side lane on demand.
+                var activity = CouncilLiveSessions.GetParticipantActivities(runId)
+                    .FirstOrDefault(candidate => string.Equals(candidate.ActivityKey, activityKey, StringComparison.Ordinal));
+                if (activity is null)
+                    return;
+                InspectedCouncilActivity = activity;
+                CouncilEvidencePopupVisible = true;
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Inspecting Council lane evidence failed.");
+            Notifier.ShowError("ChatToasts", "Council member evidence could not be opened. See local logs.", "Council evidence");
+        }
+    }
+
     /// <summary>Only an assistant message containing the exact run marker can identify a saved Council chat.</summary>
     private bool HasCouncilRunMarker(ChatMemoryConversationSnapshot conversation, string marker) =>
         conversation.Messages.Any(message => message.Role == ChatMessageRole.Assistant &&
             CouncilText.ContainsText(message.Content, marker, StringComparison.Ordinal));
 
     /// <summary>
-    /// Builds a bounded visible fallback when the exact SQLite chat is unavailable.
-    /// Full step text, tool evidence and thinking are retained by the independent spool panel.
+    /// Rebuilds the visible conversation of a recorded Council when no saved chat exists: the original request as the user message and
+    /// one Council message carrying the run marker (completed afterwards by <see cref="MaterializeCouncilMessages"/>), exactly like the live chat.
     /// </summary>
-    private List<BlazorChatMessage> BuildCouncilSpoolChatProjection(CouncilSpoolerSnapshot receipt)
+    /// <param name="receipt">Durable spool snapshot of the run.</param>
+    /// <param name="marker">Exact live-Council marker of the run.</param>
+    /// <returns>The conversation messages to restore.</returns>
+    private List<BlazorChatMessage> BuildCouncilSpoolChatConversation(CouncilSpoolerSnapshot receipt, string marker)
     {
-        const int maxStepPreviews = 64;
-        const int maxPreviewChars = 2048;
-        var messages = new List<BlazorChatMessage>();
-        if (!string.IsNullOrWhiteSpace(receipt.Prompt))
+        try
         {
-            var promptPreview = receipt.Prompt.Length <= 12000
-                ? receipt.Prompt
-                : receipt.Prompt[..12000] + "\n… The full original request remains in the saved Council evidence above.";
-            messages.Add(new BlazorChatMessage(ChatRole.User, promptPreview, new List<AIChatUploadFileInfo>()));
+            var messages = new List<BlazorChatMessage>();
+            if (!string.IsNullOrWhiteSpace(receipt.Prompt))
+                messages.Add(new BlazorChatMessage(ChatRole.User, receipt.Prompt, new List<AIChatUploadFileInfo>()));
+            messages.Add(new BlazorChatMessage(ChatRole.Assistant, marker, new List<AIChatUploadFileInfo>()));
+            return messages;
         }
-        var steps = receipt.Steps.OrderBy(step => step.SortOrder).ToList();
-        foreach (var step in steps.Take(maxStepPreviews))
+        catch (Exception __componentMethodException)
         {
-            var visible = string.IsNullOrWhiteSpace(step.VisibleContent) ? step.Content : step.VisibleContent;
-            var detail = visible.Length > maxPreviewChars
-                ? visible[..maxPreviewChars] + "\n… Full answer and provider evidence are available in the saved Council transcript above."
-                : visible;
-            if (string.IsNullOrWhiteSpace(detail) && string.IsNullOrWhiteSpace(step.Error))
-                continue;
-            var label = $"Round {step.Round} · {step.Phase} · {step.Role} · {step.ModelName}";
-            var content = $"**{label}**\n\n{detail}";
-            if (!string.IsNullOrWhiteSpace(step.Error))
-                content += $"\n\nProvider error: {step.Error}";
-            messages.Add(new BlazorChatMessage(ChatRole.Assistant, content, new List<AIChatUploadFileInfo>()));
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.BuildCouncilSpoolChatConversation failed.");
+            throw;
         }
-        if (steps.Count > maxStepPreviews)
-            messages.Add(new BlazorChatMessage(ChatRole.Assistant,
-                $"Showing {maxStepPreviews} of {steps.Count} step previews. All saved steps are available in the full Council evidence above.",
-                new List<AIChatUploadFileInfo>()));
-        if (!string.IsNullOrWhiteSpace(receipt.FinalAnswer))
+    }
+
+    /// <summary>
+    /// Completes Council chat messages whose saved content is only the run marker or an incomplete stream copy (for example after a process
+    /// restart, or the copy saved by a second window that only showed the live view). For every assistant message linked to a run that is not
+    /// running any more, the most complete source wins: the stored content, the in-memory live transcript of a finished run, or the transcript
+    /// rebuilt from the durable Council spool. Running Councils are left unchanged because their live view renders them.
+    /// Call it off the renderer dispatcher; it can build multi-megabyte strings.
+    /// </summary>
+    /// <param name="messages">Conversation messages as stored or restored.</param>
+    /// <param name="knownReceipt">Optional spool snapshot that is already loaded, reused for its own run.</param>
+    /// <returns>A new message list; unchanged messages keep their original instances.</returns>
+    private List<BlazorChatMessage> MaterializeCouncilMessages(IReadOnlyList<BlazorChatMessage> messages, CouncilSpoolerSnapshot? knownReceipt = null)
+    {
+        try
         {
-            var finalPreview = receipt.FinalAnswer.Length <= 12000
-                ? receipt.FinalAnswer
-                : receipt.FinalAnswer[..12000] + "\n… The full final answer remains in the saved Council evidence above.";
-            messages.Add(new BlazorChatMessage(ChatRole.Assistant, finalPreview, new List<AIChatUploadFileInfo>()));
+            var result = new List<BlazorChatMessage>(messages.Count);
+            var completed = 0;
+            foreach (var message in messages)
+            {
+                if (message is null)
+                    continue;
+                if (message.Role != ChatMessageRole.Assistant
+                    || !CouncilText.TryExtractMarkedGuid(message.Content, LiveCouncilMessageMarkerPrefix, out var runId)
+                    || CouncilLiveSessions.GetSummary(runId) is { IsRunning: true })
+                {
+                    result.Add(message);
+                    continue;
+                }
+
+                var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
+                var receipt = knownReceipt?.RunId == runId ? knownReceipt : CouncilSpooler.GetSnapshot(runId);
+                var spoolTranscript = receipt is null ? string.Empty : CouncilText.BuildCouncilChatTranscriptFromSpool(receipt, marker);
+                var liveTranscript = CouncilLiveSessions.GetTranscript(runId);
+                var content = CouncilText.SelectMostCompleteCouncilMessage(message.Content, marker, liveTranscript, spoolTranscript);
+                if (content.Length <= (message.Content?.Length ?? 0))
+                {
+                    result.Add(message);
+                    continue;
+                }
+
+                result.Add(new BlazorChatMessage(ChatRole.Assistant, content, new List<AIChatUploadFileInfo>()));
+                completed++;
+            }
+
+            if (completed > 0)
+                Logger.LogInformation("Completed {CompletedCount} saved Council chat message(s) from the live transcript or the durable Council spool.", completed);
+            return result;
         }
-        if (messages.Count == 0)
-            messages.Add(new BlazorChatMessage(ChatRole.Assistant,
-                $"Council {receipt.RunId:N} was recorded with status {receipt.Status}; inspect its saved evidence above.",
-                new List<AIChatUploadFileInfo>()));
-        return messages;
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.MaterializeCouncilMessages failed.");
+            throw;
+        }
     }
 
     /// <summary>Toggles one saved step without repeatedly sending its full content on every Council heartbeat.</summary>
@@ -288,37 +418,6 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     private CouncilLiveParticipantActivitySnapshot? InspectedCouncilActivity;
 
-    /// <summary>
-    /// Performs toggle completed council activity evidence for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
-    /// </summary>
-    /// <param name="runId">Identifier of the Council run whose participant evidence is inspected.</param>
-    /// <param name="activity">Activity value supplied to the chat operation and used when producing its result.</param>
-    private void ToggleCompletedCouncilActivityEvidence(Guid runId, CouncilLiveParticipantActivitySnapshot activity)
-    {
-        try
-        {
-            ArgumentNullException.ThrowIfNull(activity);
-            if (CouncilEvidencePopupVisible && InspectedCouncilActivity?.ActivityKey == activity.ActivityKey)
-            {
-                CouncilEvidencePopupVisible = false;
-                InspectedCouncilActivity = null;
-            }
-            else
-            {
-                // Live lane cards intentionally carry shortened projections. Inspection requests
-                // the authoritative available server-side snapshot only on user interaction.
-                InspectedCouncilActivity = CouncilLiveSessions.GetParticipantActivities(runId)
-                    .FirstOrDefault(candidate => candidate.ActivityKey == activity.ActivityKey) ?? activity;
-                CouncilEvidencePopupVisible = true;
-            }
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Inspecting completed Council participant evidence failed.");
-            Notifier.ShowError("ChatToasts", "Council member evidence could not be opened. See local logs.", "Council evidence");
-        }
-    }
     /// <summary>Gets unresolved AI/Council review requests that belong to the currently selected Chat/Council session.</summary>
     /// <value>The ordered unresolved collaboration requests projected into the active chat.</value>
     private IReadOnlyList<HumanCollaborationRequest> InlineChatRequests
@@ -361,7 +460,10 @@ namespace LocalGPT.Components.Pages
             {
                 collaborationSnapshot = snapshot;
                 if (SelectedCouncilRunId is null && activeLiveSessions.FirstOrDefault() is { } newestLiveSession)
+                {
                     SelectedCouncilRunId = newestLiveSession.RunId;
+                    ScheduleAutomaticLiveCouncilAttach();
+                }
                 if (SelectedCouncilRunId is Guid selectedRunId
                     && collaborationSnapshot.ActiveRuns.All(run => run.RunId != selectedRunId)
                     && !activeLiveRunIds.Contains(selectedRunId)
@@ -851,7 +953,10 @@ namespace LocalGPT.Components.Pages
                                 if (cancellationToken.IsCancellationRequested || isDisposed || !interactiveAttached)
                                     return;
                                 if (SelectedCouncilRunId is null && CouncilLiveSessions.GetActiveSummaries().FirstOrDefault() is { } newestLiveSession)
+                                {
                                     SelectedCouncilRunId = newestLiveSession.RunId;
+                                    ScheduleAutomaticLiveCouncilAttach();
+                                }
                                 if (!isDisposed && !cancellationToken.IsCancellationRequested)
                                     StateHasChanged();
                             }).ConfigureAwait(false);
@@ -1170,6 +1275,58 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>
+    /// Attaches DXAiChat to the running Council that the session list selected automatically for this circuit.
+    /// </summary>
+    /// <remarks>
+    /// A second browser window has its own circuit and per-tab sessionStorage, so it never receives a rejoin run id.
+    /// The session list still auto-selects the newest running Council, which made the live panel and the ASCII mirror
+    /// show the run while DXAiChat stayed empty and the composer remained bound to an unrelated provider session.
+    /// Only an otherwise empty Chat is attached; a window that already shows its own conversation keeps it and can
+    /// still use the explicit rejoin control. Each run is attempted once per circuit.
+    /// </remarks>
+    private void ScheduleAutomaticLiveCouncilAttach()
+    {
+        try
+        {
+            if (isDisposed || automaticLiveCouncilAttachSuppressed || !chatRuntimeStarted || DxAiChat is null || ChatClientProvider is null)
+                return;
+            if (SelectedCouncilRunId is not Guid runId || automaticLiveCouncilAttachRunId == runId)
+                return;
+            if (AttachedLiveCouncilRunId is not null || RejoinCouncilRunId is not null || ownsLiveCouncilStream)
+                return;
+            if (ActiveConversationId is not null || canonicalConversationMessages.Count > 0
+                || ChatClientProvider.SelectedSession?.Messages.Count > 0)
+                return;
+            if (CouncilLiveSessions.GetSummary(runId)?.IsRunning != true)
+                return;
+
+            automaticLiveCouncilAttachRunId = runId;
+            TaskRunner.Run(
+                nameof(Chat),
+                "AutomaticLiveCouncilAttach",
+                async cancellationToken =>
+                {
+                    if (cancellationToken.IsCancellationRequested || isDisposed)
+                        return;
+                    var attached = await AttachToLiveCouncilSessionAsync(runId, reloadChatControl: true).ConfigureAwait(false);
+                    if (attached)
+                        Logger.LogInformation("Attached this browser window to running Council {RunId} after the session list selected it.", runId);
+                    else
+                        Logger.LogDebug("Automatic attachment to running Council {RunId} was not completed; the explicit rejoin control remains available.", runId);
+                },
+                componentLifetimeToken);
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            Logger.LogDebug("Skipped automatic live Council attachment because the Chat circuit ended.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Component method Chat.LiveCouncil.ScheduleAutomaticLiveCouncilAttach failed.");
+        }
+    }
+
+    /// <summary>
     /// Stops active council run for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
@@ -1358,6 +1515,24 @@ namespace LocalGPT.Components.Pages
         catch (Exception __componentMethodException)
         {
             Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.ShortCouncilRunId failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Gets the caption of the Live Council feed button that shows or hides the rendered transcript in the feed.</summary>
+    /// <value>The button text matching the current feed transcript visibility.</value>
+    private string LiveFeedTranscriptToggleText => liveFeedTranscriptVisible ? "Hide transcript in this feed" : "Show transcript in this feed";
+
+    /// <summary>Shows or hides the rendered ordered transcript inside the Live Council feed.</summary>
+    private void ToggleLiveFeedTranscript()
+    {
+        try
+        {
+            liveFeedTranscriptVisible = !liveFeedTranscriptVisible;
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.ToggleLiveFeedTranscript failed.");
             throw;
         }
     }

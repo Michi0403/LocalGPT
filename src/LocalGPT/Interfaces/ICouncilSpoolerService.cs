@@ -46,6 +46,11 @@ public interface ICouncilSpoolerService
     /// <param name="take">Maximum number of recent run headers.</param>
     /// <returns>Recent run headers.</returns>
     IReadOnlyList<CouncilSpoolerRunSummary> GetRecentSummaries(int take = 50);
+    /// <summary>Returns compact member outcomes of recent retained runs (no prompts, thinking or answer text) as recovery evidence.</summary>
+    /// <param name="takeRuns">Maximum number of recent runs to read.</param>
+    /// <param name="excludeRunId">Run to leave out, normally the run that asks for evidence.</param>
+    /// <returns>One outcome per retained member step.</returns>
+    IReadOnlyList<CouncilMemberOutcome> GetMemberOutcomes(int takeRuns, Guid? excludeRunId = null);
     /// <summary>
     /// Retrieves snapshot as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

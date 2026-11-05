@@ -1,0 +1,447 @@
+@inject ICouncilLiveSessionService CouncilLiveSessions
+@inject IChatContentRenderer ChatContentRenderer
+@inject CouncilTextService CouncilText
+@inject ILogger<LiveCouncilLaneBoard> Logger
+@inject ISupervisedTaskRunner TaskRunner
+@implements IDisposable
+
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner LiveCouncilLaneBoard">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+@if (lanes.Count > 0)
+{
+<div class="localgpt-live-participant-board" aria-label="Live parallel Council activity" data-testid="live-council-lane-board">
+    <header>
+        <strong>Live Council lanes</strong>
+        <small>@laneSummary</small>
+    </header>
+    @foreach (var lane in lanes)
+    {
+        <div class="localgpt-live-participant-card @lane.StateCss" @key="lane.ActivityKey">
+            <div class="localgpt-live-participant-heading">
+                <span class="localgpt-live-participant-state @lane.StateCss" title="@lane.StateLabel" aria-hidden="true"></span>
+                <span>
+                    <strong>@lane.ModelName</strong>
+                    <small>@lane.Detail</small>
+                </span>
+                <em>@lane.StatusMessage</em>
+                <span class="localgpt-live-participant-actions">
+                    @if (lane.HasStream)
+                    {
+                        <DxButton CssClass="localgpt-live-participant-stream-toggle"
+                                  RenderStyle="ButtonRenderStyle.Secondary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Text"
+                                  Text="@StreamToggleText(lane)"
+                                  Click="@(() => ToggleStream(lane))" />
+                    }
+                    @if (!lane.IsRunning)
+                    {
+                        <DxButton CssClass="localgpt-live-participant-evidence-button"
+                                  RenderStyle="ButtonRenderStyle.Secondary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                  Text="@EvidenceButtonText(lane)"
+                                  Click="@(() => RequestInspectAsync(lane.ActivityKey))" />
+                    }
+                </span>
+            </div>
+            @if (lane.StreamOpen && lane.HasStream)
+            {
+                <div class="localgpt-live-participant-stream-history">
+                    <div class="localgpt-live-participant-stream-caption">@(lane.IsRunning ? "Live thinking, functions and provider stream" : "Thinking, functions and provider stream")</div>
+                    <div class="localgpt-live-participant-content" data-localgpt-details-host>@((MarkupString)lane.StreamHtml)</div>
+                </div>
+            }
+            else if (lane.IsRunning && !lane.HasStream)
+            {
+                <p class="localgpt-live-participant-waiting">Waiting for streamed model output…</p>
+            }
+        </div>
+    }
+</div>
+}
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
+@code {
+    /// <summary>Gets or sets the server-owned Council run whose participant lanes are shown.</summary>
+    /// <value>The live Council run identifier; a changed value restarts the lane projection.</value>
+    [Parameter]
+    public Guid RunId { get; set; }
+
+    /// <summary>Gets or sets the activity key whose answer and provider evidence are currently open in the caller's evidence view.</summary>
+    /// <value>The inspected activity key, or <see langword="null"/> when no evidence view is open.</value>
+    [Parameter]
+    public string? InspectedActivityKey { get; set; }
+
+    /// <summary>Gets or sets the callback that opens or closes the full answer and provider evidence of a finished lane.</summary>
+    /// <value>Receives the activity key of the lane.</value>
+    [Parameter]
+    public EventCallback<string> InspectRequested { get; set; }
+
+    /// <summary>Minimum delay between two lane refreshes while provider streams keep changing.</summary>
+    private const int LaneRefreshIntervalMilliseconds = 1000;
+    /// <summary>Newest characters of one lane stream rendered inside its card; the complete stream is in the transcript above and in the evidence view.</summary>
+    private const int LaneStreamTailCharacters = 16384;
+
+    /// <summary>One prepared lane card.</summary>
+    /// <param name="ActivityKey">Stable lane identity used as render key.</param>
+    /// <param name="ModelName">Provider-qualified model of the lane.</param>
+    /// <param name="Detail">Phase, role and hardware route of the lane.</param>
+    /// <param name="StatusMessage">Current server-owned lane status.</param>
+    /// <param name="IsRunning">Whether the provider request is still running.</param>
+    /// <param name="HasStream">Whether the lane has streamed provider output.</param>
+    /// <param name="StreamOpen">Whether the stream panel is expanded.</param>
+    /// <param name="StreamHtml">Rendered newest region of the stream, or an empty string when the panel is collapsed.</param>
+    /// <param name="StateCss">CSS state class: running, waiting, complete or closed.</param>
+    /// <param name="StateLabel">Readable state for the status dot.</param>
+    private sealed record LaneView(
+        string ActivityKey,
+        string ModelName,
+        string Detail,
+        string StatusMessage,
+        bool IsRunning,
+        bool HasStream,
+        bool StreamOpen,
+        string StreamHtml,
+        string StateCss,
+        string StateLabel);
+
+    /// <summary>Rendered stream of one lane, reused while its stream length is unchanged.</summary>
+    /// <param name="Length">Stream length the HTML was rendered from.</param>
+    /// <param name="Html">Rendered newest stream region.</param>
+    private sealed record LaneStreamCacheEntry(int Length, string Html);
+
+    /// <summary>Lane cards currently shown; replaced as a whole on the renderer thread.</summary>
+    private IReadOnlyList<LaneView> lanes = [];
+    /// <summary>Header summary of the current lanes.</summary>
+    private string laneSummary = string.Empty;
+    /// <summary>Run currently observed by this component.</summary>
+    private Guid observedRunId;
+    /// <summary>Lanes whose stream panel the user opened explicitly (finished lanes start collapsed).</summary>
+    private readonly HashSet<string> openedLaneKeys = new(StringComparer.Ordinal);
+    /// <summary>Lanes whose stream panel the user closed explicitly (running lanes start expanded).</summary>
+    private readonly HashSet<string> closedLaneKeys = new(StringComparer.Ordinal);
+    /// <summary>Protects the user toggle sets, which the refresh worker reads.</summary>
+    private readonly Lock laneToggleGate = new();
+    /// <summary>Worker-owned rendered stream cache per lane.</summary>
+    private readonly Dictionary<string, LaneStreamCacheEntry> streamCache = new(StringComparer.Ordinal);
+
+    /// <summary>Marks that one or more Council changes arrived since the previous refresh.</summary>
+    private int refreshPending;
+    /// <summary>Ensures only one refresh worker runs for this component.</summary>
+    private int refreshWorkerRunning;
+    /// <summary>Requests that the next worker pass runs without the refresh delay.</summary>
+    private int immediateRefreshRequested = 1;
+    /// <summary>Cancels a pending refresh when the component is disposed.</summary>
+    private readonly CancellationTokenSource refreshCancellation = new();
+    /// <summary>Tracks disposal so late Council events cannot schedule more renderer work.</summary>
+    private bool disposed;
+
+    /// <summary>Subscribes to the live Council session and schedules the first lane projection off the renderer dispatcher.</summary>
+    protected override void OnInitialized()
+    {
+        Logger.LogDebug("Component method LiveCouncilLaneBoard.OnInitialized completed.");
+        try
+        {
+            observedRunId = RunId;
+            CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
+            ScheduleRefresh(immediate: true);
+        }
+        catch (Exception exception)
+        {
+            CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
+            throw new InvalidOperationException("Initializing the live Council lane board failed.", exception);
+        }
+    }
+
+    /// <summary>Restarts the projection when the caller binds the board to another Council run.</summary>
+    protected override void OnParametersSet()
+    {
+        Logger.LogDebug("Component method LiveCouncilLaneBoard.OnParametersSet completed.");
+        try
+        {
+            if (observedRunId == RunId)
+                return;
+            observedRunId = RunId;
+            lanes = [];
+            laneSummary = string.Empty;
+            lock (laneToggleGate)
+            {
+                openedLaneKeys.Clear();
+                closedLaneKeys.Clear();
+            }
+            ScheduleRefresh(immediate: true);
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException("Rebinding the live Council lane board failed.", exception);
+        }
+    }
+
+    /// <summary>Coalesces Council events for the observed run into one bounded refresh worker.</summary>
+    /// <param name="runId">Run whose server-owned live state changed.</param>
+    private void OnCouncilLiveSessionChanged(Guid runId)
+    {
+        try
+        {
+            if (disposed || runId != observedRunId)
+                return;
+            ScheduleRefresh(immediate: false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Scheduling a live Council lane refresh failed for run {RunId}.", runId);
+        }
+    }
+
+    /// <summary>Marks a refresh as pending and starts the single refresh worker when it is idle.</summary>
+    /// <param name="immediate">Whether the next pass should skip the refresh delay.</param>
+    private void ScheduleRefresh(bool immediate)
+    {
+        try
+        {
+            if (disposed)
+                return;
+            if (immediate)
+                Interlocked.Exchange(ref immediateRefreshRequested, 1);
+            Interlocked.Exchange(ref refreshPending, 1);
+            if (Interlocked.CompareExchange(ref refreshWorkerRunning, 1, 0) == 0)
+                TaskRunner.Run(nameof(LiveCouncilLaneBoard), nameof(RefreshLanesAsync), _ => RefreshLanesAsync(), refreshCancellation.Token);
+        }
+        catch (Exception exception)
+        {
+            Interlocked.Exchange(ref refreshWorkerRunning, 0);
+            Logger.LogWarning(exception, "Starting the live Council lane refresh worker failed.");
+        }
+    }
+
+    /// <summary>Publishes at most one lane projection per second; stream Markdown is rendered on the thread pool.</summary>
+    /// <returns>A task that completes when the newest projection is visible or the component was disposed.</returns>
+    private async Task RefreshLanesAsync()
+    {
+        try
+        {
+            while (!refreshCancellation.IsCancellationRequested)
+            {
+                if (Interlocked.Exchange(ref immediateRefreshRequested, 0) == 0)
+                    await Task.Delay(LaneRefreshIntervalMilliseconds, refreshCancellation.Token).ConfigureAwait(false);
+                Interlocked.Exchange(ref refreshPending, 0);
+
+                var runId = observedRunId;
+                var projection = await Task.Run(() => BuildLanes(runId), refreshCancellation.Token).ConfigureAwait(false);
+                await InvokeAsync(() =>
+                {
+                    if (disposed || runId != observedRunId)
+                        return;
+                    lanes = projection.Lanes;
+                    laneSummary = projection.Summary;
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+
+                if (Volatile.Read(ref refreshPending) == 0)
+                    break;
+            }
+        }
+        catch (OperationCanceledException) when (refreshCancellation.IsCancellationRequested)
+        {
+            // Component disposal cancels the delayed refresh.
+        }
+        catch (ObjectDisposedException)
+        {
+            // A disconnected browser circuit may dispose the renderer while a refresh is pending.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "A live Council lane refresh failed; the next Council change retries it.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref refreshWorkerRunning, 0);
+            if (!disposed
+                && Volatile.Read(ref refreshPending) != 0
+                && !refreshCancellation.IsCancellationRequested
+                && Interlocked.CompareExchange(ref refreshWorkerRunning, 1, 0) == 0)
+                TaskRunner.Run(nameof(LiveCouncilLaneBoard), nameof(RefreshLanesAsync), _ => RefreshLanesAsync(), refreshCancellation.Token);
+        }
+    }
+
+    /// <summary>Builds the lane cards for one run. Only expanded streams are rendered, and an unchanged stream reuses its HTML.</summary>
+    /// <param name="runId">Run to project.</param>
+    /// <returns>The lane cards and their header summary.</returns>
+    private (IReadOnlyList<LaneView> Lanes, string Summary) BuildLanes(Guid runId)
+    {
+        try
+        {
+            var activities = CouncilLiveSessions.GetParticipantActivitiesForDisplay(runId);
+            HashSet<string> opened;
+            HashSet<string> closed;
+            lock (laneToggleGate)
+            {
+                opened = new HashSet<string>(openedLaneKeys, StringComparer.Ordinal);
+                closed = new HashSet<string>(closedLaneKeys, StringComparer.Ordinal);
+            }
+
+            var result = new List<LaneView>(activities.Count);
+            var running = 0;
+            var waiting = 0;
+            var complete = 0;
+            var closedCount = 0;
+            foreach (var activity in activities)
+            {
+                var content = activity.Content ?? string.Empty;
+                var hasStream = !string.IsNullOrWhiteSpace(content);
+                var hasFinal = !string.IsNullOrWhiteSpace(activity.FinalContent);
+                var (stateCss, stateLabel) = activity.IsRunning
+                    ? hasStream ? ("is-running", "Streaming") : ("is-waiting", "Waiting for the model runtime")
+                    : hasFinal ? ("is-complete", "Finished with an answer") : ("is-closed", "Closed without an answer");
+                switch (stateCss)
+                {
+                    case "is-running": running++; break;
+                    case "is-waiting": waiting++; break;
+                    case "is-complete": complete++; break;
+                    default: closedCount++; break;
+                }
+
+                var streamOpen = hasStream && (activity.IsRunning
+                    ? !closed.Contains(activity.ActivityKey)
+                    : opened.Contains(activity.ActivityKey));
+                var streamHtml = string.Empty;
+                if (streamOpen)
+                {
+                    if (streamCache.TryGetValue(activity.ActivityKey, out var cached) && cached.Length == content.Length)
+                    {
+                        streamHtml = cached.Html;
+                    }
+                    else
+                    {
+                        streamHtml = ChatContentRenderer.Render(CouncilText.TakeMarkdownTail(content, LaneStreamTailCharacters));
+                        streamCache[activity.ActivityKey] = new LaneStreamCacheEntry(content.Length, streamHtml);
+                    }
+                }
+
+                result.Add(new LaneView(
+                    activity.ActivityKey,
+                    activity.ModelName,
+                    $"{activity.Phase} · {activity.Role} · {activity.RouteLabel}",
+                    activity.StatusMessage,
+                    activity.IsRunning,
+                    hasStream,
+                    streamOpen,
+                    streamHtml,
+                    stateCss,
+                    stateLabel));
+            }
+
+            var summary = $"{running} streaming · {waiting} waiting · {complete} finished · {closedCount} closed — each AI host/model updates independently; the ordered transcript is shown above.";
+            return (result, summary);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Projecting live Council lanes for run {RunId} failed; lane content was omitted from logs.", runId);
+            return (lanes, laneSummary);
+        }
+    }
+
+    /// <summary>Returns the caption of a lane's stream toggle.</summary>
+    /// <param name="lane">Lane card.</param>
+    /// <returns>The button text.</returns>
+    private string StreamToggleText(LaneView lane)
+    {
+        try
+        {
+            return lane.StreamOpen ? "Hide stream" : "Show stream";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Lane stream toggle caption failed.");
+            return "Stream";
+        }
+    }
+
+    /// <summary>Returns the caption of a finished lane's evidence button.</summary>
+    /// <param name="lane">Lane card.</param>
+    /// <returns>The button text.</returns>
+    private string EvidenceButtonText(LaneView lane)
+    {
+        try
+        {
+            return string.Equals(InspectedActivityKey, lane.ActivityKey, StringComparison.Ordinal)
+                ? "Hide answer and provider evidence"
+                : "Inspect answer, thinking and provider evidence";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Lane evidence caption failed.");
+            return "Inspect";
+        }
+    }
+
+    /// <summary>Opens or closes one lane's stream panel and refreshes the board at once.</summary>
+    /// <param name="lane">Lane card.</param>
+    private void ToggleStream(LaneView lane)
+    {
+        try
+        {
+            lock (laneToggleGate)
+            {
+                if (lane.StreamOpen)
+                {
+                    openedLaneKeys.Remove(lane.ActivityKey);
+                    closedLaneKeys.Add(lane.ActivityKey);
+                }
+                else
+                {
+                    closedLaneKeys.Remove(lane.ActivityKey);
+                    openedLaneKeys.Add(lane.ActivityKey);
+                }
+            }
+            ScheduleRefresh(immediate: true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Toggling a live Council lane stream failed.");
+        }
+    }
+
+    /// <summary>Asks the caller to open or close the full answer and provider evidence of a finished lane.</summary>
+    /// <param name="activityKey">Lane identity.</param>
+    /// <returns>A task that completes when the caller handled the request.</returns>
+    private async Task RequestInspectAsync(string activityKey)
+    {
+        try
+        {
+            if (InspectRequested.HasDelegate)
+                await InspectRequested.InvokeAsync(activityKey);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Opening Council lane evidence failed.");
+        }
+    }
+
+    /// <summary>Unsubscribes from Council changes and cancels any pending refresh.</summary>
+    public void Dispose()
+    {
+        Logger.LogDebug("Component method LiveCouncilLaneBoard.Dispose completed.");
+        try
+        {
+            if (disposed)
+                return;
+            disposed = true;
+            CouncilLiveSessions.Changed -= OnCouncilLiveSessionChanged;
+            refreshCancellation.Cancel();
+            refreshCancellation.Dispose();
+            GC.SuppressFinalize(this);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposal is idempotent even if the browser circuit tears down concurrently.
+        }
+    }
+}

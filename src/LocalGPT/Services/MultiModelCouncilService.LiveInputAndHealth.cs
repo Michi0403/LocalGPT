@@ -113,7 +113,30 @@ namespace LocalGPT.Services
                 var recoveryContext = Math.Clamp(Math.Min(maxContextTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).RecoveryContextTokenCeiling), catalog.MinContextTokens, catalog.MaxContextTokens);
                 var recoveryModel = await providerModels.ResolveAsync(modelName, cancellationToken).ConfigureAwait(false);
                 var isOllama = recoveryModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase);
-                if (isOllama)
+                if (isOllama && ambientContext.Current.CouncilRunId is Guid recoveryRunId)
+                {
+                    // Inside a Council run the goal recovery helper owns host outages: one bounded wait for the first outage of a
+                    // host in the run, then a single check; a silent host is marked down for the run instead of being waited for again.
+                    var hostDecision = await goalRecovery.HandleHostFailureAsync(new GoalHostFailureReport
+                    {
+                        RunId = recoveryRunId,
+                        HostKey = GetCouncilExecutionHostKey(modelName),
+                        ModelName = modelName,
+                        Model = recoveryModel,
+                        Phase = phase,
+                        Progress = notice => streamUpdate?.Invoke(
+                            Environment.NewLine + Environment.NewLine + "> " + WebUtility.HtmlEncode(notice) + Environment.NewLine + Environment.NewLine)
+                    }, cancellationToken).ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(hostDecision.Notice))
+                    {
+                        streamUpdate?.Invoke(
+                            Environment.NewLine + Environment.NewLine + "> " + WebUtility.HtmlEncode(hostDecision.Notice) + Environment.NewLine + Environment.NewLine);
+                    }
+
+                    if (!hostDecision.RetryNow)
+                        return null;
+                }
+                else if (isOllama)
                 {
                     var availabilityWait = TimeSpan.FromSeconds(Math.Clamp(modelTimeoutSeconds / runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).AvailabilityWaitDivisor, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumAvailabilityWaitSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumAvailabilityWaitSeconds));
                     streamUpdate?.Invoke(
@@ -187,6 +210,25 @@ namespace LocalGPT.Services
             {
                 logger.LogWarning(ex, "Automatic Council recovery failed for {ModelName} in {Phase}.", modelName, phase);
                 return null;
+            }
+        }
+
+        /// <summary>Returns whether the goal recovery helper marked the member's AI host down or excluded for the current Council run.</summary>
+        /// <param name="modelName">Provider-qualified member.</param>
+        /// <returns><see langword="true"/> when the member's failure is attributed to its unavailable host.</returns>
+        private bool IsCouncilHostUnavailableForCurrentRun(string modelName)
+        {
+            try
+            {
+                if (ambientContext.Current.CouncilRunId is not Guid runId)
+                    return false;
+                var status = goalRecovery.GetHostStatus(runId, GetCouncilExecutionHostKey(modelName));
+                return status.IsDown || status.IsExcluded;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not read the run-scoped AI host state for Council member {ModelName}.", modelName);
+                return false;
             }
         }
 

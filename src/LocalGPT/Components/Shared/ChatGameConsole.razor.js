@@ -152,8 +152,12 @@ const gameConsole = (() => {
             const lines = value.split('\n');
             const columns = Math.max(1, ...lines.map(line => Array.from(line).length));
             const rows = Math.max(1, lines.length);
+            // Scenes that paint cell backgrounds (the ANSI battle view) are laid out for terminal cells of about 1:2,
+            // so their pixels keep the same proportions as on the text screen. Plain frames keep the classic 6x8 grid.
+            const paintsBackgrounds = presentation.runs.some(run => run?.style && run.style.backgroundColor !== null && run.style.backgroundColor !== undefined);
             const cellWidth = 6;
-            const cellHeight = 8;
+            const cellHeight = paintsBackgrounds ? 12 : 8;
+            const glyphBaseline = paintsBackgrounds ? 9 : 7;
             canvas.width = Math.max(cellWidth, columns * cellWidth);
             canvas.height = Math.max(cellHeight, rows * cellHeight);
             canvas.dataset.columns = String(columns);
@@ -190,8 +194,10 @@ const gameConsole = (() => {
                     for (let x = run.x; x < end; x += 1) styles[x] = run.style;
                 }
                 chars.forEach((character, x) => {
-                    if (!character || character === ' ') return;
+                    if (!character) return;
                     const style = styles[x];
+                    // A space still owns its cell background (sky, grass, panels); only unstyled spaces are skipped.
+                    if (character === ' ' && !style) return;
                     let foregroundCss = defaultForeground;
                     let backgroundCss = null;
                     if (style) {
@@ -213,12 +219,13 @@ const gameConsole = (() => {
                         context.fillStyle = backgroundCss;
                         context.fillRect(left, top, cellWidth, cellHeight);
                     }
+                    if (character === ' ') return;
                     context.fillStyle = foregroundCss;
                     if (character === '█') context.fillRect(left, top, cellWidth, cellHeight);
                     else if (character === '▓') context.fillRect(left, top + 1, cellWidth, Math.max(1, cellHeight - 2));
                     else if (character === '▒') context.fillRect(left + 1, top + 1, Math.max(1, cellWidth - 2), Math.max(1, cellHeight - 2));
                     else if (character === '░') context.fillRect(left + 2, top + 2, Math.max(1, cellWidth - 4), Math.max(1, cellHeight - 4));
-                    else context.fillText(character, left, top + 7);
+                    else context.fillText(character, left, top + glyphBaseline);
                 });
             });
             state.pixelCanvas = canvas;
@@ -695,7 +702,9 @@ const gameConsole = (() => {
 
     function renderSequenceFrame(state) {
         try {
-            if (!state || !states.has(state.id) || state.sequenceFrames.length < 2 || document.hidden || !state.windowFocused) return;
+            // Animations pause only while the page is hidden (tab in background, minimized). A visible but unfocused window,
+            // e.g. the game on a second monitor while another app has focus, keeps playing.
+            if (!state || !states.has(state.id) || state.sequenceFrames.length < 2 || document.hidden) return;
             const screen = state.element.querySelector(state.sequenceSelector || '[data-ascii-sequence-screen]');
             if (!(screen instanceof HTMLElement)) return;
             const index = state.sequenceOneShot
@@ -733,7 +742,7 @@ const gameConsole = (() => {
 
     function scheduleSequence(state) {
         try {
-            if (!state || state.sequenceTimer || state.sequenceFrames.length < 2 || document.hidden || !state.windowFocused || (state.sequenceOneShot && state.sequenceIndex >= state.sequenceFrames.length)) return;
+            if (!state || state.sequenceTimer || state.sequenceFrames.length < 2 || document.hidden || (state.sequenceOneShot && state.sequenceIndex >= state.sequenceFrames.length)) return;
             state.sequenceTimer = window.setTimeout(() => {
                 state.sequenceTimer = 0;
                 renderSequenceFrame(state);
@@ -797,8 +806,8 @@ const gameConsole = (() => {
                 }, { signal:state.abort.signal });
                 window.addEventListener('blur', () => {
                     state.windowFocused = false;
+                    // Input polling stops without focus; the visible animation keeps running.
                     cancelGamepadFrame(state);
-                    cancelSequenceTimer(state);
                 }, { signal:state.abort.signal });
                 window.addEventListener('focus', () => {
                     state.windowFocused = true;

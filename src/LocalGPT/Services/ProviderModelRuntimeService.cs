@@ -387,6 +387,89 @@ public sealed class ProviderModelRuntimeService(
     }
 
     /// <summary>
+    /// Checks the exact model's provider host exactly once (one Ollama <c>/api/tags</c> request bounded by the discovery timeout).
+    /// Any HTTP answer proves that the host is reachable; only a transport failure or timeout reports it as unreachable.
+    /// </summary>
+    /// <param name="model">Exact provider-qualified model reference whose host should be checked.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The reachability result; non-Ollama providers return <see cref="ProviderHostReachability.NotSupported"/>.</returns>
+    public async Task<ProviderHostReachability> ProbeHostOnceAsync(
+        ProviderModelReference model,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(model);
+            if (!model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                return ProviderHostReachability.NotSupported;
+
+            var endpoint = NormalizeOllamaEndpoint(model.Endpoint);
+            using var http = new HttpClient { BaseAddress = new Uri(endpoint), Timeout = TimeSpan.FromSeconds(RuntimeParameters.DiscoveryHttpTimeoutSeconds) };
+            HttpResponseMessage response;
+            try
+            {
+                response = await http.GetAsync("/api/tags", cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is HttpRequestException || (exception is TaskCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                logger.LogInformation(
+                    "Ollama host {Endpoint} did not answer the single reachability check for model {Model}: {Reason}",
+                    endpoint,
+                    model.ModelName,
+                    exception.Message);
+                return ProviderHostReachability.HostUnreachable;
+            }
+
+            using (response)
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger.LogInformation(
+                        "Ollama host {Endpoint} answered the reachability check for model {Model} with HTTP {StatusCode}.",
+                        endpoint,
+                        model.ModelName,
+                        (int)response.StatusCode);
+                    return ProviderHostReachability.ModelMissing;
+                }
+
+                using var tags = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+                if (tags.RootElement.TryGetProperty("models", out var models) && models.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in models.EnumerateArray())
+                    {
+                        if (item.TryGetProperty("name", out var name)
+                            && string.Equals(name.GetString()?.Trim(), model.ModelName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return ProviderHostReachability.ModelAvailable;
+                        }
+                    }
+                }
+
+                logger.LogInformation(
+                    "Ollama host {Endpoint} is reachable but does not list model {Model}.",
+                    endpoint,
+                    model.ModelName);
+                return ProviderHostReachability.ModelMissing;
+            }
+        }
+        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogDebug(exception, "Provider host reachability check was canceled for model {Model}.", model?.ModelName);
+            throw;
+        }
+        catch (JsonException exception)
+        {
+            logger.LogWarning(exception, "Ollama host answered the reachability check for model {Model} with unreadable JSON.", model?.ModelName);
+            return ProviderHostReachability.ModelMissing;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Provider host reachability check failed for model {Model} at {Endpoint}.", model?.ModelName, model?.Endpoint);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Performs remember as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="model">Model value supplied to the provider model runtime operation and used when producing its result.</param>

@@ -465,6 +465,12 @@ public sealed class CouncilExecutionRuntimeParameters
     /// </summary>
     /// <value>The maximum availability wait seconds value exposed by <see cref="CouncilExecutionRuntimeParameters"/>.</value>
     public int MaximumAvailabilityWaitSeconds { get; set; }
+    /// <summary>Bounded wait for the first outage of an AI host in a Council run. Later failures on a host that is already marked down check it once and do not wait again.</summary>
+    /// <value>Seconds; values below 1 fall back to <see cref="MinimumAvailabilityWaitSeconds"/>.</value>
+    public int FirstHostOutageWaitSeconds { get; set; } = 30;
+    /// <summary>Number of recent retained Council runs whose member outcomes the goal recovery helper reads as evidence.</summary>
+    /// <value>Run count; 0 disables history evidence.</value>
+    public int MemberRecoveryHistoryRuns { get; set; } = 20;
     /// <summary>
     /// Gets or sets the recovery output token ceiling value that forms part of the council execution runtime parameters state consumed or produced by the surrounding workflow.
     /// </summary>

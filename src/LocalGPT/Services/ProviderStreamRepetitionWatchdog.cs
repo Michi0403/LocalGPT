@@ -94,6 +94,19 @@ internal sealed class ProviderStreamRepetitionWatchdog
     /// Stores the internal suspicious samples state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
     /// </summary>
     private int suspiciousSamples;
+    /// <summary>Shortest character period considered when cutting a repeated tail; shorter periods are separators or padding, not looping paragraphs.</summary>
+    private const int MinimumSalvagePeriodCharacters = 24;
+    /// <summary>Longest character period considered when cutting a repeated tail.</summary>
+    private const int MaximumSalvagePeriodCharacters = 16384;
+    /// <summary>Minimum number of consecutive copies (including the kept first copy) before a tail is cut.</summary>
+    private const int MinimumSalvageCopies = 3;
+    /// <summary>Maximum characters added after the cut to finish the line the kept first copy ends on.</summary>
+    private const int SalvageLineCompletionCharacters = 96;
+    /// <summary>
+    /// Newest characters examined by the symbol-aware pass. The whole window must repeat one pattern, so legitimate ASCII art
+    /// (sprites, boards, tables) stays far below it while a runaway grid such as <c>+---+---+</c> fills it within seconds.
+    /// </summary>
+    private const int SymbolLoopWindowCharacters = 4096;
 
     /// <summary>Creates a repetition watchdog from database-backed operator policy, with an explicit opt-in for bounded feature-owned flows.</summary>
     /// <param name="catalog">Local gpt catalog service dependency used by the provider stream repetition watchdog workflow to provide the corresponding application capability.</param>
@@ -144,7 +157,11 @@ internal sealed class ProviderStreamRepetitionWatchdog
                 return null;
 
             lastSampleAt = elapsed;
-            if (!TryFindRepeatedTokenCycle(recentText.ToString(), out var patternPreview, out var periodTokens, out var agreement))
+            var recent = recentText.ToString();
+            // Word tokens catch looping sentences; the symbol-aware pass catches loops without letters or digits
+            // (e.g. an endless "+---+---+" grid), which produce no word tokens at all.
+            if (!TryFindRepeatedTokenCycle(recent, out var patternPreview, out var periodTokens, out var agreement)
+                && !TryFindRepeatedSymbolCycle(recent, out patternPreview, out periodTokens, out agreement))
             {
                 suspiciousSamples = 0;
                 suspiciousSince = null;
@@ -161,6 +178,140 @@ internal sealed class ProviderStreamRepetitionWatchdog
         catch (Exception exception)
         {
             logger.LogError(exception, "Provider stream repetition observation failed; provider content was omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Cuts a character-exact repeated tail after its first copy. Small local models often print the same paragraph again and again;
+    /// the first copy is a usable answer, the later copies are the runaway part the watchdog stopped.
+    /// </summary>
+    /// <param name="text">Provider text whose newest region the watchdog classified as a repetition loop.</param>
+    /// <returns>
+    /// The text before the loop plus exactly one complete copy, or <see cref="string.Empty"/> when the tail is not a character-exact loop of at
+    /// least three copies (the caller then keeps its normal failure handling).
+    /// </returns>
+    public string TrimRepeatedTail(string text)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+
+            var length = text.Length;
+            var maximumPeriod = Math.Min(MaximumSalvagePeriodCharacters, length / MinimumSalvageCopies);
+            var bestKeep = -1;
+            var bestPeriodicCharacters = 0;
+            for (var period = MinimumSalvagePeriodCharacters; period <= maximumPeriod; period++)
+            {
+                // A periodic region can never exceed length - period characters; stop once no longer period can beat the best one.
+                if (bestPeriodicCharacters >= length - period)
+                    break;
+                if (text[length - 1] != text[length - 1 - period])
+                    continue;
+
+                // Walk backwards while every character equals the one exactly one period earlier.
+                var index = length - 1;
+                while (index - period >= 0 && text[index] == text[index - period])
+                    index--;
+
+                // Characters index+1 .. length-1 repeat the first copy text[index+1-period .. index].
+                var periodicCharacters = length - 1 - index;
+                if (periodicCharacters < (MinimumSalvageCopies - 1) * period || periodicCharacters <= bestPeriodicCharacters)
+                    continue;
+
+                bestPeriodicCharacters = periodicCharacters;
+                bestKeep = index + 1;
+            }
+
+            if (bestKeep <= 0)
+                return string.Empty;
+
+            // The copy boundary is ambiguous by the characters the loop shares with the text before it (for example a final "!").
+            // Finish the line the first copy ends on so the kept answer does not lose its last characters.
+            var lineEnd = bestKeep;
+            while (lineEnd < length && lineEnd - bestKeep < SalvageLineCompletionCharacters && text[lineEnd] != '\n')
+                lineEnd++;
+            if (lineEnd < length && text[lineEnd] == '\n')
+                bestKeep = lineEnd;
+            return text[..bestKeep];
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Cutting a repeated provider tail failed; provider content was omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Detects a loop made of punctuation or box-drawing characters. Inside the newest <see cref="SymbolLoopWindowCharacters"/> characters,
+    /// every non-whitespace symbol is a token of its own (letter/digit runs stay one token), and the complete window must agree with one
+    /// period at the configured short/long agreement. Whitespace is ignored, so line breaks inside a repeated grid do not hide the period.
+    /// </summary>
+    /// <param name="text">Newest buffered provider text.</param>
+    /// <param name="patternPreview">The repeated token pattern, bounded for diagnostics.</param>
+    /// <param name="periodTokens">Length of the repeated pattern in tokens.</param>
+    /// <param name="agreement">Share of tokens in the window that equal the token one period earlier.</param>
+    /// <returns><see langword="true"/> when the whole window is one repeated pattern.</returns>
+    private bool TryFindRepeatedSymbolCycle(string text, out string patternPreview, out int periodTokens, out double agreement)
+    {
+        try
+        {
+            patternPreview = string.Empty;
+            periodTokens = 0;
+            agreement = 0d;
+            if (text.Length < SymbolLoopWindowCharacters)
+                return false;
+
+            var tokens = new List<string>();
+            var token = new StringBuilder();
+            foreach (var character in text.AsSpan(text.Length - SymbolLoopWindowCharacters))
+            {
+                if (char.IsLetterOrDigit(character) || character == '_')
+                {
+                    token.Append(char.ToLowerInvariant(character));
+                    continue;
+                }
+                if (token.Length > 0)
+                {
+                    tokens.Add(token.ToString());
+                    token.Clear();
+                }
+                if (!char.IsWhiteSpace(character))
+                    tokens.Add(character.ToString());
+            }
+            if (token.Length > 0)
+                tokens.Add(token.ToString());
+            if (tokens.Count < minimumAnalyzedTokens)
+                return false;
+
+            var maximumPeriod = Math.Min(maximumPeriodTokens, tokens.Count / minimumLongPeriodRepeatedCycles);
+            for (var period = 1; period <= maximumPeriod; period++)
+            {
+                var requiredAgreement = period > shortPeriodMaximumTokens ? minimumLongPeriodAgreement : minimumPeriodicAgreement;
+                var comparisons = tokens.Count - period;
+                var allowedMismatches = (int)Math.Floor((1d - requiredAgreement) * comparisons);
+                var mismatches = 0;
+                for (var index = period; index < tokens.Count && mismatches <= allowedMismatches; index++)
+                {
+                    if (!tokens[index].Equals(tokens[index - period], StringComparison.Ordinal))
+                        mismatches++;
+                }
+                if (mismatches > allowedMismatches)
+                    continue;
+
+                periodTokens = period;
+                agreement = 1d - (mismatches / (double)comparisons);
+                patternPreview = string.Join(' ', tokens.Skip(tokens.Count - period).Take(period));
+                if (patternPreview.Length > 180)
+                    patternPreview = patternPreview[..180] + "…";
+                return true;
+            }
+            return false;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Provider stream symbol periodicity analysis failed; provider content was omitted.");
             throw;
         }
     }

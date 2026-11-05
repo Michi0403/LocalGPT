@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using DevExpress.AIIntegration.Blazor.Chat;
@@ -26,19 +27,27 @@ public sealed class AsciiChatTextService
     /// <summary>Caches unchanged Council lane projections so one streamed token does not re-normalize every other active model lane.</summary>
     private readonly ConcurrentDictionary<string, ParticipantProjectionCacheEntry> participantProjectionCache = new(StringComparer.Ordinal);
 
-    /// <summary>Maximum source characters retained from one still-streaming Council lane on the mirrored terminal surface.</summary>
-    private const int LiveParticipantTraceCharacters = 8192;
+    /// <summary>Caches the formatted terminal block of each immutable chat-message content string, so unchanged messages are not re-normalized on every refresh.</summary>
+    private readonly ConditionalWeakTable<string, MessageBlockCacheEntry> messageBlockCache = new();
 
-    /// <summary>Maximum source characters retained from one completed Council trace on the mirrored terminal surface.</summary>
-    private const int CompletedParticipantTraceCharacters = 12288;
+    /// <summary>Separator placed between two transcript blocks; emitted as its own block so cached blocks keep their string identity.</summary>
+    private readonly string blockSeparator = Environment.NewLine + Environment.NewLine;
 
-    /// <summary>Maximum source characters retained from one participant final answer on the mirrored terminal surface.</summary>
-    private const int ParticipantFinalCharacters = 16384;
+    /// <summary>Only the newest Council lanes are searched for an animated ASCII sequence.</summary>
+    private const int SequenceScanLaneCount = 48;
 
-    /// <summary>One content-free cache signature and its bounded terminal projection.</summary>
-    /// <param name="Signature">Signature value supplied to the ascii chat text operation and used when producing its result.</param>
-    /// <param name="Body">Body value supplied to the ascii chat text operation and used when producing its result.</param>
-    private sealed record ParticipantProjectionCacheEntry(string Signature, string Body);
+    /// <summary>Only the newest characters of one lane or message are searched for an animated ASCII sequence; the transcript itself is not shortened.</summary>
+    private const int SequenceScanCharacters = 65536;
+
+    /// <summary>One content-free cache signature and the complete, nickname-prefixed terminal block of one Council lane.</summary>
+    /// <param name="Signature">Content-free signature of the lane snapshot the block was built from.</param>
+    /// <param name="Block">Complete formatted terminal block for the lane.</param>
+    private sealed record ParticipantProjectionCacheEntry(string Signature, string Block);
+
+    /// <summary>One formatted chat-message block and the nickname it was formatted with.</summary>
+    /// <param name="Nickname">Terminal nickname used as the block prefix.</param>
+    /// <param name="Block">Complete formatted terminal block for the message, or an empty string when the message has no visible text.</param>
+    private sealed record MessageBlockCacheEntry(string Nickname, string Block);
 
     /// <summary>Matches one bounded fenced ASCII animation block inside canonical chat content.</summary>
     private readonly Regex AsciiSequenceBlockPattern;
@@ -90,46 +99,109 @@ public sealed class AsciiChatTextService
     {
         try
         {
+            return string.Concat(BuildConversationTranscriptBlocks(messages, participantActivities, assistantDisplayName));
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "ASCII chat transcript joining failed; raw message text will be shown instead.");
+            return JoinRawMessages(messages);
+        }
+    }
+
+    /// <summary>
+    /// Builds the complete, untruncated ASCII transcript as ordered blocks (one per chat message or Council lane, separated by separator blocks).
+    /// Unchanged messages and lanes return the same cached string instances, so a terminal that renders the blocks individually only
+    /// transmits blocks whose text actually changed.
+    /// </summary>
+    /// <param name="messages">Canonical conversation messages also used by the regular chat presentation.</param>
+    /// <param name="participantActivities">Council participant activities associated with the current chat.</param>
+    /// <param name="assistantDisplayName">Provider/model display name used to derive the compact assistant nickname.</param>
+    /// <returns>Ordered transcript blocks whose concatenation is the plain-text terminal transcript.</returns>
+    public IReadOnlyList<string> BuildConversationTranscriptBlocks(
+        IReadOnlyList<BlazorChatMessage> messages,
+        IReadOnlyList<CouncilLiveParticipantActivitySnapshot> participantActivities,
+        string assistantDisplayName)
+    {
+        try
+        {
             if (messages.Count == 0 && participantActivities.Count == 0)
             {
-                return "┌─ LOCALGPT ASCII CHAT ─────────────────────────────────────────────────────────┐" + Environment.NewLine
+                return ["┌─ LOCALGPT ASCII CHAT ─────────────────────────────────────────────────────────┐" + Environment.NewLine
                     + "│ This terminal mirrors the current /chat conversation.                         │" + Environment.NewLine
                     + "│ Messages, thinking traces and function activity will replay here.              │" + Environment.NewLine
-                    + "└───────────────────────────────────────────────────────────────────────────────┘";
+                    + "└───────────────────────────────────────────────────────────────────────────────┘"];
             }
 
             var assistantNickname = BuildNickname(assistantDisplayName);
-            var builder = new StringBuilder();
+            var builder = new List<string>();
             foreach (var message in messages)
             {
                 if (message is null || string.IsNullOrWhiteSpace(message.Content))
                     continue;
 
                 var nickname = ResolveRoleNickname(message.Role, assistantNickname);
-                var body = NormalizeMessageBody(message.Content);
-                if (string.IsNullOrWhiteSpace(body))
+                var block = BuildMessageBlock(message.Content, nickname);
+                if (string.IsNullOrWhiteSpace(block))
                     continue;
 
-                if (builder.Length > 0)
-                    builder.AppendLine().AppendLine();
-                AppendChatMessage(builder, nickname, body);
+                if (builder.Count > 0)
+                    builder.Add(blockSeparator);
+                builder.Add(block);
             }
 
             AppendCouncilParticipantActivities(builder, participantActivities);
 
-            return builder.Length == 0
-                ? "LOCALGPT: The current conversation has no text content to render yet."
-                : builder.ToString().TrimEnd();
+            if (builder.Count == 0)
+                return ["LOCALGPT: The current conversation has no text content to render yet."];
+            var last = builder[^1];
+            var trimmedLast = last.TrimEnd();
+            if (!ReferenceEquals(last, trimmedLast) && trimmedLast.Length != last.Length)
+                builder[^1] = trimmedLast;
+            return builder;
         }
         catch (RegexMatchTimeoutException exception)
         {
             logger.LogWarning(exception, "ASCII chat transcript formatting exceeded its bounded regex budget; raw message text will be shown instead.");
-            return JoinRawMessages(messages);
+            return [JoinRawMessages(messages)];
         }
         catch (Exception exception)
         {
             logger.LogWarning(exception, "ASCII chat transcript formatting failed; raw message text will be shown instead.");
-            return JoinRawMessages(messages);
+            return [JoinRawMessages(messages)];
+        }
+    }
+
+    /// <summary>Formats one canonical chat message as a nickname-prefixed terminal block, reusing the cached block for unchanged content.</summary>
+    /// <param name="content">Immutable canonical message content.</param>
+    /// <param name="nickname">Terminal nickname of the message author.</param>
+    /// <returns>The formatted block, or an empty string when the message has no visible terminal text.</returns>
+    private string BuildMessageBlock(string content, string nickname)
+    {
+        try
+        {
+            if (messageBlockCache.TryGetValue(content, out var cached) && string.Equals(cached.Nickname, nickname, StringComparison.Ordinal))
+                return cached.Block;
+
+            var body = NormalizeMessageBody(content);
+            var block = string.Empty;
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                var formatted = new StringBuilder(body.Length + 64);
+                AppendChatMessage(formatted, nickname, body);
+                block = formatted.ToString();
+            }
+
+            messageBlockCache.AddOrUpdate(content, new MessageBlockCacheEntry(nickname, block));
+            return block;
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not format one chat message for the ASCII transcript.");
+            return string.Empty;
         }
     }
 
@@ -149,14 +221,16 @@ public sealed class AsciiChatTextService
             {
                 foreach (var activity in participantActivities
                     .OrderByDescending(item => item.UpdatedAtUtc)
-                    .ThenByDescending(item => item.ActivityKey, StringComparer.Ordinal))
+                    .ThenByDescending(item => item.ActivityKey, StringComparer.Ordinal)
+                    .Take(SequenceScanLaneCount))
                 {
                     foreach (var content in new[] { activity.FinalContent, activity.Content })
                     {
                         if (string.IsNullOrWhiteSpace(content))
                             continue;
 
-                        var matches = AsciiSequenceBlockPattern.Matches(content);
+                        // The terminal shows complete lanes; the animation search only needs their newest region.
+                        var matches = AsciiSequenceBlockPattern.Matches(content, Math.Max(0, content.Length - SequenceScanCharacters));
                         if (matches.Count == 0)
                             continue;
 
@@ -180,7 +254,7 @@ public sealed class AsciiChatTextService
                 if (string.IsNullOrWhiteSpace(content))
                     continue;
 
-                var matches = AsciiSequenceBlockPattern.Matches(content);
+                var matches = AsciiSequenceBlockPattern.Matches(content, Math.Max(0, content.Length - SequenceScanCharacters));
                 if (matches.Count == 0)
                     continue;
 
@@ -423,10 +497,10 @@ public sealed class AsciiChatTextService
     }
 
     /// <summary>Appends current Council participant lanes without duplicating or mutating authoritative Council history.</summary>
-    /// <param name="builder">Destination transcript builder containing canonical chat messages.</param>
+    /// <param name="builder">Destination transcript block list containing canonical chat messages.</param>
     /// <param name="participantActivities">Server-owned Council participant snapshots associated with the current chat.</param>
     private void AppendCouncilParticipantActivities(
-        StringBuilder builder,
+        List<string> builder,
         IReadOnlyList<CouncilLiveParticipantActivitySnapshot> participantActivities)
     {
         try
@@ -438,13 +512,13 @@ public sealed class AsciiChatTextService
                 .OrderBy(item => item.StartedAtUtc)
                 .ThenBy(item => item.ActivityKey, StringComparer.Ordinal))
             {
-                var body = BuildCouncilParticipantBody(activity);
-                if (string.IsNullOrWhiteSpace(body))
+                var block = BuildCouncilParticipantBlock(activity);
+                if (string.IsNullOrWhiteSpace(block))
                     continue;
 
-                if (builder.Length > 0)
-                    builder.AppendLine().AppendLine();
-                AppendChatMessage(builder, BuildNickname(activity.ModelName), body);
+                if (builder.Count > 0)
+                    builder.Add(blockSeparator);
+                builder.Add(block);
             }
         }
         catch (Exception exception)
@@ -453,10 +527,10 @@ public sealed class AsciiChatTextService
         }
     }
 
-    /// <summary>Builds one readable Council participant entry separating trace activity from final speech.</summary>
+    /// <summary>Builds one complete, nickname-prefixed Council participant block separating trace activity from final speech.</summary>
     /// <param name="activity">Server-owned participant activity snapshot to project into terminal text.</param>
-    /// <returns>A bounded participant body containing phase, role, trace and final answer information when available.</returns>
-    private string BuildCouncilParticipantBody(CouncilLiveParticipantActivitySnapshot activity)
+    /// <returns>The complete participant block containing phase, role, trace and final answer information when available.</returns>
+    private string BuildCouncilParticipantBlock(CouncilLiveParticipantActivitySnapshot activity)
     {
         try
         {
@@ -470,19 +544,13 @@ public sealed class AsciiChatTextService
             if (participantProjectionCache.TryGetValue(activity.ActivityKey, out var cached)
                 && string.Equals(cached.Signature, signature, StringComparison.Ordinal))
             {
-                return cached.Body;
+                return cached.Block;
             }
 
-            var streamedSource = BoundParticipantSource(
-                activity.Content ?? string.Empty,
-                activity.IsRunning ? LiveParticipantTraceCharacters : CompletedParticipantTraceCharacters,
-                "streamed trace");
-            var finalSource = BoundParticipantSource(
-                activity.FinalContent ?? string.Empty,
-                ParticipantFinalCharacters,
-                "final answer");
-            var streamed = NormalizeMessageBody(streamedSource);
-            var final = NormalizeMessageBody(finalSource);
+            // 6.9.4: the terminal mirrors the complete lane. Completed lanes are cached by signature,
+            // so only the lane that is still streaming is normalized again on a refresh.
+            var streamed = NormalizeMessageBody(activity.Content ?? string.Empty);
+            var final = NormalizeMessageBody(activity.FinalContent ?? string.Empty);
             var body = new StringBuilder();
 
             var phase = string.IsNullOrWhiteSpace(activity.Phase) ? "Council" : activity.Phase.Trim();
@@ -513,40 +581,18 @@ public sealed class AsciiChatTextService
             }
 
             var projection = body.ToString().Trim();
-            participantProjectionCache[activity.ActivityKey] = new ParticipantProjectionCacheEntry(signature, projection);
-            if (participantProjectionCache.Count > 512)
+            var formatted = new StringBuilder(projection.Length + 64);
+            AppendChatMessage(formatted, BuildNickname(activity.ModelName), projection);
+            var block = formatted.ToString();
+            participantProjectionCache[activity.ActivityKey] = new ParticipantProjectionCacheEntry(signature, block);
+            if (participantProjectionCache.Count > 4096)
                 participantProjectionCache.Clear();
-            return projection;
+            return block;
         }
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Could not project Council participant {ActivityKey} into the ASCII transcript.", activity.ActivityKey);
             return string.Empty;
-        }
-    }
-
-    /// <summary>Bounds one mirrored participant payload while preserving both its opening context and newest streamed tail.</summary>
-    /// <param name="value">Provider-owned source text to mirror without mutating canonical Council state.</param>
-    /// <param name="maximumCharacters">Maximum source characters retained in the terminal projection.</param>
-    /// <param name="description">Human-readable payload name used only inside the visible truncation marker.</param>
-    /// <returns>The original value when already bounded, otherwise a head/tail projection with an explicit omission marker.</returns>
-    private string BoundParticipantSource(string value, int maximumCharacters, string description)
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(value) || value.Length <= maximumCharacters)
-                return value;
-
-            var marker = $"{Environment.NewLine}[... earlier {description} remains available in canonical Chat/Council history ...]{Environment.NewLine}";
-            var available = Math.Max(2, maximumCharacters - marker.Length);
-            var headLength = Math.Max(1, available / 4);
-            var tailLength = Math.Max(1, available - headLength);
-            return value[..headLength] + marker + value[^tailLength..];
-        }
-        catch (Exception exception)
-        {
-            logger.LogDebug(exception, "Could not bound one {Description} payload for the ASCII transcript mirror.", description);
-            return value;
         }
     }
 

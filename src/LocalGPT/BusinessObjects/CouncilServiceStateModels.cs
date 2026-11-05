@@ -197,6 +197,15 @@ internal sealed class CouncilLiveParticipantActivityState(
     /// </summary>
     /// <value>The content value exposed by <see cref="CouncilLiveParticipantActivityState"/>.</value>
     public StringBuilder Content { get; } = new();
+    /// <summary>Gets or sets the number of mutations applied to <see cref="Content"/>; used to reuse an unchanged text snapshot.</summary>
+    /// <value>A counter incremented by every append or trim of the live participant stream.</value>
+    public long ContentVersion { get; set; }
+    /// <summary>Gets or sets the last materialized text of <see cref="Content"/>.</summary>
+    /// <value>The complete stream text at <see cref="ContentSnapshotVersion"/>.</value>
+    public string ContentSnapshot { get; set; } = string.Empty;
+    /// <summary>Gets or sets the <see cref="ContentVersion"/> at which <see cref="ContentSnapshot"/> was materialized.</summary>
+    /// <value>-1 until the first snapshot is taken.</value>
+    public long ContentSnapshotVersion { get; set; } = -1;
     /// <summary>Gets or sets the authoritative final participant answer once the model request completes.</summary>
     /// <value>The final content value exposed by <see cref="CouncilLiveParticipantActivityState"/>.</value>
     public string FinalContent { get; set; } = string.Empty;

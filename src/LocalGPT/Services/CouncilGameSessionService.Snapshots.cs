@@ -210,7 +210,11 @@ namespace LocalGPT.Services
                 IsActive = source.IsActive,
                 IsResting = source.IsResting,
                 RestedExchanges = source.RestedExchanges,
-                Rig = CloneAsciiActorRig(source.Rig)
+                Rig = CloneAsciiActorRig(source.Rig),
+                SpriteRows = source.SpriteRows.ToList(),
+                SpriteKind = source.SpriteKind,
+                SpritePalette = source.SpritePalette.ToList(),
+                SpriteAuthorModelName = source.SpriteAuthorModelName
             };
         }
         catch (Exception exception)

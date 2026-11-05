@@ -29,8 +29,17 @@ public sealed partial class DatabaseInitializationService
             var sourceVersion = ResolveLocalGptSourceVersion(repositoryRoot);
             if (Directory.Exists(repositoryRoot))
             {
-                foreach (var path in Directory.EnumerateFiles(repositoryRoot, "CHANGELOG-v*.md", SearchOption.TopDirectoryOnly)
-                             .OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
+                // Changelogs live in maintenance/changelogs (any sub-folder, so older changelogs can be sorted in);
+                // the repository root is still read for working copies that have not moved them yet.
+                var changelogFiles = Directory.EnumerateFiles(repositoryRoot, "CHANGELOG-v*.md", SearchOption.TopDirectoryOnly);
+                var changelogDirectory = Path.Combine(repositoryRoot, "maintenance", "changelogs");
+                if (Directory.Exists(changelogDirectory))
+                    changelogFiles = changelogFiles.Concat(Directory.EnumerateFiles(changelogDirectory, "CHANGELOG-v*.md", SearchOption.AllDirectories));
+
+                foreach (var path in changelogFiles
+                             .GroupBy(item => Path.GetFileName(item), StringComparer.OrdinalIgnoreCase)
+                             .Select(group => group.First())
+                             .OrderBy(item => Path.GetFileName(item), StringComparer.OrdinalIgnoreCase))
                 {
                     var match = RepositoryReleaseChangelogPattern.Match(Path.GetFileName(path));
                     if (!match.Success)

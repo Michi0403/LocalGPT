@@ -691,6 +691,8 @@ public enum LocalGptRuntimeValue
     GoalKeyaccountDefaultContinuations,
     /// <summary>Optional, user-selected provider-qualified reviewer model; empty inherits a Council participant.</summary>
     GoalKeyaccountReviewerModelKey,
+    /// <summary>User-editable notices, approval texts and decision reasons of the goal recovery helper.</summary>
+    GoalRecoveryHelperTextsJson,
 }
 
 /// <summary>

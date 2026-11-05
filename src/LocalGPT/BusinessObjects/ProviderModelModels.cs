@@ -523,3 +523,16 @@ internal readonly struct ProviderModelIdentity
         return builder.Uri.ToString().TrimEnd('/');
     }
 }
+
+/// <summary>Result of a single reachability check of a provider host for one exact model.</summary>
+public enum ProviderHostReachability
+{
+    /// <summary>The provider kind has no host reachability check; callers keep their previous behavior.</summary>
+    NotSupported = 0,
+    /// <summary>The host answered and lists the exact model.</summary>
+    ModelAvailable = 1,
+    /// <summary>The host answered but does not list the exact model, or answered with an error status.</summary>
+    ModelMissing = 2,
+    /// <summary>The host did not answer within the configured discovery timeout.</summary>
+    HostUnreachable = 3
+}
