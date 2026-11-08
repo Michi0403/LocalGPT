@@ -693,6 +693,8 @@ public enum LocalGptRuntimeValue
     GoalKeyaccountReviewerModelKey,
     /// <summary>User-editable notices, approval texts and decision reasons of the goal recovery helper.</summary>
     GoalRecoveryHelperTextsJson,
+    /// <summary>User-editable policy and prompt of the Kernel Creature Tournament sprite check.</summary>
+    KernelTournamentSpritePolicyJson,
 }
 
 /// <summary>

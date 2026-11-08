@@ -241,6 +241,29 @@ namespace LocalGPT.Services
                         {
                             case "SystemKernelTournamentResolution":
                                 {
+                                    var lineupStep = string.Equals(definition.Key, "arena-lineup-engine", StringComparison.OrdinalIgnoreCase);
+                                    Func<KernelTournamentSpriteRequest, CancellationToken, Task<KernelTournamentSpriteDraft?>>? requestSprite = null;
+                                    if (lineupStep)
+                                    {
+                                        requestSprite = (spriteRequest, spriteCancellation) => DrawKernelTournamentSpriteAsync(
+                                            spriteRequest,
+                                            result,
+                                            request,
+                                            team,
+                                            baseUri,
+                                            participants,
+                                            roleAssignments,
+                                            rolePairings,
+                                            round,
+                                            modelRoutes,
+                                            keepAlive,
+                                            ollamaNumGpu,
+                                            maxContextTokens,
+                                            modelTimeoutSeconds,
+                                            automaticFunctionPolicy,
+                                            spriteCancellation);
+                                    }
+
                                     var systemStep = await RunKernelTournamentSystemStepAsync(
                                         result,
                                         request,
@@ -249,8 +272,9 @@ namespace LocalGPT.Services
                                         participants,
                                         round,
                                         phase,
-                                        string.Equals(definition.Key, "arena-lineup-engine", StringComparison.OrdinalIgnoreCase),
-                                        cancellationToken).ConfigureAwait(false);
+                                        lineupStep,
+                                        cancellationToken,
+                                        requestSprite).ConfigureAwait(false);
                                     MultiModelCouncilServiceAddOrderedStep(result, systemStep, logger);
                                     request.StepCompleted?.Invoke(systemStep);
                                     break;

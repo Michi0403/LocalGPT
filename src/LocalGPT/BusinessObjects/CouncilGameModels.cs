@@ -338,6 +338,9 @@ public sealed class CouncilKernelTournamentContestantSeed
     /// <summary>Gets or sets the member-chosen sprite palette.</summary>
     /// <value>Five xterm-256 colors in the order outline, body, shade, accent, eye.</value>
     public List<int> CreatureSpritePalette { get; set; } = [];
+    /// <summary>Gets or sets the member that drew the sprite when it is not the creature member itself (sprite check by the team's artist).</summary>
+    /// <value>Provider-qualified drawer, or an empty string when the creature member drew its own sprite.</value>
+    public string CreatureSpriteAuthorModelName { get; set; } = string.Empty;
 }
 
 /// <summary>Captures the latest bounded AI-authored trainer or creature evidence for one tournament exchange.</summary>
@@ -1577,3 +1580,32 @@ public sealed class CouncilGameSessionState
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>
+/// User-editable policy of the Kernel Creature Tournament sprite check (runtime policy <c>KernelTournamentSpritePolicyJson</c>):
+/// before the lineup, a creature without a usable sprite, or with a copy of another creature's sprite, is asked again and then
+/// drawn by the team's artist members. Placeholders in braces are replaced with the creature's values.
+/// </summary>
+public sealed class KernelTournamentSpritePolicy
+{
+    /// <summary>Gets or sets the phase label of a sprite-check turn.</summary>
+    /// <value>Plain text shown in the transcript and lanes.</value>
+    public string Phase { get; set; } = string.Empty;
+    /// <summary>Gets or sets the maximum number of drawing turns per creature (the creature member first, then artist members).</summary>
+    /// <value>Turn count; 0 disables the sprite check.</value>
+    public int MaximumDrawAttempts { get; set; } = 3;
+    /// <summary>Gets or sets the share of equal non-empty cells from which two sprites count as copies of each other.</summary>
+    /// <value>Value between 0 and 1.</value>
+    public double CopySimilarity { get; set; } = 0.85;
+    /// <summary>Gets or sets the prompt of a sprite-check turn.</summary>
+    /// <value>Template with {{SpriteCreatureName}}, {{SpriteCreatureSpecies}}, {{SpriteCreatureForm}}, {{SpriteDrawer}}, {{SpriteOtherSprites}} and the usual workflow placeholders.</value>
+    public string PromptTemplate { get; set; } = string.Empty;
+    /// <summary>Gets or sets the drawer line used when the creature member draws itself again.</summary>
+    /// <value>Plain text.</value>
+    public string SelfDrawerLine { get; set; } = string.Empty;
+    /// <summary>Gets or sets the drawer line used when an artist member draws for the creature.</summary>
+    /// <value>Template with {{SpriteCreatureModel}}.</value>
+    public string ArtistDrawerLine { get; set; } = string.Empty;
+    /// <summary>Gets or sets the text used when no other creature has a sprite yet.</summary>
+    /// <value>Plain text.</value>
+    public string NoOtherSpritesText { get; set; } = string.Empty;
+}

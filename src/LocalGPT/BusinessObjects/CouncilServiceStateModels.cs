@@ -500,3 +500,27 @@ internal sealed record ConfiguredWorkflowExecutionState(
     string FinalAnswer,
     CouncilXRoundDirective? XDirective = null,
     string AuthoritativeCurationEvidence = "");
+
+/// <summary>Asks for one sprite-check drawing turn for a Kernel Creature Tournament contestant.</summary>
+/// <param name="CreatureModelName">Creature member that owns the sprite.</param>
+/// <param name="TrainerModelName">Trainer paired with the creature.</param>
+/// <param name="CreatureName">Creature name.</param>
+/// <param name="CreatureSpecies">Creature species.</param>
+/// <param name="CreatureForm">Creature form description.</param>
+/// <param name="OtherSprites">Sprites of the other creatures, which the drawing must not copy.</param>
+/// <param name="Attempt">0 for the creature member itself, 1 and later for the team's artist members in order.</param>
+internal sealed record KernelTournamentSpriteRequest(
+    string CreatureModelName,
+    string TrainerModelName,
+    string CreatureName,
+    string CreatureSpecies,
+    string CreatureForm,
+    string OtherSprites,
+    int Attempt);
+
+/// <summary>Result of one sprite-check drawing turn.</summary>
+/// <param name="DrawerModelName">Member that drew.</param>
+/// <param name="Content">Visible answer of the drawing turn; empty when the turn failed.</param>
+internal sealed record KernelTournamentSpriteDraft(
+    string DrawerModelName,
+    string Content);

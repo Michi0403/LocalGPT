@@ -414,6 +414,17 @@ Return ONLY valid JSON: {"complete": boolean, "nextObjective": string, "reason":
   "evidenceNone": "no earlier results in this role"
 }
 """, "LocalGPT.BusinessObjects.GoalRecoveryHelperTexts"),
+                    new(LocalGptRuntimeValue.KernelTournamentSpritePolicyJson, nameof(LocalGptRuntimeValue.KernelTournamentSpritePolicyJson), """
+{
+  "phase": "Creature sprite check",
+  "maximumDrawAttempts": 3,
+  "copySimilarity": 0.85,
+  "promptTemplate": "{{RolePerformanceInstruction}}\n{{RoleLanguageInstruction}}\n\nThe arena needs a battle sprite for the creature \"{{SpriteCreatureName}}\" (species: {{SpriteCreatureSpecies}}; form: {{SpriteCreatureForm}}). {{SpriteDrawer}}\n\nDraw one front-facing creature: 8 to 16 rows, 8 to 20 characters per row, one row per line. Use only these pixel characters: . empty, # outline, + main body, - shading, * accent marking, o eye. Give it a closed # outline and at least one o eye. Its shape must clearly differ from these sprites already in the arena; do not copy or mirror them:\n{{SpriteOtherSprites}}\n\nOutput these lines and nothing else:\nCOLORS: body=N shade=N accent=N eye=N outline=N\nSPRITE:\nfollowed directly by your sprite rows.",
+  "selfDrawerLine": "You are this creature: draw yourself. Your introduction had no usable sprite, or one too similar to another creature's.",
+  "artistDrawerLine": "You draw this sprite for the creature member {{SpriteCreatureModel}}, which did not deliver a usable one. Draw the creature as described, not yourself.",
+  "noOtherSpritesText": "(no other sprites yet)"
+}
+""", "LocalGPT.BusinessObjects.KernelTournamentSpritePolicy"),
                     new(LocalGptRuntimeValue.GoalMaximumPlanSteps, nameof(LocalGptRuntimeValue.GoalMaximumPlanSteps), "6", "System.Int32"),
                     new(LocalGptRuntimeValue.GoalMaximumReplans, nameof(LocalGptRuntimeValue.GoalMaximumReplans), "2", "System.Int32"),
                     new(LocalGptRuntimeValue.GoalPlannerOutputTokens, nameof(LocalGptRuntimeValue.GoalPlannerOutputTokens), "1400", "System.Int32"),

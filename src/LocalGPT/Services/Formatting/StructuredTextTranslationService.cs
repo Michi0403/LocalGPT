@@ -439,6 +439,23 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
                 continue;
             }
             if (ch == '"') { quoted = true; continue; }
+            if (char.IsLetter(ch))
+            {
+                // Outside strings JSON only knows true, false, null and number exponents. Marker text such as
+                // [[TOURNAMENT_CONTINUE]] is rejected here instead of costing a thrown parser exception.
+                var wordEnd = i;
+                while (wordEnd < json.Length && (char.IsLetterOrDigit(json[wordEnd]) || json[wordEnd] == '_'))
+                    wordEnd++;
+                var word = json.Substring(i, wordEnd - i);
+                var exponent = (word.Length == 1 || (word.Length > 1 && word[1..].All(char.IsDigit)))
+                    && (word[0] is 'e' or 'E')
+                    && i > 0
+                    && (char.IsDigit(json[i - 1]) || json[i - 1] == '.');
+                if (!exponent && word is not ("true" or "false" or "null"))
+                    return false;
+                i = wordEnd - 1;
+                continue;
+            }
             if (ch == '/' && i + 1 < json.Length && json[i + 1] == '/')
             {
                 lineComment = true;

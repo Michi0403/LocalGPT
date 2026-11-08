@@ -726,7 +726,11 @@ namespace LocalGPT.Services
                         for (var fighterIndex = 0; fighterIndex < session.TournamentFighters.Count; fighterIndex++)
                         {
                             var fighter = session.TournamentFighters[fighterIndex];
-                            var memberSprite = SanitizeMemberSprite(fighterIndex < contestants.Count ? contestants[fighterIndex] : null);
+                            var contestantSeed = fighterIndex < contestants.Count ? contestants[fighterIndex] : null;
+                            var memberSprite = SanitizeMemberSprite(contestantSeed);
+                            var spriteAuthor = string.IsNullOrWhiteSpace(contestantSeed?.CreatureSpriteAuthorModelName)
+                                ? fighter.CreatureModelName
+                                : contestantSeed.CreatureSpriteAuthorModelName;
                             if (!usedCreatureNames.Add(fighter.CreatureName))
                             {
                                 var qualifiedName = SafeName($"{fighter.CreatureName}-{ShortModel(fighter.CreatureModelName)}", $"Kernel Creature {fighterIndex + 1}");
@@ -762,7 +766,7 @@ namespace LocalGPT.Services
                                     SpriteRows = memberSprite.Rows.ToList(),
                                     SpriteKind = memberSprite.Kind,
                                     SpritePalette = SpriteVariantPalette(memberSprite.Palette, slot),
-                                    SpriteAuthorModelName = fighter.CreatureModelName
+                                    SpriteAuthorModelName = spriteAuthor
                                 };
                             }).ToList();
                             fighter.ActiveCreatureId = fighter.CreatureRoster[0].CreatureId;

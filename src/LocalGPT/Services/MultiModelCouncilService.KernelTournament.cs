@@ -78,6 +78,7 @@ namespace LocalGPT.Services
         /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="initializeOnly">Value indicating whether initialize only should apply to this operation.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="requestSprite">Optional sprite-check turn used before the lineup: the creature member first, then the team's artist members.</param>
         /// <returns>The multi model council step produced by the operation.</returns>
         private async Task<MultiModelCouncilStep> RunKernelTournamentSystemStepAsync(
             MultiModelCouncilResult result,
@@ -88,7 +89,8 @@ namespace LocalGPT.Services
             int round,
             string phase,
             bool initializeOnly,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Func<KernelTournamentSpriteRequest, CancellationToken, Task<KernelTournamentSpriteDraft?>>? requestSprite = null)
         {
             try
             {
@@ -382,6 +384,101 @@ namespace LocalGPT.Services
                     });
                 }
 
+                // Sprite check before the lineup: a creature without a usable sprite, or with a copy of another
+                // creature's sprite, is asked again; then the team's artist members draw it. Bounded by the editable policy.
+                static double SpriteSimilarity(IReadOnlyList<string> left, IReadOnlyList<string> right)
+                {
+                    if (left.Count == 0 || right.Count == 0)
+                        return 0d;
+                    var rowCount = Math.Max(left.Count, right.Count);
+                    var width = Math.Max(left.Max(row => row.Length), right.Max(row => row.Length));
+                    var shared = 0;
+                    var union = 0;
+                    for (var row = 0; row < rowCount; row++)
+                    {
+                        for (var column = 0; column < width; column++)
+                        {
+                            var leftCell = row < left.Count && column < left[row].Length ? left[row][column] : '.';
+                            var rightCell = row < right.Count && column < right[row].Length ? right[row][column] : '.';
+                            var leftEmpty = leftCell is '.' or ' ';
+                            var rightEmpty = rightCell is '.' or ' ';
+                            if (leftEmpty && rightEmpty)
+                                continue;
+                            union++;
+                            if (leftCell == rightCell)
+                                shared++;
+                        }
+                    }
+
+                    return union == 0 ? 0d : (double)shared / union;
+                }
+
+                if (initializeOnly && requestSprite is not null && contestants.Count > 1)
+                {
+                    var spritePolicy = runtimePolicy.GetJson<KernelTournamentSpritePolicy>(LocalGptRuntimeValue.KernelTournamentSpritePolicyJson);
+                    var copySimilarity = spritePolicy.CopySimilarity is > 0d and <= 1d ? spritePolicy.CopySimilarity : 0.85d;
+                    var maximumDrawAttempts = Math.Clamp(spritePolicy.MaximumDrawAttempts, 0, 8);
+                    for (var contestantIndex = 0; contestantIndex < contestants.Count && maximumDrawAttempts > 0; contestantIndex++)
+                    {
+                        var contestant = contestants[contestantIndex];
+                        var currentIndex = contestantIndex;
+                        bool CopiesAnother(IReadOnlyList<string> rows, bool onlyEarlier) => contestants
+                            .Where((other, otherIndex) => otherIndex != currentIndex && (!onlyEarlier || otherIndex < currentIndex) && other.CreatureSprite.Count > 0)
+                            .Any(other => SpriteSimilarity(rows, other.CreatureSprite) >= copySimilarity);
+
+                        var missing = contestant.CreatureSprite.Count == 0;
+                        if (!missing && !CopiesAnother(contestant.CreatureSprite, onlyEarlier: true))
+                            continue;
+
+                        logger.LogInformation(
+                            "Kernel Creature Tournament sprite check for run {RunId}: creature {CreatureName} of {CreatureModel} has {Problem}; asking for a new drawing.",
+                            result.RunId,
+                            contestant.CreatureName,
+                            contestant.CreatureModelName,
+                            missing ? "no usable sprite" : "a copy of another creature's sprite");
+                        for (var attempt = 0; attempt < maximumDrawAttempts; attempt++)
+                        {
+                            var otherSprites = string.Join(
+                                Environment.NewLine + Environment.NewLine,
+                                contestants
+                                    .Where((other, otherIndex) => otherIndex != currentIndex && other.CreatureSprite.Count > 0)
+                                    .Select(other => other.CreatureName + ":" + Environment.NewLine + string.Join(Environment.NewLine, other.CreatureSprite)));
+                            var draft = await requestSprite(
+                                new KernelTournamentSpriteRequest(
+                                    contestant.CreatureModelName,
+                                    contestant.TrainerModelName,
+                                    contestant.CreatureName,
+                                    contestant.CreatureSpecies,
+                                    contestant.CreatureForm,
+                                    otherSprites,
+                                    attempt),
+                                cancellationToken).ConfigureAwait(false);
+                            if (draft is null)
+                                break;
+
+                            var drawn = ReadSprite(draft.Content);
+                            var accepted = drawn.Rows.Count > 0 && !CopiesAnother(drawn.Rows, onlyEarlier: false);
+                            logger.LogInformation(
+                                "Kernel Creature Tournament sprite check for run {RunId}: drawing {Attempt} for {CreatureName} by {Drawer} was {Outcome}.",
+                                result.RunId,
+                                attempt + 1,
+                                contestant.CreatureName,
+                                draft.DrawerModelName,
+                                accepted ? "accepted" : drawn.Rows.Count == 0 ? "not a usable sprite" : "too similar to another creature's sprite");
+                            if (!accepted)
+                                continue;
+
+                            contestant.CreatureSprite = drawn.Rows;
+                            contestant.CreatureSpriteKind = drawn.Kind;
+                            contestant.CreatureSpritePalette = drawn.Palette;
+                            contestant.CreatureSpriteAuthorModelName = string.Equals(draft.DrawerModelName, contestant.CreatureModelName, StringComparison.OrdinalIgnoreCase)
+                                ? string.Empty
+                                : draft.DrawerModelName;
+                            break;
+                        }
+                    }
+                }
+
                 var teamArtStep = result.Steps.LastOrDefault(step =>
                     string.Equals(step.WorkflowStepKey, "team-building-ascii", StringComparison.OrdinalIgnoreCase));
                 var presentationFrames = initializeOnly
@@ -439,6 +536,172 @@ namespace LocalGPT.Services
             {
                 logger.LogError(exception, "Kernel Creature Tournament system resolution failed for Council run {CouncilRunId}.", result.RunId);
                 throw;
+            }
+        }
+        /// <summary>
+        /// Runs one sprite-check drawing turn for a Kernel Creature Tournament contestant: attempt 0 asks the creature member
+        /// itself, later attempts ask the members of the team's artist step role (the role of the "team-building-ascii" step) in order.
+        /// Only members of the current run are asked.
+        /// </summary>
+        /// <param name="spriteRequest">Contestant, other sprites and attempt number.</param>
+        /// <param name="result">Council result that receives the drawing turn as evidence.</param>
+        /// <param name="request">Original Council request.</param>
+        /// <param name="team">Configured tournament team.</param>
+        /// <param name="baseUri">Base URI of the running application.</param>
+        /// <param name="participants">Active members of the run.</param>
+        /// <param name="roleAssignments">Runtime role assignments of the run.</param>
+        /// <param name="rolePairings">Runtime role pairings of the run.</param>
+        /// <param name="round">Logical round of the lineup.</param>
+        /// <param name="modelRoutes">Run-scoped hardware roads.</param>
+        /// <param name="keepAlive">Provider keep-alive setting.</param>
+        /// <param name="ollamaNumGpu">Ollama GPU layer setting.</param>
+        /// <param name="maxContextTokens">Context token budget.</param>
+        /// <param name="modelTimeoutSeconds">Per-model timeout.</param>
+        /// <param name="automaticFunctionPolicy">Function policy of the lineup step (no tools are exposed to the drawing turn).</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The drawing, an empty drawing when the turn failed, or <see langword="null"/> when no further drawer exists.</returns>
+        private async Task<KernelTournamentSpriteDraft?> DrawKernelTournamentSpriteAsync(
+            KernelTournamentSpriteRequest spriteRequest,
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            string baseUri,
+            IReadOnlyList<string> participants,
+            IDictionary<string, CouncilRoleRuntimeAssignment> roleAssignments,
+            IReadOnlyList<CouncilParticipantPairing> rolePairings,
+            int round,
+            IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
+            string keepAlive,
+            int? ollamaNumGpu,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
+            CouncilAutomaticFunctionPolicyResolution automaticFunctionPolicy,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var policy = runtimePolicy.GetJson<KernelTournamentSpritePolicy>(LocalGptRuntimeValue.KernelTournamentSpritePolicyJson);
+                var drawsSelf = spriteRequest.Attempt == 0;
+                string drawerRole;
+                string drawer;
+                if (drawsSelf)
+                {
+                    drawerRole = team.WorkflowSteps
+                        .FirstOrDefault(step => string.Equals(step.Key, "creature-introduction", StringComparison.OrdinalIgnoreCase))?.Role
+                        ?? string.Empty;
+                    drawer = spriteRequest.CreatureModelName;
+                }
+                else
+                {
+                    drawerRole = team.WorkflowSteps
+                        .FirstOrDefault(step => step.IsEnabled && string.Equals(step.Key, "team-building-ascii", StringComparison.OrdinalIgnoreCase))?.Role
+                        ?? string.Empty;
+                    var artists = roleAssignments.Values
+                        .Where(assignment => string.Equals(assignment.RoleName, drawerRole, StringComparison.OrdinalIgnoreCase))
+                        .SelectMany(assignment => assignment.AiParticipants)
+                        .Where(member => participants.Contains(member, StringComparer.OrdinalIgnoreCase))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    if (spriteRequest.Attempt - 1 >= artists.Count)
+                        return null;
+                    drawer = artists[spriteRequest.Attempt - 1];
+                }
+
+                var assignment = roleAssignments.Values.FirstOrDefault(item => string.Equals(item.RoleName, drawerRole, StringComparison.OrdinalIgnoreCase));
+                if (assignment is null || string.IsNullOrWhiteSpace(drawer) || !participants.Contains(drawer, StringComparer.OrdinalIgnoreCase))
+                {
+                    // Without the creature's own role the artists are still asked; without an artist the check ends.
+                    return drawsSelf ? new KernelTournamentSpriteDraft(drawer, string.Empty) : null;
+                }
+
+                var drawerLine = drawsSelf
+                    ? policy.SelfDrawerLine
+                    : policy.ArtistDrawerLine.Replace("{{SpriteCreatureModel}}", spriteRequest.CreatureModelName, StringComparison.Ordinal);
+                var prompt = policy.PromptTemplate
+                    .Replace("{{SpriteCreatureName}}", spriteRequest.CreatureName, StringComparison.Ordinal)
+                    .Replace("{{SpriteCreatureSpecies}}", spriteRequest.CreatureSpecies, StringComparison.Ordinal)
+                    .Replace("{{SpriteCreatureForm}}", spriteRequest.CreatureForm, StringComparison.Ordinal)
+                    .Replace("{{SpriteDrawer}}", drawerLine, StringComparison.Ordinal)
+                    .Replace(
+                        "{{SpriteOtherSprites}}",
+                        string.IsNullOrWhiteSpace(spriteRequest.OtherSprites) ? policy.NoOtherSpritesText : spriteRequest.OtherSprites,
+                        StringComparison.Ordinal);
+                var phaseLabel = string.IsNullOrWhiteSpace(policy.Phase) ? "Creature sprite check" : policy.Phase;
+                var spriteDefinition = new CouncilWorkflowStepDefinition
+                {
+                    Key = "creature-sprite-check",
+                    DisplayName = phaseLabel,
+                    Phase = phaseLabel,
+                    Role = drawerRole,
+                    PromptTemplate = prompt,
+                    ExecutionMode = "LeaderSingle",
+                    RepeatCount = 1,
+                    IncludePriorTranscript = false,
+                    ProducesFinalAnswer = false,
+                    UseBuiltInBehavior = false,
+                    IsEnabled = true,
+                    RequiresHumanCheckpoint = false,
+                    CanUseOrganicFunctions = false,
+                    AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
+                    RoleComplianceRetryCount = 0,
+                    MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.Disabled,
+                    MemberFailureRecoveryAttempts = 0,
+                    FinalAnswerRecoveryEnabled = false
+                };
+                var spritePhase = $"{phaseLabel} · {spriteRequest.CreatureName} · {spriteRequest.Attempt + 1}";
+                request.ProgressMessage?.Invoke($"{phaseLabel}: {drawer} draws the sprite of {spriteRequest.CreatureName}.");
+                await RunConfiguredParticipantAsync(
+                    result,
+                    request,
+                    spriteDefinition,
+                    team,
+                    baseUri,
+                    participants,
+                    assignment,
+                    rolePairings,
+                    drawer,
+                    round,
+                    spritePhase,
+                    0,
+                    1,
+                    string.Empty,
+                    1,
+                    1,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    modelRoutes,
+                    keepAlive,
+                    ollamaNumGpu,
+                    maxContextTokens,
+                    modelTimeoutSeconds,
+                    false,
+                    automaticFunctionPolicy,
+                    cancellationToken).ConfigureAwait(false);
+
+                var drawingStep = result.Steps.LastOrDefault(step =>
+                    step.Round == round &&
+                    string.Equals(step.Phase, spritePhase, StringComparison.Ordinal) &&
+                    string.Equals(step.ModelName, drawer, StringComparison.OrdinalIgnoreCase));
+                if (drawingStep is null)
+                    return new KernelTournamentSpriteDraft(drawer, string.Empty);
+
+                drawingStep.WorkflowStepKey = spriteDefinition.Key;
+                if (!drawsSelf)
+                    drawingStep.RecoveryTargetModelName = spriteRequest.CreatureModelName;
+                return new KernelTournamentSpriteDraft(
+                    drawer,
+                    string.IsNullOrWhiteSpace(drawingStep.Error) ? drawingStep.VisibleContent ?? drawingStep.Content ?? string.Empty : string.Empty);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // A failed drawing never stops the tournament; the placeholder stays visible.
+                logger.LogWarning(ex, "Kernel Creature Tournament sprite check turn {Attempt} for {CreatureName} failed.", spriteRequest.Attempt + 1, spriteRequest.CreatureName);
+                return new KernelTournamentSpriteDraft(string.Empty, string.Empty);
             }
         }
     }

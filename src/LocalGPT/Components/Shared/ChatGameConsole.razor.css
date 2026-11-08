@@ -180,17 +180,18 @@
 .chat-game-console.localgpt-game-fullscreen .chat-game-console-close { position: sticky; top: 0; right: 0; }
 .chat-game-console:fullscreen .chat-game-stage,
 .chat-game-console.localgpt-game-fullscreen .chat-game-stage { min-height:0; height:100%; }
-/* The fullscreen HUD floats over the canvas instead of reserving an oversized
-   header row. Every editor remains available after leaving fullscreen; guide,
-   fullscreen exit and close stay immediately accessible on the compact HUD. */
+/* Fullscreen keeps a compact control bar in its own row above the game, so it never
+   covers the arena and the arena fills exactly the space below it (a floating bar
+   covered the top of the game and left the same height empty at the bottom).
+   Every editor remains available after leaving fullscreen; guide, fullscreen exit
+   and close stay immediately accessible on the compact bar. */
 .chat-game-console:fullscreen,
 .chat-game-console.localgpt-game-fullscreen {
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
 }
 .chat-game-console:fullscreen .chat-game-console-header,
 .chat-game-console.localgpt-game-fullscreen .chat-game-console-header {
-    position: absolute;
-    inset: 0 0 auto 0;
+    position: relative;
     z-index: 12;
     display: flex;
     width: 100%;
@@ -198,7 +199,7 @@
     min-height: 0;
     padding: .15rem .35rem;
     overflow: visible;
-    background: linear-gradient(180deg, rgba(1, 8, 5, .84), rgba(1, 8, 5, .15));
+    background: rgba(1, 8, 5, .92);
 }
 .chat-game-console:fullscreen .chat-game-console-header > div:first-child,
 .chat-game-console.localgpt-game-fullscreen .chat-game-console-header > div:first-child,
