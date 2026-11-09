@@ -61,6 +61,8 @@ public sealed partial class GoalExecutionService
                     .Select(item => new { item.StepKey, answer = item.Answer.Length > 1500 ? item.Answer[..1500] : item.Answer }).TakeLast(12),
                 thisAnswer = receipt.Answer.Length > 10000 ? receipt.Answer[..10000] : receipt.Answer,
                 evidence = receipt.Evidence.Select(item => new { item.Kind, item.Source, item.Succeeded }),
+                approvalGatedDelivery = IsApprovalGatedDeliveryGoal(checkpoint),
+                requiredCapabilities = checkpoint.RequiredCapabilities,
                 warnings = result.Warnings.Take(16).Select(warning => warning.Length > 500 ? warning[..500] : warning),
                 alreadyAdded = checkpoint.KeyaccountContinuationsScheduled,
                 requiredVerifiedArtifactCount = checkpoint.KeyaccountExpectedArtifacts,
@@ -96,7 +98,10 @@ public sealed partial class GoalExecutionService
                 human.ValueKind == JsonValueKind.True;
             // Model evaluation is not evidence of external modifications. Only the existing
             // DXFunction/tool approval and artifact contracts may attest those effects.
-            if (checkpoint.RequiredFunctions.Count > 0 || checkpoint.RequiredCapabilities.Count > 0)
+            // Approval-gated delivery goals are evaluated by ApplyApprovalGatedDeliveryRule from recorded delivery
+            // requests; a local file artifact is not the expected evidence for a PublisherStudio text proposal.
+            if ((checkpoint.RequiredFunctions.Count > 0 || checkpoint.RequiredCapabilities.Count > 0) &&
+                !IsApprovalGatedDeliveryGoal(checkpoint))
             {
                 if (!receipt.Evidence.Any(item => item.Succeeded && item.Kind == "CouncilArtifact"))
                 {

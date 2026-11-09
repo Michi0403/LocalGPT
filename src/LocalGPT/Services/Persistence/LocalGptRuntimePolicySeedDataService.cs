@@ -6,7 +6,7 @@ namespace LocalGPT.Services.Persistence;
 /// <summary>
 /// Coordinates LocalGPT runtime policy seed behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
-public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolicySeedDataService
+public sealed partial class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolicySeedDataService
 {
     /// <summary>
     /// Stores the internal seed state used by <see cref="LocalGptRuntimePolicySeedDataService"/> while executing its surrounding workflow.
@@ -956,6 +956,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
   "CatalogPublicServiceMethod": "PublicServiceMethod"
 }
 """, "System.String"),
+                    .. CreateGoalDeliveryAndStewardValues(),
                 ],
                 Collections =
                 [
@@ -986,6 +987,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                     new("ChatAppleModelHints", ["apple", "openelm", "afm", "foundation-model", "mlx-"]),
                     new("ChatAppleControlTokens", ["<|start_of_role|>assistant<|end_of_role|>", "<|start_of_role|>analysis<|end_of_role|>", "<|start_of_turn|>assistant", "<|end_of_turn|>", "<|end_of_text|>", "<|eot_id|>"]),
                     new("ChatThinkTagsModelHints", ["qwq", "qwen3", "thinking"]),
+                    .. CreateGoalDeliveryAndStewardCollections(),
                 ],
                 RegexPatterns =
                 [

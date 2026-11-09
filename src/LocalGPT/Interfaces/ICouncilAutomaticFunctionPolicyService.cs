@@ -9,9 +9,11 @@ public interface ICouncilAutomaticFunctionPolicyService
     /// <param name="team">Persisted Council team definition.</param>
     /// <param name="step">Persisted workflow step definition.</param>
     /// <param name="suppressAutomaticFunctions">Whether the current control-flow revision temporarily suppresses automatic functions.</param>
+    /// <param name="requestedCapabilities">Organic/1-Wire capabilities requested for this run; their serving functions are attached natively in non-strict steps.</param>
     /// <returns>The normalized effective policy consumed by the provider runtime and visible capability briefing.</returns>
     CouncilAutomaticFunctionPolicyResolution Resolve(
         OrganicCouncilTeamDefinition team,
         CouncilWorkflowStepDefinition step,
-        bool suppressAutomaticFunctions = false);
+        bool suppressAutomaticFunctions = false,
+        IReadOnlyCollection<string>? requestedCapabilities = null);
 }

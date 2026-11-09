@@ -92,7 +92,7 @@ namespace LocalGPT.Services
                 }
                 CouncilXRoundDirective? xDirective = null;
                 var repeatCount = Math.Clamp(definition.RepeatCount, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumLoopIterations);
-                var automaticFunctionPolicy = councilAutomaticFunctionPolicy.Resolve(team, definition, suppressOrganicFunctions);
+                var automaticFunctionPolicy = councilAutomaticFunctionPolicy.Resolve(team, definition, suppressOrganicFunctions, request.RequestedOrganicCapabilities);
                 var effectiveAllowDxFunctions = automaticFunctionPolicy.Enabled;
 
                 for (var repeatIndex = 0; repeatIndex < repeatCount; repeatIndex++)

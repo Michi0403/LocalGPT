@@ -390,6 +390,14 @@ namespace LocalGPT.BusinessObjects
         public string FinalAnswer { get; set; } = string.Empty;
 
         /// <summary>
+        /// Gets or sets the clean deliverable of a goal run: the output of the last content step, without intermediate
+        /// step answers, the Keyaccount Manager report or a leading "Final answer:" label. 1-Wire callers such as
+        /// PublisherStudio insert this text when no explicit proposal call reached them. Empty for single Council runs.
+        /// </summary>
+        /// <value>The deliverable text, or an empty string.</value>
+        public string DeliverableText { get; set; } = string.Empty;
+
+        /// <summary>
         /// Gets or sets the user poll value that forms part of the multi model council state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The user poll value exposed by <see cref="MultiModelCouncilResult"/>.</value>

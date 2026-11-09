@@ -126,3 +126,50 @@ A direct live user message has two jobs. One currently executing participant may
 The immediate restart claim is single-consumer per Council run. While ordered presentation has a foreground participant, that participant owns the immediate restart claim; hidden parallel participants keep running instead of all restarting. If the foreground model has already completed, the message simply remains queued for subsequent participants and the next heartbeat. Other active participants do not restart for the same direct message, which avoids multiplying one correction into many duplicate model restarts while still preserving the correction as general Council context.
 
 The Chat configuration exposes the scheduler at two levels. **Load balancing** selects host-balanced versus hardware-road parallel scheduling, and **Parallel models per AI host** controls the per-host ceiling. Expanding **Hardware spooler and per-model CPU/GPU roads** exposes each selected model's hardware kind/device, token road, Ollama GPU-layer choice, lane concurrency, and per-model load override. Different AI hosts remain independent compute roads, so a remote PC can work at the same time as the local machine. **Model response timeout (seconds)** controls how long a not-yet-started/current provider attempt may wait before the existing bounded recovery policy applies; this is useful when one slow remote model would otherwise make an ordered Council transcript appear stalled even though other hosts are busy.
+
+## Prompt size, thinking and native tools (7.0.4)
+
+LocalGPT now sizes each native Ollama request before sending it:
+
+- **Context fits the prompt.** LocalGPT counts the characters of the messages and the attached tool schemas. If they would not fit the configured context together with the answer, the context of that one request is raised, never above `OllamaRequestBudgetPolicyJson.maximumFittedContextTokens` (default 32768). Previously Ollama silently cut the oldest prompt content: system prompt, task and tool list.
+- **Thinking has its own budget.** When LocalGPT asks a model to think, `thinkingReserveTokens` (default 2048) is added to the output limit. Thinking no longer uses up the visible answer, which caused truncated stories and empty answers.
+- **Compact tool set.** A Council step without a saved tool preference no longer attaches all registered tools (200+). It attaches:
+  - the base set `CouncilBaseNativeFunctions`;
+  - the functions that serve the capabilities requested for the run, mapped by `CouncilCapabilityNativeFunctionsJson` (for example `publisher.text.insert.propose` → `publisher.text.proposal.request`);
+  - attachments, AI help and the tool broker (`dxai.tools.discover/preview/invoke`), which still reaches every policy-approved tool on demand.
+
+  Set `CouncilUnlistedStepNativeToolMode` to `AllPolicyApproved` for the previous behavior.
+- **Final-answer recovery keeps the task.** When a participant produced only thinking, the recovery turn now restates the original request (head and tail, `CouncilFinalRecoveryTaskExcerptCharacters`, default 6000) and the partial answer. The model continues the task instead of answering a generic question.
+
+## Goal delivery for 1-Wire requests (7.0.4)
+
+Some goals require only *approval-gated* capabilities: capabilities whose prefix is listed in `GoalApprovalGatedCapabilityPrefixes` (default `publisher.`). A PublisherStudio AI Assist request is one. For such goals:
+
+- **The plan runs to the end.** An intermediate step with an unverifiable external effect no longer stops the goal. Each planned step still runs once and nothing is replayed. The goal ends as *NeedsVerification* until the effect is confirmed.
+- **Delivery is the evidence.** The Keyaccount Manager checks the approval-gated function requests the Council recorded, for example a `publisher.text.proposal.request` waiting in Approvals & team. A local file artifact is not expected.
+  - If no delivery request exists, the next objective becomes a delivery step (`GoalDeliveryObjectiveTemplate`) within the continuation limit, instead of an unspecific "needs human review" stop.
+  - If a delivery request exists, it is waiting for your approval, so no second human stop is added.
+- **Clean deliverable.** The Council result now carries `DeliverableText`: the output of the last content step, without intermediate answers or the Keyaccount report. PublisherStudio 4.7.5 inserts it when no proposal call arrived.
+
+**Team choice.** When the goal planner gives no semantic plan, the requested team is kept. Another team is chosen only when required capabilities or a strong keyword match ask for it (`GoalCatalogFallbackMinimumTeamScore`, default 6). Teams whose distinct-model roles need more models than the run has are never chosen automatically. An explicitly selected one stops with `SelectedCouncilTeamNeedsMoreDistinctModels` instead of failing inside role assignment.
+
+## Configuration Steward (7.0.4)
+
+The Configuration Steward helps find and fix configuration and data problems without anyone editing the database by hand. The steward never applies a change itself.
+
+- **`localgpt.configuration.diagnose`** (read-only) runs deterministic checks:
+  - default Council power below the threshold (for example the old 30% default);
+  - runtime values that cannot be read as their declared type, including broken JSON documents and collections;
+  - teams that cannot be staffed with the installed models;
+  - steps that attach all native tools.
+
+  Each finding lists the observed values and their source, and what the data cannot prove. For example, a low value may be intentional.
+- **`localgpt.configuration.repair.request`** asks you to decide a repair.
+  - It recomputes the finding from live data; a model cannot supply values or options.
+  - It places the finding's options as selectable answers in **Approvals & team**. The recommended option is preselected; "keep" is always offered.
+  - When you approve an option, it is applied once, in one transaction, and only if every stored value still equals the value you saw. If the data changed meanwhile, nothing is changed and you are asked again.
+- **Configuration Steward team.** The seeded team runs three steps with any number of models:
+  1. investigate with the diagnosis and read-only table previews;
+  2. challenge the evidence, treating stored data as evidence and not as truth;
+  3. request repairs only for findings that survived the review.
+- **Thresholds** are in `ConfigurationStewardPolicyJson`.

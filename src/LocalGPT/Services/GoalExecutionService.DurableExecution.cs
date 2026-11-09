@@ -203,7 +203,8 @@ public sealed partial class GoalExecutionService
                 // Human-approved extension may proceed to a distinct later objective without
                 // replaying an earlier unverifiable effect or pretending it was verified.
                 if (saved?.State == GoalExecutionState.NeedsVerification &&
-                    checkpoint.KeyaccountContinuationApproved && stepIndex < checkpoint.Steps.Count - 1)
+                    (checkpoint.KeyaccountContinuationApproved || IsApprovalGatedDeliveryGoal(checkpoint)) &&
+                    stepIndex < checkpoint.Steps.Count - 1)
                     continue;
                 if (!liveTeams.Contains(step.TeamKey))
                 {
@@ -271,6 +272,9 @@ public sealed partial class GoalExecutionService
                 }
                 receipt.Answer = councilResult.FinalAnswer;
                 receipt.Evidence = ObserveCouncil(councilResult);
+                var approvalGatedDelivery = IsApprovalGatedDeliveryGoal(checkpoint);
+                if (approvalGatedDelivery)
+                    receipt.Evidence.AddRange(await ObserveApprovalGatedRequestsAsync(councilResult.RunId, cancellationToken).ConfigureAwait(false));
                 // Council's public result does not expose a complete invocation-by-invocation
                 // write receipt. Without that proof, an enabled consequential function is a
                 // possible side effect even when no artifact was returned.
@@ -288,6 +292,9 @@ public sealed partial class GoalExecutionService
                 {
                     keyaccountReview = await ReviewKeyaccountCompletionAsync(request, checkpoint, step,
                         councilResult, receipt, cancellationToken).ConfigureAwait(false);
+                    // Deterministic delivery evaluation for approval-gated 1-Wire goals: a missing delivery
+                    // becomes the next objective instead of an unspecific human stop.
+                    ApplyApprovalGatedDeliveryRule(checkpoint, keyaccountReview);
                     checkpoint.KeyaccountReviews.Add(keyaccountReview);
                     checkpoint.KeyaccountPendingObjective = keyaccountReview.Complete
                         ? string.Empty : keyaccountReview.NextObjective;
@@ -347,10 +354,18 @@ public sealed partial class GoalExecutionService
                     }
                     break;
                 }
-                if (receipt.State == GoalExecutionState.NeedsVerification)
+                if (receipt.State == GoalExecutionState.NeedsVerification && !approvalGatedDelivery)
                 {
                     checkpoint.State = GoalExecutionState.NeedsVerification;
                     break;
+                }
+                if (receipt.State == GoalExecutionState.NeedsVerification)
+                {
+                    // Approval-gated delivery goals: the effect of this step is applied only after the local human
+                    // and the receiving application authorize it, so the remaining distinct planned work continues.
+                    // Nothing is replayed; the goal still ends as NeedsVerification until the effect is confirmed.
+                    logger.LogInformation("Goal {GoalId} continues after step {StepKey}; its external effect is approval gated and stays unverified.",
+                        checkpoint.GoalId, step.Key);
                 }
                 // A completed text response does NOT by itself complete a larger user goal.
                 // Append a NEW objective (not a replay of prior effects) only with an explicit budget.
@@ -364,12 +379,18 @@ public sealed partial class GoalExecutionService
                         !checkpoint.Steps.Any(item => string.Equals(item.Objective.Trim(),
                             keyaccountReview.NextObjective.Trim(), StringComparison.OrdinalIgnoreCase)))
                     {
+                        var deliveryContinuation = approvalGatedDelivery && string.Equals(keyaccountReview.NextObjective.Trim(),
+                            BuildDeliveryObjective(checkpoint), StringComparison.Ordinal);
                         checkpoint.Steps.Add(new GoalExecutionPlanStep
                         {
-                            Key = "keyaccount-" + (checkpoint.KeyaccountContinuationsScheduled + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            Key = (deliveryContinuation ? DeliveryStepKeyPrefix : "keyaccount-") +
+                                (checkpoint.KeyaccountContinuationsScheduled + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
                             TeamKey = step.TeamKey,
                             Objective = keyaccountReview.NextObjective.Trim()
                         });
+                        logger.LogInformation("Goal {GoalId} Keyaccount Manager scheduled {Kind} continuation {Number} of {Limit}.",
+                            checkpoint.GoalId, deliveryContinuation ? "delivery" : "objective",
+                            checkpoint.KeyaccountContinuationsScheduled + 1, checkpoint.KeyaccountContinuationLimit);
                         checkpoint.KeyaccountContinuationsScheduled++;
                         checkpoint.KeyaccountPendingObjective = string.Empty;
                         await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
@@ -404,6 +425,7 @@ public sealed partial class GoalExecutionService
                 outcome.CouncilResult.FinalAnswer = string.Join("\n\n", checkpoint.Receipts
                     .Where(receipt => receipt.State is GoalExecutionState.Completed or GoalExecutionState.NeedsVerification)
                     .Select(receipt => receipt.Answer).Where(answer => !string.IsNullOrWhiteSpace(answer)));
+                outcome.CouncilResult.DeliverableText = BuildDeliverableText(checkpoint);
                 if (checkpoint.KeyaccountReviewEnabled)
                 {
                     var latestReview = checkpoint.KeyaccountReviews.LastOrDefault();
@@ -543,6 +565,7 @@ public sealed partial class GoalExecutionService
         FinalAnswer = string.Join("\n\n", checkpoint.Receipts
             .Where(receipt => receipt.State is GoalExecutionState.Completed or GoalExecutionState.NeedsVerification)
             .Select(receipt => receipt.Answer)),
+        DeliverableText = BuildDeliverableText(checkpoint),
         ModelNames = checkpoint.ModelSelectionKeys.ToList(),
         GoalExecution = new GoalExecutionSummary
         {

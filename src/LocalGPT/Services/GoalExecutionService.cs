@@ -19,6 +19,9 @@ namespace LocalGPT.Services;
 /// <param name="aiHelpEscalator">Shared recovery diagnostics for exhausted goal steps.</param>
 /// <param name="wirePeers">Live advertised 1-Wire peer capabilities.</param>
 /// <param name="wireConnections">Authoritative active 1-Wire connection state.</param>
+/// <param name="deferredInvocations">Approval-gated function requests recorded per Council run (delivery evidence).</param>
+/// <param name="vocabulary">Database-owned status vocabulary for deferred invocation states.</param>
+/// <param name="staffing">Distinct-model staffing estimate for saved Council teams.</param>
 public sealed partial class GoalExecutionService(
     IRuntimeCapabilityDirectoryService directory,
     ICouncilTeamConfigurationService teams,
@@ -30,6 +33,9 @@ public sealed partial class GoalExecutionService(
     IAiHelpEscalatorService aiHelpEscalator,
     IOneWirePeerRegistry wirePeers,
     IOneWireConnectionRegistry wireConnections,
+    IDeferredDxAiInvocationService deferredInvocations,
+    ILocalGptVocabularyService vocabulary,
+    ICouncilTeamStaffingEstimator staffing,
     ILogger<GoalExecutionService> logger) : IGoalExecutionService
 {
     /// <inheritdoc />
@@ -100,41 +106,38 @@ public sealed partial class GoalExecutionService(
             })
             .OrderBy(entry => entry.Missing).ThenByDescending(entry => entry.Score)
             .ThenBy(entry => entry.Team.Key, StringComparer.OrdinalIgnoreCase).ToArray();
-        var requestedKey = request.CouncilRequest.CouncilTeamKey;
-        var selected = request.PreserveSelectedTeam
-            ? configuredTeams.FirstOrDefault(team => string.Equals(team.Key, requestedKey, StringComparison.OrdinalIgnoreCase))
-            : ranked.FirstOrDefault(entry => entry.Score >= 2 ||
-                (requiredFunctions.Length + requiredCapabilities.Length > 0 && entry.Missing == 0))?.Team;
-        if (request.PreserveSelectedTeam && selected is null)
-            missing.Add("SelectedCouncilTeam");
-        if (!request.PreserveSelectedTeam)
-            selected ??= configuredTeams.FirstOrDefault(team => string.Equals(team.Key, requestedKey, StringComparison.OrdinalIgnoreCase))
-                ?? configuredTeams.FirstOrDefault(team => string.Equals(team.Key, "general", StringComparison.OrdinalIgnoreCase))
-                ?? ranked.FirstOrDefault()?.Team;
-        if (selected is null)
-            missing.Add("CouncilTeam");
-
         // Preserve caller/provider-authoritative model assignments. Council applies configured role assignments;
         // the goal layer never silently switches to a different remote provider or grants new tool permissions.
         var models = request.CouncilRequest.ModelSelections.Select(model => model.SelectionKey)
             .Concat(request.CouncilRequest.ModelSelections.Count == 0
                 ? request.CouncilRequest.ModelNames : [])
             .Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var discoveredModels = new List<ProviderModelReference>();
+        // Provider candidates are supplied by the Council runtime, never inferred from catalog prose.
+        var installed = new List<MultiModelCouncilModelCandidate>();
         if (models.Count == 0)
-        {
-            // Provider candidates are supplied by the Council runtime, never inferred from catalog prose.
-            var installed = (await council.GetCandidatesAsync(cancellationToken).ConfigureAwait(false))
+            installed = (await council.GetCandidatesAsync(cancellationToken).ConfigureAwait(false))
                 .Where(candidate => candidate.IsInstalled && candidate.IsConfigured)
                 .OrderByDescending(candidate => candidate.IsLoaded)
                 .ThenBy(candidate => candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+        // A team whose distinct-assignment roles need more models than this run can supply would only fail inside
+        // Council role assignment. Unstaffable teams are never auto-selected; an explicitly preserved one is reported.
+        var availableModelCount = models.Count > 0 ? models.Count : installed.Count;
+        var selected = SelectGoalTeam(request, configuredTeams,
+            ranked.Select(entry => (entry.Team, entry.Missing, entry.Score)).ToList(),
+            requiredFunctions.Length + requiredCapabilities.Length > 0, availableModelCount, missing);
+        if (selected is null)
+            missing.Add("CouncilTeam");
+
+        var discoveredModels = new List<ProviderModelReference>();
+        if (models.Count == 0)
+        {
             // Concurrency is not participant count. Let the persisted role assignment policy
             // determine participant needs independently of MaxParallelModels.
-            var requiredParticipants = selected is null ? 1 : selected.Roles
+            var requiredParticipants = selected is null ? 1 : Math.Max(staffing.Estimate(selected).MinimumDistinctModels, selected.Roles
                 .Where(role => role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
                 .Select(role => Math.Max(1, role.MinimumAiParticipants))
-                .DefaultIfEmpty(1).Max();
+                .DefaultIfEmpty(1).Max());
             var assignedKeys = selected?.Roles
                 .SelectMany(role => role.AssignedModelKeys)
                 .Where(key => !string.IsNullOrWhiteSpace(key))
@@ -157,11 +160,16 @@ public sealed partial class GoalExecutionService(
         var semantic = await TrySemanticPlanAsync(text, request, configuredTeams, functions, skills,
             models, cancellationToken).ConfigureAwait(false);
         var source = semantic is null ? "CatalogFallback" : "ModelSemantic";
+        var staffableKeys = configuredTeams.Where(team => staffing.CanStaff(team, Math.Max(availableModelCount, models.Count)))
+            .Select(team => team.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (!request.PreserveSelectedTeam && semantic is not null)
         {
             var semanticTeam = configuredTeams.FirstOrDefault(team => string.Equals(team.Key,
                 semantic.TeamKey, StringComparison.OrdinalIgnoreCase));
-            if (semanticTeam is not null) selected = semanticTeam;
+            if (semanticTeam is not null && staffableKeys.Contains(semanticTeam.Key)) selected = semanticTeam;
+            else if (semanticTeam is not null)
+                logger.LogWarning("Goal planner proposed team {TeamKey}, which needs more distinct AI models than the {Count} available; keeping team {Selected}.",
+                    semanticTeam.Key, Math.Max(availableModelCount, models.Count), selected?.Key);
         }
         var validKeys = configuredTeams.Select(team => team.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var steps = semantic?.Steps
@@ -172,7 +180,10 @@ public sealed partial class GoalExecutionService(
             .Select((step, index) => new GoalExecutionPlanStep
             {
                 Key = "goal-" + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
-                Objective = step.Objective.Trim(), TeamKey = step.TeamKey
+                Objective = step.Objective.Trim(),
+                // A planned step for an unstaffable team runs with the selected team instead of failing in role assignment.
+                TeamKey = request.PreserveSelectedTeam || staffableKeys.Contains(step.TeamKey) || selected is null
+                    ? step.TeamKey : selected.Key
             }).ToList() ?? [];
         if (steps.Count == 0 && selected is not null)
             steps.Add(new GoalExecutionPlanStep { Key = "goal-1", Objective = text, TeamKey = selected.Key });

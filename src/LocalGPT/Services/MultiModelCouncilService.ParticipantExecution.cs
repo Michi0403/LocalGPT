@@ -519,7 +519,8 @@ namespace LocalGPT.Services
                             Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 128), Math.Clamp(finalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumFinalRecoveryOutputTokens)), catalog.MinOutputTokens, catalog.MaxOutputTokens),
                             streamUpdate,
                             participantCts.Token,
-                            logger).ConfigureAwait(false);
+                            logger,
+                            visibleContent).ConfigureAwait(false);
 
                         if (!string.IsNullOrWhiteSpace(recovery.Content))
                             content = $"{content}{Environment.NewLine}{Environment.NewLine}{recovery.Content}";

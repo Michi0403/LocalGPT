@@ -362,6 +362,14 @@ namespace LocalGPT
                 builder.Services.AddScoped<IProjectOrganicContextService, ProjectOrganicContextService>();
                 builder.Services.AddScoped<CouncilRoleAssignmentIndexService>();
                 builder.Services.AddScoped<ICouncilTeamConfigurationService, CouncilTeamConfigurationService>();
+                builder.Services.AddSingleton<ICouncilTeamStaffingEstimator, LocalGPT.Services.Council.CouncilTeamStaffingEstimator>();
+                // Configuration steward: read-only checks, compare-and-set applier and the approval-gated steward.
+                builder.Services.AddScoped<IConfigurationHealthCheck, LocalGPT.Services.ConfigurationSteward.CouncilLoadDefaultHealthCheck>();
+                builder.Services.AddScoped<IConfigurationHealthCheck, LocalGPT.Services.ConfigurationSteward.RuntimeValueIntegrityHealthCheck>();
+                builder.Services.AddScoped<IConfigurationHealthCheck, LocalGPT.Services.ConfigurationSteward.CouncilTeamStaffingHealthCheck>();
+                builder.Services.AddScoped<IConfigurationHealthCheck, LocalGPT.Services.ConfigurationSteward.NativeToolModeHealthCheck>();
+                builder.Services.AddScoped<IConfigurationRepairApplier, LocalGPT.Services.ConfigurationSteward.ConfigurationRepairApplier>();
+                builder.Services.AddScoped<IConfigurationStewardService, LocalGPT.Services.ConfigurationSteward.ConfigurationStewardService>();
                 builder.Services.AddScoped<ICouncilRoleAssignmentService, CouncilRoleAssignmentService>();
                 builder.Services.AddScoped<CouncilGameWorkflowBootstrapService>();
                 builder.Services.AddScoped<ICouncilAutomaticFunctionPolicyService, CouncilAutomaticFunctionPolicyService>();

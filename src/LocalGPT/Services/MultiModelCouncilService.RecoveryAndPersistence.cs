@@ -157,6 +157,7 @@ namespace LocalGPT.Services
         /// <param name="streamUpdate">Stream update value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
         /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <param name="partialVisibleContent">Visible text the participant produced before it stopped, continued instead of restarted.</param>
         /// <returns>The string content string visible content string thinking produced by the operation.</returns>
         public async Task<(string Content, string VisibleContent, string? Thinking)> MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(
             IChatClient client,
@@ -165,17 +166,34 @@ namespace LocalGPT.Services
             IReadOnlyList<ChatMessage> originalMessages,
             int maxOutputTokens,
             Action<string>? streamUpdate,
-            CancellationToken cancellationToken, ILogger logger)
+            CancellationToken cancellationToken, ILogger logger,
+            string? partialVisibleContent = null)
         {
             try
             {
                 var messages = originalMessages.ToList();
+                // The recovery turn restates the task. A model whose original request was cut from its context
+                // (or that only sees "your previous response") otherwise answers a different, generic question.
+                var taskExcerpt = MultiModelCouncilServiceBuildRecoveryTaskExcerpt(originalMessages, logger);
+                var partial = (partialVisibleContent ?? string.Empty).Trim();
+                var partialLimit = Math.Max(0, ReadFinalRecoveryExcerptCharacters(logger) / 2);
+                if (partial.Length > partialLimit)
+                    partial = partial[^partialLimit..];
+                var taskSection = string.IsNullOrWhiteSpace(taskExcerpt)
+                    ? string.Empty
+                    : $"The task is unchanged. Excerpt of the original request you must finish:\n<<<\n{taskExcerpt}\n>>>\n";
+                var partialSection = string.IsNullOrWhiteSpace(partial) || !MultiModelCouncilServiceIsSubstantiveCouncilContent(partial, logger)
+                    ? string.Empty
+                    : $"Your visible answer so far ended here; continue it without repeating it and without answering a different question:\n<<<\n{partial}\n>>>\n";
                 messages.Add(new ChatMessage(ChatRole.User, $"""
                 Your previous {phase} response for LocalGPT produced provider thinking/status but no substantive user-visible final answer.
-                Preserve normal provider-supplied thinking/self-correction if your runtime emits it, and use an exact registered DXFunction only when genuinely needed. LocalGPT keeps provider thinking and tool activity visibly separated from the final answer.
-                Focus on finishing the task rather than restarting the analysis from scratch. You must emit a substantive final visible answer now in concise Markdown.
+                {taskSection}{partialSection}Preserve normal provider-supplied thinking/self-correction if your runtime emits it, and use an exact registered DXFunction only when genuinely needed. LocalGPT keeps provider thinking and tool activity visibly separated from the final answer.
+                Focus on finishing this task rather than restarting the analysis from scratch. Deliver the requested result itself; do not describe LocalGPT, the Council or your readiness instead. Keep thinking short. You must emit a substantive final visible answer now in concise Markdown.
                 Start the visible answer with: Final answer:
                 """));
+                logger.LogInformation(
+                    "Council final-answer recovery for {ModelName} in {Phase} restates {TaskCharacters} task characters and continues {PartialCharacters} partial visible characters.",
+                    modelName, phase, taskExcerpt.Length, partialSection.Length == 0 ? 0 : partial.Length);
 
                 var builder = new StringBuilder();
                 // Council recovery streams are bounded workflow steps: the repetition guard is always on (6.9.4).

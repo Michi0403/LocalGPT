@@ -56,4 +56,15 @@ public interface IDeferredDxAiInvocationService
         Guid approvalRequestId,
         int councilRound = 0,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists the approval-gated function requests one Council run recorded, as technical evidence for goal review.
+    /// Parameters and results are never returned.
+    /// </summary>
+    /// <param name="councilRunId">Identifier of the Council run.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>Function name, status and timestamps of each recorded request.</returns>
+    Task<IReadOnlyList<DeferredDxAiInvocationSummary>> GetForRunAsync(
+        Guid councilRunId,
+        CancellationToken cancellationToken = default);
 }

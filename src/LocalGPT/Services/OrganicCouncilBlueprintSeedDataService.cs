@@ -114,6 +114,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
         CreateMinecraftDevelopmentTeam(),
         CreateProgramCompilerTeam(),
         CreateProjectReleaseOrchestrationTeam(),
+        CreateConfigurationStewardTeam(),
         new()
         {
             Key = "embedded-firmware-wiring",

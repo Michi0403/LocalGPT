@@ -72,18 +72,29 @@ public sealed partial class OllamaThinkingChatClient
     {
             cancellationToken.ThrowIfCancellationRequested();
             var requestMessages = messages.Select(CloneMessage).ToList();
+            bool? think = councilRuntime.OllamaThinkingChatClientShouldSkipExplicitThinking(http.BaseAddress, model, logger) ? null : true;
+            var tools = BuildAutomaticTools();
+            // Ollama silently drops the oldest prompt content (system prompt and native tool schemas first) when
+            // prompt + output exceed num_ctx, and thinking tokens count against num_predict. Size both per request.
+            var budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
+                contextLength,
+                options?.MaxOutputTokens ?? 2048,
+                think == true,
+                MeasureRequestCharacters(requestMessages, tools),
+                model,
+                logger);
             return Task.FromResult(new OllamaChatRequest
             {
                 Model = model,
                 Stream = stream,
-                Think = councilRuntime.OllamaThinkingChatClientShouldSkipExplicitThinking(http.BaseAddress, model, logger) ? null : true,
+                Think = think,
                 KeepAlive = keepAlive,
                 Messages = requestMessages,
-                Tools = BuildAutomaticTools(),
+                Tools = tools,
                 Options = new OllamaRequestOptions
                 {
-                    NumPredict = Math.Clamp(options?.MaxOutputTokens ?? 2048, 64, 262144),
-                    NumCtx = contextLength,
+                    NumPredict = budget.NumPredict,
+                    NumCtx = budget.NumCtx,
                     NumGpu = numGpu,
                     Temperature = options?.Temperature
                 }
@@ -99,5 +110,38 @@ public sealed partial class OllamaThinkingChatClient
         throw;
     }
 }
+
+    /// <summary>
+    /// Measures the characters Ollama renders into the prompt for this request: message text, previous thinking,
+    /// tool-call arguments and the serialized native tool schemas.
+    /// </summary>
+    /// <param name="requestMessages">Messages sent with the request.</param>
+    /// <param name="tools">Native tool definitions attached to the request, if any.</param>
+    /// <returns>Total prompt characters used for the context estimate.</returns>
+    private long MeasureRequestCharacters(IReadOnlyList<OllamaChatMessage> requestMessages, IReadOnlyList<OllamaToolDefinition>? tools)
+    {
+        try
+        {
+            long total = 0;
+            foreach (var message in requestMessages)
+            {
+                total += message.Content?.Length ?? 0;
+                total += message.Thinking?.Length ?? 0;
+                total += message.ToolName?.Length ?? 0;
+                if (message.ToolCalls is { Count: > 0 })
+                    total += message.ToolCalls.Sum(call => (long)(call.Function?.Name?.Length ?? 0) +
+                        (call.Function is null || call.Function.Arguments.ValueKind == JsonValueKind.Undefined
+                            ? 0 : call.Function.Arguments.GetRawText().Length));
+            }
+            if (tools is { Count: > 0 })
+                total += JsonSerializer.Serialize(tools, jsonOptions).Length;
+            return total;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not measure the Ollama request size for model {Model}; the configured context is used unchanged.", model);
+            return 0;
+        }
+    }
 
 }
