@@ -69,7 +69,7 @@ namespace LocalGPT.Services
             {
                 using var client = providerModels.CreateChatClient(
                     model,
-                    runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson).DefaultSessionKeepAlive,
+                    runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson").DefaultSessionKeepAlive,
                     profile.ContextTokens,
                     TimeSpan.FromSeconds(maxSeconds + BenchmarkParameters.ClientTimeoutPaddingSeconds),
                     profile.OllamaNumGpu,
@@ -86,7 +86,7 @@ namespace LocalGPT.Services
                     providerStream(attemptHeader);
                     var messages = new List<ChatMessage>
                     {
-                        new(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.ProviderBenchmarkSubjectSystemPrompt)),
+                        new(ChatRole.System, runtimePolicy.GetString("ProviderBenchmarkSubjectSystemPrompt")),
                         new(ChatRole.User, task.Prompt)
                     };
                     if (roleCorrectionPending)
@@ -340,7 +340,7 @@ namespace LocalGPT.Services
             timeout.CancelAfter(TimeSpan.FromSeconds(maxSeconds));
             using var client = providerModels.CreateChatClient(
                 reviewer,
-                runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson).DefaultSessionKeepAlive,
+                runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson").DefaultSessionKeepAlive,
                 Math.Min(maximumContext, Math.Max(BenchmarkParameters.MinimumRecommendedContextTokens, profile.ContextTokens)),
                 TimeSpan.FromSeconds(maxSeconds + BenchmarkParameters.ClientTimeoutPaddingSeconds),
                 reviewer.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase) ? profile.OllamaNumGpu : null,
@@ -371,7 +371,7 @@ namespace LocalGPT.Services
                 and a short rationale string. Do not include markdown fences.
                 """;
             var response = await client.GetResponseAsync(
-                [new ChatMessage(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.ProviderBenchmarkReviewerSystemPrompt)),
+                [new ChatMessage(ChatRole.System, runtimePolicy.GetString("ProviderBenchmarkReviewerSystemPrompt")),
                  new ChatMessage(ChatRole.User, prompt)],
                 new ChatOptions { MaxOutputTokens = Math.Min(BenchmarkParameters.ReviewerMaximumOutputTokens, maximumOutput), Temperature = 0f },
                 timeout.Token).ConfigureAwait(false);

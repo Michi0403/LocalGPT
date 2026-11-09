@@ -122,12 +122,12 @@ public sealed class ConfiguredAiHostHardwareService(
             ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
             ArgumentException.ThrowIfNullOrWhiteSpace(reportText);
             var draft = CreateDraft(endpoint, await GetForEndpointAsync(endpoint, cancellationToken).ConfigureAwait(false));
-            var gpuMatches = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoGpuMemory).Matches(reportText)
+            var gpuMatches = runtimePolicy.GetPattern("runtime.hardware.hwinfo-gpu-memory").Matches(reportText)
                 .Cast<Match>().ToList();
             if (gpuMatches.Count == 0)
                 throw new InvalidDataException("The HWiNFO report did not contain a supported GPU-memory line (Grafikspeicher / Video Memory).");
 
-            var gpuHeadings = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoGpuHeading).Matches(reportText)
+            var gpuHeadings = runtimePolicy.GetPattern("runtime.hardware.hwinfo-gpu-heading").Matches(reportText)
                 .Cast<Match>().ToList();
             var importedGpus = new List<ConfiguredAiHostGpu>();
             foreach (var gpuMatch in gpuMatches)
@@ -135,7 +135,7 @@ public sealed class ConfiguredAiHostHardwareService(
                 var gpuHeading = gpuHeadings.LastOrDefault(match => match.Index < gpuMatch.Index);
                 var gpuName = gpuHeading is null
                     ? string.Empty
-                    : runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoAmdPrefix).Replace(gpuHeading.Groups[1].Value.Trim(), string.Empty);
+                    : runtimePolicy.GetPattern("runtime.hardware.hwinfo-amd-prefix").Replace(gpuHeading.Groups[1].Value.Trim(), string.Empty);
                 if (importedGpus.Any(item => !string.IsNullOrWhiteSpace(gpuName) && item.Name.Equals(gpuName, StringComparison.OrdinalIgnoreCase)))
                     continue;
                 var vendor = gpuName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) ? "AMD"
@@ -163,7 +163,7 @@ public sealed class ConfiguredAiHostHardwareService(
                     : null;
             }
 
-            var memoryMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoTotalMemory).Match(reportText);
+            var memoryMatch = runtimePolicy.GetPattern("runtime.hardware.hwinfo-total-memory").Match(reportText);
             if (memoryMatch.Success)
             {
                 var systemAmount = double.Parse(memoryMatch.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
@@ -174,7 +174,7 @@ public sealed class ConfiguredAiHostHardwareService(
             else
             {
                 // Some HWiNFO text exports encode the unit in the label, e.g. "Total Memory Size [MB]: 65536".
-                var labeledMemoryMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoLabeledTotalMemory).Match(reportText);
+                var labeledMemoryMatch = runtimePolicy.GetPattern("runtime.hardware.hwinfo-labeled-total-memory").Match(reportText);
                 if (labeledMemoryMatch.Success)
                 {
                     var systemAmount = double.Parse(labeledMemoryMatch.Groups[2].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
@@ -183,11 +183,11 @@ public sealed class ConfiguredAiHostHardwareService(
                         : systemAmount;
                 }
             }
-            var cpuMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoProcessorName).Match(reportText);
+            var cpuMatch = runtimePolicy.GetPattern("runtime.hardware.hwinfo-processor-name").Match(reportText);
             if (cpuMatch.Success) draft.CpuName = cpuMatch.Groups[1].Value.Trim();
-            var hostMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoComputerName).Match(reportText);
+            var hostMatch = runtimePolicy.GetPattern("runtime.hardware.hwinfo-computer-name").Match(reportText);
             if (hostMatch.Success) draft.HostName = hostMatch.Groups[1].Value.Trim();
-            var osMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.HwInfoOperatingSystem).Match(reportText);
+            var osMatch = runtimePolicy.GetPattern("runtime.hardware.hwinfo-operating-system").Match(reportText);
             if (osMatch.Success) draft.OperatingSystem = osMatch.Groups[1].Value.Trim();
             draft.SourceKind = "HWiNFO";
             draft.Confidence = "ImportedReport";

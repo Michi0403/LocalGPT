@@ -141,6 +141,8 @@ namespace LocalGPT.Services
         private readonly IChatAsciiExperienceState asciiExperience;
         /// <summary>Owns the deterministic ASCII game sessions used by game-backed Council workflows.</summary>
         private readonly ICouncilGameSessionService gameSessions;
+        /// <summary>Connects workflow steps to the Council-driven game a run owns (entrant limits, engine turns, asset turns).</summary>
+        private readonly LocalGPT.Interfaces.GameEngine.IGameCouncilBridgeService gameCouncil;
         /// <summary>
         /// Stores the logger used by <see cref="MultiModelCouncilService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -194,6 +196,7 @@ namespace LocalGPT.Services
         /// <param name="runtimePolicy">Persisted operator runtime policy.</param>
         /// <param name="asciiExperience">Circuit-scoped ASCII chat presentation state supplied to Council participants as optional capability guidance.</param>
         /// <param name="gameSessions">Council game-session service used to coordinate interactive game state.</param>
+        /// <param name="gameCouncil">Bridge between workflow steps and the Council-driven game a run owns.</param>
         /// <param name="logger">Injected dependency used by the service.</param>
         /// <param name="councilRuntime">Injected dependency used by the service.</param>
         /// <param name="councilText">Injected dependency used by the service.</param>
@@ -232,6 +235,7 @@ namespace LocalGPT.Services
             ILocalGptRuntimePolicyDataService runtimePolicy,
             IChatAsciiExperienceState asciiExperience,
             ICouncilGameSessionService gameSessions,
+            LocalGPT.Interfaces.GameEngine.IGameCouncilBridgeService gameCouncil,
             ILogger<MultiModelCouncilService> logger,
             CouncilRuntimeService councilRuntime,
             CouncilTextService councilText,
@@ -270,6 +274,7 @@ namespace LocalGPT.Services
             this.runtimePolicy = runtimePolicy;
             this.asciiExperience = asciiExperience;
             this.gameSessions = gameSessions;
+            this.gameCouncil = gameCouncil;
             this.logger = logger;
             this.councilRuntime = councilRuntime;
             this.councilText = councilText;

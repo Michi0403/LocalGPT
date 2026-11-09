@@ -17,6 +17,287 @@ namespace LocalGPT.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectAction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActionKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AiSelectable")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GamepadButton")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("KeyboardKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrimitiveKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProfileId", "ActionKey")
+                        .IsUnique();
+
+                    b.ToTable("GameProjectActions", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectAlias", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alias")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AliasKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProfileId", "AliasKind", "Alias")
+                        .IsUnique();
+
+                    b.ToTable("GameProjectAliases", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectArchetype", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ArchetypeKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BehaviourKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Glyph")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProfileId", "ArchetypeKey")
+                        .IsUnique();
+
+                    b.ToTable("GameProjectArchetypes", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectLevel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Difficulty")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LevelIndex")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LevelNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MapHeight")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MapWidth")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProfileId", "LevelIndex")
+                        .IsUnique();
+
+                    b.ToTable("GameProjectLevels", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrimitiveKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RuleKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProfileId", "RuleKey")
+                        .IsUnique();
+
+                    b.ToTable("GameProjectRules", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectStat", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("InitialValue")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaximumValue")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MinimumValue")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StatKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProfileId", "StatKey")
+                        .IsUnique();
+
+                    b.ToTable("GameProjectStats", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectText", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TextKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProfileId", "TextKey")
+                        .IsUnique();
+
+                    b.ToTable("GameProjectTexts", (string)null);
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.ApplicationLogEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -1447,9 +1728,6 @@ namespace LocalGPT.Migrations
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("RuntimeProfile")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("ScenarioPrompt")
                         .IsRequired()
                         .HasMaxLength(240)
@@ -1458,7 +1736,60 @@ namespace LocalGPT.Migrations
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AutoplayKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AutoplayParametersJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsSystemSeed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsUserModified")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MapGeneratorKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MapParametersJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlayerArchetypeKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RulesetTemplateKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SeedVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TurnModelKey")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ViewKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ViewParametersJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("GameKey");
 
                     b.HasIndex("ProjectId")
                         .IsUnique();
@@ -3041,6 +3372,69 @@ namespace LocalGPT.Migrations
                         .IsRequired();
 
                     b.Navigation("Skill");
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectAction", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectAlias", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectArchetype", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectLevel", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectRule", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectStat", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.GameEngine.GameProjectText", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptGameProjectProfile", b =>

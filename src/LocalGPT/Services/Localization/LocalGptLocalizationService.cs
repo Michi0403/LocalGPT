@@ -390,7 +390,7 @@ public sealed class LocalGptLocalizationService(
                 result.Errors.Add("The localization catalog is empty.");
                 return result;
             }
-            if (Encoding.UTF8.GetByteCount(json) > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.LocalizationMaximumCatalogBytes)))
+            if (Encoding.UTF8.GetByteCount(json) > Math.Max(1, runtimePolicy.GetInt("LocalizationMaximumCatalogBytes")))
             {
                 result.Errors.Add($"The localization catalog exceeds the configured LocalizationMaximumCatalogBytes policy.");
                 return result;
@@ -402,7 +402,7 @@ public sealed class LocalGptLocalizationService(
                 result.Errors.Add("The localization catalog must be a JSON object containing string keys and values.");
                 return result;
             }
-            if (data.Count > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.LocalizationMaximumCatalogEntries)))
+            if (data.Count > Math.Max(1, runtimePolicy.GetInt("LocalizationMaximumCatalogEntries")))
                 result.Errors.Add("The localization catalog exceeds the configured LocalizationMaximumCatalogEntries policy.");
 
             var invalidKeys = data.Keys.Count(string.IsNullOrWhiteSpace);

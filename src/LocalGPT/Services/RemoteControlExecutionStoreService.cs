@@ -98,7 +98,7 @@ public sealed class RemoteControlExecutionStoreService(
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
-            var boundedTake = Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).RemoteControlExecutionMaximum);
+            var boundedTake = Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").RemoteControlExecutionMaximum);
             return await db.RemoteControlExecutionRecords.AsNoTracking()
                 .OrderByDescending(item => item.StartedAtUtc)
                 .Take(boundedTake)

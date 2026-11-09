@@ -101,7 +101,7 @@ public sealed class LocalPathExplorerService(ILocalGptRuntimePolicyDataService r
             result.CurrentPath = full;
             result.ParentPath = Directory.GetParent(full)?.FullName ?? string.Empty;
 
-            var max = Math.Clamp(request.MaxEntries, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).LocalPathMaximumEntries);
+            var max = Math.Clamp(request.MaxEntries, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").LocalPathMaximumEntries);
             IEnumerable<FileSystemInfo> entries = new DirectoryInfo(full).EnumerateFileSystemInfos();
             if (!request.IncludeFiles)
                 entries = entries.Where(item => item is DirectoryInfo);

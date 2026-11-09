@@ -25,7 +25,7 @@ public sealed class InitialDataFeedService(
         {
             var root = ResolveRepositoryRoot(environment.ContentRootPath);
             var configuredFiles = runtimePolicySeed.GetSeed().Collections
-                .Single(item => item.Key == LocalGptRuntimeCollection.KnowledgeFiles)
+                .Single(item => item.Name == "KnowledgeFiles")
                 .Values;
             var entries = new List<InitialDataFeedEntry>(configuredFiles.Count);
 
@@ -133,7 +133,7 @@ public sealed class InitialDataFeedService(
         {
             var canonicalPath = relativePath.Replace('\\', '/');
             var requiredPaths = runtimePolicySeed.GetSeed().Collections
-                .Single(item => item.Key == LocalGptRuntimeCollection.KnowledgeFiles).Values;
+                .Single(item => item.Name == "KnowledgeFiles").Values;
             if (!requiredPaths.Contains(canonicalPath, StringComparer.OrdinalIgnoreCase))
                 return null;
 

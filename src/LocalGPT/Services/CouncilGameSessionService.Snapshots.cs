@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.GameEngine;
 using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services
@@ -64,7 +65,6 @@ namespace LocalGPT.Services
         CouncilRunId = session.CouncilRunId,
         ProjectId = session.ProjectId,
         ProjectVersion = session.ProjectVersion,
-        RuntimeProfile = session.RuntimeProfile,
         DisplayName = session.DisplayName,
         Status = session.Status,
         ControlMode = session.ControlMode,
@@ -96,44 +96,36 @@ namespace LocalGPT.Services
         AnimationFrameStyleRuns = session.AnimationFrames.Select((frame, index) =>
             (IReadOnlyList<CouncilAsciiStyleRun>)(index < session.AnimationFrameStyleRuns.Count
                 ? CloneAsciiStyleRuns(session.AnimationFrameStyleRuns[index])
-                : BuildSemanticAsciiStyleRuns(session.GameKey, session.RuntimeProfile, frame, session.FrameWidth, session.FrameHeight))).ToArray(),
+                : BuildSemanticAsciiStyleRuns(session, frame))).ToArray(),
         AnimationSubtitleStyle = NormalizeAsciiStyle(session.AnimationSubtitleStyle, session.AsciiColorMode),
-        TournamentRuntimeClassKey = session.TournamentRuntimeClassKey,
-        TournamentFighters = session.TournamentFighters.Select(CloneTournamentFighter).ToArray(),
-        TournamentTimeline = session.TournamentTimeline.Select(CloneTournamentTimelineEntry).ToArray(),
-        TournamentCurrentFighterIds = session.TournamentMatchIndex + 1 < session.TournamentRoundFighterIds.Count
-            ? [session.TournamentRoundFighterIds[session.TournamentMatchIndex], session.TournamentRoundFighterIds[session.TournamentMatchIndex + 1]]
-            : [],
-        TournamentRound = session.TournamentRound,
-        TournamentExchange = session.TournamentExchange,
-        TournamentChampion = session.TournamentFighters.FirstOrDefault(fighter => string.Equals(fighter.FighterId, session.TournamentChampionFighterId, StringComparison.OrdinalIgnoreCase))?.CreatureName ?? string.Empty,
         LegalActions = session.LegalActions.ToArray(),
         InputBindings = session.InputBindings.Select(CloneBinding).ToArray(),
         LastAction = session.LastAction,
         LastActionBy = session.LastActionBy,
-        PlayerX = session.PlayerX,
-        PlayerY = session.PlayerY,
-        FacingDegrees = Math.Round(NormalizeRadians(session.FacingRadians) * 180d / Math.PI, 1),
-        IsDucking = session.IsDucking,
-        Health = session.Health,
-        Ammo = session.Ammo,
-        CampaignRuntimeClassKey = session.CampaignRuntimeClassKey,
-        CurrentLevel = session.LevelProfiles.Count == 0 ? 1 : GetCurrentLevelProfile(session).Level,
-        TotalLevels = Math.Max(1, session.LevelProfiles.Count),
-        AutoAdvanceLevels = session.AutoAdvanceLevels,
-        CurrentLevelProfile = session.LevelProfiles.Count == 0 ? null : CloneLevelProfile(GetCurrentLevelProfile(session)),
+        CurrentLevel = session.Ruleset.Levels.Count == 0 ? 1 : CurrentLevelRow(session)!.LevelNumber,
+        TotalLevels = Math.Max(1, session.Ruleset.Levels.Count),
+        LevelName = CurrentLevelRow(session)?.Name ?? string.Empty,
         CampaignSeed = session.CampaignSeed,
         WorldMap = session.WorldMap.ToArray(),
         MapSeed = session.MapSeed,
         ScenarioPrompt = session.ScenarioPrompt,
-        ExtractionX = session.ExtractionX,
-        ExtractionY = session.ExtractionY,
-        Enemies = session.Enemies.Select(CloneEnemy).ToArray(),
-        CombatMessage = session.CombatMessage,
         BlockedMoveStreak = session.BlockedMoveStreak,
         LastMoveBlocked = session.LastMoveBlocked,
         CreatedAtUtc = session.CreatedAtUtc,
-        UpdatedAtUtc = session.UpdatedAtUtc
+        UpdatedAtUtc = session.UpdatedAtUtc,
+        Ruleset = session.Ruleset,
+        Actors = actorQuery.Clone(session.Actors),
+        Markers = session.Markers.Select(marker => new GameMarkerState { Key = marker.Key, Glyph = marker.Glyph, X = marker.X, Y = marker.Y }).ToArray(),
+        Variables = new Dictionary<string, string>(session.Variables, StringComparer.OrdinalIgnoreCase),
+        Progression = CloneProgression(session.Progression),
+        Timeline = session.Timeline.Select(CloneTimelineEntry).ToArray(),
+        Message = session.Message,
+        ViewKey = session.Ruleset.ViewKey,
+        TurnModelKey = session.Ruleset.TurnModelKey,
+        ActiveEntrantKeys = session.Progression.Match >= 0 && session.Progression.Match + 1 < session.Progression.RoundEntrantKeys.Count
+            ? [session.Progression.RoundEntrantKeys[session.Progression.Match], session.Progression.RoundEntrantKeys[session.Progression.Match + 1]]
+            : [],
+        SupportsSeedReplay = !string.IsNullOrWhiteSpace(session.Ruleset.MapGeneratorKey)
     };
     }
     catch (Exception __serviceMethodException)
@@ -145,145 +137,6 @@ namespace LocalGPT.Services
         throw;
     }
 }
-
-    /// <summary>
-    /// Performs clone tournament fighter as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="source">Source value supplied to the council game session operation and used when producing its result.</param>
-    /// <returns>The council kernel tournament fighter state produced by the operation.</returns>
-    private CouncilKernelTournamentFighterState CloneTournamentFighter(CouncilKernelTournamentFighterState source)
-    {
-        try
-        {
-            ArgumentNullException.ThrowIfNull(source);
-            return new CouncilKernelTournamentFighterState
-            {
-                FighterId = source.FighterId,
-                TrainerModelName = source.TrainerModelName,
-                CreatureModelName = source.CreatureModelName,
-                CreatureName = source.CreatureName,
-                CreatureSpecies = source.CreatureSpecies,
-                CreatureStyle = source.CreatureStyle,
-                CreatureForm = source.CreatureForm,
-                CreatureTrait = source.CreatureTrait,
-                CreatureVoice = source.CreatureVoice,
-                TrainerGreeting = source.TrainerGreeting,
-                TrainerRig = CloneAsciiActorRig(source.TrainerRig),
-                CreatureRoster = source.CreatureRoster.Select(CloneTournamentCreature).ToList(),
-                ActiveCreatureId = source.ActiveCreatureId,
-                SwitchesUsedInCurrentFight = source.SwitchesUsedInCurrentFight,
-                LastTrainerAction = source.LastTrainerAction,
-                Health = source.Health,
-                Wins = source.Wins,
-                Eliminated = source.Eliminated
-            };
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Copying Kernel Creature Tournament fighter state failed.");
-            throw;
-        }
-    }
-
-
-
-    /// <summary>
-    /// Performs clone tournament creature as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="source">Source value supplied to the council game session operation and used when producing its result.</param>
-    /// <returns>The council kernel tournament creature state produced by the operation.</returns>
-    private CouncilKernelTournamentCreatureState CloneTournamentCreature(CouncilKernelTournamentCreatureState source)
-    {
-        try
-        {
-            ArgumentNullException.ThrowIfNull(source);
-            return new CouncilKernelTournamentCreatureState
-            {
-                CreatureId = source.CreatureId,
-                Name = source.Name,
-                Species = source.Species,
-                Style = source.Style,
-                Form = source.Form,
-                Trait = source.Trait,
-                Voice = source.Voice,
-                Health = source.Health,
-                IsActive = source.IsActive,
-                IsResting = source.IsResting,
-                RestedExchanges = source.RestedExchanges,
-                Rig = CloneAsciiActorRig(source.Rig),
-                SpriteRows = source.SpriteRows.ToList(),
-                SpriteKind = source.SpriteKind,
-                SpritePalette = source.SpritePalette.ToList(),
-                SpriteAuthorModelName = source.SpriteAuthorModelName
-            };
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Copying Kernel Creature Tournament creature state failed.");
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Performs clone ascii actor rig as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="source">Source value supplied to the council game session operation and used when producing its result.</param>
-    /// <returns>The council ascii actor rig produced by the operation.</returns>
-    private CouncilAsciiActorRig CloneAsciiActorRig(CouncilAsciiActorRig source)
-    {
-        try
-        {
-            ArgumentNullException.ThrowIfNull(source);
-            return new CouncilAsciiActorRig
-            {
-                RigKey = source.RigKey,
-                Width = source.Width,
-                Height = source.Height,
-                HeadGlyph = source.HeadGlyph,
-                TorsoGlyph = source.TorsoGlyph,
-                Joints = source.Joints.Select(joint => new CouncilAsciiActorJoint
-                {
-                    Name = joint.Name,
-                    X = joint.X,
-                    Y = joint.Y
-                }).ToList()
-            };
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Copying tournament ASCII actor rig failed.");
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Performs clone tournament timeline entry as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="source">Source value supplied to the council game session operation and used when producing its result.</param>
-    /// <returns>The council kernel tournament timeline entry produced by the operation.</returns>
-    private CouncilKernelTournamentTimelineEntry CloneTournamentTimelineEntry(CouncilKernelTournamentTimelineEntry source)
-    {
-        try
-        {
-            ArgumentNullException.ThrowIfNull(source);
-            return new CouncilKernelTournamentTimelineEntry
-            {
-                Sequence = source.Sequence,
-                Round = source.Round,
-                Match = source.Match,
-                Exchange = source.Exchange,
-                EventKind = source.EventKind,
-                LeftState = source.LeftState,
-                RightState = source.RightState,
-                Detail = source.Detail
-            };
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Copying Kernel Creature Tournament timeline state failed.");
-            throw;
-        }
-    }
 
     /// <summary>
     /// Performs clone binding as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -383,32 +236,76 @@ namespace LocalGPT.Services
         }
     }
 
-    /// <summary>
-    /// Stores the internal doom map state used by <see cref="CouncilGameSessionService"/> while executing its surrounding workflow.
-    /// </summary>
-    private readonly string[] doomMap =
-    [
-        "################################",
-        "#........#.....................#",
-        "#........#....######...........#",
-        "#........#....#....#...........#",
-        "#.............#....#...........#",
-        "#..######.....#....#######.....#",
-        "#..#....#.....#..........#.....#",
-        "#..#....#.....######.....#.....#",
-        "#..#....#..........#.....#.....#",
-        "#..#....######.....#.....#.....#",
-        "#..#.........#.....#...........#",
-        "#..######....#.....##########..#",
-        "#.......#....#.................#",
-        "#####...#....###########.......#",
-        "#.......#..............#.......#",
-        "#.......########.......#.......#",
-        "#......................#.......#",
-        "#..#####################.......#",
-        "#..............................#",
-        "################################"
-    ];
+    /// <summary>Returns the level row the session currently plays, or <c>null</c> when the game defines no levels.</summary>
+    /// <param name="session">Session whose progression and ruleset are read.</param>
+    /// <returns>The current level row.</returns>
+    private GameProjectLevel? CurrentLevelRow(CouncilGameSessionState session)
+    {
+        try
+        {
+            var levels = session.Ruleset.Levels.OrderBy(level => level.LevelIndex).ToList();
+            return levels.Count == 0 ? null : levels[Math.Clamp(session.Progression.LevelIndex, 0, levels.Count - 1)];
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading the current level of game session {GameSessionId} failed.", session.Id);
+            throw;
+        }
+    }
+
+    /// <summary>Copies generic progression state for an immutable snapshot.</summary>
+    /// <param name="source">Live progression state.</param>
+    /// <returns>An independent copy.</returns>
+    private GameProgressionState CloneProgression(GameProgressionState source)
+    {
+        try
+        {
+            return new GameProgressionState
+            {
+                LevelIndex = source.LevelIndex,
+                AutoAdvanceLevels = source.AutoAdvanceLevels,
+                Round = source.Round,
+                Match = source.Match,
+                Exchange = source.Exchange,
+                Initialized = source.Initialized,
+                ChampionKey = source.ChampionKey,
+                RoundEntrantKeys = [.. source.RoundEntrantKeys],
+                NextRoundEntrantKeys = [.. source.NextRoundEntrantKeys],
+                TimelineSequence = source.TimelineSequence
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Copying game progression state failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Copies one generic timeline entry for an immutable snapshot.</summary>
+    /// <param name="source">Live timeline entry.</param>
+    /// <returns>An independent copy.</returns>
+    private GameTimelineEntry CloneTimelineEntry(GameTimelineEntry source)
+    {
+        try
+        {
+            return new GameTimelineEntry
+            {
+                Sequence = source.Sequence,
+                Round = source.Round,
+                Match = source.Match,
+                Exchange = source.Exchange,
+                EventKind = source.EventKind,
+                LeftState = source.LeftState,
+                RightState = source.RightState,
+                Detail = source.Detail
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Copying a game timeline entry failed.");
+            throw;
+        }
+    }
 
     }
 }

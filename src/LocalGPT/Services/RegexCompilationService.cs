@@ -19,7 +19,7 @@ public sealed class RegexCompilationService(
     {
         try
         {
-            var parameters = runtimePolicy.GetJson<RegexRuntimeParameters>(LocalGptRuntimeValue.RegexRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<RegexRuntimeParameters>("RegexRuntimeParametersJson");
             return regexEngine.Compile(pattern, flags, parameters, timeout, contextName);
         }
         catch (Exception exception)

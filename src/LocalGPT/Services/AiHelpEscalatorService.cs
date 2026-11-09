@@ -116,7 +116,7 @@ public sealed class AiHelpEscalatorService(
             state.LastFingerprint = fingerprint;
             // No caller-supplied 'validator' or 'tool' string is by itself proof that a required
             // parameter is actually required. The curator has no authority to make it required.
-            var threshold = Math.Clamp(policy.GetInt(LocalGptRuntimeValue.HelpEscalatorUnguidedFailureLimit), 1, 5);
+            var threshold = Math.Clamp(policy.GetInt("HelpEscalatorUnguidedFailureLimit"), 1, 5);
             if (!state.CuratorUsed && report.Status != "no_progress" &&
                 state.Failures < threshold && state.Repeated < 2)
             {
@@ -124,7 +124,7 @@ public sealed class AiHelpEscalatorService(
                 {
                     TaskId = report.TaskId,
                     Type = "try_alternative",
-                    Instruction = policy.GetString(LocalGptRuntimeValue.HelpEscalatorAlternativeInstruction)
+                    Instruction = policy.GetString("HelpEscalatorAlternativeInstruction")
                 };
                 await SaveStateAsync(state).ConfigureAwait(false);
                 return state.LastDecision;
@@ -283,7 +283,7 @@ public sealed class AiHelpEscalatorService(
             state.UpdatedAtUtc = DateTime.UtcNow;
             tasks![state.TaskId] = state;
             // Retention limits avoid indefinite growth; pending requests are never evicted.
-            var maximum = Math.Clamp(policy.GetInt(LocalGptRuntimeValue.HelpEscalatorMaximumRetainedTasks), 20, 10000);
+            var maximum = Math.Clamp(policy.GetInt("HelpEscalatorMaximumRetainedTasks"), 20, 10000);
             foreach (var retired in tasks.Values.Where(item => item.LastDecision.Type != "await_user")
                 .OrderByDescending(item => item.UpdatedAtUtc).Skip(maximum).Select(item => item.TaskId).ToArray())
                 tasks.Remove(retired);

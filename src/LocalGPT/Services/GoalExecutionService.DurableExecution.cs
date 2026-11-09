@@ -22,7 +22,7 @@ public sealed partial class GoalExecutionService
             PreserveSelectedTeam = request.PreserveSelectedTeam,
             KeyaccountReviewEnabled = request.KeyaccountReviewEnabled,
             KeyaccountContinuationLimit = Math.Clamp(request.KeyaccountContinuationLimit > 0
-                ? request.KeyaccountContinuationLimit : runtimePolicy.GetInt(LocalGptRuntimeValue.GoalKeyaccountDefaultContinuations), 0, 100),
+                ? request.KeyaccountContinuationLimit : runtimePolicy.GetInt("GoalKeyaccountDefaultContinuations"), 0, 100),
             KeyaccountExpectedArtifacts = Math.Clamp(councilRequest.KeyaccountExpectedArtifacts, 0, 100000),
             ModelSelectionKeys = plan.SelectedModels.ToList(),
             RequiredFunctions = request.RequiredFunctions.ToList(),
@@ -450,7 +450,7 @@ public sealed partial class GoalExecutionService
         var context = string.Join("\n", checkpoint.Receipts.Where(receipt => receipt.State == GoalExecutionState.Completed)
             .Select(receipt => receipt.StepKey + ": " + receipt.Answer));
         if (context.Length > 16000) context = context[^16000..];
-        return runtimePolicy.GetString(LocalGptRuntimeValue.GoalCouncilSubstepPromptTemplate)
+        return runtimePolicy.GetString("GoalCouncilSubstepPromptTemplate")
             .Replace("{{OriginalGoal}}", checkpoint.GoalText, StringComparison.Ordinal)
             .Replace("{{ConversationContext}}", checkpoint.Prompt, StringComparison.Ordinal)
             .Replace("{{StepNumber}}", (stepIndex + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
@@ -469,7 +469,7 @@ public sealed partial class GoalExecutionService
     private async Task<bool> TryReplanRemainingAsync(GoalExecutionRequest request, GoalExecutionCheckpoint checkpoint,
         int failedIndex, HashSet<string> liveTeams, CancellationToken cancellationToken)
     {
-        if (checkpoint.ReplanCount >= Math.Max(0, runtimePolicy.GetInt(LocalGptRuntimeValue.GoalMaximumReplans)))
+        if (checkpoint.ReplanCount >= Math.Max(0, runtimePolicy.GetInt("GoalMaximumReplans")))
             return false;
         checkpoint.ReplanCount++;
         var snapshot = await directory.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
@@ -491,7 +491,7 @@ public sealed partial class GoalExecutionService
             && liveTeams.Contains(step.TeamKey)
             && (!checkpoint.PreserveSelectedTeam || string.Equals(step.TeamKey,
                 checkpoint.RequestedTeamKey, StringComparison.OrdinalIgnoreCase)))
-            .Take(Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.GoalMaximumPlanSteps)) - failedIndex)
+            .Take(Math.Max(1, runtimePolicy.GetInt("GoalMaximumPlanSteps")) - failedIndex)
             .Select((step, index) => new GoalExecutionPlanStep
             {
                 Key = "replan-" + checkpoint.ReplanCount + "-" + (index + 1),

@@ -24,6 +24,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// </summary>
     private readonly IRegexEngineService regexEngine;
     /// <summary>
+    /// Stores the authoritative seed; its regex names must always compile, database-added rows may be skipped.
+    /// </summary>
+    private readonly ILocalGptRuntimePolicySeedDataService seedData;
+    /// <summary>
     /// Stores the JSON text service used to deserialize typed runtime-policy documents without creating a second serializer policy.
     /// </summary>
     private readonly IJsonTextService jsonText;
@@ -48,6 +52,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         ILogger<LocalGptRuntimePolicyDataService> logger)
     {
         this.store = store;
+        this.seedData = seedData;
         this.regexEngine = regexEngine;
         this.jsonText = jsonText;
         this.logger = logger;
@@ -70,39 +75,39 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// Gets the stable LocalGPT core project identifier used to identify or correlate this LocalGPT runtime policy instance with related application state.
     /// </summary>
     /// <value>The LocalGPT core project identifier value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
-    public Guid LocalGptCoreProjectId => GetGuid(LocalGptRuntimeValue.LocalGptCoreProjectId);
+    public Guid LocalGptCoreProjectId => GetGuid("LocalGptCoreProjectId");
     /// <summary>
     /// Gets the regex timeout duration used to control timing in the LocalGPT runtime policy workflow.
     /// </summary>
     /// <value>The regex timeout value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
-    public TimeSpan RegexTimeout => TimeSpan.FromMilliseconds(GetInt(LocalGptRuntimeValue.RegexTimeoutMilliseconds));
+    public TimeSpan RegexTimeout => TimeSpan.FromMilliseconds(GetInt("RegexTimeoutMilliseconds"));
     /// <summary>
     /// Gets the allowed native executables value that forms part of the LocalGPT runtime policy state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The allowed native executables value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
-    public FrozenSet<string> AllowedNativeExecutables => GetCollection(LocalGptRuntimeCollection.AllowedNativeExecutables);
+    public FrozenSet<string> AllowedNativeExecutables => GetCollection("AllowedNativeExecutables");
     /// <summary>
     /// Gets the power shell inline command pattern value that forms part of the LocalGPT runtime policy state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The power shell inline command pattern value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
-    public Regex PowerShellInlineCommandPattern => GetPattern(LocalGptRuntimePattern.PowerShellInlineCommand);
+    public Regex PowerShellInlineCommandPattern => GetPattern("runtime.native.powershell-inline-command");
     /// <summary>
     /// Gets the power shell file pattern value that forms part of the LocalGPT runtime policy state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The power shell file pattern value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
-    public Regex PowerShellFilePattern => GetPattern(LocalGptRuntimePattern.PowerShellFile);
+    public Regex PowerShellFilePattern => GetPattern("runtime.native.powershell-file");
     /// <summary>
     /// Gets the sensitive argument pattern value that forms part of the LocalGPT runtime policy state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The sensitive argument pattern value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
-    public Regex SensitiveArgumentPattern => GetPattern(LocalGptRuntimePattern.SensitiveArgument);
+    public Regex SensitiveArgumentPattern => GetPattern("runtime.native.sensitive-argument");
 
     /// <summary>
     /// Retrieves string as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    public string GetString(LocalGptRuntimeValue key)
+    public string GetString(string key)
     {
         try
         {
@@ -123,7 +128,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The int produced by the operation.</returns>
-    public int GetInt(LocalGptRuntimeValue key)
+    public int GetInt(string key)
     {
         try
         {
@@ -144,7 +149,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The long produced by the operation.</returns>
-    public long GetLong(LocalGptRuntimeValue key)
+    public long GetLong(string key)
     {
         try
         {
@@ -165,7 +170,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The GUID produced by the operation.</returns>
-    public Guid GetGuid(LocalGptRuntimeValue key)
+    public Guid GetGuid(string key)
     {
         try
         {
@@ -187,7 +192,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// <typeparam name="T">Type used for t values handled by <see cref="LocalGptRuntimePolicyDataService"/>.</typeparam>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The t produced by the operation.</returns>
-    public T GetJson<T>(LocalGptRuntimeValue key)
+    public T GetJson<T>(string key)
     {
         try
         {
@@ -207,7 +212,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The regex produced by the operation.</returns>
-    public Regex GetPattern(LocalGptRuntimePattern key)
+    public Regex GetPattern(string key)
     {
         try
         {
@@ -228,7 +233,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The frozen set string produced by the operation.</returns>
-    public FrozenSet<string> GetCollection(LocalGptRuntimeCollection key)
+    public FrozenSet<string> GetCollection(string key)
     {
         try
         {
@@ -276,15 +281,14 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
             ArgumentNullException.ThrowIfNull(seed);
             var definition = new LocalGptRuntimePolicyDefinition
             {
-                Values = seed.Values.ToDictionary(item => item.Key, item => item.Value),
+                Values = seed.SystemVariables.ToDictionary(item => item.Name, item => item.Value, StringComparer.OrdinalIgnoreCase),
                 Collections = seed.Collections.ToDictionary(
-                    item => item.Key,
+                    item => item.Name,
                     item => (IReadOnlyList<string>)item.Values.ToArray()),
                 RegexPatterns = seed.RegexPatterns.ToDictionary(
-                    item => item.Key,
+                    item => item.Name,
                     item => new LocalGptRuntimeRegexDefinition
                     {
-                        Key = item.Key,
                         Name = item.Name,
                         Pattern = item.Pattern,
                         Flags = item.Flags
@@ -309,38 +313,77 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         {
             ArgumentNullException.ThrowIfNull(definition);
             var values = definition.Values ?? throw new InvalidDataException("The runtime policy definition contains no values.");
-            if (!values.TryGetValue(LocalGptRuntimeValue.RegexTimeoutMilliseconds, out var timeoutRaw))
+            if (!values.TryGetValue("RegexTimeoutMilliseconds", out var timeoutRaw))
                 throw new InvalidDataException("RegexTimeoutMilliseconds is missing from the runtime policy definition.");
             if (!int.TryParse(timeoutRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMilliseconds) || timeoutMilliseconds <= 0)
                 throw new InvalidDataException("RegexTimeoutMilliseconds must be positive.");
 
-            if (!values.TryGetValue(LocalGptRuntimeValue.RegexRuntimeParametersJson, out var regexParametersRaw))
+            if (!values.TryGetValue("RegexRuntimeParametersJson", out var regexParametersRaw))
                 throw new InvalidDataException("RegexRuntimeParametersJson is missing from the runtime policy definition.");
             var regexParameters = jsonText.Deserialize<RegexRuntimeParameters>(regexParametersRaw)
                 ?? throw new InvalidDataException("RegexRuntimeParametersJson could not be deserialized.");
 
             var timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds);
             var next = new LocalGptRuntimePolicyState(
-                values.ToFrozenDictionary(),
+                values.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
                 definition.Collections
                     .ToDictionary(
                         item => item.Key,
                         item => item.Value
                             .Where(value => !string.IsNullOrWhiteSpace(value))
                             .Select(value => value.Trim())
-                            .ToFrozenSet(StringComparer.OrdinalIgnoreCase))
-                    .ToFrozenDictionary(),
-                definition.RegexPatterns
-                    .ToDictionary(
-                        item => item.Key,
-                        item => regexEngine.Compile(item.Value.Pattern, item.Value.Flags, regexParameters, timeout, item.Value.Name))
-                    .ToFrozenDictionary());
+                            .ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
+                CompilePatterns(definition, regexParameters, timeout));
             logger.LogTrace($"Compiled immutable LocalGPT runtime-policy state with {next.Values.Count} values, {next.Collections.Count} collections, and {next.Patterns.Count} regex patterns.");
             return next;
         }
         catch (Exception exception)
         {
             logger.LogError(exception, $"Could not compile immutable LocalGPT runtime-policy state: {exception.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Compiles every regular expression of the database-defined policy. A pattern supplied by the seed must
+    /// compile; a pattern added in the database that does not compile is skipped and logged, so one bad row
+    /// cannot stop LocalGPT.
+    /// </summary>
+    /// <param name="definition">Database-defined runtime policy.</param>
+    /// <param name="regexParameters">Bounded regex engine parameters from the policy.</param>
+    /// <param name="timeout">Match timeout of every compiled pattern.</param>
+    /// <returns>Compiled patterns keyed by RegexPatterns.Name (case-insensitive).</returns>
+    private FrozenDictionary<string, Regex> CompilePatterns(
+        LocalGptRuntimePolicyDefinition definition,
+        RegexRuntimeParameters regexParameters,
+        TimeSpan timeout)
+    {
+        try
+        {
+            var seeded = seedData.GetSeed().RegexPatterns
+                .Select(item => item.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var compiled = new Dictionary<string, Regex>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (name, pattern) in definition.RegexPatterns)
+            {
+                try
+                {
+                    compiled[name] = regexEngine.Compile(pattern.Pattern, pattern.Flags, regexParameters, timeout, pattern.Name);
+                }
+                catch (Exception exception) when (!seeded.Contains(name))
+                {
+                    logger.LogWarning(exception, $"Skipped database runtime regex {name}: it does not compile ({exception.Message}).");
+                }
+            }
+
+            logger.LogDebug($"Compiled {compiled.Count} of {definition.RegexPatterns.Count} runtime regex patterns.");
+            return compiled.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not compile the runtime regex patterns: {exception.Message}");
             throw;
         }
     }
@@ -373,11 +416,12 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         {
             var snapshot = new LocalGptRuntimePolicySnapshot
             {
-                Values = current.Values.ToDictionary(item => item.Key.ToString(), item => item.Value),
+                Values = current.Values.ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase),
                 Collections = current.Collections.ToDictionary(
-                    item => item.Key.ToString(),
-                    item => (IReadOnlyList<string>)item.Value.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray()),
-                RegexPatterns = current.Patterns.ToDictionary(item => item.Key.ToString(), item => item.Value.ToString())
+                    item => item.Key,
+                    item => (IReadOnlyList<string>)item.Value.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray(),
+                    StringComparer.OrdinalIgnoreCase),
+                RegexPatterns = current.Patterns.ToDictionary(item => item.Key, item => item.Value.ToString(), StringComparer.OrdinalIgnoreCase)
             };
             logger.LogTrace($"Created a LocalGPT runtime-policy snapshot from the active immutable state.");
             return snapshot;

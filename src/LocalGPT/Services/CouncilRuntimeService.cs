@@ -258,49 +258,7 @@ namespace LocalGPT.Services
                         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
                     }))
                 {
-                    static string DecodeDisplayEntities(string value)
-                    {
-                        var current = value;
-                        for (var pass = 0; pass < 3; pass++)
-                        {
-                            var decoded = WebUtility.HtmlDecode(current);
-                            if (decoded.Equals(current, StringComparison.Ordinal))
-                                break;
-                            current = decoded;
-                        }
-
-                        return current;
-                    }
-
-                    static void WriteElement(Utf8JsonWriter target, JsonElement element)
-                    {
-                        switch (element.ValueKind)
-                        {
-                            case JsonValueKind.Object:
-                                target.WriteStartObject();
-                                foreach (var property in element.EnumerateObject())
-                                {
-                                    target.WritePropertyName(DecodeDisplayEntities(property.Name));
-                                    WriteElement(target, property.Value);
-                                }
-                                target.WriteEndObject();
-                                break;
-                            case JsonValueKind.Array:
-                                target.WriteStartArray();
-                                foreach (var item in element.EnumerateArray())
-                                    WriteElement(target, item);
-                                target.WriteEndArray();
-                                break;
-                            case JsonValueKind.String:
-                                target.WriteStringValue(DecodeDisplayEntities(element.GetString() ?? string.Empty));
-                                break;
-                            default:
-                                element.WriteTo(target);
-                                break;
-                        }
-                    }
-
-                    WriteElement(writer, document.RootElement);
+                    WriteDisplayJsonElement(writer, document.RootElement);
                 }
 
                 return Encoding.UTF8.GetString(stream.ToArray());
@@ -314,6 +272,54 @@ namespace LocalGPT.Services
             {
                 serviceLogger.LogError(exception, "Formatting provider/tool JSON for the user-visible code surface failed; payload content was omitted from diagnostics.");
                 return raw;
+            }
+        }
+
+        /// <summary>Decodes display-only HTML entities (up to three nested passes) inside a JSON name or string value.</summary>
+        /// <param name="value">JSON name or string value as provided by the model or tool.</param>
+        /// <returns>The value with HTML entities decoded for display.</returns>
+        private string DecodeDisplayEntities(string value)
+        {
+            var current = value;
+            for (var pass = 0; pass < 3; pass++)
+            {
+                var decoded = WebUtility.HtmlDecode(current);
+                if (decoded.Equals(current, StringComparison.Ordinal))
+                    break;
+                current = decoded;
+            }
+
+            return current;
+        }
+
+        /// <summary>Writes a JSON element recursively, decoding display-only HTML entities in names and string values.</summary>
+        /// <param name="target">Writer receiving the indented display JSON.</param>
+        /// <param name="element">Element to copy.</param>
+        private void WriteDisplayJsonElement(Utf8JsonWriter target, JsonElement element)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    target.WriteStartObject();
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        target.WritePropertyName(DecodeDisplayEntities(property.Name));
+                        WriteDisplayJsonElement(target, property.Value);
+                    }
+                    target.WriteEndObject();
+                    break;
+                case JsonValueKind.Array:
+                    target.WriteStartArray();
+                    foreach (var item in element.EnumerateArray())
+                        WriteDisplayJsonElement(target, item);
+                    target.WriteEndArray();
+                    break;
+                case JsonValueKind.String:
+                    target.WriteStringValue(DecodeDisplayEntities(element.GetString() ?? string.Empty));
+                    break;
+                default:
+                    element.WriteTo(target);
+                    break;
             }
         }
 

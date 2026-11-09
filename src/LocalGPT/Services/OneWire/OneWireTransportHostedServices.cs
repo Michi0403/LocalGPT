@@ -21,6 +21,7 @@ namespace LocalGPT.Services.OneWire;
 /// <param name="dispatchContextFactory">One wire dispatch context factory dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
 /// <param name="listenAddressResolver">One wire listen address resolver dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
 /// <param name="taskRunner">Supervised task runner dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="traffic">Journals every packet received or sent on each TCP link.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireTcpHostedService(
     IOptions<OneWireOptions> options,
@@ -33,6 +34,7 @@ public sealed class OneWireTcpHostedService(
     IOneWireDispatchContextFactory dispatchContextFactory,
     IOneWireListenAddressResolver listenAddressResolver,
     ISupervisedTaskRunner taskRunner,
+    IOneWireTrafficJournal traffic,
     ILogger<OneWireTcpHostedService> logger) : BackgroundService
 {
     /// <summary>
@@ -81,7 +83,9 @@ public sealed class OneWireTcpHostedService(
         string peerId = string.Empty;
         var registrationId = Guid.Empty;
         var transportConnectionId = Guid.NewGuid();
-        var remoteAddress = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
+        var remoteEndPoint = client.Client.RemoteEndPoint as IPEndPoint;
+        var remoteAddress = remoteEndPoint?.Address;
+        var remoteEndpointText = remoteEndPoint?.ToString() ?? string.Empty;
         var isLoopback = transportSecurityPolicy.IsLoopback(remoteAddress);
         var writeGate = new SemaphoreSlim(1, 1);
         try
@@ -93,16 +97,38 @@ public sealed class OneWireTcpHostedService(
             {
                 async Task Sender(OneWireEnvelope message, CancellationToken token)
                 {
-                    await security.ProtectOutgoingAsync(message, token).ConfigureAwait(false);
-                    if (!isLoopback && transportSecurityPolicy.RequiresProtectedTransport(message.MessageType) &&
-                        !transportSecurityPolicy.IsProtected(message))
+                    // The plaintext is captured before protection encrypts it; the frame is journaled as written.
+                    var plaintext = traffic.CapturePlaintext(message);
+                    var frame = string.Empty;
+                    try
                     {
-                        throw new System.Security.Cryptography.CryptographicException(
-                            "A non-loopback 1-Wire connection requires MFA-verified message protection before application data can be sent.");
+                        await security.ProtectOutgoingAsync(message, token).ConfigureAwait(false);
+                        if (!isLoopback && transportSecurityPolicy.RequiresProtectedTransport(message.MessageType) &&
+                            !transportSecurityPolicy.IsProtected(message))
+                        {
+                            throw new System.Security.Cryptography.CryptographicException(
+                                "A non-loopback 1-Wire connection requires MFA-verified message protection before application data can be sent.");
+                        }
+                        frame = codec.Serialize(message);
+                        await writeGate.WaitAsync(token).ConfigureAwait(false);
+                        try { await writer.WriteLineAsync(frame.AsMemory(), token).ConfigureAwait(false); }
+                        finally { writeGate.Release(); }
                     }
-                    await writeGate.WaitAsync(token).ConfigureAwait(false);
-                    try { await writer.WriteLineAsync(codec.Serialize(message).AsMemory(), token).ConfigureAwait(false); }
-                    finally { writeGate.Release(); }
+                    catch (Exception sendException) when (sendException is not OperationCanceledException)
+                    {
+                        traffic.Record(new OneWireTrafficRecord
+                        {
+                            Direction = OneWireTrafficDirections.Sent, Transport = OneWireTrafficTransports.Tcp, PeerId = peerId,
+                            RemoteEndpoint = remoteEndpointText, RawFrame = frame, Envelope = message, PlaintextJson = plaintext,
+                            Error = sendException.Message
+                        });
+                        throw;
+                    }
+                    traffic.Record(new OneWireTrafficRecord
+                    {
+                        Direction = OneWireTrafficDirections.Sent, Transport = OneWireTrafficTransports.Tcp, PeerId = peerId,
+                        RemoteEndpoint = remoteEndpointText, RawFrame = frame, Envelope = message, PlaintextJson = plaintext
+                    });
                 }
 
                 while (!cancellationToken.IsCancellationRequested)
@@ -110,27 +136,46 @@ public sealed class OneWireTcpHostedService(
                     var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                     if (line is null)
                         break;
-                    if (Encoding.UTF8.GetByteCount(line) > Math.Clamp(options.Value.MaximumMessageBytes, 4096, OneWireProtocol.MaximumMessageBytes))
-                        throw new InvalidDataException("The 1-Wire message is too large.");
-                    var envelope = codec.DeserializeAndValidate(line);
-                    await security.UnprotectIncomingAsync(envelope, cancellationToken).ConfigureAwait(false);
-
-                    if (string.IsNullOrWhiteSpace(peerId))
+                    OneWireEnvelope? envelope = null;
+                    try
                     {
-                        if (envelope.MessageType != OneWireMessageType.Hello || string.IsNullOrWhiteSpace(envelope.SourcePeerId))
-                            throw new InvalidDataException("A TCP 1-Wire connection must establish its peer identity with Hello before sending other messages.");
-                        if (string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase))
-                            throw new InvalidDataException("An external 1-Wire connection cannot claim the LocalGPT internal peer identity.");
-                        peerId = envelope.SourcePeerId;
-                        registrationId = connections.RegisterOwned(peerId, Sender);
-                    }
-                    else if (!string.Equals(envelope.SourcePeerId, peerId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw new InvalidDataException("The 1-Wire SourcePeerId changed after the transport identity was established.");
-                    }
+                        if (Encoding.UTF8.GetByteCount(line) > Math.Clamp(options.Value.MaximumMessageBytes, 4096, OneWireProtocol.MaximumMessageBytes))
+                            throw new InvalidDataException("The 1-Wire message is too large.");
+                        envelope = codec.DeserializeAndValidate(line);
+                        await security.UnprotectIncomingAsync(envelope, cancellationToken).ConfigureAwait(false);
 
+                        if (string.IsNullOrWhiteSpace(peerId))
+                        {
+                            if (envelope.MessageType != OneWireMessageType.Hello || string.IsNullOrWhiteSpace(envelope.SourcePeerId))
+                                throw new InvalidDataException("A TCP 1-Wire connection must establish its peer identity with Hello before sending other messages.");
+                            if (string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase))
+                                throw new InvalidDataException("An external 1-Wire connection cannot claim the LocalGPT internal peer identity.");
+                            peerId = envelope.SourcePeerId;
+                            registrationId = connections.RegisterOwned(peerId, Sender);
+                        }
+                        else if (!string.Equals(envelope.SourcePeerId, peerId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidDataException("The 1-Wire SourcePeerId changed after the transport identity was established.");
+                        }
+                    }
+                    catch (Exception receiveException) when (receiveException is not OperationCanceledException)
+                    {
+                        traffic.Record(new OneWireTrafficRecord
+                        {
+                            Direction = OneWireTrafficDirections.Received, Transport = OneWireTrafficTransports.Tcp, PeerId = peerId,
+                            RemoteEndpoint = remoteEndpointText, RawFrame = line, Envelope = envelope, Error = receiveException.Message
+                        });
+                        throw;
+                    }
+                    traffic.Record(new OneWireTrafficRecord
+                    {
+                        Direction = OneWireTrafficDirections.Received, Transport = OneWireTrafficTransports.Tcp, PeerId = peerId,
+                        RemoteEndpoint = remoteEndpointText, RawFrame = line, Envelope = envelope
+                    });
+
+                    var accepted = envelope ?? throw new InvalidDataException("The 1-Wire frame produced no envelope.");
                     var context = dispatchContextFactory.CreateExternal(peerId, transportConnectionId, isLoopback, "tcp");
-                    var response = await dispatcher.DispatchAsync(envelope, context, cancellationToken).ConfigureAwait(false);
+                    var response = await dispatcher.DispatchAsync(accepted, context, cancellationToken).ConfigureAwait(false);
                     if (response is not null)
                         await Sender(response, cancellationToken).ConfigureAwait(false);
                 }
@@ -158,11 +203,13 @@ public sealed class OneWireTcpHostedService(
 /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
 /// <param name="security">One wire runtime security service dependency used by the one wire discovery workflow to provide the corresponding application capability.</param>
 /// <param name="codec">One wire envelope codec dependency used by the one wire discovery workflow to provide the corresponding application capability.</param>
+/// <param name="traffic">Journals every discovery beacon that is sent.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireDiscoveryHostedService(
     IOptions<OneWireOptions> options,
     IOneWireRuntimeSecurityService security,
     IOneWireEnvelopeCodec codec,
+    IOneWireTrafficJournal traffic,
     ILogger<OneWireDiscoveryHostedService> logger) : BackgroundService
 {
     /// <summary>
@@ -206,11 +253,26 @@ public sealed class OneWireDiscoveryHostedService(
                 var bytes = JsonSerializer.SerializeToUtf8Bytes(advertisement, codec.JsonOptions);
                 if (bytes.Length > OneWireProtocol.MaximumDiscoveryBytes)
                     throw new InvalidDataException($"The compact 1-Wire discovery advertisement is unexpectedly large ({bytes.Length} bytes).");
-                await udp.SendAsync(bytes, bytes.Length, new IPEndPoint(address, Program.OneWireDiscoveryPort)).ConfigureAwait(false);
+                var beacon = Encoding.UTF8.GetString(bytes);
+                var target = new IPEndPoint(address, Program.OneWireDiscoveryPort);
+                await udp.SendAsync(bytes, bytes.Length, target).ConfigureAwait(false);
+                traffic.Record(new OneWireTrafficRecord
+                {
+                    Direction = OneWireTrafficDirections.Sent, Transport = OneWireTrafficTransports.UdpDiscovery,
+                    PeerId = "broadcast", RemoteEndpoint = target.ToString(), RawFrame = beacon, PlaintextJson = beacon,
+                    MessageType = "DiscoveryBeacon"
+                });
                 if (options.Value.EnableLanTransport && !IPAddress.IsLoopback(address))
                 {
                     // Preserve same-machine discovery even when LAN transport is explicitly enabled.
-                    await udp.SendAsync(bytes, bytes.Length, new IPEndPoint(IPAddress.Loopback, Program.OneWireDiscoveryPort)).ConfigureAwait(false);
+                    var loopbackTarget = new IPEndPoint(IPAddress.Loopback, Program.OneWireDiscoveryPort);
+                    await udp.SendAsync(bytes, bytes.Length, loopbackTarget).ConfigureAwait(false);
+                    traffic.Record(new OneWireTrafficRecord
+                    {
+                        Direction = OneWireTrafficDirections.Sent, Transport = OneWireTrafficTransports.UdpDiscovery,
+                        PeerId = "broadcast", RemoteEndpoint = loopbackTarget.ToString(), RawFrame = beacon, PlaintextJson = beacon,
+                        MessageType = "DiscoveryBeacon"
+                    });
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }

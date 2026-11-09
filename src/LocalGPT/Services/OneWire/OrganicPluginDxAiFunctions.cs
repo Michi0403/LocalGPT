@@ -748,8 +748,8 @@ public sealed class RequestPublisherScreenRecordFunction(
             {
                 reason = organicSupport.GetString(parameters, "reason", "Temporal visual evidence requested by the AI Council."),
                 maximumSeconds = parameters.TryGetProperty("maximumSeconds", out var seconds) && seconds.TryGetInt32(out var value)
-                    ? Math.Clamp(value, runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MinimumOrganicCallSeconds, runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MaximumOrganicCallSeconds)
-                    : runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).DefaultOrganicCallSeconds,
+                    ? Math.Clamp(value, runtimePolicy.GetJson<OneWireRuntimeParameters>("OneWireRuntimeParametersJson").MinimumOrganicCallSeconds, runtimePolicy.GetJson<OneWireRuntimeParameters>("OneWireRuntimeParametersJson").MaximumOrganicCallSeconds)
+                    : runtimePolicy.GetJson<OneWireRuntimeParameters>("OneWireRuntimeParametersJson").DefaultOrganicCallSeconds,
                 includeAudio = parameters.TryGetProperty("includeAudio", out var audio) && audio.ValueKind is JsonValueKind.True or JsonValueKind.False && audio.GetBoolean()
             }), cancellationToken);
     }
@@ -819,8 +819,8 @@ public sealed class RequestPublisherWebsiteContentFunction(
                     format = organicSupport.GetString(parameters, "format", "html"),
                     sourceUrl = organicSupport.GetString(parameters, "sourceUrl"),
                     maximumCharacters = parameters.TryGetProperty("maximumCharacters", out var maximum) && maximum.TryGetInt32(out var value)
-                        ? Math.Clamp(value, runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MinimumOrganicResultCharacters, runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MaximumOrganicResultCharacters)
-                        : runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).DefaultOrganicResultCharacters
+                        ? Math.Clamp(value, runtimePolicy.GetJson<OneWireRuntimeParameters>("OneWireRuntimeParametersJson").MinimumOrganicResultCharacters, runtimePolicy.GetJson<OneWireRuntimeParameters>("OneWireRuntimeParametersJson").MaximumOrganicResultCharacters)
+                        : runtimePolicy.GetJson<OneWireRuntimeParameters>("OneWireRuntimeParametersJson").DefaultOrganicResultCharacters
                 });
             }, cancellationToken);
     }

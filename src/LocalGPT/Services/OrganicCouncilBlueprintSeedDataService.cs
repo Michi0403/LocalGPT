@@ -406,7 +406,8 @@ Output only 2 to 4 fenced text blocks, one complete frame per block, in display 
                     Phase = "Tournament engine lineup",
                     Role = "Arena Judge",
                     PromptTemplate = "Initialize the deterministic tournament bracket from the configured role pairings and creature introductions.",
-                    ExecutionMode = "SystemKernelTournamentResolution",
+                    ExecutionMode = "SystemGameEngineResolution",
+                    GameEngineInitializes = true,
                     RepeatCount = 1,
                     IncludePriorTranscript = true,
                     ProducesFinalAnswer = false,
@@ -443,6 +444,11 @@ HUD: <one new compact printable-ASCII arena HUD motif for this exchange, 6-32 ch
                     UseBuiltInBehavior = false,
                     LoopGroup = "kernel-creature-battle",
                     MaximumLoopIterations = 24,
+                    ContextStepKeys = ["trainer-creature-selection", "creature-introduction", "arena-lineup-engine", "trainer-round-command", "fight-round", "arena-round-engine"],
+                    ContextIdentityStepKeys = ["trainer-creature-selection", "creature-introduction"],
+                    ContextIdentityStepLimit = 8,
+                    ContextRecentStepLimit = 8,
+                    LimitToActiveGameEntrants = true,
                     IsEnabled = true,
                     RequiresHumanCheckpoint = false,
                     CanUseOrganicFunctions = false,
@@ -474,6 +480,11 @@ EFFECT: <one new compact printable-ASCII motion/effect motif matching the move, 
                     UseBuiltInBehavior = false,
                     LoopGroup = "kernel-creature-battle",
                     MaximumLoopIterations = 24,
+                    ContextStepKeys = ["trainer-creature-selection", "creature-introduction", "arena-lineup-engine", "trainer-round-command", "fight-round", "arena-round-engine"],
+                    ContextIdentityStepKeys = ["trainer-creature-selection", "creature-introduction"],
+                    ContextIdentityStepLimit = 8,
+                    ContextRecentStepLimit = 8,
+                    LimitToActiveGameEntrants = true,
                     IsEnabled = true,
                     RequiresHumanCheckpoint = false,
                     CanUseOrganicFunctions = false,
@@ -488,7 +499,7 @@ EFFECT: <one new compact printable-ASCII motion/effect motif matching the move, 
                     Phase = "Tournament engine result",
                     Role = "Arena Judge",
                     PromptTemplate = "Resolve exactly one deterministic exchange from the bounded trainer/creature evidence and publish the authoritative scoreboard.",
-                    ExecutionMode = "SystemKernelTournamentResolution",
+                    ExecutionMode = "SystemGameEngineResolution",
                     RepeatCount = 1,
                     IncludePriorTranscript = true,
                     ProducesFinalAnswer = true,
@@ -579,7 +590,7 @@ EFFECT: <one new compact printable-ASCII motion/effect motif matching the move, 
                     PromptTemplate = """
 {{RolePerformanceInstruction}}
 {{RoleBoundaryInstruction}}
-Recover the directly playable ASCII corridor session that LocalGPT prebootstraps for this Council run. Call localgpt.game.session.get first with no sessionId. Only if it reports that no active game exists, call localgpt.game.session.start once with gameKey ascii-doom, teamKey ascii-doom-council-adventure and controlMode Shared. The deterministic game service resolves the campaign runtime class assigned to the selected team; the maintained starter is games.ascii.doom.campaign, while copied teams may assign a copied campaign class without changing engine code. Do not invent or reinterpret difficulty: map size, room count, hostile density, hostile health/damage, starting resources, level order and automatic progression come from that runtime class and are clamped by the deterministic service. Shared mode accepts explicit human and AI controls on the same authoritative game but never runs a background autoplay loop. Never guess, synthesize or ask the user for a session GUID: localgpt.game.session.get and localgpt.game.display.get resolve the active game for this conversation when sessionId is omitted. Do not use public-service aliases, runtime-class discovery loops or human-collaboration requests for game identity. Do not invent session IDs. Report that the shared game is ready and summarize the returned level, difficulty, enemy count and objective; later player/controller roles may use localgpt.game.control directly when their workflow calls for an action.
+Recover the directly playable ASCII corridor session that LocalGPT prebootstraps for this Council run. Call localgpt.game.session.get first with no sessionId. Only if it reports that no active game exists, call localgpt.game.session.start once with gameKey ascii-doom, teamKey ascii-doom-council-adventure and controlMode Shared. The game engine runs the ascii-doom game project; its level and rule rows (editable in Projects, copyable into new game projects without changing engine code) define the campaign. Do not invent or reinterpret difficulty: map size, room count, hostile density, hostile health/damage, starting resources, level order and automatic progression come from those rows and are applied by the deterministic engine. Shared mode accepts explicit human and AI controls on the same authoritative game but never runs a background autoplay loop. Never guess, synthesize or ask the user for a session GUID: localgpt.game.session.get and localgpt.game.display.get resolve the active game for this conversation when sessionId is omitted. Do not use public-service aliases, runtime-class discovery loops or human-collaboration requests for game identity. Do not invent session IDs. Report that the shared game is ready and summarize the returned level, difficulty, enemy count and objective; later player/controller roles may use localgpt.game.control directly when their workflow calls for an action.
 Runtime classes: {{RuntimeClasses}}
 """,
                     IncludePriorTranscript = false,
@@ -640,9 +651,9 @@ Runtime classes: {{RuntimeClasses}}
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
-                "The deterministic CouncilGameSessionService is authoritative for map geometry, hostile positions, health, combat, extraction, collision handling and AI-hunter pathfinding; Council models do not independently simulate those systems.",
+                "The generic LocalGPT game engine, interpreting the game project's declarative rule rows, is authoritative for map geometry, hostile positions, health, combat, extraction, collision handling and AI-hunter pathfinding; Council models do not independently simulate those systems.",
                 "A new ASCII DOOM session starts in Shared mode with background autoplay disabled. Human and AI participants may submit explicit bounded controls to the same authoritative turn; Human locks out AI controls and Ai alone enables autonomous stepping.",
-                "The supplied ten-level easy-to-hard progression is starter configuration in the database-backed games.ascii.doom.campaign runtime class. Copied teams may assign a copied campaign class to change level count, map dimensions, hostile density and difficulty parameters without changing the engine.",
+                "The supplied ten-level easy-to-hard progression is the level and rule content of the database-backed ascii-doom game project. Copying that game project changes level count, map dimensions, hostile density and difficulty parameters without changing the engine.",
                 "One Council request performs one bootstrap/read/presentation pass. It does not run a 24-round autonomous gameplay loop or consume model turns for individual key presses.",
                 "The renderer presents the real service-owned frame and may add bounded display-only decoration, but it never replaces canonical geometry or gameplay state.",
                 "The game is an original LocalGPT ASCII corridor study; it does not execute or redistribute the original DOOM engine, WAD data or commercial assets."

@@ -33,7 +33,7 @@ namespace LocalGPT.Services
         /// Gets the parameters value that forms part of the chat upload workspace state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The parameters value exposed by <see cref="ChatUploadWorkspaceService"/>.</value>
-        private ChatUploadWorkspaceRuntimeParameters Parameters => catalog.GetRuntimeParameters<ChatUploadWorkspaceRuntimeParameters>(LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson);
+        private ChatUploadWorkspaceRuntimeParameters Parameters => catalog.GetRuntimeParameters<ChatUploadWorkspaceRuntimeParameters>("ChatUploadWorkspaceRuntimeParametersJson");
 
         /// <summary>
         /// Creates workspace as part of the chat upload workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.

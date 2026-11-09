@@ -25,47 +25,47 @@ public sealed class ChatContentRenderer(
     /// <summary>
     /// Stores the internal harmony marker regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex HarmonyMarkerRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyMarker);
+    private readonly Regex HarmonyMarkerRegex = runtimePolicy.GetPattern("runtime.chat.harmony-marker");
     /// <summary>
     /// Stores the internal thinking details start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex ThinkingDetailsStartRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.RenderThinkingDetailsStart);
+    private readonly Regex ThinkingDetailsStartRegex = runtimePolicy.GetPattern("runtime.render.thinking-details-start");
     /// <summary>
     /// Stores the internal council completion marker regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex CouncilCompletionMarkerRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilCompletionMarker);
+    private readonly Regex CouncilCompletionMarkerRegex = runtimePolicy.GetPattern("runtime.render.council-completion-marker");
     /// <summary>
     /// Stores the internal list after HTML regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex ListAfterHtmlRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ListAfterHtml);
+    private readonly Regex ListAfterHtmlRegex = runtimePolicy.GetPattern("runtime.render.list-after-html");
     /// <summary>
     /// Stores the internal controlled details start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex ControlledDetailsStartRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ControlledDetailsStart);
+    private readonly Regex ControlledDetailsStartRegex = runtimePolicy.GetPattern("runtime.render.controlled-details-start");
     /// <summary>
     /// Stores the internal details end regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex DetailsEndRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.DetailsEnd);
+    private readonly Regex DetailsEndRegex = runtimePolicy.GetPattern("runtime.render.details-end");
     /// <summary>
     /// Stores the internal stable panel start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex StablePanelStartRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.StablePanelStart);
+    private readonly Regex StablePanelStartRegex = runtimePolicy.GetPattern("runtime.render.stable-panel-start");
     /// <summary>
     /// Stores the internal stream identifier attribute regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex StreamIdAttributeRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.StreamIdAttribute);
+    private readonly Regex StreamIdAttributeRegex = runtimePolicy.GetPattern("runtime.render.stream-id-attribute");
     /// <summary>
     /// Stores the internal pre start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex PreStartRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.PreStart);
+    private readonly Regex PreStartRegex = runtimePolicy.GetPattern("runtime.render.pre-start");
     /// <summary>
     /// Stores the internal pre end regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex PreEndRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.PreEnd);
+    private readonly Regex PreEndRegex = runtimePolicy.GetPattern("runtime.render.pre-end");
     /// <summary>
     /// Stores the internal ascii frame regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex AsciiFrameRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatAsciiFrame);
+    private readonly Regex AsciiFrameRegex = runtimePolicy.GetPattern("runtime.chat.ascii-frame");
     /// <summary>
     /// Recognizes authoritative Council stream boundaries, not model-generated function-call panels.
     /// Each completed stream is an independent Markdown document: an unfinished provider fence must
@@ -168,11 +168,11 @@ public sealed class ChatContentRenderer(
     /// <summary>
     /// Repairs a small set of known prose label/number boundaries emitted without whitespace by some local models.
     /// </summary>
-    private readonly Regex ProseLabelBoundaryRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatProseLabelBoundary);
+    private readonly Regex ProseLabelBoundaryRegex = runtimePolicy.GetPattern("runtime.chat.prose-label-boundary");
     /// <summary>
     /// Repairs a missing boundary between a numeric value and common prose units without touching identifiers.
     /// </summary>
-    private readonly Regex ProseUnitBoundaryRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatProseUnitBoundary);
+    private readonly Regex ProseUnitBoundaryRegex = runtimePolicy.GetPattern("runtime.chat.prose-unit-boundary");
 
     /// <summary>
     /// Stores the internal markdown pipeline state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
@@ -392,7 +392,7 @@ public sealed class ChatContentRenderer(
     {
     try
     {
-            if (text.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumInputCharacters)))
+            if (text.Length > Math.Max(1, runtimePolicy.GetInt("StructuredTextMaximumInputCharacters")))
                 return false;
 
             return !text.Contains(

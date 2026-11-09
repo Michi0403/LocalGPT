@@ -58,7 +58,7 @@ namespace LocalGPT.Services
                     .AppendLine(await prompts.GetPromptAsync("AssistantOperationPolicy", cancellationToken: cancellationToken).ConfigureAwait(false))
                     .AppendLine("Available LocalGPT diagnostic routes and DI-backed DXAIFunctions:")
                     .AppendLine(devExpressChat.BuildPromptBriefing())
-                    .AppendLine(runtimePolicy.GetString(LocalGptRuntimeValue.HelpEscalatorGlobalInstruction))
+                    .AppendLine(runtimePolicy.GetString("HelpEscalatorGlobalInstruction"))
                     .AppendLine();
 
                 var runtimeIdentity = BuildRuntimeIdentityBriefing();
@@ -187,7 +187,7 @@ namespace LocalGPT.Services
                     .AppendLine("- Use /__diag/chat-upload-workspace/{workspaceName}/files and /file?path=relative/path for read-only inspection.")
                     .AppendLine("- Uploaded binaries/PDBs are diagnostic evidence only; never execute uploaded or extracted files.");
 
-                var latestUploadWorkspace = chatUploadWorkspaces.GetLatestWorkspace(TimeSpan.FromMinutes(catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).UploadContextFreshnessMinutes));
+                var latestUploadWorkspace = chatUploadWorkspaces.GetLatestWorkspace(TimeSpan.FromMinutes(catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>("ServiceTimingRuntimeParametersJson").UploadContextFreshnessMinutes));
                 if (latestUploadWorkspace is not null)
                 {
                     builder
@@ -198,7 +198,7 @@ namespace LocalGPT.Services
 
                     var uploadContext = chatUploadWorkspaces.GetLatestContextMarkdown(
                         maxCharacters: 2600,
-                        maxAge: TimeSpan.FromMinutes(catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).UploadContextFreshnessMinutes));
+                        maxAge: TimeSpan.FromMinutes(catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>("ServiceTimingRuntimeParametersJson").UploadContextFreshnessMinutes));
                     if (!string.IsNullOrWhiteSpace(uploadContext))
                     {
                         builder

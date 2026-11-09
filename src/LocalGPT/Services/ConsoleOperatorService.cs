@@ -94,7 +94,7 @@ public sealed class ConsoleOperatorService(IConsoleCommandService console, ILoca
             switch (command)
             {
                 case "help":
-                    return Result(request, true, ":chat <prompt> · :council <prompt|status|stop|skip> · :session <list|new|open selector> · :game <corridor|dragon|project selector|status|end> · :mode <chat|game|operator> · :fullscreen [fit|width|native] · :shells · :shell <auto|zsh|bash|sh|pwsh|cmd> · :jobs · :cancel [job|all] · :signal <job> <INT|TERM|KILL|HUP> · :cd <path> · :clear");
+                    return Result(request, true, ":chat <prompt> · :council <prompt|status|stop|skip> · :session <list|new|open selector> · :game <game key or alias|project selector|status|end> · :mode <chat|game|operator> · :fullscreen [fit|width|native] · :shells · :shell <auto|zsh|bash|sh|pwsh|cmd> · :jobs · :cancel [job|all] · :signal <job> <INT|TERM|KILL|HUP> · :cd <path> · :clear");
                 case "chat":
                     return ParseChatAction(request, commandLine);
                 case "council":
@@ -375,7 +375,7 @@ public sealed class ConsoleOperatorService(IConsoleCommandService console, ILoca
         {
             ArgumentNullException.ThrowIfNull(conversations);
             var lines = conversations
-                .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).ConsoleOperatorMaximum))
+                .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").ConsoleOperatorMaximum))
                 .Select(item => $"{item.Id.ToString("N")[..8]}  {item.Title}  [{item.ProviderName}]  {item.MessageCount} message(s)")
                 .ToArray();
             return lines.Length == 0
@@ -517,13 +517,13 @@ public sealed class ConsoleOperatorService(IConsoleCommandService console, ILoca
                     : ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameStartProject, selector, "Project game start requested.");
             }
 
+            // Any other argument is a game key or game alias of the game catalog (system games and user games alike).
             return argument.ToLowerInvariant() switch
             {
-                "corridor" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameStartCorridor, string.Empty, "ASCII corridor start requested."),
-                "dragon" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameStartDragon, string.Empty, "Green Dragon start requested."),
                 "status" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameStatus, string.Empty, "Game status requested."),
                 "end" => ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameEnd, string.Empty, "Game end requested."),
-                _ => Result(request, false, "Usage: :game <corridor|dragon|project selector|status|end>.")
+                "" => Result(request, false, "Usage: :game <game key or alias|project selector|status|end>."),
+                _ => ApplicationResult(request, LocalConsoleOperatorApplicationAction.GameStartCatalog, argument.Trim(), "Game start requested.")
             };
         }
         catch (Exception exception)

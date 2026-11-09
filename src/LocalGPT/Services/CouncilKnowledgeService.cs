@@ -80,7 +80,7 @@ namespace LocalGPT.Services
                     .ThenByDescending(entry => entry.IsUserApproved)
                     .ThenBy(entry => entry.ReviewStatus)
                     .ThenByDescending(entry => entry.UpdatedAtUtc)
-                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).KnowledgeMaximum))
+                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").KnowledgeMaximum))
                     .ToListAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)

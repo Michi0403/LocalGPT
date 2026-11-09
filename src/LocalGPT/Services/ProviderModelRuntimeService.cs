@@ -51,7 +51,7 @@ public sealed class ProviderModelRuntimeService(
     /// Gets the runtime parameters value that forms part of the provider model runtime state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The runtime parameters value exposed by <see cref="ProviderModelRuntimeService"/>.</value>
-    private ProviderModelRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
+    private ProviderModelRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
 
     /// <summary>
     /// Retrieves candidates as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -275,7 +275,7 @@ public sealed class ProviderModelRuntimeService(
             }
 
             var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
-            var fallbackEndpoint = NormalizeOllamaEndpoint(options.OllamaCore?.Uri ?? runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint));
+            var fallbackEndpoint = NormalizeOllamaEndpoint(options.OllamaCore?.Uri ?? runtimePolicy.GetString("DefaultOllamaEndpoint"));
             var fallback = new ProviderModelReference
             {
                 ProviderKind = ProviderModelKinds.Ollama,
@@ -810,7 +810,7 @@ public sealed class ProviderModelRuntimeService(
 
             // A local Ollama has always been a LocalGPT discovery convention. It stays a probe
             // candidate even when a remote host is the configured primary provider.
-            Add(runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint));
+            Add(runtimePolicy.GetString("DefaultOllamaEndpoint"));
             return endpoints;
         }
         catch (Exception exception)

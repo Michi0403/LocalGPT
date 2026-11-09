@@ -28,7 +28,7 @@ public sealed class RemoteControlPipelineService(
     /// <summary>
     /// Stores the internal key pattern state used by <see cref="RemoteControlPipelineService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly System.Text.RegularExpressions.Regex _keyPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.RemoteControlKey);
+    private readonly System.Text.RegularExpressions.Regex _keyPattern = runtimePolicy.GetPattern("runtime.remote-control.key");
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="RemoteControlPipelineService"/> while executing its surrounding workflow.
     /// </summary>

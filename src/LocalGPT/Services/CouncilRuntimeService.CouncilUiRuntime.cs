@@ -379,12 +379,12 @@ namespace LocalGPT.Services
                     "scheiße"
                 };
 
-                var markerPatternTemplate = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilMarkerBoundaryPatternTemplate);
+                var markerPatternTemplate = runtimePolicy.GetString("CouncilMarkerBoundaryPatternTemplate");
                 return wordMarkers.Any(marker => regexCompilation.Compile(
                     markerPatternTemplate.Replace("{{Marker}}", System.Text.RegularExpressions.Regex.Escape(marker), StringComparison.Ordinal),
                     "i,c",
                     runtimePolicy.RegexTimeout,
-                    nameof(LocalGptRuntimeValue.CouncilMarkerBoundaryPatternTemplate)).IsMatch(currentUserText));
+                    "CouncilMarkerBoundaryPatternTemplate").IsMatch(currentUserText));
             }
             catch (Exception ex)
             {

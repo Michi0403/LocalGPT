@@ -260,7 +260,9 @@ public sealed class ProjectIngestionService(
 
                 using var scope = scopeFactory.CreateScope();
                 var sync = scope.ServiceProvider.GetRequiredService<ILearningProjectWorkspaceSyncService>();
-                var synchronizedProjects = await sync.SynchronizeAsync(workspaceName, cancellationToken).ConfigureAwait(false);
+                // PromoteAsync runs only after the user confirmed this import, so the synchronized source is approved
+                // for cloning into code-generation working copies.
+                var synchronizedProjects = await sync.SynchronizeAsync(workspaceName, cancellationToken, sourceApprovedByUser: true).ConfigureAwait(false);
                 var repositoryLearning = scope.ServiceProvider.GetRequiredService<IProjectRepositoryLearningService>();
                 _ = await repositoryLearning.StageCandidatesAsync(synchronizedProjects, cancellationToken).ConfigureAwait(false);
                 return record;

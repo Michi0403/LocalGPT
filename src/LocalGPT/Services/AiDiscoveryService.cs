@@ -85,7 +85,7 @@ namespace LocalGPT.Services
                 return new HttpClient
                 {
                     BaseAddress = new Uri(endpoint.TrimEnd('/')),
-                    Timeout = TimeSpan.FromSeconds(_catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).AiDiscoveryTimeoutSeconds)
+                    Timeout = TimeSpan.FromSeconds(_catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>("ServiceTimingRuntimeParametersJson").AiDiscoveryTimeoutSeconds)
                 };
             }
             catch (Exception ex)

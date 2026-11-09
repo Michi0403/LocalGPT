@@ -147,6 +147,27 @@ if ($bindingContextMatch.Success -or $bindingSnapshotMatch.Success -or $roleSnap
     }
 }
 
+# SQLite cannot execute these EF operations: the SQLite migrations SQL generator throws NotSupportedException
+# (for example 'SQLite does not support this migration operation (DropColumnOperation)') and startup stops.
+# Down methods keep them by repository convention; an Up must never contain them. Replace the column in Up and let
+# DatabaseMigrationCompatibilityService drop the obsolete column after migration with state-checked SQL.
+$migrationsRoot = Join-Path $root 'src/LocalGPT/Migrations'
+$sqliteUnsupportedOperations = 'DropColumn|AlterColumn|DropForeignKey|AddForeignKey|DropPrimaryKey|AddPrimaryKey|AddUniqueConstraint|DropUniqueConstraint|AddCheckConstraint|DropCheckConstraint'
+$migrationFiles = @(Get-ChildItem -LiteralPath $migrationsRoot -File -Filter '*.cs' |
+    Where-Object { $_.Name -notlike '*.Designer.cs' -and $_.Name -ne 'LocalGptMemoryDbContextModelSnapshot.cs' })
+foreach ($migrationFile in $migrationFiles) {
+    $migrationText = [System.IO.File]::ReadAllText($migrationFile.FullName, [System.Text.Encoding]::UTF8)
+    $upMatch = [regex]::Match($migrationText, '\bvoid\s+Up\s*\(')
+    if (-not $upMatch.Success) { continue }
+    $upBody = Get-BracedBlock $migrationText $upMatch.Index
+    if ($null -eq $upBody) { continue }
+    foreach ($operation in [regex]::Matches($upBody, '\bmigrationBuilder\s*\.\s*(?<op>' + $sqliteUnsupportedOperations + ')\b')) {
+        $failures.Add('src/LocalGPT/Migrations/' + $migrationFile.Name + ': Up uses migrationBuilder.' + $operation.Groups['op'].Value +
+            ', which SQLite migrations cannot execute. Keep the old column in Up and add a SqliteColumnRetirement in ' +
+            'DatabaseMigrationCompatibilityService.ColumnRetirement.cs so it is dropped after migration with state-checked SQL.')
+    }
+}
+
 if ($failures.Count -gt 0) {
     Write-Host 'EF model/snapshot consistency validation failed:'
     foreach ($failure in $failures | Sort-Object -Unique) { Write-Host "  - $failure" }

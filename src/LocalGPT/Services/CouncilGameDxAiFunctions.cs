@@ -229,7 +229,7 @@ public sealed class CouncilGameDxParameterReader(
             if (parameters.ValueKind != JsonValueKind.Object || !parameters.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array)
                 return [];
             var result = new List<IReadOnlyList<CouncilAsciiStyleRun>>();
-            foreach (var frame in value.EnumerateArray().Take(runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumDisplayFrames))
+            foreach (var frame in value.EnumerateArray().Take(runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MaximumDisplayFrames))
             {
                 result.Add(frame.ValueKind == JsonValueKind.Array
                     ? JsonSerializer.Deserialize<List<CouncilAsciiStyleRun>>(frame.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? []
@@ -354,7 +354,7 @@ public sealed class StartCouncilGameFunction(
     /// Gets the runtime parameters value that forms part of the start council game function state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The runtime parameters value exposed by <see cref="StartCouncilGameFunction"/>.</value>
-    private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
+    private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson");
     /// <summary>
     /// Gets the descriptor value that forms part of the start council game function state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -362,13 +362,13 @@ public sealed class StartCouncilGameFunction(
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.session.start", "POST", "/api/dxai/functions/localgpt.game.session.start/invoke",
         "Starts a directly playable /Chat ASCII game session. Human and AI players receive the same control contract.",
-        "JSON parameters: gameKey ascii-doom or green-dragon; teamKey and conversationId optional; controlMode Human, Ai or Shared defaults Shared; Ai is the only autonomous autoplay mode; ASCII DOOM automatically uses the copyable campaign runtime class assigned to the selected team, with campaignRuntimeClassKey available as an explicit override plus optional startingLevel/autoAdvanceLevels overrides; mapSeed can replay a deterministic campaign and scenarioPrompt can describe a bounded scenario; directorMode, model/director count, delay and terminal-cell dimensions optional.",
-        "Starts only an original LocalGPT runtime-class game session. It does not execute the original DOOM engine or include commercial assets.",
+        "JSON parameters: gameKey is the key or alias of a game project from the game catalog (system games and user-built games); teamKey and conversationId optional; controlMode Human, Ai or Shared defaults Shared; Ai is the only autonomous autoplay mode; games with levels accept optional startingLevel/autoAdvanceLevels overrides; mapSeed can replay a deterministic map and scenarioPrompt can describe a bounded scenario; directorMode, model/director count, delay and terminal-cell dimensions optional.",
+        "Starts only a LocalGPT game-engine session whose rules are database content of a game project. It does not execute third-party game engines or include commercial assets.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         IsCoordinationOnly: true,
         ParameterSchemaJson: """
-        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000},"frameWidth":{"type":"integer","minimum":20,"maximum":240},"frameHeight":{"type":"integer","minimum":8,"maximum":100},"mapSeed":{"type":"integer","minimum":1},"scenarioPrompt":{"type":"string","maxLength":240},"campaignRuntimeClassKey":{"type":"string","maxLength":240},"startingLevel":{"type":"integer","minimum":1,"maximum":32},"autoAdvanceLevels":{"type":"boolean"},"asciiColorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"defaultForegroundColor":{"type":"integer","minimum":0,"maximum":255},"defaultBackgroundColor":{"type":"integer","minimum":0,"maximum":255}},"additionalProperties":false}
+        {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","minLength":1,"maxLength":160},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000},"frameWidth":{"type":"integer","minimum":20,"maximum":240},"frameHeight":{"type":"integer","minimum":8,"maximum":100},"mapSeed":{"type":"integer","minimum":1},"scenarioPrompt":{"type":"string","maxLength":240},"startingLevel":{"type":"integer","minimum":1,"maximum":32},"autoAdvanceLevels":{"type":"boolean"},"asciiColorMode":{"type":"string","enum":["TerminalDefault","Ansi16","Indexed256"]},"defaultForegroundColor":{"type":"integer","minimum":0,"maximum":255},"defaultBackgroundColor":{"type":"integer","minimum":0,"maximum":255}},"additionalProperties":false}
         """);
 
     /// <summary>
@@ -389,7 +389,7 @@ public sealed class StartCouncilGameFunction(
                 : CouncilGameDirectorMode.Deterministic;
             var result = await games.StartAsync(new StartCouncilGameRequest
             {
-                GameKey = parameters.String(request.Parameters, "gameKey", "ascii-doom"),
+                GameKey = parameters.String(request.Parameters, "gameKey"),
                 TeamKey = parameters.String(request.Parameters, "teamKey"),
                 ConversationId = parameters.Guid(request.Parameters, "conversationId") is var id && id != Guid.Empty ? id : request.ConversationId,
                 CouncilRunId = ambientContext.Current.CouncilRunId,
@@ -403,7 +403,6 @@ public sealed class StartCouncilGameFunction(
                 FrameHeight = Math.Clamp(parameters.Integer(request.Parameters, "frameHeight", RuntimeParameters.DefaultFrameHeight), RuntimeParameters.MinimumFrameHeight, RuntimeParameters.MaximumFrameHeight),
                 MapSeed = parameters.NullableInt(request.Parameters, "mapSeed"),
                 ScenarioPrompt = parameters.String(request.Parameters, "scenarioPrompt"),
-                CampaignRuntimeClassKey = parameters.String(request.Parameters, "campaignRuntimeClassKey"),
                 StartingLevel = parameters.NullableInt(request.Parameters, "startingLevel"),
                 AsciiColorMode = parameters.ColorMode(request.Parameters, "asciiColorMode") ?? CouncilAsciiColorMode.TerminalDefault,
                 DefaultForegroundColor = parameters.NullableInt(request.Parameters, "defaultForegroundColor") ?? RuntimeParameters.DefaultForegroundColor,
@@ -533,7 +532,7 @@ public sealed class PreviewCouncilGameControlFunction(
                 Source = "AI",
                 ActorName = parameters.String(request.Parameters, "actorName", "AI Player Controller"),
                 ActorKind = actorKind,
-                RuntimeClassKey = parameters.String(request.Parameters, "runtimeClassKey", "games.ascii.doom.player")
+                RuntimeClassKey = parameters.String(request.Parameters, "runtimeClassKey")
             }, cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
         }
@@ -606,7 +605,7 @@ public sealed class ControlCouncilGameFunction(
                 Source = "AI",
                 ActorName = parameters.String(request.Parameters, "actorName", "AI Player Controller"),
                 ActorKind = actorKind,
-                RuntimeClassKey = parameters.String(request.Parameters, "runtimeClassKey", "games.ascii.doom.player")
+                RuntimeClassKey = parameters.String(request.Parameters, "runtimeClassKey")
             }, cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
         }
@@ -747,7 +746,7 @@ public sealed class SetCouncilGameControlModeFunction(
     /// Gets the runtime parameters value that forms part of the set council game control mode function state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The runtime parameters value exposed by <see cref="SetCouncilGameControlModeFunction"/>.</value>
-    private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
+    private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson");
     /// <summary>
     /// Gets the descriptor value that forms part of the set council game control mode function state consumed or produced by the surrounding workflow.
     /// </summary>

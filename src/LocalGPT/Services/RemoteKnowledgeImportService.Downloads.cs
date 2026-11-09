@@ -192,7 +192,7 @@ namespace LocalGPT.Services
                 throw new InvalidDataException($"Remote content is larger than the database-backed MaxTotalFileBytes policy ({maximumDownloadBytes:n0} bytes).");
             var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredSourceAsyncDisposal = source.ConfigureAwait(false);
-            var bufferBytes = catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>(LocalGptRuntimeValue.RemoteKnowledgeRuntimeParametersJson).DownloadBufferBytes;
+            var bufferBytes = catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>("RemoteKnowledgeRuntimeParametersJson").DownloadBufferBytes;
             var destination = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, bufferBytes, useAsync: true);
             await using var configuredDestinationAsyncDisposal = destination.ConfigureAwait(false);
             var buffer = new byte[bufferBytes];

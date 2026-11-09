@@ -125,7 +125,7 @@ namespace LocalGPT.Services
                 await sqliteUtility.EnsureValidTableAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
 
                 if (skip < 0) throw new ArgumentOutOfRangeException(nameof(skip));
-                var safeTake = Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.SqliteTableEditorMaximumRows)));
+                var safeTake = Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt("SqliteTableEditorMaximumRows")));
                 var columns = await sqliteUtility.GetColumnsAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
                 var rows = new List<SqliteRowSnapshot>();
 
@@ -220,7 +220,7 @@ namespace LocalGPT.Services
                     throw new ArgumentException("The selected foreign-key column does not belong to the table.", nameof(columnName));
 
                 if (skip < 0) throw new ArgumentOutOfRangeException(nameof(skip));
-                var safeTake = Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.SqliteTableEditorMaximumRows)));
+                var safeTake = Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt("SqliteTableEditorMaximumRows")));
                 var command = connection.CreateCommand();
                 await using (command.ConfigureAwait(false))
                 {

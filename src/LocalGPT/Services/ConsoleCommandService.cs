@@ -253,7 +253,7 @@ public sealed class ConsoleCommandService(
         try
         {
             var resolved = ResolveStartInfo(request);
-            var maximumTimeoutSeconds = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumTimeoutSeconds));
+            var maximumTimeoutSeconds = Math.Max(1, runtimePolicy.GetInt("ConsoleMaximumTimeoutSeconds"));
             var timeoutSeconds = request.TimeoutSeconds <= 0 ? maximumTimeoutSeconds : Math.Min(request.TimeoutSeconds, maximumTimeoutSeconds);
             var stdout = new StringBuilder();
             var stderr = new StringBuilder();
@@ -411,7 +411,7 @@ public sealed class ConsoleCommandService(
     {
         try
         {
-            return recentOutput.ToArray().TakeLast(Math.Clamp(maxItems, 1, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumRecentEvents)))).ToArray();
+            return recentOutput.ToArray().TakeLast(Math.Clamp(maxItems, 1, Math.Max(1, runtimePolicy.GetInt("ConsoleMaximumRecentEvents")))).ToArray();
         }
         catch (Exception exception)
         {
@@ -834,9 +834,9 @@ public sealed class ConsoleCommandService(
             var normalized = NormalizeTerminalDisplayText(line);
             if (string.IsNullOrWhiteSpace(normalized))
                 return;
-            if (capture.Length < Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)))
+            if (capture.Length < Math.Max(1, runtimePolicy.GetInt("ConsoleMaximumCaptureCharacters")))
             {
-                var remaining = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)) - capture.Length;
+                var remaining = Math.Max(1, runtimePolicy.GetInt("ConsoleMaximumCaptureCharacters")) - capture.Length;
                 var bounded = normalized.Length <= remaining ? normalized : normalized[..remaining];
                 capture.AppendLine(bounded);
             }
@@ -866,9 +866,9 @@ public sealed class ConsoleCommandService(
                 TimestampUtc = DateTimeOffset.UtcNow,
                 DisplayName = BoundDisplayName(displayName),
                 Stream = stream,
-                Text = normalized.Length <= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumEventCharacters)) ? normalized : normalized[..Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumEventCharacters))]
+                Text = normalized.Length <= Math.Max(1, runtimePolicy.GetInt("ConsoleMaximumEventCharacters")) ? normalized : normalized[..Math.Max(1, runtimePolicy.GetInt("ConsoleMaximumEventCharacters"))]
             });
-            while (recentOutput.Count > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumRecentEvents)))
+            while (recentOutput.Count > Math.Max(1, runtimePolicy.GetInt("ConsoleMaximumRecentEvents")))
                 recentOutput.TryDequeue(out _);
             Changed?.Invoke();
         }
@@ -1067,7 +1067,7 @@ public sealed class ConsoleCommandService(
     {
         try
         {
-            return value.Length <= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)) ? value : value[..Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters))];
+            return value.Length <= Math.Max(1, runtimePolicy.GetInt("ConsoleMaximumCaptureCharacters")) ? value : value[..Math.Max(1, runtimePolicy.GetInt("ConsoleMaximumCaptureCharacters"))];
         }
         catch (Exception exception)
         {

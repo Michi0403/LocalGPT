@@ -20,9 +20,11 @@ public sealed class LocalGptRuntimePolicyStoreService(
     ILogger<LocalGptRuntimePolicyStoreService> logger) : ILocalGptRuntimePolicyStoreService
 {
     /// <summary>
-    /// Retrieves definition as part of the LocalGPT runtime policy store service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// Loads the runtime policy as the database defines it: every SystemVariables row is a value (rows typed
+    /// <see cref="LocalGptRuntimePolicySeedModel.CollectionDataType"/> are also collections) and every
+    /// RegexPatterns row is a pattern, all keyed by their names. Keys the seed provides must exist.
     /// </summary>
-    /// <returns>The LocalGPT runtime policy definition produced by the operation.</returns>
+    /// <returns>The database-defined policy, or <see langword="null"/> when it cannot be loaded.</returns>
     public LocalGptRuntimePolicyDefinition? GetDefinition()
     {
         try
@@ -30,87 +32,103 @@ public sealed class LocalGptRuntimePolicyStoreService(
             databaseInitializer.InitializeAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             using var db = dbContextFactory.CreateDbContext();
             var seed = seedData.GetSeed();
-            var variableNames = seed.SystemVariables.Select(item => item.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-            var variables = db.SystemVariables.AsNoTracking()
-                .Where(item => variableNames.Contains(item.Name))
-                .ToDictionary(item => item.Name, item => item.ValueString, StringComparer.OrdinalIgnoreCase);
-            var regexNames = seed.RegexPatterns.Select(item => item.Name).ToArray();
-            var regexRows = db.RegexPatterns.AsNoTracking()
-                .Where(item => regexNames.Contains(item.Name))
-                .ToDictionary(item => item.Name, StringComparer.OrdinalIgnoreCase);
-
-            string ReadRequired(string name)
+            var rows = db.SystemVariables.AsNoTracking().ToList();
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var collections = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in rows)
             {
-                try
-                {
-                    if (!variables.TryGetValue(name, out var value) || value is null)
-                        throw new InvalidDataException($"Required runtime-policy value '{name}' is missing.");
-                    logger.LogTrace($"Read runtime-policy value {name}.");
-                    return value;
-                }
-                catch (Exception exception)
-                {
-                    logger.LogError(exception, $"Could not read runtime-policy value {name}: {exception.Message}");
-                    throw;
-                }
+                if (string.IsNullOrWhiteSpace(row.Name) || row.ValueString is null)
+                    continue;
+                values[row.Name] = row.ValueString;
+                if (string.Equals(row.DataType, LocalGptRuntimePolicySeedModel.CollectionDataType, StringComparison.OrdinalIgnoreCase))
+                    collections[row.Name] = ReadCollection(row.Name, row.ValueString, seed);
             }
 
-            IReadOnlyList<string> ReadCollection(LocalGptRuntimeCollectionSeed item)
+            foreach (var item in seed.Values)
+                RequireValue(values, item.Name);
+            foreach (var item in seed.Collections)
             {
-                var persistedValue = ReadRequired(item.Name);
-                try
-                {
-                    var values = JsonSerializer.Deserialize<string[]>(persistedValue);
-                    if (values is not null)
-                        return values;
-
-                    logger.LogWarning(
-                        $"Runtime-policy collection {item.Name} contained JSON null. Seed defaults are used for this load.");
-                }
-                catch (JsonException exception)
-                {
-                    logger.LogWarning(
-                        exception,
-                        $"Runtime-policy collection {item.Name} contained legacy or malformed data. Seed defaults are used for this load.");
-                }
-
-                return item.Values.ToArray();
+                if (!collections.ContainsKey(item.Name))
+                    collections[item.Name] = ReadCollection(item.Name, RequireValue(values, item.Name), seed);
             }
 
-            var valueMap = seed.Values.ToDictionary(item => item.Key, item => ReadRequired(item.Name));
-            var collectionMap = seed.Collections.ToDictionary(item => item.Key, ReadCollection);
-            var regexMap = seed.RegexPatterns.ToDictionary(
-                item => item.Key,
-                item =>
+            var patterns = new Dictionary<string, LocalGptRuntimeRegexDefinition>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in db.RegexPatterns.AsNoTracking().ToList())
+            {
+                if (string.IsNullOrWhiteSpace(row.Name) || string.IsNullOrWhiteSpace(row.Pattern))
+                    continue;
+                patterns[row.Name] = new LocalGptRuntimeRegexDefinition
                 {
-                    try
-                    {
-                        if (!regexRows.TryGetValue(item.Name, out var row) || string.IsNullOrWhiteSpace(row.Pattern))
-                            throw new InvalidDataException($"Required runtime-policy regex '{item.Name}' is missing.");
-                        logger.LogTrace($"Read runtime-policy regex {item.Name}.");
-                        return new LocalGptRuntimeRegexDefinition
-                        {
-                            Key = item.Key,
-                            Name = row.Name,
-                            Pattern = row.Pattern,
-                            Flags = row.Flags ?? string.Empty,
-                            UpdatedOn = row.UpdatedOn
-                        };
-                    }
-                    catch (Exception exception)
-                    {
-                        logger.LogError(exception, $"Could not read runtime-policy regex {item.Name}: {exception.Message}");
-                        throw;
-                    }
-                });
+                    Name = row.Name,
+                    Pattern = row.Pattern,
+                    Flags = row.Flags ?? string.Empty,
+                    UpdatedOn = row.UpdatedOn
+                };
+            }
+
+            foreach (var item in seed.RegexPatterns)
+            {
+                if (!patterns.ContainsKey(item.Name))
+                    throw new InvalidDataException($"Required runtime-policy regex '{item.Name}' is missing.");
+            }
+
             logger.LogInformation(
-                $"Loaded {valueMap.Count} values, {collectionMap.Count} collections and {regexMap.Count} regexes from the LocalGPT database.");
-            return new LocalGptRuntimePolicyDefinition { Values = valueMap, Collections = collectionMap, RegexPatterns = regexMap };
+                $"Loaded {values.Count} values, {collections.Count} collections and {patterns.Count} regexes from the LocalGPT database.");
+            return new LocalGptRuntimePolicyDefinition { Values = values, Collections = collections, RegexPatterns = patterns };
         }
         catch (Exception exception)
         {
             logger.LogError(exception, $"Could not load the LocalGPT runtime policy: {exception.Message}");
             return null;
         }
+    }
+
+    /// <summary>Returns a value that the seed requires, or throws when the database row is missing.</summary>
+    /// <param name="values">Values loaded from SystemVariables.</param>
+    /// <param name="name">Database name of the required value.</param>
+    /// <returns>The stored value.</returns>
+    private string RequireValue(IReadOnlyDictionary<string, string> values, string name)
+    {
+        try
+        {
+            if (!values.TryGetValue(name, out var value))
+                throw new InvalidDataException($"Required runtime-policy value '{name}' is missing.");
+            logger.LogTrace($"Read runtime-policy value {name}.");
+            return value;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, $"Could not read runtime-policy value {name}: {exception.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Parses a runtime collection stored as a JSON string array. Legacy or malformed data falls back to the seed
+    /// defaults of that collection (or to an empty collection for rows the seed does not know).
+    /// </summary>
+    /// <param name="name">Database name of the collection.</param>
+    /// <param name="persistedValue">Stored JSON value.</param>
+    /// <param name="seed">Authoritative seed with the default members.</param>
+    /// <returns>The collection members.</returns>
+    private IReadOnlyList<string> ReadCollection(string name, string persistedValue, LocalGptRuntimePolicySeedModel seed)
+    {
+        var defaults = seed.Collections.FirstOrDefault(item =>
+            string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))?.Values.ToArray() ?? [];
+        try
+        {
+            var values = JsonSerializer.Deserialize<string[]>(persistedValue);
+            if (values is not null)
+                return values;
+
+            logger.LogWarning($"Runtime-policy collection {name} contained JSON null. Seed defaults are used for this load.");
+        }
+        catch (JsonException exception)
+        {
+            logger.LogWarning(exception,
+                $"Runtime-policy collection {name} contained legacy or malformed data. Seed defaults are used for this load.");
+        }
+
+        return defaults;
     }
 }

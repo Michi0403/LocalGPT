@@ -38,7 +38,7 @@ namespace LocalGPT.Services
                 // a downstream team may reduce but must not expand that limit.
                 var maximumDepth = Math.Min(Math.Clamp(policy.MaximumDepth, 1,
                     runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(
-                        LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth),
+                        "CouncilExecutionRuntimeParametersJson").MaximumChildCouncilDepth),
                     request.FollowOnChainDepthLimit ?? int.MaxValue);
                 if (request.XRoundChildDepth >= maximumDepth)
                 {

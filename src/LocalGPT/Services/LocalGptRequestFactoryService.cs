@@ -20,9 +20,9 @@ public sealed class LocalGptRequestFactoryService(ILocalGptRuntimePolicyDataServ
         return Created(new SaveLocalGptProjectRequest
     {
         ProjectType = "DotNetSolution",
-        SolutionSearchPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString(),
-        FileIncludePattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchAll).ToString(),
-        FileExcludePattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.ProjectSensitivePath).ToString(),
+        SolutionSearchPattern = runtimePolicy.GetPattern("runtime.project.solution-file-extension").ToString(),
+        FileIncludePattern = runtimePolicy.GetPattern("runtime.regex.match-all").ToString(),
+        FileExcludePattern = runtimePolicy.GetPattern("runtime.project.sensitive-path").ToString(),
         CurrentVersion = "0.1.0",
         Status = "Active",
         RecommendGit = true
@@ -239,7 +239,7 @@ public sealed class LocalGptRequestFactoryService(ILocalGptRuntimePolicyDataServ
         {
             return Created(new SaveGameProjectProfileRequest
             {
-                RuntimeProfile = CouncilGameRuntimeProfile.Corridor,
+                RulesetTemplateKey = runtimePolicy.GetString("GameDefaultRulesetTemplateKey"),
                 DefaultTeamKey = "game-project-playtest",
                 DefaultControlMode = CouncilGameControlMode.Shared,
                 DirectorMode = CouncilGameDirectorMode.Deterministic,

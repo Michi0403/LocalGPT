@@ -28,7 +28,7 @@ public sealed class RemoteControlConnectorService(
     /// <summary>
     /// Stores the internal key pattern state used by <see cref="RemoteControlConnectorService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly System.Text.RegularExpressions.Regex _keyPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.RemoteControlKey);
+    private readonly System.Text.RegularExpressions.Regex _keyPattern = runtimePolicy.GetPattern("runtime.remote-control.key");
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="RemoteControlConnectorService"/> while executing its surrounding workflow.
     /// </summary>
@@ -293,7 +293,7 @@ public sealed class RemoteControlConnectorService(
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var candidates = await db.RemoteControlConnectorDefinitions.AsNoTracking()
-                .Where(item => item.IsEnabled && item.NetworkEnabled && item.Transport != RemoteControlTransportKind.Webhook && item.PollIntervalSeconds >= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.RemoteControlMinimumPollIntervalSeconds)))
+                .Where(item => item.IsEnabled && item.NetworkEnabled && item.Transport != RemoteControlTransportKind.Webhook && item.PollIntervalSeconds >= Math.Max(1, runtimePolicy.GetInt("RemoteControlMinimumPollIntervalSeconds")))
                 .OrderBy(item => item.Key)
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
             return candidates.Where(item => !item.LastAttemptUtc.HasValue || item.LastAttemptUtc.Value.AddSeconds(item.PollIntervalSeconds) <= utcNow).ToList();
@@ -362,7 +362,7 @@ public sealed class RemoteControlConnectorService(
             definition.ResponseSelector = Bound(definition.ResponseSelector, 1_024);
             definition.TimeoutSeconds = Math.Max(0, definition.TimeoutSeconds);
             definition.MaxPayloadBytes = definition.MaxPayloadBytes <= 0 ? int.MaxValue : definition.MaxPayloadBytes;
-            definition.PollIntervalSeconds = definition.PollIntervalSeconds <= 0 ? 0 : Math.Max(Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.RemoteControlMinimumPollIntervalSeconds)), definition.PollIntervalSeconds);
+            definition.PollIntervalSeconds = definition.PollIntervalSeconds <= 0 ? 0 : Math.Max(Math.Max(1, runtimePolicy.GetInt("RemoteControlMinimumPollIntervalSeconds")), definition.PollIntervalSeconds);
             definition.HeadersJson = NormalizeHeaders(definition.HeadersJson);
             definition.AllowedHostsJson = NormalizeAllowedHosts(definition.AllowedHostsJson);
 

@@ -13,7 +13,7 @@ public sealed class LocalGptMcpConfigurationPolicy(ILocalGptRuntimePolicyDataSer
     /// Gets the parameters value that forms part of the local GPT mcp configuration policy state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The parameters value exposed by <see cref="LocalGptMcpConfigurationPolicy"/>.</value>
-    private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>(LocalGptRuntimeValue.McpGatewayRuntimeParametersJson);
+    private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>("McpGatewayRuntimeParametersJson");
     /// <summary>Creates a detached MCP gateway option copy for editable UI state.</summary>
     /// <param name="source">Source value supplied to the local GPT mcp configuration policy operation and used when producing its result.</param>
     /// <returns>The mcp gateway options produced by the operation.</returns>

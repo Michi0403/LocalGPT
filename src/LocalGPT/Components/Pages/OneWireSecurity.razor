@@ -226,6 +226,10 @@
                 </div>
             </ConfigurationWorkbenchPanel>
 
+            <ConfigurationWorkbenchPanel SectionKey="traffic" ActiveKey="@ActiveOneWireSection" AriaLabel="1-Wire traffic">
+                <OneWireTrafficPanel />
+            </ConfigurationWorkbenchPanel>
+
             <ConfigurationWorkbenchPanel SectionKey="peers" ActiveKey="@ActiveOneWireSection" AriaLabel="Trusted peers">
                 <DxFormLayout CssClass="razor-section-layout-owner">
     <DxFormLayoutItem ColSpanMd="12">
@@ -970,7 +974,8 @@
         new("identity", "Identity", "Create, rotate and inspect the local runtime identity.", _status.HasSecret ? "ready" : "new"),
         new("protocol", "Protocol surface", "Browse LocalGPT and peer methods without crowding the trust controls.", _localCapabilities.Count.ToString()),
         new("pairing", "Pairing & trust", "Generate QR material and establish encrypted remote trust."),
-        new("peers", "Trusted peers", "Review and revoke stored peer trust.", _trustedPeers.Count.ToString())
+        new("peers", "Trusted peers", "Review and revoke stored peer trust.", _trustedPeers.Count.ToString()),
+        new("traffic", "Traffic", "Every packet sent and received over 1-Wire, with payload and raw frame.")
     ];
         }
         catch (Exception __componentPropertyException)

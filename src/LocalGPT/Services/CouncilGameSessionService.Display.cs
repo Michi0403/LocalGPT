@@ -233,7 +233,7 @@ namespace LocalGPT.Services
                     session.FrameStyleRuns = session.AnimationFrameStyleRuns.Count > 0
                         ? CloneAsciiStyleRuns(session.AnimationFrameStyleRuns[0])
                         : [];
-                    session.FrameCaption = string.IsNullOrWhiteSpace(request.Caption) ? BuildCaption(session) : request.Caption.Trim();
+                    session.FrameCaption = string.IsNullOrWhiteSpace(request.Caption) ? engine.BuildCaption(session) : request.Caption.Trim();
                     session.FrameRenderer = request.RendererName.Trim();
                     session.UpdatedAtUtc = DateTime.UtcNow;
                 }

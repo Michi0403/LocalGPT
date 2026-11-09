@@ -44,7 +44,7 @@ namespace LocalGPT.Services
                     request.MaxContextTokens <= 0 ? catalog.DefaultContextTokens : request.MaxContextTokens,
                     catalog.MinContextTokens,
                     catalog.MaxContextTokens);
-                var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).DefaultModelTimeoutSeconds : request.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumModelTimeoutSeconds);
+                var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").DefaultModelTimeoutSeconds : request.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumModelTimeoutSeconds);
                 var keepAlive = MultiModelCouncilServiceGetCouncilKeepAlive(request, participants.Count, maxParallelModels, logger);
                 var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;
                 var modelRoutes = hardwareRoadPlanner.BuildPlans(
@@ -386,7 +386,7 @@ namespace LocalGPT.Services
                     request.AllowParallelHardwareRoads,
                     cancellationToken).ConfigureAwait(false);
 
-                var critiqueRounds = Math.Clamp(request.MaxRounds, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumCritiqueRounds);
+                var critiqueRounds = Math.Clamp(request.MaxRounds, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumCritiqueRounds);
                 if (critiqueRounds == 0)
                     result.Warnings.Add("Low-resource council mode: critique/refinement rounds are skipped for this run.");
                 for (var round = 1; round <= critiqueRounds; round++)
@@ -684,20 +684,38 @@ namespace LocalGPT.Services
 
                 result.UserPoll = councilRuntime.MultiModelCouncilServiceBuildUserPoll(result, logger);
                 var adviceOnlyPrompt = councilRuntime.IsAdviceOnlyPrompt(result.Prompt, logger) ?? false;
+                // Acceptance is a gate, not a remark: a run without its required function receipts
+                // never turns its prose into implementation artifacts or change reviews.
                 var requestedGeneration = request.GenerateImplementationArtifact &&
+                    missingFunctionNames.Count == 0 &&
                     !adviceOnlyPrompt &&
                     councilRuntime.MultiModelCouncilServiceShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt, logger);
                 var requiresPollAnswer = requestedGeneration && councilRuntime.MultiModelCouncilServiceRequiresUserDecisionBeforeArtifacts(result, logger);
-                if (requiresPollAnswer)
+                if (request.GenerateImplementationArtifact && missingFunctionNames.Count > 0)
+                {
+                    result.Warnings.Add(
+                        $"Implementation artifacts were not generated because the team's required completion evidence is missing ({string.Join(", ", missingFunctionNames)}). " +
+                        "LocalGPT does not turn an unverified run into generated files.");
+                }
+                else if (requiresPollAnswer)
                 {
                     result.Warnings.Add("Implementation generation is paused because the council identified a blocking user decision. Answer the poll, then rerun the council so the resulting change review matches the decision.");
                 }
                 else if (requestedGeneration && request.UseChangeReviewWorkflow)
                 {
                     result.ChangeReview = await CreateCouncilChangeReviewAsync(request, result, cancellationToken).ConfigureAwait(false);
-                    result.Warnings.Add($"Generation is waiting for a separate user decision. Review {result.ChangeReview.Id} binds the exact proposed files and outputs with hash {result.ChangeReview.ReviewHash}.");
-                    if (request.UserConfirmedArtifactBuild)
-                        result.Warnings.Add("The earlier artifact checkbox was treated as a request to prepare the review only. Build approval is intentionally not carried across the council heartbeat.");
+                    if (result.ChangeReview is null)
+                    {
+                        result.Warnings.Add(
+                            "No change review was prepared: the final answer contains no structured code-generation plan (exact files and outputs). " +
+                            "LocalGPT no longer substitutes placeholder example files; ask the team for the exact file plan or run a coding team that calls codegen.review.create.");
+                    }
+                    else
+                    {
+                        result.Warnings.Add($"Generation is waiting for a separate user decision. Review {result.ChangeReview.Id} binds the exact proposed files and outputs with hash {result.ChangeReview.ReviewHash}.");
+                        if (request.UserConfirmedArtifactBuild)
+                            result.Warnings.Add("The earlier artifact checkbox was treated as a request to prepare the review only. Build approval is intentionally not carried across the council heartbeat.");
+                    }
                 }
                 else if (requestedGeneration && request.UserConfirmedArtifactBuild)
                 {

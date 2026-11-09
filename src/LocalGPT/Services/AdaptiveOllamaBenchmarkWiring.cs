@@ -132,7 +132,7 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
                 : JsonSerializer.Deserialize<AdaptiveOllamaBenchmarkOptions>(parameters.GetRawText(), jsonOptions)
                     ?? new AdaptiveOllamaBenchmarkOptions();
 
-            var runtimeParameters = runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>(LocalGptRuntimeValue.ModelBenchmarkRuntimeParametersJson);
+            var runtimeParameters = runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>("ModelBenchmarkRuntimeParametersJson");
             options.MaxModels = Math.Clamp(options.MaxModels, runtimeParameters.MinimumModels, runtimeParameters.MaximumModels);
             options.MaxProfilesPerModel = Math.Clamp(options.MaxProfilesPerModel, runtimeParameters.MinimumProfilesPerModel, runtimeParameters.MaximumProfilesPerModel);
             options.MaxTasks = Math.Clamp(options.MaxTasks, runtimeParameters.MinimumTasks, runtimeParameters.MaximumTasks);
@@ -302,7 +302,7 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
                 .Select(option => option.Uri.Trim())
                 .FirstOrDefault(value => Uri.TryCreate(value, UriKind.Absolute, out var candidate) && candidate.IsLoopback);
             var value = string.IsNullOrWhiteSpace(requestedEndpoint) ? configuredLoopback : requestedEndpoint;
-            value = string.IsNullOrWhiteSpace(value) ? runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint) : value.Trim();
+            value = string.IsNullOrWhiteSpace(value) ? runtimePolicy.GetString("DefaultOllamaEndpoint") : value.Trim();
             if (!Uri.TryCreate(value.TrimEnd('/') + "/", UriKind.Absolute, out var endpoint))
                 throw new InvalidOperationException("The Ollama endpoint is not a valid absolute URI.");
             if (!endpoint.IsLoopback)

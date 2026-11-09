@@ -1,0 +1,47 @@
+.onewire-traffic-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.onewire-traffic-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+.onewire-traffic-toolbar label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 11rem;
+}
+
+.onewire-traffic-summary {
+    margin: 0;
+    opacity: 0.8;
+}
+
+.onewire-traffic-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.onewire-traffic-details h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.onewire-traffic-details label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.onewire-traffic-error {
+    color: var(--bs-danger, #c0392b);
+    margin: 0;
+}

@@ -90,7 +90,7 @@ public sealed class RegexPatternService(
     {
         try
         {
-            return regexCompiler.Compile(pattern, flags, TimeSpan.FromSeconds(runtimePolicy.GetJson<RegexRuntimeParameters>(LocalGptRuntimeValue.RegexRuntimeParametersJson).DefaultTimeoutSeconds), nameof(RegexPatternService));
+            return regexCompiler.Compile(pattern, flags, TimeSpan.FromSeconds(runtimePolicy.GetJson<RegexRuntimeParameters>("RegexRuntimeParametersJson").DefaultTimeoutSeconds), nameof(RegexPatternService));
         }
         catch (Exception exception)
         {
@@ -150,7 +150,7 @@ public sealed class RegexPatternService(
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.RegexPatterns.AsNoTracking().OrderBy(item => item.Name).AsQueryable();
             if (take.HasValue)
-                query = query.Take(Math.Clamp(take.Value, 1, runtimePolicy.GetJson<RegexRuntimeParameters>(LocalGptRuntimeValue.RegexRuntimeParametersJson).MaximumStoredPatternListItems));
+                query = query.Take(Math.Clamp(take.Value, 1, runtimePolicy.GetJson<RegexRuntimeParameters>("RegexRuntimeParametersJson").MaximumStoredPatternListItems));
             return await query.ToListAsync().ConfigureAwait(false);
         }
         catch (Exception exception)

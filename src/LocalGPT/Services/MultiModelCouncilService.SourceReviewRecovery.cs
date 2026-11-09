@@ -21,7 +21,7 @@ namespace LocalGPT.Services
             try
             {
                 var parameters = runtimePolicy.GetJson<ChatUploadWorkspaceRuntimeParameters>(
-                    LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson);
+                    "ChatUploadWorkspaceRuntimeParametersJson");
                 var referenced = uploadWorkspaces.ListWorkspaces(parameters.DefaultWorkspaceListCount)
                     .Where(workspace => request.AttachedWorkspaceNames.Contains(workspace.WorkspaceName,
                             StringComparer.OrdinalIgnoreCase) ||

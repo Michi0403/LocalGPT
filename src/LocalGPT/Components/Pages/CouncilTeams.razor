@@ -584,7 +584,7 @@
                             </label>
                             <label class="wide">
                                 <span>Loop completion marker (optional)</span>
-                                <DxTextBox @bind-Text="step.LoopCompletionMarker" CssClass="localgpt-editor" NullText="Example: [[TOURNAMENT_COMPLETE]]" Enabled="@(!(string.IsNullOrWhiteSpace(step.LoopGroup)))" />
+                                <DxTextBox @bind-Text="step.LoopCompletionMarker" CssClass="localgpt-editor" NullText="Example: [[GAME_COMPLETE]]" Enabled="@(!(string.IsNullOrWhiteSpace(step.LoopGroup)))" />
                             </label>
                             @if (step.ProducesAsciiFrame)
                             {

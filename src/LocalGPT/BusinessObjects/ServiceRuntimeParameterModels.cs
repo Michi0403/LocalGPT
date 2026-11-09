@@ -407,6 +407,17 @@ public sealed class CouncilExecutionRuntimeParameters
     /// <summary>Database-backed bound for retrying missing registered function receipts after a configured team workflow.</summary>
     /// <value>Maximum configured same-team required-function repair attempts per rule.</value>
     public int MaximumCompletionRecoveryAttempts { get; set; } = 10;
+    /// <summary>
+    /// Gets or sets how often a required team function without an explicit completion-recovery rule is recovered by re-running the step configured to call it.
+    /// </summary>
+    /// <value>The implicit recovery attempts per required function; zero turns implicit recovery off. Bounded by <see cref="MaximumCompletionRecoveryAttempts"/>.</value>
+    public int ImplicitCompletionRecoveryAttempts { get; set; } = 2;
+    /// <summary>
+    /// Gets or sets the instruction given to a step that is re-run to recover a missing required function receipt; <c>{{FunctionName}}</c> names the function.
+    /// </summary>
+    /// <value>The implicit completion-recovery instruction template.</value>
+    public string ImplicitCompletionRecoveryPromptTemplate { get; set; } =
+        "The team's required {{FunctionName}} receipt is missing from this run. Call {{FunctionName}} now with its exact registered parameters and complete the work it represents. A plan, a description or a claim of success does not count; only a completed {{FunctionName}} result does. If the call needs a human approval that is already pending, say so and do not create a duplicate request.";
     /// <summary>Database-backed bound for missing verified workspace-file-read retries.</summary>
     /// <value>Maximum source-review recovery attempts per saved workflow step.</value>
     public int MaximumWorkspaceFileReadRecoveryAttempts { get; set; } = 10;

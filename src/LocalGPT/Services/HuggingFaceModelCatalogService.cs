@@ -34,7 +34,7 @@ public sealed class HuggingFaceModelCatalogService(
             var query = (request.Query ?? string.Empty).Trim();
             if (query.Length > 300)
                 throw new ArgumentException("Hugging Face search query cannot exceed 300 characters.", nameof(request));
-            var parameters = runtimePolicy.GetJson<HuggingFaceCatalogRuntimeParameters>(LocalGptRuntimeValue.HuggingFaceCatalogRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<HuggingFaceCatalogRuntimeParameters>("HuggingFaceCatalogRuntimeParametersJson");
             var limit = Math.Clamp(request.Limit, parameters.MinimumResults, parameters.MaximumResults);
             var apiLimit = request.Sort == HuggingFaceModelSort.RecentLiked ? parameters.MaximumResults : limit;
             var apiSort = request.Sort switch

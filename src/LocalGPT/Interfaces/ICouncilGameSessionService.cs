@@ -1,4 +1,5 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.GameEngine;
 
 namespace LocalGPT.Interfaces;
 
@@ -158,12 +159,15 @@ public interface ICouncilGameSessionService
     /// <returns>The council game session snapshot produced by the operation.</returns>
     Task<CouncilGameSessionSnapshot> SubmitAnimationAsync(SubmitCouncilGameAnimationRequest request, CancellationToken cancellationToken = default);
 
-    /// <summary>Initializes or advances exactly one deterministic Kernel Creature Tournament exchange.</summary>
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <summary>
+    /// Initializes or advances exactly one Council-driven turn of a game whose ruleset uses the <c>council</c> turn model;
+    /// the game's council progression rule decides the outcome deterministically from the submitted evidence.
+    /// </summary>
+    /// <param name="request">Entrants, presentation frames and role evidence collected by the Council step.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The council kernel tournament resolution produced by the operation.</returns>
-    Task<CouncilKernelTournamentResolution> AdvanceKernelTournamentAsync(
-        CouncilKernelTournamentAdvanceRequest request,
+    /// <returns>The updated session, the step summary and whether the game completed.</returns>
+    Task<GameCouncilResolution> AdvanceCouncilTurnAsync(
+        GameCouncilAdvanceRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>

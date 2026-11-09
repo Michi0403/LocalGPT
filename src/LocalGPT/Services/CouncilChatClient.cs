@@ -180,7 +180,7 @@ public sealed partial class CouncilChatClient(
 
                 using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var dataAvailable = updates.Reader.WaitToReadAsync(waitCts.Token).AsTask();
-                var heartbeat = Task.Delay(TimeSpan.FromSeconds(catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).CouncilHeartbeatSeconds), waitCts.Token);
+                var heartbeat = Task.Delay(TimeSpan.FromSeconds(catalog.GetRuntimeParameters<ServiceTimingRuntimeParameters>("ServiceTimingRuntimeParametersJson").CouncilHeartbeatSeconds), waitCts.Token);
                 var completed = await Task.WhenAny(runTask, dataAvailable, heartbeat).ConfigureAwait(false);
                 await waitCts.CancelAsync().ConfigureAwait(false);
 

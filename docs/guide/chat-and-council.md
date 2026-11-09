@@ -92,6 +92,33 @@ Every source step has an explicit transition budget. Child-Council nesting has a
 
 A gatekeeper is therefore not a special hard-coded Council type. It can be an ordinary role/step whose responsibility, prompt and X permissions allow it to send work back, request another specialist/Council, return a result, or require the configured human decision.
 
+### Why a step runs again (7.0.1)
+
+When an X-Round sends work back, the revisited step now receives the reason in its prompt, under **Why this step runs again — resolve this before anything else**. Before 7.0.1 the reason was stored only as run metadata, so a revisited model usually repeated its first answer.
+
+The X-functions a step is granted are also offered to the model as native tools, even when the step uses a strict function allow-list. A gatekeeper therefore no longer needs a team-level exception to send work back.
+
+The seeded **program compiler** team uses this. Its curate, toolchain and verification steps may call `council.x.revisit` with mode `reexecute` against `compiler-generate`, at most twice per step. They must name the exact missing files or the compiler error lines when they do.
+
+## Required completion receipts (7.0.1)
+
+A team's `RequiredCompletedFunctions` used to produce only a warning when a required function never completed. LocalGPT now treats a missing receipt as unfinished work:
+
+1. **Recovery.** After the workflow, every required function without an explicit recovery rule gets an implicit one. LocalGPT picks the last step that is allowed to call that function and runs it again with a prompt that names the missing receipt.
+   - The number of attempts is the runtime value `ImplicitCompletionRecoveryAttempts` (default 2), capped by `MaximumCompletionRecoveryAttempts`.
+   - The prompt is the runtime value `ImplicitCompletionRecoveryPromptTemplate`; `{{FunctionName}}` is replaced.
+   - A plan, a description or a claim of success does not count. Only a completed function result does.
+2. **Generation gate.** If a required receipt is still missing after recovery, implementation artifacts are not generated, and the run says which receipt is missing.
+3. **No placeholder output.** When the Council produced no structured code-generation plan, no change review is created. LocalGPT no longer substitutes placeholder example files.
+
+The seeded program compiler team requires `codegen.review.create`.
+
+## Code generation keeps the parent revision (7.0.1)
+
+Generated code is saved as a new child revision of the selected project revision; the parent revision is left unchanged. The child becomes the current revision, and its name ends with `generated` plus a short id. When a build target fails, the compiler error lines go back into the result as `BuildDiagnostics`. The verification step can hand those lines to the generator through `council.x.revisit`. The runtime values `BuildDiagnosticMaximumLines` (default 40) and `BuildDiagnosticMaximumCharacters` (default 6000) bound them.
+
+Files you promote from an ingested project are now marked as user-approved source when the workspace syncs. Generated files are never marked approved automatically, and an existing approval is never removed.
+
 ## Live heartbeat messages during a Council run
 
 A direct live user message has two jobs. One currently executing participant may claim the new message and restart immediately so the owner does not need to wait for the next workflow boundary. The same contribution remains in the Council heartbeat queue and becomes shared context for later participants and later rounds when the normal heartbeat is prepared.

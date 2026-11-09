@@ -132,7 +132,7 @@ namespace LocalGPT.Services
                         ollamaNumGpu = executionPlan.OllamaNumGpu;
                         var currentRunConfiguration = runConfigurations.Get(activeRunId);
                         if (currentRunConfiguration is { IsRunning: true })
-                            modelTimeoutSeconds = Math.Clamp(currentRunConfiguration.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumModelTimeoutSeconds);
+                            modelTimeoutSeconds = Math.Clamp(currentRunConfiguration.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumModelTimeoutSeconds);
                         var accelerationSummary = providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
                             ? $"Ollama num_gpu={(ollamaNumGpu?.ToString() ?? "auto")}"
                             : $"{providerModel.ProviderName} provider route";
@@ -465,12 +465,12 @@ namespace LocalGPT.Services
                     string? finalAnswerError = null;
                     var roleComplianceFailureDetected = MultiModelCouncilServiceLooksLikeGenericRoleRefusal(visibleContent, logger);
                     var roleComplianceSucceeded = !roleComplianceFailureDetected;
-                    var remainingRoleComplianceRetries = Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumRoleComplianceRetries);
+                    var remainingRoleComplianceRetries = Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries);
                     while (remainingRoleComplianceRetries > 0 && !roleComplianceSucceeded)
                     {
-                        var retryNumber = Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumRoleComplianceRetries) - remainingRoleComplianceRetries + 1;
-                        progressMessage?.Invoke($"{modelName} did not perform its assigned {role} task. LocalGPT is issuing corrective role retry {retryNumber}/{Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumRoleComplianceRetries)} to the same member and role.");
-                        streamUpdate?.Invoke($"<p class=\"localgpt-stream-status\"><em>LocalGPT detected generic role non-performance. Corrective same-member retry {retryNumber}/{Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumRoleComplianceRetries)} is starting; this is additional model work, not delayed UI rendering.</em></p>\n\n");
+                        var retryNumber = Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries) - remainingRoleComplianceRetries + 1;
+                        progressMessage?.Invoke($"{modelName} did not perform its assigned {role} task. LocalGPT is issuing corrective role retry {retryNumber}/{Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries)} to the same member and role.");
+                        streamUpdate?.Invoke($"<p class=\"localgpt-stream-status\"><em>LocalGPT detected generic role non-performance. Corrective same-member retry {retryNumber}/{Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries)} is starting; this is additional model work, not delayed UI rendering.</em></p>\n\n");
                         var complianceRecovery = await MultiModelCouncilServiceRunRoleComplianceRecoveryAsync(
                             client,
                             modelName,
@@ -499,7 +499,7 @@ namespace LocalGPT.Services
 
                     if (roleComplianceFailureDetected && !roleComplianceSucceeded)
                     {
-                        var configuredRetryCount = Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumRoleComplianceRetries);
+                        var configuredRetryCount = Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries);
                         finalAnswerError = configuredRetryCount == 0
                             ? $"{modelName} declined or ignored its assigned {role} task and role-compliance retry is disabled for this workflow step."
                             : $"{modelName} declined or ignored its assigned {role} task after {configuredRetryCount} configured corrective retry attempt(s).";
@@ -516,7 +516,7 @@ namespace LocalGPT.Services
                             modelName,
                             phase,
                             messages,
-                            Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 128), Math.Clamp(finalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumFinalRecoveryOutputTokens)), catalog.MinOutputTokens, catalog.MaxOutputTokens),
+                            Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 128), Math.Clamp(finalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumFinalRecoveryOutputTokens)), catalog.MinOutputTokens, catalog.MaxOutputTokens),
                             streamUpdate,
                             participantCts.Token,
                             logger).ConfigureAwait(false);

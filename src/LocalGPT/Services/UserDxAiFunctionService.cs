@@ -32,7 +32,7 @@ public sealed class UserDxAiFunctionService(
     /// <summary>
     /// Stores the internal name pattern state used by <see cref="UserDxAiFunctionService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly System.Text.RegularExpressions.Regex namePattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.UserDxAiFunctionName);
+    private readonly System.Text.RegularExpressions.Regex namePattern = runtimePolicy.GetPattern("runtime.user-dx-function.name");
 
     /// <summary>Returns whether the supplied Remote Control key belongs to a generated JSON/OData user source adapter.</summary>
     /// <param name="key">Remote Control connector or pipeline key to classify.</param>

@@ -149,7 +149,10 @@ public sealed class AddGameEngineRules : Migration
         // ascii-arena game (the former fixed corridor world of project games), the former Story profile (1) those of
         // the seeded green-dragon game.
         migrationBuilder.Sql("UPDATE \"LocalGptGameProjectProfiles\" SET \"ViewKey\" = CASE \"RuntimeProfile\" WHEN 1 THEN 'text-template' ELSE 'first-person-raycast' END, \"RulesetTemplateKey\" = CASE \"RuntimeProfile\" WHEN 1 THEN 'green-dragon' ELSE 'ascii-arena' END;");
-        migrationBuilder.DropColumn(name: "RuntimeProfile", table: "LocalGptGameProjectProfiles");
+        // The obsolete RuntimeProfile column is NOT dropped here: the SQLite migration generator rejects DropColumnOperation.
+        // DatabaseMigrationCompatibilityService.ReconcileAfterMigrationAsync drops it right after migration, once it has
+        // verified the real schema (column present, this migration recorded, replacement columns present, no index, key,
+        // trigger or view still using it) and re-run the mapping above for any row that is still unmapped.
 
         // Council teams: the game-specific execution mode became the generic game-engine step.
         migrationBuilder.Sql("UPDATE \"CouncilTeamConfigurations\" SET \"WorkflowStepsJson\" = REPLACE(\"WorkflowStepsJson\", '\"SystemKernelTournamentResolution\"', '\"SystemGameEngineResolution\"') WHERE \"WorkflowStepsJson\" LIKE '%SystemKernelTournamentResolution%';");

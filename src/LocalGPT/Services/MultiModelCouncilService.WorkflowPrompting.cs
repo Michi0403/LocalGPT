@@ -99,30 +99,26 @@ namespace LocalGPT.Services
                     _ => visibleSteps
                 };
 
-                if (string.Equals(team.Key, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
-                    && (string.Equals(definition.Key, "trainer-round-command", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(definition.Key, "fight-round", StringComparison.OrdinalIgnoreCase)))
+                if (definition.ContextStepKeys is { Count: > 0 })
                 {
-                    // The engine scoreboard already carries the full authoritative fight state. Sending the complete
-                    // growing Council transcript back to every tiny local model made later exchanges context-bound
-                    // rather than GPU-bound. Keep only the latest bounded battle context plus the opening identities.
-                    var tournamentSteps = visibleSteps
-                        .Where(step => string.Equals(step.WorkflowStepKey, "trainer-creature-selection", StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(step.WorkflowStepKey, "creature-introduction", StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(step.WorkflowStepKey, "arena-lineup-engine", StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(step.WorkflowStepKey, "trainer-round-command", StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(step.WorkflowStepKey, "fight-round", StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(step.WorkflowStepKey, "arena-round-engine", StringComparison.OrdinalIgnoreCase))
+                    // Steps with a bounded context (for example turns of a Council-driven game whose engine already carries
+                    // the authoritative state) see only the configured step answers: the earliest identity answers plus the
+                    // latest other answers. Sending the whole growing transcript to every small local model made later turns
+                    // context-bound rather than GPU-bound.
+                    var contextKeys = definition.ContextStepKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var identityKeys = (definition.ContextIdentityStepKeys ?? new List<string>()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var contextSteps = visibleSteps
+                        .Where(step => contextKeys.Contains(step.WorkflowStepKey ?? string.Empty))
                         .ToList();
-                    var identitySteps = tournamentSteps
-                        .Where(step => string.Equals(step.WorkflowStepKey, "trainer-creature-selection", StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(step.WorkflowStepKey, "creature-introduction", StringComparison.OrdinalIgnoreCase))
-                        .Take(8);
-                    var recentBattleSteps = tournamentSteps
-                        .Where(step => !string.Equals(step.WorkflowStepKey, "trainer-creature-selection", StringComparison.OrdinalIgnoreCase)
-                            && !string.Equals(step.WorkflowStepKey, "creature-introduction", StringComparison.OrdinalIgnoreCase))
-                        .TakeLast(8);
-                    visibleSteps = identitySteps.Concat(recentBattleSteps).DistinctBy(step => step.SortOrder);
+                    var identitySteps = contextSteps
+                        .Where(step => identityKeys.Contains(step.WorkflowStepKey ?? string.Empty));
+                    if (definition.ContextIdentityStepLimit > 0)
+                        identitySteps = identitySteps.Take(definition.ContextIdentityStepLimit);
+                    var recentSteps = contextSteps
+                        .Where(step => !identityKeys.Contains(step.WorkflowStepKey ?? string.Empty));
+                    if (definition.ContextRecentStepLimit > 0)
+                        recentSteps = recentSteps.TakeLast(definition.ContextRecentStepLimit);
+                    visibleSteps = identitySteps.Concat(recentSteps).DistinctBy(step => step.SortOrder);
                 }
 
                 return councilText.MultiModelCouncilServiceBuildTranscript(visibleSteps.ToList(), logger);
@@ -733,8 +729,8 @@ namespace LocalGPT.Services
                 if (usable.Count == 0)
                     return string.Empty;
 
-                var perMemberLimit = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilRoleEvidenceMaximumPerMemberCharacters));
-                var totalLimit = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilRoleEvidenceMaximumTotalCharacters));
+                var perMemberLimit = Math.Max(1, runtimePolicy.GetInt("CouncilRoleEvidenceMaximumPerMemberCharacters"));
+                var totalLimit = Math.Max(1, runtimePolicy.GetInt("CouncilRoleEvidenceMaximumTotalCharacters"));
                 var builder = new StringBuilder();
                 foreach (var step in usable)
                 {
@@ -787,12 +783,12 @@ namespace LocalGPT.Services
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 var peerList = peers.Count == 0
-                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilNoRoleMembersText)
+                    ? runtimePolicy.GetString("CouncilNoRoleMembersText")
                     : string.Join(Environment.NewLine, peers.Select(peer => $"- {peer}"));
                 var expertise = roleAssignment.Definition?.Expertise ?? string.Empty;
                 var responsibility = roleAssignment.Definition?.Responsibility ?? string.Empty;
                 var template = string.IsNullOrWhiteSpace(definition.RolePeerReviewPromptTemplate)
-                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilRolePeerReviewPromptTemplate)
+                    ? runtimePolicy.GetString("CouncilRolePeerReviewPromptTemplate")
                     : definition.RolePeerReviewPromptTemplate;
 
                 return template

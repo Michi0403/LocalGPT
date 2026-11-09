@@ -44,7 +44,7 @@ public sealed partial class LocalAiRuntimeService(
     /// Gets the parameters value that forms part of the local AI runtime state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The parameters value exposed by <see cref="LocalAiRuntimeService"/>.</value>
-    private LocalAiRuntimeParameters Parameters => runtimePolicy.GetJson<LocalAiRuntimeParameters>(LocalGptRuntimeValue.LocalAiRuntimeParametersJson);
+    private LocalAiRuntimeParameters Parameters => runtimePolicy.GetJson<LocalAiRuntimeParameters>("LocalAiRuntimeParametersJson");
     /// <summary>
     /// Stores the in-memory executable capabilities collection maintained internally by <see cref="LocalAiRuntimeService"/> for its current workflow state.
     /// </summary>
@@ -1282,7 +1282,7 @@ public sealed partial class LocalAiRuntimeService(
             var resultPath = Path.Combine(scratchDirectory, "result.json");
             var cancelPath = Path.Combine(scratchDirectory, "cancel");
             File.WriteAllText(requestPath, JsonSerializer.Serialize(new { operation, parameters }, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
-            using var cancellationRegistration = cancellationToken.Register(static state =>
+            using var cancellationRegistration = cancellationToken.Register(state =>
             {
                 try { File.WriteAllText((string)state!, "cancel"); } catch { }
             }, cancelPath);

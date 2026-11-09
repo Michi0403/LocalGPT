@@ -37,7 +37,7 @@ public sealed class ToolchainDiscoveryService(
     {
         try
         {
-            var parameters = runtimePolicy.GetJson<ToolchainRuntimeParameters>(LocalGptRuntimeValue.ToolchainRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<ToolchainRuntimeParameters>("ToolchainRuntimeParametersJson");
             maximumCandidates = Math.Clamp(maximumCandidates <= 0 ? parameters.DefaultCandidates : maximumCandidates, parameters.MinimumCandidates, parameters.MaximumCandidates);
             var profiles = await knowledge.GetProfilesAsync(cancellationToken).ConfigureAwait(false);
             if (profiles.Count == 0)
@@ -274,7 +274,7 @@ public sealed class ToolchainDiscoveryService(
             var pending = new Queue<(string Path, int Depth)>();
             pending.Enqueue((root, 0));
             var visited = 0;
-            while (pending.Count > 0 && result.Count < maximumCandidates && visited < runtimePolicy.GetJson<ToolchainRuntimeParameters>(LocalGptRuntimeValue.ToolchainRuntimeParametersJson).MaximumVisitedDirectories)
+            while (pending.Count > 0 && result.Count < maximumCandidates && visited < runtimePolicy.GetJson<ToolchainRuntimeParameters>("ToolchainRuntimeParametersJson").MaximumVisitedDirectories)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var current = pending.Dequeue();

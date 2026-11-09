@@ -46,6 +46,8 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         private readonly IPlatformRuntimeService platform;
         /// <summary>Shared CodeDOM emitter for reviewed sources and sandbox previews.</summary>
         private readonly ICodeDomSourceService codeDomSource;
+        /// <summary>Extracts the compiler error lines returned for failed generated builds.</summary>
+        private readonly IBuildDiagnosticSummaryService buildDiagnostics;
         /// <summary>
         /// Stores the logger used by <see cref="CodeGenerationWorkflowService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -61,6 +63,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         /// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
         /// <param name="platform">Injected platform runtime service providing cross-platform filesystem semantics.</param>
         /// <param name="codeDomSource">The shared CodeDOM source generator.</param>
+        /// <param name="buildDiagnostics">Compiler error-line extraction for failed generated builds.</param>
         /// <param name="logger">Injected dependency used by the CodeGenerationWorkflowService.</param>
         public CodeGenerationWorkflowService(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -72,6 +75,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             ILocalGptRuntimePolicyDataService runtimePolicy,
             IPlatformRuntimeService platform,
             ICodeDomSourceService codeDomSource,
+            IBuildDiagnosticSummaryService buildDiagnostics,
             ILogger<CodeGenerationWorkflowService> logger)
         {
             this.dbContextFactory = dbContextFactory;
@@ -83,6 +87,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             this.runtimePolicy = runtimePolicy;
             this.platform = platform;
             this.codeDomSource = codeDomSource;
+            this.buildDiagnostics = buildDiagnostics;
             this.logger = logger;
         }
 

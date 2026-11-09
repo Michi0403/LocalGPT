@@ -65,7 +65,7 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
         this.platform = platform;
         this.packages = packages;
         this.logger = logger;
-        var parameters = catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>(LocalGptRuntimeValue.RemoteKnowledgeRuntimeParametersJson);
+        var parameters = catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>("RemoteKnowledgeRuntimeParametersJson");
         http = new HttpClient(new HttpClientHandler
         {
             AllowAutoRedirect = false,
@@ -177,7 +177,7 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
                 result.LearnBaseResult = await learnBaseImporter.ImportAsync(new LearnBaseImportRequest
                 {
                     RootPath = selectedRoot,
-                    MaxProjects = Math.Clamp(Math.Min(catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>(LocalGptRuntimeValue.RemoteKnowledgeRuntimeParametersJson).MaximumProjects, Math.Max(1, result.MatchedFileCount)), 1, catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>(LocalGptRuntimeValue.RemoteKnowledgeRuntimeParametersJson).MaximumProjects),
+                    MaxProjects = Math.Clamp(Math.Min(catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>("RemoteKnowledgeRuntimeParametersJson").MaximumProjects, Math.Max(1, result.MatchedFileCount)), 1, catalog.GetRuntimeParameters<RemoteKnowledgeRuntimeParameters>("RemoteKnowledgeRuntimeParametersJson").MaximumProjects),
                     SaveToKnowledge = request.SaveToKnowledge
                 }, cancellationToken).ConfigureAwait(false);
                 result.ImportedKnowledgeCount = result.LearnBaseResult.SavedKnowledgeCount;

@@ -420,8 +420,8 @@ namespace LocalGPT.Services
     try
     {
         var template = runtimePolicy.GetString(performanceMode == CouncilRolePerformanceMode.ImprovisationPlayer
-            ? LocalGptRuntimeValue.CouncilRolePerformanceImprovisationInstructionTemplate
-            : LocalGptRuntimeValue.CouncilRolePerformanceTaskInstructionTemplate);
+            ? "CouncilRolePerformanceImprovisationInstructionTemplate"
+            : "CouncilRolePerformanceTaskInstructionTemplate");
         return template
             .Replace("{{ModelName}}", modelName, StringComparison.Ordinal)
             .Replace("{{RoleName}}", roleName, StringComparison.Ordinal);
@@ -447,9 +447,9 @@ namespace LocalGPT.Services
     {
         var key = boundaryMode switch
         {
-            CouncilRoleBoundaryMode.Strict => LocalGptRuntimeValue.CouncilRoleBoundaryStrictInstructionTemplate,
-            CouncilRoleBoundaryMode.Collaborative => LocalGptRuntimeValue.CouncilRoleBoundaryCollaborativeInstructionTemplate,
-            _ => LocalGptRuntimeValue.CouncilRoleBoundaryBoundedInstructionTemplate
+            CouncilRoleBoundaryMode.Strict => "CouncilRoleBoundaryStrictInstructionTemplate",
+            CouncilRoleBoundaryMode.Collaborative => "CouncilRoleBoundaryCollaborativeInstructionTemplate",
+            _ => "CouncilRoleBoundaryBoundedInstructionTemplate"
         };
         return runtimePolicy.GetString(key).Replace("{{RoleName}}", roleName, StringComparison.Ordinal);
     }
@@ -473,9 +473,9 @@ namespace LocalGPT.Services
     {
         var key = languageMode switch
         {
-            CouncilRoleLanguageMode.SenderLanguage => LocalGptRuntimeValue.CouncilRoleLanguageSenderInstruction,
-            CouncilRoleLanguageMode.English => LocalGptRuntimeValue.CouncilRoleLanguageEnglishInstruction,
-            _ => LocalGptRuntimeValue.CouncilRoleLanguageAdaptiveInstruction
+            CouncilRoleLanguageMode.SenderLanguage => "CouncilRoleLanguageSenderInstruction",
+            CouncilRoleLanguageMode.English => "CouncilRoleLanguageEnglishInstruction",
+            _ => "CouncilRoleLanguageAdaptiveInstruction"
         };
         return runtimePolicy.GetString(key);
     }
@@ -499,10 +499,10 @@ namespace LocalGPT.Services
     {
         var key = mode switch
         {
-            HumanParticipationMode.Optional => LocalGptRuntimeValue.CouncilRoleHumanOptionalInstruction,
-            HumanParticipationMode.Required => LocalGptRuntimeValue.CouncilRoleHumanRequiredInstruction,
-            HumanParticipationMode.HumanOnly => LocalGptRuntimeValue.CouncilRoleHumanOnlyInstruction,
-            _ => LocalGptRuntimeValue.CouncilRoleHumanNoneInstruction
+            HumanParticipationMode.Optional => "CouncilRoleHumanOptionalInstruction",
+            HumanParticipationMode.Required => "CouncilRoleHumanRequiredInstruction",
+            HumanParticipationMode.HumanOnly => "CouncilRoleHumanOnlyInstruction",
+            _ => "CouncilRoleHumanNoneInstruction"
         };
         return runtimePolicy.GetString(key);
     }
@@ -657,7 +657,7 @@ namespace LocalGPT.Services
                     humanCollaboration.Changed += HandleChanged;
                     try
                     {
-                        var fallback = Task.Delay(TimeSpan.FromSeconds(runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumAvailabilityWaitSeconds), cancellationToken);
+                        var fallback = Task.Delay(TimeSpan.FromSeconds(runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumAvailabilityWaitSeconds), cancellationToken);
                         await Task.WhenAny(changed.Task, fallback).ConfigureAwait(false);
                         cancellationToken.ThrowIfCancellationRequested();
                     }

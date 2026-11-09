@@ -95,7 +95,7 @@ namespace LocalGPT.Services
                     ? string.Empty
                     : $"Upload warnings:{Environment.NewLine}{string.Join(Environment.NewLine, result.Warnings.Select(warning => $"- {warning}"))}";
 
-                return runtimePolicy.GetString(LocalGptRuntimeValue.UploadWorkspaceSystemPromptTemplate)
+                return runtimePolicy.GetString("UploadWorkspaceSystemPromptTemplate")
                     .Replace("{{WorkspaceName}}", result.WorkspaceName, StringComparison.Ordinal)
                     .Replace("{{WorkspaceRoot}}", result.RootPath, StringComparison.Ordinal)
                     .Replace("{{OriginalUploadCount}}", originalUploads.Count.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)

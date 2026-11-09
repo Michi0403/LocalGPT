@@ -59,22 +59,22 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 50;
+    private const int CurrentSeedVersion = 52;
     /// <summary>
     /// Gets the max roles value that forms part of the council team configuration state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The max roles value exposed by <see cref="CouncilTeamConfigurationService"/>.</value>
-    private int MaxRoles => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilTeamMaximumRoles));
+    private int MaxRoles => Math.Max(1, runtimePolicy.GetInt("CouncilTeamMaximumRoles"));
     /// <summary>
     /// Gets the max workflow steps value that forms part of the council team configuration state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The max workflow steps value exposed by <see cref="CouncilTeamConfigurationService"/>.</value>
-    private int MaxWorkflowSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilTeamMaximumWorkflowSteps));
+    private int MaxWorkflowSteps => Math.Max(1, runtimePolicy.GetInt("CouncilTeamMaximumWorkflowSteps"));
     /// <summary>
     /// Gets the max expanded workflow steps value that forms part of the council team configuration state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The max expanded workflow steps value exposed by <see cref="CouncilTeamConfigurationService"/>.</value>
-    private int MaxExpandedWorkflowSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilTeamMaximumExpandedWorkflowSteps));
+    private int MaxExpandedWorkflowSteps => Math.Max(1, runtimePolicy.GetInt("CouncilTeamMaximumExpandedWorkflowSteps"));
 
     /// <summary>
     /// Stores the in-memory supported execution modes collection maintained internally by <see cref="CouncilTeamConfigurationService"/> for its current workflow state.
@@ -88,7 +88,7 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
         "RoundRobinSingle",
         "AssignedModelSingle",
         "SystemBenchmarkCalibration",
-        "SystemKernelTournamentResolution"
+        "SystemGameEngineResolution"
     ];
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="CouncilTeamConfigurationService"/> while executing its surrounding workflow.

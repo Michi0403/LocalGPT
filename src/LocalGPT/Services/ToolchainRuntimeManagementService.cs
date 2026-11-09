@@ -130,7 +130,7 @@ public sealed class ToolchainEnvironmentService(
         try
         {
             ArgumentNullException.ThrowIfNull(entries);
-            var parameters = runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson");
             var boundedMaximum = Math.Clamp(maximumResults, 1, parameters.ToolchainRuntimeResultMaximum);
             if (string.IsNullOrWhiteSpace(searchText))
                 return entries.Take(boundedMaximum).ToList();

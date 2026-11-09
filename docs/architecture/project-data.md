@@ -73,6 +73,25 @@ Before a Council step calls a function, it identifies the project/revision, maps
 
 Older owner databases can contain application tables before EF migration history was complete. Compatibility handling therefore performs SQLite health checks, schema inspection, stale-lock handling, and a **SQLite online backup** before adopting history or migrating a compatible logging table. A history row is inserted only when the migration's **complete signature** is present. **Refuse partially applied ambiguous schemas** and report the missing markers plus the backup path instead of guessing.
 
+### Dropping columns on SQLite
+
+The EF SQLite migration generator cannot drop or alter columns, keys or constraints. It throws `NotSupportedException` for `DropColumnOperation` and stops startup. A migration's `Up` therefore never calls `DropColumn`, `AlterColumn` or the key and constraint operations; `build/Assert-EfModelSnapshotConsistency.ps1` fails the build when one does.
+
+When a migration replaces a column:
+
+1. `Up` adds the replacement columns and maps the data, and leaves the old column in place.
+2. A `SqliteColumnRetirement` entry in `DatabaseMigrationCompatibilityService.ColumnRetirement.cs` names the old column, the migration, the replacement columns and an idempotent backfill.
+3. Right after migration and before any seed stage, `ReconcileAfterMigrationAsync` checks the real database:
+   - the old column still exists;
+   - the migration is recorded in `__EFMigrationsHistory`;
+   - the replacement columns exist;
+   - no index, primary key, foreign key, trigger or view uses the old column;
+   - the linked SQLite supports `ALTER TABLE … DROP COLUMN` (3.35 or newer).
+4. If every check passes, it takes the compatibility backup and then, in one transaction, runs the backfill, drops the column and verifies the result (column gone, no foreign-key violations).
+5. If a check fails, the column is kept and the reason is logged. When the kept column is `NOT NULL` without a default, it would reject every insert, so startup stops with the reason instead of failing later in a seed stage.
+
+The step is idempotent and runs on every start, so an interrupted drop finishes on the next start.
+
 The database logger uses a separate readiness gate so queued startup diagnostics cannot write through EF while migrations and deterministic seed stages are still running.
 
 ## Snapshot ordering contract

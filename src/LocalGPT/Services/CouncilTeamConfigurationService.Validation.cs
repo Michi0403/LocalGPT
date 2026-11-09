@@ -28,7 +28,7 @@ namespace LocalGPT.Services
             team.MainRoundInstructionTemplate = team.MainRoundInstructionTemplate?.Trim() ?? string.Empty;
             if (!Enum.IsDefined(typeof(CouncilAllMembersReadinessPreflightMode), team.AllMembersReadinessPreflightMode))
                 team.AllMembersReadinessPreflightMode = CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault;
-            team.AllMembersReadinessPreflightMaxOutputTokens = Math.Clamp(team.AllMembersReadinessPreflightMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumReadinessOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumReadinessOutputTokens);
+            team.AllMembersReadinessPreflightMaxOutputTokens = Math.Clamp(team.AllMembersReadinessPreflightMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumReadinessOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumReadinessOutputTokens);
             team.AllMembersReadinessPreflightPromptTemplate = team.AllMembersReadinessPreflightPromptTemplate?.Trim() ?? string.Empty;
             team.Roles ??= [];
             team.WorkflowSteps ??= [];
@@ -164,7 +164,7 @@ namespace LocalGPT.Services
                     step.ToolResultContinuationMode = CouncilToolResultContinuationMode.SameMemberBounded;
                 step.ToolResultContinuationRounds = step.ToolResultContinuationMode == CouncilToolResultContinuationMode.Disabled
                     ? 0
-                    : Math.Clamp(step.ToolResultContinuationRounds, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumContinuationRounds);
+                    : Math.Clamp(step.ToolResultContinuationRounds, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumContinuationRounds);
                 step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
                 step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
                 step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
@@ -173,13 +173,17 @@ namespace LocalGPT.Services
                     : Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps);
                 step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
                 step.XMaximumTransitions = Math.Clamp(step.XMaximumTransitions, 1, MaxExpandedWorkflowSteps);
-                step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth);
+                step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumChildCouncilDepth);
                 step.XDefaultTargetStepKey = step.XDefaultTargetStepKey?.Trim().ToLowerInvariant() ?? string.Empty;
                 step.XChildCouncilTeamKey = step.XChildCouncilTeamKey?.Trim().ToLowerInvariant() ?? string.Empty;
                 step.XChildModelName = step.XChildModelName?.Trim() ?? string.Empty;
-                step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MinimumFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumFrameWidth);
-                step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MinimumFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumFrameHeight);
-                step.WorldStepScale = Math.Clamp(step.WorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MinimumWorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumWorldStepScale);
+                step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MinimumFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MaximumFrameWidth);
+                step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MinimumFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MaximumFrameHeight);
+                step.WorldStepScale = Math.Clamp(step.WorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MinimumWorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MaximumWorldStepScale);
+                step.ContextStepKeys = NormalizeStepKeyList(step.ContextStepKeys);
+                step.ContextIdentityStepKeys = NormalizeStepKeyList(step.ContextIdentityStepKeys);
+                step.ContextIdentityStepLimit = Math.Clamp(step.ContextIdentityStepLimit, 0, MaxExpandedWorkflowSteps);
+                step.ContextRecentStepLimit = Math.Clamp(step.ContextRecentStepLimit, 0, MaxExpandedWorkflowSteps);
                 if (step.ProducesAsciiFrame && step.ExecutionMode is "AllMembersParallel" or "AllMembersSequentialOnEachAIHostParallel" or "AllMembersSequential")
                     throw new InvalidOperationException($"ASCII frame step '{step.DisplayName}' must use a single-member execution mode so one AI owns the complete frame.");
                 if (string.IsNullOrWhiteSpace(step.LoopGroup) && !string.IsNullOrWhiteSpace(step.LoopCompletionMarker))
@@ -245,7 +249,7 @@ namespace LocalGPT.Services
                 rule.RecoveryPromptTemplate = rule.RecoveryPromptTemplate?.Trim() ?? string.Empty;
                 rule.PrerequisiteFunctions = NormalizeFunctionNames(rule.PrerequisiteFunctions);
                 rule.MaximumAttempts = Math.Clamp(rule.MaximumAttempts, 0,
-                    runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumCompletionRecoveryAttempts);
+                    runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumCompletionRecoveryAttempts);
                 if (string.IsNullOrWhiteSpace(rule.FunctionName) ||
                     !team.RequiredCompletedFunctions.Contains(rule.FunctionName, StringComparer.OrdinalIgnoreCase) ||
                     !duplicateRecoveryNames.Add(rule.FunctionName))
@@ -306,7 +310,7 @@ namespace LocalGPT.Services
             team.FollowOn.TeamKey = team.FollowOn.TeamKey?.Trim().ToLowerInvariant() ?? string.Empty;
             team.FollowOn.PromptTemplate = team.FollowOn.PromptTemplate?.Trim() ?? string.Empty;
             team.FollowOn.MaximumDepth = Math.Clamp(team.FollowOn.MaximumDepth, 1,
-                runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth);
+                runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumChildCouncilDepth);
             if (!string.IsNullOrWhiteSpace(team.FollowOn.TeamKey) &&
                 string.IsNullOrWhiteSpace(team.FollowOn.PromptTemplate))
                 throw new InvalidOperationException("A configured follow-on team requires an explicit task prompt. Use {{ParentAnswer}} to pass the previous result.");
@@ -321,7 +325,7 @@ namespace LocalGPT.Services
                     (step.RequiredCompletedWorkspaceFiles > 0 || step.RequireEachWorkspaceArchiveRead || step.ContinueWorkspaceReviewOnlyOnProgress))
                     throw new InvalidOperationException($"Workflow step '{step.Key}' has workspace reading acceptance conditions without enabling the required verified workspace-read gate.");
                 step.MissingWorkspaceFileReadRecoveryAttempts = Math.Clamp(step.MissingWorkspaceFileReadRecoveryAttempts, 0,
-                    runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumWorkspaceFileReadRecoveryAttempts);
+                    runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumWorkspaceFileReadRecoveryAttempts);
                 step.WorkspaceFileReadRecoveryPromptTemplate = step.WorkspaceFileReadRecoveryPromptTemplate?.Trim() ?? string.Empty;
                 step.WorkspaceSourcePriorityTerms = (step.WorkspaceSourcePriorityTerms ?? [])
                     .Where(term => !string.IsNullOrWhiteSpace(term))
@@ -353,12 +357,12 @@ namespace LocalGPT.Services
                     step.ToolResultContinuationMode = CouncilToolResultContinuationMode.SameMemberBounded;
                 step.ToolResultContinuationRounds = step.ToolResultContinuationMode == CouncilToolResultContinuationMode.Disabled
                     ? 0
-                    : Math.Clamp(step.ToolResultContinuationRounds, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumContinuationRounds);
-                step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumRoleComplianceRetries);
+                    : Math.Clamp(step.ToolResultContinuationRounds, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumContinuationRounds);
+                step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries);
                 if (!Enum.IsDefined(typeof(CouncilMemberFailureRecoveryMode), step.MemberFailureRecoveryMode))
                     step.MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool;
-                step.MemberFailureRecoveryAttempts = Math.Clamp(step.MemberFailureRecoveryAttempts, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumMemberRecoveryAttempts);
-                step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumFinalRecoveryOutputTokens);
+                step.MemberFailureRecoveryAttempts = Math.Clamp(step.MemberFailureRecoveryAttempts, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumMemberRecoveryAttempts);
+                step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumFinalRecoveryOutputTokens);
             }
             team.ArchitectureContracts = team.ArchitectureContracts.Select(value => value?.Trim() ?? string.Empty).Where(value => value.Length > 0).ToList();
     

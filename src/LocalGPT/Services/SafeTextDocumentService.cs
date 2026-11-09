@@ -55,7 +55,7 @@ public sealed class SafeTextDocumentService(
             var info = new FileInfo(fullPath);
             if (!info.Exists)
                 throw new FileNotFoundException("The selected text document was not found.", fullPath);
-            var maximumBytes = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.SafeTextDocumentMaximumBytes));
+            var maximumBytes = Math.Max(1, runtimePolicy.GetInt("SafeTextDocumentMaximumBytes"));
             if (info.Length > maximumBytes)
                 throw new InvalidOperationException($"Text document size exceeds the configured SafeTextDocumentMaximumBytes policy ({maximumBytes:n0} bytes).");
 

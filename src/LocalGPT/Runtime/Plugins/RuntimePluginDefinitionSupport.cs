@@ -106,9 +106,9 @@ public sealed class RuntimePluginDefinitionSupport(ILocalGptRuntimePolicyDataSer
             return string.Empty;
 
         var normalized = markup.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
-        normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlBreakTag).Replace(normalized, "\n");
-        normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlBlockEndTag).Replace(normalized, "\n");
-        normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlTag).Replace(normalized, string.Empty);
+        normalized = runtimePolicy.GetPattern("runtime.html.break-tag").Replace(normalized, "\n");
+        normalized = runtimePolicy.GetPattern("runtime.html.block-end-tag").Replace(normalized, "\n");
+        normalized = runtimePolicy.GetPattern("runtime.html.tag").Replace(normalized, string.Empty);
         normalized = WebUtility.HtmlDecode(normalized).Replace('\u00a0', ' ');
         if (normalized.EndsWith('\n'))
             normalized = normalized[..^1];

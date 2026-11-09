@@ -29,25 +29,25 @@ public sealed class LearningProjectWorkspaceSyncService(
     /// Stores the shared read-only excluded directory names value used by <see cref="LearningProjectWorkspaceSyncService"/> across instances of the containing type.
     /// </summary>
     private readonly HashSet<string> ExcludedDirectoryNames = runtimePolicy
-        .GetCollection(LocalGptRuntimeCollection.ExcludedDirectoryNames)
+        .GetCollection("ExcludedDirectoryNames")
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the parameters value that forms part of the learning project workspace sync state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The parameters value exposed by <see cref="LearningProjectWorkspaceSyncService"/>.</value>
-    private LearningProjectWorkspaceSyncRuntimeParameters Parameters => runtimePolicy.GetJson<LearningProjectWorkspaceSyncRuntimeParameters>(LocalGptRuntimeValue.LearningProjectWorkspaceSyncRuntimeParametersJson);
+    private LearningProjectWorkspaceSyncRuntimeParameters Parameters => runtimePolicy.GetJson<LearningProjectWorkspaceSyncRuntimeParameters>("LearningProjectWorkspaceSyncRuntimeParametersJson");
 
     /// <summary>
     /// Stores the shared read-only version element pattern value used by <see cref="LearningProjectWorkspaceSyncService"/> across instances of the containing type.
     /// </summary>
-    private readonly Regex VersionElementPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.ProjectVersionXmlElement);
+    private readonly Regex VersionElementPattern = runtimePolicy.GetPattern("runtime.project.version-xml");
 
     /// <summary>
     /// Performs synchronize as part of the learning project workspace sync service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    public async Task<IReadOnlyList<LearningProjectSyncResult>> SynchronizeAsync(string? workspaceName = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<LearningProjectSyncResult>> SynchronizeAsync(string? workspaceName = null, CancellationToken cancellationToken = default, bool sourceApprovedByUser = false)
     {
         try
         {
@@ -87,6 +87,7 @@ public sealed class LearningProjectWorkspaceSyncService(
                         "ChatUpload",
                         string.Empty,
                         repositoryRoot,
+                        sourceApprovedByUser,
                         cancellationToken).ConfigureAwait(false);
                     if (result is not null)
                         results.Add(result);
@@ -146,6 +147,7 @@ public sealed class LearningProjectWorkspaceSyncService(
                     "RemoteGitHub",
                     remoteSource.SourceUrl,
                     repositoryRoot,
+                    false,
                     cancellationToken).ConfigureAwait(false);
                 if (result is not null)
                     results.Add(result);
@@ -306,6 +308,7 @@ public sealed class LearningProjectWorkspaceSyncService(
     /// <param name="sourceKind">Evidence transport such as ChatUpload or RemoteGitHub.</param>
     /// <param name="sourceReference">Canonical public repository URL when the source came from a user-requested remote refresh.</param>
     /// <param name="repositoryRoot">Repository root value supplied to the learning project workspace sync operation and used when producing its result.</param>
+    /// <param name="sourceApprovedByUser">Whether the user explicitly approved this source, so its tracked source files may be cloned into working copies.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The learning project sync result produced by the operation.</returns>
     private async Task<LearningProjectSyncResult?> SynchronizeRepositoryAsync(
@@ -315,6 +318,7 @@ public sealed class LearningProjectWorkspaceSyncService(
         string sourceKind,
         string sourceReference,
         string repositoryRoot,
+        bool sourceApprovedByUser,
         CancellationToken cancellationToken)
     {
         try
@@ -453,7 +457,7 @@ public sealed class LearningProjectWorkspaceSyncService(
             workspaceRoot.RootPath = repositoryRoot;
             workspaceRoot.EnvironmentRootPath = repositoryRoot;
             workspaceRoot.EnvironmentKind = "LocalHost";
-            workspaceRoot.SolutionPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString();
+            workspaceRoot.SolutionPattern = runtimePolicy.GetPattern("runtime.project.solution-file-extension").ToString();
             workspaceRoot.ProjectTypePattern = $@"(?i){Regex.Escape(source.ProjectType)}";
             workspaceRoot.DefaultSubdirectoriesJson = JsonSerializer.Serialize(Directory.EnumerateDirectories(repositoryRoot, "*", SearchOption.TopDirectoryOnly).Select(Path.GetFileName).Where(name => !string.IsNullOrWhiteSpace(name)).OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
             workspaceRoot.ExpectedStructureRegex = BuildExpectedStructureRegex(source);
@@ -470,7 +474,7 @@ public sealed class LearningProjectWorkspaceSyncService(
 
             await SynchronizeSourceRequirementsAsync(db, project.Id, revision.Id, source, now, cancellationToken).ConfigureAwait(false);
             await SynchronizeSourceRepositoryArtifactAsync(db, project.Id, revision.Id, sourceReference, sourceKind, now, cancellationToken).ConfigureAwait(false);
-            await SynchronizeTrackedFilesAsync(db, project.Id, revision.Id, repositoryRoot, source.SolutionPath, files, now, cancellationToken).ConfigureAwait(false);
+            await SynchronizeTrackedFilesAsync(db, project.Id, revision.Id, repositoryRoot, source.SolutionPath, files, now, sourceApprovedByUser, cancellationToken).ConfigureAwait(false);
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             return new LearningProjectSyncResult(
@@ -723,14 +727,14 @@ public sealed class LearningProjectWorkspaceSyncService(
             }
             else if (fileName.Equals("Cargo.toml", StringComparison.OrdinalIgnoreCase) || fileName.Equals("pyproject.toml", StringComparison.OrdinalIgnoreCase))
             {
-                var nameMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.TomlPackageName).Match(text);
-                var versionMatch = runtimePolicy.GetPattern(LocalGptRuntimePattern.TomlPackageVersion).Match(text);
+                var nameMatch = runtimePolicy.GetPattern("runtime.project.toml-package-name").Match(text);
+                var versionMatch = runtimePolicy.GetPattern("runtime.project.toml-package-version").Match(text);
                 if (nameMatch.Success) name = nameMatch.Groups[1].Value.Trim();
                 if (versionMatch.Success) version = versionMatch.Groups[1].Value.Trim();
             }
             else if (fileName.Equals("go.mod", StringComparison.OrdinalIgnoreCase))
             {
-                var module = runtimePolicy.GetPattern(LocalGptRuntimePattern.GoModuleDeclaration).Match(text);
+                var module = runtimePolicy.GetPattern("runtime.project.go-module").Match(text);
                 if (module.Success) name = module.Groups[1].Value.Split('/').Last();
             }
         }
@@ -761,7 +765,7 @@ public sealed class LearningProjectWorkspaceSyncService(
             var name = preferredProjectName;
             if (string.IsNullOrWhiteSpace(name))
                 name = Path.GetFileName(repositoryRoot);
-            return runtimePolicy.GetPattern(LocalGptRuntimePattern.RepositoryTrailingVersion).Replace(name, string.Empty).Trim(' ', '-', '_');
+            return runtimePolicy.GetPattern("runtime.project.trailing-version").Replace(name, string.Empty).Trim(' ', '-', '_');
         }
         catch (Exception exception)
         {
@@ -998,6 +1002,7 @@ public sealed class LearningProjectWorkspaceSyncService(
     /// <param name="solutionPath">Solution path value supplied to the learning project workspace sync operation and used when producing its result.</param>
     /// <param name="files">String dependency used by the learning project workspace sync workflow to provide the corresponding application capability.</param>
     /// <param name="now">Now value supplied to the learning project workspace sync operation and used when producing its result.</param>
+    /// <param name="sourceApprovedByUser">Whether the user explicitly approved this source; its non-generated files are then approved for working-copy cloning.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SynchronizeTrackedFilesAsync(
@@ -1008,6 +1013,7 @@ public sealed class LearningProjectWorkspaceSyncService(
         string solutionPath,
         IReadOnlyList<string> files,
         DateTime now,
+        bool sourceApprovedByUser,
         CancellationToken cancellationToken)
     {
         try
@@ -1064,6 +1070,11 @@ public sealed class LearningProjectWorkspaceSyncService(
                 row.LastSeenAtUtc = now;
                 row.Exists = true;
                 row.IsGenerated = relative.Contains("/generated/", StringComparison.OrdinalIgnoreCase) || relative.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase);
+                // A confirmed import promotion approves its source the same way a confirmed manual scan does;
+                // without it code generation clones zero files from a freshly imported project. Approval is
+                // only ever granted here, never revoked, so a user's later decision is kept.
+                if (sourceApprovedByUser && !row.IsGenerated)
+                    row.IsUserApproved = true;
             }
 
             foreach (var row in existing.Values.Where(item => !seen.Contains(item.ProjectRelativePath)))

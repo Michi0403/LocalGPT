@@ -47,7 +47,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     /// Gets the benchmark parameters value that forms part of the provider model benchmark state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The benchmark parameters value exposed by <see cref="ProviderModelBenchmarkService"/>.</value>
-    private ModelBenchmarkRuntimeParameters BenchmarkParameters => runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>(LocalGptRuntimeValue.ModelBenchmarkRuntimeParametersJson);
+    private ModelBenchmarkRuntimeParameters BenchmarkParameters => runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>("ModelBenchmarkRuntimeParametersJson");
     /// <summary>Normalizes provider thinking/status markup so benchmark scoring uses only the visible final answer.</summary>
     private readonly CouncilTextService councilText;
     /// <summary>Projects provider-native reasoning and function metadata into the same durable user-visible trace used by normal Council execution.</summary>
@@ -133,7 +133,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         }
 
         var maxProfiles = Math.Max(1, request.MaxProfilesPerModel);
-        var parameters = runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>(LocalGptRuntimeValue.ModelBenchmarkRuntimeParametersJson);
+        var parameters = runtimePolicy.GetJson<ModelBenchmarkRuntimeParameters>("ModelBenchmarkRuntimeParametersJson");
         var maxTasks = Math.Clamp(request.MaxTasks, parameters.MinimumTasks, parameters.MaximumTasks);
         var maxSeconds = Math.Clamp(request.MaxSecondsPerCall, parameters.MinimumSecondsPerCall, parameters.MaximumSecondsPerCall);
         var maximumContext = Math.Clamp(request.MaximumContextTokens, catalog.MinContextTokens, catalog.MaxContextTokens);

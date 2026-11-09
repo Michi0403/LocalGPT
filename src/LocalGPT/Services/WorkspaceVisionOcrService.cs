@@ -114,7 +114,7 @@ public sealed class WorkspaceVisionOcrService(
             if (!imageExtensions.Contains(extension))
                 throw new InvalidOperationException("The requested workspace file is not a supported local OCR image format.");
 
-            var maximumImageBytes = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionMaximumImageBytes));
+            var maximumImageBytes = Math.Max(1, runtimePolicy.GetInt("LocalVisionMaximumImageBytes"));
             var info = new FileInfo(imagePath);
             if (info.Length <= 0 || info.Length > maximumImageBytes)
                 throw new InvalidOperationException($"The OCR image must be between 1 byte and the configured LocalVisionMaximumImageBytes value ({maximumImageBytes} bytes).");
@@ -167,7 +167,7 @@ public sealed class WorkspaceVisionOcrService(
     {
         try
         {
-            var configuredTimeoutSeconds = runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionRequestTimeoutSeconds);
+            var configuredTimeoutSeconds = runtimePolicy.GetInt("LocalVisionRequestTimeoutSeconds");
             var normalizedHost = host.EndsWith('/') ? host : string.Concat(host, '/');
             var baseAddress = new Uri(normalizedHost, UriKind.Absolute);
             using var client = new HttpClient

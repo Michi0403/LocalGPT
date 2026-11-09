@@ -93,7 +93,7 @@ namespace LocalGPT.Services
                     definition.MemberFailureRecoveryAttempts <= 0 ||
                     roleParticipants.Count == 0 ||
                     string.Equals(executionMode, "SystemBenchmarkCalibration", StringComparison.Ordinal) ||
-                    string.Equals(executionMode, "SystemKernelTournamentResolution", StringComparison.Ordinal))
+                    string.Equals(executionMode, "SystemGameEngineResolution", StringComparison.Ordinal))
                 {
                     return [];
                 }
@@ -135,7 +135,7 @@ namespace LocalGPT.Services
                 var maximumAttempts = Math.Clamp(
                     definition.MemberFailureRecoveryAttempts,
                     0,
-                    runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumMemberRecoveryAttempts);
+                    runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumMemberRecoveryAttempts);
                 var sameMemberOnly =
                     definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.RetrySameMember ||
                     string.Equals(executionMode, "AssignedModelSingle", StringComparison.Ordinal);

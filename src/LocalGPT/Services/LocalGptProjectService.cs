@@ -230,9 +230,9 @@ public sealed class LocalGptProjectService(
             project.RootPath = rootPath;
             project.ProjectType = TrimOrFallback(request.ProjectType, 120, "DotNetSolution");
             project.SolutionPath = solutionPath;
-            project.SolutionSearchPattern = TrimOrFallback(request.SolutionSearchPattern, 1000, runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString());
-            project.FileIncludePattern = TrimOrFallback(request.FileIncludePattern, 4000, runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchAll).ToString());
-            project.FileExcludePattern = TrimOrFallback(request.FileExcludePattern, 4000, runtimePolicy.GetPattern(LocalGptRuntimePattern.ProjectSensitivePath).ToString());
+            project.SolutionSearchPattern = TrimOrFallback(request.SolutionSearchPattern, 1000, runtimePolicy.GetPattern("runtime.project.solution-file-extension").ToString());
+            project.FileIncludePattern = TrimOrFallback(request.FileIncludePattern, 4000, runtimePolicy.GetPattern("runtime.regex.match-all").ToString());
+            project.FileExcludePattern = TrimOrFallback(request.FileExcludePattern, 4000, runtimePolicy.GetPattern("runtime.project.sensitive-path").ToString());
             project.CurrentVersion = TrimOrFallback(request.CurrentVersion, 120, "0.1.0");
             project.Status = TrimOrFallback(request.Status, 80, "Active");
             project.RecommendGit = request.RecommendGit;

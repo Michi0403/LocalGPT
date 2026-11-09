@@ -47,6 +47,41 @@ PublisherStudio can therefore change an already-backed organic capability descri
 
 Incoming work enters a queue with peer identity, capability, payload summary, status, and decision state. A hosted processor executes only work that has passed validation and approval.
 
+## Traffic journal
+
+Every packet LocalGPT sends or receives over 1-Wire is journaled. This covers:
+
+- TCP envelopes in both directions, including frames rejected before dispatch (with the reason) and failed sends;
+- HTTP/JSON requests, responses and profile lookups;
+- each UDP discovery beacon LocalGPT broadcasts.
+
+The journal logs to the category `LocalGPT.Services.OneWire.OneWireTrafficJournal`:
+
+| Level | Content |
+| --- | --- |
+| Information | One metadata line per packet. Rejected or failed packets are written at Warning. |
+| Debug | The decrypted payload, according to `PayloadMode`. |
+| Trace | The raw frame as it crossed the wire. |
+
+**1-Wire Security → Traffic** shows the same packets live, with search, filters, pause and clear.
+
+Settings live in `OneWire:Traffic` and are re-read while LocalGPT runs:
+
+| Setting | Values and default |
+| --- | --- |
+| `Enabled` | default true |
+| `PayloadMode` | `Full` (default), `Redacted` or `None` |
+| `IncludeRawFrame` | |
+| `IncludeDiscovery` | |
+| `JournalCapacity` | |
+| `MaximumStoredCharacters` | |
+| `MaximumLoggedCharacters` | |
+| `RedactedPropertyNames` | |
+
+PublisherStudio 4.7.3 keeps the matching journal under `OrganicPlugins:Traffic`.
+
+The journal only observes. A journaling failure is logged and never interrupts a transport.
+
 ## Security invariants
 
 - no trust on discovery alone;
@@ -55,7 +90,7 @@ Incoming work enters a queue with peer identity, capability, payload summary, st
 - no uploaded executable execution;
 - no automatic filesystem write outside approved workspace;
 - no actuator/flash/native command without the matching approval;
-- no secret content in logs or documentation;
+- no secret content in logs or documentation at the shipped Information level; the 1-Wire traffic journal writes decrypted payloads only at Debug (unmasked in `Full` mode, masked in `Redacted` mode), as an explicit operator choice;
 - no model response treated as authority.
 
 The protocol remains useful because the boundaries are explicit, not because every peer is assumed friendly. 🐾

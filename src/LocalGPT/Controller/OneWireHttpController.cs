@@ -21,6 +21,7 @@ namespace LocalGPT.Controller;
 /// <param name="spooler">One wire work spooler dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
 /// <param name="capabilities">One wire capability catalog dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
 /// <param name="configuredOptions">One wire options dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
+/// <param name="traffic">Journals every HTTP/JSON request received and response sent.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/onewire/http-json")]
@@ -33,6 +34,7 @@ public sealed class OneWireHttpController(
     IOneWireWorkSpooler spooler,
     IOneWireCapabilityCatalog capabilities,
     IOptions<OneWireOptions> configuredOptions,
+    IOneWireTrafficJournal traffic,
     ILogger<OneWireHttpController> logger) : ControllerBase
 {
     /// <summary>
@@ -47,7 +49,7 @@ public sealed class OneWireHttpController(
         {
             var options = configuredOptions.Value;
             var peer = dispatcher.GetLocalAdvertisement();
-            return Ok(new OneWireProtocolProfile
+            var profile = new OneWireProtocolProfile
             {
                 Security = await security.GetPublicDescriptorAsync(cancellationToken).ConfigureAwait(false),
                 Peer = peer,
@@ -67,7 +69,9 @@ public sealed class OneWireHttpController(
                     PeerExpirySeconds = options.PeerExpirySeconds,
                     MaximumMessageBytes = options.MaximumMessageBytes
                 }
-            });
+            };
+            JournalProfile(profile);
+            return Ok(profile);
         }
         catch (Exception ex)
         {
@@ -86,13 +90,21 @@ public sealed class OneWireHttpController(
     [RequestSizeLimit(OneWireProtocol.MaximumMessageBytes)]
     public async Task<IActionResult> Dispatch([FromBody] JsonElement body, CancellationToken cancellationToken)
     {
+        var json = string.Empty;
+        OneWireEnvelope? received = null;
+        var requestJournaled = false;
         try
         {
-            var json = body.GetRawText();
+            json = body.GetRawText();
             if (Encoding.UTF8.GetByteCount(json) > OneWireProtocol.MaximumMessageBytes)
+            {
+                requestJournaled = JournalHttp(OneWireTrafficDirections.Received, json, null, string.Empty, "The 1-Wire HTTP/JSON envelope is too large.");
                 return BadRequest(new { Error = "The 1-Wire HTTP/JSON envelope is too large." });
+            }
             var envelope = codec.DeserializeAndValidate(json);
+            received = envelope;
             await security.UnprotectIncomingAsync(envelope, cancellationToken).ConfigureAwait(false);
+            requestJournaled = JournalHttp(OneWireTrafficDirections.Received, json, envelope, string.Empty, string.Empty);
             var remoteAddress = HttpContext.Connection.RemoteIpAddress;
             var context = dispatchContextFactory.CreateExternal(
                 envelope.SourcePeerId,
@@ -101,13 +113,7 @@ public sealed class OneWireHttpController(
                 "http-json");
             var response = await dispatcher.DispatchAsync(envelope, context, cancellationToken).ConfigureAwait(false);
             if (response is null) return Accepted(new { envelope.CorrelationId, Status = "AcceptedWithoutImmediateResponse" });
-            await security.ProtectOutgoingAsync(response, cancellationToken).ConfigureAwait(false);
-            if (transportSecurityPolicy.RequiresProtectedTransport(response.MessageType) &&
-                !transportSecurityPolicy.IsProtected(response))
-            {
-                throw new CryptographicException("The HTTP/JSON response requires an MFA-verified peer before application data can be returned.");
-            }
-            return Content(codec.Serialize(response), "application/json", Encoding.UTF8);
+            return await RespondAsync(response, "The HTTP/JSON response requires an MFA-verified peer before application data can be returned.", cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
@@ -116,6 +122,8 @@ public sealed class OneWireHttpController(
         }
         catch (Exception ex) when (ex is JsonException or InvalidDataException or CryptographicException or FormatException or ArgumentException)
         {
+            if (!requestJournaled)
+                JournalHttp(OneWireTrafficDirections.Received, json, received, string.Empty, ex.Message);
             logger.LogWarning(ex, "Rejected an invalid LocalGPT 1-Wire HTTP/JSON request.");
             return BadRequest(new { Error = ex.Message });
         }
@@ -159,13 +167,7 @@ public sealed class OneWireHttpController(
                     ["UpdatedUtc"] = JsonSerializer.SerializeToElement(item.UpdatedUtc)
                 }
             };
-            await security.ProtectOutgoingAsync(response, cancellationToken).ConfigureAwait(false);
-            if (transportSecurityPolicy.RequiresProtectedTransport(response.MessageType) &&
-                !transportSecurityPolicy.IsProtected(response))
-            {
-                throw new CryptographicException("The HTTP/JSON work response requires an MFA-verified peer before application data can be returned.");
-            }
-            return Content(codec.Serialize(response), "application/json", Encoding.UTF8);
+            return await RespondAsync(response, "The HTTP/JSON work response requires an MFA-verified peer before application data can be returned.", cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -180,6 +182,99 @@ public sealed class OneWireHttpController(
         {
             logger.LogError(ex, "Could not read LocalGPT 1-Wire HTTP work for correlation {CorrelationId}.", correlationId);
             return Problem(ex.Message);
+        }
+    }
+
+    /// <summary>Protects, serializes and journals one HTTP/JSON response envelope.</summary>
+    /// <param name="response">The response envelope in plaintext.</param>
+    /// <param name="protectionRequiredMessage">Error raised when the response type needs protection the peer does not have.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The JSON content result carrying the protected frame.</returns>
+    private async Task<IActionResult> RespondAsync(OneWireEnvelope response, string protectionRequiredMessage, CancellationToken cancellationToken)
+    {
+        var plaintext = traffic.CapturePlaintext(response);
+        var frame = string.Empty;
+        try
+        {
+            await security.ProtectOutgoingAsync(response, cancellationToken).ConfigureAwait(false);
+            if (transportSecurityPolicy.RequiresProtectedTransport(response.MessageType) &&
+                !transportSecurityPolicy.IsProtected(response))
+            {
+                throw new CryptographicException(protectionRequiredMessage);
+            }
+            frame = codec.Serialize(response);
+            JournalHttp(OneWireTrafficDirections.Sent, frame, response, plaintext, string.Empty);
+            return Content(frame, "application/json", Encoding.UTF8);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            JournalHttp(OneWireTrafficDirections.Sent, frame, response, plaintext, exception.Message);
+            logger.LogDebug(exception, "Sending a LocalGPT 1-Wire HTTP/JSON response failed for message {MessageId}.", response.MessageId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Journals a profile request and the profile returned for it. MVC writes the response frame itself, so the journal keeps
+    /// the profile serialized with the web defaults MVC uses as the payload and leaves the raw frame empty.
+    /// </summary>
+    /// <param name="profile">The profile about to be returned.</param>
+    private void JournalProfile(OneWireProtocolProfile profile)
+    {
+        try
+        {
+            var remoteEndpoint = $"{HttpContext.Connection.RemoteIpAddress}:{HttpContext.Connection.RemotePort}";
+            traffic.Record(new OneWireTrafficRecord
+            {
+                Direction = OneWireTrafficDirections.Received,
+                Transport = OneWireTrafficTransports.HttpJson,
+                RemoteEndpoint = remoteEndpoint,
+                RawFrame = $"GET {Request.Path}",
+                MessageType = "Profile"
+            });
+            var payload = traffic.CurrentOptions.Enabled ? JsonSerializer.Serialize(profile, JsonSerializerOptions.Web) : string.Empty;
+            traffic.Record(new OneWireTrafficRecord
+            {
+                Direction = OneWireTrafficDirections.Sent,
+                Transport = OneWireTrafficTransports.HttpJson,
+                RemoteEndpoint = remoteEndpoint,
+                PlaintextJson = payload,
+                MessageType = "Profile"
+            });
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Journaling the LocalGPT 1-Wire HTTP/JSON profile exchange failed.");
+        }
+    }
+
+    /// <summary>Journals one HTTP/JSON packet with this request's remote endpoint.</summary>
+    /// <param name="direction">Received or Sent.</param>
+    /// <param name="frame">The frame as it crossed the wire.</param>
+    /// <param name="envelope">The envelope, decrypted when received, when one was parsed.</param>
+    /// <param name="plaintext">The plaintext captured before protection, for sent packets.</param>
+    /// <param name="error">Rejection or failure reason; empty on success.</param>
+    /// <returns>Always <see langword="true"/>, so callers can remember that the packet was journaled.</returns>
+    private bool JournalHttp(string direction, string frame, OneWireEnvelope? envelope, string plaintext, string error)
+    {
+        try
+        {
+            traffic.Record(new OneWireTrafficRecord
+            {
+                Direction = direction,
+                Transport = OneWireTrafficTransports.HttpJson,
+                RemoteEndpoint = $"{HttpContext.Connection.RemoteIpAddress}:{HttpContext.Connection.RemotePort}",
+                RawFrame = frame,
+                Envelope = envelope,
+                PlaintextJson = plaintext,
+                Error = error
+            });
+            return true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Journaling a LocalGPT 1-Wire HTTP/JSON packet failed.");
+            return true;
         }
     }
 }

@@ -43,7 +43,7 @@ public sealed class LocalGptMcpEndpoint(
     /// Gets the parameters value that forms part of the local GPT mcp endpoint state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The parameters value exposed by <see cref="LocalGptMcpEndpoint"/>.</value>
-    private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>(LocalGptRuntimeValue.McpGatewayRuntimeParametersJson);
+    private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>("McpGatewayRuntimeParametersJson");
 
     /// <summary>Handles one MCP Streamable HTTP POST containing a JSON-RPC request or notification.</summary>
     /// <param name="context">Context value supplied to the local GPT mcp endpoint operation and used when producing its result.</param>

@@ -2,14 +2,17 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.GameEngine;
 using LocalGPT.Interfaces;
+using LocalGPT.Interfaces.GameEngine;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides one shared control surface for humans and AI players. The deterministic renderer keeps
-/// /Chat reactive; a single Council renderer may replace a turn's complete frame through SubmitFrameAsync.
+/// Provides one shared control surface for humans and AI players. Games are database content (game projects with
+/// declarative rule rows); the generic game engine interprets them, and a single Council renderer may replace a
+/// turn's complete frame through SubmitFrameAsync.
 /// </summary>
 public sealed partial class CouncilGameSessionService : ICouncilGameSessionService, IDisposable
     {
@@ -29,11 +32,19 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         private readonly ISupervisedTaskRunner taskRunner;
         /// <summary>Provides database-backed operational limits and defaults for game sessions.</summary>
         private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
+        /// <summary>Generic game engine that interprets the declarative rule rows of the running game.</summary>
+        private readonly IGameEngineRuntimeService engine;
+        /// <summary>Resolves game projects (system seeds and user games) by key or alias and composes their rulesets.</summary>
+        private readonly IGameRulesetStoreService rulesetStore;
+        /// <summary>Clones generic actor state for immutable snapshots.</summary>
+        private readonly IGameActorQueryService actorQuery;
+        /// <summary>Fits frame lines to the fixed terminal width.</summary>
+        private readonly IGameTextUtilityService textUtility;
         /// <summary>
         /// Gets the runtime parameters value that forms part of the council game session state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The runtime parameters value exposed by <see cref="CouncilGameSessionService"/>.</value>
-        private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson);
+        private CouncilGameRuntimeParameters RuntimeParameters => runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson");
 
         /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
         /// <param name="gameDirector">Injected dependency used by the CouncilGameSessionService.</param>
@@ -42,13 +53,21 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
         /// <param name="logger">Injected dependency used by the CouncilGameSessionService.</param>
         /// <param name="taskRunner">Supervised task owner used for intentionally concurrent autoplay loops.</param>
         /// <param name="runtimePolicy">Database-backed Council game defaults and bounds.</param>
+        /// <param name="engine">Generic game engine that interprets the running game's rule rows.</param>
+        /// <param name="rulesetStore">Game project catalog and ruleset composer.</param>
+        /// <param name="actorQuery">Generic actor state helper used for snapshot cloning.</param>
+        /// <param name="textUtility">Shared terminal text helper.</param>
         public CouncilGameSessionService(
             ICouncilGameDirectorService gameDirector,
             GameSceneEngine gameSceneEngine,
             IServiceScopeFactory scopeFactory,
             ILogger<CouncilGameSessionService> logger,
             ISupervisedTaskRunner taskRunner,
-            ILocalGptRuntimePolicyDataService runtimePolicy)
+            ILocalGptRuntimePolicyDataService runtimePolicy,
+            IGameEngineRuntimeService engine,
+            IGameRulesetStoreService rulesetStore,
+            IGameActorQueryService actorQuery,
+            IGameTextUtilityService textUtility)
         {
             this.gameDirector = gameDirector;
             this.gameSceneEngine = gameSceneEngine;
@@ -56,11 +75,11 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             this.logger = logger;
             this.taskRunner = taskRunner;
             this.runtimePolicy = runtimePolicy;
+            this.engine = engine;
+            this.rulesetStore = rulesetStore;
+            this.actorQuery = actorQuery;
+            this.textUtility = textUtility;
         }
-    /// <summary>
-    /// Defines the field of view constant used by <see cref="CouncilGameSessionService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const double FieldOfView = Math.PI / 3d;
     /// <summary>
     /// Stores the in-memory sessions collection maintained internally by <see cref="CouncilGameSessionService"/> for its current workflow state.
     /// </summary>
@@ -95,55 +114,33 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             ArgumentNullException.ThrowIfNull(request);
             cancellationToken.ThrowIfCancellationRequested();
 
-            var definition = request.Definition;
-            var authoredScene = definition?.Scene;
+            var startedByKey = request.Definition is null;
+            var requestedGameKey = string.IsNullOrWhiteSpace(request.GameKey)
+                ? runtimePolicy.GetString("GameDefaultGameKey")
+                : request.GameKey.Trim();
+            var definition = request.Definition
+                ?? await rulesetStore.ResolveDefinitionAsync(requestedGameKey, cancellationToken).ConfigureAwait(false)
+                ?? throw new ArgumentException($"No game project or game alias matches '{requestedGameKey}'. Start a game listed in the game catalog or build the game project first.", nameof(request));
+            var authoredScene = definition.Scene;
             if (authoredScene is not null && gameSceneEngine.Curate(authoredScene).Any(item => item.BlocksAcceptance))
                 throw new InvalidOperationException("A completed Game Studio revision must pass semantic scene curation before starting a shared game session.");
-            string gameKey;
-            CouncilGameRuntimeProfile runtimeProfile;
-            Guid? projectId;
-            string projectVersion;
-            string displayName;
-            string defaultTeamKey;
-            if (definition is null)
-            {
-                gameKey = NormalizeGameKey(request.GameKey);
-                runtimeProfile = gameKey is "green-dragon" or "kernel-creature-tournament" ? CouncilGameRuntimeProfile.Story : CouncilGameRuntimeProfile.Corridor;
-                projectId = request.ProjectId;
-                projectVersion = string.Empty;
-                displayName = gameKey switch
-                {
-                    "green-dragon" => "Green Dragon Runtime Story",
-                    "kernel-creature-tournament" => "Kernel Creature Tournament",
-                    _ => "ASCII corridor action game"
-                };
-                defaultTeamKey = DefaultTeamFor(gameKey);
-            }
-            else
+            if (!startedByKey)
             {
                 if (definition.ProjectId == Guid.Empty)
                     throw new ArgumentException("A project-built game definition must carry its owning project identifier.", nameof(request));
                 if (request.ProjectId is Guid requestedProjectId && requestedProjectId != definition.ProjectId)
                     throw new ArgumentException("The requested project identifier does not match the project-built game definition.", nameof(request));
-                if (!Enum.IsDefined(typeof(CouncilGameRuntimeProfile), definition.RuntimeProfile))
-                    throw new ArgumentException("The project-built game definition targets an unsupported runtime profile.", nameof(request));
-
-                var normalizedDefinitionKey = (definition.GameKey ?? string.Empty).Trim().ToLowerInvariant().Replace('_', '-').Replace(' ', '-');
-                normalizedDefinitionKey = new string(normalizedDefinitionKey.Where(character => char.IsLetterOrDigit(character) || character == '-').ToArray()).Trim('-');
-                if (string.IsNullOrWhiteSpace(normalizedDefinitionKey))
-                    throw new ArgumentException("The project-built game definition contains an invalid game key.", nameof(request));
-                if (normalizedDefinitionKey.Length > 160)
-                    normalizedDefinitionKey = normalizedDefinitionKey[..160];
-
-                gameKey = normalizedDefinitionKey;
-                runtimeProfile = definition.RuntimeProfile;
-                projectId = definition.ProjectId;
-                projectVersion = (definition.ProjectVersion ?? string.Empty).Trim();
-                displayName = string.IsNullOrWhiteSpace(definition.DisplayName) ? gameKey : definition.DisplayName.Trim();
-                defaultTeamKey = string.IsNullOrWhiteSpace(definition.DefaultTeamKey) ? $"{gameKey}-council" : definition.DefaultTeamKey.Trim();
             }
 
-            var requestedScenario = string.IsNullOrWhiteSpace(request.ScenarioPrompt) && definition is not null
+            var gameKey = NormalizeDefinitionKey(definition.GameKey);
+            var ruleset = await ResolveRulesetAsync(definition, cancellationToken).ConfigureAwait(false);
+            var councilDriven = engine.IsCouncilDriven(ruleset);
+            var projectId = startedByKey ? request.ProjectId : definition.ProjectId;
+            var projectVersion = startedByKey ? string.Empty : (definition.ProjectVersion ?? string.Empty).Trim();
+            var displayName = string.IsNullOrWhiteSpace(definition.DisplayName) ? gameKey : definition.DisplayName.Trim();
+            var defaultTeamKey = string.IsNullOrWhiteSpace(definition.DefaultTeamKey) ? $"{gameKey}-council" : definition.DefaultTeamKey.Trim();
+
+            var requestedScenario = string.IsNullOrWhiteSpace(request.ScenarioPrompt)
                 ? definition.ScenarioPrompt
                 : request.ScenarioPrompt;
             var scenarioPrompt = string.Join(' ', (requestedScenario ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
@@ -151,19 +148,12 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 scenarioPrompt = scenarioPrompt[..240];
             var requestedMapSeed = request.MapSeed is > 0
                 ? request.MapSeed.Value
-                : definition?.MapSeed is > 0 ? definition.MapSeed : 0;
-            var asciiColorMode = NormalizeAsciiColorMode(definition?.AsciiColorMode ?? request.AsciiColorMode);
-            var requestedForegroundColor = definition?.DefaultForegroundColor ?? request.DefaultForegroundColor;
-            var requestedBackgroundColor = definition?.DefaultBackgroundColor ?? request.DefaultBackgroundColor;
+                : definition.MapSeed > 0 ? definition.MapSeed : 0;
+            var asciiColorMode = NormalizeAsciiColorMode(startedByKey ? request.AsciiColorMode : definition.AsciiColorMode);
+            var requestedForegroundColor = startedByKey ? request.DefaultForegroundColor : definition.DefaultForegroundColor;
+            var requestedBackgroundColor = startedByKey ? request.DefaultBackgroundColor : definition.DefaultBackgroundColor;
             var defaultForegroundColor = NormalizeAsciiColorIndex(asciiColorMode, requestedForegroundColor, true);
             var defaultBackgroundColor = NormalizeAsciiColorIndex(asciiColorMode, requestedBackgroundColor, false);
-            var campaign = runtimeProfile == CouncilGameRuntimeProfile.Corridor
-                && string.Equals(gameKey, "ascii-doom", StringComparison.OrdinalIgnoreCase)
-                ? await ResolveDoomCampaignAsync(request, cancellationToken).ConfigureAwait(false)
-                : null;
-            var tournamentRules = string.Equals(gameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
-                ? await ResolveKernelTournamentRulesAsync(request, cancellationToken).ConfigureAwait(false)
-                : null;
             var controlledActor = authoredScene?.Actors.FirstOrDefault(actor => actor.PlayerControlled);
             var session = new CouncilGameSessionState
             {
@@ -176,9 +166,9 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                     CameraY = Math.Clamp(Math.Floor((controlledActor?.Y ?? 0) - authoredScene.ViewHeight / 2d),
                         0, Math.Max(0, authoredScene.WorldHeight - authoredScene.ViewHeight))
                 },
-                SourceRevisionId = definition?.SourceRevisionId,
+                SourceRevisionId = definition.SourceRevisionId,
                 GameKey = gameKey,
-                RuntimeProfile = runtimeProfile,
+                Ruleset = ruleset,
                 ProjectId = projectId,
                 ProjectVersion = projectVersion,
                 TeamKey = string.IsNullOrWhiteSpace(request.TeamKey) ? defaultTeamKey : request.TeamKey.Trim(),
@@ -186,19 +176,11 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 CouncilRunId = request.CouncilRunId,
                 DisplayName = displayName,
                 ControlMode = request.ControlMode,
-                AutoplayEnabled = request.ControlMode == CouncilGameControlMode.Ai,
+                AutoplayEnabled = request.ControlMode == CouncilGameControlMode.Ai && !councilDriven,
                 AutoplayDelayMilliseconds = NormalizeAutoplayDelay(request.AutoplayDelayMilliseconds),
-                HumanInputRequired = request.ControlMode != CouncilGameControlMode.Ai,
-                InputReason = request.ControlMode == CouncilGameControlMode.Ai
-                    ? "AI hunter owns the next map-aware control step."
-                    : request.ControlMode == CouncilGameControlMode.Shared
-                        ? "Human and AI players may submit direct bounded controls to the same authoritative turn; background autoplay is off."
-                        : "Your turn: use the shared controls; AI-origin movement is locked out.",
-                CurrentTurnOwner = request.ControlMode == CouncilGameControlMode.Ai ? "AI Hunter" : request.ControlMode == CouncilGameControlMode.Shared ? "Human / AI" : "Human Player",
                 DirectorMode = request.DirectorMode,
                 GameDirectorModelName = request.GameDirectorModelName?.Trim() ?? string.Empty,
                 CreatureDirectorCount = Math.Clamp(request.CreatureDirectorCount <= 0 ? RuntimeParameters.DefaultCreatureDirectors : request.CreatureDirectorCount, RuntimeParameters.MinimumCreatureDirectors, RuntimeParameters.MaximumCreatureDirectors),
-                LastDirectorDecision = "The GameDirector owns all state transitions; controllers may only submit proposals.",
                 FrameWidth = authoredScene?.ViewWidth ?? Math.Clamp(request.FrameWidth <= 0 ? RuntimeParameters.DefaultFrameWidth : request.FrameWidth, RuntimeParameters.MinimumFrameWidth, RuntimeParameters.MaximumFrameWidth),
                 FrameHeight = authoredScene?.ViewHeight ?? Math.Clamp(request.FrameHeight <= 0 ? RuntimeParameters.DefaultFrameHeight : request.FrameHeight, RuntimeParameters.MinimumFrameHeight, RuntimeParameters.MaximumFrameHeight),
                 AsciiColorMode = asciiColorMode,
@@ -207,38 +189,28 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 MapSeed = requestedMapSeed,
                 CampaignSeed = requestedMapSeed,
                 ScenarioPrompt = scenarioPrompt,
-                CampaignRuntimeClassKey = campaign?.RuntimeClassKey ?? string.Empty,
-                LevelProfiles = campaign?.Levels.Select(CloneLevelProfile).ToList() ?? [],
-                CurrentLevelIndex = campaign?.StartingLevelIndex ?? 0,
-                AutoAdvanceLevels = campaign?.AutoAdvanceLevels ?? false,
-                TournamentRuntimeClassKey = tournamentRules?.RuntimeClassKey ?? string.Empty,
-                TournamentRules = tournamentRules ?? new CouncilKernelTournamentRules(),
-                AnimationDelayMilliseconds = tournamentRules?.AnimationFrameDelayMilliseconds ?? 650,
-                AnimationSubtitleHoldMilliseconds = tournamentRules?.SubtitleHoldMilliseconds ?? 1500,
                 LastActionBy = string.IsNullOrWhiteSpace(request.StartedBy) ? "Human User" : request.StartedBy.Trim(),
-                PlayerX = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
-                PlayerY = runtimeProfile == CouncilGameRuntimeProfile.Story ? 4 : 3,
-                FacingRadians = 0d,
-                LegalActions = authoredScene is null ? BuildLegalActions(runtimeProfile) : ["move-forward", "move-backward", "strafe-left", "strafe-right", "turn-left", "turn-right", "use"],
-                InputBindings = authoredScene is null
-                    ? BuildInputBindings(runtimeProfile)
-                    : BuildInputBindings(CouncilGameRuntimeProfile.Corridor)
-                        .Where(binding => binding.Action is not ("shoot" or "duck")).ToList()
+                LegalActions = engine.BuildLegalActions(ruleset, authoredScene is not null),
+                InputBindings = engine.BuildInputBindings(ruleset, authoredScene is not null)
             };
-            if (authoredScene is null && runtimeProfile == CouncilGameRuntimeProfile.Corridor)
-                InitializeDoomWorld(session);
-            if (string.Equals(gameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase))
+            session.Progression.LevelIndex = ResolveStartingLevelIndex(ruleset, request.StartingLevel);
+            session.Progression.AutoAdvanceLevels = request.AutoAdvanceLevels ?? true;
+            if (authoredScene is null)
+                engine.Initialize(session);
+            session.LastDirectorDecision = engine.Text(session, "director.initial");
+            if (councilDriven)
             {
-                session.AutoplayEnabled = false;
                 session.HumanInputRequired = false;
-                session.InputReason = "Council trainer/creature micro-turns feed the deterministic tournament engine; direct game controls are not required.";
-                session.CurrentTurnOwner = "LocalGPT Tournament Engine";
-                session.LegalActions = [];
-                session.InputBindings = [];
+                session.InputReason = engine.Text(session, "council.input-reason");
+                session.CurrentTurnOwner = engine.Text(session, "council.turn-owner");
             }
-            session.FrameRenderer = authoredScene is null ? "LocalGPT deterministic preview renderer" : "LocalGPT curated scene engine";
-            session.FrameText = Render(session);
-            session.FrameCaption = BuildCaption(session);
+            else
+            {
+                engine.ApplyControlOwnership(session, "start.reason");
+            }
+            session.FrameRenderer = authoredScene is null ? PreviewRendererName : SceneRendererName;
+            RenderAuthoritativeFrame(session);
+            session.FrameCaption = engine.BuildCaption(session);
             sessions[session.Id] = session;
             EnsureAutoplayLoop(session);
             Notify(session.Id);
@@ -363,7 +335,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             if (councilRunId == Guid.Empty)
                 return Task.FromResult<CouncilGameSessionSnapshot?>(null);
 
-            var normalizedGameKey = NormalizeGameKey(gameKey);
+            var normalizedGameKey = (gameKey ?? string.Empty).Trim();
             var session = sessions.Values
                 .Where(item => item.Status == "Running"
                     && item.CouncilRunId == councilRunId
@@ -402,8 +374,8 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 session.Status = "Completed";
                 session.AutoplayEnabled = false;
                 session.HumanInputRequired = false;
-                session.CurrentTurnOwner = "Game ended";
-                session.InputReason = "The ASCII game ended; chat, Council/provider sessions and the terminal remain available.";
+                session.CurrentTurnOwner = engine.Text(session, "end.owner");
+                session.InputReason = engine.Text(session, "end.reason");
                 session.LastAction = "end-game";
                 session.LastActionBy = string.IsNullOrWhiteSpace(endedBy) ? "Current User" : endedBy.Trim();
                 session.UpdatedAtUtc = DateTime.UtcNow;
@@ -447,8 +419,8 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                     session.Status = "Completed";
                     session.AutoplayEnabled = false;
                     session.HumanInputRequired = false;
-                    session.CurrentTurnOwner = "Council run ended";
-                    session.InputReason = "The owning Council run ended, so its ASCII game runtime was stopped.";
+                    session.CurrentTurnOwner = engine.Text(session, "end.council.owner");
+                    session.InputReason = engine.Text(session, "end.council.reason");
                     session.LastAction = "end-council-game";
                     session.LastActionBy = string.IsNullOrWhiteSpace(endedBy) ? "Council lifecycle" : endedBy.Trim();
                     session.UpdatedAtUtc = DateTime.UtcNow;
@@ -529,7 +501,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 if (session.ControlMode == CouncilGameControlMode.Human
                     && string.Equals(request.Source, "AI", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("AI controls are disabled while this game is owned by the human player. Switch control mode explicitly in the Game UI before enabling AI hunter autoplay.");
-                normalizedAction = NormalizeAction(request.Action, request.AxisX, request.AxisY);
+                normalizedAction = engine.NormalizeAction(session.Ruleset, request.Action, request.AxisX, request.AxisY);
                 snapshot = ToSnapshotUnsafe(session);
             }
 
@@ -601,7 +573,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                     throw new InvalidOperationException("The game session is not running.");
 
                 session.HumanInputRequired = false;
-                session.InputReason = "The GameDirector approved the proposal and is resolving one authoritative world step.";
+                session.InputReason = engine.Text(session, "director.resolving");
                 session.CurrentTurnOwner = session.GameDirectorName;
                 if (session.Scene is not null)
                 {
@@ -622,39 +594,27 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 }
                 else
                 {
-                    ApplyAction(session, decision.NormalizedAction, request.AimX, request.AimY);
-                    AdvanceDoomWorld(session);
+                    engine.ApplyAction(session, decision.NormalizedAction, request.AimX, request.AimY);
+                    engine.AdvanceWorld(session);
                 }
                 session.Turn++;
                 session.LastAction = decision.NormalizedAction;
                 session.LastActionBy = string.IsNullOrWhiteSpace(request.ActorName) ? request.Source : request.ActorName.Trim();
                 session.LastDirectorDecision = decision.Reason;
                 session.LastDirectorPredictions = decision.Predictions.Select(ClonePrediction).ToList();
-                session.FrameText = Render(session);
-                session.FrameCaption = BuildCaption(session);
-                session.FrameRenderer = session.Scene is null ? "LocalGPT deterministic preview renderer" : "LocalGPT curated scene engine";
                 session.AnimationFrames.Clear();
                 session.AnimationFrameStyleRuns.Clear();
                 session.AnimationSubtitleStyle = null;
-                session.FrameStyleRuns.Clear();
+                RenderAuthoritativeFrame(session);
+                session.FrameCaption = engine.BuildCaption(session);
+                session.FrameRenderer = session.Scene is null ? PreviewRendererName : SceneRendererName;
                 session.AnimationDelayMilliseconds = 650;
                 session.FrameOwnerTurn = session.Turn;
                 session.FrameOwner = session.FrameRenderer;
                 session.UpdatedAtUtc = DateTime.UtcNow;
 
-                if (session.Status == "Running" && session.ControlMode == CouncilGameControlMode.Ai)
-                {
-                    session.CurrentTurnOwner = "AI Hunter";
-                    session.InputReason = "AI hunter reads the authoritative map and chooses one deterministic legal control step.";
-                }
-                else if (session.Status == "Running")
-                {
-                    session.CurrentTurnOwner = session.ControlMode == CouncilGameControlMode.Shared ? "Human / AI" : "Human Player";
-                    session.HumanInputRequired = true;
-                    session.InputReason = session.ControlMode == CouncilGameControlMode.Shared
-                        ? "Human and AI players may submit the next direct proposal; there is no background autoplay in Shared mode."
-                        : "Your turn: controls submit proposals to the GameDirector.";
-                }
+                if (session.Status == "Running")
+                    engine.ApplyControlOwnership(session, "action.reason");
             }
 
             Notify(session.Id);
@@ -705,7 +665,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 if (session.FrameOwnerTurn == request.Turn &&
                     !string.IsNullOrWhiteSpace(session.FrameOwner) &&
                     !string.Equals(session.FrameOwner, request.RendererName, StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(session.FrameOwner, "LocalGPT deterministic preview renderer", StringComparison.OrdinalIgnoreCase))
+                    !string.Equals(session.FrameOwner, PreviewRendererName, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException($"Turn {request.Turn} already has one frame owner: {session.FrameOwner}.");
                 }
@@ -718,7 +678,7 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
                 if (request.DefaultBackgroundColor is int requestedBackground)
                     session.DefaultBackgroundColor = NormalizeAsciiColorIndex(session.AsciiColorMode, requestedBackground, false);
                 session.FrameStyleRuns = NormalizeAsciiStyleRuns(request.StyleRuns, session.FrameWidth, session.FrameHeight, session.AsciiColorMode);
-                session.FrameCaption = string.IsNullOrWhiteSpace(request.Caption) ? BuildCaption(session) : request.Caption.Trim();
+                session.FrameCaption = string.IsNullOrWhiteSpace(request.Caption) ? engine.BuildCaption(session) : request.Caption.Trim();
                 session.FrameRenderer = request.RendererName.Trim();
                 session.AnimationFrames.Clear();
                 session.AnimationFrameStyleRuns.Clear();
@@ -771,11 +731,11 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             {
                 session.HumanInputRequired = request.HumanInputRequired && session.ControlMode != CouncilGameControlMode.Ai;
                 session.InputReason = string.IsNullOrWhiteSpace(request.Reason)
-                    ? (session.HumanInputRequired ? "Waiting for one player control." : "The Council owns the next step.")
+                    ? engine.Text(session, session.HumanInputRequired ? "gate.reason.human" : "gate.reason.council")
                     : request.Reason.Trim();
                 if (request.LegalActions.Count > 0)
-                    session.LegalActions = request.LegalActions.Select(item => NormalizeAction(item, null, null)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                session.CurrentTurnOwner = session.HumanInputRequired ? "Human Player" : "AI Council";
+                    session.LegalActions = request.LegalActions.Select(item => engine.NormalizeAction(session.Ruleset, item, null, null)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                session.CurrentTurnOwner = engine.Text(session, session.HumanInputRequired ? "gate.owner.human" : "gate.owner.council");
                 session.UpdatedAtUtc = DateTime.UtcNow;
             }
             Notify(session.Id);
@@ -818,15 +778,17 @@ public sealed partial class CouncilGameSessionService : ICouncilGameSessionServi
             lock (session.SyncRoot)
             {
                 session.ControlMode = mode;
-                session.AutoplayEnabled = mode == CouncilGameControlMode.Ai;
                 session.AutoplayDelayMilliseconds = NormalizeAutoplayDelay(autoplayDelayMilliseconds);
-                session.HumanInputRequired = mode != CouncilGameControlMode.Ai;
-                session.CurrentTurnOwner = mode == CouncilGameControlMode.Ai ? "AI Hunter" : mode == CouncilGameControlMode.Shared ? "Human / AI" : "Human Player";
-                session.InputReason = mode == CouncilGameControlMode.Ai
-                    ? "AI hunter uses deterministic map-aware pathfinding through the same bounded control contract as the user."
-                    : mode == CouncilGameControlMode.Shared
-                        ? "Human and AI direct controls share the authoritative game turn; background autoplay remains off."
-                        : "Your turn: keyboard, touch and gamepad actions use the shared control contract; AI-origin movement is rejected.";
+                if (engine.IsCouncilDriven(session.Ruleset))
+                {
+                    session.AutoplayEnabled = false;
+                    session.HumanInputRequired = false;
+                }
+                else
+                {
+                    session.AutoplayEnabled = mode == CouncilGameControlMode.Ai;
+                    engine.ApplyControlOwnership(session, "mode.reason");
+                }
                 session.UpdatedAtUtc = DateTime.UtcNow;
             }
             EnsureAutoplayLoop(session);

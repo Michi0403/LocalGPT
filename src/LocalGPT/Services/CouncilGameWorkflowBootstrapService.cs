@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using LocalGPT.Interfaces.GameEngine;
 
 namespace LocalGPT.Services;
 
@@ -10,10 +11,12 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="teams">Council team configuration service dependency used by the council game workflow bootstrap workflow to provide the corresponding application capability.</param>
 /// <param name="games">Council game session service dependency used by the council game workflow bootstrap workflow to provide the corresponding application capability.</param>
+/// <param name="gameCatalog">Game catalog that maps a team's declared runtime-class families to the game project that owns them.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilGameWorkflowBootstrapService(
     ICouncilTeamConfigurationService teams,
     ICouncilGameSessionService games,
+    IGameRulesetStoreService gameCatalog,
     ILogger<CouncilGameWorkflowBootstrapService> logger)
 {
     /// <summary>Ensures the configured Council run owns its required game session, when the selected team declares one.</summary>
@@ -48,8 +51,8 @@ public sealed class CouncilGameWorkflowBootstrapService(
                 return null;
             }
 
-            var gameKey = ResolveGameKey(runtimeClassKeys);
-            if (string.IsNullOrWhiteSpace(gameKey))
+            var game = await gameCatalog.FindForTeamAsync(team.Key, runtimeClassKeys, cancellationToken).ConfigureAwait(false);
+            if (game is null)
             {
                 logger.LogWarning(
                     "Council team {TeamKey} requires the ASCII surface and declares runtime classes, but none belong to a supported deterministic game family; no game bootstrap was performed for run {RunId}.",
@@ -58,21 +61,20 @@ public sealed class CouncilGameWorkflowBootstrapService(
                 return null;
             }
 
-            var existing = await games.GetActiveForCouncilRunAsync(request.RunId, gameKey, cancellationToken).ConfigureAwait(false);
+            var existing = await games.GetActiveForCouncilRunAsync(request.RunId, game.GameKey, cancellationToken).ConfigureAwait(false);
             if (existing is not null)
                 return existing;
 
-            var highResolutionTournament = string.Equals(gameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase);
             var snapshot = await games.StartAsync(new StartCouncilGameRequest
             {
-                GameKey = gameKey,
+                GameKey = game.GameKey,
                 TeamKey = team.Key,
                 CouncilRunId = request.RunId,
                 ConversationId = request.ContinueConversationId,
                 ControlMode = CouncilGameControlMode.Shared,
                 AutoplayEnabled = false,
-                FrameWidth = highResolutionTournament ? 168 : 80,
-                FrameHeight = highResolutionTournament ? 44 : 25,
+                FrameWidth = game.FrameWidth,
+                FrameHeight = game.FrameHeight,
                 StartedBy = "LocalGPT Council workflow bootstrap"
             }, cancellationToken).ConfigureAwait(false);
 
@@ -92,29 +94,6 @@ public sealed class CouncilGameWorkflowBootstrapService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Council game workflow bootstrap failed for run {RunId} and team {TeamKey}.", request.RunId, request.CouncilTeamKey);
-            throw;
-        }
-    }
-
-    /// <summary>Maps declared runtime-class namespaces to the deterministic game runtime that owns those classes.</summary>
-    /// <param name="runtimeClassKeys">String dependency used by the council game workflow bootstrap workflow to provide the corresponding application capability.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string? ResolveGameKey(IEnumerable<string> runtimeClassKeys)
-    {
-        try
-        {
-            var keys = runtimeClassKeys.ToArray();
-            if (keys.Any(key => key.StartsWith("games.ascii.kernel-tournament.", StringComparison.OrdinalIgnoreCase)))
-                return "kernel-creature-tournament";
-            if (keys.Any(key => key.StartsWith("games.ascii.doom.", StringComparison.OrdinalIgnoreCase)))
-                return "ascii-doom";
-            if (keys.Any(key => key.StartsWith("games.green-dragon.", StringComparison.OrdinalIgnoreCase)))
-                return "green-dragon";
-            return null;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Resolving a Council game key from runtime-class configuration failed.");
             throw;
         }
     }

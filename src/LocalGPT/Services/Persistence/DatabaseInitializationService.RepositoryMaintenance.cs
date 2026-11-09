@@ -14,7 +14,7 @@ public sealed partial class DatabaseInitializationService
     /// <summary>Resolves the semantic release changelog pattern from the same authoritative runtime-policy seed that is persisted during initialization.</summary>
     /// <value>The repository release changelog pattern value exposed by <see cref="DatabaseInitializationService"/>.</value>
     private Regex RepositoryReleaseChangelogPattern => new(
-        runtimePolicySeed.GetSeed().RegexPatterns.Single(item => item.Key == LocalGptRuntimePattern.RepositoryChangelogFile).Pattern,
+        runtimePolicySeed.GetSeed().RegexPatterns.Single(item => item.Name == "runtime.project.release-changelog").Pattern,
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(2));
 

@@ -125,8 +125,8 @@ public sealed class NativeCommandRunner(
 
             var timeoutSeconds = Math.Clamp(
                 commandOptions.CurrentValue.MaxDurationSeconds,
-                runtimePolicy.GetInt(LocalGptRuntimeValue.NativeCommandMinimumTimeoutSeconds),
-                runtimePolicy.GetInt(LocalGptRuntimeValue.NativeCommandMaximumTimeoutSeconds));
+                runtimePolicy.GetInt("NativeCommandMinimumTimeoutSeconds"),
+                runtimePolicy.GetInt("NativeCommandMaximumTimeoutSeconds"));
             using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutSource.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
@@ -501,7 +501,7 @@ public sealed class NativeCommandRunner(
         {
             var decision = new CommandPolicyDecision(
                 true,
-                runtimePolicy.GetString(LocalGptRuntimeValue.CommandPolicyAllowedDecision),
+                runtimePolicy.GetString("CommandPolicyAllowedDecision"),
                 reason,
                 profile);
             logger.LogTrace("Created allowed native-command policy decision for profile {Profile}.", profile);
@@ -523,12 +523,12 @@ public sealed class NativeCommandRunner(
     {
         try
         {
-            var denied = runtimePolicy.GetString(LocalGptRuntimeValue.CommandPolicyDeniedDecision);
+            var denied = runtimePolicy.GetString("CommandPolicyDeniedDecision");
             var decision = new CommandPolicyDecision(
                 false,
                 denied,
                 reason,
-                runtimePolicy.GetString(LocalGptRuntimeValue.CommandPolicyDeniedProfile));
+                runtimePolicy.GetString("CommandPolicyDeniedProfile"));
             logger.LogTrace("Created denied native-command policy decision.");
             return decision;
         }

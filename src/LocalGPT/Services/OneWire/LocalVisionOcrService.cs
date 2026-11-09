@@ -34,7 +34,7 @@ public sealed class LocalVisionOcrService(
         {
             var imageBase64 = ReadImageBase64(request.ImageDataUrl, out var mediaType);
             var provider = await ResolveAvailableProviderAsync(request.ModelName, cancellationToken).ConfigureAwait(false);
-            var configuredTimeoutSeconds = runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionRequestTimeoutSeconds);
+            var configuredTimeoutSeconds = runtimePolicy.GetInt("LocalVisionRequestTimeoutSeconds");
             using var client = new HttpClient
             {
                 BaseAddress = new Uri(provider.Uri.TrimEnd('/') + "/", UriKind.Absolute),
@@ -43,8 +43,8 @@ public sealed class LocalVisionOcrService(
                     : TimeSpan.FromSeconds(configuredTimeoutSeconds)
             };
 
-            var minimumOutputTokens = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionMinimumOutputTokens));
-            var maximumOutputTokens = Math.Max(minimumOutputTokens, runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionMaximumOutputTokens));
+            var minimumOutputTokens = Math.Max(1, runtimePolicy.GetInt("LocalVisionMinimumOutputTokens"));
+            var maximumOutputTokens = Math.Max(minimumOutputTokens, runtimePolicy.GetInt("LocalVisionMaximumOutputTokens"));
             var requestedOutputTokens = request.MaximumOutputTokens <= 0 ? maximumOutputTokens : request.MaximumOutputTokens;
             var payload = new OllamaChatRequest
             {
@@ -73,7 +73,7 @@ public sealed class LocalVisionOcrService(
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                var maximumDiagnosticCharacters = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionMaximumDiagnosticCharacters));
+                var maximumDiagnosticCharacters = Math.Max(1, runtimePolicy.GetInt("LocalVisionMaximumDiagnosticCharacters"));
                 throw new InvalidOperationException($"The configured local OCR model returned HTTP {(int)response.StatusCode}: {Trim(body, maximumDiagnosticCharacters)}");
             }
 
@@ -143,7 +143,7 @@ public sealed class LocalVisionOcrService(
             {
                 try
                 {
-                    var timeout = runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionRequestTimeoutSeconds);
+                    var timeout = runtimePolicy.GetInt("LocalVisionRequestTimeoutSeconds");
                     using var probe = new HttpClient
                     {
                         BaseAddress = new Uri(host.Uri.TrimEnd('/') + "/", UriKind.Absolute),
@@ -213,7 +213,7 @@ public sealed class LocalVisionOcrService(
             mediaType = dataUrl[5..separator];
             var encoded = dataUrl[(comma + 1)..];
             var bytes = Convert.FromBase64String(encoded);
-            var maximumImageBytes = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.LocalVisionMaximumImageBytes));
+            var maximumImageBytes = Math.Max(1, runtimePolicy.GetInt("LocalVisionMaximumImageBytes"));
             if (bytes.Length == 0 || bytes.Length > maximumImageBytes)
                 throw new ArgumentException($"The OCR image must be between 1 byte and the configured LocalVisionMaximumImageBytes value ({maximumImageBytes} bytes).");
             return Convert.ToBase64String(bytes);

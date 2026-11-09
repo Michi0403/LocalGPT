@@ -25,7 +25,7 @@ public sealed class DebugArtifactInspectionService(
         var file = new FileInfo(fullPath);
         if (!file.Exists)
             throw new FileNotFoundException("The debug artifact was not found.", fullPath);
-        var maximumInspectionBytes = Math.Max(1L, runtimePolicy.GetLong(LocalGptRuntimeValue.DebugArtifactMaximumInspectionBytes));
+        var maximumInspectionBytes = Math.Max(1L, runtimePolicy.GetLong("DebugArtifactMaximumInspectionBytes"));
         if (file.Length > maximumInspectionBytes)
             throw new InvalidOperationException($"The debug artifact exceeds the configured DebugArtifactMaximumInspectionBytes policy ({maximumInspectionBytes:n0} bytes).");
 

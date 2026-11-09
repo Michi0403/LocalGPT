@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Components.Web.Virtualization;
 using Microsoft.JSInterop;
 using static Microsoft.AspNetCore.Components.Web.RenderMode;
 using LocalGPT;
+using LocalGPT.BusinessObjects.GameEngine;
 using LocalGPT.Components;
 using LocalGPT.Components.Layout;
 using LocalGPT.BusinessObjects;
@@ -191,6 +192,16 @@ public partial class ChatGameConsole
     }
     /// <summary>Remembers the last game-input state sent to JavaScript so unrelated renders do not repeat interop calls.</summary>
     private bool? lastJsInputEnabled;
+    /// <summary>Signature of the input map last sent to the browser controller (game session plus its bindings).</summary>
+    private string? lastJsInputMapSignature;
+    /// <summary>Catalog games offered as launcher buttons while no game runs.</summary>
+    private IReadOnlyList<GameCatalogEntry> launcherGames = [];
+    /// <summary>Suggested team key whose Council-driven game key was last resolved.</summary>
+    private string? resolvedSuggestedTeamKey;
+    /// <summary>Game key of the suggested team's Council-driven game; empty when the team runs no such game.</summary>
+    private string suggestedTeamGameKey = string.Empty;
+    /// <summary>Turn-model key of games driven by Council workflow steps.</summary>
+    private const string CouncilTurnModelKey = "council";
     /// <summary>Remembers the last scale mode sent to JavaScript so unrelated renders do not repeat interop calls.</summary>
     private string? lastJsScaleMode;
     /// <summary>Remembers the last renderer/layout payload presented to JavaScript so token-stream renders do not repeatedly force layout and scrolling.</summary>
@@ -308,9 +319,9 @@ public partial class ChatGameConsole
     /// <summary>Gets whether the active game should currently expose its human control guide.</summary>
     /// <value>The show control guide value exposed by <see cref="ChatGameConsole"/>.</value>
     private bool ShowControlGuide => GetShowControlGuideForRender();
-    /// <summary>Gets whether the active deterministic frame is the high-resolution Kernel Creature Tournament surface.</summary>
-    /// <value>The is kernel tournament value exposed by <see cref="ChatGameConsole"/>.</value>
-    private bool IsKernelTournament => GetIsKernelTournamentForRender();
+    /// <summary>Gets whether the active game is driven by Council turns and uses the high-resolution stage layout.</summary>
+    /// <value><c>true</c> for Council-driven games.</value>
+    private bool IsCouncilDrivenStage => GetIsCouncilDrivenStageForRender();
     /// <summary>
     /// Gets a value indicating whether submit human control applies to the chat game console state.
     /// </summary>
@@ -348,21 +359,35 @@ public partial class ChatGameConsole
     /// <value>A concise explanation of the shared chat/game/operator state.</value>
     private string AsciiSurfaceSubtitle => GetAsciiSurfaceSubtitleForRender();
 
-    /// <summary>Gets a compact live workflow hint while the tournament engine is waiting for AI-authored lineup/bracket evidence.</summary>
+    /// <summary>
+    /// Gets a compact live workflow hint while a Council-driven game waits for its first AI-authored turn; the wording is
+    /// the game's <c>ui.preparation.*</c> texts.
+    /// </summary>
     /// <value>The game preparation status value exposed by <see cref="ChatGameConsole"/>.</value>
     private string GamePreparationStatus
     {
         get
         {
-            if (snapshot is null || !string.Equals(snapshot.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase) || snapshot.Turn > 0)
+            if (snapshot is null || !IsCouncilDrivenStage || snapshot.Turn > 0)
                 return string.Empty;
             if (CouncilParticipantActivities.Count == 0)
-                return "Tournament engine ready · waiting for Council lineup activity…";
+                return GameTexts.Get(snapshot.Ruleset, "ui.preparation.waiting");
             var running = CouncilParticipantActivities.Count(activity => activity.IsRunning);
             var finished = CouncilParticipantActivities.Count(activity => !activity.IsRunning && !string.IsNullOrWhiteSpace(activity.FinalContent));
             var current = CouncilParticipantActivities.FirstOrDefault(activity => activity.IsRunning);
-            var currentLabel = current is null ? string.Empty : $" · {current.Role}: {current.StatusMessage}";
-            return $"Tournament preparation · {finished} completed · {running} active{currentLabel}";
+            var tokens = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["finished"] = finished,
+                ["running"] = running,
+                ["current"] = current is null
+                    ? string.Empty
+                    : GameTexts.Format(snapshot.Ruleset, "ui.preparation.current", new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["role"] = current.Role,
+                        ["status"] = current.StatusMessage
+                    })
+            };
+            return GameTexts.Format(snapshot.Ruleset, "ui.preparation.progress", tokens);
         }
     }
 
@@ -395,8 +420,9 @@ public partial class ChatGameConsole
         {
         if (CouncilRunId is Guid councilRunId)
         {
-            var councilGame = string.Equals(SuggestedTeamKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
-                ? await Games.GetActiveForCouncilRunAsync(councilRunId, "kernel-creature-tournament").ConfigureAwait(true)
+            var teamGameKey = await ResolveSuggestedTeamGameKeyAsync().ConfigureAwait(true);
+            var councilGame = teamGameKey.Length > 0
+                ? await Games.GetActiveForCouncilRunAsync(councilRunId, teamGameKey).ConfigureAwait(true)
                 : await Games.GetActiveForCouncilRunAsync(councilRunId).ConfigureAwait(true);
             // A run-bound terminal must never attach a different game merely because
             // both sessions once shared the same Chat conversation.
@@ -460,6 +486,7 @@ public partial class ChatGameConsole
         if (snapshot is not null && !operatorMode)
             conversationMode = false;
         await RefreshPlayableRevisionsAsync().ConfigureAwait(true);
+        await RefreshLauncherGamesAsync().ConfigureAwait(true);
         await ReportGameAvailabilityAsync().ConfigureAwait(true);
         await RefreshHotSeatRequestAsync().ConfigureAwait(true);
         lastHumanRequestProjectionRunId = CouncilRunId;
@@ -558,6 +585,16 @@ public partial class ChatGameConsole
             {
                 await _gameConsoleModule!.InvokeVoidAsync("setDisplayMode", elementId, gameDisplayMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
                 lastJsDisplayMode = gameDisplayMode;
+            }
+
+            var inputMapSignature = snapshot is null
+                ? string.Empty
+                : GameInputMaps.Signature(snapshot.Id, snapshot.InputBindings);
+            if (!string.Equals(lastJsInputMapSignature, inputMapSignature, StringComparison.Ordinal))
+            {
+                await _gameConsoleModule!.InvokeVoidAsync("setInputMap", elementId,
+                    snapshot is null ? [] : GameInputMaps.Build(snapshot.InputBindings)).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                lastJsInputMapSignature = inputMapSignature;
             }
 
             if (!operatorMode && !conversationMode && snapshot is not null)
@@ -667,6 +704,7 @@ public partial class ChatGameConsole
         {
         attached = false;
         lastJsInputEnabled = null;
+        lastJsInputMapSignature = null;
         lastJsScaleMode = null;
         lastJsDisplayMode = null;
         lastJsFramePresentationSignature = string.Empty;
@@ -856,13 +894,8 @@ public partial class ChatGameConsole
                 case LocalConsoleOperatorApplicationAction.SessionOpen:
                     await InvokeAsync(() => SessionOpenRequested.InvokeAsync(result.ApplicationArgument)).ConfigureAwait(true);
                     break;
-                case LocalConsoleOperatorApplicationAction.GameStartCorridor:
-                    await StartDoomAsync().ConfigureAwait(true);
-                    operatorMode = false;
-                    conversationMode = false;
-                    break;
-                case LocalConsoleOperatorApplicationAction.GameStartDragon:
-                    await StartDragonAsync().ConfigureAwait(true);
+                case LocalConsoleOperatorApplicationAction.GameStartCatalog:
+                    await StartAsync(result.ApplicationArgument, string.Empty).ConfigureAwait(true);
                     operatorMode = false;
                     conversationMode = false;
                     break;
@@ -1008,35 +1041,60 @@ public partial class ChatGameConsole
         }
     }
 
-    /// <summary>
-    /// Starts doom for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
-    /// </summary>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartDoomAsync()
+    /// <summary>Starts one game offered by the game catalog launcher (a game project that defines <c>launcher.order</c>).</summary>
+    /// <param name="entry">Catalog entry of the game to start.</param>
+    /// <returns>A task that completes when the game has started.</returns>
+    private async Task StartCatalogGameAsync(GameCatalogEntry entry)
     {
         try
         {
-            await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(true);
+            await StartAsync(entry.GameKey, entry.DefaultTeamKey).ConfigureAwait(true);
         }
         catch (Exception __componentMethodException)
         {
-            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.StartDoomAsync failed.");
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.StartCatalogGameAsync failed for game {GameKey}.", entry.GameKey);
             throw;
         }
     }
-    /// <summary>
-    /// Starts dragon for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
-    /// </summary>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task StartDragonAsync()
+
+    /// <summary>Loads the catalog games offered as launcher buttons.</summary>
+    /// <returns>A task that completes when the launcher list is current.</returns>
+    private async Task RefreshLauncherGamesAsync()
     {
         try
         {
-            await StartAsync("green-dragon", "green-dragon-runtime-story").ConfigureAwait(true);
+            launcherGames = (await GameCatalog.ListCatalogAsync().ConfigureAwait(true))
+                .Where(entry => entry.ShowInLauncher)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            launcherGames = [];
+            Logger.LogError(exception, "Component method ChatGameConsole.RefreshLauncherGamesAsync failed; no game launchers are shown.");
+        }
+    }
+
+    /// <summary>Resolves (once per suggested team) the Council-driven game the suggested team runs, if any.</summary>
+    /// <returns>The game key the surface is bound to, or an empty string when any run game may be shown.</returns>
+    private async Task<string> ResolveSuggestedTeamGameKeyAsync()
+    {
+        try
+        {
+            var teamKey = SuggestedTeamKey ?? string.Empty;
+            if (string.Equals(resolvedSuggestedTeamKey, teamKey, StringComparison.OrdinalIgnoreCase))
+                return suggestedTeamGameKey;
+            resolvedSuggestedTeamKey = teamKey;
+            suggestedTeamGameKey = string.Empty;
+            if (teamKey.Length == 0)
+                return suggestedTeamGameKey;
+            var game = await GameCatalog.FindForTeamAsync(teamKey, []).ConfigureAwait(true);
+            if (game is not null && string.Equals(game.TurnModelKey, CouncilTurnModelKey, StringComparison.OrdinalIgnoreCase))
+                suggestedTeamGameKey = game.GameKey;
+            return suggestedTeamGameKey;
         }
         catch (Exception __componentMethodException)
         {
-            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.StartDragonAsync failed.");
+            Logger.LogError(__componentMethodException, "Component method ChatGameConsole.ResolveSuggestedTeamGameKeyAsync failed.");
             throw;
         }
     }
@@ -1048,7 +1106,6 @@ public partial class ChatGameConsole
     /// <param name="teamKey">Team key value supplied to the chat game console operation and used when producing its result.</param>
     /// <param name="mapSeed">Optional deterministic map seed used when replaying a corridor.</param>
     /// <param name="scenario">Optional bounded scenario prompt supplied to the game runtime.</param>
-    /// <param name="campaignRuntimeClassKey">Optional copied campaign runtime-class key.</param>
     /// <param name="startingLevel">Optional 1-based level override.</param>
     /// <param name="autoAdvanceLevels">Optional level auto-advance override.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
@@ -1057,7 +1114,6 @@ public partial class ChatGameConsole
         string teamKey,
         int? mapSeed = null,
         string scenario = "",
-        string campaignRuntimeClassKey = "",
         int? startingLevel = null,
         bool? autoAdvanceLevels = null)
     {
@@ -1072,7 +1128,6 @@ public partial class ChatGameConsole
                 ControlMode = CouncilGameControlMode.Shared,
                 MapSeed = mapSeed,
                 ScenarioPrompt = scenario,
-                CampaignRuntimeClassKey = campaignRuntimeClassKey,
                 StartingLevel = startingLevel,
                 AutoAdvanceLevels = autoAdvanceLevels,
                 StartedBy = "Human User"
@@ -1098,13 +1153,12 @@ public partial class ChatGameConsole
             return snapshot is null
         ? Task.CompletedTask
         : StartAsync(
-            "ascii-doom",
+            snapshot.GameKey,
             snapshot.TeamKey,
             snapshot.CampaignSeed > 0 ? snapshot.CampaignSeed : snapshot.MapSeed,
             snapshot.ScenarioPrompt,
-            snapshot.CampaignRuntimeClassKey,
             snapshot.CurrentLevel,
-            snapshot.AutoAdvanceLevels);
+            snapshot.Progression.AutoAdvanceLevels);
         }
         catch (Exception __componentMethodException)
         {
@@ -1120,11 +1174,10 @@ public partial class ChatGameConsole
         try
         {
             return StartAsync(
-        "ascii-doom",
-        snapshot?.TeamKey ?? "ascii-doom-council-adventure",
-        campaignRuntimeClassKey: snapshot?.CampaignRuntimeClassKey ?? string.Empty,
+        snapshot?.GameKey ?? string.Empty,
+        snapshot?.TeamKey ?? string.Empty,
         startingLevel: snapshot?.CurrentLevel,
-        autoAdvanceLevels: snapshot?.AutoAdvanceLevels);
+        autoAdvanceLevels: snapshot?.Progression.AutoAdvanceLevels);
         }
         catch (Exception __componentMethodException)
         {

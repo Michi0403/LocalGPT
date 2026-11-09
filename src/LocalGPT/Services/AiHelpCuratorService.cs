@@ -25,7 +25,7 @@ public sealed class AiHelpCuratorService(
     {
         try
         {
-            var configuredKey = policy.GetString(LocalGptRuntimeValue.HelpEscalatorCuratorModelKey)?.Trim();
+            var configuredKey = policy.GetString("HelpEscalatorCuratorModelKey")?.Trim();
             var candidates = await models.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
             var selected = candidates.FirstOrDefault(model => model.IsConfigured && (model.IsInstalled || !model.IsLocal) &&
                 !string.Equals(model.SelectionKey, report.FailedModelSelectionKey, StringComparison.OrdinalIgnoreCase) &&
@@ -39,8 +39,8 @@ public sealed class AiHelpCuratorService(
                     !string.Equals(model.SelectionKey, report.FailedModelSelectionKey, StringComparison.OrdinalIgnoreCase));
             if (selected is null)
                 return new AiHelpCuratorAdvice { Type = "cannot_resolve", Reason = "No configured reachable curator model selection was found." };
-            var parameters = policy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
-            var deadline = TimeSpan.FromSeconds(Math.Clamp(policy.GetInt(LocalGptRuntimeValue.HelpEscalatorCuratorTimeoutSeconds), 10, 180));
+            var parameters = policy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
+            var deadline = TimeSpan.FromSeconds(Math.Clamp(policy.GetInt("HelpEscalatorCuratorTimeoutSeconds"), 10, 180));
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(deadline);
             using var client = models.CreateChatClient(selected.ToReference(), parameters.DefaultSessionKeepAlive, 8192,
@@ -81,7 +81,7 @@ public sealed class AiHelpCuratorService(
                 previousActionMustChange = true
             });
             var response = await client.GetResponseAsync(
-                [new ChatMessage(ChatRole.System, policy.GetString(LocalGptRuntimeValue.HelpEscalatorCuratorSystemPrompt)),
+                [new ChatMessage(ChatRole.System, policy.GetString("HelpEscalatorCuratorSystemPrompt")),
                  new ChatMessage(ChatRole.User, input)],
                 new ChatOptions { Temperature = 0f, MaxOutputTokens = 350 }, timeout.Token).ConfigureAwait(false);
             var text = System.Net.WebUtility.HtmlDecode(response.Text ?? string.Empty).Trim();

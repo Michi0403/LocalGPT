@@ -2,6 +2,7 @@ using System.Text.Json;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Interfaces;
+using LocalGPT.Interfaces.GameEngine;
 using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
@@ -17,6 +18,8 @@ namespace LocalGPT.Services;
 /// <param name="engine">Scene curator for approved, revision-specific user-authored games.</param>
 /// <param name="regexCatalog">Database-owned regex catalog used to verify authored scene transitions.</param>
 /// <param name="regexCurator">Independent review and human-approval state for named regex patterns.</param>
+/// <param name="rulesets">Game ruleset store that resolves the primitive keys and rule rows a Game project profile composes.</param>
+/// <param name="runtimePolicy">Runtime policy store holding the database-owned game defaults and clamp bounds.</param>
 /// <param name="logger">Logger used to record bounded operational diagnostics.</param>
 public sealed class GameProjectService(
     ILocalGptProjectService projects,
@@ -26,6 +29,8 @@ public sealed class GameProjectService(
     GameSceneEngine engine,
     IRegexPatternService regexCatalog,
     IRegexCuratorService regexCurator,
+    IGameRulesetStoreService rulesets,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<GameProjectService> logger) : IGameProjectService
 {
     /// <summary>Reads the editable authoring profile owned by one LocalGPT Game project.</summary>
@@ -73,8 +78,6 @@ public sealed class GameProjectService(
                 ?? throw new KeyNotFoundException($"Project {projectId} was not found.");
             if (!details.Project.IsGameProject)
                 throw new InvalidOperationException("Only projects whose project type is Game can own a LocalGPT game authoring profile.");
-            if (!Enum.IsDefined(typeof(CouncilGameRuntimeProfile), request.RuntimeProfile))
-                throw new ArgumentException("The selected game runtime profile is not supported by this LocalGPT version.", nameof(request));
             if (!Enum.IsDefined(typeof(CouncilAsciiColorMode), request.AsciiColorMode))
                 throw new ArgumentException("The selected ASCII color mode is not supported by this LocalGPT version.", nameof(request));
             if (!Enum.IsDefined(typeof(CouncilGameControlMode), request.DefaultControlMode))
@@ -126,7 +129,22 @@ public sealed class GameProjectService(
 
             profile.GameKey = normalizedGameKey;
             profile.DisplayName = displayName;
-            profile.RuntimeProfile = request.RuntimeProfile;
+            profile.ViewKey = NormalizePrimitiveKey(request.ViewKey, 80);
+            profile.ViewParametersJson = NormalizeParametersJson(request.ViewParametersJson);
+            profile.TurnModelKey = NormalizePrimitiveKey(request.TurnModelKey, 40);
+            profile.MapGeneratorKey = NormalizePrimitiveKey(request.MapGeneratorKey, 80);
+            profile.MapParametersJson = NormalizeParametersJson(request.MapParametersJson);
+            profile.AutoplayKey = NormalizePrimitiveKey(request.AutoplayKey, 80);
+            profile.AutoplayParametersJson = NormalizeParametersJson(request.AutoplayParametersJson);
+            profile.PlayerArchetypeKey = NormalizePrimitiveKey(request.PlayerArchetypeKey, 80);
+            // A game without its own template keeps the engine-wide default rules (runtime policy), so a new project is
+            // playable before the user authors any rule rows.
+            var templateKey = NormalizePrimitiveKey(request.RulesetTemplateKey, 160);
+            profile.RulesetTemplateKey = templateKey.Length > 0 || profile.IsSystemSeed
+                ? templateKey
+                : NormalizePrimitiveKey(runtimePolicy.GetString("GameDefaultRulesetTemplateKey"), 160);
+            if (profile.IsSystemSeed)
+                profile.IsUserModified = true;
             profile.DefaultTeamKey = teamKey;
             profile.DefaultControlMode = request.DefaultControlMode;
             profile.DirectorMode = request.DirectorMode;
@@ -200,7 +218,7 @@ public sealed class GameProjectService(
                 SourceRequirementIds = requirementIds,
                 GameKey = profile.GameKey,
                 DisplayName = profile.DisplayName,
-                RuntimeProfile = profile.RuntimeProfile,
+                Ruleset = await rulesets.LoadRulesetAsync(profile.Id, cancellationToken).ConfigureAwait(false),
                 DefaultTeamKey = profile.DefaultTeamKey,
                 DefaultControlMode = profile.DefaultControlMode,
                 DirectorMode = profile.DirectorMode,
@@ -219,8 +237,8 @@ public sealed class GameProjectService(
 
             var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
             var serializedDefinition = JsonSerializer.Serialize(definition, jsonOptions);
-            if (serializedDefinition.Length > 60000)
-                throw new InvalidOperationException("The committed Game Studio scene exceeds the project game build artifact budget. Split the scene into smaller curated world chunks before building.");
+            if (serializedDefinition.Length > 2_000_000)
+                throw new InvalidOperationException("The game build (committed Game Studio scene plus game rules) exceeds the project game build artifact budget. Split the scene into smaller curated world chunks or reduce the game's rule rows before building.");
             var artifact = await architecture.SaveArtifactAsync(projectId, new SaveProjectArtifactRequest
             {
                 RevisionId = currentRevisionId,
@@ -228,7 +246,7 @@ public sealed class GameProjectService(
                 Name = "Runtime Definition",
                 Value = serializedDefinition,
                 DataType = "application/vnd.localgpt.game+json",
-                Flags = $"{definition.RuntimeProfile};Built;Requirements={requirementIds.Count}",
+                Flags = $"{definition.Ruleset.ViewKey};Built;Requirements={requirementIds.Count}",
                 Description = "Compiled LocalGPT game definition produced from the persisted Game-project authoring profile and current project requirement baseline. GameDirector consumes this artifact; it does not own project authoring policy.",
                 IsSensitive = false,
                 UserConfirmed = true
@@ -287,8 +305,6 @@ public sealed class GameProjectService(
                 ?? throw new InvalidOperationException("The project game build artifact did not contain a readable runtime definition.");
             if (definition.ProjectId != projectId)
                 throw new InvalidOperationException("The project game build artifact points at a different project identity and cannot be launched.");
-            if (!Enum.IsDefined(typeof(CouncilGameRuntimeProfile), definition.RuntimeProfile))
-                throw new InvalidOperationException("The project game build artifact targets an unsupported runtime profile.");
             if (!Enum.IsDefined(typeof(CouncilAsciiColorMode), definition.AsciiColorMode))
                 throw new InvalidOperationException("The project game build artifact targets an unsupported ASCII color mode.");
             definition.DefaultForegroundColor = definition.AsciiColorMode == CouncilAsciiColorMode.Ansi16
@@ -388,7 +404,7 @@ public sealed class GameProjectService(
                 Scene = scene,
                 GameKey = profile?.GameKey ?? $"project-{projectId:N}",
                 DisplayName = profile?.DisplayName ?? details.Project.Name,
-                RuntimeProfile = profile?.RuntimeProfile ?? CouncilGameRuntimeProfile.Corridor,
+                Ruleset = profile is null ? new LocalGPT.BusinessObjects.GameEngine.GameRuleset() : await rulesets.LoadRulesetAsync(profile.Id, cancellationToken).ConfigureAwait(false),
                 DefaultTeamKey = profile?.DefaultTeamKey ?? "game-project-playtest",
                 DefaultControlMode = profile?.DefaultControlMode ?? CouncilGameControlMode.Shared,
                 DirectorMode = profile?.DirectorMode ?? CouncilGameDirectorMode.Deterministic,
@@ -433,6 +449,51 @@ public sealed class GameProjectService(
                 logger.LogDebug(exception, "Launching Game Studio revision {RevisionId} was cancelled.", revisionId);
             else
                 logger.LogError(exception, "Launching Game Studio revision {RevisionId} from project {ProjectId} failed.", revisionId, projectId);
+            throw;
+        }
+    }
+
+    /// <summary>Normalizes a primitive key of the game profile (view, turn model, map generator, autoplay, archetype, template).</summary>
+    /// <param name="value">Requested key.</param>
+    /// <param name="maximumLength">Column length of the key.</param>
+    /// <returns>The trimmed, lower-case key; empty means "inherit from the ruleset template".</returns>
+    private string NormalizePrimitiveKey(string? value, int maximumLength)
+    {
+        try
+        {
+            var key = (value ?? string.Empty).Trim().ToLowerInvariant();
+            return key.Length > maximumLength ? key[..maximumLength] : key;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Normalizing a game primitive key failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Keeps a primitive parameter document only when it is a JSON object.</summary>
+    /// <param name="json">Requested parameter JSON.</param>
+    /// <returns>The JSON object text, or <c>{}</c> (inherit from the ruleset template).</returns>
+    private string NormalizeParametersJson(string? json)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return "{}";
+            try
+            {
+                using var document = JsonDocument.Parse(json);
+                return document.RootElement.ValueKind == JsonValueKind.Object ? json.Trim() : "{}";
+            }
+            catch (JsonException exception)
+            {
+                logger.LogWarning(exception, "Malformed game primitive parameters were stored as an empty object.");
+                return "{}";
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Normalizing game primitive parameters failed.");
             throw;
         }
     }

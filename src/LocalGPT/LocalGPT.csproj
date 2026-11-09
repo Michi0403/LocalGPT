@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>6.9.9</Version>
+    <Version>7.0.3</Version>
     <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
@@ -33,6 +33,10 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="GameTemplates/GodotSceneRuntime.cs.txt" />
+    <!-- System games are database content: these documents seed their game projects and rule rows. -->
+    <Content Remove="GameTemplates/Seeds/*.json" />
+    <None Remove="GameTemplates/Seeds/*.json" />
+    <EmbeddedResource Include="GameTemplates/Seeds/*.json" LogicalName="LocalGPT.GameSeeds.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

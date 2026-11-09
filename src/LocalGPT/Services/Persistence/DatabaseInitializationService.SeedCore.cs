@@ -167,7 +167,7 @@ public sealed partial class DatabaseInitializationService
                     row.LastUpdated = DateTime.UtcNow;
                 }
 
-                if (item.Name.Equals(nameof(LocalGptRuntimeCollection.KnowledgeFiles), StringComparison.OrdinalIgnoreCase)
+                if (item.Name.Equals("KnowledgeFiles", StringComparison.OrdinalIgnoreCase)
                     && IsPreviousKnowledgeFilesDefault(row.ValueString)
                     && !string.Equals(row.ValueString, item.Value, StringComparison.Ordinal))
                 {

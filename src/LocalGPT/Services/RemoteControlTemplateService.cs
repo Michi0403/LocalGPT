@@ -20,7 +20,7 @@ public sealed class RemoteControlTemplateService(
     /// <summary>
     /// Stores the internal token pattern state used by <see cref="RemoteControlTemplateService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex _tokenPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.RemoteControlTemplateExpression);
+    private readonly Regex _tokenPattern = runtimePolicy.GetPattern("runtime.remote-control.template-expression");
 
     /// <summary>
     /// Performs resolve as part of the remote control template service workflow, applying the service's runtime policy, state management, and diagnostics as required.

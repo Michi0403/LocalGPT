@@ -42,7 +42,7 @@ public sealed class KnowledgeFreshnessReviewService(
     /// <summary>
     /// Stores the internal URL regex state used by <see cref="KnowledgeFreshnessReviewService"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly Regex UrlRegex = runtimePolicy.GetPattern(LocalGptRuntimePattern.ExternalHttpUrl);
+    private readonly Regex UrlRegex = runtimePolicy.GetPattern("runtime.knowledge.external-http-url");
 
     /// <summary>
     /// Performs report as part of the knowledge freshness review service workflow, applying the service's runtime policy, state management, and diagnostics as required.

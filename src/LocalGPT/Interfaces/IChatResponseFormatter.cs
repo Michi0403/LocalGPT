@@ -82,14 +82,14 @@ public interface IChatProtocolTextService
     /// <param name="value">Value value supplied to the chat protocol text operation and used when producing its result.</param>
     /// <param name="collection">Collection value supplied to the chat protocol text operation and used when producing its result.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    bool ContainsAny(string value, LocalGptRuntimeCollection collection);
+    bool ContainsAny(string value, string collection);
     /// <summary>
     /// Performs replace all as part of the chat protocol text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="text">Text value supplied to the chat protocol text operation and used when producing its result.</param>
     /// <param name="collection">Collection value supplied to the chat protocol text operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    string ReplaceAll(string text, LocalGptRuntimeCollection collection);
+    string ReplaceAll(string text, string collection);
 }
 
 /// <summary>

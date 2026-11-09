@@ -156,6 +156,9 @@ public sealed class OneWireOptions
     /// </summary>
     /// <value>The maximum message bytes value exposed by <see cref="OneWireOptions"/>.</value>
     public int MaximumMessageBytes { get; set; } = OneWireProtocol.MaximumMessageBytes;
+    /// <summary>Gets or sets the traffic journal settings (section <c>OneWire:Traffic</c>).</summary>
+    /// <value>The live traffic logging and view settings.</value>
+    public OneWireTrafficOptions Traffic { get; set; } = new();
 }
 
 

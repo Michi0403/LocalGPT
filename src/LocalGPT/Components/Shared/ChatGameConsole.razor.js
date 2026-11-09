@@ -496,16 +496,31 @@ const gameConsole = (() => {
         }
     }
 
-    const keyActions = new Map([
-        ['KeyW', 'move-forward'], ['ArrowUp', 'move-forward'],
-        ['KeyS', 'move-backward'], ['ArrowDown', 'move-backward'],
-        ['KeyA', 'strafe-left'], ['KeyD', 'strafe-right'],
-        ['KeyQ', 'turn-left'], ['ArrowLeft', 'turn-left'],
-        ['KeyR', 'turn-right'], ['ArrowRight', 'turn-right'],
-        ['Space', 'shoot'], ['ControlLeft', 'duck'], ['ControlRight', 'duck'], ['KeyC', 'duck'],
-        ['KeyE', 'use'], ['Enter', 'use'],
-        ['Digit1', 'choice-1'], ['Digit2', 'choice-2'], ['Digit3', 'choice-3']
-    ]);
+    // Keyboard and gamepad inputs are game content: the server parses the running game's input bindings into
+    // { action, keys, controls } mappings (setInputMap), so no game action is named in this module.
+    function applyInputMap(state, mappings) {
+        try {
+            state.keyActions = new Map();
+            state.padButtons = new Map();
+            state.padAxes = [];
+            for (const mapping of Array.isArray(mappings) ? mappings : []) {
+                const action = typeof mapping?.action === 'string' ? mapping.action : '';
+                if (!action) continue;
+                for (const code of Array.isArray(mapping.keys) ? mapping.keys : []) {
+                    if (typeof code === 'string' && code && !state.keyActions.has(code)) state.keyActions.set(code, action);
+                }
+                for (const control of Array.isArray(mapping.controls) ? mapping.controls : []) {
+                    const parts = typeof control === 'string' ? control.split(':') : [];
+                    const index = Number(parts[1]);
+                    if (!Number.isInteger(index) || index < 0) continue;
+                    if (parts[0] === 'button' && !state.padButtons.has(index)) state.padButtons.set(index, action);
+                    else if (parts[0] === 'axis' && (parts[2] === '-' || parts[2] === '+')) state.padAxes.push({ index, sign: parts[2] === '-' ? -1 : 1, action });
+                }
+            }
+        } catch (error) {
+            diagnostics.report('localgpt-game-console.applyInputMap', error);
+        }
+    }
 
 
     function markPressed(state, actions) {
@@ -517,7 +532,7 @@ const gameConsole = (() => {
             state.element.querySelectorAll('[data-game-action], [data-semantic-action]').forEach(button => {
                 const semantic = button.getAttribute('data-semantic-action');
                 const action = semantic || button.getAttribute('data-game-action');
-                const mapped = semantic ? [semantic] : action === 'left' ? ['strafe-left', 'turn-left'] : action === 'right' ? ['strafe-right', 'turn-right'] : [action];
+                const mapped = [semantic || action];
                 button.classList.toggle('is-pressed', mapped.some(item => active.has(item)));
             });
         } catch (error) {
@@ -612,31 +627,30 @@ const gameConsole = (() => {
             }
 
             const pressed = new Set();
-            const discreteActions = [[0,'use'],[1,'duck'],[2,'choice-1'],[3,'choice-2']];
-            for (const [index, action] of discreteActions) if (pad.buttons[index]?.pressed) pressed.add(action);
-
             const continuous = new Map();
             const setContinuous = (action, strength) => {
                 if (!action || strength <= 0) return;
                 pressed.add(action);
                 continuous.set(action, Math.max(continuous.get(action) || 0, strength));
             };
-            if (pad.buttons[7]?.pressed || Number(pad.buttons[7]?.value || 0) > .22)
-                setContinuous('shoot', Math.max(.45, Number(pad.buttons[7]?.value || 0)));
-            if (pad.buttons[12]?.pressed) setContinuous('move-forward', 1);
-            if (pad.buttons[13]?.pressed) setContinuous('move-backward', 1);
-            if (pad.buttons[14]?.pressed) setContinuous('turn-left', 1);
-            if (pad.buttons[15]?.pressed) setContinuous('turn-right', 1);
-
-            const x = normalizedGamepadAxis(pad.axes[0]);
-            const y = normalizedGamepadAxis(pad.axes[1]);
-            const lookX = normalizedGamepadAxis(pad.axes[2]);
-            if (y < 0) setContinuous('move-forward', -y);
-            if (y > 0) setContinuous('move-backward', y);
-            if (x < 0) setContinuous('strafe-left', -x);
-            if (x > 0) setContinuous('strafe-right', x);
-            if (lookX < 0) setContinuous('turn-left', -lookX);
-            if (lookX > 0) setContinuous('turn-right', lookX);
+            // Standard-gamepad policy: analog triggers (6, 7) repeat with their pressure, the D-pad (12-15) repeats at
+            // full strength, every other button fires once per press, and stick axes repeat with their deflection.
+            for (const [index, action] of state.padButtons || new Map()) {
+                const button = pad.buttons[index];
+                if (!button) continue;
+                if (index === 6 || index === 7) {
+                    if (button.pressed || Number(button.value || 0) > .22) setContinuous(action, Math.max(.45, Number(button.value || 0)));
+                } else if (index >= 12 && index <= 15) {
+                    if (button.pressed) setContinuous(action, 1);
+                } else if (button.pressed) {
+                    pressed.add(action);
+                }
+            }
+            for (const axis of state.padAxes || []) {
+                const value = normalizedGamepadAxis(pad.axes[axis.index]);
+                if (axis.sign < 0 && value < 0) setContinuous(axis.action, -value);
+                if (axis.sign > 0 && value > 0) setContinuous(axis.action, value);
+            }
 
             markPressed(state, pressed);
             let submitted = false;
@@ -758,7 +772,7 @@ const gameConsole = (() => {
                 const element = document.getElementById(id);
                 if (!(element instanceof HTMLElement)) return;
                 this.detach(id);
-                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), gamepadNextRepeat:0, gamepadRepeatAction:'', keyboardActions:new Set(), pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, displayMode:String(element.dataset.displayMode || 'ascii').toLowerCase() === 'pixel' ? 'pixel' : 'ascii', currentFrameText:'', currentFrameColorMode:'TerminalDefault', currentFrameForeground:46, currentFrameBackground:0, currentFrameStyleRuns:[], authoredScene:null, authoredClock:null, pixelCanvas:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), resizeObserver:null, lastFitFontSize:'' };
+                const state = { id, element, reference, enabled:false, busy:false, previousButtons:new Set(), gamepadNextRepeat:0, gamepadRepeatAction:'', keyboardActions:new Set(), keyActions:new Map(), padButtons:new Map(), padAxes:[], pressedSignature:'', frame:0, scaleFrame:0, sequenceFrames:[], sequenceIndex:0, sequenceDelay:650, sequenceSelector:'[data-ascii-sequence-screen]', sequenceTimer:0, sequenceOneShot:false, sequenceSubtitle:'', sequenceSubtitleHold:1500, sequenceSubtitleTimer:0, sequenceColorMode:'TerminalDefault', sequenceDefaultForeground:46, sequenceDefaultBackground:0, sequenceFrameStyleRuns:[], sequenceSubtitleStyle:null, displayMode:String(element.dataset.displayMode || 'ascii').toLowerCase() === 'pixel' ? 'pixel' : 'ascii', currentFrameText:'', currentFrameColorMode:'TerminalDefault', currentFrameForeground:46, currentFrameBackground:0, currentFrameStyleRuns:[], authoredScene:null, authoredClock:null, pixelCanvas:null, windowFocused:document.hasFocus(), abort:new AbortController(), followTailRegions:new Map(), resizeObserver:null, lastFitFontSize:'' };
                 states.set(id, state);
                 attachFollowTail(state);
                 updateDisplayMode(state, state.displayMode);
@@ -786,7 +800,7 @@ const gameConsole = (() => {
                         componentConsole.fullscreen(id);
                         return;
                     }
-                    const action = keyActions.get(event.code);
+                    const action = state.keyActions?.get(event.code);
                     if (!action || !state.enabled || event.repeat) return;
                     event.preventDefault();
                     state.keyboardActions.add(action);
@@ -795,7 +809,7 @@ const gameConsole = (() => {
                 }, { signal:state.abort.signal });
                 element.addEventListener('keyup', event => {
                     if (isInteractiveTarget(event.target)) return;
-                    const action = keyActions.get(event.code);
+                    const action = state.keyActions?.get(event.code);
                     if (!action) return;
                     state.keyboardActions.delete(action);
                     markPressed(state, state.keyboardActions);
@@ -865,6 +879,16 @@ const gameConsole = (() => {
                     }
                 }
             } catch (error) { diagnostics.report('localgpt-game-console.setEnabled', error); }
+        },
+        setInputMap(id, mappings) {
+            try {
+                const state = states.get(id);
+                if (!state) return;
+                applyInputMap(state, mappings);
+                state.keyboardActions.clear();
+                state.previousButtons.clear();
+                markPressed(state, new Set());
+            } catch (error) { diagnostics.report('localgpt-game-console.setInputMap', error); }
         },
         setAuthoredScene(id, scene, clock) {
             try {
@@ -993,6 +1017,7 @@ const gameConsole = (() => {
 export const attach = (...args) => gameConsole.attach(...args);
 export const detach = (...args) => gameConsole.detach(...args);
 export const setEnabled = (...args) => gameConsole.setEnabled(...args);
+export const setInputMap = (...args) => gameConsole.setInputMap(...args);
 export const setScaleMode = (...args) => gameConsole.setScaleMode(...args);
 export const setDisplayMode = (...args) => gameConsole.setDisplayMode(...args);
 export const setAuthoredScene = (...args) => gameConsole.setAuthoredScene(...args);

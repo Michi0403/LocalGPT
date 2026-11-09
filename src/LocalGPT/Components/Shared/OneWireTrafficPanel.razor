@@ -1,0 +1,327 @@
+@inject IOneWireTrafficJournal Traffic
+@inject ILogger<OneWireTrafficPanel> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+@inject ISupervisedTaskRunner TaskRunner
+@implements IDisposable
+
+<div class="razor-component-boundary">
+<DxFormLayout CssClass="razor-component-layout-owner OneWireTrafficPanel">
+    <DxFormLayoutItem ColSpanMd="12">
+        <Template Context="formItemContext001">
+<div class="onewire-traffic-panel" role="region" aria-label="1-Wire traffic">
+    <div class="onewire-traffic-toolbar">
+        <label>
+            Search
+            <DxTextBox @bind-Text="SearchText" BindValueMode="BindValueMode.OnInput" NullText="peer, type, id, capability, payload…" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
+        </label>
+        <label>
+            Direction
+            <DxComboBox TData="string" TValue="string" Data="@DirectionOptions" @bind-Value="DirectionFilter" />
+        </label>
+        <label>
+            Transport
+            <DxComboBox TData="string" TValue="string" Data="@TransportOptions" @bind-Value="TransportFilter" />
+        </label>
+        <DxCheckBox @bind-Checked="ProblemsOnly">Problems only</DxCheckBox>
+        <DxCheckBox @bind-Checked="Paused">Pause view</DxCheckBox>
+        <DxButton Text="Clear view" RenderStyle="ButtonRenderStyle.Secondary" Click="ClearAsync" />
+    </div>
+    <p class="onewire-traffic-summary" role="status">@SummaryText</p>
+    <DxGrid Data="@visibleEntries"
+            KeyFieldName="@nameof(OneWireTrafficEntry.Sequence)"
+            PageSize="20"
+            HighlightRowOnHover="true"
+            FocusedRowEnabled="true"
+            FocusedRowChanged="OnFocusedRowChanged"
+            TextWrapEnabled="false">
+        <Columns>
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.Sequence)" Caption="#" Width="70px" />
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.TimestampUtc)" Caption="Time (UTC)" DisplayFormat="HH:mm:ss.fff" Width="120px" />
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.Direction)" Caption="Direction" Width="95px" />
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.Transport)" Caption="Transport" Width="120px" />
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.PeerId)" Caption="Peer" MinWidth="140" />
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.MessageType)" Caption="Type" MinWidth="140" />
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.CapabilityKey)" Caption="Capability" MinWidth="140" />
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.SecurityMode)" Caption="Security" Width="120px" />
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.FrameBytes)" Caption="Bytes" Width="90px" />
+            <DxGridDataColumn FieldName="@nameof(OneWireTrafficEntry.Outcome)" Caption="Outcome" Width="100px" />
+        </Columns>
+    </DxGrid>
+    @if (selectedEntry is not null)
+    {
+        <div class="onewire-traffic-details">
+            <h3>Packet #@selectedEntry.Sequence · @selectedEntry.Direction · @selectedEntry.MessageType</h3>
+            <p>Message @selectedEntry.MessageId · correlation @selectedEntry.CorrelationId · remote @selectedEntry.RemoteEndpoint</p>
+            @if (!string.IsNullOrWhiteSpace(selectedEntry.Error))
+            {
+                <p class="onewire-traffic-error">@selectedEntry.Error</p>
+            }
+            <label>
+                Payload (@PayloadModeText)
+                <DxMemo Text="@selectedEntry.Payload" ReadOnly="true" Rows="12" />
+            </label>
+            <label>
+                Raw frame as it crossed the wire
+                <DxMemo Text="@selectedEntry.RawFrame" ReadOnly="true" Rows="6" />
+            </label>
+        </div>
+    }
+</div>
+    </Template>
+    </DxFormLayoutItem>
+</DxFormLayout>
+</div>
+
+
+@code {
+    /// <summary>Direction filter values offered in the view.</summary>
+    private readonly IReadOnlyList<string> DirectionOptions = [AllOption, OneWireTrafficDirections.Received, OneWireTrafficDirections.Sent];
+    /// <summary>Transport filter values offered in the view.</summary>
+    private readonly IReadOnlyList<string> TransportOptions = [AllOption, OneWireTrafficTransports.Tcp, OneWireTrafficTransports.HttpJson, OneWireTrafficTransports.UdpDiscovery];
+    /// <summary>Filter value that matches every direction or transport.</summary>
+    private const string AllOption = "All";
+
+    /// <summary>Packets currently shown, newest first.</summary>
+    private IReadOnlyList<OneWireTrafficEntry> visibleEntries = [];
+    /// <summary>Packet whose payload and raw frame are shown below the grid.</summary>
+    private OneWireTrafficEntry? selectedEntry;
+    /// <summary>Marks that packets arrived since the previous refresh.</summary>
+    private int renderPending;
+    /// <summary>Ensures only one delayed refresh worker runs for this view.</summary>
+    private int renderWorkerRunning;
+    /// <summary>Cancels a delayed refresh when the view is disposed.</summary>
+    private readonly CancellationTokenSource renderCancellation = new();
+    /// <summary>Tracks disposal so late journal events schedule no more renderer work.</summary>
+    private bool disposed;
+    /// <summary>Remembers that a refresh failure was already shown, so a failing journal does not flood notifications.</summary>
+    private bool failureNotified;
+    /// <summary>Backing field of <see cref="SearchText"/>.</summary>
+    private string searchText = string.Empty;
+    /// <summary>Backing field of <see cref="DirectionFilter"/>.</summary>
+    private string directionFilter = AllOption;
+    /// <summary>Backing field of <see cref="TransportFilter"/>.</summary>
+    private string transportFilter = AllOption;
+    /// <summary>Backing field of <see cref="ProblemsOnly"/>.</summary>
+    private bool problemsOnly;
+
+    /// <summary>Gets or sets the free-text filter; changing it refreshes the view.</summary>
+    /// <value>The search text.</value>
+    private string SearchText { get => searchText; set { searchText = value ?? string.Empty; Reload(); } }
+    /// <summary>Gets or sets the direction filter; changing it refreshes the view.</summary>
+    /// <value>All, Received or Sent.</value>
+    private string DirectionFilter { get => directionFilter; set { directionFilter = value ?? AllOption; Reload(); } }
+    /// <summary>Gets or sets the transport filter; changing it refreshes the view.</summary>
+    /// <value>All or a transport name.</value>
+    private string TransportFilter { get => transportFilter; set { transportFilter = value ?? AllOption; Reload(); } }
+    /// <summary>Gets or sets whether only rejected or failed packets are shown.</summary>
+    /// <value><see langword="true"/> to show problems only.</value>
+    private bool ProblemsOnly { get => problemsOnly; set { problemsOnly = value; Reload(); } }
+    /// <summary>Backing field of <see cref="Paused"/>.</summary>
+    private bool paused;
+    /// <summary>Gets or sets whether the view stops following new packets (the journal and logs continue); resuming catches up at once.</summary>
+    /// <value><see langword="true"/> while paused.</value>
+    private bool Paused { get => paused; set { paused = value; if (!paused) Reload(); } }
+
+    /// <summary>Gets the status line above the grid.</summary>
+    /// <value>Shown, kept and total packet counts plus the logging state.</value>
+    private string SummaryText => GetSummaryTextForRender();
+    /// <summary>Gets the payload mode label shown with the payload.</summary>
+    /// <value>The configured payload mode.</value>
+    private string PayloadModeText => GetPayloadModeTextForRender();
+
+    /// <summary>Loads the journal and follows new packets.</summary>
+    protected override void OnInitialized()
+    {
+        try
+        {
+            Reload();
+            Traffic.Changed += OnTrafficChanged;
+            Logger.LogDebug("Component method OneWireTrafficPanel.OnInitialized completed.");
+        }
+        catch (Exception exception)
+        {
+            Traffic.Changed -= OnTrafficChanged;
+            Logger.LogError(exception, "Component method OneWireTrafficPanel.OnInitialized failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Re-queries the journal with the current filters.</summary>
+    private void Reload()
+    {
+        try
+        {
+            visibleEntries = Traffic.Query(new OneWireTrafficQuery
+            {
+                Text = searchText,
+                Direction = directionFilter == AllOption ? string.Empty : directionFilter,
+                Transport = transportFilter == AllOption ? string.Empty : transportFilter,
+                ProblemsOnly = problemsOnly,
+                Maximum = Math.Max(1, Traffic.CurrentOptions.JournalCapacity)
+            });
+            failureNotified = false;
+        }
+        catch (Exception exception)
+        {
+            // The previous packets stay visible; a failing journal is reported once instead of tearing down the circuit.
+            Logger.LogError(exception, "Component method OneWireTrafficPanel.Reload failed.");
+            if (!failureNotified)
+            {
+                failureNotified = true;
+                ComponentActivity.RecordFailure(nameof(OneWireTrafficPanel), nameof(Reload), exception);
+                Notifier.ShowError("ComponentSafetyToasts", "The 1-Wire traffic view could not be updated. See the application log for details.", "1-Wire traffic");
+            }
+        }
+    }
+
+    /// <summary>Shows the payload and raw frame of the focused packet.</summary>
+    /// <param name="args">The focused-row change.</param>
+    private void OnFocusedRowChanged(GridFocusedRowChangedEventArgs args)
+    {
+        try
+        {
+            selectedEntry = args.DataItem as OneWireTrafficEntry;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Component method OneWireTrafficPanel.OnFocusedRowChanged failed.");
+            Notifier.ShowError("ComponentSafetyToasts", "The selected 1-Wire packet could not be shown.", "1-Wire traffic");
+        }
+    }
+
+    /// <summary>Clears the live view; log files are unchanged.</summary>
+    /// <returns>A completed task.</returns>
+    private Task ClearAsync()
+    {
+        try
+        {
+            Traffic.Clear();
+            selectedEntry = null;
+            Reload();
+            ComponentActivity.RecordInformation(nameof(OneWireTrafficPanel), nameof(ClearAsync), "The 1-Wire traffic view was cleared; log files are unchanged.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Component method OneWireTrafficPanel.ClearAsync failed.");
+            ComponentActivity.RecordFailure(nameof(OneWireTrafficPanel), nameof(ClearAsync), exception);
+            Notifier.ShowError("ComponentSafetyToasts", "The 1-Wire traffic view could not be cleared.", "1-Wire traffic");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Coalesces journal events into at most four view refreshes per second.</summary>
+    private void OnTrafficChanged()
+    {
+        try
+        {
+            if (disposed || Paused)
+                return;
+            Interlocked.Exchange(ref renderPending, 1);
+            if (Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
+                TaskRunner.Run(nameof(OneWireTrafficPanel), nameof(RefreshRenderAsync), _ => RefreshRenderAsync(), renderCancellation.Token);
+        }
+        catch (Exception exception)
+        {
+            Interlocked.Exchange(ref renderWorkerRunning, 0);
+            Logger.LogWarning(exception, "Scheduling a 1-Wire traffic view refresh failed.");
+        }
+    }
+
+    /// <summary>Refreshes the view while packets keep arriving.</summary>
+    /// <returns>A task that completes when the latest packets are visible.</returns>
+    private async Task RefreshRenderAsync()
+    {
+        try
+        {
+            while (!renderCancellation.IsCancellationRequested)
+            {
+                await Task.Delay(250, renderCancellation.Token).ConfigureAwait(false);
+                Interlocked.Exchange(ref renderPending, 0);
+                await InvokeAsync(() =>
+                {
+                    if (!Paused)
+                        Reload();
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+                if (Volatile.Read(ref renderPending) == 0)
+                    break;
+            }
+        }
+        catch (OperationCanceledException) when (renderCancellation.IsCancellationRequested)
+        {
+            Logger.LogDebug("A pending 1-Wire traffic view refresh was cancelled by disposal.");
+        }
+        catch (ObjectDisposedException exception)
+        {
+            Logger.LogDebug(exception, "The browser circuit closed while a 1-Wire traffic view refresh was pending.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "A 1-Wire traffic view refresh failed.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref renderWorkerRunning, 0);
+            if (!disposed
+                && Volatile.Read(ref renderPending) != 0
+                && !renderCancellation.IsCancellationRequested
+                && Interlocked.CompareExchange(ref renderWorkerRunning, 1, 0) == 0)
+                TaskRunner.Run(nameof(OneWireTrafficPanel), nameof(RefreshRenderAsync), _ => RefreshRenderAsync(), renderCancellation.Token);
+        }
+    }
+
+    /// <summary>Builds the status line for the render path.</summary>
+    /// <returns>The status text.</returns>
+    private string GetSummaryTextForRender()
+    {
+        try
+        {
+            var options = Traffic.CurrentOptions;
+            var state = options.Enabled ? "journal on" : "journal off (OneWire:Traffic:Enabled)";
+            return $"{visibleEntries.Count} shown · {Traffic.TotalRecorded()} journaled since start · {state} · payload {options.PayloadMode}" +
+                   (Paused ? " · view paused" : string.Empty);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Computed render property OneWireTrafficPanel.SummaryText failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Builds the payload mode label for the render path.</summary>
+    /// <returns>The payload mode.</returns>
+    private string GetPayloadModeTextForRender()
+    {
+        try
+        {
+            return Traffic.CurrentOptions.PayloadMode;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Computed render property OneWireTrafficPanel.PayloadModeText failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Stops following the journal and cancels a pending refresh.</summary>
+    public void Dispose()
+    {
+        try
+        {
+            if (disposed)
+                return;
+            disposed = true;
+            Traffic.Changed -= OnTrafficChanged;
+            renderCancellation.Cancel();
+            renderCancellation.Dispose();
+            GC.SuppressFinalize(this);
+            Logger.LogDebug("Component method OneWireTrafficPanel.Dispose completed.");
+        }
+        catch (ObjectDisposedException exception)
+        {
+            Logger.LogDebug(exception, "The 1-Wire traffic view was disposed concurrently.");
+        }
+    }
+}

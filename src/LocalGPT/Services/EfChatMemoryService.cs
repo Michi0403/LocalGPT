@@ -62,7 +62,7 @@ namespace LocalGPT.Services
                 return await db.Conversations
                     .AsNoTracking()
                     .OrderByDescending(conversation => conversation.UpdatedAtUtc)
-                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).ConversationListMaximum))
+                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").ConversationListMaximum))
                     .Select(conversation => new ChatMemoryConversationSummary(
                         conversation.Id,
                         conversation.Title,
@@ -368,7 +368,7 @@ namespace LocalGPT.Services
                     .AsNoTracking()
                     .Where(message => message.Thinking != null && message.Thinking != string.Empty)
                     .OrderByDescending(message => message.CreatedAtUtc)
-                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).ConversationMessageMaximum))
+                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").ConversationMessageMaximum))
                     .Select(message => new ChatMemoryThought(
                         message.ConversationId,
                         message.Conversation.Title,

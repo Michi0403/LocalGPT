@@ -200,7 +200,7 @@ namespace LocalGPT.Services
                    name.Equals("PRN", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("AUX", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("NUL", StringComparison.OrdinalIgnoreCase) ||
-                   runtimePolicy.GetPattern(LocalGptRuntimePattern.WindowsReservedDeviceName).IsMatch(name);
+                   runtimePolicy.GetPattern("runtime.path.windows-reserved-device-name").IsMatch(name);
     
     }
     catch (Exception __serviceMethodException)

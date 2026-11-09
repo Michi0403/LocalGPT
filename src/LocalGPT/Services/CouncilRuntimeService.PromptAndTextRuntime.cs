@@ -111,11 +111,11 @@ namespace LocalGPT.Services
                     ? ExtractLatestAssistantConsensus(normalized)
                     : ExtractInnermostUserRequest(normalized);
                 normalized = StripLocalGptRenderingPanels(normalized);
-                normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilStreamArtifacts).Replace(normalized, string.Empty);
+                normalized = runtimePolicy.GetPattern("runtime.council.stream-artifacts").Replace(normalized, string.Empty);
                 normalized = WebUtility.HtmlDecode(normalized);
                 normalized = RepairUnbalancedMarkdownFence(normalized);
-                normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilWhitespaceOnlyLine).Replace(normalized, string.Empty);
-                normalized = runtimePolicy.GetPattern(LocalGptRuntimePattern.ExcessBlankLines).Replace(normalized, "\n\n\n").Trim();
+                normalized = runtimePolicy.GetPattern("runtime.council.whitespace-only-line").Replace(normalized, string.Empty);
+                normalized = runtimePolicy.GetPattern("runtime.text.excess-blank-lines").Replace(normalized, "\n\n\n").Trim();
 
                 const int maximumHistoryCharacters = 32_000;
                 return normalized.Length <= maximumHistoryCharacters
@@ -139,7 +139,7 @@ namespace LocalGPT.Services
         {
     try
     {
-                var matches = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilMarkdownFenceLine).Matches(value);
+                var matches = runtimePolicy.GetPattern("runtime.council.markdown-fence-line").Matches(value);
                 if (matches.Count == 0 || matches.Count % 2 == 0)
                     return value;
 
@@ -174,7 +174,7 @@ namespace LocalGPT.Services
                     !value.Contains("Answer this DXAiChat conversation", StringComparison.OrdinalIgnoreCase))
                     return value;
 
-                var matches = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilUserTranscriptBlock).Matches(value);
+                var matches = runtimePolicy.GetPattern("runtime.council.user-transcript-block").Matches(value);
                 var candidate = matches
                     .Select(match => match.Groups["body"].Value.Trim())
                     .LastOrDefault(body => !string.IsNullOrWhiteSpace(body) &&
@@ -182,7 +182,7 @@ namespace LocalGPT.Services
                 if (!string.IsNullOrWhiteSpace(candidate))
                     return candidate;
 
-                return runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilBoilerplateLine).Replace(value, string.Empty).Trim();
+                return runtimePolicy.GetPattern("runtime.council.boilerplate-line").Replace(value, string.Empty).Trim();
         
     }
     catch (Exception __serviceMethodException)
@@ -259,7 +259,7 @@ namespace LocalGPT.Services
     try
     {
                 var result = value;
-                var controlledPanelPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilControlledDetailsBlock);
+                var controlledPanelPattern = runtimePolicy.GetPattern("runtime.council.controlled-details-block");
                 for (var pass = 0; pass < 6; pass++)
                 {
                     var cleaned = controlledPanelPattern.Replace(result, string.Empty);
@@ -268,7 +268,7 @@ namespace LocalGPT.Services
                     result = cleaned;
                 }
 
-                return runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilPanelTag).Replace(result, string.Empty);
+                return runtimePolicy.GetPattern("runtime.council.panel-tag").Replace(result, string.Empty);
         
     }
     catch (Exception __serviceMethodException)
@@ -506,7 +506,7 @@ namespace LocalGPT.Services
                 builder.AppendLine("## Files");
                 var indexedFiles = analyzedFiles.Select(file => file.Summary).ToList();
                 var indexedFileLimit = Math.Max(1, catalog.GetRuntimeParameters<ChatUploadWorkspaceRuntimeParameters>(
-                    LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson).DefaultWorkspaceListCount);
+                    "ChatUploadWorkspaceRuntimeParametersJson").DefaultWorkspaceListCount);
                 builder.AppendLine($"Indexed {indexedFiles.Count:n0} file entries; this is a preview, not the complete listing. Call chat.upload_workspace_files with filters and pagination for the exact complete inventory.");
                 foreach (var file in indexedFiles
                     .OrderByDescending(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase))
@@ -624,7 +624,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(source))
                     source = prompt;
 
-                var slug = runtimePolicy.GetPattern(LocalGptRuntimePattern.NonAlphanumeric).Replace(source ?? "prompt", "-")
+                var slug = runtimePolicy.GetPattern("runtime.text.non-alphanumeric").Replace(source ?? "prompt", "-")
                     .Trim('-')
                     .ToLowerInvariant();
                 if (string.IsNullOrWhiteSpace(slug))

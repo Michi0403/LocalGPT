@@ -68,8 +68,8 @@ public sealed class ArtifactBuildExecutor(
             Directory.CreateDirectory(normalizedOutput);
         }
 
-        var minimumTimeoutSeconds = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ArtifactBuildMinimumTimeoutSeconds));
-        var maximumTimeoutSeconds = Math.Max(minimumTimeoutSeconds, runtimePolicy.GetInt(LocalGptRuntimeValue.ArtifactBuildMaximumTimeoutSeconds));
+        var minimumTimeoutSeconds = Math.Max(1, runtimePolicy.GetInt("ArtifactBuildMinimumTimeoutSeconds"));
+        var maximumTimeoutSeconds = Math.Max(minimumTimeoutSeconds, runtimePolicy.GetInt("ArtifactBuildMaximumTimeoutSeconds"));
         var configuredSeconds = settings.MaxDurationSeconds <= 0 ? maximumTimeoutSeconds : Math.Clamp(settings.MaxDurationSeconds, minimumTimeoutSeconds, maximumTimeoutSeconds);
         var requestedSeconds = requestedTimeout <= TimeSpan.Zero ? configuredSeconds : (int)Math.Min(int.MaxValue, Math.Ceiling(requestedTimeout.TotalSeconds));
         var timeoutSeconds = Math.Clamp(Math.Min(configuredSeconds, Math.Max(minimumTimeoutSeconds, requestedSeconds)), minimumTimeoutSeconds, maximumTimeoutSeconds);

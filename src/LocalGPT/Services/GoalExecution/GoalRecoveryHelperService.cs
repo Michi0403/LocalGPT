@@ -57,11 +57,11 @@ public sealed partial class GoalRecoveryHelperService : IGoalRecoveryHelperServi
 
     /// <summary>Gets the user-editable helper texts from the runtime policy.</summary>
     /// <value>The current helper texts.</value>
-    private GoalRecoveryHelperTexts Texts => runtimePolicy.GetJson<GoalRecoveryHelperTexts>(LocalGptRuntimeValue.GoalRecoveryHelperTextsJson);
+    private GoalRecoveryHelperTexts Texts => runtimePolicy.GetJson<GoalRecoveryHelperTexts>("GoalRecoveryHelperTextsJson");
 
     /// <summary>Gets the Council execution bounds from the runtime policy.</summary>
     /// <value>The current Council execution parameters.</value>
-    private CouncilExecutionRuntimeParameters ExecutionParameters => runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson);
+    private CouncilExecutionRuntimeParameters ExecutionParameters => runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson");
 
     /// <inheritdoc />
     public async Task<GoalMemberRecoveryDecision> DecideMemberRecoveryAsync(GoalMemberRecoveryContext context, CancellationToken cancellationToken = default)

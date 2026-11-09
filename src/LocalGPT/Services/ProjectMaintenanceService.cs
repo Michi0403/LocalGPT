@@ -40,6 +40,8 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         private readonly IToolchainKnowledgeService toolchainKnowledge;
         /// <summary>Stores host filesystem semantics behind the injected platform boundary.</summary>
         private readonly IPlatformRuntimeService platform;
+        /// <summary>Extracts the compiler error lines a Council role needs to repair a failed build verification.</summary>
+        private readonly IBuildDiagnosticSummaryService buildDiagnostics;
         /// <summary>
         /// Stores the logger used by <see cref="ProjectMaintenanceService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -53,6 +55,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         /// <param name="toolchainDiscovery">Injected knowledge-backed cross-platform compiler/runtime discovery service.</param>
         /// <param name="toolchainKnowledge">Injected local knowledge service for exact toolchain-version context.</param>
         /// <param name="platform">Injected platform runtime service providing cross-platform workspace filesystem semantics.</param>
+        /// <param name="buildDiagnostics">Injected compiler error-line extraction used to report failed build verifications.</param>
         /// <param name="logger">Injected dependency used by the ProjectMaintenanceService.</param>
         public ProjectMaintenanceService(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -62,6 +65,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             IToolchainDiscoveryService toolchainDiscovery,
             IToolchainKnowledgeService toolchainKnowledge,
             IPlatformRuntimeService platform,
+            IBuildDiagnosticSummaryService buildDiagnostics,
             ILogger<ProjectMaintenanceService> logger)
         {
             this.dbContextFactory = dbContextFactory;
@@ -71,6 +75,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             this.toolchainDiscovery = toolchainDiscovery;
             this.toolchainKnowledge = toolchainKnowledge;
             this.platform = platform;
+            this.buildDiagnostics = buildDiagnostics;
             this.logger = logger;
         }
 
@@ -155,7 +160,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             item.ScopeKind = scope;
             item.ProjectId = request.ProjectId;
             item.ProjectTypePattern = Trim(request.ProjectTypePattern, 240);
-            item.SolutionPattern = TrimOrFallback(request.SolutionPattern, 1000, runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString());
+            item.SolutionPattern = TrimOrFallback(request.SolutionPattern, 1000, runtimePolicy.GetPattern("runtime.project.solution-file-extension").ToString());
             item.EnvironmentKind = TrimOrFallback(request.EnvironmentKind, 80, "LocalHost");
             item.EnvironmentRootPath = NormalizeOptionalPath(request.EnvironmentRootPath);
             item.PreferredCompilerInstallationId = request.PreferredCompilerInstallationId;
@@ -169,7 +174,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             item.LastPermissionReadAccess = false;
             item.LastPermissionWriteAccess = false;
             item.LastPermissionCheckedAtUtc = null;
-            var parameters = runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>(LocalGptRuntimeValue.ProjectMaintenanceRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>("ProjectMaintenanceRuntimeParametersJson");
             item.Priority = Math.Clamp(request.Priority, parameters.MinimumPriority, parameters.MaximumPriority);
             item.IsDefault = request.IsDefault;
             item.IsEnabled = request.IsEnabled;
@@ -310,12 +315,12 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
                         findings.Add(new("Warning", "SUBDIRECTORY_MISSING", "An expected workspace subdirectory is missing.", safeRelative));
                 }
 
-                var maximumAssessmentEntries = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles));
+                var maximumAssessmentEntries = Math.Max(1, runtimePolicy.GetInt("MaxFiles"));
                 var relativeEntries = EnumerateRelativeEntries(root, maximumAssessmentEntries, findings);
                 if (!string.IsNullOrWhiteSpace(workspace.ExpectedStructureRegex))
                 {
                     var structure = string.Join("\n", relativeEntries);
-                    if (!CompileRegex(workspace.ExpectedStructureRegex, nameof(workspace.ExpectedStructureRegex), runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchAll).ToString()).IsMatch(structure))
+                    if (!CompileRegex(workspace.ExpectedStructureRegex, nameof(workspace.ExpectedStructureRegex), runtimePolicy.GetPattern("runtime.regex.match-all").ToString()).IsMatch(structure))
                         findings.Add(new("Warning", "STRUCTURE_REGEX_MISMATCH", "The current directory/file map does not satisfy the configured expected-structure regular expression."));
                 }
                 foreach (var rule in ParseAccessPolicy(workspace.AccessPolicyJson))
@@ -482,7 +487,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         try
         {
             var searchRoots = NormalizeCompilerSearchRoots(request);
-            var maximumCompilerCandidates = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ProjectMaintenanceMaximumCompilerCandidates));
+            var maximumCompilerCandidates = Math.Max(1, runtimePolicy.GetInt("ProjectMaintenanceMaximumCompilerCandidates"));
             var candidates = await toolchainDiscovery.DiscoverAsync(searchRoots, maximumCompilerCandidates, cancellationToken).ConfigureAwait(false);
             if (!request.SaveDiscovered)
             {
@@ -727,14 +732,14 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             var root = NormalizeAbsolutePath(!string.IsNullOrWhiteSpace(revision?.SourceRootPath) ? revision.SourceRootPath : project.RootPath, nameof(project.RootPath));
             if (!Directory.Exists(root)) throw new DirectoryNotFoundException("The stored project or revision root does not exist.");
             var workspace = await ResolveWorkspaceAsync(projectId, cancellationToken).ConfigureAwait(false);
-            var include = CompileRegex(project.FileIncludePattern, nameof(project.FileIncludePattern), runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchAll).ToString());
-            var exclude = CompileRegex(project.FileExcludePattern, nameof(project.FileExcludePattern), runtimePolicy.GetPattern(LocalGptRuntimePattern.MatchNone).ToString());
-            var solutionRegex = CompileRegex(project.SolutionSearchPattern, nameof(project.SolutionSearchPattern), runtimePolicy.GetPattern(LocalGptRuntimePattern.SolutionFileExtension).ToString());
-            var configuredMaximumFiles = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles));
+            var include = CompileRegex(project.FileIncludePattern, nameof(project.FileIncludePattern), runtimePolicy.GetPattern("runtime.regex.match-all").ToString());
+            var exclude = CompileRegex(project.FileExcludePattern, nameof(project.FileExcludePattern), runtimePolicy.GetPattern("runtime.regex.match-none").ToString());
+            var solutionRegex = CompileRegex(project.SolutionSearchPattern, nameof(project.SolutionSearchPattern), runtimePolicy.GetPattern("runtime.project.solution-file-extension").ToString());
+            var configuredMaximumFiles = Math.Max(1, runtimePolicy.GetInt("MaxFiles"));
             var maximum = request.MaximumFiles > 0
                 ? Math.Min(request.MaximumFiles, configuredMaximumFiles)
                 : configuredMaximumFiles;
-            var configuredMaximumFileBytes = Math.Max(1L, runtimePolicy.GetLong(LocalGptRuntimeValue.MaxSingleFileBytes));
+            var configuredMaximumFileBytes = Math.Max(1L, runtimePolicy.GetLong("MaxSingleFileBytes"));
             var maxBytes = request.MaximumFileBytes > 0
                 ? Math.Min(request.MaximumFileBytes, configuredMaximumFileBytes)
                 : configuredMaximumFileBytes;

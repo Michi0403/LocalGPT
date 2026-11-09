@@ -70,7 +70,7 @@ public sealed class CanIRunHardwareRecommendationService(
             using var response = await SendRecommendationRequestAsync(client, requestJson, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (json.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumPageCharacters)))
+            if (json.Length > Math.Max(1, runtimePolicy.GetInt("CanIRunMaximumPageCharacters")))
                 throw new InvalidDataException("The CanIRun.ai response exceeded LocalGPT's bounded response size.");
 
             using var document = JsonDocument.Parse(json);
@@ -84,8 +84,8 @@ public sealed class CanIRunHardwareRecommendationService(
                 .OrderByDescending(item => item.Score)
                 .ThenBy(item => item.ModelName, StringComparer.OrdinalIgnoreCase)
                 .Take(Math.Max(
-                    Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumRecommendations)),
-                    Math.Min(2048, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumCatalogCompatibilityRows)))))
+                    Math.Max(1, runtimePolicy.GetInt("CanIRunMaximumRecommendations")),
+                    Math.Min(2048, Math.Max(1, runtimePolicy.GetInt("CanIRunMaximumCatalogCompatibilityRows")))))
                 .ToList();
             foreach (var model in result)
                 PopulateModelMemoryPlan(model, device);
@@ -220,7 +220,7 @@ public sealed class CanIRunHardwareRecommendationService(
             if (catalog.Count == 0)
                 return [];
 
-            var maximum = Math.Min(2048, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumCatalogCompatibilityRows)));
+            var maximum = Math.Min(2048, Math.Max(1, runtimePolicy.GetInt("CanIRunMaximumCatalogCompatibilityRows")));
             var models = catalog.Take(maximum).ToList();
             var values = new List<CanIRunModelRecommendation>(models.Count);
             foreach (var batch in models.Chunk(6))
@@ -263,11 +263,11 @@ public sealed class CanIRunHardwareRecommendationService(
             using var response = await SendCanIRunRequestAsync(client, HttpMethod.Get, modelCatalogUri, requestJson: null, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (json.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumPageCharacters)))
+            if (json.Length > Math.Max(1, runtimePolicy.GetInt("CanIRunMaximumPageCharacters")))
                 throw new InvalidDataException("The CanIRun.ai model catalog exceeded LocalGPT's bounded response size.");
 
             using var document = JsonDocument.Parse(json);
-            var maximum = Math.Min(2048, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumCatalogCompatibilityRows)));
+            var maximum = Math.Min(2048, Math.Max(1, runtimePolicy.GetInt("CanIRunMaximumCatalogCompatibilityRows")));
             var candidates = new List<JsonElement>();
             CollectCatalogModelObjects(document.RootElement, candidates, depth: 0, maximum, cancellationToken);
             var models = new List<CanIRunModelRecommendation>();
@@ -417,7 +417,7 @@ public sealed class CanIRunHardwareRecommendationService(
                 return null;
             }
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (json.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumPageCharacters)))
+            if (json.Length > Math.Max(1, runtimePolicy.GetInt("CanIRunMaximumPageCharacters")))
                 throw new InvalidDataException("One CanIRun.ai compatibility response exceeded LocalGPT's bounded response size.");
             using var document = JsonDocument.Parse(json);
             var compatibilityRows = ParseRecommendations(document.RootElement, deviceName, compatibilityUri.ToString(), cancellationToken);

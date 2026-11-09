@@ -2,6 +2,7 @@ using LocalGPT.Services;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Interfaces;
+using LocalGPT.Interfaces.GameEngine;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
@@ -42,6 +43,10 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
     /// </summary>
     private readonly IHostEnvironment hostEnvironment;
     /// <summary>
+    /// Stores the system game seed that creates the shipped games as ordinary game projects.
+    /// </summary>
+    private readonly IGameProjectSeedService gameProjectSeed;
+    /// <summary>
     /// Stores the logger used by <see cref="DatabaseInitializationService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
     private readonly ILogger<DatabaseInitializationService> logger;
@@ -54,6 +59,7 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
     /// <param name="runtimePolicySeed">Injected dependency used by the DatabaseInitializationService.</param>
     /// <param name="databaseLoggerReadiness">Injected dependency used by the DatabaseInitializationService.</param>
     /// <param name="hostEnvironment">Injected dependency used by the DatabaseInitializationService.</param>
+    /// <param name="gameProjectSeed">Seeds the shipped system games as game projects.</param>
     /// <param name="logger">Injected dependency used by the DatabaseInitializationService.</param>
     public DatabaseInitializationService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -63,6 +69,7 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
         ILocalGptRuntimePolicySeedDataService runtimePolicySeed,
         IDatabaseLoggerReadiness databaseLoggerReadiness,
         IHostEnvironment hostEnvironment,
+        IGameProjectSeedService gameProjectSeed,
         ILogger<DatabaseInitializationService> logger)
     {
         this.dbContextFactory = dbContextFactory;
@@ -72,6 +79,7 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
         this.runtimePolicySeed = runtimePolicySeed;
         this.databaseLoggerReadiness = databaseLoggerReadiness;
         this.hostEnvironment = hostEnvironment;
+        this.gameProjectSeed = gameProjectSeed;
         this.logger = logger;
     }
 
@@ -131,6 +139,9 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
                 await databaseFileHealth.EnsureHealthyOrRecoverAsync(cancellationToken).ConfigureAwait(false);
                 await migrationCompatibility.PrepareAsync(cancellationToken).ConfigureAwait(false);
                 await RunMigrationAsync(cancellationToken).ConfigureAwait(false);
+                // SQLite cannot drop columns through EF migrations; the state-checked drops run here, before any seed
+                // stage inserts rows the obsolete columns would otherwise reject.
+                await migrationCompatibility.ReconcileAfterMigrationAsync(cancellationToken).ConfigureAwait(false);
 
                 // Each seed stage receives a fresh DbContext. A failed SaveChanges therefore cannot leave
                 // stale tracked entities behind and trigger unrelated concurrency failures in the next stage.
@@ -139,6 +150,7 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
                 await RunSeedStageAsync("system variables", SeedVariablesAsync, cancellationToken).ConfigureAwait(false);
                 await RunSeedStageAsync("knowledge entries", SeedKnowledgeAsync, cancellationToken).ConfigureAwait(false);
                 await RunSeedStageAsync("core projects", SeedCoreProjectsAsync, cancellationToken).ConfigureAwait(false);
+                await RunSeedStageAsync("system games", gameProjectSeed.SeedAsync, cancellationToken).ConfigureAwait(false);
                 await RunSeedStageAsync("Council model presets", SeedCouncilModelPresetsAsync, cancellationToken).ConfigureAwait(false);
 
                 initialized = true;
@@ -304,6 +316,10 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
                 .Select(row => row.Id).ToListAsync(token).ConfigureAwait(false)).ToHashSet();
             if (!expected.IsSubsetOf(actual))
                 throw new InvalidOperationException($"Core project seed incomplete: {expected.Except(actual).Count()} required projects are missing.");
+        }
+        else if (stageName == "system games")
+        {
+            await gameProjectSeed.VerifyAsync(db, token).ConfigureAwait(false);
         }
         else if (stageName == "knowledge entries")
         {

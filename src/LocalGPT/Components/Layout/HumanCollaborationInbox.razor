@@ -636,7 +636,7 @@
         await RunHumanUiOperationAsync("SaveProfile", async () =>
         {
             using var scope = HumanAmbientContext.PushHumanInteraction(
-                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                RuntimePolicy.GetGuid("LocalHumanProfileId"),
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox));
             profile = await Collaboration.SaveProfileAsync(profile).ConfigureAwait(false);
@@ -672,7 +672,7 @@
         await RunHumanUiOperationAsync("QueueContribution", async () =>
         {
             using var scope = HumanAmbientContext.PushHumanInteraction(
-                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                RuntimePolicy.GetGuid("LocalHumanProfileId"),
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox),
                 councilRunId: runId);
@@ -704,7 +704,7 @@
         await RunHumanUiOperationAsync("ResolveRequest", async () =>
         {
             using var scope = HumanAmbientContext.PushHumanInteraction(
-                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                RuntimePolicy.GetGuid("LocalHumanProfileId"),
                 profile.DisplayName,
                 nameof(HumanCollaborationInbox),
                 request.CorrelationId,

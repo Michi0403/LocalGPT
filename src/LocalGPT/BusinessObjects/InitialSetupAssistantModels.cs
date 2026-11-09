@@ -231,10 +231,8 @@ public enum LocalConsoleOperatorApplicationAction
     SessionNew,
     /// <summary>Open one saved chat session selected by identifier or title.</summary>
     SessionOpen,
-    /// <summary>Start the deterministic ASCII corridor.</summary>
-    GameStartCorridor,
-    /// <summary>Start the Green Dragon ASCII story.</summary>
-    GameStartDragon,
+    /// <summary>Start a game of the game catalog by its key or alias (the application argument).</summary>
+    GameStartCatalog,
     /// <summary>Start the latest approved build of a LocalGPT Game project.</summary>
     GameStartProject,
     /// <summary>Render current game status in the ASCII transcript.</summary>

@@ -73,7 +73,7 @@ namespace LocalGPT.Services
                     ? workspace.BuildArguments.Trim()
                     : DefaultBuildArguments(compiler.Language, target, request.Configuration);
             var executionEnvironmentJson = MergeEnvironmentJson(compiler.EnvironmentVariablesJson, workspace?.EnvironmentVariablesJson);
-            var parameters = runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>(LocalGptRuntimeValue.ProjectMaintenanceRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>("ProjectMaintenanceRuntimeParametersJson");
             var timeout = Math.Clamp(request.TimeoutSeconds, parameters.MinimumBuildReviewTimeoutSeconds, parameters.MaximumBuildReviewTimeoutSeconds);
             var outputDirectory = LocalGptApplicationDataPaths.ResolveUserPath("BuildVerifications", projectId.ToString("N"));
             Directory.CreateDirectory(outputDirectory);
@@ -108,7 +108,7 @@ namespace LocalGPT.Services
             var sourceChanged = !string.Equals(beforeState.Hash, afterState.Hash, StringComparison.Ordinal);
             var output = Limit(
                 combined.ToString(),
-                Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ProjectMaintenanceMaximumCapturedCharacters)));
+                Math.Max(1, runtimePolicy.GetInt("ProjectMaintenanceMaximumCapturedCharacters")));
             await File.WriteAllTextAsync(verification.OutputLogPath, output, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
             var evidence = JsonSerializer.Serialize(new
             {
@@ -144,6 +144,13 @@ namespace LocalGPT.Services
                 : verification.BuildSucceeded && (!testsExecuted || verification.TestsSucceeded)
                     ? (testsExecuted ? "Build and requested tests succeeded for the unchanged source state." : "Build succeeded for the unchanged source state; no tests were requested.")
                     : "Build or requested tests failed; review the local evidence and log.";
+            if (!sourceChanged && !(verification.BuildSucceeded && (!testsExecuted || verification.TestsSucceeded)))
+            {
+                // The log stays on disk; the summary carries the compiler errors so a Council role can repair them.
+                var errorLines = buildDiagnostics.Summarize(output, string.Empty);
+                if (!string.IsNullOrWhiteSpace(errorLines))
+                    verification.Summary += Environment.NewLine + "Compiler diagnostics:" + Environment.NewLine + errorLines;
+            }
             revision.CompileVerified = verification.BuildSucceeded && (!testsExecuted || verification.TestsSucceeded);
             revision.CouncilVerified = false;
             revision.ReadyForTesting = false;
@@ -393,7 +400,7 @@ namespace LocalGPT.Services
         }
         var output = Limit(
             (await stdoutTask.ConfigureAwait(false)) + Environment.NewLine + (await stderrTask.ConfigureAwait(false)),
-            Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ProjectMaintenanceMaximumCapturedCharacters)));
+            Math.Max(1, runtimePolicy.GetInt("ProjectMaintenanceMaximumCapturedCharacters")));
         return (process.ExitCode, output);
     }
 

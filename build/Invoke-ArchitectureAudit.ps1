@@ -63,6 +63,18 @@ function Invoke-StaticFallback {
             }
             $failures.Add("$relative|$declaration")
         }
+
+        # 7.0.0: a static local function, a static lambda or a static anonymous method is a hidden
+        # sub-service inside a method. Report it like a static member; Program entry points stay allowed.
+        if ($file.Name -ne 'Program.cs' -and $file.Name -notlike 'Program.*.cs') {
+            $localPattern = '(?m)^[ \t]+static\s+(?!class\b|readonly\b|partial\b)(?:async\s+)?[\w\.\?<>,\[\]\(\) ]+?\s+[A-Za-z_]\w*\s*\('
+            foreach ($match in [regex]::Matches($code, $localPattern)) {
+                $failures.Add("$relative|static local function or implicitly private static method: $(Normalize-Signature $match.Value)")
+            }
+            foreach ($match in [regex]::Matches($code, '\bstatic\s+(?:async\s+)?(?:\([^()]*\)|[A-Za-z_]\w*)\s*=>|\bstatic\s+delegate\b')) {
+                $failures.Add("$relative|static lambda or anonymous method: $(Normalize-Signature $match.Value)")
+            }
+        }
     }
 
     if (-not $isLocalGpt) {

@@ -69,7 +69,7 @@ namespace LocalGPT.Services
                 }
 
                 await Task.Delay(snapshot.AutoplayDelayMilliseconds, cancellationToken).ConfigureAwait(false);
-                var action = SelectAutoplayAction(snapshot);
+                var action = engine.SelectAutoplayAction(snapshot);
                 try
                 {
                     await ApplyControlAsync(new CouncilGameControlRequest
@@ -102,120 +102,6 @@ namespace LocalGPT.Services
                 source.Dispose();
         }
     }
-
-    /// <summary>
-    /// Performs select autoplay action as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="snapshot">Snapshot value supplied to the council game session operation and used when producing its result.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string SelectAutoplayAction(CouncilGameSessionSnapshot snapshot)
-    {
-    try
-    {
-            if (snapshot.RuntimeProfile == CouncilGameRuntimeProfile.Story)
-            {
-                string[] storyActions = ["choice-1", "move-forward", "use", "choice-2", "turn-right", "choice-3"];
-                return storyActions[(int)(snapshot.Turn % storyActions.Length)];
-            }
-
-            var map = GetWorldMap(snapshot);
-            var facing = snapshot.FacingDegrees * Math.PI / 180d;
-            var livingEnemies = snapshot.Enemies
-                .Where(enemy => enemy.IsAlive)
-                .OrderBy(enemy => Math.Abs(enemy.X - snapshot.PlayerX) + Math.Abs(enemy.Y - snapshot.PlayerY))
-                .ThenBy(enemy => enemy.Key, StringComparer.Ordinal)
-                .ToList();
-
-            foreach (var enemy in livingEnemies)
-            {
-                if (!HasLineOfSight(map, snapshot.PlayerX, snapshot.PlayerY, enemy.X, enemy.Y)) continue;
-                var targetAngle = Math.Atan2(enemy.Y - snapshot.PlayerY, enemy.X - snapshot.PlayerX);
-                var delta = SignedAngleDelta(facing, targetAngle);
-                var distance = Math.Sqrt(Math.Pow(enemy.X - snapshot.PlayerX, 2) + Math.Pow(enemy.Y - snapshot.PlayerY, 2));
-                if (Math.Abs(delta) <= Math.PI / 24d && distance <= 14d && snapshot.Ammo > 0)
-                    return "shoot";
-                if (Math.Abs(delta) > Math.PI / 24d)
-                    return delta > 0 ? "turn-right" : "turn-left";
-            }
-
-            if (livingEnemies.Count > 0)
-            {
-                var target = livingEnemies[0];
-                var blocked = livingEnemies
-                    .Skip(1)
-                    .Select(enemy => (enemy.X, enemy.Y))
-                    .ToHashSet();
-                var path = FindShortestPath(map, snapshot.PlayerX, snapshot.PlayerY, target.X, target.Y, blocked, true);
-                var pathAction = SelectAutoplayPathAction(snapshot, path, facing, target.X, target.Y, true);
-                if (!string.IsNullOrWhiteSpace(pathAction)) return pathAction;
-                return snapshot.BlockedMoveStreak > 0 ? "turn-left" : "turn-right";
-            }
-
-            if (snapshot.PlayerX == snapshot.ExtractionX && snapshot.PlayerY == snapshot.ExtractionY)
-                return "use";
-
-            var extractionPath = FindShortestPath(map, snapshot.PlayerX, snapshot.PlayerY, snapshot.ExtractionX, snapshot.ExtractionY);
-            var extractionAction = SelectAutoplayPathAction(snapshot, extractionPath, facing, snapshot.ExtractionX, snapshot.ExtractionY, false);
-            return string.IsNullOrWhiteSpace(extractionAction) ? "turn-right" : extractionAction;
-
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(SelectAutoplayAction)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(SelectAutoplayAction)} failed.");
-        throw;
-    }
-}
-
-    /// <summary>Selects one legal turn/move/shoot action from an authoritative path.</summary>
-    /// <param name="snapshot">Snapshot value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="path">Y) dependency used by the council game session workflow to provide the corresponding application capability.</param>
-    /// <param name="facing">Facing value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="targetX">Target x value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="targetY">Target y value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="targetIsEnemy">Value indicating whether target is enemy should apply to this operation.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string SelectAutoplayPathAction(
-        CouncilGameSessionSnapshot snapshot,
-        IReadOnlyList<(int X, int Y)> path,
-        double facing,
-        int targetX,
-        int targetY,
-        bool targetIsEnemy)
-    {
-    try
-    {
-            if (path.Count < 2) return string.Empty;
-            var next = path[1];
-            if (targetIsEnemy && next.X == targetX && next.Y == targetY)
-            {
-                var targetAngle = Math.Atan2(targetY - snapshot.PlayerY, targetX - snapshot.PlayerX);
-                var targetDelta = SignedAngleDelta(facing, targetAngle);
-                if (Math.Abs(targetDelta) > Math.PI / 24d)
-                    return targetDelta > 0 ? "turn-right" : "turn-left";
-                return snapshot.Ammo > 0 ? "shoot" : "move-backward";
-            }
-
-            var desiredAngle = Math.Atan2(next.Y - snapshot.PlayerY, next.X - snapshot.PlayerX);
-            var delta = SignedAngleDelta(facing, desiredAngle);
-            if (Math.Abs(delta) > Math.PI / 24d)
-                return delta > 0 ? "turn-right" : "turn-left";
-            if (!IsWalkable(GetWorldMap(snapshot), next.X, next.Y) || IsLivingEnemyAt(snapshot, next.X, next.Y))
-                return delta >= 0 ? "turn-right" : "turn-left";
-            return "move-forward";
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(SelectAutoplayPathAction)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(SelectAutoplayPathAction)} failed.");
-        throw;
-    }
-}
-
 
     /// <summary>
     /// Stops autoplay loop as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.

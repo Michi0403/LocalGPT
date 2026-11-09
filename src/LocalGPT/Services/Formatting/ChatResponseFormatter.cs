@@ -71,36 +71,36 @@ internal sealed class ChatResponseFormatter(
     /// Gets the harmony thinking regex value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The harmony thinking regex value exposed by <see cref="ChatResponseFormatter"/>.</value>
-    private Regex HarmonyThinkingRegex => runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyThinking);
+    private Regex HarmonyThinkingRegex => runtimePolicy.GetPattern("runtime.chat.harmony-thinking");
     /// <summary>
     /// Gets the harmony final regex value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The harmony final regex value exposed by <see cref="ChatResponseFormatter"/>.</value>
-    private Regex HarmonyFinalRegex => runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyFinal);
+    private Regex HarmonyFinalRegex => runtimePolicy.GetPattern("runtime.chat.harmony-final");
     /// <summary>
     /// Gets the harmony marker regex value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The harmony marker regex value exposed by <see cref="ChatResponseFormatter"/>.</value>
-    private Regex HarmonyMarkerRegex => runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyMarker);
+    private Regex HarmonyMarkerRegex => runtimePolicy.GetPattern("runtime.chat.harmony-marker");
     /// <summary>
     /// Gets the think start tag value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The think start tag value exposed by <see cref="ChatResponseFormatter"/>.</value>
-    private string ThinkStartTag => runtimePolicy.GetString(LocalGptRuntimeValue.FormattingThinkStartTag);
+    private string ThinkStartTag => runtimePolicy.GetString("FormattingThinkStartTag");
     /// <summary>
     /// Gets the think end tag value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The think end tag value exposed by <see cref="ChatResponseFormatter"/>.</value>
-    private string ThinkEndTag => runtimePolicy.GetString(LocalGptRuntimeValue.FormattingThinkEndTag);
+    private string ThinkEndTag => runtimePolicy.GetString("FormattingThinkEndTag");
     /// <summary>Gets the number of trailing characters retained while a streamed tag may be incomplete.</summary>
     /// <value>The tag lookbehind length value exposed by <see cref="ChatResponseFormatter"/>.</value>
-    private int TagLookbehindLength => runtimePolicy.GetInt(LocalGptRuntimeValue.FormattingTagLookbehindLength);
+    private int TagLookbehindLength => runtimePolicy.GetInt("FormattingTagLookbehindLength");
 
     /// <summary>
     /// Stores the internal missing final answer notice state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
     /// </summary>
     private readonly string missingFinalAnswerNotice = string.IsNullOrWhiteSpace(configuredMissingFinalAnswerNotice)
-        ? runtimePolicy.GetString(LocalGptRuntimeValue.FormattingMissingFinalAnswerNotice)
+        ? runtimePolicy.GetString("FormattingMissingFinalAnswerNotice")
         : configuredMissingFinalAnswerNotice.Trim();
     /// <summary>
     /// Stores the internal content buffer state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.

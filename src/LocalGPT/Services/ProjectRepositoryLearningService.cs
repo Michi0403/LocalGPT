@@ -199,8 +199,8 @@ public sealed class ProjectRepositoryLearningService(
                     : "Source";
             var name = $"project.evidence::SourceCode::{projectKind}::{toolchain}";
             var pattern = string.IsNullOrWhiteSpace(marker)
-                ? runtimePolicy.GetPattern(LocalGptRuntimePattern.GitConfigPath).ToString()
-                : runtimePolicy.GetString(LocalGptRuntimeValue.ProjectMarkerPatternTemplate)
+                ? runtimePolicy.GetPattern("runtime.project.git-config-path").ToString()
+                : runtimePolicy.GetString("ProjectMarkerPatternTemplate")
                     .Replace("{{Marker}}", Regex.Escape(marker.Replace('\\', '/').TrimStart('/')), StringComparison.Ordinal);
             await regexCurator.MarkSuggestedAsync(
                 name,

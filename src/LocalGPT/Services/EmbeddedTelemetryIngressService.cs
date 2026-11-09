@@ -52,7 +52,7 @@ public sealed class EmbeddedTelemetryIngressService(
                     TransportKey = request.TransportKey?.Trim() ?? string.Empty,
                     Readings = (request.Readings ?? []).Where(item => item is not null).Select(CloneReading).ToList()
                 });
-                while (snapshots.Count > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.EmbeddedTelemetryMaximumSnapshots)) && snapshots.TryDequeue(out _)) { }
+                while (snapshots.Count > Math.Max(1, runtimePolicy.GetInt("EmbeddedTelemetryMaximumSnapshots")) && snapshots.TryDequeue(out _)) { }
             }
 
             logger.LogInformation(
@@ -92,7 +92,7 @@ public sealed class EmbeddedTelemetryIngressService(
     {
     try
     {
-            var configuredMaximum = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.EmbeddedTelemetryMaximumSnapshots));
+            var configuredMaximum = Math.Max(1, runtimePolicy.GetInt("EmbeddedTelemetryMaximumSnapshots"));
             var bounded = Math.Clamp(maximum, 1, configuredMaximum);
             return snapshots.Reverse()
                 .Where(item => string.IsNullOrWhiteSpace(deviceId) || string.Equals(item.DeviceId, deviceId.Trim(), StringComparison.OrdinalIgnoreCase))

@@ -68,44 +68,44 @@ public interface ILocalGptRuntimePolicyDataService
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    string GetString(LocalGptRuntimeValue key);
+    string GetString(string key);
     /// <summary>
     /// Retrieves int as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The int produced by the operation.</returns>
-    int GetInt(LocalGptRuntimeValue key);
+    int GetInt(string key);
     /// <summary>
     /// Retrieves long as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The long produced by the operation.</returns>
-    long GetLong(LocalGptRuntimeValue key);
+    long GetLong(string key);
     /// <summary>
     /// Retrieves GUID as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The GUID produced by the operation.</returns>
-    Guid GetGuid(LocalGptRuntimeValue key);
+    Guid GetGuid(string key);
     /// <summary>
     /// Retrieves JSON as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <typeparam name="T">Type used for t values handled by <see cref="ILocalGptRuntimePolicyDataService"/>.</typeparam>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The t produced by the operation.</returns>
-    T GetJson<T>(LocalGptRuntimeValue key);
+    T GetJson<T>(string key);
     /// <summary>
     /// Retrieves pattern as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The regex produced by the operation.</returns>
-    Regex GetPattern(LocalGptRuntimePattern key);
+    Regex GetPattern(string key);
     /// <summary>
     /// Retrieves collection as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
     /// <returns>The frozen set string produced by the operation.</returns>
-    FrozenSet<string> GetCollection(LocalGptRuntimeCollection key);
+    FrozenSet<string> GetCollection(string key);
     /// <summary>
     /// Retrieves snapshot as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

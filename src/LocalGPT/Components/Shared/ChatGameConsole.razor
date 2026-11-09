@@ -1,8 +1,14 @@
 @using LocalGPT.BusinessObjects
+@using LocalGPT.BusinessObjects.GameEngine
+@using LocalGPT.Interfaces.GameEngine
 @using DevExpress.AIIntegration.Blazor.Chat
 @using Microsoft.JSInterop
 @inject ICouncilGameSessionService Games
 @inject IGameProjectService GameProjects
+@inject IGameRulesetStoreService GameCatalog
+@inject IGameInputMapService GameInputMaps
+@inject IGameTextService GameTexts
+@inject IGameTouchLayoutService GameTouchLayout
 @inject IHumanCollaborationService HumanCollaboration
 @inject IDeferredDxAiInvocationService DeferredDxInvocations
 @inject ISupervisedTaskRunner TaskRunner
@@ -26,7 +32,7 @@
     <DxFormLayoutItem ColSpanMd="12">
         <Template Context="formItemContext002">
         <div id="@elementId"
-         class="chat-game-console @(IsKernelTournament ? "chat-game-console-tournament" : string.Empty) @(operatorMode ? "chat-game-console-operator" : conversationMode ? "chat-game-console-conversation" : snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
+         class="chat-game-console @(IsCouncilDrivenStage ? "chat-game-console-council-stage" : string.Empty) @(operatorMode ? "chat-game-console-operator" : conversationMode ? "chat-game-console-conversation" : snapshot is null ? "chat-game-console-empty" : "chat-game-console-active")"
          tabindex="0"
          data-localgpt-game-console
          data-localgpt-copyable="true"
@@ -68,8 +74,11 @@
             <DxButton Text="Fullscreen" CssClass="ascii-console-button chat-game-fullscreen-toggle" RenderStyle="ButtonRenderStyle.Secondary" Click="FullscreenAsync" />
             @if (!operatorMode && snapshot is null)
             {
-                <DxButton Text="Play ASCII corridor" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="StartDoomAsync" />
-                <DxButton Text="Play Green Dragon story" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="StartDragonAsync" />
+                @foreach (var launcher in launcherGames)
+                {
+                    var launcherGame = launcher;
+                    <DxButton Text="@launcherGame.LaunchLabel" CssClass="ascii-console-button" RenderStyle="ButtonRenderStyle.Secondary" Click="@(() => StartCatalogGameAsync(launcherGame))" />
+                }
             }
             else if (!operatorMode && !conversationMode && snapshot is not null)
             {
@@ -345,7 +354,7 @@
     }
     else
     {
-        <div class="chat-game-stage @(ShowControlGuide ? "has-guide" : "screen-only") @(IsKernelTournament ? "kernel-tournament-stage" : string.Empty)">
+        <div class="chat-game-stage @(ShowControlGuide ? "has-guide" : "screen-only") @(IsCouncilDrivenStage ? "council-stage" : string.Empty)">
             <div class="chat-game-screen-viewport">
                 @if (!string.IsNullOrWhiteSpace(GamePreparationStatus))
                 {
@@ -468,18 +477,16 @@
                                 }
                             </div>
                             <div class="chat-game-touch-grid">
-                                <DxButton CssClass="up" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-forward" data-semantic-action="move-forward" Click='@(() => SendControlAsync("move-forward"))'>▲</DxButton>
-                                <DxButton CssClass="left" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="left" data-semantic-action='@(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left")' Click='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</DxButton>
-                                <DxButton CssClass="down" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-backward" data-semantic-action="move-backward" Click='@(() => SendControlAsync("move-backward"))'>▼</DxButton>
-                                <DxButton CssClass="right" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="right" data-semantic-action='@(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right")' Click='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</DxButton>
-                                <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-left" data-semantic-action="turn-left" Click='@(() => SendControlAsync("turn-left"))'>Aim ◁</DxButton>
-                                <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-right" data-semantic-action="turn-right" Click='@(() => SendControlAsync("turn-right"))'>Aim ▷</DxButton>
-                                @if (snapshot.GameKey == "ascii-doom")
+                                @foreach (var pad in TouchPadButtons)
                                 {
-                                    <DxButton CssClass="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="shoot" data-semantic-action="shoot" Click='@(() => SendControlAsync("shoot"))'>Shoot</DxButton>
-                                    <DxButton aria-disabled="@(!CanSubmitHumanControl)" data-game-action="duck" data-semantic-action="duck" Click='@(() => SendControlAsync("duck"))'>Duck</DxButton>
+                                    var padButton = pad;
+                                    <DxButton CssClass="@padButton.Slot" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="@padButton.Action" data-semantic-action="@padButton.Action" Click='@(() => SendControlAsync(padButton.Action))'>@padButton.Label</DxButton>
                                 }
-                                <DxButton CssClass="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="use" data-semantic-action="use" Click='@(() => SendControlAsync("use"))'>Use</DxButton>
+                                @foreach (var touch in TouchActionButtons)
+                                {
+                                    var touchButton = touch;
+                                    <DxButton CssClass="@touchButton.Slot" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="@touchButton.Action" data-semantic-action="@touchButton.Action" Click='@(() => SendControlAsync(touchButton.Action))'>@touchButton.Label</DxButton>
+                                }
                             </div>
                             <small>Mouse/touch, keyboard, connected gamepads and approved AI/team calls share these semantic actions. Controller polling only runs while this game surface can accept input.</small>
                         </div>

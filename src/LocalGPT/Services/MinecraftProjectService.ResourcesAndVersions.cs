@@ -531,7 +531,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return runtimePolicy.GetString(LocalGptRuntimeValue.MinecraftSystemPromptTemplate)
+                return runtimePolicy.GetString("MinecraftSystemPromptTemplate")
                     .Replace("{{Mode}}", mode ?? string.Empty, StringComparison.Ordinal)
                     .Trim();
             }

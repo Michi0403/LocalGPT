@@ -28,7 +28,7 @@ public sealed class WebSearchService(IEnumerable<IWebSearchProvider> providers, 
                 ?? throw new InvalidOperationException($"Web search provider '{providerKey}' is not configured.");
             request.Query = query;
             request.Provider = provider.Key;
-            request.MaximumResults = Math.Clamp(request.MaximumResults, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).WebSearchMaximumResults);
+            request.MaximumResults = Math.Clamp(request.MaximumResults, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").WebSearchMaximumResults);
             return await provider.SearchAsync(request, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception)

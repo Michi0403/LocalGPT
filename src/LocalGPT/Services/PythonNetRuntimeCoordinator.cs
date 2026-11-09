@@ -103,7 +103,7 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
         this.options = options;
         this.environment = environment;
         this.logger = logger;
-        var parameters = runtimePolicy.GetJson<PythonNetRuntimeParameters>(LocalGptRuntimeValue.PythonNetRuntimeParametersJson);
+        var parameters = runtimePolicy.GetJson<PythonNetRuntimeParameters>("PythonNetRuntimeParametersJson");
         var capacity = Math.Clamp(options.CurrentValue.PythonCore?.QueueCapacity ?? parameters.DefaultQueueCapacity, parameters.MinimumQueueCapacity, parameters.MaximumQueueCapacity);
         queue = Channel.CreateBounded<QueuedJob>(new BoundedChannelOptions(capacity)
         {
@@ -276,7 +276,7 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
 
             var envelope = new { operation = request.Operation, parameters };
             File.WriteAllText(requestPath, JsonSerializer.Serialize(envelope, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
-            using var cancellationRegistration = cancellationToken.Register(static state =>
+            using var cancellationRegistration = cancellationToken.Register(state =>
             {
                 try { File.WriteAllText((string)state!, "cancel"); } catch { }
             }, cancelPath);

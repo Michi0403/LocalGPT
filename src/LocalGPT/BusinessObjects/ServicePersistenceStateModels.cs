@@ -95,9 +95,9 @@ internal enum DatabaseProbeResult
 /// <param name="Collections">Collections value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
 /// <param name="Patterns">Patterns value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
 internal sealed record LocalGptRuntimePolicyState(
-    FrozenDictionary<LocalGptRuntimeValue, string> Values,
-    FrozenDictionary<LocalGptRuntimeCollection, FrozenSet<string>> Collections,
-    FrozenDictionary<LocalGptRuntimePattern, Regex> Patterns);
+    FrozenDictionary<string, string> Values,
+    FrozenDictionary<string, FrozenSet<string>> Collections,
+    FrozenDictionary<string, Regex> Patterns);
 
 /// <summary>
 /// Represents project source manifest state exchanged or persisted by the surrounding application workflow, with each member describing one part of that state.

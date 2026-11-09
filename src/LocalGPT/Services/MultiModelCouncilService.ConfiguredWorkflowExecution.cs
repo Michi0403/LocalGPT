@@ -140,7 +140,7 @@ namespace LocalGPT.Services
                                         ? firstStep.MissingWorkspaceFileReadRecoveryAttempts
                                         : firstStep.RetryMissingWorkspaceFileReadOnce ? 1 : 0,
                                     0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(
-                                        LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumWorkspaceFileReadRecoveryAttempts);
+                                        "CouncilExecutionRuntimeParametersJson").MaximumWorkspaceFileReadRecoveryAttempts);
                                 var recoveredSources = configuredSourceRetries > 0 && firstStep.IncludeWorkspaceSourceExcerptsOnRecovery
                                     ? await BuildSourceReviewRecoveryEvidenceAsync(request, bootstrap, firstStep, cancellationToken).ConfigureAwait(false)
                                     : (Evidence: string.Empty, Paths: (IReadOnlyList<string>)Array.Empty<string>(),
@@ -291,7 +291,7 @@ namespace LocalGPT.Services
                         loopSteps.Add(configuredSteps[stepIndex + loopSteps.Count]);
                     }
 
-                    var maximumIterations = loopSteps.Max(step => Math.Clamp(step.MaximumLoopIterations, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumLoopIterations));
+                    var maximumIterations = loopSteps.Max(step => Math.Clamp(step.MaximumLoopIterations, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumLoopIterations));
                     var completionMarker = loopSteps
                         .Select(step => step.LoopCompletionMarker?.Trim() ?? string.Empty)
                         .FirstOrDefault(marker => !string.IsNullOrWhiteSpace(marker)) ?? string.Empty;
@@ -420,9 +420,13 @@ namespace LocalGPT.Services
                 // built-in team key, game-specific dependency or implicit retry policy.
                 var recoveredCompletion = false;
                 var pendingRecoveryRules = team.CompletionRecovery.Rules.ToList();
+                // A required function without an explicit rule is still a goal of the team: recover it
+                // through the step configured to call it instead of only reporting it as missing at the end.
+                pendingRecoveryRules.AddRange(BuildImplicitCompletionRecoveryRules(result, team, configuredSteps));
+                var recoveryPassLimit = pendingRecoveryRules.Count;
                 // A prerequisite may be recovered by a later rule. Resolve all eligible
                 // rules over a bounded number of passes rather than assuming user list order.
-                for (var recoveryPass = 0; recoveryPass < team.CompletionRecovery.Rules.Count &&
+                for (var recoveryPass = 0; recoveryPass < recoveryPassLimit &&
                      pendingRecoveryRules.Count > 0; recoveryPass++)
                 {
                     var advanced = false;
@@ -453,7 +457,7 @@ namespace LocalGPT.Services
                         }
                         var maximumAttempts = Math.Clamp(rule.MaximumAttempts, 0,
                             runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(
-                                LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumCompletionRecoveryAttempts);
+                                "CouncilExecutionRuntimeParametersJson").MaximumCompletionRecoveryAttempts);
                         for (var attempt = 1; attempt <= maximumAttempts &&
                              !HasVerifiedCouncilFunctionResult(result, rule.FunctionName); attempt++)
                         {
@@ -800,7 +804,7 @@ namespace LocalGPT.Services
                 var maximumDepth = Math.Clamp(
                     configuredChildDepthOverride ?? sourceDefinition.XMaximumChildCouncilDepth,
                     1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(
-                        LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth);
+                        "CouncilExecutionRuntimeParametersJson").MaximumChildCouncilDepth);
                 if (request.XRoundChildDepth >= maximumDepth)
                 {
                     var warning = $"X-Function child Council '{teamKey}' was not started because step '{sourceDefinition.DisplayName}' allows at most {maximumDepth} nested child-Council level(s).";

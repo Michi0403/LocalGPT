@@ -33,7 +33,7 @@ namespace LocalGPT.Services
                 if (!definition.RequiresCompleteUploadWorkspaceCuration && !requireProjectSourceCuration)
                     return string.Empty;
 
-                var parameters = runtimePolicy.GetJson<ChatUploadWorkspaceRuntimeParameters>(LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson);
+                var parameters = runtimePolicy.GetJson<ChatUploadWorkspaceRuntimeParameters>("ChatUploadWorkspaceRuntimeParametersJson");
                 var evidenceText = string.Join(Environment.NewLine, request.Prompt ?? string.Empty, bootstrap ?? string.Empty);
                 var candidateWorkspaces = uploadWorkspaces.ListWorkspaces(parameters.DefaultWorkspaceListCount);
                 if (candidateWorkspaces.Count == 0)
@@ -135,7 +135,7 @@ namespace LocalGPT.Services
                 briefing.AppendLine("## Mandatory local research preflight (service-observed, not a model assertion)");
                 var entries = await knowledgeService.GetEntriesAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
                 briefing.AppendLine($"Council Knowledge database queried: {entries.Count:n0} recently available entry/entries. These are learned records, NOT automatic compiler/source authority.");
-                var maximumDisplayed = runtimePolicy.GetJson<ChatUploadWorkspaceRuntimeParameters>(LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson).DefaultWorkspaceListCount;
+                var maximumDisplayed = runtimePolicy.GetJson<ChatUploadWorkspaceRuntimeParameters>("ChatUploadWorkspaceRuntimeParametersJson").DefaultWorkspaceListCount;
                 foreach (var entry in entries.Take(Math.Max(1, maximumDisplayed)))
                 {
                     briefing.AppendLine($"- KnowledgeId={entry.Id}; topic={entry.Topic}; source={entry.Source}; verification={entry.VerificationStatus}; review={entry.ReviewStatus}; lastVerifiedUtc={entry.LastVerifiedAtUtc?.ToString("O") ?? "unknown"}; stale={(!string.IsNullOrWhiteSpace(entry.StalenessReason) ? entry.StalenessReason : "not marked")}");
@@ -271,7 +271,7 @@ namespace LocalGPT.Services
                 if (references.Count == 0)
                     return string.Empty;
 
-                var parameters = runtimePolicy.GetJson<ChatUploadWorkspaceRuntimeParameters>(LocalGptRuntimeValue.ChatUploadWorkspaceRuntimeParametersJson);
+                var parameters = runtimePolicy.GetJson<ChatUploadWorkspaceRuntimeParameters>("ChatUploadWorkspaceRuntimeParametersJson");
                 var candidates = uploadWorkspaces.ListWorkspaces(parameters.DefaultWorkspaceListCount);
                 var referenced = candidates.Where(workspace => references.Any(text =>
                         text.Contains(workspace.WorkspaceName, StringComparison.OrdinalIgnoreCase)))
@@ -403,7 +403,7 @@ namespace LocalGPT.Services
                     {
                         if (!await deferredDxAiInvocations.HasPendingApprovalForRunAsync(result.RunId, cancellationToken).ConfigureAwait(false))
                             continue;
-                        var fallbackSeconds = runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumAvailabilityWaitSeconds;
+                        var fallbackSeconds = runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumAvailabilityWaitSeconds;
                         var fallback = Task.Delay(TimeSpan.FromSeconds(fallbackSeconds), cancellationToken);
                         await Task.WhenAny(changed.Task, fallback).ConfigureAwait(false);
                         cancellationToken.ThrowIfCancellationRequested();

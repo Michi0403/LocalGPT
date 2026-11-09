@@ -91,7 +91,7 @@ namespace LocalGPT.Services
                         sourceAuthority, "Verified continuation archive/source metadata", curatedContinuation.Content, logger);
                 }
                 CouncilXRoundDirective? xDirective = null;
-                var repeatCount = Math.Clamp(definition.RepeatCount, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumLoopIterations);
+                var repeatCount = Math.Clamp(definition.RepeatCount, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumLoopIterations);
                 var automaticFunctionPolicy = councilAutomaticFunctionPolicy.Resolve(team, definition, suppressOrganicFunctions);
                 var effectiveAllowDxFunctions = automaticFunctionPolicy.Enabled;
 
@@ -117,9 +117,8 @@ namespace LocalGPT.Services
                         definition.Role,
                         participants,
                         roleAssignments);
-                    var roleParticipants = await LimitKernelTournamentRoundParticipantsAsync(
+                    var roleParticipants = await LimitGameEntrantParticipantsAsync(
                         result,
-                        team,
                         definition,
                         roleAssignment.AiParticipants,
                         cancellationToken).ConfigureAwait(false);
@@ -176,6 +175,24 @@ namespace LocalGPT.Services
                             "Authoritative upload-source inventory and framework declarations (override stale learned facts)",
                             sourceAuthority,
                             logger);
+                    if (!string.IsNullOrWhiteSpace(xRoundCause))
+                    {
+                        // A revisit or completion recovery re-runs this step because a controller or the
+                        // configured acceptance found missing work. Without this section the step would run
+                        // again blind and usually repeat its previous output.
+                        gatedBootstrap = MultiModelCouncilServiceAppendPromptSection(
+                            gatedBootstrap,
+                            "Why this step runs again — resolve this before anything else",
+                            xRoundCause.Trim(),
+                            logger);
+                        var visibleCause = xRoundCause.Trim();
+                        request.ProgressMessage?.Invoke(
+                            $"Configured step '{definition.DisplayName}' runs again with this instruction: " +
+                            (visibleCause.Length > 300 ? visibleCause[..300] + "…" : visibleCause));
+                        logger.LogInformation(
+                            "Council run {RunId} re-runs step {StepKey} revision {WorkflowRevision} with an X-Round/recovery instruction of {CauseLength} character(s).",
+                            result.RunId, definition.Key, workflowRevision, visibleCause.Length);
+                    }
                     if (definition.IncludeLocalResearchEvidence)
                     {
                         var localResearchEvidence = await BuildLocalResearchEvidenceReceiptAsync(cancellationToken).ConfigureAwait(false);
@@ -239,14 +256,14 @@ namespace LocalGPT.Services
                     {
                         switch (executionMode)
                         {
-                            case "SystemKernelTournamentResolution":
+                            case "SystemGameEngineResolution":
                                 {
-                                    var lineupStep = string.Equals(definition.Key, "arena-lineup-engine", StringComparison.OrdinalIgnoreCase);
-                                    Func<KernelTournamentSpriteRequest, CancellationToken, Task<KernelTournamentSpriteDraft?>>? requestSprite = null;
+                                    var lineupStep = definition.GameEngineInitializes;
+                                    Func<LocalGPT.BusinessObjects.GameEngine.GameAssetDraftRequest, CancellationToken, Task<LocalGPT.BusinessObjects.GameEngine.GameAssetDraft?>>? requestAsset = null;
                                     if (lineupStep)
                                     {
-                                        requestSprite = (spriteRequest, spriteCancellation) => DrawKernelTournamentSpriteAsync(
-                                            spriteRequest,
+                                        requestAsset = (assetRequest, assetCancellation) => DrawGameAssetAsync(
+                                            assetRequest,
                                             result,
                                             request,
                                             team,
@@ -261,10 +278,10 @@ namespace LocalGPT.Services
                                             maxContextTokens,
                                             modelTimeoutSeconds,
                                             automaticFunctionPolicy,
-                                            spriteCancellation);
+                                            assetCancellation);
                                     }
 
-                                    var systemStep = await RunKernelTournamentSystemStepAsync(
+                                    var systemStep = await RunGameEngineSystemStepAsync(
                                         result,
                                         request,
                                         definition,
@@ -274,7 +291,7 @@ namespace LocalGPT.Services
                                         phase,
                                         lineupStep,
                                         cancellationToken,
-                                        requestSprite).ConfigureAwait(false);
+                                        requestAsset).ConfigureAwait(false);
                                     MultiModelCouncilServiceAddOrderedStep(result, systemStep, logger);
                                     request.StepCompleted?.Invoke(systemStep);
                                     break;
@@ -305,7 +322,7 @@ namespace LocalGPT.Services
                                             StopAfterConsecutiveProfileFailures = 0,
                                             RepetitionRecoveryAttempts = definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.Disabled
                                                 ? 0
-                                                : Math.Clamp(definition.MemberFailureRecoveryAttempts, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumMemberRecoveryAttempts),
+                                                : Math.Clamp(definition.MemberFailureRecoveryAttempts, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumMemberRecoveryAttempts),
                                             MaxSecondsPerCall = modelTimeoutSeconds,
                                             TaskPackText = visiblePreviousStep,
                                             PresetBaseName = $"Initial calibration {DateTimeOffset.Now:yyyy-MM-dd HHmmss}",
@@ -570,8 +587,9 @@ namespace LocalGPT.Services
                              step.ModelName.StartsWith("Human:", StringComparison.OrdinalIgnoreCase) ||
                              (executionMode == "SystemBenchmarkCalibration" &&
                               string.Equals(step.ModelName, "LocalGPT Benchmark Engine", StringComparison.OrdinalIgnoreCase)) ||
-                             (executionMode == "SystemKernelTournamentResolution" &&
-                              string.Equals(step.ModelName, "LocalGPT Tournament Engine", StringComparison.OrdinalIgnoreCase))))
+                             (executionMode == "SystemGameEngineResolution" &&
+                              string.Equals(step.ProviderName, "LocalGPT", StringComparison.Ordinal) &&
+                              string.Equals(step.ProviderEndpoint, "in-process", StringComparison.Ordinal))))
                         .ToList();
                     foreach (var roundStep in roundSteps)
                     {

@@ -20,7 +20,7 @@ public sealed class LocalGptVocabularyService(
     {
         try
         {
-            var vocabulary = runtimePolicy.GetJson<LocalGptVocabularySnapshot>(LocalGptRuntimeValue.VocabularyJson);
+            var vocabulary = runtimePolicy.GetJson<LocalGptVocabularySnapshot>("VocabularyJson");
             logger.LogTrace($"Resolved the persisted LocalGPT vocabulary.");
             return vocabulary;
         }

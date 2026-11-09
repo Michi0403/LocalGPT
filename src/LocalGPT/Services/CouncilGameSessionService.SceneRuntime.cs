@@ -14,23 +14,17 @@ public sealed partial class CouncilGameSessionService
         {
             var scene = session.Scene ?? throw new InvalidOperationException("The game session has no authored scene.");
             var clock = session.SceneClock ?? throw new InvalidOperationException("The game session has no scene clock.");
-            var heading = ((int)Math.Round(session.FacingRadians / (Math.PI / 2d)) % 4 + 4) % 4;
-            if (action == "turn-left")
-                heading = (heading + 1) % 4;
-            else if (action == "turn-right")
-                heading = (heading + 3) % 4;
-            session.FacingRadians = heading * Math.PI / 2d;
+            // The action's primitive describes its scene meaning (quarter turns and relative movement); scenes therefore
+            // follow whatever control rows the game's ruleset defines instead of fixed action names.
+            var step = engine.DescribeSceneControl(session.Ruleset, action);
+            var heading = ((int)Math.Round(session.SceneHeadingRadians / (Math.PI / 2d)) % 4 + 4) % 4;
+            if (step is not null)
+                heading = (heading + step.HeadingQuarterTurns) % 4;
+            session.SceneHeadingRadians = heading * Math.PI / 2d;
 
             // Authored actor control is generic; scenes without a controlled actor remain explorable camera/cinematic worlds.
             var directions = new (int X, int Y)[] { (0, 1), (-1, 0), (0, -1), (1, 0) };
-            var direction = action switch
-            {
-                "move-forward" => heading,
-                "move-backward" => (heading + 2) % 4,
-                "strafe-left" => (heading + 1) % 4,
-                "strafe-right" => (heading + 3) % 4,
-                _ => -1
-            };
+            var direction = step?.MoveQuarterOffset is int offset ? (heading + offset) % 4 : -1;
             if (direction >= 0)
             {
                 var maxX = Math.Max(0, scene.WorldWidth - scene.ViewWidth);

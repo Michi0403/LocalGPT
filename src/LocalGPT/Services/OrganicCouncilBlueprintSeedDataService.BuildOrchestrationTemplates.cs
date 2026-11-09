@@ -73,6 +73,33 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gives a controller step (curator, compiler operator, verifier) the authority to send unfinished work back: X-Round
+        /// revisit to the target step, offered as a native tool, bounded by two accepted transitions per run.
+        /// </summary>
+        /// <param name="step">The controller step to extend.</param>
+        /// <param name="targetStepKey">Default revisit target, normally the step that produces the work being checked.</param>
+        /// <returns>The same step with X-Round revisit enabled.</returns>
+        private CouncilWorkflowStepDefinition WithControllerRevisit(CouncilWorkflowStepDefinition step, string targetStepKey)
+        {
+            try
+            {
+                step.XFunctionsEnabled = true;
+                step.XCanRevisit = true;
+                step.XDefaultTargetStepKey = targetStepKey;
+                step.XMaximumTransitions = 2;
+                return step;
+            }
+            catch (Exception __serviceMethodException)
+            {
+                if (__serviceMethodException is OperationCanceledException)
+                    logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(WithControllerRevisit)} was canceled.");
+                else
+                    logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(WithControllerRevisit)} failed.");
+                throw;
+            }
+        }
+
         /// <summary>Creates the preseeded repository reconstruction and compiler Council requested for interactive Chat maintenance.</summary>
         /// <returns>The organic council team definition produced by the operation.</returns>
         private OrganicCouncilTeamDefinition CreateProgramCompilerTeam()
@@ -82,6 +109,9 @@ namespace LocalGPT.Services
                 return new()
                 {
                 Key = "program-compiler-team",
+                // The team's goal is real source in a hash-bound review, not a plan in prose. A missing receipt
+                // re-runs compiler-generate through implicit completion recovery with an explicit instruction.
+                RequiredCompletedFunctions = ["codegen.review.create"],
                 DisplayName = "Program Compiler & Repository Curator",
                 Purpose = "Creates new programs from explicit user requirements or curates existing repository ZIPs/source trees into reviewable project revisions. It distinguishes greenfield authoring from repository maintenance before reading evidence, generates concrete files through the code-generation review workflow, and uses configured toolchains/build approvals instead of making the user repeat a clear request.",
                 AllMembersReadinessPreflightMode = CouncilAllMembersReadinessPreflightMode.Disabled,
@@ -170,25 +200,33 @@ Materialize the requested code through LocalGPT's registered generation function
 4. If execution returns HumanApprovalPending, treat that as successful routing of the requested action: preserve the pending review and let the normal Human Collaboration/heartbeat path resume it after the user's decision. Do not create a second review and do not ask the user to repeat the coding request.
 5. After execution completes, preserve its workspace name, build status and download URL as authoritative generated-artifact evidence.
 
+6. If this step runs again, its "Why this step runs again" section names what a curator or compiler role found missing or broken. Fix exactly that in a new codegen.review.create review (all files of the program, corrected), execute it with buildAfterGeneration, and keep everything else unchanged.
+
 The job of this step is to create the source artifact, not to stop after planning it.
 """, "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["codegen.capabilities", "codegen.review.create", "codegen.review.get", "codegen.review.execute"]),
-                    ResilientStep("compiler-curate", "Curate generated or candidate source", 50, "Curation", "Source curator", """
+                    WithControllerRevisit(ResilientStep("compiler-curate", "Curate generated or candidate source", 50, "Curation", "Source curator", """
 Review the actual generation/review result and candidate source against the user's request. For completed greenfield generation, inspect generated workspace files only as needed; correct/reject material that is structurally wrong, duplicated, unsafe, style-breaking or incomplete. For an approval-pending generation, report the exact pending review without pretending files already exist. For existing-project maintenance, continue bounded comparison against current project files. Large source is handled in relevant chunks; size alone is never a reason to stop doing the assigned review.
 
 Do not claim compilation from source inspection. Preserve a successful generation/build result instead of replacing it with speculative rework.
-""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["codegen.review.get", "council.artifact_workspaces", "council.artifact_workspace_files", "council.artifact_workspace_file.read", "project.maintenance.get", "project.workspace.files.list", "project.workspace.file.read", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
-                    ResilientStep("compiler-toolchain", "Select compiler and interpret build evidence", 60, "Toolchain", "Compiler operator", """
+
+If the generated source is missing, incomplete, does not match the request, or its build failed, do not accept it and do not only describe the problem: call council.x.revisit with mode "reexecute" (target defaults to compiler-generate) and a reason that names the exact missing or wrong files, or quotes the compiler error lines from BuildDiagnostics / the build verification summary. LocalGPT re-runs generation with that reason as its first instruction. Accept the work only when the files exist and the build passed or no build was requested.
+""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["codegen.review.get", "council.artifact_workspaces", "council.artifact_workspace_files", "council.artifact_workspace_file.read", "project.maintenance.get", "project.workspace.files.list", "project.workspace.file.read", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]), "compiler-generate"),
+                    WithControllerRevisit(ResilientStep("compiler-toolchain", "Select compiler and interpret build evidence", 60, "Toolchain", "Compiler operator", """
 Use the generation/build result first. For greenfield codegen.review.execute with BuildAfterGeneration=true, its bounded build status is the authoritative compiler attempt; do not redundantly route the task into an unrelated selected project. If a matching configured compiler/toolchain must be discovered or validated, use the persisted toolchain inventory and request only the exact consequential action through the normal approval path.
 
 For ExistingProject work, read persisted project/workspace/compiler metadata, prefer a validated compiler matching repository metadata, and use project build verification only against the intended tracked revision. Report the first root diagnostic; cascading diagnostics are secondary.
-""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["codegen.review.get", "project.maintenance.get", "project.workspace.environment.assess", "toolchain.knowledge.list", "toolchain.installation.list", "project.revision.build.verify"]),
-                    ResilientStep("compiler-verification", "Verify generated artifact or tracked revision", 70, "Verification", "Compiler operator", """
+
+If the generated source is missing, incomplete, does not match the request, or its build failed, do not accept it and do not only describe the problem: call council.x.revisit with mode "reexecute" (target defaults to compiler-generate) and a reason that names the exact missing or wrong files, or quotes the compiler error lines from BuildDiagnostics / the build verification summary. LocalGPT re-runs generation with that reason as its first instruction. Accept the work only when the files exist and the build passed or no build was requested.
+""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["codegen.review.get", "project.maintenance.get", "project.workspace.environment.assess", "toolchain.knowledge.list", "toolchain.installation.list", "project.revision.build.verify"]), "compiler-generate"),
+                    WithControllerRevisit(ResilientStep("compiler-verification", "Verify generated artifact or tracked revision", 70, "Verification", "Compiler operator", """
 Verify the artifact that the user actually requested.
 
 For greenfield generation, use codegen.review.get plus generated-workspace listing/reading to confirm required files and use the build evidence returned by codegen.review.execute. For Python, also confirm the database project/revision, selected or discoverable Python toolchain, and tracked-file structure/content regex evidence created by the project scan. The generation service already produces a ZIP; use its DownloadUrl. Only call council.artifact_workspace_zip after later approved edits changed the generated workspace and the ZIP must be refreshed.
 
 For an existing tracked revision, request project.revision.build.verify through the normal deferred approval path and require source-hash stability plus independent review before readiness. A timeout/provider/model failure is recoverable evidence, never success. Large source/output remains bounded and chunked rather than becoming a reason to abandon verification.
-""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["codegen.review.get", "council.artifact_workspaces", "council.artifact_workspace_files", "council.artifact_workspace_file.read", "council.artifact_workspace_zip", "project.maintenance.get", "project.revision.build.verify", "project.revision.council-review", "project.revision.ready.approve"]),
+
+If the generated source is missing, incomplete, does not match the request, or its build failed, do not accept it and do not only describe the problem: call council.x.revisit with mode "reexecute" (target defaults to compiler-generate) and a reason that names the exact missing or wrong files, or quotes the compiler error lines from BuildDiagnostics / the build verification summary. LocalGPT re-runs generation with that reason as its first instruction. Accept the work only when the files exist and the build passed or no build was requested.
+""", "LeaderSingle", canUseOrganicFunctions: true, allowedAutomaticFunctions: ["codegen.review.get", "council.artifact_workspaces", "council.artifact_workspace_files", "council.artifact_workspace_file.read", "council.artifact_workspace_zip", "project.maintenance.get", "project.revision.build.verify", "project.revision.council-review", "project.revision.ready.approve"]), "compiler-generate"),
                     ResilientStep("compiler-handoff", "Generated program and compiler handoff", 80, "Handoff", "Human review coordinator", """
 Return the concrete result of the requested coding task: generated solution/project, important files, framework/toolchain, build status, and downloadable ZIP/artifact URL when generation completed. Always include the generated WorkspacePath/project path as a manual filesystem fallback. Treat the origin-relative DownloadUrl as callable from the same HTTP or HTTPS LocalGPT endpoint, so remote callers can resolve it against the endpoint they used. If generation/build approval is still pending, state the exact pending action and let the existing Human Collaboration card handle it; do not ask the user to type the request again or manually call a function. If a model/provider failed but another member completed the artifact, preserve both facts. Never turn a clear greenfield coding request back into a repository-search assignment.
 """, "LeaderSingle", canUseOrganicFunctions: true, producesFinalAnswer: true, allowedAutomaticFunctions: ["codegen.review.get", "project.maintenance.get", "council.artifact_workspaces", "council.artifact_workspace_files"])

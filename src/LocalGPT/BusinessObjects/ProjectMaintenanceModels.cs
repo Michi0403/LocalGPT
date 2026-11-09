@@ -810,7 +810,7 @@ public sealed class ScanProjectFilesRequest
     /// <value>The revision identifier value exposed by <see cref="ScanProjectFilesRequest"/>.</value>
     public Guid? RevisionId { get; set; }
     /// <summary>
-    /// Gets or sets an optional caller-requested maximum file count; values less than or equal to zero use the database-backed <see cref="LocalGptRuntimeValue.MaxFiles"/> policy.
+    /// Gets or sets an optional caller-requested maximum file count; values less than or equal to zero use the database-backed <c>MaxFiles</c> policy.
     /// </summary>
     /// <value>The maximum files value exposed by <see cref="ScanProjectFilesRequest"/>.</value>
     public int MaximumFiles { get; set; }
@@ -820,7 +820,7 @@ public sealed class ScanProjectFilesRequest
     /// <value>The maximum text file bytes value exposed by <see cref="ScanProjectFilesRequest"/>.</value>
     public long MaximumTextFileBytes { get; set; } = 4 * 1024 * 1024;
     /// <summary>
-    /// Gets or sets an optional caller-requested maximum file size; values less than or equal to zero use the database-backed <see cref="LocalGptRuntimeValue.MaxSingleFileBytes"/> policy.
+    /// Gets or sets an optional caller-requested maximum file size; values less than or equal to zero use the database-backed <c>MaxSingleFileBytes</c> policy.
     /// </summary>
     /// <value>The maximum file bytes value exposed by <see cref="ScanProjectFilesRequest"/>.</value>
     public long MaximumFileBytes { get; set; }

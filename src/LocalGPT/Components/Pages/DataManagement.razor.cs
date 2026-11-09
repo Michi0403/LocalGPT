@@ -610,7 +610,7 @@ public partial class DataManagement
         {
             var profile = await HumanCollaboration.GetProfileAsync().ConfigureAwait(true);
             using var scope = HumanAmbientContext.PushHumanInteraction(
-                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                RuntimePolicy.GetGuid("LocalHumanProfileId"),
                 string.IsNullOrWhiteSpace(profile.DisplayName) ? "Human User" : profile.DisplayName,
                 nameof(DataManagement), SelectedHealthExclusion.CorrelationId,
                 SelectedHealthExclusion.CouncilRunId);

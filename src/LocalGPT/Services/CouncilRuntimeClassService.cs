@@ -20,7 +20,7 @@ public sealed class CouncilRuntimeClassService(
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilRuntimeClassService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 8;
+    private const int CurrentSeedVersion = 9;
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="CouncilRuntimeClassService"/> while executing its surrounding workflow.
     /// </summary>
@@ -277,26 +277,11 @@ public sealed class CouncilRuntimeClassService(
             var dragonSource = "https://github.com/lotgd/lotgd";
             var cLanguageSource = "https://github.com/llvm/llvm-project";
             var phpLanguageSource = "https://github.com/php/doc-en";
-            var doomCampaignLevelsJson = JsonSerializer.Serialize(CreateAsciiDoomStarterLevels(), jsonOptions);
             return
             [
                 BuildDefinition("games.ascii.kernel-tournament.rules", "LocalGPT.Games.KernelTournament", "Kernel Creature Tournament rules", RuntimeClassKind.State,
-                    "Copyable deterministic tournament rules. The game-session engine owns health, damage, guard/recovery, exchange limits and presentation timing; AI trainers and creatures contribute bounded move flavor only.",
-                    [
-                        Field("startingHealth", "Starting health", "int", "100", RuntimeFieldInputMode.Shared, true, true),
-                        Field("minimumDamage", "Minimum attack damage", "int", "7", RuntimeFieldInputMode.Shared, true, true),
-                        Field("maximumDamage", "Maximum attack damage", "int", "18", RuntimeFieldInputMode.Shared, true, true),
-                        Field("guardReduction", "Guard damage reduction", "int", "7", RuntimeFieldInputMode.Shared, true, true),
-                        Field("recoveryAmount", "Recovery amount", "int", "6", RuntimeFieldInputMode.Shared, true, true),
-                        Field("maximumExchangesPerMatch", "Maximum exchanges per match", "int", "12", RuntimeFieldInputMode.Shared, true, true),
-                        Field("creaturesPerTrainer", "Creatures per trainer", "int", "3", RuntimeFieldInputMode.Shared, true, true),
-                        Field("maximumCreatureSwitchesPerFight", "Maximum trainer switches per fight", "int", "3", RuntimeFieldInputMode.Shared, true, true),
-                        Field("restRecoveryPerExchange", "Reserve rest recovery per exchange", "int", "3", RuntimeFieldInputMode.Shared, true, true),
-                        Field("trainerFocusBonus", "Trainer focus damage bonus", "int", "2", RuntimeFieldInputMode.Shared, true, true),
-                        Field("trainerBraceReduction", "Trainer brace damage reduction", "int", "2", RuntimeFieldInputMode.Shared, true, true),
-                        Field("animationFrameDelayMilliseconds", "Animation frame delay", "int", "320", RuntimeFieldInputMode.Shared, true, true),
-                        Field("subtitleHoldMilliseconds", "Subtitle hold", "int", "1500", RuntimeFieldInputMode.Shared, true, true)
-                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], []),
+                    "Points the tournament Council roles at the kernel-creature-tournament game project. Health, damage, guard/recovery, switches, exchange limits, presentation timing, texts and art policy are rule rows of that game project (Projects, game rules); the game engine interprets them and AI trainers and creatures contribute bounded move flavor only.",
+                    [], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.get"], []),
                 BuildDefinition("games.ascii.doom.session", "LocalGPT.Games.AsciiDoom", "ASCII DOOM session", RuntimeClassKind.Session,
                     "Turn-based Council session state. This does not start a traditional 3D renderer; it advances one meaningful action and one AI-authored ASCII frame per Council turn.",
                     [
@@ -306,12 +291,8 @@ public sealed class CouncilRuntimeClassService(
                         Field("status", "Session status", "string", "Running", RuntimeFieldInputMode.System, false, false)
                     ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.knowledge.list"], [doomSource, cLanguageSource]),
                 BuildDefinition("games.ascii.doom.campaign", "LocalGPT.Games.AsciiDoom", "ASCII DOOM campaign", RuntimeClassKind.State,
-                    "Copyable campaign starter settings. The game service reads this runtime class deterministically; teams may assign a copied key to change level count, map sizes, enemy density and difficulty progression without changing engine code.",
-                    [
-                        Field("startingLevel", "Starting level", "int", "1", RuntimeFieldInputMode.Shared, true, true),
-                        Field("autoAdvanceLevels", "Auto advance levels", "bool", "true", RuntimeFieldInputMode.Shared, true, true),
-                        Field("levelProfilesJson", "Level profiles", "json", doomCampaignLevelsJson, RuntimeFieldInputMode.Shared, true, true)
-                    ], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get"], [doomSource, cLanguageSource]),
+                    "Points the campaign Council roles at the ascii-doom game project. Level count, map sizes, room counts, enemy density, difficulty progression and starting resources are the level and rule rows of that game project (Projects, game rules); copy the game project to change them without changing engine code. startingLevel and autoAdvanceLevels remain optional start overrides.",
+                    [], [], ["localgpt.runtime-class.get", "localgpt.runtime-class.resolve", "localgpt.game.session.start", "localgpt.game.session.get"], [doomSource, cLanguageSource]),
                 BuildDefinition("games.ascii.doom.map", "LocalGPT.Games.AsciiDoom", "ASCII DOOM map", RuntimeClassKind.Map,
                     "A generated room-and-corridor graph kept as authoritative turn state. The Council may study the open source code, but does not require or redistribute commercial WAD data.",
                     [
@@ -479,33 +460,6 @@ public sealed class CouncilRuntimeClassService(
         throw;
     }
 }
-
-    /// <summary>Creates the visible, resettable ten-level ASCII DOOM starter campaign stored in the runtime-class seed.</summary>
-    /// <returns>The maintained starter level profiles serialized into the resettable campaign runtime class.</returns>
-    private IReadOnlyList<CouncilGameLevelProfile> CreateAsciiDoomStarterLevels()
-    {
-        try
-        {
-            return
-            [
-                new() { Level = 1, Name = "Corridor 01", Difficulty = 1, MapWidth = 28, MapHeight = 18, RoomCount = 5, EnemyDensity = .55d, EnemyHealthMultiplier = .75d, EnemyDamageMultiplier = .70d, StartingAmmo = 32 },
-                new() { Level = 2, Name = "Corridor 02", Difficulty = 2, MapWidth = 30, MapHeight = 18, RoomCount = 5, EnemyDensity = .70d, EnemyHealthMultiplier = .80d, EnemyDamageMultiplier = .75d, StartingAmmo = 32 },
-                new() { Level = 3, Name = "Corridor 03", Difficulty = 3, MapWidth = 32, MapHeight = 20, RoomCount = 6, EnemyDensity = .80d, EnemyHealthMultiplier = .85d, EnemyDamageMultiplier = .80d, StartingAmmo = 31 },
-                new() { Level = 4, Name = "Corridor 04", Difficulty = 4, MapWidth = 34, MapHeight = 20, RoomCount = 6, EnemyDensity = .95d, EnemyHealthMultiplier = .90d, EnemyDamageMultiplier = .90d, StartingAmmo = 31 },
-                new() { Level = 5, Name = "Corridor 05", Difficulty = 5, MapWidth = 38, MapHeight = 22, RoomCount = 7, EnemyDensity = 1.00d, EnemyHealthMultiplier = 1.00d, EnemyDamageMultiplier = 1.00d, StartingAmmo = 30 },
-                new() { Level = 6, Name = "Corridor 06", Difficulty = 6, MapWidth = 42, MapHeight = 24, RoomCount = 7, EnemyDensity = 1.10d, EnemyHealthMultiplier = 1.08d, EnemyDamageMultiplier = 1.08d, StartingAmmo = 30 },
-                new() { Level = 7, Name = "Corridor 07", Difficulty = 7, MapWidth = 46, MapHeight = 26, RoomCount = 8, EnemyDensity = 1.10d, EnemyHealthMultiplier = 1.16d, EnemyDamageMultiplier = 1.16d, StartingAmmo = 29 },
-                new() { Level = 8, Name = "Corridor 08", Difficulty = 8, MapWidth = 52, MapHeight = 28, RoomCount = 9, EnemyDensity = 1.10d, EnemyHealthMultiplier = 1.25d, EnemyDamageMultiplier = 1.25d, StartingAmmo = 28 },
-                new() { Level = 9, Name = "Corridor 09", Difficulty = 9, MapWidth = 58, MapHeight = 30, RoomCount = 10, EnemyDensity = 1.20d, EnemyHealthMultiplier = 1.35d, EnemyDamageMultiplier = 1.35d, StartingAmmo = 27 },
-                new() { Level = 10, Name = "Corridor 10", Difficulty = 10, MapWidth = 64, MapHeight = 32, RoomCount = 10, EnemyDensity = 1.30d, EnemyHealthMultiplier = 1.45d, EnemyDamageMultiplier = 1.50d, StartingAmmo = 26 }
-            ];
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Creating the resettable ASCII DOOM starter campaign seed failed.");
-            throw;
-        }
-    }
 
     /// <summary>
     /// Builds definition as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -840,22 +794,20 @@ public sealed class CouncilRuntimeClassService(
                 runtimeNamespace.Replace("LocalGPT.Games.", "games.", StringComparison.OrdinalIgnoreCase),
                 runtimeNamespace.Replace("LocalGPT.", string.Empty, StringComparison.OrdinalIgnoreCase)
             };
-            if (key.StartsWith("games.ascii.kernel-tournament.", StringComparison.OrdinalIgnoreCase))
+            // Game runtime classes ("games.<family>.<part>" in namespace "LocalGPT.Games.<Family>") are also found by the
+            // family's kebab-case name; further short names are ordinary per-class aliases stored with the definition.
+            var family = runtimeNamespace.StartsWith("LocalGPT.Games.", StringComparison.OrdinalIgnoreCase)
+                ? runtimeNamespace["LocalGPT.Games.".Length..]
+                : string.Empty;
+            var lastDot = key.LastIndexOf('.');
+            if (family.Length > 0 && lastDot > 0 && lastDot < key.Length - 1)
             {
-                aliases.Add("kernel-tournament." + key["games.ascii.kernel-tournament.".Length..]);
-                aliases.Add("LocalGPT.Games.KernelTournament." + key["games.ascii.kernel-tournament.".Length..]);
-            }
-            if (key.StartsWith("games.ascii.doom.", StringComparison.OrdinalIgnoreCase))
-            {
-                aliases.Add("doom." + key["games.ascii.doom.".Length..]);
-                aliases.Add("ascii-doom-" + key["games.ascii.doom.".Length..]);
-                aliases.Add("LocalGPT.Games.AsciiDoom." + key["games.ascii.doom.".Length..]);
-            }
-            if (key.StartsWith("games.green-dragon.", StringComparison.OrdinalIgnoreCase))
-            {
-                aliases.Add("lotgd." + key["games.green-dragon.".Length..]);
-                aliases.Add("green-dragon-" + key["games.green-dragon.".Length..]);
-                aliases.Add("LocalGPT.Games.GreenDragon." + key["games.green-dragon.".Length..]);
+                var part = key[(lastDot + 1)..];
+                var kebabFamily = string.Concat(family.Select((character, index) =>
+                    char.IsUpper(character) && index > 0 ? "-" + char.ToLowerInvariant(character) : char.ToLowerInvariant(character).ToString()));
+                aliases.Add(kebabFamily + "." + part);
+                aliases.Add(kebabFamily + "-" + part);
+                aliases.Add("LocalGPT.Games." + family + "." + part);
             }
             return aliases.Where(alias => !string.IsNullOrWhiteSpace(alias));
     

@@ -18,7 +18,7 @@ public sealed class ChatProtocolTextService(
     /// <param name="value">Value value supplied to the chat protocol text operation and used when producing its result.</param>
     /// <param name="collection">Collection value supplied to the chat protocol text operation and used when producing its result.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    public bool ContainsAny(string value, LocalGptRuntimeCollection collection)
+    public bool ContainsAny(string value, string collection)
     {
         try
         {
@@ -41,7 +41,7 @@ public sealed class ChatProtocolTextService(
     /// <param name="text">Text value supplied to the chat protocol text operation and used when producing its result.</param>
     /// <param name="collection">Collection value supplied to the chat protocol text operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
-    public string ReplaceAll(string text, LocalGptRuntimeCollection collection)
+    public string ReplaceAll(string text, string collection)
     {
         try
         {
@@ -128,7 +128,7 @@ public sealed class HarmonyChatProtocolProfile(
     {
         try
         {
-            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatHarmonyModelHints);
+            var result = text.ContainsAny(modelName, "ChatHarmonyModelHints");
             logger.LogTrace($"Evaluated Harmony chat protocol match; matched={result}.");
             return result;
         }
@@ -207,7 +207,7 @@ public sealed class DeepSeekChatProtocolProfile(
     {
         try
         {
-            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatDeepSeekModelHints);
+            var result = text.ContainsAny(modelName, "ChatDeepSeekModelHints");
             logger.LogTrace($"Evaluated DeepSeek chat protocol match; matched={result}.");
             return result;
         }
@@ -262,7 +262,7 @@ public sealed class DeepSeekChatProtocolProfile(
     {
         try
         {
-            var result = text.ReplaceAll(value, LocalGptRuntimeCollection.ChatDeepSeekControlTokens);
+            var result = text.ReplaceAll(value, "ChatDeepSeekControlTokens");
             logger.LogTrace($"Normalized DeepSeek chat protocol content.");
             return result;
         }
@@ -303,7 +303,7 @@ public sealed class GemmaChatProtocolProfile(
     {
         try
         {
-            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatGemmaModelHints);
+            var result = text.ContainsAny(modelName, "ChatGemmaModelHints");
             logger.LogTrace($"Evaluated Gemma chat protocol match; matched={result}.");
             return result;
         }
@@ -358,7 +358,7 @@ public sealed class GemmaChatProtocolProfile(
     {
         try
         {
-            var result = text.ReplaceAll(value, LocalGptRuntimeCollection.ChatGemmaControlTokens);
+            var result = text.ReplaceAll(value, "ChatGemmaControlTokens");
             logger.LogTrace($"Normalized Gemma chat protocol content.");
             return result;
         }
@@ -399,7 +399,7 @@ public sealed class AppleChatProtocolProfile(
     {
         try
         {
-            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatAppleModelHints);
+            var result = text.ContainsAny(modelName, "ChatAppleModelHints");
             logger.LogTrace($"Evaluated Apple chat protocol match; matched={result}.");
             return result;
         }
@@ -454,7 +454,7 @@ public sealed class AppleChatProtocolProfile(
     {
         try
         {
-            var result = text.ReplaceAll(value, LocalGptRuntimeCollection.ChatAppleControlTokens);
+            var result = text.ReplaceAll(value, "ChatAppleControlTokens");
             logger.LogTrace($"Normalized Apple chat protocol content.");
             return result;
         }
@@ -495,7 +495,7 @@ public sealed class ThinkTagsChatProtocolProfile(
     {
         try
         {
-            var result = text.ContainsAny(modelName, LocalGptRuntimeCollection.ChatThinkTagsModelHints);
+            var result = text.ContainsAny(modelName, "ChatThinkTagsModelHints");
             logger.LogTrace($"Evaluated think-tag chat protocol match; matched={result}.");
             return result;
         }

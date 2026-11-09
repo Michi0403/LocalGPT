@@ -28,15 +28,15 @@ $required = @(
     @{ Path = 'src/LocalGPT/Services/WorkspaceVisionOcrService.cs'; Tokens = @('normalizedRelative = "original/" + normalizedRelative;', 'segment is "." or ".."', 'FileAttributes.ReparsePoint', 'ResolveWorkspaceFile(workspaceRoot, normalizedRelative, logger)') }
     @{ Path = 'src/LocalGPT/Services/UploadProcessingRecommendationService.cs'; Tokens = @('if (imageOnly)', 'return await PersistAsync(fallback, cancellationToken).ConfigureAwait(false);', 'capability.StartsWith("localgpt.vision."', 'capability.EndsWith(".ocr"') }
     # 6.8.5: source-level negative controls for missing Council transcript, ASCII lanes,
-    # game popup visibility, browser rejoin identity and tournament-only styling.
+    # game popup visibility, browser rejoin identity and council-driven stage styling.
     @{ Path = 'src/LocalGPT/Services/AsciiChatTextService.cs'; Tokens = @('messages.Count == 0 && participantActivities.Count == 0', 'AppendCouncilParticipantActivities(builder, participantActivities)') }
     @{ Path = 'src/LocalGPT/Components/Pages/Chat.razor'; Tokens = @('<div class="chat-council-live-replay" role="region"', 'data-testid="chat-council-live-replay"', 'CouncilLiveSessions.GetTranscriptForDisplay(currentLiveCouncil.RunId)', 'LiveCouncilParticipantActivities(currentLiveCouncil.RunId)') }
     @{ Path = 'src/LocalGPT/Components/Pages/Chat.razor.cs'; Tokens = @('During provider streaming the server-owned Council session is authoritative.', 'CouncilLiveSessions.GetSummary(activeRunId)?.IsRunning == true') }
     @{ Path = 'src/LocalGPT/Components/Pages/Chat.ProviderRuntime.razor.cs'; Tokens = @('OpenRequiredAsciiCouncilSurface', 'InvokeAsync(() =>', 'EnsureRequiredAsciiSurfaceState();') }
     @{ Path = 'src/LocalGPT/Components/Pages/Chat.Lifecycle.razor.cs'; Tokens = @('openedCouncilArchive = CouncilSpooler.GetSnapshot(rejoinRunId)') }
     @{ Path = 'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs'; Tokens = @('openedCouncilArchive = CouncilSpooler.GetSnapshot(selectedRunId)') }
-    @{ Path = 'src/LocalGPT/Components/Shared/ChatGameConsole.razor'; Tokens = @('IsKernelTournament ? "chat-game-console-tournament"') }
-    @{ Path = 'src/LocalGPT/Components/Shared/ChatGameConsole.razor.css'; Tokens = @('.chat-game-console-tournament .chat-game-screen') }
+    @{ Path = 'src/LocalGPT/Components/Shared/ChatGameConsole.razor'; Tokens = @('IsCouncilDrivenStage ? "chat-game-console-council-stage"') }
+    @{ Path = 'src/LocalGPT/Components/Shared/ChatGameConsole.razor.css'; Tokens = @('.chat-game-console-council-stage .chat-game-screen') }
     @{ Path = 'src/LocalGPT/wwwroot/js/localgpt-reconnect.js'; Tokens = @('new MutationObserver(observeModal).observe(document.body, { childList: true });', 'sessionStorage.getItem(storageKey)') }
 
 
@@ -398,7 +398,7 @@ else {
     }
 }
 foreach ($relative in @(
-    'src/LocalGPT/Services/MultiModelCouncilService.KernelTournament.cs',
+    'src/LocalGPT/Services/MultiModelCouncilService.GameEngineResolution.cs',
     'src/LocalGPT/Services/GameSceneEngine.cs',
     'src/LocalGPT/Services/GameStudioService.cs',
     'src/LocalGPT/Services/CouncilGameSessionService.cs'

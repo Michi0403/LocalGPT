@@ -37,7 +37,7 @@ public sealed class ToolchainKnowledgeService(
                 return [];
             }
 
-            var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).KnowledgeMaximum, cancellationToken).ConfigureAwait(false);
+            var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").KnowledgeMaximum, cancellationToken).ConfigureAwait(false);
             var profiles = new List<ToolchainKnowledgeProfile>();
             foreach (var entry in entries.OrderByDescending(item => item.IsUserApproved).ThenByDescending(item => item.UpdatedAtUtc))
             {
@@ -57,7 +57,7 @@ public sealed class ToolchainKnowledgeService(
                         profile.Language = string.IsNullOrWhiteSpace(profile.Language) ? "Other" : profile.Language.Trim();
                         profile.ValidationArguments = string.IsNullOrWhiteSpace(profile.ValidationArguments) ? "--version" : profile.ValidationArguments.Trim();
                         profile.VersionRegexPatternName = string.IsNullOrWhiteSpace(profile.VersionRegexPatternName) ? "builtin.toolchain-version-token-v2" : profile.VersionRegexPatternName.Trim();
-                        var parameters = runtimePolicy.GetJson<ToolchainRuntimeParameters>(LocalGptRuntimeValue.ToolchainRuntimeParametersJson);
+                        var parameters = runtimePolicy.GetJson<ToolchainRuntimeParameters>("ToolchainRuntimeParametersJson");
                         profile.MaximumSearchDepth = Math.Clamp(profile.MaximumSearchDepth, parameters.MinimumSearchDepth, parameters.MaximumSearchDepth);
                         profile.KnowledgeEntryId = entry.Id;
                         profiles.Add(profile);
@@ -160,7 +160,7 @@ public sealed class ToolchainKnowledgeService(
             ArgumentException.ThrowIfNullOrWhiteSpace(version);
             var normalizedProfile = profileKey.Trim().ToLowerInvariant();
             var normalizedVersion = version.Trim();
-            var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).KnowledgeMaximum, cancellationToken).ConfigureAwait(false);
+            var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").KnowledgeMaximum, cancellationToken).ConfigureAwait(false);
             var match = entries
                 .Where(item => item.IsUserApproved || item.IsPinned)
                 .FirstOrDefault(item => HasVersionContext(item, normalizedProfile, normalizedVersion));

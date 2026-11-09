@@ -44,12 +44,12 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     /// Gets the query parameters value that forms part of the council spooler state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The query parameters value exposed by <see cref="CouncilSpoolerService"/>.</value>
-    private ServiceQueryRuntimeParameters QueryParameters => runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson);
+    private ServiceQueryRuntimeParameters QueryParameters => runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson");
     /// <summary>
     /// Gets the timing parameters value that forms part of the council spooler state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The timing parameters value exposed by <see cref="CouncilSpoolerService"/>.</value>
-    private ServiceTimingRuntimeParameters TimingParameters => runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson);
+    private ServiceTimingRuntimeParameters TimingParameters => runtimePolicy.GetJson<ServiceTimingRuntimeParameters>("ServiceTimingRuntimeParametersJson");
     /// <summary>
     /// Stores the cancellation source used by <see cref="CouncilSpoolerService"/> to stop its current background or asynchronous operation.
     /// </summary>

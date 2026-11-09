@@ -39,13 +39,13 @@ public sealed class HardwareInventoryService(
     {
     try
     {
-            if (cached is not null && DateTimeOffset.UtcNow - cacheUtc < TimeSpan.FromMinutes(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).HardwareInventoryCacheMinutes))
+            if (cached is not null && DateTimeOffset.UtcNow - cacheUtc < TimeSpan.FromMinutes(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>("ServiceTimingRuntimeParametersJson").HardwareInventoryCacheMinutes))
                 return cached.Select(Clone).ToList();
 
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (cached is not null && DateTimeOffset.UtcNow - cacheUtc < TimeSpan.FromMinutes(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).HardwareInventoryCacheMinutes))
+                if (cached is not null && DateTimeOffset.UtcNow - cacheUtc < TimeSpan.FromMinutes(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>("ServiceTimingRuntimeParametersJson").HardwareInventoryCacheMinutes))
                     return cached.Select(Clone).ToList();
 
                 var cpuName = await GetCpuNameAsync(cancellationToken).ConfigureAwait(false);

@@ -48,20 +48,6 @@ namespace LocalGPT.Services
             var existingRows = await db.CouncilTeamConfigurations.ToListAsync(cancellationToken).ConfigureAwait(false);
             var changed = false;
 
-            // The first experimental arena preset used a third-party franchise name. Preserve user-edited
-            // rows, but migrate the untouched system seed to LocalGPT's original kernel-creature identity.
-            var legacyArena = existingRows.SingleOrDefault(item =>
-                string.Equals(item.Key, "pokemon-tournament", StringComparison.OrdinalIgnoreCase));
-            var modernArenaExists = existingRows.Any(item =>
-                string.Equals(item.Key, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase));
-            if (legacyArena is { IsSystemSeed: true, IsUserModified: false } && !modernArenaExists)
-            {
-                legacyArena.Key = "kernel-creature-tournament";
-                legacyArena.SeedVersion = 0;
-                legacyArena.UpdatedAtUtc = DateTime.UtcNow;
-                changed = true;
-            }
-
             var existing = existingRows.ToDictionary(item => item.Key, StringComparer.OrdinalIgnoreCase);
             foreach (var definition in seedData.CreateDefaultTeams())
             {
@@ -282,8 +268,8 @@ namespace LocalGPT.Services
                 step.AllowedAutomaticFunctions = NormalizeFunctionNames(step.AllowedAutomaticFunctions);
                 step.AutomaticFunctionPolicyMode = NormalizeAutomaticFunctionPolicy(step);
                 step.CanUseOrganicFunctions = step.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.Disabled;
-                step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumRoleComplianceRetries);
-                step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumFinalRecoveryOutputTokens);
+                step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries);
+                step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumFinalRecoveryOutputTokens);
                 step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
                 step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
                 step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
@@ -292,13 +278,17 @@ namespace LocalGPT.Services
                     : Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps);
                 step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
                 step.XMaximumTransitions = Math.Clamp(step.XMaximumTransitions, 1, MaxExpandedWorkflowSteps);
-                step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumChildCouncilDepth);
+                step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumChildCouncilDepth);
                 step.XDefaultTargetStepKey = step.XDefaultTargetStepKey?.Trim().ToLowerInvariant() ?? string.Empty;
                 step.XChildCouncilTeamKey = step.XChildCouncilTeamKey?.Trim().ToLowerInvariant() ?? string.Empty;
                 step.XChildModelName = step.XChildModelName?.Trim() ?? string.Empty;
-                step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MinimumFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumFrameWidth);
-                step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MinimumFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumFrameHeight);
-                step.WorldStepScale = Math.Clamp(step.WorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MinimumWorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>(LocalGptRuntimeValue.CouncilGameRuntimeParametersJson).MaximumWorldStepScale);
+                step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MinimumFrameWidth, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MaximumFrameWidth);
+                step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MinimumFrameHeight, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MaximumFrameHeight);
+                step.WorldStepScale = Math.Clamp(step.WorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MinimumWorldStepScale, runtimePolicy.GetJson<CouncilGameRuntimeParameters>("CouncilGameRuntimeParametersJson").MaximumWorldStepScale);
+                step.ContextStepKeys = NormalizeStepKeyList(step.ContextStepKeys);
+                step.ContextIdentityStepKeys = NormalizeStepKeyList(step.ContextIdentityStepKeys);
+                step.ContextIdentityStepLimit = Math.Clamp(step.ContextIdentityStepLimit, 0, MaxExpandedWorkflowSteps);
+                step.ContextRecentStepLimit = Math.Clamp(step.ContextRecentStepLimit, 0, MaxExpandedWorkflowSteps);
                 if (step.ProducesAsciiFrame && step.ExecutionMode is "AllMembersParallel" or "AllMembersSequentialOnEachAIHostParallel" or "AllMembersSequential")
                     step.ExecutionMode = "LeaderSingle";
             }

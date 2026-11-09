@@ -56,7 +56,7 @@ public sealed class CouncilBenchmarkCalibrationService(
                 throw new InvalidOperationException("None of the selected provider-qualified Council members supports the maintained benchmark contract.");
 
             var benchmarkRunId = Guid.NewGuid();
-            var parameters = catalog.GetRuntimeParameters<ModelBenchmarkRuntimeParameters>(LocalGptRuntimeValue.ModelBenchmarkRuntimeParametersJson);
+            var parameters = catalog.GetRuntimeParameters<ModelBenchmarkRuntimeParameters>("ModelBenchmarkRuntimeParametersJson");
             var profileCount = Math.Clamp(request.ProfileCount, parameters.MinimumProfilesPerModel, parameters.MaximumProfilesPerModel);
             var maximumContextTokens = Math.Clamp(request.MaximumContextTokens, catalog.MinContextTokens, catalog.MaxContextTokens);
             var minimumContextTokens = Math.Clamp(request.MinimumContextTokens, catalog.MinContextTokens, maximumContextTokens);

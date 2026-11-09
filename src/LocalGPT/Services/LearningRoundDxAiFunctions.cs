@@ -45,8 +45,8 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
     {
             logger.LogInformation("Learning-round snapshot DXFunction started.");
             var take = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("takePerSource", out var element) && element.TryGetInt32(out var parsed)
-                ? Math.Clamp(parsed, runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MinimumLearningItemsPerSource, runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MaximumLearningItemsPerRound)
-                : runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).DefaultLearningItemsPerSource;
+                ? Math.Clamp(parsed, runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>("LearnBaseImportRuntimeParametersJson").MinimumLearningItemsPerSource, runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>("LearnBaseImportRuntimeParametersJson").MaximumLearningItemsPerRound)
+                : runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>("LearnBaseImportRuntimeParametersJson").DefaultLearningItemsPerSource;
             var result = new DxAiFunctionInvocationResult
             {
                 Succeeded = true,

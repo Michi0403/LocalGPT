@@ -49,7 +49,7 @@ namespace LocalGPT.Services
                     .AsNoTracking()
                     .Where(log => log.LogLevelValue >= (int)minimumLevel)
                     .OrderByDescending(log => log.TimestampUtc)
-                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).ApplicationLogMaximum))
+                    .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").ApplicationLogMaximum))
                     .Select(log => new ApplicationLogSummary(
                         log.Id,
                         log.TimestampUtc,

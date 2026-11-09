@@ -168,7 +168,7 @@ public sealed partial class GoalExecutionService(
             .Where(step => !string.IsNullOrWhiteSpace(step.Objective)
                 && validKeys.Contains(step.TeamKey)
                 && (!request.PreserveSelectedTeam || string.Equals(step.TeamKey, selected?.Key, StringComparison.OrdinalIgnoreCase)))
-            .Take(Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.GoalMaximumPlanSteps)))
+            .Take(Math.Max(1, runtimePolicy.GetInt("GoalMaximumPlanSteps")))
             .Select((step, index) => new GoalExecutionPlanStep
             {
                 Key = "goal-" + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),

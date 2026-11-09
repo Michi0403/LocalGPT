@@ -332,7 +332,7 @@ namespace LocalGPT.Controller
                 {
                     messages.Add(new Microsoft.Extensions.AI.ChatMessage(
                         ChatRole.System,
-                        runtimePolicy.GetString(LocalGptRuntimeValue.DiagnosticConfiguredClientSystemPrompt)));
+                        runtimePolicy.GetString("DiagnosticConfiguredClientSystemPrompt")));
                 }
 
                 messages.Add(new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, prompt));

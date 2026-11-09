@@ -147,6 +147,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IOllamaProcessService, OllamaProcessService>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
                 builder.Services.AddSingleton<IArtifactBuildExecutor, ArtifactBuildExecutor>();
+                builder.Services.AddSingleton<IBuildDiagnosticSummaryService, BuildDiagnosticSummaryService>();
                 builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();
                 builder.Services.AddSingleton<IChatUploadWorkspaceService, ChatUploadWorkspaceService>();
                 builder.Services.AddSingleton<PythonNetRuntimeCoordinator>();
@@ -265,11 +266,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<SessionSandboxExecutionService>();
                 builder.Services.AddSingleton<ISessionSandboxExecutionService>(provider => provider.GetRequiredService<SessionSandboxExecutionService>());
                 builder.Services.AddHostedService(provider => provider.GetRequiredService<SessionSandboxExecutionService>());
-                builder.Services.AddSingleton<ICouncilGameActorRuntimeFactory, CouncilGameActorRuntimeFactory>();
-                builder.Services.AddSingleton<ICouncilGameSubdirector, CreatureCouncilGameSubdirector>();
-                builder.Services.AddSingleton<ICouncilGameSubdirector, ReactiveObjectCouncilGameSubdirector>();
-                builder.Services.AddSingleton<ICouncilGameDirectorService, CouncilGameDirectorService>();
-                builder.Services.AddSingleton<ICouncilGameSessionService, CouncilGameSessionService>();
+                ConfigureGameEngine(builder.Services, logger);
                 builder.Services.AddSingleton<CouncilGameDxParameterReader>();
                 builder.Services.AddSingleton<IDeferredDxAiInvocationService, DeferredDxAiInvocationService>();
                 builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
@@ -372,6 +369,8 @@ namespace LocalGPT
                 builder.Services.AddScoped<IOrganicCouncilBlueprintService, OrganicCouncilBlueprintService>();
                 builder.Services.Configure<OneWireOptions>(builder.Configuration.GetSection(OneWireOptions.SectionName));
                 builder.Services.AddSingleton<IOneWireEnvelopeCodec, OneWireEnvelopeCodec>();
+                builder.Services.AddSingleton<IOneWireTrafficPayloadFormatter, OneWireTrafficPayloadFormatter>();
+                builder.Services.AddSingleton<IOneWireTrafficJournal, OneWireTrafficJournal>();
                 builder.Services.AddSingleton<IOneWireTransportSecurityPolicy, OneWireTransportSecurityPolicy>();
                 builder.Services.AddSingleton<IOneWireDispatchContextFactory, OneWireDispatchContextFactory>();
                 builder.Services.AddSingleton<IOneWireListenAddressResolver, OneWireListenAddressResolver>();

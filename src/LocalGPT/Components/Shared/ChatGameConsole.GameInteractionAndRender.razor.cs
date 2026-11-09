@@ -29,6 +29,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using System.Threading.Tasks;
+using LocalGPT.BusinessObjects.GameEngine;
 
 namespace LocalGPT.Components.Shared;
 
@@ -43,12 +44,11 @@ public partial class ChatGameConsole
         {
         var scenario = CouncilText.TrimForPrompt(scenarioPrompt, 240, Logger, collapseWhitespace: true);
         await StartAsync(
-            "ascii-doom",
-            snapshot?.TeamKey ?? "ascii-doom-council-adventure",
+            snapshot?.GameKey ?? string.Empty,
+            snapshot?.TeamKey ?? string.Empty,
             scenario: scenario,
-            campaignRuntimeClassKey: snapshot?.CampaignRuntimeClassKey ?? string.Empty,
             startingLevel: snapshot?.CurrentLevel,
-            autoAdvanceLevels: snapshot?.AutoAdvanceLevels).ConfigureAwait(true);
+            autoAdvanceLevels: snapshot?.Progression.AutoAdvanceLevels).ConfigureAwait(true);
         scenarioPrompt = string.Empty;
     
         }
@@ -544,11 +544,9 @@ public partial class ChatGameConsole
                 return;
             if (candidate is null || !MatchesCurrentGameContext(candidate))
                 return;
-            if (string.Equals(SuggestedTeamKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(candidate.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase))
-            {
+            var teamGameKey = await ResolveSuggestedTeamGameKeyAsync().ConfigureAwait(true);
+            if (teamGameKey.Length > 0 && !string.Equals(candidate.GameKey, teamGameKey, StringComparison.OrdinalIgnoreCase))
                 return;
-            }
             snapshot = candidate;
             await ReportGameAvailabilityAsync().ConfigureAwait(true);
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
@@ -767,7 +765,8 @@ public partial class ChatGameConsole
     {
         try
         {
-            return snapshot is { GameKey: "ascii-doom" }
+            // Seed replay restarts the same database game by key; project launches use their project build instead.
+            return snapshot is { SupportsSeedReplay: true, ProjectId: null }
         && !string.Equals(snapshot.Status, "Running", StringComparison.OrdinalIgnoreCase)
         && !IsCouncilHotSeatGame;
         }
@@ -876,17 +875,55 @@ public partial class ChatGameConsole
         }
     }
 
-    /// <summary>Computes IsKernelTournament for the render path with component-local diagnostics.</summary>
-    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    private bool GetIsKernelTournamentForRender()
+    /// <summary>Gets the direction-pad touch controls of the running game (its axis aliases).</summary>
+    /// <value>The direction-pad controls; empty without a running game.</value>
+    private IReadOnlyList<GameTouchButton> TouchPadButtons => GetTouchPadButtonsForRender();
+
+    /// <summary>Gets the action touch controls of the running game (actions with a <c>touch.*</c> text).</summary>
+    /// <value>The action controls; empty without a running game.</value>
+    private IReadOnlyList<GameTouchButton> TouchActionButtons => GetTouchActionButtonsForRender();
+
+    /// <summary>Computes TouchPadButtons for the render path with component-local diagnostics.</summary>
+    /// <returns>The direction-pad controls.</returns>
+    private IReadOnlyList<GameTouchButton> GetTouchPadButtonsForRender()
     {
         try
         {
-            return string.Equals(snapshot?.GameKey, "kernel-creature-tournament", StringComparison.OrdinalIgnoreCase);
+            return snapshot is null ? [] : GameTouchLayout.BuildDirectionPad(snapshot);
         }
         catch (Exception __componentPropertyException)
         {
-            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.IsKernelTournament failed.");
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.TouchPadButtons failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes TouchActionButtons for the render path with component-local diagnostics.</summary>
+    /// <returns>The action controls.</returns>
+    private IReadOnlyList<GameTouchButton> GetTouchActionButtonsForRender()
+    {
+        try
+        {
+            return snapshot is null ? [] : GameTouchLayout.BuildActionButtons(snapshot);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.TouchActionButtons failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Computes IsCouncilDrivenStage for the render path with component-local diagnostics.</summary>
+    /// <returns><c>true</c> when the active game's turn model is driven by Council workflow steps.</returns>
+    private bool GetIsCouncilDrivenStageForRender()
+    {
+        try
+        {
+            return string.Equals(snapshot?.TurnModelKey, CouncilTurnModelKey, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception __componentPropertyException)
+        {
+            Logger.LogError(__componentPropertyException, "Computed render property ChatGameConsole.IsCouncilDrivenStage failed.");
             throw;
         }
     }

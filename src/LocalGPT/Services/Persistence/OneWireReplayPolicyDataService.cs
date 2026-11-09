@@ -20,7 +20,7 @@ public sealed class OneWireReplayPolicyDataService(
         Retention = TimeSpan.FromMinutes(15),
         AllowedFutureSkew = TimeSpan.FromMinutes(2),
         CleanupInterval = 64,
-        MaximumTrackedMessages = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.OneWireReplayMaximumTrackedMessages))
+        MaximumTrackedMessages = Math.Max(1, runtimePolicy.GetInt("OneWireReplayMaximumTrackedMessages"))
     };
 
     /// <summary>

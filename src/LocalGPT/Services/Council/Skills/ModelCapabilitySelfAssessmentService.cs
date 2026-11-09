@@ -30,7 +30,7 @@ public sealed class ModelCapabilitySelfAssessmentService(
         if (string.IsNullOrWhiteSpace(visibleContent))
             return visibleContent;
 
-        var matches = runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelCapabilitySelfAssessment).Matches(visibleContent);
+        var matches = runtimePolicy.GetPattern("runtime.model-capability-self-assessment").Matches(visibleContent);
         foreach (Match match in matches)
         {
             try
@@ -51,6 +51,6 @@ public sealed class ModelCapabilitySelfAssessmentService(
             }
         }
 
-        return runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelCapabilitySelfAssessment).Replace(visibleContent, string.Empty).Trim();
+        return runtimePolicy.GetPattern("runtime.model-capability-self-assessment").Replace(visibleContent, string.Empty).Trim();
     }
 }

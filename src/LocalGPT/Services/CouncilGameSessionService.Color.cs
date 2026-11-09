@@ -313,7 +313,7 @@ public sealed partial class CouncilGameSessionService
         {
             if (session.FrameStyleRuns.Count > 0)
                 return CloneAsciiStyleRuns(session.FrameStyleRuns);
-            return BuildSemanticAsciiStyleRuns(session.GameKey, session.RuntimeProfile, frame, session.FrameWidth, session.FrameHeight);
+            return BuildSemanticAsciiStyleRuns(session, frame);
         }
         catch (Exception exception)
         {
@@ -323,154 +323,26 @@ public sealed partial class CouncilGameSessionService
     }
 
     /// <summary>
-    /// Builds semantic ascii style runs as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// Builds the semantic presentation of a frame from the <c>style</c> rule rows of the session's ruleset, so colour
+    /// cues (titles, HUD tokens, glyph classes) are game content rather than renderer code.
     /// </summary>
-    /// <param name="gameKey">Game key value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="runtimeProfile">Runtime profile value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="frame">Frame value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="frameWidth">Frame width value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="frameHeight">Frame height value supplied to the council game session operation and used when producing its result.</param>
-    /// <returns>The collection produced by the operation.</returns>
-    private List<CouncilAsciiStyleRun> BuildSemanticAsciiStyleRuns(
-        string gameKey,
-        CouncilGameRuntimeProfile runtimeProfile,
-        string frame,
-        int frameWidth,
-        int frameHeight)
+    /// <param name="session">Session whose ruleset and frame size apply.</param>
+    /// <param name="frame">Frame text to style.</param>
+    /// <returns>The bounded style runs of the frame.</returns>
+    private List<CouncilAsciiStyleRun> BuildSemanticAsciiStyleRuns(CouncilGameSessionState session, string frame)
     {
         try
         {
-            var normalized = NormalizeFrame(frame, frameWidth, frameHeight);
-            var lines = normalized.Split(Environment.NewLine, StringSplitOptions.None);
-            var runs = new List<CouncilAsciiStyleRun>();
-            var borderStyle = new CouncilAsciiTextStyle { ColorMode = CouncilAsciiColorMode.Indexed256, ForegroundColor = 22, Dim = true };
-            var titleStyle = new CouncilAsciiTextStyle { ColorMode = CouncilAsciiColorMode.Indexed256, ForegroundColor = 51, Bold = true };
-            var dangerStyle = new CouncilAsciiTextStyle { ColorMode = CouncilAsciiColorMode.Indexed256, ForegroundColor = 196, Bold = true };
-            var warningStyle = new CouncilAsciiTextStyle { ColorMode = CouncilAsciiColorMode.Indexed256, ForegroundColor = 226, Bold = true };
-            var goodStyle = new CouncilAsciiTextStyle { ColorMode = CouncilAsciiColorMode.Indexed256, ForegroundColor = 46, Bold = true };
-            var accentStyle = new CouncilAsciiTextStyle { ColorMode = CouncilAsciiColorMode.Indexed256, ForegroundColor = 45 };
-            var purpleStyle = new CouncilAsciiTextStyle { ColorMode = CouncilAsciiColorMode.Indexed256, ForegroundColor = 201, Bold = true };
-
-            for (var row = 0; row < Math.Min(lines.Length, frameHeight); row++)
-            {
-                var line = lines[row];
-                AddCharacterStyleRuns(runs, line, row, "┌┐└┘─│╭╮╰╯═║#+", borderStyle);
-                if (row == 0 || line.Contains("DOOM", StringComparison.OrdinalIgnoreCase) || line.Contains("GREEN DRAGON", StringComparison.OrdinalIgnoreCase) || line.Contains("KERNEL CREATURE", StringComparison.OrdinalIgnoreCase))
-                    AddNonBlankLineRun(runs, line, row, titleStyle);
-                AddTokenStyleRun(runs, line, row, "HP", goodStyle);
-                AddTokenStyleRun(runs, line, row, "HEALTH", goodStyle);
-                AddTokenStyleRun(runs, line, row, "AMMO", warningStyle);
-                AddTokenStyleRun(runs, line, row, "EXIT", accentStyle);
-                AddTokenStyleRun(runs, line, row, "EXTRACTION", accentStyle);
-                AddTokenStyleRun(runs, line, row, "ENEMY", dangerStyle);
-                AddTokenStyleRun(runs, line, row, "MONSTER", dangerStyle);
-                AddTokenStyleRun(runs, line, row, "CHAMPION", warningStyle);
-                AddTokenStyleRun(runs, line, row, "ROUND", purpleStyle);
-                AddTokenStyleRun(runs, line, row, "VS", dangerStyle);
-                AddTokenStyleRun(runs, line, row, "[1]", accentStyle);
-                AddTokenStyleRun(runs, line, row, "[2]", accentStyle);
-                AddTokenStyleRun(runs, line, row, "[3]", accentStyle);
-                if (runtimeProfile == CouncilGameRuntimeProfile.Corridor)
-                {
-                    AddCharacterStyleRuns(runs, line, row, "MZE", dangerStyle);
-                    AddCharacterStyleRuns(runs, line, row, "@", warningStyle);
-                }
-                if (string.Equals(gameKey, "green-dragon", StringComparison.OrdinalIgnoreCase))
-                    AddTokenStyleRun(runs, line, row, "DRAGON", new CouncilAsciiTextStyle { ColorMode = CouncilAsciiColorMode.Indexed256, ForegroundColor = 40, Bold = true });
-            }
-            return NormalizeAsciiStyleRuns(runs, frameWidth, frameHeight, CouncilAsciiColorMode.TerminalDefault);
+            var lines = NormalizeFrame(frame, session.FrameWidth, session.FrameHeight)
+                .Split(Environment.NewLine, StringSplitOptions.None)
+                .Take(session.FrameHeight)
+                .ToList();
+            var runs = engine.BuildStyleRuns(session.Ruleset, lines);
+            return NormalizeAsciiStyleRuns(runs, session.FrameWidth, session.FrameHeight, CouncilAsciiColorMode.TerminalDefault);
         }
         catch (Exception exception)
         {
-            logger.LogDebug(exception, "Building semantic ASCII style runs failed for {GameKey}.", gameKey);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Adds token style run as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="runs">Runs value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="line">Line value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="row">Row value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="token">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <param name="style">Style value supplied to the council game session operation and used when producing its result.</param>
-    private void AddTokenStyleRun(List<CouncilAsciiStyleRun> runs, string line, int row, string token, CouncilAsciiTextStyle style)
-    {
-        try
-        {
-            var search = 0;
-            while (search < line.Length && runs.Count < MaximumAsciiStyleRuns)
-            {
-                var index = line.IndexOf(token, search, StringComparison.OrdinalIgnoreCase);
-                if (index < 0)
-                    break;
-                runs.Add(new CouncilAsciiStyleRun { Y = row, X = index, Length = token.Length, Style = style });
-                search = index + Math.Max(1, token.Length);
-            }
-        }
-        catch (Exception exception)
-        {
-            logger.LogDebug(exception, "Styling an ASCII semantic token failed.");
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Adds character style runs as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="runs">Runs value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="line">Line value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="row">Row value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="characters">Characters value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="style">Style value supplied to the council game session operation and used when producing its result.</param>
-    private void AddCharacterStyleRuns(List<CouncilAsciiStyleRun> runs, string line, int row, string characters, CouncilAsciiTextStyle style)
-    {
-        try
-        {
-            var start = -1;
-            for (var index = 0; index <= line.Length; index++)
-            {
-                var matches = index < line.Length && characters.IndexOf(line[index]) >= 0;
-                if (matches && start < 0)
-                    start = index;
-                if ((!matches || index == line.Length) && start >= 0)
-                {
-                    runs.Add(new CouncilAsciiStyleRun { Y = row, X = start, Length = index - start, Style = style });
-                    start = -1;
-                    if (runs.Count >= MaximumAsciiStyleRuns)
-                        return;
-                }
-            }
-        }
-        catch (Exception exception)
-        {
-            logger.LogDebug(exception, "Styling ASCII semantic glyphs failed.");
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Adds non blank line run as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="runs">Runs value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="line">Line value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="row">Row value supplied to the council game session operation and used when producing its result.</param>
-    /// <param name="style">Style value supplied to the council game session operation and used when producing its result.</param>
-    private void AddNonBlankLineRun(List<CouncilAsciiStyleRun> runs, string line, int row, CouncilAsciiTextStyle style)
-    {
-        try
-        {
-            var first = 0;
-            while (first < line.Length && char.IsWhiteSpace(line[first])) first++;
-            var last = line.Length - 1;
-            while (last >= first && char.IsWhiteSpace(line[last])) last--;
-            if (last >= first)
-                runs.Add(new CouncilAsciiStyleRun { Y = row, X = first, Length = last - first + 1, Style = style });
-        }
-        catch (Exception exception)
-        {
-            logger.LogDebug(exception, "Styling an ASCII line failed.");
+            logger.LogDebug(exception, "Building semantic ASCII style runs failed for {GameKey}.", session.GameKey);
             throw;
         }
     }

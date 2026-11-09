@@ -58,7 +58,7 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
 
         try
         {
-            var parameters = runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
             using var http = new HttpClient { BaseAddress = new Uri(parameters.DefaultOpenAiEndpoint.TrimEnd('/') + "/") };
             http.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);

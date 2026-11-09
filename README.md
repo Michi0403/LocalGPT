@@ -250,7 +250,9 @@ DevExpress packages and runtime assets remain proprietary and are governed by th
 
 LocalGPT was created and is maintained by **Michael Fleischer (`Michi0403`)**.
 
-The project also reflects repeated co-development sessions with OpenAI's ChatGPT, early foundational progress made possible by `gpt-oss-20b`, and many LocalGPT-generated reviews and missing-feature reports that were inspected and used as engineering input. Assistance is acknowledged openly; design decisions, repository ownership, release decisions, and responsibility remain with the maintainer.
+The project also reflects repeated co-development sessions with OpenAI's ChatGPT and Anthropic's Claude, early foundational progress made possible by `gpt-oss-20b`, and many LocalGPT-generated reviews and missing-feature reports that were inspected and used as engineering input.
+Claude contributed from 7.0.0 onward: the generic game engine with games as declarative database content, the Council goal-execution repairs and the 1-Wire traffic journal in 7.0.1, and the SQLite-safe column retirement in 7.0.2.
+Assistance is acknowledged openly; design decisions, repository ownership, release decisions, and responsibility remain with the maintainer.
 
 See [`docs/reference/design-evolution.md`](docs/reference/design-evolution.md).
 

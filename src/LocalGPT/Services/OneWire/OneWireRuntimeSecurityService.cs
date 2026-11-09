@@ -211,7 +211,7 @@ public sealed partial class OneWireRuntimeSecurityService : IOneWireRuntimeSecur
                 KeyAgreementPublicKey = descriptor.KeyAgreementPublicKey,
                 SigningPublicKey = descriptor.SigningPublicKey,
                 CreatedUtc = DateTimeOffset.UtcNow,
-                ExpiresUtc = DateTimeOffset.UtcNow.Add(Clamp(lifetime, TimeSpan.FromMinutes(runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MinimumPairingLifetimeMinutes), TimeSpan.FromMinutes(runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson).MaximumPairingLifetimeMinutes))),
+                ExpiresUtc = DateTimeOffset.UtcNow.Add(Clamp(lifetime, TimeSpan.FromMinutes(runtimePolicy.GetJson<OneWireRuntimeParameters>("OneWireRuntimeParametersJson").MinimumPairingLifetimeMinutes), TimeSpan.FromMinutes(runtimePolicy.GetJson<OneWireRuntimeParameters>("OneWireRuntimeParametersJson").MaximumPairingLifetimeMinutes))),
                 Nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16))
             };
             using var signing = ECDsa.Create();
@@ -297,7 +297,7 @@ public sealed partial class OneWireRuntimeSecurityService : IOneWireRuntimeSecur
                 return false;
             }
 
-            var parameters = runtimePolicy.GetJson<OneWireRuntimeParameters>(LocalGptRuntimeValue.OneWireRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<OneWireRuntimeParameters>("OneWireRuntimeParametersJson");
             var validity = TimeSpan.FromMinutes(Math.Clamp(request.ValidForMinutes, parameters.MinimumTokenValidityMinutes, parameters.MaximumTokenValidityMinutes));
             var trusted = new OneWireTrustedPeerDescriptor
             {

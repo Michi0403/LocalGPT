@@ -30,7 +30,7 @@ public sealed partial class GoalExecutionService
             // A user-configured reviewer may be independent of the chosen Council team;
             // blank inherits one of its explicit provider selections. Never auto-switch a
             // deliberately configured reviewer to an unrelated provider.
-            var reviewerKey = runtimePolicy.GetString(LocalGptRuntimeValue.GoalKeyaccountReviewerModelKey)?.Trim();
+            var reviewerKey = runtimePolicy.GetString("GoalKeyaccountReviewerModelKey")?.Trim();
             var selected = choices.FirstOrDefault(candidate => candidate.IsConfigured &&
                 (candidate.IsInstalled || !candidate.IsLocal) &&
                 (string.IsNullOrWhiteSpace(reviewerKey)
@@ -44,10 +44,10 @@ public sealed partial class GoalExecutionService
                 review.Reason = "Configured Keyaccount reviewer or selected Council model is unavailable";
                 return review;
             }
-            var policy = runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
+            var policy = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
             using var client = providerModels.CreateChatClient(selected.ToReference(), policy.DefaultSessionKeepAlive,
                 request.CouncilRequest.MaxContextTokens,
-                TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt(LocalGptRuntimeValue.GoalPlannerTimeoutSeconds))),
+                TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt("GoalPlannerTimeoutSeconds"))),
                 request.CouncilRequest.OllamaNumGpu, enableAutomaticTools: false, throwOnFailure: true);
             // The review operates on bounded text and source-attributed receipts. Untrusted Council
             // prose is data only. It does not become a higher-priority instruction or evidence.
@@ -70,10 +70,10 @@ public sealed partial class GoalExecutionService
                 permittedAdditionalRounds = checkpoint.KeyaccountContinuationLimit
             });
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt(LocalGptRuntimeValue.GoalPlannerTimeoutSeconds))));
+            timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt("GoalPlannerTimeoutSeconds"))));
             var response = await client.GetResponseAsync(
-                [new ChatMessage(ChatRole.System, runtimePolicy.GetString(LocalGptRuntimeValue.GoalKeyaccountManagerSystemPrompt)
-                    + Environment.NewLine + runtimePolicy.GetString(LocalGptRuntimeValue.HelpEscalatorGlobalInstruction)),
+                [new ChatMessage(ChatRole.System, runtimePolicy.GetString("GoalKeyaccountManagerSystemPrompt")
+                    + Environment.NewLine + runtimePolicy.GetString("HelpEscalatorGlobalInstruction")),
                  new ChatMessage(ChatRole.User, reviewInput)],
                 new ChatOptions { MaxOutputTokens = 512, Temperature = 0f }, timeout.Token).ConfigureAwait(false);
             var text = System.Net.WebUtility.HtmlDecode(response.Text ?? string.Empty);

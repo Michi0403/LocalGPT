@@ -61,8 +61,12 @@ public sealed class CouncilAutomaticFunctionPolicyService(
                 // Broker entrypoints cannot be present in an exclusive allow-list:
                 // exposing dxai.tools.invoke would indirectly grant access to the
                 // entire catalog and negate the saved strict policy.
+                // The step's own X-Round authority is part of its configuration, not catalog access:
+                // a controller step that may revisit earlier work must be offered the tool to do so.
                 var allowed = (strictTeam ? teamList : stepList)
                     .Where(name => !IsBrokerTool(name))
+                    .Concat(ConfiguredXRoundFunctions(step))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 var scope = strictTeam ? "team" : "step";
                 return new CouncilAutomaticFunctionPolicyResolution(
@@ -99,6 +103,7 @@ public sealed class CouncilAutomaticFunctionPolicyService(
                 .Concat(["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file",
                     "ai.help.report_attempt", "ai.help.status",
                     "dxai.tools.discover", "dxai.tools.preview", "dxai.tools.invoke"])
+                .Concat(ConfiguredXRoundFunctions(step))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -110,6 +115,37 @@ public sealed class CouncilAutomaticFunctionPolicyService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Resolving Council automatic-function policy failed for team {TeamKey} and step {StepKey}.", team?.Key, step?.Key);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Lists the X-Round DXFunctions a step's own configuration grants, so a controller step is offered the native tool
+    /// for every control action it is allowed to take (status, revisit, return text, single model, child Council).
+    /// </summary>
+    /// <param name="step">Workflow step whose X-Round settings are read.</param>
+    /// <returns>The granted X-Round function names; empty when the step has no X-Round authority.</returns>
+    private IReadOnlyList<string> ConfiguredXRoundFunctions(CouncilWorkflowStepDefinition step)
+    {
+        try
+        {
+            if (!step.XFunctionsEnabled)
+                return [];
+            var functions = new List<string> { "council.x.status" };
+            if (step.XCanRevisit)
+                functions.Add("council.x.revisit");
+            if (step.XCanReturnText)
+                functions.Add("council.x.return_text");
+            if (step.XCanStartSingleModel)
+                functions.Add("council.x.start_single_model");
+            if (step.XCanStartCouncil)
+                functions.Add("council.x.start_council");
+            logger.LogDebug("Workflow step {StepKey} is offered X-Round functions {Functions}.", step.Key, string.Join(", ", functions));
+            return functions;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Resolving the X-Round functions of workflow step {StepKey} failed.", step?.Key);
             throw;
         }
     }

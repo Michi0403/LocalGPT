@@ -217,7 +217,7 @@ public sealed class CouncilRunConfigurationService(
                 state.FallbackOllamaNumGpu = fallbackOllamaNumGpu is < 0 ? 0 : fallbackOllamaNumGpu;
                 state.AllowParallelHardwareRoads = allowParallelHardwareRoads;
                 state.MaxParallelModels = Math.Max(1, maxParallelModels);
-                state.ModelTimeoutSeconds = Math.Clamp(modelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumModelTimeoutSeconds);
+                state.ModelTimeoutSeconds = Math.Clamp(modelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumModelTimeoutSeconds);
                 revision = ++state.Revision;
                 PulseLocked(state);
             }
@@ -749,7 +749,7 @@ public sealed class CouncilRunConfigurationService(
                 configuration.OllamaNumGpu is < 0 ? 0 : configuration.OllamaNumGpu,
                 configuration.AllowParallelHardwareRoads,
                 Math.Max(1, configuration.MaxParallelModels),
-                Math.Clamp(configuration.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumModelTimeoutSeconds),
+                Math.Clamp(configuration.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumModelTimeoutSeconds),
                 Math.Max(0, configuration.CritiqueRounds),
                 configuration.IncludeMemory,
                 configuration.CreateProjectPerRun,

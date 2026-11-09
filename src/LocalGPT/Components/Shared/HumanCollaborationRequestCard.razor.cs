@@ -105,7 +105,7 @@ public partial class HumanCollaborationRequestCard
         {
             var profile = await Collaboration.GetProfileAsync().ConfigureAwait(false);
             using var scope = HumanAmbientContext.PushHumanInteraction(
-                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                RuntimePolicy.GetGuid("LocalHumanProfileId"),
                 string.IsNullOrWhiteSpace(profile.DisplayName) ? "Human User" : profile.DisplayName,
                 nameof(HumanCollaborationRequestCard),
                 Request.CorrelationId,

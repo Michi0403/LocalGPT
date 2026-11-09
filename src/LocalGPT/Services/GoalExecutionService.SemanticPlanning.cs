@@ -35,10 +35,10 @@ public sealed partial class GoalExecutionService
                 (models.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)
                     || models.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase)));
             if (chosen is null) return null;
-            var policy = runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
+            var policy = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
             using var client = providerModels.CreateChatClient(chosen.ToReference(), policy.DefaultSessionKeepAlive,
                 request.CouncilRequest.MaxContextTokens,
-                TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt(LocalGptRuntimeValue.GoalPlannerTimeoutSeconds))),
+                TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt("GoalPlannerTimeoutSeconds"))),
                 request.CouncilRequest.OllamaNumGpu, enableAutomaticTools: false, throwOnFailure: true);
             // Present only a bounded, goal-relevant catalog to the planner. The proposal is
             // still checked against the entire live directory in GoalExecutionService.PlanAsync;
@@ -81,15 +81,15 @@ public sealed partial class GoalExecutionService
             });
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(10,
-                runtimePolicy.GetInt(LocalGptRuntimeValue.GoalPlannerTimeoutSeconds))));
+                runtimePolicy.GetInt("GoalPlannerTimeoutSeconds"))));
             var response = await client.GetResponseAsync(
                 [new ChatMessage(ChatRole.System,
-                    runtimePolicy.GetString(LocalGptRuntimeValue.GoalSemanticPlannerSystemPrompt)
-                    + Environment.NewLine + runtimePolicy.GetString(LocalGptRuntimeValue.HelpEscalatorGlobalInstruction)),
+                    runtimePolicy.GetString("GoalSemanticPlannerSystemPrompt")
+                    + Environment.NewLine + runtimePolicy.GetString("HelpEscalatorGlobalInstruction")),
                  new ChatMessage(ChatRole.User, catalog)],
                 new ChatOptions
                 {
-                    MaxOutputTokens = Math.Max(256, runtimePolicy.GetInt(LocalGptRuntimeValue.GoalPlannerOutputTokens)),
+                    MaxOutputTokens = Math.Max(256, runtimePolicy.GetInt("GoalPlannerOutputTokens")),
                     Temperature = 0f
                 }, timeout.Token).ConfigureAwait(false);
             var responseText = response.Text ?? string.Empty;

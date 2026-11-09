@@ -117,7 +117,7 @@ public sealed class ModelPresetService(
         entity.ModelNamesJson = JsonSerializer.Serialize(models);
         entity.ModelRoutesJson = JsonSerializer.Serialize(routes);
         entity.AllowParallelHardwareRoads = preset.AllowParallelHardwareRoads;
-        var parameters = runtimePolicy.GetJson<ModelPresetRuntimeParameters>(LocalGptRuntimeValue.ModelPresetRuntimeParametersJson);
+        var parameters = runtimePolicy.GetJson<ModelPresetRuntimeParameters>("ModelPresetRuntimeParametersJson");
         entity.MaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, parameters.MinimumPresetOutputTokens, parameters.MaximumPresetOutputTokens);
         entity.MaxContextTokens = Math.Clamp(preset.MaxContextTokens, parameters.MinimumPresetContextTokens, parameters.MaximumPresetContextTokens);
         entity.MaxParallelModels = Math.Max(1, preset.MaxParallelModels);
@@ -153,7 +153,7 @@ public sealed class ModelPresetService(
             logger.LogWarning(exception, "Council model preset {PresetId} contains invalid model-route JSON; the stored value remains available for repair.", preset.Id);
         }
 
-        var parameters = runtimePolicy.GetJson<ModelPresetRuntimeParameters>(LocalGptRuntimeValue.ModelPresetRuntimeParametersJson);
+        var parameters = runtimePolicy.GetJson<ModelPresetRuntimeParameters>("ModelPresetRuntimeParametersJson");
         preset.MaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, parameters.MinimumPresetOutputTokens, parameters.MaximumPresetOutputTokens);
         preset.MaxContextTokens = Math.Clamp(preset.MaxContextTokens, parameters.MinimumPresetContextTokens, parameters.MaximumPresetContextTokens);
         preset.MaxParallelModels = Math.Max(1, preset.MaxParallelModels);
@@ -189,7 +189,7 @@ public sealed class ModelPresetService(
                 route.OllamaNumGpu = null;
             route.HardwareName = route.HardwareName?.Trim() ?? string.Empty;
             route.HardwareIndex = Math.Max(-1, route.HardwareIndex);
-            var parameters = runtimePolicy.GetJson<ModelPresetRuntimeParameters>(LocalGptRuntimeValue.ModelPresetRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<ModelPresetRuntimeParameters>("ModelPresetRuntimeParametersJson");
             route.MinOutputTokens = Math.Clamp(route.MinOutputTokens, parameters.MinimumRouteOutputTokens, parameters.MaximumRouteTokens);
             route.MaxOutputTokens = Math.Clamp(Math.Max(route.MinOutputTokens, route.MaxOutputTokens), route.MinOutputTokens, parameters.MaximumRouteTokens);
             route.MinContextTokens = Math.Clamp(route.MinContextTokens, parameters.MinimumRouteContextTokens, parameters.MaximumRouteTokens);

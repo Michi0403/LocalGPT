@@ -31,7 +31,7 @@ public sealed class LocalGptMcpGatewayAccessor(
     /// Gets the parameters value that forms part of the local GPT mcp gateway accessor state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The parameters value exposed by <see cref="LocalGptMcpGatewayAccessor"/>.</value>
-    private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>(LocalGptRuntimeValue.McpGatewayRuntimeParametersJson);
+    private McpGatewayRuntimeParameters Parameters => runtimePolicy.GetJson<McpGatewayRuntimeParameters>("McpGatewayRuntimeParametersJson");
     /// <summary>
     /// Gets the max list items value that forms part of the local GPT mcp gateway accessor state consumed or produced by the surrounding workflow.
     /// </summary>

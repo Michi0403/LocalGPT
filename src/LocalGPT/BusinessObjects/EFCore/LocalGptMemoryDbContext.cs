@@ -1,4 +1,5 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects.GameEngine;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -125,6 +126,41 @@ namespace LocalGPT.BusinessObjects.EFCore
         /// </summary>
         /// <value>The project-owned game authoring profiles exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptGameProjectProfile> LocalGptGameProjectProfiles => Set<LocalGptGameProjectProfile>();
+        /// <summary>
+        /// Gets the declarative stats of game project profiles (declarative game rules, 7.0.0 game engine).
+        /// </summary>
+        /// <value>The declarative stats exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<GameProjectStat> GameProjectStats => Set<GameProjectStat>();
+        /// <summary>
+        /// Gets the actor archetypes of game project profiles (declarative game rules, 7.0.0 game engine).
+        /// </summary>
+        /// <value>The actor archetypes exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<GameProjectArchetype> GameProjectArchetypes => Set<GameProjectArchetype>();
+        /// <summary>
+        /// Gets the player actions of game project profiles (declarative game rules, 7.0.0 game engine).
+        /// </summary>
+        /// <value>The player actions exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<GameProjectAction> GameProjectActions => Set<GameProjectAction>();
+        /// <summary>
+        /// Gets the rules of game project profiles (declarative game rules, 7.0.0 game engine).
+        /// </summary>
+        /// <value>The rules exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<GameProjectRule> GameProjectRules => Set<GameProjectRule>();
+        /// <summary>
+        /// Gets the campaign levels of game project profiles (declarative game rules, 7.0.0 game engine).
+        /// </summary>
+        /// <value>The campaign levels exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<GameProjectLevel> GameProjectLevels => Set<GameProjectLevel>();
+        /// <summary>
+        /// Gets the texts of game project profiles (declarative game rules, 7.0.0 game engine).
+        /// </summary>
+        /// <value>The texts exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<GameProjectText> GameProjectTexts => Set<GameProjectText>();
+        /// <summary>
+        /// Gets the game and action aliases of game project profiles (declarative game rules, 7.0.0 game engine).
+        /// </summary>
+        /// <value>The game and action aliases exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<GameProjectAlias> GameProjectAliases => Set<GameProjectAlias>();
         /// <summary>
         /// Gets the project document imports value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
@@ -509,10 +545,108 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.DefaultTeamKey).HasMaxLength(160).IsRequired();
                 entity.Property(item => item.GameDirectorModelName).HasMaxLength(240).IsRequired();
                 entity.Property(item => item.ScenarioPrompt).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.ViewKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ViewParametersJson).IsRequired();
+                entity.Property(item => item.TurnModelKey).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.MapGeneratorKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.MapParametersJson).IsRequired();
+                entity.Property(item => item.AutoplayKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.AutoplayParametersJson).IsRequired();
+                entity.Property(item => item.PlayerArchetypeKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.RulesetTemplateKey).HasMaxLength(160).IsRequired();
+                entity.HasIndex(item => item.GameKey);
                 entity.HasIndex(item => item.ProjectId).IsUnique();
                 entity.HasIndex(item => item.UpdatedAtUtc);
                 entity.HasOne(item => item.Project).WithOne(project => project.GameProfile)
                     .HasForeignKey<LocalGptGameProjectProfile>(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<GameProjectStat>(entity =>
+            {
+                entity.ToTable("GameProjectStats");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.StatKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(160).IsRequired();
+                entity.HasIndex(item => new { item.ProfileId, item.StatKey }).IsUnique();
+                entity.HasOne<LocalGptGameProjectProfile>().WithMany()
+                    .HasForeignKey(item => item.ProfileId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<GameProjectArchetype>(entity =>
+            {
+                entity.ToTable("GameProjectArchetypes");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.ArchetypeKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Role).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.Glyph).HasMaxLength(8).IsRequired();
+                entity.Property(item => item.BehaviourKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ParametersJson).IsRequired();
+                entity.HasIndex(item => new { item.ProfileId, item.ArchetypeKey }).IsUnique();
+                entity.HasOne<LocalGptGameProjectProfile>().WithMany()
+                    .HasForeignKey(item => item.ProfileId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<GameProjectAction>(entity =>
+            {
+                entity.ToTable("GameProjectActions");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.ActionKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.KeyboardKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.GamepadButton).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.PrimitiveKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ParametersJson).IsRequired();
+                entity.HasIndex(item => new { item.ProfileId, item.ActionKey }).IsUnique();
+                entity.HasOne<LocalGptGameProjectProfile>().WithMany()
+                    .HasForeignKey(item => item.ProfileId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<GameProjectRule>(entity =>
+            {
+                entity.ToTable("GameProjectRules");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.RuleKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.Trigger).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.PrimitiveKey).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ParametersJson).IsRequired();
+                entity.HasIndex(item => new { item.ProfileId, item.RuleKey }).IsUnique();
+                entity.HasOne<LocalGptGameProjectProfile>().WithMany()
+                    .HasForeignKey(item => item.ProfileId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<GameProjectLevel>(entity =>
+            {
+                entity.ToTable("GameProjectLevels");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Name).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.ParametersJson).IsRequired();
+                entity.HasIndex(item => new { item.ProfileId, item.LevelIndex }).IsUnique();
+                entity.HasOne<LocalGptGameProjectProfile>().WithMany()
+                    .HasForeignKey(item => item.ProfileId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<GameProjectText>(entity =>
+            {
+                entity.ToTable("GameProjectTexts");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.TextKey).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.Text).IsRequired();
+                entity.HasIndex(item => new { item.ProfileId, item.TextKey }).IsUnique();
+                entity.HasOne<LocalGptGameProjectProfile>().WithMany()
+                    .HasForeignKey(item => item.ProfileId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<GameProjectAlias>(entity =>
+            {
+                entity.ToTable("GameProjectAliases");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.AliasKind).HasMaxLength(20).IsRequired();
+                entity.Property(item => item.Alias).HasMaxLength(120).IsRequired();
+                entity.Property(item => item.Target).HasMaxLength(160).IsRequired();
+                entity.HasIndex(item => new { item.ProfileId, item.AliasKind, item.Alias }).IsUnique();
+                entity.HasOne<LocalGptGameProjectProfile>().WithMany()
+                    .HasForeignKey(item => item.ProfileId).OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<LocalGptProjectArtifact>(entity =>

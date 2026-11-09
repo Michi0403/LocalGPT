@@ -75,14 +75,14 @@ public sealed class AsciiChatTextService
     public AsciiChatTextService(ILocalGptRuntimePolicyDataService runtimePolicy, ILogger<AsciiChatTextService> logger)
     {
         this.logger = logger;
-        AsciiSequenceBlockPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.AsciiSequenceBlock);
-        AsciiSequenceFrameSeparatorPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.AsciiSequenceFrameSeparator);
-        HtmlSummaryPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlSummaryElement);
-        HtmlTagPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.HtmlTag);
-        MarkdownHeadingPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.MarkdownHeadingLine);
-        AsciiFencePattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.AsciiFenceBoundary);
-        excessBlankLinesPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.ExcessBlankLines);
-        nicknameUnsafeCharactersPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.AsciiNicknameUnsafeCharacters);
+        AsciiSequenceBlockPattern = runtimePolicy.GetPattern("runtime.ascii.sequence-block");
+        AsciiSequenceFrameSeparatorPattern = runtimePolicy.GetPattern("runtime.ascii.sequence-frame-separator");
+        HtmlSummaryPattern = runtimePolicy.GetPattern("runtime.html.summary-element");
+        HtmlTagPattern = runtimePolicy.GetPattern("runtime.html.tag");
+        MarkdownHeadingPattern = runtimePolicy.GetPattern("runtime.markdown.heading-line");
+        AsciiFencePattern = runtimePolicy.GetPattern("runtime.ascii.fence-boundary");
+        excessBlankLinesPattern = runtimePolicy.GetPattern("runtime.text.excess-blank-lines");
+        nicknameUnsafeCharactersPattern = runtimePolicy.GetPattern("runtime.ascii.nickname-unsafe");
     }
 
     /// <summary>

@@ -102,7 +102,7 @@ namespace LocalGPT.Services
                     cancellationToken).ConfigureAwait(false);
                 var maxOutputTokens = Math.Min(
                     request.MaxOutputTokens,
-                    Math.Clamp(team.AllMembersReadinessPreflightMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumReadinessOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumReadinessOutputTokens));
+                    Math.Clamp(team.AllMembersReadinessPreflightMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumReadinessOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumReadinessOutputTokens));
 
                 request.ProgressMessage?.Invoke(
                     $"Running optional all-members readiness preflight for team {team.DisplayName}: {participants.Count} selected member(s), role-aware probe, maximum {maxOutputTokens} output token(s) per member. Preflight output is {(team.IncludeAllMembersReadinessPreflightInWorkflowContext ? "included in" : "excluded from")} later workflow model context.");
@@ -161,22 +161,22 @@ namespace LocalGPT.Services
                 var assignedRoles = assigned.Count == 0
                     ? "none"
                     : string.Join(", ", assigned.Select(assignment => assignment.RoleName));
-                var defaultResponsibility = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilReadinessDefaultRoleResponsibilityText);
+                var defaultResponsibility = runtimePolicy.GetString("CouncilReadinessDefaultRoleResponsibilityText");
                 var responsibilities = assigned.Count == 0
-                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilReadinessNoAssignedRoleText)
+                    ? runtimePolicy.GetString("CouncilReadinessNoAssignedRoleText")
                     : string.Join(Environment.NewLine, assigned.Select(assignment =>
                         $"- {assignment.RoleName}: {(string.IsNullOrWhiteSpace(assignment.Definition?.Responsibility) ? defaultResponsibility : assignment.Definition.Responsibility)}"));
 
                 var configuredTemplate = team.AllMembersReadinessPreflightPromptTemplate?.Trim() ?? string.Empty;
                 var template = string.IsNullOrWhiteSpace(configuredTemplate)
-                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilAllMembersReadinessPreflightPromptTemplate)
+                    ? runtimePolicy.GetString("CouncilAllMembersReadinessPreflightPromptTemplate")
                     : configuredTemplate;
                 var prompt = template
                     .Replace("{{ModelName}}", modelName, StringComparison.Ordinal)
                     .Replace("{{TeamName}}", team.DisplayName, StringComparison.Ordinal)
                     .Replace("{{AssignedRoles}}", assignedRoles, StringComparison.Ordinal)
                     .Replace("{{RoleResponsibilities}}", responsibilities, StringComparison.Ordinal);
-                var boundary = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilAllMembersReadinessPreflightBoundaryInstruction);
+                var boundary = runtimePolicy.GetString("CouncilAllMembersReadinessPreflightBoundaryInstruction");
 
                 return prompt.Trim() + Environment.NewLine + Environment.NewLine + boundary;
             }

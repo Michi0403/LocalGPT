@@ -5,6 +5,7 @@
 @inject ILocalGptProjectService ProjectService
 @inject IProjectArchitectureService ProjectArchitecture
 @inject IGameProjectService GameProjects
+@inject LocalGPT.Interfaces.GameEngine.IGameRulesetStoreService GameRulesets
 @inject ILocalGptRequestFactoryService RequestFactory
 @inject ILogger<Projects> Logger
 @inject INotificationService Notifier
@@ -159,11 +160,28 @@
                             <DxTextBox @bind-Text="GameProfileEdit.DisplayName" MaxLength="240" />
                         </label>
                         <label>
-                            Runtime profile
-                            <DxComboBox Data="@GameRuntimeProfileOptions"
-                                        @bind-Value="GameProfileEdit.RuntimeProfile"
-                                        ValueFieldName="@nameof(LocalGptSelectionOption<CouncilGameRuntimeProfile>.Value)"
-                                        TextFieldName="@nameof(LocalGptSelectionOption<CouncilGameRuntimeProfile>.Label)" />
+                            Rules template (game key)
+                            <DxTextBox @bind-Text="GameProfileEdit.RulesetTemplateKey" MaxLength="160" NullText="ascii-arena" />
+                        </label>
+                        <label>
+                            View primitive
+                            <DxTextBox @bind-Text="GameProfileEdit.ViewKey" MaxLength="80" NullText="inherit from template" />
+                        </label>
+                        <label>
+                            Turn model
+                            <DxTextBox @bind-Text="GameProfileEdit.TurnModelKey" MaxLength="40" NullText="inherit from template" />
+                        </label>
+                        <label>
+                            Map generator
+                            <DxTextBox @bind-Text="GameProfileEdit.MapGeneratorKey" MaxLength="80" NullText="inherit from template" />
+                        </label>
+                        <label>
+                            Autoplay primitive
+                            <DxTextBox @bind-Text="GameProfileEdit.AutoplayKey" MaxLength="80" NullText="inherit from template" />
+                        </label>
+                        <label>
+                            Player archetype
+                            <DxTextBox @bind-Text="GameProfileEdit.PlayerArchetypeKey" MaxLength="80" NullText="inherit from template" />
                         </label>
                         <label>
                             Default Council team
@@ -228,6 +246,19 @@
                         Scenario / world description
                         <DxMemo @bind-Text="GameProfileEdit.ScenarioPrompt" Rows="4" MaxLength="240" />
                     </label>
+                    <p class="hint">Games are database content interpreted by the generic LocalGPT game engine. Empty primitive keys and <code>{}</code> parameters inherit from the rules template; parameters are JSON objects read by the named primitive.</p>
+                    <label>
+                        View parameters (JSON)
+                        <DxMemo @bind-Text="GameProfileEdit.ViewParametersJson" Rows="4" />
+                    </label>
+                    <label>
+                        Map parameters (JSON)
+                        <DxMemo @bind-Text="GameProfileEdit.MapParametersJson" Rows="4" />
+                    </label>
+                    <label>
+                        Autoplay parameters (JSON)
+                        <DxMemo @bind-Text="GameProfileEdit.AutoplayParametersJson" Rows="4" />
+                    </label>
                     <div class="button-row">
                         <DxButton Text="Save Game Design"
                                   RenderStyle="ButtonRenderStyle.Secondary"
@@ -246,7 +277,28 @@
                     }
                     @if (CurrentGameBuild is not null)
                     {
-                        <p class="hint">Built @CurrentGameBuild.Definition.DisplayName · profile @CurrentGameBuild.Definition.RuntimeProfile · project version @CurrentGameBuild.Definition.ProjectVersion · artifact @CurrentGameBuild.ArtifactId</p>
+                        <p class="hint">Built @CurrentGameBuild.Definition.DisplayName · view @CurrentGameBuild.Definition.Ruleset.ViewKey · project version @CurrentGameBuild.Definition.ProjectVersion · artifact @CurrentGameBuild.ArtifactId</p>
+                    }
+                    @if (CurrentGameProfile is not null)
+                    {
+                        <h3>Game rules</h3>
+                        <p class="hint">Stats, archetypes, actions, rules, levels, texts and aliases of this game as JSON. Tables left empty inherit the rows of the rules template. Saving replaces this game's own rows; build the game afterwards so launches use them.</p>
+                        <label>
+                            Own rule rows (JSON)
+                            <DxMemo @bind-Text="GameRulesJson" Rows="18" />
+                        </label>
+                        <div class="button-row">
+                            <DxButton Text="Load Game Rules"
+                                      RenderStyle="ButtonRenderStyle.Secondary"
+                                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                      Enabled="@(!isBusy)"
+                                      Click="LoadGameRulesAsync" />
+                            <DxButton Text="Save Game Rules"
+                                      RenderStyle="ButtonRenderStyle.Secondary"
+                                      RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                      Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(GameRulesJson))"
+                                      Click="SaveGameRulesAsync" />
+                        </div>
                     }
                 }
 
@@ -550,14 +602,11 @@
     const string toastName = "ProjectToasts";
 
 
-    /// <summary>
-    /// Stores the in-memory game runtime profile options collection maintained internally by <see cref="Projects"/> for its current workflow state.
-    /// </summary>
-    readonly IReadOnlyList<LocalGptSelectionOption<CouncilGameRuntimeProfile>> GameRuntimeProfileOptions =
-    [
-        new(CouncilGameRuntimeProfile.Corridor, "Corridor simulation"),
-        new(CouncilGameRuntimeProfile.Story, "Story / choice simulation")
-    ];
+    /// <summary>Own rule rows of the selected game project as editable JSON.</summary>
+    string GameRulesJson { get; set; } = string.Empty;
+
+    /// <summary>JSON options of the game rule editor (indented, camel-case).</summary>
+    readonly System.Text.Json.JsonSerializerOptions gameRulesJsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
 
     /// <summary>
     /// Stores the in-memory game control mode options collection maintained internally by <see cref="Projects"/> for its current workflow state.
@@ -860,11 +909,20 @@
             CurrentGameBuild = project.IsGameProject
                 ? await GameProjects.GetBuildAsync(project.Id).ConfigureAwait(false)
                 : null;
+            GameRulesJson = string.Empty;
             if (CurrentGameProfile is not null)
             {
                 GameProfileEdit.GameKey = CurrentGameProfile.GameKey;
                 GameProfileEdit.DisplayName = CurrentGameProfile.DisplayName;
-                GameProfileEdit.RuntimeProfile = CurrentGameProfile.RuntimeProfile;
+                GameProfileEdit.ViewKey = CurrentGameProfile.ViewKey;
+                GameProfileEdit.ViewParametersJson = CurrentGameProfile.ViewParametersJson;
+                GameProfileEdit.TurnModelKey = CurrentGameProfile.TurnModelKey;
+                GameProfileEdit.MapGeneratorKey = CurrentGameProfile.MapGeneratorKey;
+                GameProfileEdit.MapParametersJson = CurrentGameProfile.MapParametersJson;
+                GameProfileEdit.AutoplayKey = CurrentGameProfile.AutoplayKey;
+                GameProfileEdit.AutoplayParametersJson = CurrentGameProfile.AutoplayParametersJson;
+                GameProfileEdit.PlayerArchetypeKey = CurrentGameProfile.PlayerArchetypeKey;
+                GameProfileEdit.RulesetTemplateKey = CurrentGameProfile.RulesetTemplateKey;
                 GameProfileEdit.DefaultTeamKey = CurrentGameProfile.DefaultTeamKey;
                 GameProfileEdit.DefaultControlMode = CurrentGameProfile.DefaultControlMode;
                 GameProfileEdit.DirectorMode = CurrentGameProfile.DirectorMode;
@@ -884,7 +942,11 @@
                 var definition = CurrentGameBuild.Definition;
                 GameProfileEdit.GameKey = definition.GameKey;
                 GameProfileEdit.DisplayName = definition.DisplayName;
-                GameProfileEdit.RuntimeProfile = definition.RuntimeProfile;
+                GameProfileEdit.ViewKey = definition.Ruleset.ViewKey;
+                GameProfileEdit.TurnModelKey = definition.Ruleset.TurnModelKey;
+                GameProfileEdit.MapGeneratorKey = definition.Ruleset.MapGeneratorKey;
+                GameProfileEdit.AutoplayKey = definition.Ruleset.AutoplayKey;
+                GameProfileEdit.PlayerArchetypeKey = definition.Ruleset.PlayerArchetypeKey;
                 GameProfileEdit.DefaultTeamKey = definition.DefaultTeamKey;
                 GameProfileEdit.DefaultControlMode = definition.DefaultControlMode;
                 GameProfileEdit.DirectorMode = definition.DirectorMode;
@@ -967,6 +1029,55 @@
         catch (Exception __componentMethodException)
         {
             Logger.LogError(__componentMethodException, "Component method Projects.SaveGameProjectProfileAsync failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Loads the selected game project's own rule rows into the JSON editor.</summary>
+    /// <returns>A task that completes when the rows are shown.</returns>
+    async Task LoadGameRulesAsync()
+    {
+        try
+        {
+        if (SelectedProject is null || !SelectedProject.Project.IsGameProject)
+            return;
+
+        await RunUiActionAsync(async () =>
+        {
+            var rows = await GameRulesets.GetOwnRowsAsync(SelectedProject.Project.Id).ConfigureAwait(false);
+            GameRulesJson = System.Text.Json.JsonSerializer.Serialize(rows, gameRulesJsonOptions);
+        }, "Load game rules").ConfigureAwait(false);
+
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.LoadGameRulesAsync failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Replaces the selected game project's own rule rows with the JSON editor content.</summary>
+    /// <returns>A task that completes when the rows are saved.</returns>
+    async Task SaveGameRulesAsync()
+    {
+        try
+        {
+        if (SelectedProject is null || !SelectedProject.Project.IsGameProject || string.IsNullOrWhiteSpace(GameRulesJson))
+            return;
+
+        await RunUiActionAsync(async () =>
+        {
+            var rows = System.Text.Json.JsonSerializer.Deserialize<LocalGPT.BusinessObjects.GameEngine.SaveGameRulesetRequest>(GameRulesJson, gameRulesJsonOptions)
+                ?? throw new InvalidOperationException("The game rules JSON is empty.");
+            rows.UserConfirmed = true;
+            await GameRulesets.SaveRulesetAsync(SelectedProject.Project.Id, rows).ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, "Game rules saved. Build the game so launches use them.", "Game rules saved");
+        }, "Save game rules").ConfigureAwait(false);
+
+        }
+        catch (Exception __componentMethodException)
+        {
+            Logger.LogError(__componentMethodException, "Component method Projects.SaveGameRulesAsync failed.");
             throw;
         }
     }

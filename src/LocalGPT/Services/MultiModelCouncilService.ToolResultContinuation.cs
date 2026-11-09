@@ -67,7 +67,7 @@ namespace LocalGPT.Services
                 }
 
                 var pendingFunctionSteps = functionSteps;
-                var boundedRounds = Math.Clamp(maximumContinuationRounds, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MaximumContinuationRounds);
+                var boundedRounds = Math.Clamp(maximumContinuationRounds, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumContinuationRounds);
                 for (var continuationIndex = 0; continuationIndex < boundedRounds && pendingFunctionSteps.Count > 0; continuationIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -77,7 +77,7 @@ namespace LocalGPT.Services
                     progressMessage?.Invoke(
                         $"Council is returning {pendingFunctionSteps.Count} intermediate function result(s) to {sourceStep.ModelName} for bounded continuation {continuationNumber}/{boundedRounds}.");
 
-                    var continuationPrompt = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilToolResultContinuationPromptTemplate)
+                    var continuationPrompt = runtimePolicy.GetString("CouncilToolResultContinuationPromptTemplate")
                         .Replace("{{OriginalPrompt}}", originalPrompt, StringComparison.Ordinal)
                         .Replace("{{Evidence}}", evidence, StringComparison.Ordinal);
 

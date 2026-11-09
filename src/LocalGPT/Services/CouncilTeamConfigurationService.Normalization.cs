@@ -27,6 +27,8 @@ namespace LocalGPT.Services
                 candidate = "AllMembersSequential";
             else if (candidate.Equals("Single", StringComparison.OrdinalIgnoreCase))
                 candidate = "LeaderSingle";
+            else if (candidate.Equals("SystemKernelTournamentResolution", StringComparison.OrdinalIgnoreCase))
+                candidate = "SystemGameEngineResolution";
 
             var normalized = SupportedExecutionModes.FirstOrDefault(mode => mode.Equals(candidate, StringComparison.OrdinalIgnoreCase));
             return normalized ?? throw new InvalidOperationException(
@@ -42,6 +44,26 @@ namespace LocalGPT.Services
         throw;
     }
 }
+
+    /// <summary>Normalizes a user-edited list of workflow-step keys, keeping the configured order.</summary>
+    /// <param name="values">Step keys persisted by the user-edited workflow step.</param>
+    /// <returns>Trimmed, lower-case, case-insensitively distinct keys in their original order.</returns>
+    private List<string> NormalizeStepKeyList(IEnumerable<string>? values)
+    {
+        try
+        {
+            return (values ?? [])
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim().ToLowerInvariant())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Normalizing workflow step keys failed.");
+            throw;
+        }
+    }
 
     /// <summary>Normalizes user-edited registered-function names without applying a hidden runtime allow-list.</summary>
     /// <param name="values">Function names persisted by the user-edited team or workflow configuration.</param>

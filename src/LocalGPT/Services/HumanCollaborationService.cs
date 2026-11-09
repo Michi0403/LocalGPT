@@ -87,7 +87,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
 
     /// <summary>Gets the operator-configured maximum text length shared by all human-collaboration partials.</summary>
     /// <value>The database-backed Human Collaboration text limit.</value>
-    private int MaxTextLength => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.HumanCollaborationMaximumTextLength));
+    private int MaxTextLength => Math.Max(1, runtimePolicy.GetInt("HumanCollaborationMaximumTextLength"));
 
     /// <summary>
     /// Occurs when changed changes or completes in <see cref="HumanCollaborationService"/>, allowing interested callers to react without polling internal state.
@@ -120,7 +120,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
             var requests = await query
                 .OrderBy(item => item.Status == vocabulary.Get().HumanStatusPending ? 0 : 1)
                 .ThenByDescending(item => item.UpdatedAtUtc)
-                .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).HumanContributionMaximum))
+                .Take(Math.Clamp(take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").HumanContributionMaximum))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
@@ -130,9 +130,9 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
             var profile = await db.HumanCouncilParticipantProfiles.AsNoTracking()
-                .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId), cancellationToken)
+                .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid("LocalHumanProfileId"), cancellationToken)
                 .ConfigureAwait(false)
-                ?? new HumanCouncilParticipantProfile { Id = runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId) };
+                ?? new HumanCouncilParticipantProfile { Id = runtimePolicy.GetGuid("LocalHumanProfileId") };
 
             return new HumanCollaborationSnapshot(
                 profile,
@@ -481,7 +481,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                 if (isApproval && submission.Approved == false && string.IsNullOrWhiteSpace(request.DecisionReason))
                     request.DecisionReason = "Declined by local user.";
                 request.DecisionBy = Normalize(ambientContext.Current.ActorDisplayName, 120, "Human User");
-                request.DecisionByProfileId = ambientContext.Current.HumanProfileId ?? runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId);
+                request.DecisionByProfileId = ambientContext.Current.HumanProfileId ?? runtimePolicy.GetGuid("LocalHumanProfileId");
                 request.DecidedAtUtc = DateTime.UtcNow;
                 request.UpdatedAtUtc = DateTime.UtcNow;
                 request.ConsumedAtUtc = null;
@@ -578,9 +578,9 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
     {
             using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             return await db.HumanCouncilParticipantProfiles.AsNoTracking()
-                .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId), cancellationToken)
+                .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid("LocalHumanProfileId"), cancellationToken)
                 .ConfigureAwait(false)
-                ?? new HumanCouncilParticipantProfile { Id = runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId) };
+                ?? new HumanCouncilParticipantProfile { Id = runtimePolicy.GetGuid("LocalHumanProfileId") };
     
     }
     catch (Exception __serviceMethodException)
@@ -612,15 +612,15 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
             {
                 using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 var existing = await db.HumanCouncilParticipantProfiles
-                    .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId), cancellationToken)
+                    .SingleOrDefaultAsync(item => item.Id == runtimePolicy.GetGuid("LocalHumanProfileId"), cancellationToken)
                     .ConfigureAwait(false);
                 if (existing is null)
                 {
-                    existing = new HumanCouncilParticipantProfile { Id = runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId) };
+                    existing = new HumanCouncilParticipantProfile { Id = runtimePolicy.GetGuid("LocalHumanProfileId") };
                     db.HumanCouncilParticipantProfiles.Add(existing);
                 }
 
-                existing.Id = runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId);
+                existing.Id = runtimePolicy.GetGuid("LocalHumanProfileId");
                 existing.DisplayName = Normalize(profile.DisplayName, 120, "Human User");
                 existing.RoleName = Normalize(profile.RoleName, 180, "Human collaborator");
                 existing.Expertise = NormalizeMultiline(profile.Expertise, 2000);

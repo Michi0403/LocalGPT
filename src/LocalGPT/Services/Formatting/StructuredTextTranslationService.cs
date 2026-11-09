@@ -103,25 +103,25 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         fencedBlockRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonFencePatternName,
-            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredJsonFence).ToString(),
+            runtimePolicy.GetPattern("runtime.structured.json-fence").ToString(),
             "IgnoreCase|Singleline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
         plainStartRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonPlainStartPatternName,
-            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredJsonStart).ToString(),
+            runtimePolicy.GetPattern("runtime.structured.json-start").ToString(),
             "Multiline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
         protectedBlockRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonProtectedBlockPatternName,
-            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredProtectedMarkup).ToString(),
+            runtimePolicy.GetPattern("runtime.structured.protected-markup").ToString(),
             "IgnoreCase|Singleline|Compiled|CultureInvariant",
             runtimePolicy.RegexTimeout);
         keyTokenRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
             JsonKeyTokenPatternName,
-            runtimePolicy.GetPattern(LocalGptRuntimePattern.StructuredIdentifierWordBoundary).ToString(),
+            runtimePolicy.GetPattern("runtime.structured.identifier-word-boundary").ToString(),
             "CultureInvariant|Compiled",
             runtimePolicy.RegexTimeout);
 
@@ -151,10 +151,10 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
             return result;
         }
 
-        if (text.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumInputCharacters)))
+        if (text.Length > Math.Max(1, runtimePolicy.GetInt("StructuredTextMaximumInputCharacters")))
         {
-            result.Warnings.Add($"Input was truncated to {Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumInputCharacters)):n0} characters before structured JSON inspection.");
-            text = text[..Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumInputCharacters))];
+            result.Warnings.Add($"Input was truncated to {Math.Max(1, runtimePolicy.GetInt("StructuredTextMaximumInputCharacters")):n0} characters before structured JSON inspection.");
+            text = text[..Math.Max(1, runtimePolicy.GetInt("StructuredTextMaximumInputCharacters"))];
         }
 
         var maximumDocuments = Math.Max(1, request.MaximumDocuments);
@@ -169,9 +169,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         var replacements = new List<(int Start, int Length, string Replacement)>();
         foreach (var candidate in candidates)
         {
-            if (candidate.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumJsonDocumentCharacters)))
+            if (candidate.Length > Math.Max(1, runtimePolicy.GetInt("StructuredTextMaximumJsonDocumentCharacters")))
             {
-                result.Warnings.Add($"Skipped a JSON candidate longer than {Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumJsonDocumentCharacters)):n0} characters.");
+                result.Warnings.Add($"Skipped a JSON candidate longer than {Math.Max(1, runtimePolicy.GetInt("StructuredTextMaximumJsonDocumentCharacters")):n0} characters.");
                 continue;
             }
 
@@ -269,7 +269,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
                     payload = payload[..^1].TrimEnd();
 
                 if (payload.Length == 0 ||
-                    payload.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumJsonDocumentCharacters)))
+                    payload.Length > Math.Max(1, runtimePolicy.GetInt("StructuredTextMaximumJsonDocumentCharacters")))
                 {
                     ReportInvalidAssessment("EmptyOrOverPolicyLimit", payload.Length, text.Length, null);
                     output.Append(BuildTaggedPayloadCodeBlock(tag, payload, isValidJson: false));

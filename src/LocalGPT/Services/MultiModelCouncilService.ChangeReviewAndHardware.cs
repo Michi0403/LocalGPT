@@ -21,8 +21,8 @@ namespace LocalGPT.Services
         /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
         /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-        /// <returns>The code generation review snapshot produced by the operation.</returns>
-        private async Task<CodeGenerationReviewSnapshot> CreateCouncilChangeReviewAsync(
+        /// <returns>The prepared change review, or <see langword="null"/> when the final answer carries no structured file plan.</returns>
+        private async Task<CodeGenerationReviewSnapshot?> CreateCouncilChangeReviewAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
             CancellationToken cancellationToken)
@@ -31,74 +31,21 @@ namespace LocalGPT.Services
     {
                 var targetArea = councilText.DetectTargetArea(request.Prompt, result.FinalAnswer, logger);
                 var parsedPlan = codeGenerationPlanService.Parse(result.FinalAnswer);
-                var files = parsedPlan.Found
-                    ? parsedPlan.Payload.Files.ToList()
-                    : new List<CodeGenerationFileSpec>();
-                var codeDomTypes = parsedPlan.Found
-                    ? parsedPlan.Payload.CodeDomTypes.ToList()
-                    : new List<CodeDomTypeSpec>();
-                var outputs = parsedPlan.Found
-                    ? parsedPlan.Payload.Outputs.ToList()
-                    : new List<CodeGenerationOutputSpec>();
-
                 if (!parsedPlan.Found)
                 {
-                    var isBlazor = councilRuntime.IsBlazorFrontendTarget(request.Prompt, result.FinalAnswer, targetArea, logger) ?? false;
-                    if (isBlazor)
-                    {
-                        files.Add(new CodeGenerationFileSpec
-                        {
-                            RelativePath = "src/CouncilFeaturePage.razor",
-                            Purpose = "Council-reviewed Blazor/DevExpress page proposal",
-                            Content = councilText.GenerateBlazorDevExpressRazorExample(request, result, logger)
-                        });
-                        files.Add(new CodeGenerationFileSpec
-                        {
-                            RelativePath = "src/CouncilFeatureSupport.cs",
-                            Purpose = "Council-reviewed support service proposal",
-                            Content = councilText.GenerateBlazorSupportCode(request, result, targetArea, logger)
-                        });
-                    }
-                    else
-                    {
-                        codeDomTypes.Add(new CodeDomTypeSpec
-                        {
-                            RelativePath = "src/CouncilFeatureRequestExample.cs",
-                            Namespace = "LocalGPT.Generated",
-                            TypeName = "CouncilFeatureRequestExample",
-                            MethodName = "Describe",
-                            MethodResult = councilText.TrimForCodeComment(result.FinalAnswer, 4_000, logger),
-                            Summary = $"Council-reviewed CodeDOM proposal for {targetArea}."
-                        });
-                    }
-
-                    var combined = string.Concat(request.Prompt, Environment.NewLine, result.FinalAnswer);
-                    var outputKind = combined.Contains(".csx", StringComparison.OrdinalIgnoreCase) ||
-                                     combined.Contains("cscript", StringComparison.OrdinalIgnoreCase) ||
-                                     combined.Contains("c# script", StringComparison.OrdinalIgnoreCase)
-                        ? CodeGenerationOutputKinds.CSharpScript
-                        : combined.Contains(".js", StringComparison.OrdinalIgnoreCase) ||
-                          combined.Contains("jscript", StringComparison.OrdinalIgnoreCase) ||
-                          combined.Contains("javascript module", StringComparison.OrdinalIgnoreCase)
-                            ? CodeGenerationOutputKinds.JavaScriptModule
-                            : councilRuntime.IsWholeSolutionTarget(request.Prompt, result.FinalAnswer, logger) ?? false
-                                ? CodeGenerationOutputKinds.Solution
-                                : combined.Contains("console", StringComparison.OrdinalIgnoreCase) || combined.Contains(".exe", StringComparison.OrdinalIgnoreCase)
-                                    ? CodeGenerationOutputKinds.ConsoleApplication
-                                    : combined.Contains("plugin", StringComparison.OrdinalIgnoreCase) || combined.Contains("addon", StringComparison.OrdinalIgnoreCase)
-                                        ? CodeGenerationOutputKinds.LocalGptAddon
-                                        : CodeGenerationOutputKinds.ClassLibrary;
-
-                    outputs.Add(new CodeGenerationOutputSpec
-                    {
-                        Kind = outputKind,
-                        Name = "LocalGptCouncilFeature",
-                        RelativeDirectory = "generated",
-                        TargetFramework = "net10.0",
-                        RootNamespace = "LocalGPT.Generated",
-                        Description = councilText.TrimForCodeComment(result.FinalAnswer, 600, logger)
-                    });
+                    // Without an exact file plan there is nothing reviewable to generate. Placeholder example
+                    // files would look like progress while implementing none of the requested change.
+                    if (!string.IsNullOrWhiteSpace(parsedPlan.Warning))
+                        result.Warnings.Add(parsedPlan.Warning);
+                    logger.LogInformation(
+                        "Council run {RunId} prepared no change review because its final answer carries no structured code-generation plan.",
+                        result.RunId);
+                    return null;
                 }
+
+                var files = parsedPlan.Payload.Files.ToList();
+                var codeDomTypes = parsedPlan.Payload.CodeDomTypes.ToList();
+                var outputs = parsedPlan.Payload.Outputs.ToList();
 
                 if (!string.IsNullOrWhiteSpace(parsedPlan.Warning))
                     result.Warnings.Add(parsedPlan.Warning);
@@ -121,9 +68,7 @@ namespace LocalGPT.Services
                     Goal = request.Prompt,
                     CurrentProjectState = currentState,
                     CouncilSummary = result.FinalAnswer,
-                    ChangeSummary = parsedPlan.Found
-                        ? $"Generate the council-authored structured plan from {parsedPlan.SourceFormat}: {files.Count} explicit file(s), {codeDomTypes.Count} CodeDOM type(s), and {outputs.Count} output target(s). When a project revision is selected, unchanged approved files are cloned byte-for-byte into its isolated workspace and only the exact reviewed files are replaced; the source checkout is never overwritten."
-                        : $"Generate the bounded fallback plan for {targetArea}: {files.Count} explicit file(s), {codeDomTypes.Count} CodeDOM type(s), and {outputs.Count} output target(s). When a project revision is selected, unchanged approved files are cloned byte-for-byte into its isolated workspace and only the exact reviewed files are replaced; the source checkout is never overwritten.",
+                    ChangeSummary = $"Generate the council-authored structured plan from {parsedPlan.SourceFormat}: {files.Count} explicit file(s), {codeDomTypes.Count} CodeDOM type(s), and {outputs.Count} output target(s). When a project revision is selected, unchanged approved files are cloned into its isolated workspace, only the exact reviewed files are replaced, and the result is registered as a new child revision; the source checkout and the selected revision are never overwritten.",
                     SafetySummary = "This heartbeat records the exact proposed payload before generation. Execution requires the current user to approve the matching review hash. Writes stay inside the resolved project-revision workspace; builds require a separate current confirmation; generated scripts, DLLs, and executables are never run or loaded automatically.",
                     Files = files,
                     CodeDomTypes = codeDomTypes,

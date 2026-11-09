@@ -512,6 +512,10 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
                         generated.ZipFileName,
                         generated.DownloadUrl,
                         generated.BuildStatus,
+                        // The compiler error lines and the child revision let a verifying step send precise work back
+                        // to the generator through council.x.revisit instead of only reporting that the build failed.
+                        generated.BuildDiagnostics,
+                        generated.GeneratedRevisionId,
                         WrittenFileCount = generated.WrittenFiles.Count,
                         generated.Warnings
                     };
@@ -524,7 +528,7 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
                     Value = value,
                     result.Error
                 });
-                return Limit(payload, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.DeferredDxAiMaximumResultCharacters)));
+                return Limit(payload, Math.Max(1, runtimePolicy.GetInt("DeferredDxAiMaximumResultCharacters")));
             }
             catch
             {
@@ -536,7 +540,7 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
                         Error = result.Error,
                         ValueSerialization = "The returned value could not be serialized for council context."
                     }),
-                    Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.DeferredDxAiMaximumResultCharacters)));
+                    Math.Max(1, runtimePolicy.GetInt("DeferredDxAiMaximumResultCharacters")));
             }
     
     }

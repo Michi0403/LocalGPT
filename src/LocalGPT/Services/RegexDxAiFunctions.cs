@@ -54,7 +54,7 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
     {
             logger.LogInformation("Regex catalog list DXFunction started.");
             var parameters = Deserialize<RegexPatternListParameters>(request.Parameters);
-            var rows = await regexPatterns.ListAllAsync(Math.Clamp(parameters.Take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).RegexDxListMaximum)).ConfigureAwait(false);
+            var rows = await regexPatterns.ListAllAsync(Math.Clamp(parameters.Take, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").RegexDxListMaximum)).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(parameters.Prefix))
                 rows = rows.Where(item => item.Name.StartsWith(parameters.Prefix.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
             logger.LogInformation("Regex catalog list DXFunction completed with {PatternCount} pattern(s).", rows.Count);

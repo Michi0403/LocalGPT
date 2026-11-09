@@ -167,7 +167,7 @@ public sealed class DocumentationCatalogService(
         try
         {
             var normalizedQuery = query?.Trim() ?? string.Empty;
-            var boundedLimit = Math.Clamp(limit, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>(LocalGptRuntimeValue.ServiceQueryRuntimeParametersJson).DocumentationMaximum);
+            var boundedLimit = Math.Clamp(limit, 1, runtimePolicy.GetJson<ServiceQueryRuntimeParameters>("ServiceQueryRuntimeParametersJson").DocumentationMaximum);
             return GetCommentCatalog()
                 .Where(item => normalizedQuery.Length == 0 ||
                     item.MemberId.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase) ||
@@ -791,7 +791,7 @@ public sealed class DocumentationCatalogService(
     {
         return string.IsNullOrWhiteSpace(value)
             ? string.Empty
-            : runtimePolicy.GetPattern(LocalGptRuntimePattern.WhitespacePattern).Replace(value, " ").Trim();
+            : runtimePolicy.GetPattern("builtin.whitespace-pattern").Replace(value, " ").Trim();
     }
     catch (Exception __serviceMethodException)
     {

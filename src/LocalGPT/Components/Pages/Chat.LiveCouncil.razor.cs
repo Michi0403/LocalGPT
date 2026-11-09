@@ -647,7 +647,7 @@ namespace LocalGPT.Components.Pages
             var activeRun = ActiveCouncilRun;
             var activeRunId = activeRun?.RunId ?? ActiveLiveCouncilSession?.RunId;
             using var humanScope = HumanAmbientContext.PushHumanInteraction(
-                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                RuntimePolicy.GetGuid("LocalHumanProfileId"),
                 enabled.DisplayName,
                 nameof(Chat),
                 councilRunId: activeRunId,
@@ -684,7 +684,7 @@ namespace LocalGPT.Components.Pages
         try
         {
             using var humanScope = HumanAmbientContext.PushHumanInteraction(
-                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                RuntimePolicy.GetGuid("LocalHumanProfileId"),
                 collaborationSnapshot.Profile.DisplayName,
                 nameof(Chat),
                 councilRunId: councilRunId,
@@ -723,7 +723,7 @@ namespace LocalGPT.Components.Pages
         try
         {
             using var humanScope = HumanAmbientContext.PushHumanInteraction(
-                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                RuntimePolicy.GetGuid("LocalHumanProfileId"),
                 string.IsNullOrWhiteSpace(collaborationSnapshot.Profile.DisplayName)
                     ? "Human User"
                     : collaborationSnapshot.Profile.DisplayName,

@@ -751,7 +751,7 @@ public sealed class InitialSetupAssistantService(
             var parts = value.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             for (var index = parts.Length - 1; index >= 0; index--)
             {
-                if (!runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelSizeBillions).IsMatch(parts[index]))
+                if (!runtimePolicy.GetPattern("runtime.model.size-billions").IsMatch(parts[index]))
                     continue;
                 var family = string.Join('-', parts.Take(index));
                 if (!string.IsNullOrWhiteSpace(family))
@@ -807,7 +807,7 @@ public sealed class InitialSetupAssistantService(
             {
                 string.Concat(text.Where(char.IsLetterOrDigit)).ToLowerInvariant()
             };
-            var withoutArchitectureSuffix = runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelArchitectureSuffix).Replace(text, string.Empty);
+            var withoutArchitectureSuffix = runtimePolicy.GetPattern("runtime.model.architecture-suffix").Replace(text, string.Empty);
             keys.Add(string.Concat(withoutArchitectureSuffix.Where(char.IsLetterOrDigit)).ToLowerInvariant());
             return keys.Where(item => item.Length > 0).ToList();
         }
@@ -1874,7 +1874,7 @@ public sealed class InitialSetupAssistantService(
                 return null;
             var family = value[..separator];
             var size = value[(separator + 1)..];
-            if (!runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelSizeBillions).IsMatch(size))
+            if (!runtimePolicy.GetPattern("runtime.model.size-billions").IsMatch(size))
                 return null;
             var knownFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -1955,7 +1955,7 @@ public sealed class InitialSetupAssistantService(
         try
         {
             var value = providerModelId ?? string.Empty;
-            var match = runtimePolicy.GetPattern(LocalGptRuntimePattern.ModelSizeToken).Match(value);
+            var match = runtimePolicy.GetPattern("runtime.model.size-token").Match(value);
             if (!match.Success
                 || !double.TryParse(match.Groups["size"].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var size))
                 return double.MaxValue;

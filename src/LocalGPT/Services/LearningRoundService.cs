@@ -45,7 +45,7 @@ public sealed partial class LearningRoundService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            var parameters = runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson);
+            var parameters = runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>("LearnBaseImportRuntimeParametersJson");
             var take = Math.Clamp(takePerSource <= 0 ? parameters.DefaultLearningItemsPerSource : takePerSource, parameters.MinimumLearningItemsPerSource, parameters.MaximumLearningItemsPerRound);
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
@@ -247,7 +247,7 @@ public sealed partial class LearningRoundService(
             var knowledgeIds = new List<Guid>();
             var regexNames = new List<string>();
 
-            foreach (var fact in request.Facts.Take(runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MaximumLearningItemsPerRound))
+            foreach (var fact in request.Facts.Take(runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>("LearnBaseImportRuntimeParametersJson").MaximumLearningItemsPerRound))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(fact.Topic) || string.IsNullOrWhiteSpace(fact.Content))
@@ -277,7 +277,7 @@ public sealed partial class LearningRoundService(
                 knowledgeIds.Add(entry.Id);
             }
 
-            foreach (var regex in request.RegexPatterns.Take(runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>(LocalGptRuntimeValue.LearnBaseImportRuntimeParametersJson).MaximumLearningItemsPerRound))
+            foreach (var regex in request.RegexPatterns.Take(runtimePolicy.GetJson<LearnBaseImportRuntimeParameters>("LearnBaseImportRuntimeParametersJson").MaximumLearningItemsPerRound))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(regex.Name) || string.IsNullOrWhiteSpace(regex.Pattern))

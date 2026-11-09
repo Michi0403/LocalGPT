@@ -40,15 +40,15 @@ namespace LocalGPT.Services
                 var expertise = roleAssignment.Definition?.Expertise ?? string.Empty;
                 var responsibility = roleAssignment.Definition?.Responsibility ?? string.Empty;
                 var assignedMembers = roleAssignment.AiParticipants.Count == 0
-                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilNoRoleMembersText)
+                    ? runtimePolicy.GetString("CouncilNoRoleMembersText")
                     : string.Join(Environment.NewLine, roleAssignment.AiParticipants
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .Select(member => $"- {member}"));
                 var reviewBlock = string.IsNullOrWhiteSpace(peerReviewEvidence)
-                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilNoRolePeerReviewEvidenceText)
+                    ? runtimePolicy.GetString("CouncilNoRolePeerReviewEvidenceText")
                     : peerReviewEvidence;
                 var template = string.IsNullOrWhiteSpace(definition.RoleResultSynthesisPromptTemplate)
-                    ? runtimePolicy.GetString(LocalGptRuntimeValue.CouncilRoleResultSynthesisPromptTemplate)
+                    ? runtimePolicy.GetString("CouncilRoleResultSynthesisPromptTemplate")
                     : definition.RoleResultSynthesisPromptTemplate;
 
                 return template
@@ -226,8 +226,9 @@ namespace LocalGPT.Services
                     return "AssignedModelSingle";
                 if (value.Equals("SystemBenchmarkCalibration", StringComparison.OrdinalIgnoreCase))
                     return "SystemBenchmarkCalibration";
-                if (value.Equals("SystemKernelTournamentResolution", StringComparison.OrdinalIgnoreCase))
-                    return "SystemKernelTournamentResolution";
+                if (value.Equals("SystemGameEngineResolution", StringComparison.OrdinalIgnoreCase)
+                    || value.Equals("SystemKernelTournamentResolution", StringComparison.OrdinalIgnoreCase))
+                    return "SystemGameEngineResolution";
                 throw new InvalidOperationException($"Configured council execution mode '{value}' is not supported.");
         
     }
@@ -356,7 +357,7 @@ namespace LocalGPT.Services
                         if (!recheck.IsBlocked)
                             continue;
 
-                        var fallback = Task.Delay(TimeSpan.FromSeconds(runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>(LocalGptRuntimeValue.CouncilExecutionRuntimeParametersJson).MinimumAvailabilityWaitSeconds), cancellationToken);
+                        var fallback = Task.Delay(TimeSpan.FromSeconds(runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumAvailabilityWaitSeconds), cancellationToken);
                         await Task.WhenAny(changed.Task, fallback).ConfigureAwait(false);
                         cancellationToken.ThrowIfCancellationRequested();
                     }
@@ -633,7 +634,7 @@ namespace LocalGPT.Services
                 if (contributions.Count == 0)
                     return string.Empty;
 
-                var entryTemplate = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilHumanContributionEntryTemplate);
+                var entryTemplate = runtimePolicy.GetString("CouncilHumanContributionEntryTemplate");
                 var entries = string.Join(
                     Environment.NewLine + Environment.NewLine,
                     contributions.Select(contribution =>
@@ -647,7 +648,7 @@ namespace LocalGPT.Services
                             .Replace("{{Role}}", contribution.HumanRole, StringComparison.Ordinal)
                             .Replace("{{Content}}", contribution.Content, StringComparison.Ordinal);
                     }));
-                return runtimePolicy.GetString(LocalGptRuntimeValue.CouncilHumanContributionBriefingTemplate)
+                return runtimePolicy.GetString("CouncilHumanContributionBriefingTemplate")
                     .Replace("{{Entries}}", entries, StringComparison.Ordinal)
                     .Trim();
             }
@@ -656,7 +657,7 @@ namespace LocalGPT.Services
                 logger.LogError(
                     ex,
                     "Could not build the Council human-contribution briefing; contribution content was omitted from logs.");
-                return runtimePolicy.GetString(LocalGptRuntimeValue.CouncilHumanContributionFallbackInstruction);
+                return runtimePolicy.GetString("CouncilHumanContributionFallbackInstruction");
             }
         }
 
@@ -672,14 +673,14 @@ namespace LocalGPT.Services
                 if (outcomes.Count == 0)
                     return string.Empty;
 
-                var entryTemplate = runtimePolicy.GetString(LocalGptRuntimeValue.CouncilDeferredInvocationEntryTemplate);
+                var entryTemplate = runtimePolicy.GetString("CouncilDeferredInvocationEntryTemplate");
                 var entries = string.Join(
                     Environment.NewLine + Environment.NewLine,
                     outcomes.Select(outcome => entryTemplate
                         .Replace("{{FunctionName}}", outcome.FunctionName, StringComparison.Ordinal)
                         .Replace("{{Status}}", outcome.ResultStatus, StringComparison.Ordinal)
                         .Replace("{{ResultSummary}}", outcome.ResultSummary, StringComparison.Ordinal)));
-                return runtimePolicy.GetString(LocalGptRuntimeValue.CouncilDeferredInvocationBriefingTemplate)
+                return runtimePolicy.GetString("CouncilDeferredInvocationBriefingTemplate")
                     .Replace("{{Entries}}", entries, StringComparison.Ordinal)
                     .Trim();
         
@@ -752,7 +753,7 @@ namespace LocalGPT.Services
                     prompt,
                     Environment.NewLine,
                     Environment.NewLine,
-                    runtimePolicy.GetString(LocalGptRuntimeValue.CouncilHumanPeerReviewInstruction));
+                    runtimePolicy.GetString("CouncilHumanPeerReviewInstruction"));
             }
             catch (Exception ex)
             {

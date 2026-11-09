@@ -61,7 +61,7 @@ namespace LocalGPT.Services
         /// Gets the provider parameters value that forms part of the chat client state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The provider parameters value exposed by <see cref="ChatClientFactory"/>.</value>
-        private ProviderModelRuntimeParameters ProviderParameters => runtimePolicy.GetJson<ProviderModelRuntimeParameters>(LocalGptRuntimeValue.ProviderModelRuntimeParametersJson);
+        private ProviderModelRuntimeParameters ProviderParameters => runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
 
         /// <summary>
         /// Performs build using the configuration and dependencies owned by <see cref="ChatClientFactory"/>.
@@ -288,7 +288,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>(LocalGptRuntimeValue.ServiceTimingRuntimeParametersJson).ChatClientProbeTimeoutSeconds) };
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(runtimePolicy.GetJson<ServiceTimingRuntimeParameters>("ServiceTimingRuntimeParametersJson").ChatClientProbeTimeoutSeconds) };
                 if (!string.IsNullOrWhiteSpace(apiKey))
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
                 using var response = client.GetAsync(endpoint.TrimEnd('/') + "/models").GetAwaiter().GetResult();

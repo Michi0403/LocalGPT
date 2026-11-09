@@ -18,12 +18,12 @@ public sealed class CouncilCodeGenerationPlanService(
     /// <summary>
     /// Stores the database-backed tagged plan pattern used by the Council code-generation parser.
     /// </summary>
-    private readonly Regex taggedPlanPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilTaggedPlan);
+    private readonly Regex taggedPlanPattern = runtimePolicy.GetPattern("runtime.council.tagged-plan");
 
     /// <summary>
     /// Stores the database-backed fenced plan pattern used by the Council code-generation parser.
     /// </summary>
-    private readonly Regex fencedPlanPattern = runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilFencedPlan);
+    private readonly Regex fencedPlanPattern = runtimePolicy.GetPattern("runtime.council.fenced-plan");
 
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="CouncilCodeGenerationPlanService"/> while executing its surrounding workflow.
@@ -66,7 +66,7 @@ public sealed class CouncilCodeGenerationPlanService(
 
             foreach (var candidate in candidates.AsEnumerable().Reverse())
             {
-                if (string.IsNullOrWhiteSpace(candidate.Json) || candidate.Json.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilCodeGenerationMaximumEmbeddedPlanCharacters)))
+                if (string.IsNullOrWhiteSpace(candidate.Json) || candidate.Json.Length > Math.Max(1, runtimePolicy.GetInt("CouncilCodeGenerationMaximumEmbeddedPlanCharacters")))
                     continue;
 
                 try

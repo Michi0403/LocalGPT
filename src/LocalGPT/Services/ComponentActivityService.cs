@@ -230,7 +230,7 @@ public sealed class ComponentActivityService(
     public IReadOnlyList<ComponentActivitySnapshot> GetRecent(int take = 20) {
     try
     {
-        return entries.Reverse().Take(Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ComponentActivityCapacity)))).Reverse().ToList();
+        return entries.Reverse().Take(Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt("ComponentActivityCapacity")))).Reverse().ToList();
     }
     catch (Exception __serviceMethodException)
     {
@@ -304,7 +304,7 @@ public sealed class ComponentActivityService(
                 Normalize(summary, "Operational state changed."),
                 NormalizeRoute(route));
             entries.Enqueue(entry);
-            while (entries.Count > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ComponentActivityCapacity)) && entries.TryDequeue(out _))
+            while (entries.Count > Math.Max(1, runtimePolicy.GetInt("ComponentActivityCapacity")) && entries.TryDequeue(out _))
             {
             }
             logger.LogDebug(
@@ -338,7 +338,7 @@ public sealed class ComponentActivityService(
             var normalized = string.IsNullOrWhiteSpace(value)
                 ? fallback
                 : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
-            return normalized[..Math.Min(normalized.Length, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ComponentActivityMaximumSummaryCharacters)))];
+            return normalized[..Math.Min(normalized.Length, Math.Max(1, runtimePolicy.GetInt("ComponentActivityMaximumSummaryCharacters")))];
     
     }
     catch (Exception __serviceMethodException)

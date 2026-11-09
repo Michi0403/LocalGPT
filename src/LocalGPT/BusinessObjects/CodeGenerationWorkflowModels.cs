@@ -654,6 +654,12 @@ public sealed class CodeGenerationExecutionResult
     /// </summary>
     /// <value>The build status value exposed by <see cref="CodeGenerationExecutionResult"/>.</value>
     public string BuildStatus { get; set; } = string.Empty;
+    /// <summary>Gets or sets the compiler error lines of every failed build target, so a Council role can repair them.</summary>
+    /// <value>The bounded error lines per failed target; empty when every build passed or no build ran.</value>
+    public string BuildDiagnostics { get; set; } = string.Empty;
+    /// <summary>Gets or sets the child revision that now owns the generated workspace; the reviewed base revision is left unchanged.</summary>
+    /// <value>The generated child revision, or <see langword="null"/> when the review is not bound to a project revision.</value>
+    public Guid? GeneratedRevisionId { get; set; }
     /// <summary>
     /// Gets or sets the written files collection maintained or exposed by this code generation execution instance for downstream processing.
     /// </summary>
