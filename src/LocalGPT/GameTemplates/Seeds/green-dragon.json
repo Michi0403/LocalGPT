@@ -1,0 +1,598 @@
+{
+  "seedVersion": 1,
+  "project": {
+    "id": "6b1f0c2e-7000-4a00-9000-000000000003",
+    "name": "Green Dragon Runtime Story (system game)",
+    "purpose": "Text-template village story with choices, played by humans and the Green Dragon Council team. Scene text, choices and story lines are editable game content.",
+    "version": "7.0.0"
+  },
+  "profile": {
+    "gameKey": "green-dragon",
+    "displayName": "Green Dragon Runtime Story",
+    "viewKey": "text-template",
+    "viewParameters": {
+      "topBorder": "┌─┐",
+      "bottomBorder": "└─┘",
+      "paddingLine": "│",
+      "templateKey": "view.template"
+    },
+    "turnModelKey": "actions",
+    "mapGeneratorKey": "",
+    "mapParameters": {},
+    "autoplayKey": "action-cycle",
+    "autoplayParameters": {
+      "actions": [
+        "choice-1",
+        "move-forward",
+        "use",
+        "choice-2",
+        "turn-right",
+        "choice-3"
+      ]
+    },
+    "playerArchetypeKey": "villager",
+    "defaultTeamKey": "green-dragon-runtime-story",
+    "defaultControlMode": "Shared",
+    "directorMode": "Deterministic",
+    "creatureDirectorCount": 2,
+    "autoplayDelayMilliseconds": 1200,
+    "frameWidth": 80,
+    "frameHeight": 25,
+    "asciiColorMode": "TerminalDefault",
+    "defaultForegroundColor": 46,
+    "defaultBackgroundColor": 0
+  },
+  "stats": [],
+  "archetypes": [
+    {
+      "key": "villager",
+      "name": "Villager",
+      "role": "player",
+      "glyph": "@",
+      "behaviour": "",
+      "parameters": {
+        "startX": 4,
+        "startY": 4
+      }
+    }
+  ],
+  "actions": [
+    {
+      "key": "move-forward",
+      "name": "Move / choice up",
+      "keyboard": "W / ArrowUp",
+      "gamepad": "D-pad Up / Left stick up",
+      "primitive": "move-grid",
+      "parameters": {
+        "dy": -1,
+        "minY": 1
+      }
+    },
+    {
+      "key": "move-backward",
+      "name": "Move / choice down",
+      "keyboard": "S / ArrowDown",
+      "gamepad": "D-pad Down / Left stick down",
+      "primitive": "move-grid",
+      "parameters": {
+        "dy": 1,
+        "maxY": 8
+      }
+    },
+    {
+      "key": "turn-left",
+      "name": "Previous choice",
+      "keyboard": "A / ArrowLeft",
+      "gamepad": "D-pad Left",
+      "primitive": "turn",
+      "parameters": {
+        "direction": -1,
+        "piDivisor": 8
+      }
+    },
+    {
+      "key": "turn-right",
+      "name": "Next choice",
+      "keyboard": "D / ArrowRight",
+      "gamepad": "D-pad Right",
+      "primitive": "turn",
+      "parameters": {
+        "direction": 1,
+        "piDivisor": 8
+      }
+    },
+    {
+      "key": "use",
+      "name": "Confirm / interact",
+      "keyboard": "E / Enter",
+      "gamepad": "A",
+      "primitive": "set-text",
+      "parameters": {
+        "variable": "story",
+        "textKey": "story.use"
+      }
+    },
+    {
+      "key": "choice-1",
+      "name": "Choice 1",
+      "keyboard": "1",
+      "gamepad": "X",
+      "primitive": "set-text",
+      "parameters": {
+        "variable": "story",
+        "textKey": "story.choice-1"
+      }
+    },
+    {
+      "key": "choice-2",
+      "name": "Choice 2",
+      "keyboard": "2",
+      "gamepad": "Y",
+      "primitive": "set-text",
+      "parameters": {
+        "variable": "story",
+        "textKey": "story.choice-2"
+      }
+    },
+    {
+      "key": "choice-3",
+      "name": "Choice 3",
+      "keyboard": "3",
+      "gamepad": "B",
+      "primitive": "set-text",
+      "parameters": {
+        "variable": "story",
+        "textKey": "story.choice-3"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "key": "story-opening",
+      "trigger": "start",
+      "primitive": "set-variable",
+      "parameters": {
+        "variable": "story",
+        "textKey": "story.start"
+      }
+    },
+    {
+      "key": "style-borders",
+      "trigger": "style",
+      "primitive": "character-style",
+      "parameters": {
+        "characters": "┌┐└┘─│╭╮╰╯═║#+",
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 22,
+          "dim": true
+        }
+      }
+    },
+    {
+      "key": "style-title-line",
+      "trigger": "style",
+      "primitive": "line-style",
+      "parameters": {
+        "rows": [
+          0
+        ],
+        "containsAny": [
+          "DOOM",
+          "GREEN DRAGON",
+          "KERNEL CREATURE"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 51,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-health",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "HP",
+          "HEALTH"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 46,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-ammo",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "AMMO"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 226,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-exit",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "EXIT",
+          "EXTRACTION"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 45
+        }
+      }
+    },
+    {
+      "key": "style-danger",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "ENEMY",
+          "MONSTER"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 196,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-champion",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "CHAMPION"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 226,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-round",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "ROUND"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 201,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-versus",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "VS"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 196,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-choices",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "[1]",
+          "[2]",
+          "[3]"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 45
+        }
+      }
+    },
+    {
+      "key": "style-dragon",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "DRAGON"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 40,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "director-creatures",
+      "trigger": "director.prediction",
+      "primitive": "director-prediction",
+      "parameters": {
+        "directorKey": "creature-council",
+        "actorKind": "Creature",
+        "runtimeClassKey": "games.ascii.doom.creature",
+        "confidencePercent": 70,
+        "triggerActions": [
+          "shoot",
+          "use"
+        ],
+        "triggeredTextKey": "director.creature.triggered",
+        "idleTextKey": "director.creature.idle",
+        "councilRole": "World Actor",
+        "assignmentGroup": "ascii-doom-actors",
+        "generatedActors": {
+          "countFromCreatureDirectors": true,
+          "instanceKeyTemplate": "creature-{index}",
+          "archetypes": [
+            "patrol",
+            "hunter"
+          ],
+          "slotTemplate": "world-actor-{index}"
+        }
+      }
+    },
+    {
+      "key": "director-objects",
+      "trigger": "director.prediction",
+      "primitive": "director-prediction",
+      "parameters": {
+        "directorKey": "reactive-object-council",
+        "actorKind": "ReactiveObject",
+        "runtimeClassKey": "games.ascii.doom.reactive-object",
+        "confidencePercent": 75,
+        "triggerActions": [
+          "use"
+        ],
+        "triggeredTextKey": "director.object.triggered",
+        "idleTextKey": "director.object.idle",
+        "councilRole": "World Actor",
+        "assignmentGroup": "ascii-doom-actors",
+        "fixedActors": [
+          {
+            "instanceKey": "reactive-door-1",
+            "archetype": "door",
+            "slot": "world-object-1"
+          },
+          {
+            "instanceKey": "reactive-trigger-1",
+            "archetype": "trigger",
+            "slot": "world-object-2"
+          }
+        ]
+      }
+    }
+  ],
+  "levels": [],
+  "texts": {
+    "director.creature.triggered": "{count} configured creature director(s) may investigate the sound during the resolved world step.",
+    "director.creature.idle": "{count} configured creature director(s) may keep patrol state or approach only when line-of-sight rules permit.",
+    "director.object.triggered": "The nearest eligible door, switch or pickup may react after range and state checks.",
+    "director.object.idle": "Reactive objects remain unchanged unless movement enters a trigger volume.",
+    "launcher.label": "Play Green Dragon story",
+    "launcher.order": "20",
+    "view.template": [
+      "│                         THE LANTERN VILLAGE                                 │",
+      "│                                                                            │",
+      "│        /\\                  [OLD GATE]                    /\\              │",
+      "│       /  \\        * lanterns *                         /  \\             │",
+      "│      / INN\\        .-.-.-.-.-.                       /SHOP\\            │",
+      "│      |____|---------'         '-----------------------|____|             │",
+      "│           \\                    @ player                 /                 │",
+      "│            \\____________________.______________________/                  │",
+      "│                                 |                                          │",
+      "│                              FOREST PATH                                    │",
+      "│                                 |                                          │",
+      "│                            {green woods}                                    │",
+      "│                                                                            │",
+      "│  {var.story}",
+      "│                                                                            │",
+      "│  1 Accept the lantern   2 Ask the villagers   3 Rest by the hearth       │",
+      "│  W/S move  A/D choose  E/Enter confirm  1/2/3 direct choice              │",
+      "│                                                                            │",
+      "│  TURN {turn:000}  PLAYER {player.x:00},{player.y:00}  LAST {lastAction}",
+      "│                                                                            │",
+      "│  Runtime story example inspired by open-source text-RPG architecture;      │",
+      "│  original scene and content, not affiliated with LOTGD.                    │"
+    ],
+    "story.start": "A bell rings once. The village waits for your choice.",
+    "story.use": "The innkeeper nods and points toward the moonlit forest path.",
+    "story.choice-1": "You accept the lantern and prepare for the forest path.",
+    "story.choice-2": "You ask the villagers what they heard beyond the old gate.",
+    "story.choice-3": "You rest by the hearth while the Story Director advances the world.",
+    "touch.turn-left": "Aim ◁",
+    "touch.turn-right": "Aim ▷",
+    "touch.use": "Use",
+    "touch.use.slot": "primary"
+  },
+  "aliases": [
+    {
+      "kind": "axis",
+      "alias": "up",
+      "target": "move-forward"
+    },
+    {
+      "kind": "axis",
+      "alias": "down",
+      "target": "move-backward"
+    },
+    {
+      "kind": "axis",
+      "alias": "left",
+      "target": "turn-left"
+    },
+    {
+      "kind": "axis",
+      "alias": "right",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "forward",
+      "target": "move-forward"
+    },
+    {
+      "kind": "action",
+      "alias": "up",
+      "target": "move-forward"
+    },
+    {
+      "kind": "action",
+      "alias": "w",
+      "target": "move-forward"
+    },
+    {
+      "kind": "action",
+      "alias": "back",
+      "target": "move-backward"
+    },
+    {
+      "kind": "action",
+      "alias": "backward",
+      "target": "move-backward"
+    },
+    {
+      "kind": "action",
+      "alias": "down",
+      "target": "move-backward"
+    },
+    {
+      "kind": "action",
+      "alias": "s",
+      "target": "move-backward"
+    },
+    {
+      "kind": "action",
+      "alias": "left",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "a",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "look-left",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "aim-left",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "rotate-left",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "q",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "right",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "d",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "look-right",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "aim-right",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "rotate-right",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "r",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "interact",
+      "target": "use"
+    },
+    {
+      "kind": "action",
+      "alias": "enter",
+      "target": "use"
+    },
+    {
+      "kind": "action",
+      "alias": "e",
+      "target": "use"
+    },
+    {
+      "kind": "action",
+      "alias": "1",
+      "target": "choice-1"
+    },
+    {
+      "kind": "action",
+      "alias": "2",
+      "target": "choice-2"
+    },
+    {
+      "kind": "action",
+      "alias": "3",
+      "target": "choice-3"
+    },
+    {
+      "kind": "game",
+      "alias": "dragon",
+      "target": "green-dragon"
+    },
+    {
+      "kind": "game",
+      "alias": "lotgd",
+      "target": "green-dragon"
+    },
+    {
+      "kind": "game",
+      "alias": "green-dragon-runtime-story",
+      "target": "green-dragon"
+    },
+    {
+      "kind": "runtime-class-prefix",
+      "alias": "games.green-dragon.",
+      "target": "green-dragon"
+    }
+  ]
+}

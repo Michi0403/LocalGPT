@@ -1,0 +1,899 @@
+{
+  "seedVersion": 1,
+  "project": {
+    "id": "6b1f0c2e-7000-4a00-9000-000000000001",
+    "name": "ASCII Arena (system game)",
+    "purpose": "Single-arena first-person ASCII corridor game and the default rules template of new game projects. Edit its rows to change the template; copy it to build your own game.",
+    "version": "7.0.0"
+  },
+  "profile": {
+    "gameKey": "ascii-arena",
+    "displayName": "ASCII corridor arena",
+    "viewKey": "first-person-raycast",
+    "viewParameters": {
+      "hudRows": [
+        {
+          "text": "hud.status",
+          "noLevelsText": "hud.status.single"
+        },
+        {
+          "text": "hud.vitals"
+        },
+        {
+          "text": "hud.message"
+        },
+        {
+          "text": "hud.controls"
+        }
+      ],
+      "fieldOfViewPiDivisor": 3,
+      "rayStep": 0.05,
+      "maximumDistance": 20,
+      "wallScale": 0.82,
+      "duckVariable": "duck",
+      "duckOffset": 2,
+      "ceilingGlyph": ".",
+      "wallBands": [
+        {
+          "below": 2.2,
+          "modulo": 2,
+          "glyphs": "█▓"
+        },
+        {
+          "below": 4.2,
+          "modulo": 3,
+          "glyphs": "▓▒"
+        },
+        {
+          "below": 7.5,
+          "glyphs": "▒"
+        },
+        {
+          "glyphs": "░"
+        }
+      ],
+      "floorBands": [
+        {
+          "modulo": 5,
+          "glyph": ":"
+        },
+        {
+          "modulo": 2,
+          "glyph": "."
+        },
+        {
+          "glyph": " "
+        }
+      ],
+      "spriteRoles": [
+        "enemy"
+      ],
+      "sprite": {
+        "scale": 0.8,
+        "minimumWidth": 3,
+        "maximumWidth": 9,
+        "topEdge": "^",
+        "edge": "#",
+        "fallbackGlyph": "M"
+      },
+      "radar": {
+        "width": 15,
+        "height": 9,
+        "top": 1,
+        "corner": "+",
+        "horizontal": "-",
+        "vertical": "|",
+        "wallGlyph": "#",
+        "floorGlyph": ".",
+        "playerGlyph": "@",
+        "fallbackGlyph": "M"
+      },
+      "crosshair": {
+        "flashVariable": "flash",
+        "glyph": "+",
+        "flashGlyph": "*",
+        "horizontal": "-",
+        "vertical": "|"
+      },
+      "separator": "═"
+    },
+    "turnModelKey": "actions",
+    "mapGeneratorKey": "fixed-rooms-arena",
+    "mapParameters": {
+      "wallGlyph": "#",
+      "floorGlyph": ".",
+      "width": 32,
+      "height": 20,
+      "firstRoom": {
+        "x": 1,
+        "y": 1,
+        "width": 8,
+        "height": 6,
+        "centerX": 6,
+        "centerY": 3
+      },
+      "additionalRooms": 5,
+      "roomWidth": {
+        "min": 5,
+        "maxExclusive": 9
+      },
+      "roomHeight": {
+        "min": 4,
+        "maxExclusive": 7
+      },
+      "roomXMin": 10,
+      "roomXMaxFloor": 11,
+      "roomYMin": 1,
+      "roomYMaxFloor": 2,
+      "player": {
+        "x": 3,
+        "y": 3
+      },
+      "goalMarker": "goal",
+      "goalGlyph": "X",
+      "spawns": [
+        {
+          "archetype": "grunt-alpha",
+          "key": "grunt-alpha",
+          "name": "Grunt Alpha",
+          "x": 6,
+          "y": 3
+        },
+        {
+          "archetype": "grunt",
+          "key": "grunt-beta",
+          "name": "Grunt Beta",
+          "center": 1
+        },
+        {
+          "archetype": "grunt",
+          "key": "grunt-gamma",
+          "name": "Grunt Gamma",
+          "center": 2
+        },
+        {
+          "archetype": "brute",
+          "key": "brute-delta",
+          "name": "Brute Delta",
+          "center": 3
+        }
+      ],
+      "startTextKey": "arena.start",
+      "startScenarioTextKey": "arena.start.scenario"
+    },
+    "autoplayKey": "hunt-and-extract",
+    "autoplayParameters": {
+      "actions": {
+        "shoot": "shoot",
+        "turnLeft": "turn-left",
+        "turnRight": "turn-right",
+        "use": "use",
+        "forward": "move-forward",
+        "backward": "move-backward"
+      },
+      "aimPiDivisor": 24,
+      "range": 14,
+      "ammoStat": "ammo",
+      "targetRole": "enemy",
+      "goalMarker": "goal"
+    },
+    "playerArchetypeKey": "marine",
+    "defaultTeamKey": "",
+    "defaultControlMode": "Shared",
+    "directorMode": "Deterministic",
+    "creatureDirectorCount": 2,
+    "autoplayDelayMilliseconds": 1200,
+    "frameWidth": 80,
+    "frameHeight": 25,
+    "asciiColorMode": "TerminalDefault",
+    "defaultForegroundColor": 46,
+    "defaultBackgroundColor": 0
+  },
+  "stats": [
+    {
+      "key": "health",
+      "name": "Health",
+      "min": 0,
+      "max": 100,
+      "initial": 100
+    },
+    {
+      "key": "ammo",
+      "name": "Ammunition",
+      "min": 0,
+      "max": 99,
+      "initial": 24
+    }
+  ],
+  "archetypes": [
+    {
+      "key": "marine",
+      "name": "Player",
+      "role": "player",
+      "glyph": "@",
+      "behaviour": "",
+      "parameters": {
+        "startX": 3,
+        "startY": 3
+      }
+    },
+    {
+      "key": "grunt-alpha",
+      "name": "Grunt Alpha",
+      "role": "enemy",
+      "glyph": "M",
+      "behaviour": "chase",
+      "parameters": {
+        "nameTemplate": "Grunt Alpha",
+        "stats": {
+          "health": 75,
+          "contact-damage": 7
+        }
+      }
+    },
+    {
+      "key": "grunt",
+      "name": "Grunt",
+      "role": "enemy",
+      "glyph": "G",
+      "behaviour": "chase",
+      "parameters": {
+        "nameTemplate": "Grunt {number:00}",
+        "stats": {
+          "health": 90,
+          "contact-damage": 6
+        }
+      }
+    },
+    {
+      "key": "brute",
+      "name": "Brute",
+      "role": "enemy",
+      "glyph": "B",
+      "behaviour": "chase",
+      "parameters": {
+        "nameTemplate": "Brute {number:00}",
+        "stats": {
+          "health": 140,
+          "contact-damage": 9
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "key": "move-forward",
+      "name": "Move forward",
+      "keyboard": "W / ArrowUp",
+      "gamepad": "Left stick up / D-pad Up",
+      "primitive": "move-relative",
+      "parameters": {
+        "blockingRole": "enemy",
+        "goalTrigger": "goal",
+        "blockedKey": "move.blocked",
+        "movedKey": "move.moved",
+        "sign": 1
+      }
+    },
+    {
+      "key": "move-backward",
+      "name": "Move backward",
+      "keyboard": "S / ArrowDown",
+      "gamepad": "Left stick down / D-pad Down",
+      "primitive": "move-relative",
+      "parameters": {
+        "blockingRole": "enemy",
+        "goalTrigger": "goal",
+        "blockedKey": "move.blocked",
+        "movedKey": "move.moved",
+        "sign": -1
+      }
+    },
+    {
+      "key": "strafe-left",
+      "name": "Strafe left",
+      "keyboard": "A",
+      "gamepad": "Left stick left",
+      "primitive": "move-relative",
+      "parameters": {
+        "blockingRole": "enemy",
+        "goalTrigger": "goal",
+        "blockedKey": "move.blocked",
+        "movedKey": "move.moved",
+        "sign": 1,
+        "offsetSign": -1,
+        "offsetPiDivisor": 2
+      }
+    },
+    {
+      "key": "strafe-right",
+      "name": "Strafe right",
+      "keyboard": "D",
+      "gamepad": "Left stick right",
+      "primitive": "move-relative",
+      "parameters": {
+        "blockingRole": "enemy",
+        "goalTrigger": "goal",
+        "blockedKey": "move.blocked",
+        "movedKey": "move.moved",
+        "sign": 1,
+        "offsetSign": 1,
+        "offsetPiDivisor": 2
+      }
+    },
+    {
+      "key": "turn-left",
+      "name": "Turn / aim left",
+      "keyboard": "Q / ArrowLeft",
+      "gamepad": "Right stick left / D-pad Left",
+      "primitive": "turn",
+      "parameters": {
+        "direction": -1,
+        "piDivisor": 12,
+        "messageKey": "turn.left"
+      }
+    },
+    {
+      "key": "turn-right",
+      "name": "Turn / aim right",
+      "keyboard": "R / ArrowRight",
+      "gamepad": "Right stick right / D-pad Right",
+      "primitive": "turn",
+      "parameters": {
+        "direction": 1,
+        "piDivisor": 12,
+        "messageKey": "turn.right"
+      }
+    },
+    {
+      "key": "shoot",
+      "name": "Shoot along the current x/y facing ray",
+      "keyboard": "Space",
+      "gamepad": "Right trigger",
+      "primitive": "hitscan",
+      "parameters": {
+        "ammoStat": "ammo",
+        "healthStat": "health",
+        "targetRole": "enemy",
+        "damage": 50,
+        "range": 14,
+        "minimumCone": 0.045,
+        "coneHalfWidth": 0.55,
+        "flashVariable": "flash",
+        "flashTurns": 2,
+        "missKey": "shot.miss",
+        "hitKey": "shot.hit",
+        "downKey": "shot.down",
+        "emptyKey": "shot.empty"
+      }
+    },
+    {
+      "key": "duck",
+      "name": "Duck / stand",
+      "keyboard": "Ctrl / C",
+      "gamepad": "B",
+      "primitive": "toggle-flag",
+      "parameters": {
+        "variable": "duck",
+        "onKey": "stance.duck",
+        "offKey": "stance.stand"
+      }
+    },
+    {
+      "key": "use",
+      "name": "Use door / switch",
+      "keyboard": "E / Enter",
+      "gamepad": "A",
+      "primitive": "use-marker",
+      "parameters": {
+        "pulseVariable": "use-pulse",
+        "pulseTurns": 2,
+        "goalTrigger": "goal",
+        "lockedRole": "enemy",
+        "lockedKey": "use.locked",
+        "openKey": "use.open"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "key": "clear-move-block",
+      "trigger": "before-action",
+      "primitive": "clear-move-block",
+      "parameters": {}
+    },
+    {
+      "key": "normalize-facing",
+      "trigger": "after-action",
+      "primitive": "normalize-facing",
+      "parameters": {}
+    },
+    {
+      "key": "decay-muzzle-flash",
+      "trigger": "after-action",
+      "primitive": "decay-variable",
+      "parameters": {
+        "variable": "flash"
+      }
+    },
+    {
+      "key": "decay-use-pulse",
+      "trigger": "after-action",
+      "primitive": "decay-variable",
+      "parameters": {
+        "variable": "use-pulse"
+      }
+    },
+    {
+      "key": "hostiles-chase",
+      "trigger": "world-step",
+      "primitive": "chase-and-contact",
+      "parameters": {
+        "role": "enemy",
+        "healthStat": "health",
+        "damageStat": "contact-damage",
+        "goalTrigger": "goal",
+        "keepMessageContaining": "EXTRACTION",
+        "clearKey": "world.clear",
+        "hitKey": "world.contact-hit",
+        "incomingKey": "world.incoming",
+        "defeatOwnerKey": "outcome.defeat.owner",
+        "defeatReasonKey": "outcome.defeat.reason",
+        "defeatMessageKey": "outcome.defeat.message"
+      }
+    },
+    {
+      "key": "extraction-goal",
+      "trigger": "goal",
+      "primitive": "marker-goal",
+      "parameters": {
+        "clearRole": "enemy",
+        "marker": "goal",
+        "usesLevels": false
+      }
+    },
+    {
+      "key": "style-borders",
+      "trigger": "style",
+      "primitive": "character-style",
+      "parameters": {
+        "characters": "┌┐└┘─│╭╮╰╯═║#+",
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 22,
+          "dim": true
+        }
+      }
+    },
+    {
+      "key": "style-title-line",
+      "trigger": "style",
+      "primitive": "line-style",
+      "parameters": {
+        "rows": [
+          0
+        ],
+        "containsAny": [
+          "DOOM",
+          "GREEN DRAGON",
+          "KERNEL CREATURE"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 51,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-health",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "HP",
+          "HEALTH"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 46,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-ammo",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "AMMO"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 226,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-exit",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "EXIT",
+          "EXTRACTION"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 45
+        }
+      }
+    },
+    {
+      "key": "style-danger",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "ENEMY",
+          "MONSTER"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 196,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-champion",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "CHAMPION"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 226,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-round",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "ROUND"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 201,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-versus",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "VS"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 196,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-choices",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "[1]",
+          "[2]",
+          "[3]"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 45
+        }
+      }
+    },
+    {
+      "key": "style-hostile-glyphs",
+      "trigger": "style",
+      "primitive": "character-style",
+      "parameters": {
+        "characters": "MZE",
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 196,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-player-glyph",
+      "trigger": "style",
+      "primitive": "character-style",
+      "parameters": {
+        "characters": "@",
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 226,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "director-creatures",
+      "trigger": "director.prediction",
+      "primitive": "director-prediction",
+      "parameters": {
+        "directorKey": "creature-council",
+        "actorKind": "Creature",
+        "runtimeClassKey": "games.ascii.doom.creature",
+        "confidencePercent": 70,
+        "triggerActions": [
+          "shoot",
+          "use"
+        ],
+        "triggeredTextKey": "director.creature.triggered",
+        "idleTextKey": "director.creature.idle",
+        "councilRole": "World Actor",
+        "assignmentGroup": "ascii-doom-actors",
+        "generatedActors": {
+          "countFromCreatureDirectors": true,
+          "instanceKeyTemplate": "creature-{index}",
+          "archetypes": [
+            "patrol",
+            "hunter"
+          ],
+          "slotTemplate": "world-actor-{index}"
+        }
+      }
+    },
+    {
+      "key": "director-objects",
+      "trigger": "director.prediction",
+      "primitive": "director-prediction",
+      "parameters": {
+        "directorKey": "reactive-object-council",
+        "actorKind": "ReactiveObject",
+        "runtimeClassKey": "games.ascii.doom.reactive-object",
+        "confidencePercent": 75,
+        "triggerActions": [
+          "use"
+        ],
+        "triggeredTextKey": "director.object.triggered",
+        "idleTextKey": "director.object.idle",
+        "councilRole": "World Actor",
+        "assignmentGroup": "ascii-doom-actors",
+        "fixedActors": [
+          {
+            "instanceKey": "reactive-door-1",
+            "archetype": "door",
+            "slot": "world-object-1"
+          },
+          {
+            "instanceKey": "reactive-trigger-1",
+            "archetype": "trigger",
+            "slot": "world-object-2"
+          }
+        ]
+      }
+    }
+  ],
+  "levels": [],
+  "texts": {
+    "hud.status": " ASCII CORRIDOR // LEVEL {level:00}/{levelCount:00} // DIFF {difficulty}/10 // TURN {turn:000} // {compass,3} // {flag.duck}",
+    "hud.status.single": " ASCII CORRIDOR // TURN {turn:000} // {compass,3} // {flag.duck}",
+    "hud.vitals": " HP {stat.health:000}  AMMO {stat.ammo:000}  ENEMIES {alive.enemy:00}  POS {player.x:00},{player.y:00}  X {marker.goal.x:00},{marker.goal.y:00}",
+    "hud.message": " {message}",
+    "hud.controls": " W/S move  A/D strafe  Q/R turn  SPACE shoot  CTRL duck  E use  F fullscreen",
+    "flag.duck.on": "DUCK",
+    "flag.duck.off": "STAND",
+    "turn.left": "TURN: scanning left.",
+    "turn.right": "TURN: scanning right.",
+    "stance.duck": "STANCE: ducking.",
+    "stance.stand": "STANCE: standing.",
+    "shot.empty": "CLICK: no ammunition remains.",
+    "shot.miss": "SHOT: no hostile intersected the crosshair ray.",
+    "shot.hit": "HIT: {target} took {damage}; {health}/{maximum} HP remains.",
+    "shot.down": "DOWN: {target} eliminated.",
+    "use.locked": "USE: extraction remains locked while hostiles are active.",
+    "use.open": "USE: reach X at {marker.goal.x:00},{marker.goal.y:00}.",
+    "move.blocked": "BLOCKED: {x:00},{y:00} is not traversable. Replan before moving again.",
+    "move.moved": "MOVE: position {x:00},{y:00}.",
+    "world.clear": "AREA CLEAR: reach extraction X at {marker.goal.x:00},{marker.goal.y:00}.",
+    "world.contact-hit": "{attacker} hit -{damage} HP",
+    "world.incoming": "{message}  INCOMING: {hits}.",
+    "outcome.defeat.owner": "Game Over",
+    "outcome.defeat.reason": "The player was defeated. Start a new corridor session to play again.",
+    "outcome.defeat.message": "DEFEAT: hostile contact reduced HP to zero.",
+    "goal.complete.owner": "Mission Complete",
+    "goal.complete.single.reason": "Extraction reached after all hostiles were cleared.",
+    "goal.complete.single.message": "EXTRACTION COMPLETE: arena clear.",
+    "goal.complete.campaign.reason": "Campaign complete after clearing {levelCount} configured level(s).",
+    "goal.complete.campaign.message": "CAMPAIGN COMPLETE: {levelCount} configured level(s) cleared.",
+    "touch.turn-left": "Aim ◁",
+    "touch.turn-right": "Aim ▷",
+    "touch.shoot": "Shoot",
+    "touch.shoot.slot": "primary",
+    "touch.duck": "Duck",
+    "touch.use": "Use",
+    "touch.use.slot": "primary",
+    "director.creature.triggered": "{count} configured creature director(s) may investigate the sound during the resolved world step.",
+    "director.creature.idle": "{count} configured creature director(s) may keep patrol state or approach only when line-of-sight rules permit.",
+    "director.object.triggered": "The nearest eligible door, switch or pickup may react after range and state checks.",
+    "director.object.idle": "Reactive objects remain unchanged unless movement enters a trigger volume.",
+    "arena.start": "CONTACT: Grunt Alpha is directly ahead. Clear hostiles, then reach X extraction.",
+    "arena.start.scenario": "SCENARIO: {scenario} · Clear hostiles, then reach X extraction."
+  },
+  "aliases": [
+    {
+      "kind": "axis",
+      "alias": "up",
+      "target": "move-forward"
+    },
+    {
+      "kind": "axis",
+      "alias": "down",
+      "target": "move-backward"
+    },
+    {
+      "kind": "axis",
+      "alias": "left",
+      "target": "strafe-left"
+    },
+    {
+      "kind": "axis",
+      "alias": "right",
+      "target": "strafe-right"
+    },
+    {
+      "kind": "action",
+      "alias": "forward",
+      "target": "move-forward"
+    },
+    {
+      "kind": "action",
+      "alias": "up",
+      "target": "move-forward"
+    },
+    {
+      "kind": "action",
+      "alias": "w",
+      "target": "move-forward"
+    },
+    {
+      "kind": "action",
+      "alias": "back",
+      "target": "move-backward"
+    },
+    {
+      "kind": "action",
+      "alias": "backward",
+      "target": "move-backward"
+    },
+    {
+      "kind": "action",
+      "alias": "down",
+      "target": "move-backward"
+    },
+    {
+      "kind": "action",
+      "alias": "s",
+      "target": "move-backward"
+    },
+    {
+      "kind": "action",
+      "alias": "left",
+      "target": "strafe-left"
+    },
+    {
+      "kind": "action",
+      "alias": "a",
+      "target": "strafe-left"
+    },
+    {
+      "kind": "action",
+      "alias": "right",
+      "target": "strafe-right"
+    },
+    {
+      "kind": "action",
+      "alias": "d",
+      "target": "strafe-right"
+    },
+    {
+      "kind": "action",
+      "alias": "look-left",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "aim-left",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "rotate-left",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "q",
+      "target": "turn-left"
+    },
+    {
+      "kind": "action",
+      "alias": "look-right",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "aim-right",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "rotate-right",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "r",
+      "target": "turn-right"
+    },
+    {
+      "kind": "action",
+      "alias": "fire",
+      "target": "shoot"
+    },
+    {
+      "kind": "action",
+      "alias": "attack",
+      "target": "shoot"
+    },
+    {
+      "kind": "action",
+      "alias": "space",
+      "target": "shoot"
+    },
+    {
+      "kind": "action",
+      "alias": "crouch",
+      "target": "duck"
+    },
+    {
+      "kind": "action",
+      "alias": "ctrl",
+      "target": "duck"
+    },
+    {
+      "kind": "action",
+      "alias": "interact",
+      "target": "use"
+    },
+    {
+      "kind": "action",
+      "alias": "enter",
+      "target": "use"
+    },
+    {
+      "kind": "action",
+      "alias": "e",
+      "target": "use"
+    }
+  ]
+}

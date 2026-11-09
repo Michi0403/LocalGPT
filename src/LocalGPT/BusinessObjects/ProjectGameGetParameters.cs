@@ -1,0 +1,12 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
+namespace LocalGPT.BusinessObjects;
+
+/// <summary>Wraps the project identifier used by the read-only project.game.get DX function.</summary>
+public sealed class ProjectGameGetParameters
+{
+    /// <summary>Identifies the Game project whose latest approved build should be read.</summary>
+    /// <value>The owning project identifier.</value>
+    public Guid ProjectId { get; set; }
+}

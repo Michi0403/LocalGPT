@@ -1,0 +1,1782 @@
+{
+  "seedVersion": 1,
+  "project": {
+    "id": "6b1f0c2e-7000-4a00-9000-000000000004",
+    "name": "Kernel Creature Tournament (system game)",
+    "purpose": "Council-driven single-elimination team duel: trainers and creatures are Council roles, the game engine resolves every exchange from their bounded answers. Moves, actions, storyboard frames, rigs, palette and texts are editable game content.",
+    "version": "7.0.0"
+  },
+  "profile": {
+    "gameKey": "kernel-creature-tournament",
+    "displayName": "Kernel Creature Tournament",
+    "viewKey": "duel-stage",
+    "viewParameters": {
+      "battleMinimumWidth": 72,
+      "battleMinimumHeight": 26,
+      "classicBorderGlyphs": "-=~",
+      "palette": {
+        "sky": [
+          111,
+          117,
+          153
+        ],
+        "grassNear": 150,
+        "grassFar": 114,
+        "fieldInk": 16,
+        "titleForeground": 226,
+        "titleBackground": 17,
+        "hud": 159,
+        "centerEffect": 196,
+        "crown": 220,
+        "platformTop": 108,
+        "platformBottom": 65,
+        "faintBody": 245,
+        "faintOutline": 238,
+        "flash": 231,
+        "silhouetteRim": 240,
+        "silhouetteCore": 244,
+        "silhouetteMark": 231,
+        "noSpriteLabel": 88,
+        "infoPaper": 230,
+        "infoInk": 16,
+        "infoFrame": 238,
+        "species": 241,
+        "healthLabel": 208,
+        "barHigh": 40,
+        "barMiddle": 220,
+        "barLow": 196,
+        "barEmpty": 240,
+        "barTrack": 236,
+        "rosterFainted": 245,
+        "rosterActive": 160,
+        "rosterBench": 203,
+        "switches": 241,
+        "ownerLabel": 24,
+        "messageBackground": 17,
+        "messageBorder": 75,
+        "messageBody": 231,
+        "messageFooter": 189,
+        "leftStatement": 159,
+        "rightStatement": 223,
+        "timelineRecent": 103,
+        "timelinePrevious": 60,
+        "panelBackground": 18,
+        "panelBorder": 214,
+        "panelTitle": 214,
+        "panelOwner": 230,
+        "panelAction": 189,
+        "panelFooter": 103,
+        "messageFill": 231
+      },
+      "sprite": {
+        "poseOffsets": {
+          "attack": {
+            "dx": 3
+          },
+          "hit": {
+            "dx": -2
+          },
+          "victory": {
+            "dy": -1
+          }
+        },
+        "faintedDy": 1,
+        "flashPose": "hit",
+        "pixelLegend": "#+-*o",
+        "defaultPalette": [
+          16,
+          75,
+          25,
+          220,
+          231
+        ],
+        "flashLegend": "+-*",
+        "faintLegend": {
+          "#": 238,
+          "o": 250
+        },
+        "emptyPixel": ".",
+        "asciiOutlineGlyphs": "/\\|_()[]{}<>",
+        "mirrorPairs": "/\\()<>[]{}"
+      }
+    },
+    "turnModelKey": "council",
+    "mapGeneratorKey": "",
+    "mapParameters": {},
+    "autoplayKey": "",
+    "autoplayParameters": {},
+    "playerArchetypeKey": "",
+    "defaultTeamKey": "kernel-creature-tournament",
+    "defaultControlMode": "Shared",
+    "directorMode": "Deterministic",
+    "creatureDirectorCount": 2,
+    "autoplayDelayMilliseconds": 1200,
+    "frameWidth": 168,
+    "frameHeight": 44,
+    "asciiColorMode": "TerminalDefault",
+    "defaultForegroundColor": 46,
+    "defaultBackgroundColor": 0
+  },
+  "stats": [],
+  "archetypes": [
+    {
+      "key": "trainer",
+      "name": "Creature Trainer",
+      "role": "owner",
+      "glyph": "T",
+      "behaviour": "council-role",
+      "parameters": {
+        "rig": {
+          "rigKeyPrefix": "trainer",
+          "width": 17,
+          "height": 7,
+          "hashIncludesDescriptor": false,
+          "headGlyphs": "oO@0",
+          "torsoGlyphs": "*+#=",
+          "joints": [
+            {
+              "name": "head",
+              "x": 8,
+              "y": 0
+            },
+            {
+              "name": "neck",
+              "x": 8,
+              "y": 1
+            },
+            {
+              "name": "leftElbow",
+              "x": 5,
+              "y": 2
+            },
+            {
+              "name": "leftHand",
+              "x": 2,
+              "y": 3
+            },
+            {
+              "name": "torso",
+              "x": 8,
+              "y": 3
+            },
+            {
+              "name": "rightElbow",
+              "x": 11,
+              "y": 2
+            },
+            {
+              "name": "rightHand",
+              "x": 14,
+              "y": 3
+            },
+            {
+              "name": "hip",
+              "x": 8,
+              "y": 4
+            },
+            {
+              "name": "leftKnee",
+              "x": 6,
+              "y": 5
+            },
+            {
+              "name": "rightKnee",
+              "x": 10,
+              "y": 5
+            },
+            {
+              "name": "leftFoot",
+              "x": 4,
+              "y": 6
+            },
+            {
+              "name": "rightFoot",
+              "x": 12,
+              "y": 6
+            }
+          ],
+          "poses": {
+            "attack": [
+              {
+                "joint": "rightHand",
+                "dx": 2,
+                "dy": 0
+              },
+              {
+                "joint": "leftHand",
+                "dx": 1,
+                "dy": -1
+              }
+            ],
+            "guard": [
+              {
+                "joint": "rightHand",
+                "dx": -1,
+                "dy": -1
+              },
+              {
+                "joint": "leftHand",
+                "dx": -1,
+                "dy": 0
+              }
+            ],
+            "recover": [
+              {
+                "joint": "rightHand",
+                "dx": 0,
+                "dy": -1
+              },
+              {
+                "joint": "leftHand",
+                "dx": 0,
+                "dy": -1
+              }
+            ],
+            "hit": [
+              {
+                "joint": "head",
+                "dx": -1,
+                "dy": 1
+              },
+              {
+                "joint": "torso",
+                "dx": -1,
+                "dy": 0
+              }
+            ],
+            "victory": [
+              {
+                "joint": "rightHand",
+                "dx": 0,
+                "dy": -1
+              },
+              {
+                "joint": "leftHand",
+                "dx": 0,
+                "dy": -1
+              }
+            ],
+            "command": [
+              {
+                "joint": "rightHand",
+                "dx": 1,
+                "dy": -1
+              }
+            ]
+          },
+          "links": [
+            {
+              "from": "head",
+              "to": "neck"
+            },
+            {
+              "from": "neck",
+              "to": "torso"
+            },
+            {
+              "from": "torso",
+              "to": "leftElbow"
+            },
+            {
+              "from": "leftElbow",
+              "to": "leftHand"
+            },
+            {
+              "from": "torso",
+              "to": "rightElbow"
+            },
+            {
+              "from": "rightElbow",
+              "to": "rightHand"
+            },
+            {
+              "from": "torso",
+              "to": "hip"
+            },
+            {
+              "from": "hip",
+              "to": "leftKnee"
+            },
+            {
+              "from": "leftKnee",
+              "to": "leftFoot"
+            },
+            {
+              "from": "hip",
+              "to": "rightKnee"
+            },
+            {
+              "from": "rightKnee",
+              "to": "rightFoot"
+            }
+          ],
+          "markers": [
+            {
+              "joint": "head",
+              "glyph": "@head"
+            },
+            {
+              "joint": "torso",
+              "glyph": "@torso"
+            },
+            {
+              "joint": "leftHand",
+              "glyph": "o"
+            },
+            {
+              "joint": "rightHand",
+              "glyph": "o"
+            },
+            {
+              "joint": "leftFoot",
+              "glyph": "/"
+            },
+            {
+              "joint": "rightFoot",
+              "glyph": "\\"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "key": "creature",
+      "name": "Kernel Creature",
+      "role": "member",
+      "glyph": "C",
+      "behaviour": "council-role",
+      "parameters": {
+        "rig": {
+          "rigKeyPrefix": "creature",
+          "width": 23,
+          "height": 7,
+          "hashIncludesDescriptor": true,
+          "headKeywords": [
+            {
+              "words": [
+                "robot",
+                "mech"
+              ],
+              "glyph": "O"
+            },
+            {
+              "words": [
+                "slime",
+                "blob"
+              ],
+              "glyph": "o"
+            },
+            {
+              "words": [
+                "dragon",
+                "wing"
+              ],
+              "glyph": "^"
+            }
+          ],
+          "headGlyphs": "oO0@",
+          "torsoKeywords": [
+            {
+              "words": [
+                "metal"
+              ],
+              "glyph": "#"
+            }
+          ],
+          "torsoDefault": "=",
+          "joints": [
+            {
+              "name": "crest",
+              "x": 19,
+              "y": 0
+            },
+            {
+              "name": "head",
+              "x": 18,
+              "y": 1
+            },
+            {
+              "name": "neck",
+              "x": 16,
+              "y": 2
+            },
+            {
+              "name": "body",
+              "x": 11,
+              "y": 3
+            },
+            {
+              "name": "tail",
+              "x": 2,
+              "y": 4
+            },
+            {
+              "name": "frontPaw",
+              "x": 17,
+              "y": 6
+            },
+            {
+              "name": "rearPaw",
+              "x": 8,
+              "y": 6
+            },
+            {
+              "name": "wing",
+              "x": 10,
+              "y": 0
+            },
+            {
+              "name": "rearWing",
+              "x": 7,
+              "y": 1
+            }
+          ],
+          "poses": {
+            "attack": [
+              {
+                "joint": "head",
+                "dx": 2,
+                "dy": 0
+              },
+              {
+                "joint": "frontPaw",
+                "dx": 1,
+                "dy": -1
+              }
+            ],
+            "guard": [
+              {
+                "joint": "frontPaw",
+                "dx": -1,
+                "dy": -1
+              },
+              {
+                "joint": "head",
+                "dx": -1,
+                "dy": 0
+              }
+            ],
+            "recover": [
+              {
+                "joint": "head",
+                "dx": 0,
+                "dy": -1
+              },
+              {
+                "joint": "wing",
+                "dx": 0,
+                "dy": -1
+              }
+            ],
+            "hit": [
+              {
+                "joint": "head",
+                "dx": -1,
+                "dy": 1
+              },
+              {
+                "joint": "body",
+                "dx": -1,
+                "dy": 0
+              }
+            ],
+            "victory": [
+              {
+                "joint": "head",
+                "dx": 0,
+                "dy": -1
+              },
+              {
+                "joint": "wing",
+                "dx": 0,
+                "dy": -1
+              }
+            ],
+            "command": [
+              {
+                "joint": "head",
+                "dx": 1,
+                "dy": -1
+              }
+            ]
+          },
+          "links": [
+            {
+              "from": "tail",
+              "to": "body"
+            },
+            {
+              "from": "body",
+              "to": "neck"
+            },
+            {
+              "from": "neck",
+              "to": "head"
+            },
+            {
+              "from": "head",
+              "to": "crest"
+            },
+            {
+              "from": "body",
+              "to": "frontPaw"
+            },
+            {
+              "from": "body",
+              "to": "rearPaw"
+            },
+            {
+              "from": "body",
+              "to": "wing"
+            },
+            {
+              "from": "body",
+              "to": "rearWing"
+            }
+          ],
+          "markers": [
+            {
+              "joint": "head",
+              "glyph": "@head"
+            },
+            {
+              "joint": "body",
+              "glyph": "@torso"
+            },
+            {
+              "joint": "frontPaw",
+              "glyph": "v"
+            },
+            {
+              "joint": "rearPaw",
+              "glyph": "v"
+            },
+            {
+              "joint": "tail",
+              "glyph": "~"
+            },
+            {
+              "joint": "wing",
+              "glyph": "^"
+            },
+            {
+              "joint": "rearWing",
+              "glyph": "^"
+            },
+            {
+              "joint": "crest",
+              "glyph": "*"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "actions": [],
+  "rules": [
+    {
+      "key": "games.ascii.kernel-tournament.rules",
+      "trigger": "council.progression",
+      "primitive": "single-elimination-team-duel",
+      "parameters": {
+        "ownerArchetype": "trainer",
+        "memberArchetype": "creature",
+        "healthStat": "health",
+        "startingHealth": 100,
+        "minimumDamage": 7,
+        "maximumDamage": 18,
+        "maximumExchangesPerMatch": 12,
+        "membersPerOwner": 3,
+        "maximumSwitchesPerMatch": 3,
+        "benchRecoveryPerExchange": 3,
+        "frameDelayMilliseconds": 320,
+        "subtitleHoldMilliseconds": 1500,
+        "maximumEntrants": 8,
+        "minimumEntrants": 2,
+        "timelineLimit": 12,
+        "maximumPresentationFrames": 6,
+        "memberNameSuffixes": [
+          "",
+          " Echo",
+          " Vanguard",
+          " Warden",
+          " Nimbus"
+        ],
+        "rigDescriptorFields": [
+          "species",
+          "style",
+          "form",
+          "trait"
+        ],
+        "moveTags": [
+          "MOVE",
+          "COMMAND"
+        ],
+        "moveFallbackToContent": true,
+        "ownerActionTags": [
+          "TRAINER_ACTION"
+        ],
+        "ownerActionFallbackToContent": false,
+        "switchTargetTag": "SWITCH",
+        "hitPose": "hit",
+        "moves": [
+          {
+            "key": "RECOVER",
+            "words": [
+              "RECOVER",
+              "HEAL",
+              "REST"
+            ],
+            "heal": 6,
+            "pose": "recover"
+          },
+          {
+            "key": "GUARD",
+            "words": [
+              "GUARD",
+              "DEFEND",
+              "BLOCK",
+              "BRACE"
+            ],
+            "incomingReduction": 7,
+            "pose": "guard"
+          },
+          {
+            "key": "WAIT",
+            "words": [
+              "WAIT"
+            ],
+            "pose": "idle"
+          },
+          {
+            "key": "ATTACK",
+            "default": true,
+            "attacks": true,
+            "pose": "attack"
+          }
+        ],
+        "ownerActions": [
+          {
+            "key": "SWITCH",
+            "words": [
+              "SWITCH"
+            ],
+            "switches": true
+          },
+          {
+            "key": "FOCUS",
+            "words": [
+              "FOCUS"
+            ],
+            "attackBonus": 2
+          },
+          {
+            "key": "BRACE",
+            "words": [
+              "BRACE",
+              "GUARD"
+            ],
+            "incomingReduction": 2
+          },
+          {
+            "key": "REST",
+            "words": [
+              "REST",
+              "CARE"
+            ],
+            "heal": 3
+          },
+          {
+            "key": "NONE",
+            "default": true
+          }
+        ],
+        "evidenceTags": [
+          {
+            "token": "flavor",
+            "side": "member",
+            "tag": "FLAVOR"
+          },
+          {
+            "token": "voice",
+            "side": "member",
+            "tag": "VOICE"
+          },
+          {
+            "token": "effect",
+            "side": "member",
+            "tag": "EFFECT"
+          },
+          {
+            "token": "trainerVoice",
+            "side": "owner",
+            "tag": "VOICE"
+          },
+          {
+            "token": "hud",
+            "side": "owner",
+            "tag": "HUD"
+          }
+        ],
+        "entrantKeyTemplate": "fighter-{number:00}",
+        "memberKeyTemplate": "{owner}-creature-{slot:00}",
+        "memberNameFallbackTemplate": "Kernel Creature {number}",
+        "duplicateNameTemplates": [
+          "{name}-{memberShortModel}",
+          "{name}-{number}"
+        ],
+        "reserveNameFallbackTemplate": "{name}-{slot}",
+        "reserveFormTemplate": "reserve-{slot} {form}",
+        "reserveTraitTemplate": "resting partner; {trait}",
+        "textLimits": {
+          "member.name": 28,
+          "member.species": 36,
+          "member.style": 36,
+          "member.form": 48,
+          "member.trait": 48,
+          "member.voice": 72,
+          "owner.greeting": 88
+        },
+        "sprite": {
+          "pixelLegend": ".#+-*o",
+          "maximumPixelRows": 16,
+          "maximumPixelColumns": 20,
+          "maximumAsciiRows": 14,
+          "maximumAsciiColumns": 36,
+          "defaultPalette": [
+            16,
+            75,
+            25,
+            220,
+            231
+          ],
+          "paletteVariants": [
+            {
+              "order": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "order": [
+                0,
+                3,
+                1,
+                2,
+                4
+              ]
+            },
+            {
+              "order": [
+                0,
+                2,
+                3,
+                1,
+                4
+              ]
+            }
+          ]
+        },
+        "rosterMarkers": {
+          "active": ">",
+          "resting": "~"
+        },
+        "pairingSeparator": "  |  ",
+        "subtitleStyle": {
+          "colorMode": "Indexed256",
+          "foreground": 226,
+          "background": 0,
+          "bold": true
+        },
+        "phases": {
+          "initialize": {
+            "hud": {
+              "join": " <> ",
+              "values": [
+                "{left.member}",
+                "{right.member}"
+              ],
+              "max": 42
+            },
+            "consequence": {
+              "when": "presentation",
+              "then": "ASCII team reveal completed; bracket initialized by the LocalGPT tournament engine.",
+              "else": "Bracket initialized by the LocalGPT tournament engine."
+            },
+            "subtitle": {
+              "when": "presentation",
+              "then": "ASCII Team Artist reveal complete. Bracket initialized; LocalGPT still owns every tournament consequence.",
+              "else": "Bracket initialized. The AI participants provide bounded commands and voice; LocalGPT owns every tournament consequence."
+            },
+            "lastAction": "tournament-initialize"
+          },
+          "exchange": {
+            "hud": {
+              "firstOf": [
+                {
+                  "join": " <> ",
+                  "values": [
+                    "{left.hud}",
+                    "{right.hud}"
+                  ],
+                  "max": 42
+                },
+                {
+                  "value": "{left.member} // {right.member} // E{exchange}",
+                  "max": 42
+                }
+              ]
+            },
+            "consequence": {
+              "when": "winner",
+              "then": "Match resolved: trainer {winner.owner} and team advance; trainer {loser.owner} is eliminated from this fictional bracket.",
+              "else": "Exchange resolved: {left.member} {left.health} HP ({left.team} team); {right.member} {right.health} HP ({right.team} team)."
+            },
+            "subtitle": {
+              "join": " ",
+              "values": [
+                "{left.trainerVoice}",
+                "{left.voice}",
+                "{right.trainerVoice}",
+                "{right.voice}",
+                "{consequence}"
+              ],
+              "clean": true,
+              "max": 360
+            },
+            "lastAction": "tournament-resolve-exchange"
+          },
+          "complete": {
+            "hud": {
+              "value": "{champion.member} // CROWN",
+              "max": 42
+            },
+            "consequence": "Tournament complete. {champion.member} receives the imaginary ceremonial prize.",
+            "subtitle": "Tournament complete. {champion.member} receives the imaginary ceremonial prize.",
+            "lastAction": "tournament-resolve-exchange"
+          }
+        }
+      }
+    },
+    {
+      "key": "kernel-tournament-lineup",
+      "trigger": "council.lineup",
+      "primitive": "council-lineup",
+      "parameters": {
+        "ownerRole": "Creature Trainer",
+        "memberRole": "Kernel Creature",
+        "fields": [
+          {
+            "field": "member.name",
+            "side": "member",
+            "step": "creature-introduction",
+            "tag": "NAME"
+          },
+          {
+            "field": "member.name",
+            "side": "owner",
+            "step": "trainer-creature-selection",
+            "tag": "NAME",
+            "onlyIfEmpty": true
+          },
+          {
+            "field": "member.species",
+            "side": "owner",
+            "step": "trainer-creature-selection",
+            "tag": "SPECIES"
+          },
+          {
+            "field": "member.style",
+            "side": "owner",
+            "step": "trainer-creature-selection",
+            "tag": "STYLE"
+          },
+          {
+            "field": "member.form",
+            "side": "member",
+            "step": "creature-introduction",
+            "tag": "FORM"
+          },
+          {
+            "field": "member.trait",
+            "side": "member",
+            "step": "creature-introduction",
+            "tag": "TRAIT"
+          },
+          {
+            "field": "member.voice",
+            "side": "member",
+            "step": "creature-introduction",
+            "tag": "VOICE"
+          },
+          {
+            "field": "owner.greeting",
+            "side": "owner",
+            "step": "trainer-creature-selection",
+            "tag": "CHALLENGE"
+          }
+        ],
+        "nameField": "member.name",
+        "nameFallbackTemplate": "Kernel Creature {number}",
+        "spriteSource": {
+          "step": "creature-introduction",
+          "side": "member"
+        },
+        "sprite": {
+          "colorsTag": "COLORS",
+          "spriteTag": "SPRITE",
+          "paletteKeys": [
+            "outline",
+            "body",
+            "shade",
+            "accent",
+            "eye"
+          ],
+          "defaultPalette": [
+            16,
+            75,
+            25,
+            220,
+            231
+          ],
+          "legendAliases": {
+            ".": " _`",
+            "#": "@X",
+            "+": "=█",
+            "-": "~:▓░",
+            "*": "%^▒",
+            "o": "O0"
+          },
+          "emptyPixel": ".",
+          "maximumCandidates": 24,
+          "minimumPixelRows": 4,
+          "maximumPixelWidth": 32,
+          "minimumFilledPixels": 8,
+          "minimumDistinctRows": 3,
+          "maximumPixelRows": 16,
+          "maximumPixelColumns": 20,
+          "maximumAsciiRows": 14,
+          "maximumAsciiColumns": 36,
+          "minimumAsciiRows": 3
+        },
+        "presentationStep": "team-building-ascii",
+        "maximumPresentationFrames": 6,
+        "maximumPresentationLength": 12000,
+        "evidence": [
+          {
+            "step": "trainer-round-command",
+            "side": "owner"
+          },
+          {
+            "step": "fight-round",
+            "side": "member"
+          }
+        ],
+        "assetCheck": {
+          "copySimilarity": 0.85,
+          "maximumDrawAttempts": 3,
+          "selfStep": "creature-introduction",
+          "artistStep": "team-building-ascii",
+          "stepKey": "creature-sprite-check"
+        }
+      }
+    },
+    {
+      "key": "lineup-arena-wake",
+      "trigger": "storyboard.initialize",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "ROUND {round} // ARENA WAKE",
+        "body": "The terminal arena boots around this match's generated identities.",
+        "footer": "{pairing}",
+        "leftPose": "idle",
+        "rightPose": "idle",
+        "center": "::READY::",
+        "hud": "{hud}",
+        "leftStatement": "{left.greeting}",
+        "rightStatement": "{right.greeting}"
+      }
+    },
+    {
+      "key": "lineup-trainer-greeting",
+      "trigger": "storyboard.initialize",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "ROUND {round} // TRAINER GREETING",
+        "body": "Trainers enter with their own opening lines; creatures answer from their persistent rigs.",
+        "footer": {
+          "join": " / ",
+          "values": [
+            "{left.identityVoice}",
+            "{right.identityVoice}"
+          ],
+          "max": 160
+        },
+        "leftPose": "command",
+        "rightPose": "command",
+        "center": "HELLO",
+        "hud": "{hud}",
+        "leftStatement": "{left.greeting}",
+        "rightStatement": "{right.greeting}"
+      }
+    },
+    {
+      "key": "lineup-creature-salute",
+      "trigger": "storyboard.initialize",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "ROUND {round} // CREATURE SALUTE",
+        "body": {
+          "join": " / ",
+          "values": [
+            "{left.identityVoice}",
+            "{right.identityVoice}"
+          ],
+          "max": 160
+        },
+        "footer": "{pairing}",
+        "leftPose": "victory",
+        "rightPose": "victory",
+        "center": "<^>",
+        "hud": "{hud}"
+      }
+    },
+    {
+      "key": "lineup-match-ready",
+      "trigger": "storyboard.initialize",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "ROUND {round} // MATCH READY",
+        "body": "The deterministic engine owns HP, damage, legal switches and advancement.",
+        "footer": "Trainer actions, creature commands, roster rest and exact state are shown together.",
+        "hud": "{hud}"
+      }
+    },
+    {
+      "key": "exchange-match-greeting",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "when": "opening",
+        "headline": "ROUND {round} // MATCH GREETING",
+        "body": {
+          "join": " / ",
+          "values": [
+            "{left.trainerVoice}",
+            "{right.trainerVoice}"
+          ],
+          "max": 160
+        },
+        "footer": "Fresh trainer statements and a newly generated arena HUD open this legal match.",
+        "leftPose": "command",
+        "rightPose": "command",
+        "center": "HELLO",
+        "hud": "{hud}",
+        "leftStatement": {
+          "firstOf": [
+            "{left.trainerVoice}",
+            "{left.greeting}"
+          ]
+        },
+        "rightStatement": {
+          "firstOf": [
+            "{right.trainerVoice}",
+            "{right.greeting}"
+          ]
+        },
+        "leftHealth": "{left.before}",
+        "rightHealth": "{right.before}"
+      }
+    },
+    {
+      "key": "exchange-creature-greeting",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "when": "opening",
+        "headline": "CREATURE GREETING // READY STANCE",
+        "body": {
+          "join": " / ",
+          "values": [
+            "{left.voice}",
+            "{right.voice}"
+          ],
+          "max": 160
+        },
+        "footer": {
+          "join": "     ",
+          "values": [
+            "{left.effect}",
+            "{right.effect}"
+          ],
+          "max": 160
+        },
+        "leftPose": "victory",
+        "rightPose": "victory",
+        "center": "<^>",
+        "hud": "{hud}",
+        "leftStatement": "{left.voice}",
+        "rightStatement": "{right.voice}",
+        "leftHealth": "{left.before}",
+        "rightHealth": "{right.before}"
+      }
+    },
+    {
+      "key": "exchange-trainer-action",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "ROUND {round} // TRAINER ACTION",
+        "body": "{left.owner}: {left.action}   {right.owner}: {right.action}",
+        "footer": "Creature commands: {left.member}={left.move}; {right.member}={right.move}.",
+        "leftPose": "command",
+        "rightPose": "command",
+        "center": "...",
+        "hud": "{hud}",
+        "leftStatement": "{left.trainerVoice}",
+        "rightStatement": "{right.trainerVoice}",
+        "leftHealth": "{left.before}",
+        "rightHealth": "{right.before}"
+      }
+    },
+    {
+      "key": "exchange-wind-up",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "CREATURES MOVE // WIND-UP",
+        "body": {
+          "join": " / ",
+          "values": [
+            "{left.flavor}",
+            "{right.flavor}"
+          ],
+          "max": 160
+        },
+        "footer": {
+          "join": "     ",
+          "values": [
+            "{left.effect}",
+            "{right.effect}"
+          ],
+          "max": 160
+        },
+        "leftPose": "{left.pose}",
+        "rightPose": "{right.pose}",
+        "center": {
+          "when": "left.move==ATTACK || right.move==ATTACK",
+          "then": ">>...<<",
+          "else": "<>...<>"
+        },
+        "hud": "{hud}",
+        "leftStatement": "{left.voice}",
+        "rightStatement": "{right.voice}",
+        "leftHealth": "{left.before}",
+        "rightHealth": "{right.before}"
+      }
+    },
+    {
+      "key": "exchange-left-burst",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "when": "left.move==ATTACK",
+        "headline": "ATTACK ANIMATION // LEFT BURST",
+        "body": {
+          "firstOf": [
+            "{left.effect}",
+            "{left.member} surges forward."
+          ]
+        },
+        "footer": "{left.voice}",
+        "leftPose": "attack",
+        "rightPose": {
+          "when": "right.move==GUARD",
+          "then": "guard",
+          "else": "idle"
+        },
+        "center": ">>>>>",
+        "hud": "{hud}",
+        "leftStatement": "{left.trainerVoice}",
+        "rightStatement": "{right.trainerVoice}",
+        "leftHealth": "{left.before}",
+        "rightHealth": "{right.before}"
+      }
+    },
+    {
+      "key": "exchange-right-burst",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "when": "right.move==ATTACK",
+        "headline": "ATTACK ANIMATION // RIGHT BURST",
+        "body": {
+          "firstOf": [
+            "{right.effect}",
+            "{right.member} surges forward."
+          ]
+        },
+        "footer": "{right.voice}",
+        "leftPose": {
+          "when": "left.move==GUARD",
+          "then": "guard",
+          "else": "idle"
+        },
+        "rightPose": "attack",
+        "center": "<<<<<",
+        "hud": "{hud}",
+        "leftStatement": "{left.trainerVoice}",
+        "rightStatement": "{right.trainerVoice}",
+        "leftHealth": "{left.before}",
+        "rightHealth": "{right.before}"
+      }
+    },
+    {
+      "key": "exchange-clash",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "ARENA CLASH // CONTACT",
+        "body": "{left.move}  <<< *** >>>  {right.move}",
+        "footer": {
+          "join": " / ",
+          "values": [
+            "{left.voice}",
+            "{right.voice}"
+          ],
+          "max": 160
+        },
+        "leftPose": "{left.pose}",
+        "rightPose": "{right.pose}",
+        "center": "***",
+        "hud": "{hud}",
+        "leftStatement": "{left.voice}",
+        "rightStatement": "{right.voice}",
+        "leftHealth": "{left.before}",
+        "rightHealth": "{right.before}"
+      }
+    },
+    {
+      "key": "exchange-impact",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "ENGINE IMPACT",
+        "body": "Active HP: {left.member} {left.before}->{left.health}; {right.member} {right.before}->{right.health}.",
+        "footer": "Damage {left.damage}/{right.damage}; total team HP {left.team}/{right.team}; rest recovery applied to benched creatures.",
+        "leftPose": "{left.impactPose}",
+        "rightPose": "{right.impactPose}",
+        "center": "!!!",
+        "hud": "{hud}",
+        "leftStatement": "{left.trainerVoice}",
+        "rightStatement": "{right.trainerVoice}",
+        "leftHealth": "{left.health}",
+        "rightHealth": "{right.health}"
+      }
+    },
+    {
+      "key": "exchange-bench",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "RECOVERY / BENCH",
+        "body": "Switched-out and reserve creatures remain in the team roster and rest between exchanges.",
+        "footer": "Trainer switch budget: {left.switches}/{maxSwitches} vs {right.switches}/{maxSwitches}.",
+        "leftPose": {
+          "when": "left.fainted",
+          "then": "hit",
+          "else": "idle"
+        },
+        "rightPose": {
+          "when": "right.fainted",
+          "then": "hit",
+          "else": "idle"
+        },
+        "center": "::",
+        "hud": "{hud}",
+        "leftStatement": "{left.voice}",
+        "rightStatement": "{right.voice}",
+        "leftHealth": "{left.health}",
+        "rightHealth": "{right.health}"
+      }
+    },
+    {
+      "key": "exchange-finisher-charge",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "when": "winner",
+        "headline": "FINISHER // CHARGE",
+        "body": {
+          "firstOf": [
+            "{finisher.effect}",
+            "{winner.member} gathers the final arena signal."
+          ]
+        },
+        "footer": "{finisher.trainerVoice}",
+        "leftPose": {
+          "when": "winner.side==left",
+          "then": "attack",
+          "else": "hit"
+        },
+        "rightPose": {
+          "when": "winner.side==left",
+          "then": "hit",
+          "else": "attack"
+        },
+        "center": {
+          "when": "winner.side==left",
+          "then": ">>>>>*",
+          "else": "*<<<<<"
+        },
+        "hud": "{hud}",
+        "leftStatement": "{left.trainerVoice}",
+        "rightStatement": "{right.trainerVoice}",
+        "leftHealth": "{left.health}",
+        "rightHealth": "{right.health}"
+      }
+    },
+    {
+      "key": "exchange-finisher-victory",
+      "trigger": "storyboard.exchange",
+      "primitive": "duel-frame",
+      "parameters": {
+        "when": "winner",
+        "headline": "FINISHER // VICTORY SIGNAL",
+        "body": "{consequence}",
+        "footer": "{finisher.voice}",
+        "leftPose": {
+          "when": "winner.side==left",
+          "then": "victory",
+          "else": "hit"
+        },
+        "rightPose": {
+          "when": "winner.side==left",
+          "then": "hit",
+          "else": "victory"
+        },
+        "center": "***WIN***",
+        "hud": "{hud}",
+        "leftStatement": "{left.trainerVoice}",
+        "rightStatement": "{right.trainerVoice}",
+        "leftHealth": "{left.health}",
+        "rightHealth": "{right.health}"
+      }
+    },
+    {
+      "key": "exchange-next",
+      "trigger": "storyboard.exchange-resolved",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": {
+          "when": "winner",
+          "then": "BRACKET ADVANCE",
+          "else": "NEXT EXCHANGE"
+        },
+        "body": "{consequence}",
+        "footer": {
+          "when": "champion.decided",
+          "then": "Ceremonial champion decided.",
+          "else": "Tournament continues."
+        },
+        "leftPose": {
+          "when": "winner.side==left",
+          "then": "victory",
+          "else": {
+            "when": "left.fainted",
+            "then": "hit",
+            "else": "idle"
+          }
+        },
+        "rightPose": {
+          "when": "winner.side==right",
+          "then": "victory",
+          "else": {
+            "when": "right.fainted",
+            "then": "hit",
+            "else": "idle"
+          }
+        },
+        "center": {
+          "when": "winner",
+          "then": "WIN",
+          "else": "VS"
+        },
+        "hud": "{hud}",
+        "leftStatement": "{left.trainerVoice}",
+        "rightStatement": "{right.trainerVoice}",
+        "leftHealth": "{left.health}",
+        "rightHealth": "{right.health}"
+      }
+    },
+    {
+      "key": "champion-reveal",
+      "trigger": "storyboard.complete",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "FINISHER // CHAMPION REVEAL",
+        "body": "CEREMONIAL CHAMPION",
+        "footer": "{champion.member}",
+        "leftPose": "victory",
+        "rightPose": "victory",
+        "center": "***",
+        "hud": "{hud}",
+        "leftStatement": "{champion.greeting}",
+        "rightStatement": "{champion.identityVoice}"
+      }
+    },
+    {
+      "key": "champion-complete",
+      "trigger": "storyboard.complete",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "TOURNAMENT COMPLETE",
+        "body": "{champion.identityVoice}",
+        "footer": "All scheduled matches are resolved.",
+        "leftPose": "victory",
+        "rightPose": "victory",
+        "center": "CROWN",
+        "hud": "{hud}",
+        "leftStatement": "{champion.greeting}",
+        "rightStatement": "{champion.identityVoice}"
+      }
+    },
+    {
+      "key": "champion-locked",
+      "trigger": "storyboard.complete",
+      "primitive": "duel-frame",
+      "parameters": {
+        "headline": "ARENA RESULT LOCKED",
+        "body": "All scheduled matches are resolved.",
+        "footer": "[[TOURNAMENT_COMPLETE]]",
+        "leftPose": "victory",
+        "rightPose": "victory",
+        "center": "LOCK",
+        "hud": "{hud}"
+      }
+    },
+    {
+      "key": "style-borders",
+      "trigger": "style",
+      "primitive": "character-style",
+      "parameters": {
+        "characters": "┌┐└┘─│╭╮╰╯═║#+",
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 22,
+          "dim": true
+        }
+      }
+    },
+    {
+      "key": "style-title-line",
+      "trigger": "style",
+      "primitive": "line-style",
+      "parameters": {
+        "rows": [
+          0
+        ],
+        "containsAny": [
+          "DOOM",
+          "GREEN DRAGON",
+          "KERNEL CREATURE"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 51,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-health",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "HP",
+          "HEALTH"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 46,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-ammo",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "AMMO"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 226,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-exit",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "EXIT",
+          "EXTRACTION"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 45
+        }
+      }
+    },
+    {
+      "key": "style-danger",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "ENEMY",
+          "MONSTER"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 196,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-champion",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "CHAMPION"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 226,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-round",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "ROUND"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 201,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-versus",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "VS"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 196,
+          "bold": true
+        }
+      }
+    },
+    {
+      "key": "style-choices",
+      "trigger": "style",
+      "primitive": "token-style",
+      "parameters": {
+        "tokens": [
+          "[1]",
+          "[2]",
+          "[3]"
+        ],
+        "style": {
+          "colorMode": "Indexed256",
+          "foreground": 45
+        }
+      }
+    },
+    {
+      "key": "director-creatures",
+      "trigger": "director.prediction",
+      "primitive": "director-prediction",
+      "parameters": {
+        "directorKey": "creature-council",
+        "actorKind": "Creature",
+        "runtimeClassKey": "games.ascii.doom.creature",
+        "confidencePercent": 70,
+        "triggerActions": [
+          "shoot",
+          "use"
+        ],
+        "triggeredTextKey": "director.creature.triggered",
+        "idleTextKey": "director.creature.idle",
+        "councilRole": "World Actor",
+        "assignmentGroup": "ascii-doom-actors",
+        "generatedActors": {
+          "countFromCreatureDirectors": true,
+          "instanceKeyTemplate": "creature-{index}",
+          "archetypes": [
+            "patrol",
+            "hunter"
+          ],
+          "slotTemplate": "world-actor-{index}"
+        }
+      }
+    },
+    {
+      "key": "director-objects",
+      "trigger": "director.prediction",
+      "primitive": "director-prediction",
+      "parameters": {
+        "directorKey": "reactive-object-council",
+        "actorKind": "ReactiveObject",
+        "runtimeClassKey": "games.ascii.doom.reactive-object",
+        "confidencePercent": 75,
+        "triggerActions": [
+          "use"
+        ],
+        "triggeredTextKey": "director.object.triggered",
+        "idleTextKey": "director.object.idle",
+        "councilRole": "World Actor",
+        "assignmentGroup": "ascii-doom-actors",
+        "fixedActors": [
+          {
+            "instanceKey": "reactive-door-1",
+            "archetype": "door",
+            "slot": "world-object-1"
+          },
+          {
+            "instanceKey": "reactive-trigger-1",
+            "archetype": "trigger",
+            "slot": "world-object-2"
+          }
+        ]
+      }
+    }
+  ],
+  "levels": [],
+  "texts": {
+    "director.creature.triggered": "{count} configured creature director(s) may investigate the sound during the resolved world step.",
+    "director.creature.idle": "{count} configured creature director(s) may keep patrol state or approach only when line-of-sight rules permit.",
+    "director.object.triggered": "The nearest eligible door, switch or pickup may react after range and state checks.",
+    "director.object.idle": "Reactive objects remain unchanged unless movement enters a trigger volume.",
+    "council.input-reason": "Council trainer/creature micro-turns feed the deterministic tournament engine; direct game controls are not required.",
+    "council.turn-owner": "LocalGPT Tournament Engine",
+    "council.engine-name": "LocalGPT Tournament Engine",
+    "council.engine-model": "kernel-creature-tournament-engine",
+    "council.renderer": "LocalGPT Kernel Tournament Engine",
+    "council.caption": "Kernel Creature Tournament · round {round}",
+    "council.caption.complete": "Kernel Creature Tournament · complete",
+    "council.ended-summary": "### LocalGPT Tournament Engine\nThe tournament game session was ended before this engine step. LocalGPT will not resurrect or mutate the ended deterministic session.\n\n[[TOURNAMENT_COMPLETE]]",
+    "council.progress.ended": "The Kernel Creature Tournament game was ended; the Council workflow is stopping without resurrecting the session.",
+    "council.progress.initialize": "The LocalGPT tournament engine initialized the authoritative bracket and one-shot lineup movie.",
+    "council.progress.turn": "The LocalGPT tournament engine resolved one authoritative exchange and prepared the one-shot arena movie/subtitle.",
+    "ui.preparation.waiting": "Tournament engine ready · waiting for Council lineup activity…",
+    "ui.preparation.progress": "Tournament preparation · {finished} completed · {running} active{current}",
+    "view.waiting.title": " KERNEL CREATURE TOURNAMENT ",
+    "view.waiting.ready": "Bracket ready — awaiting the next authoritative exchange",
+    "view.waiting.preparing": "Preparing engine-owned bracket and AI creature lineup",
+    "view.ready": "READY",
+    "view.title": " ◆ KERNEL CREATURE TOURNAMENT ◆  ROUND {round} · E{exchange} · {headline}",
+    "view.champion": "♛ CHAMPION ♛",
+    "view.no-sprite": "no sprite drawn by {author}",
+    "view.health": "HP",
+    "view.switches": "SWITCH {used}/{max}",
+    "view.owner": " TR {owner} · {action} ",
+    "view.commands.title": " TRAINER COMMANDS ",
+    "view.commands.owner": "▶ {owner}",
+    "view.commands.action": "{action} · SWITCH {used}/{max}",
+    "view.commands.footer": "HP & bracket: LocalGPT engine",
+    "classic.arena": "LOCALGPT // LIVE ARENA",
+    "classic.hud": "HUD {motif}",
+    "classic.owner-label": "Trainer {owner} [{action}]",
+    "classic.member-label": "{member} · {species}",
+    "classic.members": "CREATURES",
+    "classic.health": "HP",
+    "classic.team": "TEAM",
+    "classic.owner": "TRAINER",
+    "classic.switches": "switches {used}/{max}",
+    "classic.voice": "VOICE",
+    "timeline.none": "none",
+    "timeline.side": "{owner}->{member} {health}HP",
+    "timeline.line": "T{sequence:00} R{round}E{exchange} {kind}: {detail}",
+    "timeline.ready.kind": "READY",
+    "timeline.ready": "Bracket ready; {membersPerOwner} creature slots per trainer, {maxSwitches} trainer switches per fight.",
+    "timeline.complete.kind": "COMPLETE",
+    "timeline.complete": "Champion {champion.member} locked by deterministic bracket state.",
+    "timeline.switch.kind": "SWITCH",
+    "timeline.switch": "Trainer switch: left={left}; right={right}.",
+    "timeline.ko-switch.kind": "KO-SWITCH",
+    "timeline.ko-switch": "Engine forced healthy reserve: left={left}; right={right}.",
+    "timeline.command.kind": "COMMAND",
+    "timeline.command": "L {left.action}/{left.move}; R {right.action}/{right.move}.",
+    "timeline.impact.kind": "IMPACT",
+    "timeline.impact": "Damage L->{right.damage}, R->{left.damage}; team HP {left.team}:{right.team}.",
+    "timeline.match.kind": "MATCH",
+    "timeline.match": "{consequence}",
+    "summary.title": "### LocalGPT Tournament Engine",
+    "summary.rules": "Rules: `{ruleKey}` · Round {round} · Engine-owned HP/bracket/switch state · switch cap {maxSwitches}",
+    "summary.entrant": "- trainer `{entrant.ownerModel}` · active **{entrant.member}** {entrant.health} HP · team [{entrant.roster}] · switches {entrant.switches}/{maxSwitches} · {entrant.wins} win(s) · {entrant.status} · creature model `{entrant.memberModel}`",
+    "summary.status.champion": "champion",
+    "summary.status.eliminated": "eliminated",
+    "summary.status.active": "active",
+    "summary.timeline": "Recent engine timeline:",
+    "summary.timeline.entry": "- T{sequence:00} R{round}E{exchange} {kind}: {detail}",
+    "summary.champion": "Champion: **{champion.member}** with trainer `{champion.ownerModel}` · imaginary ceremonial prize awarded.",
+    "summary.complete-marker": "[[TOURNAMENT_COMPLETE]]",
+    "summary.current-match": "Current legal match: trainer **{left.summaryOwner}** / **{left.member}** vs trainer **{right.summaryOwner}** / **{right.member}**.",
+    "summary.first-exchange": "The first exchange may begin.",
+    "summary.next-exchange": "The next bounded trainer action and creature exchange may begin.",
+    "summary.continue-marker": "[[TOURNAMENT_CONTINUE]]",
+    "asset.phase": "Creature sprite check",
+    "asset.prompt": [
+      "{{RolePerformanceInstruction}}",
+      "{{RoleLanguageInstruction}}",
+      "",
+      "The arena needs a battle sprite for the creature \"{{Entrant.member.name}}\" (species: {{Entrant.member.species}}; form: {{Entrant.member.form}}). {{AssetDrawer}}",
+      "",
+      "Draw one front-facing creature: 8 to 16 rows, 8 to 20 characters per row, one row per line. Use only these pixel characters: . empty, # outline, + main body, - shading, * accent marking, o eye. Give it a closed # outline and at least one o eye. Its shape must clearly differ from these sprites already in the arena; do not copy or mirror them:",
+      "{{AssetOtherSprites}}",
+      "",
+      "Output these lines and nothing else:",
+      "COLORS: body=N shade=N accent=N eye=N outline=N",
+      "SPRITE:",
+      "followed directly by your sprite rows."
+    ],
+    "asset.drawer.self": "You are this creature: draw yourself. Your introduction had no usable sprite, or one too similar to another creature's.",
+    "asset.drawer.artist": "You draw this sprite for the creature member {{AssetMemberModel}}, which did not deliver a usable one. Draw the creature as described, not yourself.",
+    "asset.no-other": "(no other sprites yet)",
+    "asset.progress": "{phase}: {drawer} draws the sprite of {name}."
+  },
+  "aliases": [
+    {
+      "kind": "game",
+      "alias": "kernel-tournament",
+      "target": "kernel-creature-tournament"
+    },
+    {
+      "kind": "runtime-class-prefix",
+      "alias": "games.ascii.kernel-tournament.",
+      "target": "kernel-creature-tournament"
+    }
+  ]
+}
