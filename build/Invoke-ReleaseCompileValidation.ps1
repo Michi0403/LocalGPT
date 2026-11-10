@@ -26,6 +26,7 @@ $env:NUGET_HTTP_CACHE_PATH = Join-Path $logRoot 'nuget-http-cache'
 # as full releases before compiling or preparing downstream artifacts.
 & (Join-Path $PSScriptRoot 'Assert-CrossPlatformBoundaries.ps1')
 & (Join-Path $PSScriptRoot 'Assert-SessionSandboxIsolation.ps1')
+& (Join-Path $PSScriptRoot 'Assert-CouncilRepositorySandboxAndTrafficFiles.ps1')
 & (Join-Path $PSScriptRoot 'Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $PSScriptRoot 'Assert-JavaScriptDiagnostics.ps1')
 

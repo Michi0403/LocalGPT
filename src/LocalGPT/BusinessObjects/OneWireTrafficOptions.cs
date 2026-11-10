@@ -28,6 +28,12 @@ public sealed class OneWireTrafficOptions
     /// <summary>Gets or sets the maximum characters of payload and raw frame written per log line.</summary>
     /// <value>The per-line log bound; 0 (the default) logs everything.</value>
     public int MaximumLoggedCharacters { get; set; }
+    /// <summary>Gets or sets whether a dedicated JSON-lines 1-Wire disk journal is maintained independently of general application logging.</summary>
+    public bool FileLoggingEnabled { get; set; } = true;
+    /// <summary>Gets or sets an optional dedicated traffic log path; empty selects the per-user application data directory.</summary>
+    public string FilePath { get; set; } = string.Empty;
+    /// <summary>Gets or sets the maximum size of the active traffic file before a single previous-file rotation.</summary>
+    public long MaximumFileBytes { get; set; } = 64L * 1024 * 1024;
     /// <summary>Gets or sets the JSON property names (case-insensitive, matched as substrings) masked in Redacted mode.</summary>
     /// <value>The property names; when empty, a built-in list of secret-like names is used.</value>
     public string[] RedactedPropertyNames { get; set; } = [];

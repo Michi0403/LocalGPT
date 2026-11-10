@@ -1715,6 +1715,10 @@ namespace LocalGPT.Components.Pages
         await InvokeAsync(EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync).ConfigureAwait(false);
     
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Council team loading was cancelled during Chat teardown.");
+        }
         catch (Exception __componentMethodException)
         {
             Logger.LogError(__componentMethodException, "Component method Chat.LoadCouncilTeamsAsync failed.");

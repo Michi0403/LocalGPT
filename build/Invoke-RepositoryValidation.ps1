@@ -31,6 +31,7 @@ try {
     & ./build/Assert-ComponentSafety.ps1
     & ./build/Assert-ServiceArchitecture.ps1
     & ./build/Assert-WorkflowContracts.ps1
+    & ./build/Assert-CouncilRepositorySandboxAndTrafficFiles.ps1
     & ./build/Assert-HumanCollaboration.ps1
     & ./build/Assert-ArchitectureTasks.ps1
     & ./build/Assert-EfSnapshotArchitecture.ps1

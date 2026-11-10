@@ -59,7 +59,7 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 52;
+    private const int CurrentSeedVersion = 53;
     /// <summary>
     /// Gets the max roles value that forms part of the council team configuration state consumed or produced by the surrounding workflow.
     /// </summary>
