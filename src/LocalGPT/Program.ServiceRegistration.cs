@@ -320,6 +320,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();
                 builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
                 builder.Services.AddSingleton<ICodeDomSourceService, CodeDomSourceService>();
+                builder.Services.AddScoped<ICouncilDevelopmentWorkspaceService, CouncilDevelopmentWorkspaceService>();
                 builder.Services.AddScoped<ICodeGenerationWorkflowService, CodeGenerationWorkflowService>();
                 builder.Services.AddScoped<ICouncilCodeGenerationPlanService, CouncilCodeGenerationPlanService>();
                 builder.Services.AddSingleton<ICouncilSpoolerService, LocalGPT.Services.Council.CouncilSpoolerService>();

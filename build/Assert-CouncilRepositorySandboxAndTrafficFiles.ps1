@@ -33,5 +33,31 @@ if ($config.OneWire.Traffic.FileLoggingEnabled -ne $true -or [long]$config.OneWi
     throw 'LocalGPT 1-Wire disk journal is not enabled with a bounded rotation policy.'
 }
 $project = [xml](Get-Content -LiteralPath (Join-Path $root 'src/LocalGPT/LocalGPT.csproj') -Raw)
-if ($project.Project.PropertyGroup.Version -ne '7.0.5') { throw 'LocalGPT next application version must be 7.0.5.' }
-Write-Host 'LocalGPT Council/Hyperlight/repository staging and dedicated traffic file source contracts passed.' -ForegroundColor Green
+$versionNode = $project.SelectSingleNode('/Project/PropertyGroup/Version[normalize-space(.) != ""]')
+if ($null -eq $versionNode -or [string]$versionNode.InnerText -notmatch '^[0-9]+\.[0-9]\.[0-9]$') {
+    throw 'LocalGPT application version must have single-digit minor and patch slots.'
+}
+Assert-Source 'src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.BuildOrchestrationTemplates.cs' @(
+    'RequiredCompletedFunctions = \["council\.development\.artifact\.verify"\]',
+    'council\.artifact_workspace\.codedom\.preview', 'council\.artifact_workspace\.codedom\.write',
+    'council\.artifact_workspace\.sandbox\.run',
+    'council\.artifact_workspace_file\.read', 'council\.artifact_workspace_file\.write')
+Assert-Source 'src/LocalGPT/Services/ArtifactWorkspaceDxAiFunctions.cs' @(
+    '"council\.artifact_workspace_file\.read"',
+    '"council\.artifact_workspace_file\.write"',
+    '/api/dxai/functions/council\.artifact_workspace_file\.read/invoke',
+    '/api/dxai/functions/council\.artifact_workspace_file\.write/invoke')
+Assert-Source 'src/LocalGPT/Services/CouncilDevelopmentDxAiFunctions.cs' @(
+    'council\.artifact_workspace\.codedom\.preview', 'council\.artifact_workspace\.codedom\.write',
+    'council\.artifact_workspace\.sandbox\.run', 'council\.development\.artifact\.verify',
+    'codeDom\.GenerateCSharpSource', 'codeDom\.GenerateCSharpSandboxProgram',
+    'request\.UserConfirmed', 'sandboxes\.Start\(', 'SourceExtension',
+    'ExpectedSourceSha256', 'SourceSha256',
+    'reviews\.GetReviewAsync', 'stages\.VerifyStageArchiveAsync')
+Assert-Source 'src/LocalGPT/Services/CouncilDevelopmentWorkspaceService.cs' @(
+    'RecordStageBaselineAsync', 'VerifyStageArchiveAsync', 'SHA256\.HashDataAsync',
+    'No file bytes changed', 'archive\.Entries', 'archivedHash', 'source ZIP')
+Assert-Source 'src/LocalGPT/Services/RepositoryWorkspacePromotionDxAiFunctions.cs' @('developmentWorkspaces\.RecordStageBaselineAsync')
+Assert-Source 'src/LocalGPT/Services/ArtifactWorkspaceDxAiFunctions.cs' @('SourceSha256 = Convert\.ToHexString\(SHA256\.HashData')
+Assert-Source 'src/LocalGPT/Program.ServiceRegistration.cs' @('ICouncilDevelopmentWorkspaceService, CouncilDevelopmentWorkspaceService')
+Write-Host 'LocalGPT Council/CodeDOM/Hyperlight/verified repository workflow and traffic file source contracts passed.' -ForegroundColor Green

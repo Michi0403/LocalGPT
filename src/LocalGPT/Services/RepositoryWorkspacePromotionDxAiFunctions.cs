@@ -11,12 +11,14 @@ namespace LocalGPT.Services;
 /// <param name="projects">Registered project metadata.</param>
 /// <param name="artifacts">Application-owned Council artifact root.</param>
 /// <param name="json">DXFunction binding and response service.</param>
+/// <param name="developmentWorkspaces">Shared source-provenance and archive verification service.</param>
 /// <param name="logger">Diagnostic logger.</param>
 public sealed class PromoteRepositoryWorkspaceFunction(
     IChatUploadWorkspaceService uploads,
     ILocalGptProjectService projects,
     ICouncilArtifactService artifacts,
     IDxAiFunctionJsonService json,
+    ICouncilDevelopmentWorkspaceService developmentWorkspaces,
     ILogger<PromoteRepositoryWorkspaceFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>Explicit approval-gated archive or project snapshot promotion.</summary>
@@ -104,9 +106,10 @@ public sealed class PromoteRepositoryWorkspaceFunction(
                 Directory.CreateDirectory(Path.GetDirectoryName(copyPath)!);
                 File.Copy(path, copyPath, overwrite: false);
             }
-            logger.LogInformation("Staged {Count} files, {Bytes} bytes into approved isolated repository workspace {WorkspaceName}.", files, bytes, workspaceName);
+            var fingerprinted = await developmentWorkspaces.RecordStageBaselineAsync(artifacts.ArtifactRoot, workspaceName, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Staged {Count} files, {Bytes} bytes into approved isolated repository workspace {WorkspaceName}; {Fingerprinted} baseline source hashes recorded.", files, bytes, workspaceName, fingerprinted);
             return json.Success(new { WorkspaceName = workspaceName, RootPath = target, FileCount = files, TotalBytes = bytes,
-                Next = "Use council.artifact_workspace_files, council.artifact_workspace_file.read/write, and council.artifact_workspace_zip. Original project/archive stays unchanged. Source promotion is NOT a Hyperlight guest mount." });
+                Next = "Use council.artifact_workspace_file.read/write or council.artifact_workspace.codedom.write, optional guest file checks, then council.artifact_workspace_zip and council.development.artifact.verify. Original project/archive stays unchanged; no Hyperlight repository mount." });
         }
         catch (OperationCanceledException exception)
         {

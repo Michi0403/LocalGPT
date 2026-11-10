@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace LocalGPT.Services;
@@ -256,7 +257,8 @@ public sealed class ReadArtifactWorkspaceFileFunction(
                 FullPath = file,
                 Length = info.Length,
                 info.LastWriteTimeUtc,
-                Content = content
+                Content = content,
+                SourceSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content)))
             });
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

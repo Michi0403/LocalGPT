@@ -424,4 +424,14 @@
           WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
           StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
+
+  <!-- Source-only Council development lifecycle contract; also run by Invoke-RepositoryValidation.ps1. -->
+  <PropertyGroup>
+    <CouncilDevelopmentLifecycleScript>$(MSBuildThisFileDirectory)build/Assert-CouncilRepositorySandboxAndTrafficFiles.ps1</CouncilDevelopmentLifecycleScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptCouncilDevelopmentLifecycle" BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(CouncilDevelopmentLifecycleScript)')" Text="Missing mandatory Council development lifecycle guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(CouncilDevelopmentLifecycleScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
 </Project>

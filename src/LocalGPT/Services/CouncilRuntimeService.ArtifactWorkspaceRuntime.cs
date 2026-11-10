@@ -215,6 +215,20 @@ namespace LocalGPT.Services
                     return null;
                 }
 
+                // Path.GetFullPath checks lexical traversal, not directory links. A staged source
+                // may have been modified externally after approval, so never follow reparse points.
+                var candidate = path;
+                while (true)
+                {
+                    if ((Directory.Exists(candidate) || File.Exists(candidate)) &&
+                        (File.GetAttributes(candidate) & FileAttributes.ReparsePoint) != 0)
+                        return null;
+                    if (string.Equals(candidate, root, OperatingSystem.IsWindows()
+                        ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                        break;
+                    candidate = Path.GetDirectoryName(candidate) ?? throw new InvalidDataException("Workspace file path escaped its root.");
+                }
+
                 return allowMissing || System.IO.File.Exists(path) ? path : null;
             }
             catch (Exception ex)

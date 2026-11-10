@@ -41,3 +41,7 @@ The supplied WasmSharp reference demonstrates Roslyn compile/run with browser di
 ## Evolution
 
 `ISessionSandboxExecutionProvider` advertises supported languages and prepares an isolated launch. New runtimes (and, later, isolated model inference) can be registered through DI without rewriting Council, project configuration or the existing trusted PowerShell build/debug infrastructure. Direct Council-triggered execution and project-linked saved build configurations require separate explicit permissions and durable workflow integration; they are **not yet implemented** here.
+
+## Staged repository source files
+
+The `council.artifact_workspace.sandbox.run` DXFunction uses `workspaceName`, `relativePath`, the inspected `expectedSourceSha256` and the exact installed `languageKey` to read one already staged text source file. It checks that the source extension agrees with the selected provider's declared `SourceExtension`, and it retains the backend's normal approval, queued-run and receipt semantics. This is deliberately **not** a guest filesystem mount or a whole-repository build. Use `session.sandbox.runs` to confirm completion and inspect the actual exit status. Repository-owned PowerShell guards remain separately approved host-console operations, not guest-side checks.
