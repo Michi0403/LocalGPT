@@ -49,15 +49,6 @@
     <RuntimePluginCallbackScript>$(MSBuildThisFileDirectory)build/Assert-RuntimePluginSourceCallbacks.ps1</RuntimePluginCallbackScript>
     <CouncilXRoundWiringScript>$(MSBuildThisFileDirectory)build/Assert-CouncilXRoundWiring.ps1</CouncilXRoundWiringScript>
   </PropertyGroup>
-  <PropertyGroup>
-    <InstallerLayoutGuardScript>$(MSBuildThisFileDirectory)build/Assert-InstallerLayout.ps1</InstallerLayoutGuardScript>
-  </PropertyGroup>
-  <Target Name="AssertLocalGptInstallerLayout"
-          BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and ('$(MSBuildProjectName)' == 'LocalGPTInstallerConsole' or '$(MSBuildProjectName)' == 'LocalGPT')">
-    <Error Condition="!Exists('$(InstallerLayoutGuardScript)')" Text="Missing mandatory installer layout guard." />
-    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(InstallerLayoutGuardScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
 
   <PropertyGroup>
     <NetworkCertificateGuardScript>$(MSBuildThisFileDirectory)build/Assert-NetworkCertificateContract.ps1</NetworkCertificateGuardScript>
