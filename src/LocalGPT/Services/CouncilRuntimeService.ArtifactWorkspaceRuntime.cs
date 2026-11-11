@@ -223,8 +223,7 @@ namespace LocalGPT.Services
                     if ((Directory.Exists(candidate) || File.Exists(candidate)) &&
                         (File.GetAttributes(candidate) & FileAttributes.ReparsePoint) != 0)
                         return null;
-                    if (string.Equals(candidate, root, OperatingSystem.IsWindows()
-                        ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                    if (string.Equals(candidate, root, platform.PathComparison))
                         break;
                     candidate = Path.GetDirectoryName(candidate) ?? throw new InvalidDataException("Workspace file path escaped its root.");
                 }
