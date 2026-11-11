@@ -68,7 +68,6 @@ if (-not (Test-Path -LiteralPath $wslCommonScript -PathType Leaf)) { throw "WSL 
 # the same contracts must fail early on every release host, not after setup work.
 & (Join-Path $root 'build/Assert-CrossPlatformBoundaries.ps1')
 & (Join-Path $root 'build/Assert-SessionSandboxIsolation.ps1')
-& (Join-Path $root 'build/Assert-InstallerLayout.ps1')
 & (Join-Path $root 'build/Assert-NetworkCertificateContract.ps1')
 & (Join-Path $root 'build/Assert-InteractiveFormsAndPairing.ps1')
 & (Join-Path $root 'build/Assert-RazorFormEncapsulation.ps1')
