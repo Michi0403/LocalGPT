@@ -234,6 +234,7 @@ function Assert-LocalGptDocumentationPayload {
 }
 
 $appVersion = & (Join-Path $root 'build/Get-ProjectVersion.ps1') -ProjectPath $appProject
+$setupVersion = & (Join-Path $root 'build/Get-ProjectVersion.ps1') -ProjectPath $setupProject
 if ($appVersion -notmatch '^\d+\.[0-9]\.[0-9]$') {
     throw "LocalGPT application release version '$appVersion' must follow the repository's Major.Minor.Patch convention with single-digit minor/patch fields. Update LocalGPT.csproj before packaging."
 }
@@ -393,58 +394,6 @@ function Copy-LocalGptRuntimeDocumentation {
     $status | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $statusPath -Encoding utf8
 }
 
-function Resolve-PublishProfilePath {
-    param(
-        [Parameter(Mandatory)][string]$ProjectPath,
-        [Parameter(Mandatory)][string]$ProfileName
-    )
-
-    $projectDirectory = Split-Path -Parent $ProjectPath
-    $profilePath = Join-Path $projectDirectory "Properties/PublishProfiles/$ProfileName.pubxml"
-    if (-not (Test-Path -LiteralPath $profilePath)) {
-        throw "Publish profile not found: $profilePath"
-    }
-
-    return $profilePath
-}
-
-function Resolve-ProfilePublishFolder {
-    param(
-        [Parameter(Mandatory)][string]$ProjectPath,
-        [Parameter(Mandatory)][string]$ProfileName
-    )
-
-    $profilePath = Resolve-PublishProfilePath -ProjectPath $ProjectPath -ProfileName $ProfileName
-    [xml]$profile = Get-Content -LiteralPath $profilePath -Raw
-    $propertyGroups = @($profile.Project.PropertyGroup)
-    $publishDirectory = @(
-        $propertyGroups |
-            ForEach-Object { $_.PublishDir } |
-            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
-    ) | Select-Object -First 1
-
-    if ([string]::IsNullOrWhiteSpace([string]$publishDirectory)) {
-        $publishDirectory = @(
-            $propertyGroups |
-                ForEach-Object { $_.PublishUrl } |
-                Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
-        ) | Select-Object -First 1
-    }
-
-    if ([string]::IsNullOrWhiteSpace([string]$publishDirectory)) {
-        throw "Publish profile does not define PublishDir or PublishUrl: $profilePath"
-    }
-
-    $projectDirectory = Split-Path -Parent $ProjectPath
-    $resolved = if ([IO.Path]::IsPathRooted([string]$publishDirectory)) {
-        [string]$publishDirectory
-    } else {
-        Join-Path $projectDirectory ([string]$publishDirectory)
-    }
-
-    return [IO.Path]::GetFullPath($resolved)
-}
-
 function Resolve-ReleaseProfile {
     param([Parameter(Mandatory)][string]$Rid)
     switch ($Rid) {
@@ -533,7 +482,7 @@ function New-PortableReleaseArchive {
                 throw "Release archive entry count $($entries.Count) does not match source file count $($files.Count): $temporaryArchive"
             }
             # Reject a stale or incorrectly labelled application/setup archive while it is
-            # still temporary. Archive names and root folders must agree with the app version.
+            # still temporary. Validate payload version independently of its stable runtime folder.
             if (-not [string]::IsNullOrWhiteSpace($ExpectedReleaseVersion)) {
                 $expectedMarker = "$RootFolderName/RELEASE-VERSION.txt"
                 $versionEntry = $verification.GetEntry($expectedMarker)
@@ -548,9 +497,8 @@ function New-PortableReleaseArchive {
                 if (-not [string]::Equals($archivedVersion, $ExpectedReleaseVersion, [StringComparison]::Ordinal)) {
                     throw "Release archive '$destination' contains version '$archivedVersion', expected '$ExpectedReleaseVersion'."
                 }
-                if (-not $RootFolderName.Contains($ExpectedReleaseVersion)) {
-                    throw "Release archive root '$RootFolderName' does not identify version '$ExpectedReleaseVersion'."
-                }
+                # The version belongs to RELEASE-VERSION.txt, not to the installed
+                # folder name. Canonical folders must remain stable across updates.
             }
             if ($WriteUnixPermissions) {
                 foreach ($unixExecutablePath in $unixExecutableSet) {
@@ -611,6 +559,13 @@ function Test-ExistingReleaseBundleComplete {
     $requiredBundleNames = @($wirePackageName, $releasePackagingPackageName, "LocalGPT-$Version.pdf", 'THIRD-PARTY-NOTICES.txt')
     foreach ($requiredBundleName in $requiredBundleNames) {
         if (-not $manifestNames.Contains($requiredBundleName)) { return $false }
+    }
+    # A Windows x64 bundle is not complete without the upload-ready setup executable.
+    # Checking only the ZIPs would allow a previously interrupted release to be reused.
+    if ($manifestNames.Contains('winx64.zip')) {
+        foreach ($requiredWindowsFile in @('setupwinx64.zip', 'LocalGPTInstallerConsole.exe')) {
+            if (-not $manifestNames.Contains($requiredWindowsFile)) { return $false }
+        }
     }
     $payloadFiles = @(Get-ChildItem -LiteralPath $versionDirectory -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' })
     return $manifestNames.Count -eq $payloadFiles.Count
@@ -690,6 +645,18 @@ function Complete-ReleaseBundle {
     $uniqueZipPaths = @($ReleaseZipPaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
     if ($uniqueZipPaths.Count -eq 0) { throw "No release artifacts were produced for release $Version." }
 
+    # The GitHub release's standalone setup executable is not in artifacts/release/setupwinx64.
+    # Publish-Runtime writes the authoritative win-x64 setup into staging/<version>/win-x64/setup.
+    # Check it before moving any ZIPs, so a missing/stale executable cannot leave a partial bundle.
+    if ($RequireWindowsX64Setup) {
+        if (-not (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf)) {
+            throw "Windows x64 setup executable is missing from the freshly published setup payload: $WindowsX64SetupExecutablePath"
+        }
+        if (@($uniqueZipPaths | Where-Object { [IO.Path]::GetFileName($_) -ceq 'setupwinx64.zip' }).Count -ne 1) {
+            throw 'A Windows x64 release requires setupwinx64.zip from the same publish operation as its standalone setup executable.'
+        }
+    }
+
     # Move large generated artifacts directly into the final version directory. If a previous run
     # died halfway through this step, byte-identical files already present there are reused instead
     # of copied again. This keeps peak disk usage low and makes final-bundle assembly crash-resumable.
@@ -702,7 +669,6 @@ function Complete-ReleaseBundle {
         Move-OrReuseReleaseFile -SourcePath $supportFile -DestinationDirectory $versionDirectory | Out-Null
     }
     if ($RequireWindowsX64Setup) {
-        if (-not (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf)) { throw "Windows x64 setup executable is required for the full release bundle but is missing: $WindowsX64SetupExecutablePath" }
         Move-OrReuseReleaseFile -SourcePath $WindowsX64SetupExecutablePath -DestinationDirectory $versionDirectory | Out-Null
     }
     elseif (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf) {
@@ -775,13 +741,23 @@ function Publish-UnixRuntime {
 
     $mode = 'Full'
     $selfContained = 'true'
+    $profile = Resolve-ReleaseProfile -Rid $Rid
+    $portableAppZip = Join-Path $artifacts $profile.AppAsset
+    $portableSetupZip = Join-Path $artifacts $profile.SetupAsset
     $publishFolder = Join-Path $artifacts ("staging/$appVersion/$Rid/$($mode.ToLowerInvariant())")
+    $setupPublishFolder = Join-Path $artifacts ("staging/$appVersion/$Rid/setup")
     if ($Rid.StartsWith('osx-') -and -not $ForceRebuildArtifacts) {
         $existingNativeArtifacts = @(
             & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName 'LocalGPT' -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -ProbeExistingArtifactsOnly -MacIconSource (Join-Path $root 'src/LocalGPT/wwwroot/android-chrome-512x512.png') -DmgBackgroundPath (Join-Path $root 'build/assets/LocalGPT-dmg-background.png')
         )
-        if ($existingNativeArtifacts.Count -eq 3) {
+        # Native packages may be cached, but the matching portable installer ZIP pair
+        # must exist too; otherwise the release is incomplete and must be rebuilt.
+        if ($existingNativeArtifacts.Count -eq 3 -and
+            (Test-Path -LiteralPath $portableAppZip -PathType Leaf) -and
+            (Test-Path -LiteralPath $portableSetupZip -PathType Leaf)) {
             foreach ($artifact in $existingNativeArtifacts) { $script:releaseZipPaths.Add([string]$artifact) }
+            $script:releaseZipPaths.Add($portableAppZip)
+            $script:releaseZipPaths.Add($portableSetupZip)
             return
         }
     }
@@ -817,10 +793,37 @@ function Publish-UnixRuntime {
         Assert-LocalGptDocumentationPayload -DocumentationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
         $protocolDirectory = Join-Path $publishFolder 'protocol'; New-Item -ItemType Directory -Path $protocolDirectory -Force | Out-Null
         Copy-Item -LiteralPath $wirePackage -Destination (Join-Path $protocolDirectory $wirePackageName) -Force
+
+        # PublisherStudio releases a portable application/setup ZIP pair for each RID
+        # in addition to native Mac/Linux distributions. Keep the existing native
+        # payload unchanged, and produce LocalGPT's own exact stable-folder ZIP pair.
+        Remove-Item -LiteralPath $setupPublishFolder, $portableAppZip, $portableSetupZip -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "Publishing LocalGPT $Rid setup for the portable installer ZIP..." -ForegroundColor Cyan
+        Invoke-DotNet -Arguments @(
+            'publish', $setupProject, '-c', $Configuration, '-r', $Rid,
+            '-o', $setupPublishFolder, '--self-contained', 'true',
+            '-p:PublishSingleFile=true',
+            '-p:IncludeNativeLibrariesForSelfExtract=true',
+            '-p:EnableCompressionInSingleFile=true'
+        ) -FailureMessage "LocalGPT portable setup publish failed for $Rid."
+        $portableSetupExecutable = 'LocalGPTInstallerConsole'
+        if (-not (Test-Path -LiteralPath (Join-Path $setupPublishFolder $portableSetupExecutable) -PathType Leaf)) {
+            throw "LocalGPT portable setup executable is missing for $Rid."
+        }
+        [IO.File]::WriteAllText((Join-Path $setupPublishFolder 'RELEASE-VERSION.txt'), "$appVersion`n", $utf8NoBom)
+        [IO.File]::WriteAllText((Join-Path $setupPublishFolder 'SETUP-VERSION.txt'), "$setupVersion`n", $utf8NoBom)
+        [IO.File]::WriteAllText((Join-Path $setupPublishFolder 'SOURCE-SHA256.txt'), "$($script:releaseSourceFingerprint)`n", $utf8NoBom)
+        Assert-ThirdPartyNoticeInPayload -PayloadDirectory $setupPublishFolder
+        New-PortableReleaseArchive -SourceDirectory $publishFolder -DestinationPath $portableAppZip -RootFolderName $profile.AppProfile -ExpectedReleaseVersion $appVersion -WriteUnixPermissions -UnixExecutableRelativePaths @('LocalGPT')
+        New-PortableReleaseArchive -SourceDirectory $setupPublishFolder -DestinationPath $portableSetupZip -RootFolderName "setup$($profile.SetupProfile)" -ExpectedReleaseVersion $appVersion -WriteUnixPermissions -UnixExecutableRelativePaths @($portableSetupExecutable)
+        $script:releaseZipPaths.Add($portableAppZip)
+        $script:releaseZipPaths.Add($portableSetupZip)
+        Write-Host "Created portable $Rid application/setup ZIPs $portableAppZip and $portableSetupZip." -ForegroundColor Green
+
         $nativeArtifacts = & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName $appExecutable -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -UseContainerFallback:$UseContainerPackaging -ProvisionHomebrewTools:$ProvisionNativePackagingTools -RequireOptionalPackages:$RequireOptionalNativePackages -ForceRebuildArtifacts:$ForceRebuildArtifacts -MacIconSource (Join-Path $root 'src/LocalGPT/wwwroot/android-chrome-512x512.png') -DmgBackgroundPath (Join-Path $root 'build/assets/LocalGPT-dmg-background.png')
         foreach ($artifact in @($nativeArtifacts)) { if (-not [string]::IsNullOrWhiteSpace([string]$artifact)) { $script:releaseZipPaths.Add([string]$artifact) } }
         # Native artifacts are now complete; do not keep another multi-gigabyte documentation-bearing RID tree alive.
-        Remove-Item -LiteralPath $publishFolder -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $publishFolder, $setupPublishFolder -Recurse -Force -ErrorAction SilentlyContinue
         $transientMacApp = Join-Path $artifacts 'LocalGPT.app'
         if ($Rid.StartsWith('osx-')) { Remove-Item -LiteralPath $transientMacApp -Recurse -Force -ErrorAction SilentlyContinue }
         Write-Host "Released transient $Rid $mode staging workspace after native package validation." -ForegroundColor DarkCyan
@@ -888,7 +891,19 @@ function Publish-Runtime {
     if (-not [string]::Equals($publishedSemanticVersion, $appVersion, [StringComparison]::Ordinal)) {
         throw "Published LocalGPT assembly identity mismatch for ${Rid}: expected $appVersion, found $publishedSemanticVersion. Refusing to package a stale runtime."
     }
+    # The setup has its own version. Inspect its managed assembly from the just-built
+    # Release output rather than treating an archive marker as evidence of compilation.
+    $builtSetupAssembly = Join-Path (Split-Path -Parent $setupProject) "bin/$Configuration/net10.0/LocalGPTInstallerConsole.dll"
+    if (-not (Test-Path -LiteralPath $builtSetupAssembly -PathType Leaf)) {
+        throw "LocalGPT setup build output is missing: $builtSetupAssembly"
+    }
+    $builtSetupIdentity = [Reflection.AssemblyName]::GetAssemblyName($builtSetupAssembly).Version
+    $builtSetupVersion = "$($builtSetupIdentity.Major).$($builtSetupIdentity.Minor).$($builtSetupIdentity.Build)"
+    if (-not [string]::Equals($builtSetupVersion, $setupVersion, [StringComparison]::Ordinal)) {
+        throw "LocalGPT setup assembly version $builtSetupVersion does not match setup project version $setupVersion. Refusing to ship an unverified setup binary."
+    }
     $utf8NoBom = New-Object Text.UTF8Encoding($false)
+    [IO.File]::WriteAllText((Join-Path $setupFolder 'SETUP-VERSION.txt'), "$setupVersion`n", $utf8NoBom)
     foreach ($payload in @($appFolder, $setupFolder)) {
         [IO.File]::WriteAllText((Join-Path $payload 'RELEASE-VERSION.txt'), "$appVersion`n", $utf8NoBom)
         [IO.File]::WriteAllText((Join-Path $payload 'SOURCE-SHA256.txt'), "$($script:releaseSourceFingerprint)`n", $utf8NoBom)
@@ -905,11 +920,13 @@ function Publish-Runtime {
     }
 
     Assert-LocalGptDocumentationPayload -DocumentationRoot $publishedDocumentationRoot -Version $appVersion
-    $requiredSetupFiles = @(
-        "Default.cmd", "Install.cmd", "Update.cmd", "Start.cmd", "Start-NoBrowser.cmd",
-        "Install-Ollama.cmd", "Pull-Models-Slim.cmd", "Pull-Models-RTX3060.cmd",
-        "Pull-Models-Full.cmd", "Setup-Learning-Base.cmd", "Import-Recommended.cmd", "Uninstall.cmd"
-    )
+    # Match PublisherStudio's three non-destructive launchers; keep LocalGPT's
+    # optional Ollama/learning/model scripts without requiring obsolete names.
+    foreach ($requiredSetupLauncher in @('Install.cmd', 'Update.cmd', 'Start.cmd')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $setupFolder $requiredSetupLauncher) -PathType Leaf)) {
+            throw "LocalGPT $Rid setup publish omitted required launcher $requiredSetupLauncher."
+        }
+    }
  
     $protocolSetupDirectory = Join-Path $setupFolder "protocol"
     New-Item -ItemType Directory -Path $protocolSetupDirectory -Force | Out-Null
@@ -940,8 +957,11 @@ function Publish-Runtime {
     Assert-ThirdPartyNoticeInPayload -PayloadDirectory $setupFolder
     # Final release-boundary check: optional wrapper/publish steps must not reintroduce stale documentation.
     Assert-LocalGptDocumentationPayload -DocumentationRoot $publishedDocumentationRoot -Version $appVersion
-    $appRootFolderName = "LocalGPT-$appVersion-$Rid"
-    $setupRootFolderName = "LocalGPT-Setup-$appVersion-$Rid"
+    # Match PublisherStudio and the original LocalGPT installer: one stable
+    # runtime directory per architecture. The release VERSION is in the payload,
+    # not in a nested directory that the installer will never launch.
+    $appRootFolderName = $profile.AppProfile
+    $setupRootFolderName = "setup$($profile.SetupProfile)"
     New-PortableReleaseArchive -SourceDirectory $appFolder -DestinationPath $appZip -RootFolderName $appRootFolderName -ExpectedReleaseVersion $appVersion -WriteUnixPermissions:(!$Rid.StartsWith("win-")) -UnixExecutableRelativePaths @($appExecutable)
     New-PortableReleaseArchive -SourceDirectory $setupFolder -DestinationPath $setupZip -RootFolderName $setupRootFolderName -ExpectedReleaseVersion $appVersion -WriteUnixPermissions:(!$Rid.StartsWith("win-")) -UnixExecutableRelativePaths @($setupExecutable)
     $script:releaseZipPaths.Add($appZip)
@@ -1076,8 +1096,10 @@ try {
     }
 
     $documentationPdf = Join-Path $documentationCacheRoot "LocalGPT-$appVersion.pdf"
-    $winX64Profile = Resolve-ReleaseProfile -Rid "win-x64"
-    $winX64SetupFolder = Resolve-ProfilePublishFolder -ProjectPath $setupProject -ProfileName $winX64Profile.SetupProfile
+    # Publish-Runtime overrides the old .pubxml PublishDir with a release-scoped staging
+    # directory. The standalone installer must be copied from that SAME published
+    # setup payload as setupwinx64.zip, never from the obsolete profile directory.
+    $winX64SetupFolder = Join-Path $artifacts "staging/$appVersion/win-x64/setup"
     $winX64SetupExecutable = Join-Path $winX64SetupFolder "LocalGPTInstallerConsole.exe"
     $requireWinX64Setup = @($runtimes) -contains "win-x64"
     $licensePath = Join-Path $root "LICENSE.MD"

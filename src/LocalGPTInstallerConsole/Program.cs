@@ -62,6 +62,49 @@ internal static class Program
         return Path.Combine(fallbackRoot, "LocalGPT.Setup.log");
     }
 
+    /// <summary>Identifies the detached setup process, following the PublisherStudio installer update workflow.</summary>
+    private const string DetachedSetupEnvironmentVariable = "LOCALGPT_SETUP_DETACHED";
+
+    /// <summary>Restarts an installed Windows setup from a temporary executable so its own installation can be updated.</summary>
+    /// <param name="args">Original user-provided setup options.</param>
+    /// <returns>True if a detached setup process was started.</returns>
+    private static bool TryStartDetachedSetup(string[] args)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||
+            string.Equals(Environment.GetEnvironmentVariable(DetachedSetupEnvironmentVariable), "1", StringComparison.Ordinal))
+            return false;
+
+        var processPath = Environment.ProcessPath;
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(processPath) || !File.Exists(processPath) || string.IsNullOrWhiteSpace(localAppData))
+            return false;
+
+        var installRoot = Path.GetFullPath(Path.Combine(localAppData, "LocalGPT"))
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var executablePath = Path.GetFullPath(processPath);
+        if (!executablePath.StartsWith(installRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var detachedDirectory = Path.Combine(Path.GetTempPath(), "LocalGPT", "setup", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(detachedDirectory);
+        var detachedExecutable = Path.Combine(detachedDirectory, Path.GetFileName(executablePath));
+        File.Copy(executablePath, detachedExecutable);
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = detachedExecutable,
+            UseShellExecute = false,
+            CreateNoWindow = false,
+            WorkingDirectory = Environment.CurrentDirectory
+        };
+        foreach (var argument in args)
+            startInfo.ArgumentList.Add(argument);
+        startInfo.Environment[DetachedSetupEnvironmentVariable] = "1";
+        _ = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("LocalGPT detached setup process could not be started.");
+        Console.WriteLine("LocalGPT setup continued from a temporary copy to allow the installed setup executable to be replaced.");
+        return true;
+    }
+
     /// <summary>
     /// Stores the shared read-only slim models value used by <see cref="Program"/> across instances of the containing type.
     /// </summary>
@@ -172,6 +215,8 @@ internal static class Program
         var launchedByDoubleClick = args.Length == 0 && Environment.UserInteractive;
 
         typeof(Program).Assembly.ToConsoleProductIdentity().WriteStartupHeader();
+        if (TryStartDetachedSetup(args))
+            return 0;
         Console.WriteLine($"Your args to string {ArgsToString(args)}");
         var options = CliOptions.Parse(args);
         if(args.Length<=0)
@@ -275,10 +320,14 @@ internal static class Program
                 SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
                 {
-                    if (options.InstallOllama)
+                    if (options.InstallOllama && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     {
                         logger.LogInformation("InstallOllamaAsync.");
                         await InstallOllamaAsync(options, logger).ConfigureAwait(false);
+                    }
+                    else if (options.InstallOllama)
+                    {
+                        logger.LogInformation("Ollama installation is managed by the local macOS/Linux package manager; LocalGPT setup will not run a Windows installer.");
                     }
 
                 }
@@ -325,12 +374,14 @@ internal static class Program
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error in InstallLocalGptWin.");
+                    logger.LogError(ex, "Error in InstallLocalGptWin. Skipping shortcuts and application startup.");
+                    return 1;
                 }
                 SetupOperatorConsole.ThrowIfCancellationRequested();
                 try
                 {
-                    if (options.DesktopShortcuts || options.StartMenuShortcuts)
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                        (options.DesktopShortcuts || options.StartMenuShortcuts))
                         ProvisionWindowsShortcuts(options, logger);
                 }
                 catch (Exception ex)
@@ -373,6 +424,7 @@ internal static class Program
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error in StartLocalGpt.");
+                    return 1;
                 }
 
 
@@ -629,54 +681,306 @@ internal static class Program
     /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task InstallLocalGptAsync(CliOptions options, ILogger logger)
     {
+        // PublisherStudio-style flow: select exact platform assets, validate both, stop only
+        // the owned installed runtime, overlay the canonical directories, verify installation.
         try
         {
+            var runtimeRoot = GetReleaseRuntimeFolderName();
+            var setupRoot = "setup" + runtimeRoot;
+            var applicationAsset = runtimeRoot + ".zip";
+            var setupAsset = setupRoot + ".zip";
             var zipPath = options.LocalGptZipPath ?? Path.Combine(Environment.CurrentDirectory, LocalGptZipName);
+            var setupZipPath = options.LocalGptSetupZipPath ?? Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
 
-            await DownloadLatestReleaseAssetAsync(
-                typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug,
-                zipPath,
-                logger,
-                options,
-                setupAsset: false).ConfigureAwait(false);
+            await EnsureLocalGptReleaseAssetAsync(zipPath, options.LocalGptZipPath, applicationAsset, false, options, logger)
+                .ConfigureAwait(false);
+            await EnsureLocalGptReleaseAssetAsync(setupZipPath, options.LocalGptSetupZipPath, setupAsset, true, options, logger)
+                .ConfigureAwait(false);
 
+            var applicationExecutable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "LocalGPT.exe" : "LocalGPT";
+            var setupExecutable = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "LocalGPTInstallerConsole.exe" : "LocalGPTInstallerConsole";
+            var releaseVersion = ValidateLocalGptReleaseArchive(zipPath, runtimeRoot, applicationExecutable, logger);
+            var setupReleaseVersion = ValidateLocalGptReleaseArchive(setupZipPath, setupRoot, setupExecutable, logger);
+            if (!string.Equals(releaseVersion, setupReleaseVersion, StringComparison.Ordinal))
+                throw new InvalidDataException($"LocalGPT application release {releaseVersion} does not match setup release {setupReleaseVersion}.");
+
+            var setupBuildVersion = ReadSetupBuildVersion(setupZipPath, setupRoot);
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrWhiteSpace(localAppData))
                 throw new InvalidOperationException("LOCALAPPDATA could not be resolved.");
-
             var targetPath = Path.Combine(localAppData, "LocalGPT");
-
             if (options.ForceDelete)
                 DeleteIfExists(targetPath, logger);
-
             Directory.CreateDirectory(targetPath);
 
-            logger.LogInformation($"Extracting LocalGPT app '{zipPath}' to '{targetPath}'");
+            // PublisherStudio identifies the runtime by its exact installed executable, never a
+            // global process name alone, so unrelated LocalGPT test copies are unaffected.
+            StopInstalledLocalGptForUpdate(targetPath, runtimeRoot, logger);
+
+            logger.LogInformation("Extracting LocalGPT application archive {Archive} into {InstallRoot}.", zipPath, targetPath);
             ExtractZipWithFallback(zipPath, targetPath, logger);
-
-            var setupZipPath = Path.Combine(Environment.CurrentDirectory, LocalGptSetupZipName);
-
-            await DownloadLatestReleaseAssetAsync(
-                typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug,
-                setupZipPath,
-                logger,
-                options,
-                setupAsset: true).ConfigureAwait(false);
-
-            logger.LogInformation($"Extracting LocalGPT setup/bootstrap '{setupZipPath}' to '{targetPath}'");
+            logger.LogInformation("Extracting LocalGPT setup archive {Archive} into {InstallRoot}.", setupZipPath, targetPath);
             ExtractZipWithFallback(setupZipPath, targetPath, logger);
 
-            logger.LogDebug($"LocalGPT installed to '{targetPath}'.");
-            logger.LogInformation($"LocalGPT app and setup/bootstrap files now reside in '{targetPath}'.");
+            var installedAppRoot = Path.Combine(targetPath, runtimeRoot);
+            var installedSetupRoot = Path.Combine(targetPath, setupRoot);
+            var installedExecutable = Path.Combine(installedAppRoot, applicationExecutable);
+            var installedAssembly = Path.Combine(installedAppRoot, "LocalGPT.dll");
+            var installedSetupExecutable = Path.Combine(installedSetupRoot, setupExecutable);
+            if (!File.Exists(installedExecutable) || !File.Exists(installedAssembly) || !File.Exists(installedSetupExecutable))
+                throw new InvalidDataException("LocalGPT installation is incomplete: the canonical application or setup executable/assembly is missing.");
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                !File.Exists(Path.Combine(installedSetupRoot, "Start.cmd")))
+                throw new InvalidDataException("LocalGPT installation is missing setup Start.cmd.");
+            var installedRelease = File.ReadAllText(Path.Combine(installedAppRoot, "RELEASE-VERSION.txt")).Trim();
+            var installedSetupRelease = File.ReadAllText(Path.Combine(installedSetupRoot, "RELEASE-VERSION.txt")).Trim();
+            var installedSetupBuildVersion = File.ReadAllText(Path.Combine(installedSetupRoot, "SETUP-VERSION.txt")).Trim();
+            var version = AssemblyName.GetAssemblyName(installedAssembly).Version;
+            var installedAssemblyVersion = version is null ? "unknown" : $"{version.Major}.{version.Minor}.{version.Build}";
+            if (installedRelease != releaseVersion || installedSetupRelease != releaseVersion ||
+                installedAssemblyVersion != releaseVersion || installedSetupBuildVersion != setupBuildVersion)
+                throw new InvalidDataException($"LocalGPT installed version mismatch: archive={releaseVersion}, application={installedRelease}, assembly={installedAssemblyVersion}, setupRelease={installedSetupRelease}, setupBuild={installedSetupBuildVersion}.");
+
+            // On Windows, check the *binary* file version, not just a text marker. macOS/Linux
+            // executables have no uniform Windows FileVersion resource and use the release markers.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var setupFileVersion = FileVersionInfo.GetVersionInfo(installedSetupExecutable).FileVersion;
+                if (!Version.TryParse(setupFileVersion, out var parsedSetupFileVersion) ||
+                    parsedSetupFileVersion.ToString(3) != setupBuildVersion)
+                    throw new InvalidDataException($"Installed LocalGPT setup binary version '{setupFileVersion ?? "missing"}' does not match published setup {setupBuildVersion}.");
+            }
+
+            logger.LogInformation("Verified LocalGPT {Version} installed under {ApplicationDirectory}, setup {SetupVersion} under {SetupDirectory}.",
+                releaseVersion, installedAppRoot, setupBuildVersion, installedSetupRoot);
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            logger.LogError(ex, $"Error in InstallLocalGptAsync. options {options}");
+            logger.LogError(exception, "LocalGPT installation/update failed; the updated installation was not verified.");
+            throw;
         }
+    }
+
+    /// <summary>Obtains the exact platform-specific release asset, matching PublisherStudio's explicit-path/direct-download/API-fallback flow.</summary>
+    /// <param name="destinationPath">Cached local archive destination.</param>
+    /// <param name="explicitSourcePath">Optional user-supplied offline release archive.</param>
+    /// <param name="expectedAssetName">Exact approved GitHub asset filename for the detected runtime.</param>
+    /// <param name="setupAsset">Whether this is the setup/bootstrap archive.</param>
+    /// <param name="options">The current setup options.</param>
+    /// <param name="logger">Logger for release acquisition.</param>
+    /// <returns>A task representing completed archive acquisition.</returns>
+    private static async Task EnsureLocalGptReleaseAssetAsync(
+        string destinationPath, string? explicitSourcePath, string expectedAssetName,
+        bool setupAsset, CliOptions options, ILogger logger)
+    {
+        if (!string.IsNullOrWhiteSpace(explicitSourcePath))
+        {
+            var source = Path.GetFullPath(Environment.ExpandEnvironmentVariables(explicitSourcePath));
+            if (!File.Exists(source))
+                throw new FileNotFoundException($"Specified LocalGPT release archive not found: {source}", source);
+            if (!string.Equals(source, Path.GetFullPath(destinationPath),
+                    RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destinationPath))!);
+                File.Copy(source, destinationPath, overwrite: true);
+            }
+            logger.LogInformation("Using explicitly supplied LocalGPT release archive {Archive}.", destinationPath);
+            return;
+        }
+
+        var repo = typeof(Program).Assembly.ToConsoleProductIdentity().RepositorySlug;
+        var directUrl = $"https://github.com/{repo}/releases/latest/download/{Uri.EscapeDataString(expectedAssetName)}";
+        try
+        {
+            logger.LogInformation("Downloading exact LocalGPT release asset {AssetName}.", expectedAssetName);
+            await DownloadFileAsync(directUrl, destinationPath, logger, options).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Direct download for {AssetName} failed; falling back to latest-release API.", expectedAssetName);
+            await DownloadLatestReleaseAssetAsync(repo, destinationPath, logger, options, setupAsset).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Returns the setup build version independently of the application release version.</summary>
+    /// <param name="archivePath">Validated setup archive.</param>
+    /// <param name="setupRoot">Stable setup folder inside the archive.</param>
+    /// <returns>The setup build's semantic version.</returns>
+    private static string ReadSetupBuildVersion(string archivePath, string setupRoot)
+    {
+        using var archive = ZipFile.OpenRead(archivePath);
+        var entry = archive.GetEntry(setupRoot + "/SETUP-VERSION.txt")
+            ?? throw new InvalidDataException("LocalGPT setup archive is missing SETUP-VERSION.txt.");
+        using var reader = new StreamReader(entry.Open());
+        var version = reader.ReadToEnd().Trim();
+        if (!Version.TryParse(version, out var parsedVersion) || parsedVersion.Build < 0)
+            throw new InvalidDataException($"Invalid LocalGPT setup build version: {version}");
+        return version;
+    }
+
+    /// <summary>Stops only the installed LocalGPT runtime owned by this installation before replacing its files, following PublisherStudio.</summary>
+    /// <param name="installRoot">Canonical LocalGPT per-user installation root.</param>
+    /// <param name="runtimeFolderName">Stable runtime directory name.</param>
+    /// <param name="logger">Logger for process inspection and shutdown.</param>
+    private static void StopInstalledLocalGptForUpdate(string installRoot, string runtimeFolderName, ILogger logger)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return;
+
+        var expectedExecutable = Path.GetFullPath(Path.Combine(installRoot, runtimeFolderName, "LocalGPT.exe"));
+        var endpointPath = Path.Combine(installRoot, "runtime", "server.json");
+        var ownedIds = new HashSet<int>();
+        var endpointOwned = false;
+        if (File.Exists(endpointPath))
+        {
+            try
+            {
+                using var endpoint = JsonDocument.Parse(File.ReadAllText(endpointPath));
+                var json = endpoint.RootElement;
+                var path = json.TryGetProperty("ExecutablePath", out var exe) ? exe.GetString() : null;
+                endpointOwned = PathsEqual(path, expectedExecutable);
+                if (endpointOwned && json.TryGetProperty("ProcessId", out var pid) && pid.TryGetInt32(out var id) && id > 0)
+                    ownedIds.Add(id);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+            {
+                logger.LogDebug(exception, "Could not read LocalGPT runtime endpoint before update.");
+            }
+        }
+        foreach (var candidate in Process.GetProcessesByName("LocalGPT"))
+        {
+            using (candidate)
+            {
+                try
+                {
+                    if (PathsEqual(candidate.MainModule?.FileName, expectedExecutable))
+                        ownedIds.Add(candidate.Id);
+                }
+                catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+                {
+                    logger.LogDebug(exception, "Could not inspect LocalGPT process {ProcessId} before update.", candidate.Id);
+                }
+            }
+        }
+        foreach (var pid in ownedIds)
+        {
+            try
+            {
+                using var process = Process.GetProcessById(pid);
+                if (process.HasExited)
+                    continue;
+                // Recheck a process-id discovered through the runtime endpoint so stale process
+                // IDs cannot terminate another executable after pid reuse.
+                if (!PathsEqual(process.MainModule?.FileName, expectedExecutable))
+                    continue;
+                logger.LogInformation("Stopping installed LocalGPT process {ProcessId} before updating its executable.", pid);
+                process.Kill(entireProcessTree: true);
+                if (!process.WaitForExit(15000))
+                    throw new IOException($"LocalGPT process {pid} did not exit before the update timeout.");
+            }
+            catch (ArgumentException)
+            {
+                // Process exited between discovery and shutdown.
+            }
+        }
+        if (endpointOwned && File.Exists(endpointPath))
+        {
+            File.Delete(endpointPath);
+            logger.LogInformation("Removed the old installed LocalGPT runtime endpoint before update.");
+        }
+    }
+
+    /// <summary>Compares Windows executable paths after normalizing their physical syntax.</summary>
+    /// <param name="left">Candidate path from a runtime endpoint or process snapshot.</param>
+    /// <param name="right">Expected canonical installed executable path.</param>
+    /// <returns>True if the paths identify the same Windows executable.</returns>
+    private static bool PathsEqual(string? left, string right)
+    {
+        if (string.IsNullOrWhiteSpace(left))
+            return false;
+        try
+        {
+            return string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Returns the stable release directory for the current platform and architecture.</summary>
+    private static string GetReleaseRuntimeFolderName()
+    {
+        var platform = GetPlatformToken();
+        var architecture = GetArchitectureToken();
+        return (platform, architecture) switch
+        {
+            ("win", "x64") => "winx64",
+            ("win", "x86") => "winx86",
+            ("win", "arm64") => "winarm64",
+            ("linux", "x64") => "linuxx64",
+            ("linux", "arm64") => "linuxarm64",
+            ("macosx", "x64") => "macosx64",
+            ("macosx", "arm64") => "macosarm64",
+            _ => throw new PlatformNotSupportedException($"No LocalGPT release asset exists for {platform}/{architecture}.")
+        };
+    }
+
+    /// <summary>Checks a release ZIP before any files in the installed application are overwritten.</summary>
+    private static string ValidateLocalGptReleaseArchive(string archivePath, string expectedRoot, string expectedExecutable, ILogger logger)
+    {
+        using var archive = ZipFile.OpenRead(archivePath);
+        if (archive.Entries.Count == 0)
+            throw new InvalidDataException($"LocalGPT release archive is empty: {archivePath}");
+
+        var prefix = expectedRoot + "/";
+        var normalizedEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in archive.Entries)
+        {
+            var raw = entry.FullName;
+            var parts = raw.Split('/');
+            if (string.IsNullOrWhiteSpace(raw) || raw.IndexOf('\\') >= 0 || raw.StartsWith('/') ||
+                parts.Any(part => part is ".." or "." or "") || raw.IndexOf(':') >= 0 ||
+                !raw.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"LocalGPT archive contains an unsafe or unexpected entry: {raw}");
+
+            // Do not allow archive entries to introduce symlinks inside the install root.
+            if (((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000)
+                throw new InvalidDataException($"LocalGPT release archive contains a symbolic link: {raw}");
+            if (!normalizedEntries.Add(raw))
+                throw new InvalidDataException($"LocalGPT release archive contains a duplicate entry: {raw}");
+        }
+
+        var required = new List<string> { prefix + expectedExecutable, prefix + "RELEASE-VERSION.txt", prefix + "SOURCE-SHA256.txt" };
+        if (expectedExecutable.StartsWith("LocalGPTInstallerConsole", StringComparison.Ordinal) && expectedRoot.StartsWith("setupwin", StringComparison.Ordinal))
+            required.Add(prefix + "Start.cmd");
+        if (expectedExecutable.StartsWith("LocalGPT", StringComparison.Ordinal) && !expectedExecutable.StartsWith("LocalGPTInstallerConsole", StringComparison.Ordinal))
+            required.Add(prefix + "LocalGPT.dll");
+        if (expectedExecutable.StartsWith("LocalGPTInstallerConsole", StringComparison.Ordinal))
+            required.Add(prefix + "SETUP-VERSION.txt");
+        foreach (var requiredEntry in required)
+        {
+            if (!normalizedEntries.Contains(requiredEntry))
+                throw new InvalidDataException($"LocalGPT release archive is missing {requiredEntry}.");
+        }
+        var versionEntry = archive.Entries.First(entry =>
+            string.Equals(entry.FullName, prefix + "RELEASE-VERSION.txt", StringComparison.OrdinalIgnoreCase));
+        using var reader = new StreamReader(versionEntry.Open());
+        var version = reader.ReadToEnd().Trim();
+        if (!Version.TryParse(version, out var parsedVersion) || parsedVersion.Build < 0)
+            throw new InvalidDataException($"LocalGPT release archive has an invalid version marker: {version}");
+        logger.LogInformation("Validated {Root} release ZIP {ArchivePath} for LocalGPT {Version}.", expectedRoot, archivePath, version);
+        return version;
     }
 
     /// <summary>
@@ -838,6 +1142,20 @@ internal static class Program
                 localGptRoot,
                 "Start.cmd",
                 "LocalGPT Start.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Install.cmd",
+                "LocalGPT Install.url",
+                logger);
+
+            AddCmdShortcutIfExists(
+                shortcuts,
+                localGptRoot,
+                "Update.cmd",
+                "LocalGPT Update.url",
                 logger);
 
             AddCmdShortcutIfExists(
@@ -1295,11 +1613,12 @@ internal static class Program
                 return null;
             }
 
+            var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "LocalGPT.exe" : "LocalGPT";
             var knownCandidates = new[]
             {
-            Path.Combine(localGptRoot, "winx64", "LocalGPT.exe"),
-            Path.Combine(localGptRoot, "LocalGPT.exe")
-        };
+                Path.Combine(localGptRoot, GetReleaseRuntimeFolderName(), executableName),
+                Path.Combine(localGptRoot, executableName)
+            };
 
             foreach (var candidate in knownCandidates)
             {
@@ -1314,7 +1633,7 @@ internal static class Program
 
             logger.LogWarning($"Known LocalGPT executable paths failed. Searching recursively under: {localGptRoot}");
 
-            var recursiveCandidate = EnumerateFilesSafe(localGptRoot, "LocalGPT.exe", logger)
+            var recursiveCandidate = EnumerateFilesSafe(localGptRoot, executableName, logger)
                 .OrderBy(path => GetRelativePathDepth(localGptRoot, path))
                 .ThenBy(path => path.Length)
                 .FirstOrDefault();
@@ -1325,7 +1644,7 @@ internal static class Program
                 return recursiveCandidate;
             }
 
-            logger.LogWarning($"Could not find LocalGPT.exe under: {localGptRoot}");
+            logger.LogWarning("Could not find {ExecutableName} under {InstallRoot}.", executableName, localGptRoot);
             return null;
         }
         catch (Exception ex)
@@ -1704,7 +2023,8 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error in StartLocalGpt. options {options}");
+            logger.LogError(ex, "LocalGPT startup failed.");
+            throw;
         }
     }
     /// <summary>
@@ -1730,8 +2050,7 @@ internal static class Program
             {
                 if (process.HasExited)
                 {
-                    logger.LogWarning("LocalGPT exited before publishing its runtime endpoint; the requested browser URL will be used.");
-                    break;
+                    throw new InvalidOperationException("LocalGPT exited before publishing its runtime endpoint; startup failed.");
                 }
 
                 if (TryReadLocalGptRuntimeUrl(runtimeFile, process.Id, launchStartedAtUtc, out var runtimeUrl))
@@ -1858,57 +2177,19 @@ internal static class Program
             if (!root.TryGetProperty("assets", out var assets) || assets.GetArrayLength() == 0)
                 throw new InvalidOperationException($"No downloadable release assets found for {repo}.");
 
-            var platform = GetPlatformToken();
-            var arch = GetArchitectureToken();
-
+            var expectedName = (setupAsset ? "setup" : string.Empty) + GetReleaseRuntimeFolderName() + ".zip";
             JsonElement? selected = null;
-
             foreach (var asset in assets.EnumerateArray())
             {
-                var name = asset.GetProperty("name").GetString() ?? string.Empty;
-
-                var isPlatformMatch =
-                    name.Contains(platform, StringComparison.OrdinalIgnoreCase)
-                    && name.Contains(arch, StringComparison.OrdinalIgnoreCase);
-
-                var isSetupAsset =
-                    name.Contains("setup", StringComparison.OrdinalIgnoreCase)
-                    || name.Contains("installer", StringComparison.OrdinalIgnoreCase)
-                    || name.Contains("bootstrap", StringComparison.OrdinalIgnoreCase);
-
-                logger.LogInformation(
-                    $"Checking asset '{name}'. PlatformMatch={isPlatformMatch}, SetupAsset={isSetupAsset}, WantedSetupAsset={setupAsset}");
-
-                if (isPlatformMatch && isSetupAsset == setupAsset)
+                var name = asset.GetProperty("name").GetString();
+                if (string.Equals(name, expectedName, StringComparison.OrdinalIgnoreCase))
                 {
                     selected = asset;
                     break;
                 }
             }
-
             if (selected is null)
-            {
-                logger.LogWarning(
-                    $"No exact asset match found for setupAsset={setupAsset}, platform={platform}, arch={arch}. Falling back to first matching setup mode.");
-
-                foreach (var asset in assets.EnumerateArray())
-                {
-                    var name = asset.GetProperty("name").GetString() ?? string.Empty;
-
-                    var isSetupAsset =
-                        name.Contains("setup", StringComparison.OrdinalIgnoreCase)
-                        || name.Contains("installer", StringComparison.OrdinalIgnoreCase)
-                        || name.Contains("bootstrap", StringComparison.OrdinalIgnoreCase);
-
-                    if (isSetupAsset == setupAsset)
-                    {
-                        selected = asset;
-                        break;
-                    }
-                }
-            }
-
-            selected ??= assets.EnumerateArray().First();
+                throw new InvalidDataException($"LocalGPT release {tagName} does not contain the required archive {expectedName}; refusing a different-platform fallback.");
 
             var downloadUrl = selected.Value.GetProperty("browser_download_url").GetString();
             var assetName = selected.Value.GetProperty("name").GetString();
@@ -2707,6 +2988,8 @@ internal sealed class CliOptions
     /// </summary>
     /// <value>The LocalGPT ZIP path value exposed by <see cref="CliOptions"/>.</value>
     public string? LocalGptZipPath { get; private set; }
+    /// <summary>Optional local setup archive used for fully offline paired release installation.</summary>
+    public string? LocalGptSetupZipPath { get; private set; }
     /// <summary>
     /// Gets or sets the LocalGPT exe path used by this CLI instance to locate the associated file-system resource.
     /// </summary>
@@ -2795,6 +3078,7 @@ internal sealed class CliOptions
                     options.PullOllamaModels = true;
                     break;
                 case "--install-localgpt":
+                case "--update-localgpt":
                     options.InstallLocalGptWin = true;
                     break;
                 case "--setup-learning-base":
@@ -2833,6 +3117,9 @@ internal sealed class CliOptions
                     break;
                 case "--localgpt-zip":
                     options.LocalGptZipPath = NextValue(argsList, ref i, arg);
+                    break;
+                case "--localgpt-setup-zip":
+                    options.LocalGptSetupZipPath = NextValue(argsList, ref i, arg);
                     break;
                 case "--localgpt-exe":
                     options.LocalGptExePath = NextValue(argsList, ref i, arg);
@@ -2902,6 +3189,7 @@ internal sealed class CliOptions
         $"{nameof(Range)}={Range}",
         $"{nameof(LearningBasePath)}={LearningBasePath}",
         $"{nameof(LocalGptZipPath)}={LocalGptZipPath}",
+        $"{nameof(LocalGptSetupZipPath)}={LocalGptSetupZipPath}",
         $"{nameof(LocalGptExePath)}={LocalGptExePath}",
         $"{nameof(OllamaExePath)}={OllamaExePath}",
         $"{nameof(LocalGptPort)}={LocalGptPort}",
@@ -2944,14 +3232,16 @@ Options:
   --install-ollama           Install Ollama by downloading and running the official Windows EXE installer.
   --pull-models              Explicitly pull Ollama models. Never part of default or --all setup.
   --range <Slim|RTX3060|Full> Model set for explicit --pull-models only. Default: Slim.
-  --install-localgpt         Download and install latest LocalGPT Windows release.
+  --install-localgpt         Install/update the latest platform-matched LocalGPT application and setup release.
+  --update-localgpt          Alias for --install-localgpt; preserves installed user data.
   --all                      Run the combined setup without downloading models; select models in /install.
   --setup-learning-base      Prepare/import repositories into the learning base path.
   --import-recommended       Import the hardcoded recommended repository list.
   --repo <owner/repo>         Import one user-selected GitHub repository. Can be repeated; nothing in these examples is pulled automatically.
   --learnbase <path>          Learning base target path. Default: C:\learnbaseforlocalgpt.
   --start-localgpt           Start LocalGPT.exe from %LOCALAPPDATA%\LocalGPT.
-  --localgpt-zip <path>      Override LocalGPT ZIP download path.
+  --localgpt-zip <path>      Use the supplied LocalGPT application ZIP without downloading it.
+  --localgpt-setup-zip <path> Use the supplied matching setup ZIP without downloading it.
   --localgpt-exe <path>      Override LocalGPT executable path.
   --ollama-exe <path>        Override Ollama executable path. Default Windows location is %LOCALAPPDATA%\Programs\Ollama\ollama.exe.
   --port <number>            Port for LocalGPT. Default: 5000.

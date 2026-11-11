@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <Version>5.0.0</Version>
+    <Version>5.0.2</Version>
     <Product>LocalGPT Setup</Product>
     <ApplicationIcon>..\LocalGPT\wwwroot\favicon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
@@ -20,6 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Install.cmd" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
+    <None Update="Update.cmd" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
     <None Update="Force-Delete-Repull-LB-Slim-Model.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

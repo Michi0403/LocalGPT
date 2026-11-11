@@ -136,6 +136,23 @@ while IFS= read -r -d '' artifact; do
   copied=$((copied + 1))
 done < <(find "$artifact_root" -maxdepth 1 -type f -name "$product-$version-linux-*" -print0 | sort -z)
 
+# LocalGPT's PublisherStudio-aligned portable installer also needs the exact Linux
+# app/setup ZIPs. Copy them beside the established native TAR.GZ/DEB artifacts.
+if [[ "$product" == 'LocalGPT' ]]; then
+  for arch in x64 arm64; do
+    if [[ "$runtime" != 'all' && "$runtime" != "linux-$arch" ]]; then continue; fi
+    for asset in "linux${arch}.zip" "setuplinux${arch}.zip"; do
+      if [[ ! -s "$artifact_root/$asset" ]]; then
+        printf 'Missing LocalGPT Linux portable installer archive: %s\n' "$asset" >&2
+        exit 9
+      fi
+      cp -f "$artifact_root/$asset" "$output_root/"
+      printf 'WSL artifact: %s\n' "$asset"
+      copied=$((copied + 1))
+    done
+  done
+fi
+
 if [[ "$copied" -eq 0 ]]; then
   printf 'WSL child build returned no Linux artifacts for %s %s.\n' "$product" "$version" >&2
   exit 8

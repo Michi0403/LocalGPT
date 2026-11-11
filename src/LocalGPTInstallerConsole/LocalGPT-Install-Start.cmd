@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-call "%~dp0LocalGPTInstallerConsole.exe" --install-ollama --install-localgpt --force-delete --start-localgpt
+call "%~dp0LocalGPTInstallerConsole.exe" --install-ollama --install-localgpt --start-localgpt
 set "EXITCODE=%ERRORLEVEL%"
 
 echo.
