@@ -44,9 +44,7 @@ function Test-TargetMatchesHostArchitecture([string]$RuntimeIdentifier) {
     if ($RuntimeIdentifier.EndsWith('x64')) { return $hostArchitecture -eq 'x64' }
     return $false
 }
-function Write-Utf8NoBom([string]$Path, [string]$Text) {
-    [IO.File]::WriteAllText($Path, $Text, [Text.UTF8Encoding]::new($false))
-}
+. (Join-Path $PSScriptRoot 'NativeReleaseText.Common.ps1')
 function Set-UnixExecutable([string]$Path) {
     if ($isWindowsHost) { return }
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Cannot mark missing file executable: $Path" }
@@ -1470,9 +1468,11 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
     $componentPackage = Join-Path ([IO.Path]::GetTempPath()) ("pkg-component-" + [Guid]::NewGuid().ToString('N') + '.pkg')
     $distributionPath = Join-Path ([IO.Path]::GetTempPath()) ("pkg-distribution-" + [Guid]::NewGuid().ToString('N') + '.xml')
     $expandedPackage = Join-Path ([IO.Path]::GetTempPath()) ("pkg-expanded-" + [Guid]::NewGuid().ToString('N'))
+    $pkgResources = Join-Path ([IO.Path]::GetTempPath()) ("pkg-resources-" + [Guid]::NewGuid().ToString('N'))
     $applicationsRoot = Join-Path $pkgRoot 'Applications'
     New-Item -ItemType Directory -Path $applicationsRoot -Force | Out-Null
     New-Item -ItemType Directory -Path $pkgScripts -Force | Out-Null
+    New-Item -ItemType Directory -Path $pkgResources -Force | Out-Null
     try {
         # Root-mode packaging makes the payload layout explicit:
         # /Applications/<Product>.app/Contents/... instead of relying on component inference.
@@ -1484,104 +1484,15 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
         }
 
 
-        $lifecycleTemplate = @'
-#!/bin/sh
-set -u
-PRODUCT="__PRODUCT__"
-EXECUTABLE="__EXECUTABLE__"
-APP_PATH="/Applications/$PRODUCT.app"
-APP_BIN="$APP_PATH/Contents/Resources/app/$EXECUTABLE"
-MARKER="/private/tmp/io.github.michi0403.__PRODUCT_LOWER__.was-running"
-
-resolve_console_home() {
-  console_user=$(/usr/bin/stat -f '%Su' /dev/console 2>/dev/null || true)
-  case "${console_user:-}" in ''|root|loginwindow) return 1 ;; esac
-  console_home=$(/usr/bin/dscl . -read "/Users/$console_user" NFSHomeDirectory 2>/dev/null | /usr/bin/awk '{print $2}' || true)
-  [ -n "${console_home:-}" ] || console_home="/Users/$console_user"
-  printf '%s' "$console_home"
-}
-
-remove_runtime_endpoint() {
-  if console_home=$(resolve_console_home); then
-    endpoint_file="$console_home/Library/Application Support/$PRODUCT/runtime/server.json"
-    [ -f "$endpoint_file" ] || return 0
-    owner_pid=$(sed -nE 's/.*"[Pp]rocess[Ii]d"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$endpoint_file" | head -n 1)
-    endpoint_executable=$(sed -nE 's/.*"[Ee]xecutable[Pp]ath"[[:space:]]*:[[:space:]]*"([^\"]+)".*/\1/p' "$endpoint_file" | head -n 1)
-    if [ -n "${owner_pid:-}" ] && ! /bin/kill -0 "$owner_pid" 2>/dev/null; then
-      /bin/rm -f "$endpoint_file" 2>/dev/null || true
-      return 0
-    fi
-    installed_owner=0
-    if [ -n "${endpoint_executable:-}" ] && [ "$endpoint_executable" = "$APP_BIN" ]; then
-      installed_owner=1
-    elif [ -n "${owner_pid:-}" ] && /bin/kill -0 "$owner_pid" 2>/dev/null; then
-      owner_command=$(/bin/ps -p "$owner_pid" -o command= 2>/dev/null || true)
-      case "${owner_command:-}" in *"$APP_BIN"*) installed_owner=1 ;; esac
-    fi
-    if [ "$installed_owner" -eq 1 ]; then
-      /bin/rm -f "$endpoint_file" 2>/dev/null || true
-    fi
-  fi
-}
-stop_running_product() {
-  pids=""
-  if console_home=$(resolve_console_home); then
-    endpoint_file="$console_home/Library/Application Support/$PRODUCT/runtime/server.json"
-    if [ -f "$endpoint_file" ]; then
-      owner_pid=$(sed -nE 's/.*"[Pp]rocess[Ii]d"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$endpoint_file" | head -n 1)
-      if [ -n "${owner_pid:-}" ] && /bin/kill -0 "$owner_pid" 2>/dev/null; then
-        owner_command=$(/bin/ps -p "$owner_pid" -o command= 2>/dev/null || true)
-        case "${owner_command:-}" in *"$APP_BIN"*) pids="$pids $owner_pid" ;; esac
-      fi
-    fi
-  fi
-  if [ -x /usr/bin/pgrep ]; then
-    matched_pids=$(/usr/bin/pgrep -f "$APP_BIN" 2>/dev/null || true)
-    [ -z "${matched_pids:-}" ] || pids="$pids $matched_pids"
-  fi
-  [ -n "${pids:-}" ] || return 0
-  : >"$MARKER" 2>/dev/null || true
-  for pid in $pids; do /bin/kill -TERM "$pid" 2>/dev/null || true; done
-  i=0
-  while [ $i -lt 20 ]; do
-    remaining=""
-    for pid in $pids; do
-      if /bin/kill -0 "$pid" 2>/dev/null; then remaining="$remaining $pid"; fi
-    done
-    [ -z "$remaining" ] && return 0
-    /bin/sleep 0.25
-    i=$((i+1))
-  done
-  for pid in $pids; do
-    if /bin/kill -0 "$pid" 2>/dev/null; then /bin/kill -KILL "$pid" 2>/dev/null || true; fi
-  done
-}
-'@
-        $lifecycleCommon = $lifecycleTemplate.Replace('__PRODUCT__', $ProductName).Replace('__EXECUTABLE__', $ExecutableName).Replace('__PRODUCT_LOWER__', $ProductName.ToLowerInvariant())
-        $preinstall = $lifecycleCommon + @'
-
-stop_running_product
-remove_runtime_endpoint
-exit 0
-'@
-        $postinstall = $lifecycleCommon + @'
-
-remove_runtime_endpoint
-if [ -f "$MARKER" ]; then
-  /bin/rm -f "$MARKER" 2>/dev/null || true
-  console_user=$(/usr/bin/stat -f '%Su' /dev/console 2>/dev/null || true)
-  case "${console_user:-}" in ''|root|loginwindow) exit 0 ;; esac
-  console_uid=$(/usr/bin/id -u "$console_user" 2>/dev/null || true)
-  if [ -n "${console_uid:-}" ] && [ -x /bin/launchctl ]; then
-    /bin/launchctl asuser "$console_uid" /usr/bin/sudo -u "$console_user" /usr/bin/open "$APP_PATH" >/dev/null 2>&1 || true
-  fi
-fi
-exit 0
-'@
-        Write-Utf8NoBom (Join-Path $pkgScripts 'preinstall') $preinstall
-        Write-Utf8NoBom (Join-Path $pkgScripts 'postinstall') $postinstall
-        Set-UnixExecutable (Join-Path $pkgScripts 'preinstall')
-        Set-UnixExecutable (Join-Path $pkgScripts 'postinstall')
+        # Compose both scripts from the audited, LF-only Unix templates.
+        $scriptTemplates = Join-Path $PSScriptRoot 'macpkg'
+        foreach ($phase in @('preinstall', 'postinstall')) {
+            $scriptText = Get-MacPackageScriptText -TemplateRoot $scriptTemplates -ProductName $ProductName -ExecutableName $ExecutableName -Phase $phase
+            $scriptPath = Join-Path $pkgScripts $phase
+            Write-Utf8NoBom $scriptPath $scriptText
+            Set-UnixExecutable $scriptPath
+            Assert-PortableShellScript -Path $scriptPath -RequireShell -CheckExecutable
+        }
 
         Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
         Resolve-MacDistributionSigning
@@ -1625,6 +1536,24 @@ exit 0
 
         Write-Host "Validated component PKG payload root /Applications/$appName with Info.plist and executable content." -ForegroundColor Green
 
+        # All distribution UI resources are owned by the repository, not generated placeholders.
+        $repositoryRoot = Split-Path -Parent $PSScriptRoot
+        $readmeSource = Join-Path $repositoryRoot 'README.md'
+        $licenseSource = Join-Path $repositoryRoot 'LICENSE.MD'
+        $backgroundSource = if ([string]::IsNullOrWhiteSpace($DmgBackgroundPath)) {
+            Join-Path $PSScriptRoot 'assets/LocalGPT-dmg-background.png'
+        } else { $DmgBackgroundPath }
+        foreach ($resourceSource in @($readmeSource, $licenseSource, $backgroundSource)) {
+            if (-not (Test-Path -LiteralPath $resourceSource -PathType Leaf) -or
+                (Get-Item -LiteralPath $resourceSource).Length -eq 0) {
+                throw "Missing or empty macOS Installer resource: $resourceSource"
+            }
+        }
+        Write-Utf8NoBom (Join-Path $pkgResources 'README.txt') ([IO.File]::ReadAllText($readmeSource))
+        Write-Utf8NoBom (Join-Path $pkgResources 'LICENSE.txt') ([IO.File]::ReadAllText($licenseSource))
+        Copy-Item -LiteralPath $backgroundSource -Destination (Join-Path $pkgResources 'background.png') -Force
+        Assert-MacPackageResources -ResourcesDirectory $pkgResources
+
         $componentPackageName = [IO.Path]::GetFileName($componentPackage)
         $distributionTitle = "$ProductName $Version"
         $escapedDistributionTitle = [Security.SecurityElement]::Escape($distributionTitle)
@@ -1634,6 +1563,10 @@ exit 0
 <?xml version="1.0" encoding="utf-8"?>
 <installer-gui-script minSpecVersion="1">
   <title>$escapedDistributionTitle</title>
+  <welcome file="README.txt" mime-type="text/plain"/>
+  <readme file="README.txt" mime-type="text/plain"/>
+  <license file="LICENSE.txt" mime-type="text/plain"/>
+  <background file="background.png" mime-type="image/png" alignment="center" scaling="proportional"/>
   <options customize="never" require-scripts="false"/>
   <choices-outline>
     <line choice="default"/>
@@ -1649,6 +1582,7 @@ exit 0
         Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
         $productBuildArguments = @(
             '--distribution', $distributionPath,
+            '--resources', $pkgResources,
             '--package-path', ([IO.Path]::GetDirectoryName($componentPackage))
         )
         if ($script:MacInstallerSigningIdentity) { $productBuildArguments += @('--sign', $script:MacInstallerSigningIdentity) }
@@ -1694,6 +1628,27 @@ exit 0
             Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
             return $false
         }
+        # Expand the *actual shipped package*: validating the pre-pkgbuild input is insufficient.
+        foreach ($resourceName in @('README.txt','LICENSE.txt','background.png')) {
+            $expandedResource = Join-Path (Join-Path $expandedPackage 'Resources') $resourceName
+            if (-not (Test-Path -LiteralPath $expandedResource -PathType Leaf) -or
+                (Get-Item -LiteralPath $expandedResource).Length -eq 0) {
+                throw "macOS Installer package resource '$resourceName' is missing/empty in $Destination."
+            }
+            $referencedNode = $expandedDistributionXml.SelectSingleNode("/installer-gui-script/*[@file='$resourceName']")
+            if ($null -eq $referencedNode) {
+                throw "macOS Installer distribution does not reference packaged resource '$resourceName'."
+            }
+        }
+        $expandedScripts = @(Get-ChildItem -LiteralPath $expandedPackage -Recurse -File -ErrorAction Stop |
+            Where-Object { ($_.Name -eq 'preinstall' -or $_.Name -eq 'postinstall') -and
+                [string]::Equals([IO.Path]::GetFileName($_.DirectoryName), 'Scripts', [StringComparison]::OrdinalIgnoreCase) })
+        foreach ($phase in @('preinstall','postinstall')) {
+            $matches = @($expandedScripts | Where-Object { $_.Name -eq $phase })
+            if ($matches.Count -ne 1) { throw "macOS PKG must contain exactly one '$phase' script; found $($matches.Count) in $Destination." }
+            Assert-PortableShellScript -Path $matches[0].FullName -RequireShell
+        }
+        Write-Host "Validated packaged macOS scripts (LF/shebang/sh -n) and Installer UI resources." -ForegroundColor Green
         Write-Host "Validated macOS Installer package title '$distributionTitle'." -ForegroundColor Green
         if ($script:MacInstallerSigningIdentity) {
             & $pkgutil --check-signature $Destination 2>&1 | ForEach-Object { Write-Host $_ }
@@ -1721,12 +1676,18 @@ exit 0
         Write-Host "Created, expanded, and Installer-read the final macOS distribution PKG successfully: $Destination" -ForegroundColor Green
         return $true
     }
+    catch {
+        # Never leave an unverified .pkg behind for a later release-resume pass.
+        Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+        throw
+    }
     finally {
         Remove-Item -LiteralPath $pkgRoot -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $pkgScripts -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $componentPackage -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $distributionPath -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $expandedPackage -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $pkgResources -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 function New-AppImage([string]$Source,[string]$Destination) {

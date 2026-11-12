@@ -1,0 +1,71 @@
+#!/bin/sh
+set -u
+PRODUCT="__PRODUCT__"
+EXECUTABLE="__EXECUTABLE__"
+APP_PATH="/Applications/$PRODUCT.app"
+APP_BIN="$APP_PATH/Contents/Resources/app/$EXECUTABLE"
+MARKER="/private/tmp/io.github.michi0403.__PRODUCT_LOWER__.was-running"
+
+resolve_console_home() {
+  console_user=$(/usr/bin/stat -f '%Su' /dev/console 2>/dev/null || true)
+  case "${console_user:-}" in ''|root|loginwindow) return 1 ;; esac
+  console_home=$(/usr/bin/dscl . -read "/Users/$console_user" NFSHomeDirectory 2>/dev/null | /usr/bin/awk '{print $2}' || true)
+  [ -n "${console_home:-}" ] || console_home="/Users/$console_user"
+  printf '%s' "$console_home"
+}
+
+remove_runtime_endpoint() {
+  if console_home=$(resolve_console_home); then
+    endpoint_file="$console_home/Library/Application Support/$PRODUCT/runtime/server.json"
+    [ -f "$endpoint_file" ] || return 0
+    owner_pid=$(sed -nE 's/.*"[Pp]rocess[Ii]d"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$endpoint_file" | head -n 1)
+    endpoint_executable=$(sed -nE 's/.*"[Ee]xecutable[Pp]ath"[[:space:]]*:[[:space:]]*"([^\"]+)".*/\1/p' "$endpoint_file" | head -n 1)
+    if [ -n "${owner_pid:-}" ] && ! /bin/kill -0 "$owner_pid" 2>/dev/null; then
+      /bin/rm -f "$endpoint_file" 2>/dev/null || true
+      return 0
+    fi
+    installed_owner=0
+    if [ -n "${endpoint_executable:-}" ] && [ "$endpoint_executable" = "$APP_BIN" ]; then
+      installed_owner=1
+    elif [ -n "${owner_pid:-}" ] && /bin/kill -0 "$owner_pid" 2>/dev/null; then
+      owner_command=$(/bin/ps -p "$owner_pid" -o command= 2>/dev/null || true)
+      case "${owner_command:-}" in *"$APP_BIN"*) installed_owner=1 ;; esac
+    fi
+    if [ "$installed_owner" -eq 1 ]; then
+      /bin/rm -f "$endpoint_file" 2>/dev/null || true
+    fi
+  fi
+}
+stop_running_product() {
+  pids=""
+  if console_home=$(resolve_console_home); then
+    endpoint_file="$console_home/Library/Application Support/$PRODUCT/runtime/server.json"
+    if [ -f "$endpoint_file" ]; then
+      owner_pid=$(sed -nE 's/.*"[Pp]rocess[Ii]d"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$endpoint_file" | head -n 1)
+      if [ -n "${owner_pid:-}" ] && /bin/kill -0 "$owner_pid" 2>/dev/null; then
+        owner_command=$(/bin/ps -p "$owner_pid" -o command= 2>/dev/null || true)
+        case "${owner_command:-}" in *"$APP_BIN"*) pids="$pids $owner_pid" ;; esac
+      fi
+    fi
+  fi
+  if [ -x /usr/bin/pgrep ]; then
+    matched_pids=$(/usr/bin/pgrep -f "$APP_BIN" 2>/dev/null || true)
+    [ -z "${matched_pids:-}" ] || pids="$pids $matched_pids"
+  fi
+  [ -n "${pids:-}" ] || return 0
+  : >"$MARKER" 2>/dev/null || true
+  for pid in $pids; do /bin/kill -TERM "$pid" 2>/dev/null || true; done
+  i=0
+  while [ $i -lt 20 ]; do
+    remaining=""
+    for pid in $pids; do
+      if /bin/kill -0 "$pid" 2>/dev/null; then remaining="$remaining $pid"; fi
+    done
+    [ -z "$remaining" ] && return 0
+    /bin/sleep 0.25
+    i=$((i+1))
+  done
+  for pid in $pids; do
+    if /bin/kill -0 "$pid" 2>/dev/null; then /bin/kill -KILL "$pid" 2>/dev/null || true; fi
+  done
+}

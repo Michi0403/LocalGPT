@@ -1,0 +1,4 @@
+
+stop_running_product
+remove_runtime_endpoint
+exit 0

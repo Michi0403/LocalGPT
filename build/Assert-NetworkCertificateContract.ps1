@@ -34,12 +34,16 @@ $expected = @(
     @{ Name='TLSCONTRACT0003'; Text=$a; Fragment='Generated network certificate is not valid for TLS Server Authentication'; Reason='Generated certificate must be checked before replacing existing PFX.' },
     @{ Name='TLSCONTRACT0004'; Text=$b; Fragment='X509CertificateLoader.LoadPkcs12FromFile('; Reason='Kestrel remote TLS certificate must be verified before host binding.' },
     @{ Name='TLSCONTRACT0005'; Text=$b; Fragment='if (!File.Exists(certificatePath))'; Reason='A missing optional remote PFX must be recognized.' },
-    @{ Name='TLSCONTRACT0006'; Text=$b; Fragment='certificatePath = string.Empty;'; Reason='Missing or unusable optional remote PFX must not crash LocalGPT.' },
+    @{ Name='TLSCONTRACT0006'; Text=$b; Fragment='return null;'; Reason='An unusable optional remote PFX must disable only its listener, never the main UI.' },
     @{ Name='TLSCONTRACT0007'; Text=$b; Fragment='supportsServerAuthentication'; Reason='Configured optional remote HTTPS certificate must have Server Authentication EKU.' },
     @{ Name='TLSCONTRACT0008'; Text=$c; Fragment='X509CertificateLoader.LoadPkcs12FromFile('; Reason='Dedicated MCP TLS certificate must be verified before binding.' },
-    @{ Name='TLSCONTRACT0009'; Text=$c; Fragment='options.CertificatePath = string.Empty;'; Reason='Missing/unusable MCP certificate must not fail startup.' },
+    @{ Name='TLSCONTRACT0009'; Text=$c; Fragment='options.Enabled = false;'; Reason='Missing/unusable MCP TLS certificate must disable MCP, not silently downgrade to HTTP.' },
     @{ Name='TLSCONTRACT0010'; Text=$d; Fragment='AssertLocalGptNetworkCertificateContract'; Reason='The TLS source guard must be mandatory during builds.' },
     @{ Name='TLSCONTRACT0011'; Text=$e; Fragment='build/Assert-NetworkCertificateContract.ps1'; Reason='The TLS source guard must run during release preflight.' },
+    @{ Name='TLSCONTRACT0064'; Text=$b; Fragment='X509KeyStorageFlags.DefaultKeySet'; Reason='Remote TLS loading must use cross-platform PKCS12 key-storage flags.' },
+    @{ Name='TLSCONTRACT0065'; Text=$c; Fragment='X509KeyStorageFlags.DefaultKeySet'; Reason='MCP TLS loading must use cross-platform PKCS12 key-storage flags.' },
+    @{ Name='TLSCONTRACT0066'; Text=$b; Fragment='no HTTP downgrade is permitted'; Reason='Optional remote HTTPS must fail closed rather than silently expose HTTP.' },
+    @{ Name='TLSCONTRACT0067'; Text=$c; Fragment='prevent an unintended HTTP downgrade'; Reason='Optional MCP HTTPS must fail closed rather than silently expose HTTP.' },
     @{ Name='TLSCONTRACT0013'; Text=$modelText; Fragment='public IEnumerable<X509KeyUsageFlags> KeyUsages'; Reason='Certificate request must retain selectable combined X.509 key usages.' },
     @{ Name='TLSCONTRACT0014'; Text=$modelText; Fragment='public IEnumerable<NetworkCertificateExtendedKeyUsage> ExtendedKeyUsages'; Reason='Certificate request must retain independently selectable EKU purposes.' },
     @{ Name='TLSCONTRACT0015'; Text=$uiText; Fragment='@bind-Values="CertificateRequest.KeyUsages"'; Reason='The DevExpress certificate editor must bind multi-select key usages.' },
@@ -91,6 +95,9 @@ $expected = @(
 )
 foreach ($rule in $expected) {
     if (-not $rule.Text.Contains([string]$rule.Fragment)) { throw "$($rule.Name): $($rule.Reason)" }
+}
+if ($b.Contains('X509KeyStorageFlags.EphemeralKeySet') -or $c.Contains('X509KeyStorageFlags.EphemeralKeySet')) {
+    throw 'TLSCONTRACT0068: EphemeralKeySet reintroduced into a cross-platform optional TLS listener.'
 }
 if ($a.Contains('1.3.6.2.5.5.7.3.1')) {
     throw 'TLSCONTRACT0012: Invalid server-authentication EKU OID reintroduced.'

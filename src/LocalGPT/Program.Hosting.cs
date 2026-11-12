@@ -60,6 +60,8 @@ namespace LocalGPT
             try
             {
                 var requestedLoopbackPort = requestedPort > 0 ? requestedPort : GetFreePort(logger);
+                // Remote TLS is optional. Invalid network settings must not prevent the local UI,
+                // MFA configuration, 1-Wire transport or project services from starting.
                 var remote = ResolveRemoteWebEndpoint(args, builder.Configuration, builder.Environment.ContentRootPath, builder.Environment.ApplicationName, logger);
                 var mcp = ResolveMcpGatewayOptions(builder.Configuration, builder.Environment.ContentRootPath, logger);
                 var port = ResolvePrimaryListenerPortForStartup(requestedLoopbackPort, remote, mcp, logger);
@@ -279,6 +281,12 @@ namespace LocalGPT
                     throw new InvalidOperationException("The optional LocalGPT network endpoint requires a port between 1 and 65535.");
                 if (port == Port)
                     throw new InvalidOperationException("The optional LocalGPT network endpoint must use a different port than the authoritative loopback endpoint.");
+                var normalizedAddress = address.Trim();
+                if (!normalizedAddress.Equals("0.0.0.0", StringComparison.OrdinalIgnoreCase) &&
+                    !normalizedAddress.Equals("*", StringComparison.OrdinalIgnoreCase) &&
+                    !normalizedAddress.Equals("::", StringComparison.OrdinalIgnoreCase) &&
+                    !IPAddress.TryParse(normalizedAddress, out _))
+                    throw new InvalidOperationException("The optional LocalGPT network endpoint bind address must be an IP address, 0.0.0.0, ::, or *.");
 
                 var certificatePath = FirstNonEmpty(
                     GetCommandLineValue(args ?? Array.Empty<string>(), "--network-certificate"),
@@ -294,24 +302,22 @@ namespace LocalGPT
                     certificatePath = Environment.ExpandEnvironmentVariables(certificatePath.Trim());
                     if (!Path.IsPathRooted(certificatePath))
                         certificatePath = Path.GetFullPath(Path.Combine(contentRootPath, certificatePath));
-                    // The remote HTTPS listener is optional; never prevent the primary
-                    // loopback application from starting because a user moved its PFX.
-                    // An explicitly configured remote listener continues as plain HTTP,
-                    // and the downgrade is recorded prominently for the administrator.
+                    // A configured HTTPS endpoint must never silently downgrade to HTTP.
+                    // If TLS is unavailable, disable only this optional endpoint and keep loopback active.
                     if (!File.Exists(certificatePath))
                     {
                         logger.LogWarning(
                             "Configured LocalGPT network TLS certificate is missing at {CertificatePath}. " +
-                            "Continuing the optional network endpoint over HTTP without TLS. Restore or regenerate a valid server certificate to restore HTTPS.",
+                            "Disabling the optional network endpoint for this run; the local loopback application remains available. No HTTP downgrade is permitted.",
                             certificatePath);
-                        certificatePath = string.Empty;
+                        return null;
                     }
                     else
                     {
                         try
                         {
                             using var endpointCertificate = X509CertificateLoader.LoadPkcs12FromFile(
-                                certificatePath, certificatePassword, X509KeyStorageFlags.EphemeralKeySet);
+                                certificatePath, certificatePassword, X509KeyStorageFlags.DefaultKeySet);
                             // A certificate that advertises EKU must explicitly permit HTTPS server authentication.
                             // This preflight avoids Kestrel aborting the entire LocalGPT process at host startup.
                             var enhancedKeyUsages = endpointCertificate.Extensions.OfType<X509EnhancedKeyUsageExtension>().ToList();
@@ -327,13 +333,13 @@ namespace LocalGPT
                                     "Configured network TLS certificate has no usable private key, is outside its validity period, or lacks Server Authentication EKU.");
                             }
                         }
-                        catch (Exception ex) when (ex is System.Security.Cryptography.CryptographicException or InvalidOperationException or IOException or UnauthorizedAccessException)
+                        catch (Exception ex) when (ex is System.Security.Cryptography.CryptographicException or InvalidOperationException or IOException or UnauthorizedAccessException or PlatformNotSupportedException)
                         {
                             logger.LogWarning(ex,
                                 "Configured LocalGPT network TLS certificate is unusable at {CertificatePath}. " +
-                                "The optional network endpoint continues over HTTP. Regenerate a valid HTTPS server certificate; traffic is NOT encrypted.",
+                                "Disabling only the optional network endpoint for this run; no HTTP downgrade is permitted.",
                                 certificatePath);
-                            certificatePath = string.Empty;
+                            return null;
                         }
                     }
                 }
@@ -341,16 +347,19 @@ namespace LocalGPT
                 return new RemoteWebEndpointOptions
                 {
                     Enabled = true,
-                    Address = address.Trim(),
+                    Address = normalizedAddress,
                     Port = port,
                     CertificatePath = certificatePath,
                     CertificatePassword = certificatePassword
                 };
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.Security.Cryptography.CryptographicException or IOException or UnauthorizedAccessException or PlatformNotSupportedException)
             {
-                logger.LogError(ex, "Could not resolve the optional LocalGPT network endpoint for {ApplicationName}.", applicationName);
-                throw;
+                logger.LogWarning(ex,
+                    "The optional LocalGPT network endpoint configuration is invalid for {ApplicationName}. " +
+                    "Disabling this endpoint for the current run; the primary loopback application remains available.",
+                    applicationName);
+                return null;
             }
         }
 

@@ -328,4 +328,7 @@ if ($failures.Count -gt 0) {
     throw "PowerShell compatibility validation failed:`n - $($failures -join "`n - ")"
 }
 
+# Run the macOS native installer contract on every build host, including Windows.
+# It exercises the actual native-package writer, not a list of asserted source tokens.
+& (Join-Path $root 'build/Assert-MacPackageScripts.ps1')
 Write-Host 'PowerShell compatibility validation passed for Windows PowerShell 5.1 and modern pwsh parser/runtime API usage, cross-platform path handling, and protected platform automatic-variable assignments.'

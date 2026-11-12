@@ -122,16 +122,19 @@ namespace LocalGPT
                     if (!File.Exists(options.CertificatePath))
                     {
                         logger.LogWarning("The optional MCP TLS certificate is missing at {CertificatePath}; " +
-                            "MCP continues over HTTP. Remote clients must use a trusted private network and API-key authentication.",
+                            "MCP is disabled for this run rather than silently downgrading a configured HTTPS listener to HTTP.",
                             options.CertificatePath);
                         options.CertificatePath = string.Empty;
+                        options.Enabled = false;
+                        options.DedicatedListenerEnabled = false;
+                        options.ExposeOnPrimaryEndpoint = false;
                     }
                     else
                     {
                         try
                         {
                             using var certificate = X509CertificateLoader.LoadPkcs12FromFile(
-                                options.CertificatePath, options.CertificatePassword, X509KeyStorageFlags.EphemeralKeySet);
+                                options.CertificatePath, options.CertificatePassword, X509KeyStorageFlags.DefaultKeySet);
                             var usages = certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>().ToList();
                             if (!certificate.HasPrivateKey ||
                                 DateTime.UtcNow < certificate.NotBefore.ToUniversalTime() ||
@@ -141,12 +144,15 @@ namespace LocalGPT
                                         .Any(oid => oid.Value == "1.3.6.1.5.5.7.3.1"))))
                                 throw new InvalidOperationException("MCP TLS certificate cannot authenticate as an HTTPS server.");
                         }
-                        catch (Exception error) when (error is System.Security.Cryptography.CryptographicException or InvalidOperationException or IOException or UnauthorizedAccessException)
+                        catch (Exception error) when (error is System.Security.Cryptography.CryptographicException or InvalidOperationException or IOException or UnauthorizedAccessException or PlatformNotSupportedException)
                         {
                             logger.LogWarning(error, "MCP certificate at {CertificatePath} is unusable; " +
-                                "continuing optional MCP endpoint over HTTP until a valid server certificate is provided.",
+                                "MCP is disabled for this run to prevent an unintended HTTP downgrade. The main LocalGPT application remains available.",
                                 options.CertificatePath);
                             options.CertificatePath = string.Empty;
+                            options.Enabled = false;
+                            options.DedicatedListenerEnabled = false;
+                            options.ExposeOnPrimaryEndpoint = false;
                         }
                     }
                 }
