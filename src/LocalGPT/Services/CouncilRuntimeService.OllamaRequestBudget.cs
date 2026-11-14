@@ -59,6 +59,23 @@ namespace LocalGPT.Services
                 var exceeds = required > raised;
                 if (exceeds)
                 {
+                    // The configured output stays the upper bound; only this request's output is reduced so it fits.
+                    var margin = Math.Max(0, policy.ContextSafetyMarginTokens);
+                    var minimumFitted = Math.Max(64, policy.MinimumFittedOutputTokens);
+                    var fittedOutput = (int)Math.Min(numPredict, Math.Max(minimumFitted, (long)ceiling - promptTokens - margin));
+                    if (fittedOutput < numPredict)
+                    {
+                        logger.LogInformation(
+                            "Fitted the Ollama output for model {Model} to the context: configured output {ConfiguredOutput} tokens, fitted output {FittedOutput} tokens, prompt estimate {PromptTokens} tokens, context {Ceiling} tokens (configuration is unchanged).",
+                            modelName, numPredict, fittedOutput, promptTokens, ceiling);
+                        numPredict = fittedOutput;
+                        required = (int)Math.Min(int.MaxValue / 2, (long)promptTokens + numPredict + margin);
+                        raised = (int)Math.Min(ceiling, (long)Math.Ceiling(required / (double)step) * step);
+                        exceeds = required > raised;
+                    }
+                }
+                if (exceeds)
+                {
                     logger.LogWarning(
                         "Ollama request for model {Model} needs about {Required} context tokens (prompt {PromptTokens}, output {NumPredict}) but the configured maximum is {Ceiling}; the provider may cut the oldest prompt content. Reduce attached tools or raise {PolicyKey}.MaximumFittedContextTokens.",
                         modelName, required, promptTokens, numPredict, ceiling, OllamaRequestBudgetPolicyKey);

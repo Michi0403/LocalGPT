@@ -154,6 +154,38 @@ public sealed class CouncilAutomaticFunctionPolicyService(
         }
     }
 
+    /// <summary>Resolves the native tool exposure for a plain chat session that has no Council team or workflow step.</summary>
+    /// <returns>The compact base set plus broker entrypoints, or an unrestricted resolution when the runtime mode is AllPolicyApproved.</returns>
+    public CouncilAutomaticFunctionPolicyResolution ResolveSessionFunctions()
+    {
+        try
+        {
+            if (string.Equals(ReadUnlistedStepToolMode(), AllPolicyApprovedMode, StringComparison.OrdinalIgnoreCase))
+            {
+                return new CouncilAutomaticFunctionPolicyResolution(
+                    true,
+                    null,
+                    "all registered policy-approved automatic DXFunctions available as native tools; no preference list");
+            }
+
+            var compact = ReadBaseNativeFunctions()
+                .Concat(AlwaysOfferedFunctions())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            logger.LogDebug("Plain chat session attaches {Count} compact native tools; the full catalog stays reachable through the broker.", compact.Count);
+            return new CouncilAutomaticFunctionPolicyResolution(
+                true,
+                compact,
+                "compact native tools for a plain session; full policy-approved catalog remains available through discovery/preview/invoke");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Resolving the plain-session native tool policy failed.");
+            throw;
+        }
+    }
+
     /// <summary>Returns the attachment, AI-help and broker entrypoints offered in every non-strict Council step.</summary>
     /// <returns>Function names that are always attached in non-strict steps.</returns>
     private IReadOnlyList<string> AlwaysOfferedFunctions()

@@ -12,6 +12,9 @@ public sealed partial class GoalExecutionService
     /// <summary>Runtime value: minimum keyword score for leaving the requested team without a semantic plan.</summary>
     private const string CatalogFallbackMinimumTeamScoreKey = "GoalCatalogFallbackMinimumTeamScore";
 
+    /// <summary>Runtime collection: team keys that automatic goal routing never selects (an explicitly preserved selection still may).</summary>
+    private const string AutoRoutingExcludedTeamKeysKey = "GoalAutoRoutingExcludedTeamKeys";
+
     /// <summary>Chooses the initial goal team from the saved catalog, the caller's requested team and the run's model count.</summary>
     /// <param name="request">Goal request including the requested team and selection preservation flag.</param>
     /// <param name="configuredTeams">Saved, enabled Council teams.</param>
@@ -51,17 +54,27 @@ public sealed partial class GoalExecutionService
             }
 
             bool Staffable(OrganicCouncilTeamDefinition team) => availableModelCount <= 0 || staffing.CanStaff(team, availableModelCount);
-            var candidates = ranked.Where(entry => Staffable(entry.Team)).ToList();
+            var excludedKeys = ReadAutoRoutingExcludedTeamKeys();
+            var candidates = ranked.Where(entry => Staffable(entry.Team) && !excludedKeys.Contains(entry.Team.Key)).ToList();
             var minimumScore = ReadCatalogFallbackMinimumTeamScore();
-            var chosen = (hasRequirements ? candidates.Where(entry => entry.Missing == 0).Select(entry => entry.Team).FirstOrDefault() : null)
-                ?? candidates.Where(entry => entry.Score >= minimumScore).Select(entry => entry.Team).FirstOrDefault()
-                ?? (requested is not null && Staffable(requested) ? requested : null)
-                ?? configuredTeams.FirstOrDefault(team => string.Equals(team.Key, "general", StringComparison.OrdinalIgnoreCase) && Staffable(team))
+            OrganicCouncilTeamDefinition? chosen = hasRequirements ? candidates.Where(entry => entry.Missing == 0).Select(entry => entry.Team).FirstOrDefault() : null;
+            var routedByKeywordScore = false;
+            if (chosen is null)
+            {
+                chosen = candidates.Where(entry => entry.Score >= minimumScore).Select(entry => entry.Team).FirstOrDefault();
+                routedByKeywordScore = chosen is not null;
+            }
+            chosen ??= (requested is not null && Staffable(requested) ? requested : null)
+                ?? configuredTeams.FirstOrDefault(team => string.Equals(team.Key, "general", StringComparison.OrdinalIgnoreCase) && Staffable(team) && !excludedKeys.Contains(team.Key))
                 ?? candidates.Select(entry => entry.Team).FirstOrDefault();
             if (requested is not null && chosen is not null && !string.Equals(requested.Key, chosen.Key, StringComparison.OrdinalIgnoreCase))
                 logger.LogInformation(
                     "Goal routes from requested team {Requested} to {Chosen} (requirements {HasRequirements}, available models {Available}, minimum keyword score {MinimumScore}).",
                     requested.Key, chosen.Key, hasRequirements, availableModelCount, minimumScore);
+            if (routedByKeywordScore && requested is not null && chosen is not null && !string.Equals(requested.Key, chosen.Key, StringComparison.OrdinalIgnoreCase))
+                logger.LogInformation(
+                    "Goal keyword routing top candidates: {TopCandidates}; {ExcludedCount} team(s) are excluded from automatic routing.",
+                    string.Join(", ", candidates.Take(3).Select(entry => $"{entry.Team.Key}={entry.Score}")), excludedKeys.Count);
             var skipped = ranked.Count - candidates.Count;
             if (skipped > 0)
                 logger.LogInformation("Goal team selection skipped {Skipped} team(s) that need more than {Available} distinct AI model(s).", skipped, availableModelCount);
@@ -71,6 +84,21 @@ public sealed partial class GoalExecutionService
         {
             logger.LogError(exception, "Selecting the goal Council team failed.");
             throw;
+        }
+    }
+
+    /// <summary>Reads the runtime collection of team keys that automatic goal routing must never select.</summary>
+    /// <returns>The excluded team keys compared case-insensitively; empty when the runtime collection is unavailable.</returns>
+    private HashSet<string> ReadAutoRoutingExcludedTeamKeys()
+    {
+        try
+        {
+            return new HashSet<string>(runtimePolicy.GetCollection(AutoRoutingExcludedTeamKeysKey), StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Runtime collection {Key} is unavailable; no team is excluded from automatic goal routing.", AutoRoutingExcludedTeamKeysKey);
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
     }
 

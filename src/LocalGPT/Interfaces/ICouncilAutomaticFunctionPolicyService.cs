@@ -16,4 +16,8 @@ public interface ICouncilAutomaticFunctionPolicyService
         CouncilWorkflowStepDefinition step,
         bool suppressAutomaticFunctions = false,
         IReadOnlyCollection<string>? requestedCapabilities = null);
+
+    /// <summary>Resolves the native tool exposure for a plain chat session that has no Council team or workflow step.</summary>
+    /// <returns>The compact base set plus broker entrypoints, or an unrestricted resolution when the runtime mode is AllPolicyApproved.</returns>
+    CouncilAutomaticFunctionPolicyResolution ResolveSessionFunctions();
 }

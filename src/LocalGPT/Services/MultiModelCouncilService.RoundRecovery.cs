@@ -194,6 +194,11 @@ namespace LocalGPT.Services
                         isPairedRole);
                     var recovered = false;
                     var leftEmptyByDecision = false;
+                    // The tools (automaticFunctionPolicy) and budget (context, timeout) are identical for every attempt of this slot,
+                    // so only the model can differ. Repeating an empty answer with the same model changes nothing.
+                    var previousAttemptModel = failedModel;
+                    var previousAttemptEmpty = failureKind == GoalMemberFailureKind.EmptyAnswer;
+                    var identicalRetries = 0;
 
                     for (var attemptIndex = 0; attemptIndex < maximumAttempts; attemptIndex++)
                     {
@@ -230,6 +235,18 @@ namespace LocalGPT.Services
                         }
 
                         var recoveryModel = decision.ModelName;
+                        if (previousAttemptEmpty && string.Equals(recoveryModel, previousAttemptModel, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (identicalRetries >= 1)
+                            {
+                                logger.LogWarning(
+                                    "Council round recovery for run {RunId}, step {StepKey}: member {FailedModel} returned an empty answer again and the next attempt would use the same model with the same tools and budget; nothing differs between attempts, so recovery stops after {Retries} identical retry.",
+                                    result.RunId, definition.Key, failedModel, identicalRetries);
+                                result.Warnings.Add($"Configured round '{definition.DisplayName}': recovery stopped because the next attempt would repeat the same model, tools and budget that already returned an empty answer.");
+                                break;
+                            }
+                            identicalRetries++;
+                        }
                         attemptedModels.Add(recoveryModel);
                         var attemptPairings = decision.SubstitutesPairedSlot
                             ? BuildSubstitutedRolePairings(rolePairings, roleAssignment.RoleName, failedModel, recoveryModel)
@@ -297,6 +314,8 @@ namespace LocalGPT.Services
                             decision.FromOtherRole,
                             decision.SubstitutesPairedSlot,
                             IsUsableConfiguredRoundStep(recoveryStep) ? "recovered the slot" : "did not produce a usable answer");
+                        previousAttemptModel = recoveryModel;
+                        previousAttemptEmpty = string.IsNullOrWhiteSpace(recoveryStep.Error) && string.IsNullOrWhiteSpace(recoveryStep.VisibleContent);
                         if (IsUsableConfiguredRoundStep(recoveryStep))
                         {
                             recovered = true;

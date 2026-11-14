@@ -25,7 +25,8 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
   "contextGrowthStepTokens": 1024,
   "maximumFittedContextTokens": 32768,
   "assumedProviderDefaultContextTokens": 4096,
-  "maximumOutputTokens": 262144
+  "maximumOutputTokens": 262144,
+  "minimumFittedOutputTokens": 1024
 }
 """, "System.String"),
                 new("CouncilUnlistedStepNativeToolMode", "CompactWithBroker", "System.String"),
@@ -43,6 +44,7 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
                 new("CouncilFinalRecoveryTaskExcerptCharacters", "6000", "System.Int32"),
                 new("GoalDeliveryObjectiveTemplate", "Deliver the finished result of the original goal now: invoke {{Functions}} exactly as the original request specifies (target, format and the complete final text). Reuse the completed step outputs below; do not redo earlier work and do not answer with a description instead of the delivery.", "System.String"),
                 new("GoalCatalogFallbackMinimumTeamScore", "6", "System.Int32"),
+                new("GoalFallbackMinimumModelBillionParameters", "7", "System.Int32"),
                 new("ConfigurationStewardPolicyJson", """
 {
   "minimumRecommendedCouncilLoadPercent": 60,
@@ -75,7 +77,8 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
             return
             [
                 new("CouncilBaseNativeFunctions", []),
-                new("GoalApprovalGatedCapabilityPrefixes", ["publisher."])
+                new("GoalApprovalGatedCapabilityPrefixes", ["publisher."]),
+                new("GoalAutoRoutingExcludedTeamKeys", ["configuration-steward"])
             ];
         }
         catch (Exception exception)

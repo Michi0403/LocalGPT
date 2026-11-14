@@ -29,6 +29,7 @@ namespace LocalGPT.Services;
 /// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 /// <param name="sessionContext">Scoped chat/project identity propagated into provider-native automatic functions.</param>
 /// <param name="runtimePolicy">Database-backed runtime policy used for provider discovery and session defaults.</param>
+/// <param name="functionPolicy">Resolves the compact native tool set attached to plain chat sessions that have no Council step.</param>
 public sealed class ProviderModelRuntimeService(
     IOptionsMonitor<LocalGptConfigurationRoot> optionsRoot,
     ILoggerFactory loggerFactory,
@@ -40,7 +41,8 @@ public sealed class ProviderModelRuntimeService(
     IDxAiFunctionRegistry functionRegistry,
     IDxAiFunctionCallRecoveryService functionCallRecovery,
     IChatSessionContext sessionContext,
-    ILocalGptRuntimePolicyDataService runtimePolicy) : IProviderModelRuntimeService
+    ILocalGptRuntimePolicyDataService runtimePolicy,
+    ICouncilAutomaticFunctionPolicyService functionPolicy) : IProviderModelRuntimeService
 {
     /// <summary>
     /// Stores the in-memory reference cache collection maintained internally by <see cref="ProviderModelRuntimeService"/> for its current workflow state.
@@ -664,7 +666,10 @@ public sealed class ProviderModelRuntimeService(
     try
     {
             cancellationToken.ThrowIfCancellationRequested();
-            var client = CreateChatClient(model, RuntimeParameters.DefaultSessionKeepAlive, RuntimeParameters.DefaultSessionContextTokens, TimeSpan.FromMinutes(RuntimeParameters.DefaultSessionTimeoutMinutes), null);
+            // A null allow-list attaches every registered function (232 schemas overflowed the context); use the compact base set.
+            var toolPolicy = functionPolicy.ResolveSessionFunctions();
+            var client = CreateChatClient(model, RuntimeParameters.DefaultSessionKeepAlive, RuntimeParameters.DefaultSessionContextTokens, TimeSpan.FromMinutes(RuntimeParameters.DefaultSessionTimeoutMinutes), null,
+                enableAutomaticTools: toolPolicy.Enabled, automaticFunctionAllowList: toolPolicy.AutomaticFunctionAllowList);
             return Task.FromResult(new ChatClientSession(
                 client,
                 model.SelectionKey,

@@ -117,22 +117,19 @@ public sealed partial class GoalExecutionService(
             .Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         // Provider candidates are supplied by the Council runtime, never inferred from catalog prose.
         var installed = new List<MultiModelCouncilModelCandidate>();
+        var smallModelKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fallbackMinimumBillions = 0;
         if (models.Count == 0)
         {
             var preferredKeys = configuration.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
-            installed = (await council.GetCandidatesAsync(cancellationToken).ConfigureAwait(false))
-                // Newly pulled Ollama models are installed but are intentionally not marked
-                // as user-configured. The goal planner must see them just like Council does.
-                // Explicit role bindings remain authoritative below; this is not a rewrite.
-                .Where(candidate => candidate.IsInstalled || (candidate.IsConfigured && !candidate.IsLocal))
-                .OrderBy(candidate =>
-                        {
-                            var index = preferredKeys.FindIndex(key => string.Equals(key, candidate.SelectionKey, StringComparison.OrdinalIgnoreCase));
-                            return index >= 0 ? index : int.MaxValue;
-                        })
-                .ThenByDescending(candidate => candidate.IsLoaded)
-                .ThenBy(candidate => candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            fallbackMinimumBillions = ReadFallbackMinimumModelBillionParameters();
+            installed = OrderFallbackCandidates(
+                (await council.GetCandidatesAsync(cancellationToken).ConfigureAwait(false))
+                    // Newly pulled Ollama models are installed but are intentionally not marked
+                    // as user-configured. The goal planner must see them just like Council does.
+                    // Explicit role bindings remain authoritative below; this is not a rewrite.
+                    .Where(candidate => candidate.IsInstalled || (candidate.IsConfigured && !candidate.IsLocal)),
+                preferredKeys, fallbackMinimumBillions, out smallModelKeys);
         }
         // A team whose distinct-assignment roles need more models than this run can supply would only fail inside
         // Council role assignment. Unstaffable teams are never auto-selected; an explicitly preserved one is reported.
@@ -186,8 +183,10 @@ public sealed partial class GoalExecutionService(
             foreach (var model in discoveredModels)
             {
                 var priority = preferences.FindIndex(key => string.Equals(key, model.SelectionKey, StringComparison.OrdinalIgnoreCase));
+                var skippedSmall = smallModelKeys.Count(key => !discoveredModels.Any(item => item.SelectionKey.Equals(key, StringComparison.OrdinalIgnoreCase)));
                 var reason = assignedKeys.Count > 0 ? "saved team assignment"
-                    : priority >= 0 ? $"user-preferred priority {priority + 1}" : "installed-model fallback";
+                    : priority >= 0 ? $"user-preferred priority {priority + 1}"
+                    : $"installed-model fallback (largest first; {skippedSmall} model(s) below {fallbackMinimumBillions}B parameters skipped)";
                 logger.LogInformation("Goal {GoalId} selected {ModelKey}: {SelectionReason}, team={TeamKey}.",
                     request.CouncilRequest.RunId, model.SelectionKey, reason, selected?.Key);
             }

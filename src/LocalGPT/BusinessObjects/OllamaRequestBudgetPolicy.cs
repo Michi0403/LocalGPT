@@ -33,4 +33,8 @@ public sealed class OllamaRequestBudgetPolicy
     /// <summary>Gets or sets the upper bound for the number of predicted tokens (thinking plus visible answer).</summary>
     /// <value>Maximum output tokens.</value>
     public int MaximumOutputTokens { get; set; } = 262144;
+
+    /// <summary>Gets or sets the smallest output a request is reduced to when prompt plus output would exceed the context ceiling.</summary>
+    /// <value>Minimum fitted output tokens; rows saved before 7.1.9 without this field use 1024.</value>
+    public int MinimumFittedOutputTokens { get; set; } = 1024;
 }

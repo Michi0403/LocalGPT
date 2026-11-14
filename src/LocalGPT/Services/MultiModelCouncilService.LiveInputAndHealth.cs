@@ -499,9 +499,10 @@ namespace LocalGPT.Services
                     .Where(step => !string.IsNullOrWhiteSpace(step.ModelName))
                     .GroupBy(step => step.ModelName, StringComparer.OrdinalIgnoreCase))
                 {
-                    var completed = group.Where(step => string.IsNullOrWhiteSpace(step.Error)).ToList();
+                    // A step only counts as successful when it has no error and usable visible content (an empty answer is not success).
+                    var completed = group.Where(step => IsUsableConfiguredRoundStep(step)).ToList();
                     var measured = completed.Where(step => step.DurationSeconds > 0).ToList();
-                    var failed = group.Count(step => !string.IsNullOrWhiteSpace(step.Error));
+                    var failed = group.Count() - completed.Count;
                     var successRate = group.Any() ? (int)Math.Round(completed.Count * 100d / group.Count()) : 0;
                     var averageSeconds = measured.Count == 0 ? 0 : measured.Average(step => step.DurationSeconds);
                     var maximumLoad = group.Max(step => step.EffectiveLoadPercent);
