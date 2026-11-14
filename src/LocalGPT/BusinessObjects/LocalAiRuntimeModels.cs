@@ -484,6 +484,21 @@ public sealed class LocalAiRuntimeJobResult
 /// </summary>
 public sealed class LocalAiArtifactDescriptor
 {
+    /// <summary>Whether the configured artifact catalog allows an inert text preview.</summary>
+    public bool SupportsTextPreview { get; init; }
+
+    /// <summary>Whether the artifact can be rendered in the browser as an image.</summary>
+    public bool SupportsImagePreview => ContentType.StartsWith("image/", StringComparison.Ordinal);
+
+    /// <summary>Whether the artifact can be played in the browser as video.</summary>
+    public bool SupportsVideoPreview => ContentType.StartsWith("video/", StringComparison.Ordinal);
+
+    /// <summary>Whether the artifact can be played in the browser as audio.</summary>
+    public bool SupportsAudioPreview => ContentType.StartsWith("audio/", StringComparison.Ordinal);
+
+    /// <summary>Whether the chat can present an inline preview.</summary>
+    public bool SupportsPreview => SupportsImagePreview || SupportsVideoPreview || SupportsAudioPreview || SupportsTextPreview;
+
     /// <summary>
     /// Gets or sets the stable artifact identifier used to identify or correlate this local AI artifact instance with related application state.
     /// </summary>

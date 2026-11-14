@@ -26,14 +26,13 @@ public sealed class GameSpriteReader(
             var lines = reader.PlainModelText(content).Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n');
             var palette = parameters.ReadInts(spriteParameters, "defaultPalette").ToList();
             var paletteKeys = parameters.ReadStrings(spriteParameters, "paletteKeys");
-            var colorsTag = parameters.ReadString(spriteParameters, "colorsTag", "COLORS") + ":";
-            var spriteTag = parameters.ReadString(spriteParameters, "spriteTag", "SPRITE") + ":";
+            var colorsTag = parameters.ReadString(spriteParameters, "colorsTag", "COLORS");
+            var spriteTag = parameters.ReadString(spriteParameters, "spriteTag", "SPRITE");
             foreach (var line in lines)
             {
-                var trimmed = line.Trim();
-                if (!trimmed.StartsWith(colorsTag, StringComparison.OrdinalIgnoreCase))
+                if (!TryReadTag(line, colorsTag, out var colors))
                     continue;
-                foreach (var token in trimmed[colorsTag.Length..].Split([' ', ',', ';', '\t'], StringSplitOptions.RemoveEmptyEntries))
+                foreach (var token in colors.Split([' ', ',', ';', '\t'], StringSplitOptions.RemoveEmptyEntries))
                 {
                     var separator = token.IndexOfAny(['=', ':']);
                     if (separator <= 0)
@@ -50,17 +49,14 @@ public sealed class GameSpriteReader(
             var legend = Legend(spriteParameters);
             var empty = parameters.ReadString(spriteParameters, "emptyPixel", ".");
             var emptyCell = empty.Length == 0 ? '.' : empty[0];
-            var markerIndex = Array.FindIndex(lines, line => line.TrimStart().StartsWith(spriteTag, StringComparison.OrdinalIgnoreCase));
+            var inline = string.Empty;
+            var markerIndex = Array.FindIndex(lines, line => TryReadTag(line, spriteTag, out inline));
             var candidates = new List<string>();
             var start = markerIndex >= 0 ? markerIndex : Array.FindIndex(lines, line => line.TrimStart().StartsWith("```", StringComparison.Ordinal));
             if (start < 0)
                 return new GameSpriteReading { Palette = palette };
-            if (markerIndex >= 0)
-            {
-                var inline = lines[markerIndex].TrimStart()[spriteTag.Length..].TrimEnd();
-                if (!string.IsNullOrWhiteSpace(inline))
-                    candidates.Add(inline);
-            }
+            if (markerIndex >= 0 && !string.IsNullOrWhiteSpace(inline))
+                candidates.Add(inline);
             var maximumCandidates = parameters.ReadInt(spriteParameters, "maximumCandidates", 24);
             for (var index = start + 1; index < lines.Length && candidates.Count < maximumCandidates; index++)
             {
@@ -141,6 +137,28 @@ public sealed class GameSpriteReader(
             logger.LogError(exception, "Reading a Council sprite failed.");
             throw;
         }
+    }
+
+    /// <summary>
+    /// Reads the value after a plain or Markdown bold sprite metadata tag, preserving the drawing's leading spaces.
+    /// </summary>
+    /// <param name="line">The model's output line.</param>
+    /// <param name="tag">The expected metadata tag without its colon.</param>
+    /// <param name="value">The remainder of the line when the tag matches.</param>
+    /// <returns><c>true</c> when the line starts with the expected tag.</returns>
+    private bool TryReadTag(string line, string tag, out string value)
+    {
+        var trimmed = line.TrimStart();
+        foreach (var prefix in new[] { tag + ":", "**" + tag + ":**", "**" + tag + "**:" })
+        {
+            if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                value = trimmed[prefix.Length..].TrimEnd();
+                return true;
+            }
+        }
+        value = string.Empty;
+        return false;
     }
 
     /// <summary>

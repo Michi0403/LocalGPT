@@ -386,6 +386,8 @@ public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spoo
             if (!Guid.TryParse(organicSupport.GetString(request.Parameters, "workItemId"), out var id))
                 return Task.FromResult(organicSupport.Invalid("A valid workItemId is required."));
             var item = spooler.Get(id);
+            if (item?.DocumentConversationId is Guid owner && request.ConversationId != owner)
+                return Task.FromResult(organicSupport.Invalid("This document belongs to a different LocalGPT conversation."));
             return Task.FromResult(item is null
                 ? new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The 1-Wire work item was not found or expired." }
                 : new DxAiFunctionInvocationResult

@@ -155,6 +155,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IPythonNetRuntimeCoordinator>(provider => provider.GetRequiredService<PythonTaskOrchestrationService>());
                 builder.Services.AddSingleton<IPythonJobOrchestrationService>(provider => provider.GetRequiredService<PythonTaskOrchestrationService>());
                 builder.Services.AddSingleton<ILocalAiArtifactService, LocalAiArtifactService>();
+                builder.Services.AddSingleton<LocalGPT.Services.OneWire.PublisherMediaDeliveryService>();
                 builder.Services.AddScoped<ILocalAiRuntimeService, LocalAiRuntimeService>();
                 builder.Services.AddScoped<ILocalAiAcquisitionService, LocalAiAcquisitionService>();
                 builder.Services.AddScoped<IHuggingFaceModelCatalogService, HuggingFaceModelCatalogService>();

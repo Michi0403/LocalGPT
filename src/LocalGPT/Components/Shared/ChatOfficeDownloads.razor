@@ -1,0 +1,83 @@
+@using LocalGPT.WireProtocol
+@inject IOneWireWorkSpooler WorkSpooler
+@inject ISupervisedTaskRunner TaskRunner
+@inject ILogger<ChatOfficeDownloads> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+@implements IDisposable
+
+@if (documents.Count > 0)
+{
+    <div class="razor-component-boundary">
+        <DxFormLayout CssClass="razor-component-layout-owner ChatOfficeDownloads">
+            <DxFormLayoutItem ColSpanMd="12">
+                <Template Context="officeDownloadContext">
+                    <div aria-label="PublisherStudio documents">
+                        <strong>PublisherStudio documents</strong>
+                        <ul>
+                            @foreach (var document in documents)
+                            {
+                                <li @key="document.Id">
+                                    <a href="@($"/api/onewire/work/{document.Id:D}/document")">
+                                        @(document.IsSpreadsheetDocument ? "Download Excel workbook" : "Download Word document")
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </Template>
+            </DxFormLayoutItem>
+        </DxFormLayout>
+    </div>
+}
+
+@code {
+    /// <summary>Gets or sets the active conversation whose returned files are displayed.</summary>
+    [Parameter]
+    public Guid ConversationId { get; set; }
+
+    private IReadOnlyList<OneWireWorkItem> documents = [];
+    private readonly CancellationTokenSource lifetime = new();
+
+    /// <summary>Subscribes to Office work results for this component's lifetime.</summary>
+    protected override void OnInitialized()
+    {
+        Logger.LogDebug("Subscribing chat to PublisherStudio document delivery.");
+        WorkSpooler.DocumentAvailable += OnDocumentAvailable;
+    }
+
+    /// <summary>Loads completed files for the selected conversation.</summary>
+    protected override void OnParametersSet()
+    {
+        Logger.LogDebug("Loading PublisherStudio documents for the active conversation.");
+        documents = WorkSpooler.GetSnapshot()
+            .Where(item => item.DocumentConversationId == ConversationId &&
+                           item.Status == OneWireWorkStatus.Completed && item.DocumentBytes is not null)
+            .ToArray();
+    }
+
+    /// <summary>Refreshes this chat when its own approved file arrives.</summary>
+    /// <param name="conversationId">Conversation associated with the returned file.</param>
+    private void OnDocumentAvailable(Guid conversationId)
+    {
+        Logger.LogDebug("Received a PublisherStudio document notification.");
+        if (conversationId != ConversationId || lifetime.IsCancellationRequested)
+            return;
+
+        TaskRunner.Run(nameof(ChatOfficeDownloads), "RefreshOfficeDownloads",
+            _ => InvokeAsync(() =>
+            {
+                OnParametersSet();
+                StateHasChanged();
+            }), lifetime.Token);
+    }
+
+    /// <summary>Releases the spooler event subscription and cancels pending updates.</summary>
+    public void Dispose()
+    {
+        Logger.LogDebug("Disposing chat Office download notifications.");
+        WorkSpooler.DocumentAvailable -= OnDocumentAvailable;
+        lifetime.Cancel();
+        lifetime.Dispose();
+    }
+}

@@ -2,6 +2,7 @@ using LocalGPT.BusinessObjects;
 using LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.Options;
+using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services;
 
@@ -9,11 +10,54 @@ namespace LocalGPT.Services;
 /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
 /// <param name="platform">Platform runtime service dependency used by the local AI artifact workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="catalog">Runtime catalog containing the operator-maintained artifact text extensions.</param>
 public sealed class LocalAiArtifactService(
     IOptionsMonitor<LocalGptConfigurationRoot> options,
     IPlatformRuntimeService platform,
-    ILogger<LocalAiArtifactService> logger) : ILocalAiArtifactService
+    ILogger<LocalAiArtifactService> logger,
+    LocalGptCatalogService catalog) : ILocalAiArtifactService
 {
+    private readonly Regex artifactLinks = new(
+        @"/__artifacts/media/(?<id>[a-fA-F0-9]{32})/(?<name>[a-zA-Z0-9_%~.-]{1,256})(?![a-zA-Z0-9_%~.-])",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(100));
+
+    /// <summary>Resolves previewable LocalGPT artifacts referenced by chat or tool output.</summary>
+    public IReadOnlyList<LocalAiArtifactDescriptor> GetChatPreviews(string? content)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return [];
+
+            var previews = new List<LocalAiArtifactDescriptor>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (Match match in artifactLinks.Matches(content))
+            {
+                var id = match.Groups["id"].Value;
+                if (seen.Contains(id))
+                    continue;
+
+                var name = Uri.UnescapeDataString(match.Groups["name"].Value);
+                var artifact = Resolve(id, name);
+                if (artifact is not { SupportsPreview: true })
+                    continue;
+
+                seen.Add(id);
+                previews.Add(artifact);
+                if (previews.Count == 8)
+                    break;
+            }
+
+            return previews;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Resolving local chat artifact previews failed.");
+            return [];
+        }
+    }
+
     /// <summary>
     /// Gets the artifact root value that forms part of the local AI artifact state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -57,6 +101,7 @@ public sealed class LocalAiArtifactService(
                 ArtifactId = artifactId,
                 FileName = safeFileName,
                 ContentType = ContentTypeFor(safeFileName),
+                SupportsTextPreview = catalog.ArtifactTextExtensions.Contains(Path.GetExtension(safeFileName)),
                 FullPath = destination,
                 DownloadUrl = $"/__artifacts/media/{artifactId}/{Uri.EscapeDataString(safeFileName)}",
                 Length = info.Length,
@@ -97,6 +142,7 @@ public sealed class LocalAiArtifactService(
                 ArtifactId = artifactId,
                 FileName = safeFileName,
                 ContentType = ContentTypeFor(safeFileName),
+                SupportsTextPreview = catalog.ArtifactTextExtensions.Contains(Path.GetExtension(safeFileName)),
                 FullPath = path,
                 DownloadUrl = $"/__artifacts/media/{artifactId}/{Uri.EscapeDataString(safeFileName)}",
                 Length = info.Length,

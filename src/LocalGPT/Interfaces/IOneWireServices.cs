@@ -355,7 +355,11 @@ public interface IOneWireWorkSpooler
     /// </summary>
     /// <param name="envelope">Envelope value supplied to the one wire work spooler operation and used when producing its result.</param>
     /// <returns>The one wire work item produced by the operation.</returns>
-    OneWireWorkItem Enqueue(OneWireEnvelope envelope);
+    /// <param name="documentConversationId">Local conversation that owns the returned Office file.</param>
+    OneWireWorkItem Enqueue(OneWireEnvelope envelope, Guid? documentConversationId = null);
+
+    /// <summary>Notifies the owning conversation that an Office file is available.</summary>
+    event Action<Guid>? DocumentAvailable;
     /// <summary>
     /// Performs dequeue for <see cref="IOneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>

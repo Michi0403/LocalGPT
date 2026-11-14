@@ -1484,18 +1484,7 @@ public sealed partial class LocalAiRuntimeService(
                 result.ArtifactId = artifact.ArtifactId;
                 result.ArtifactFileName = artifact.FileName;
                 result.ArtifactUrl = artifact.DownloadUrl;
-                // Only the server-issued same-origin artifact URL may become media markup.
-                // Markdown links remain the safe fallback for unrecognized content types.
-                var verifiedArtifactUrl = artifact.DownloadUrl.StartsWith("/__artifacts/media/", StringComparison.Ordinal)
-                    ? System.Text.Encodings.Web.HtmlEncoder.Default.Encode(artifact.DownloadUrl)
-                    : string.Empty;
-                result.ArtifactMarkdown = artifact.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
-                    ? $"![Generated local AI image]({artifact.DownloadUrl})"
-                    : verifiedArtifactUrl.Length > 0 && artifact.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
-                        ? $"<video controls preload=\"metadata\" class=\"localgpt-generated-media\" src=\"{verifiedArtifactUrl}\"></video>\n\n[Open generated local AI video]({artifact.DownloadUrl})"
-                        : verifiedArtifactUrl.Length > 0 && artifact.ContentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
-                            ? $"<audio controls preload=\"metadata\" class=\"localgpt-generated-media\" src=\"{verifiedArtifactUrl}\"></audio>\n\n[Open generated local AI audio]({artifact.DownloadUrl})"
-                            : $"[Open generated local AI artifact]({artifact.DownloadUrl})";
+                result.ArtifactMarkdown = $"[Open generated local AI artifact]({artifact.DownloadUrl})";
                 result.Metadata.Remove("artifactPath");
                 return result;
             }

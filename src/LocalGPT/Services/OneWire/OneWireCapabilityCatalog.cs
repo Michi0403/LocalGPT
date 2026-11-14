@@ -170,6 +170,15 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
             });
             functions.Add(new OneWireCapabilityDescriptor
             {
+                Key = "localgpt.media.delivery.read", DisplayName = "Read generated PublisherStudio media",
+                Description = "Returns a chunk of an approved media artifact to the peer that requested generation.",
+                Controller = "OneWire", Method = "GET", Route = "/api/onewire/http-json",
+                Organs = ["eyes"], UiActivationKeys = ["publisherstudio.media.insert"],
+                IsReadOnly = true, IsExposedToPeer = true, AllowPeerInvocation = true,
+                InteractionEditor = OneWireInteractionEditor.None, ConfigurationKey = "builtin:localgpt.media.delivery.read", Source = "LocalGPT"
+            });
+            functions.Add(new OneWireCapabilityDescriptor
+            {
                 Key = "localgpt.screenreader.help", DisplayName = "Recurring screen-reader help",
                 Description = "Processes debounced PublisherStudio screenshot evidence and returns bounded LocalGPT guidance.",
                 Controller = "OneWire", Method = "POST", Route = "/api/onewire/screenreader/help", Organs = ["eyes", "brain"],

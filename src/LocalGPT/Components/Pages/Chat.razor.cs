@@ -1358,7 +1358,7 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    /// <summary>Opens and refreshes the required ASCII surface after a renderer-affine Council team selection.</summary>
+    /// <summary>Opens and refreshes the required ASCII surface before starting a Council run.</summary>
     /// <returns>A task that completes after the surface state and mirrored transcript are ready for rendering.</returns>
     private async Task EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync()
     {
@@ -1712,7 +1712,6 @@ namespace LocalGPT.Components.Pages
                 SelectedCouncilTeamKey = CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
             RefreshPromptSuggestions();
         }).ConfigureAwait(false);
-        await InvokeAsync(EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync).ConfigureAwait(false);
     
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
@@ -1752,7 +1751,6 @@ namespace LocalGPT.Components.Pages
                 : CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
             RefreshPromptSuggestions();
         }).ConfigureAwait(false);
-        await InvokeAsync(EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync).ConfigureAwait(false);
     
         }
         catch (Exception __componentMethodException)
@@ -1765,7 +1763,7 @@ namespace LocalGPT.Components.Pages
     /// <summary>Applies a user-selected Council team and refreshes its connected pre-prompts.</summary>
     /// <param name="args">Select change event containing the requested team key.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task OnCouncilTeamChanged(ChangeEventArgs args)
+    private Task OnCouncilTeamChanged(ChangeEventArgs args)
     {
         try
         {
@@ -1774,7 +1772,7 @@ namespace LocalGPT.Components.Pages
             SelectedCouncilTeamKey = requested;
         RefreshPromptSuggestions();
         SavePreparationConfiguration();
-        await EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync().ConfigureAwait(false);
+        return Task.CompletedTask;
     
         }
         catch (Exception __componentMethodException)

@@ -133,6 +133,23 @@ public sealed class OneWireController(
     [HttpGet("work/{id:guid}")]
     public ActionResult<OneWireWorkItem> Work(Guid id) => work.Get(id) is { } item ? Ok(item) : NotFound();
 
+    /// <summary>Downloads the document returned by a completed PublisherStudio work item.</summary>
+    /// <param name="id">Identifier of the approved work item.</param>
+    /// <returns>The native Office file for a local frontend request.</returns>
+    [HttpGet("work/{id:guid}/document")]
+    public IActionResult WorkDocument(Guid id)
+    {
+        if (!transportSecurityPolicy.IsLoopback(HttpContext.Connection.RemoteIpAddress))
+            return NotFound();
+        if (work.Get(id) is not { Status: OneWireWorkStatus.Completed, DocumentBytes: { } bytes } item)
+            return NotFound();
+
+        Response.Headers["Cache-Control"] = "private, no-store";
+        return item.IsSpreadsheetDocument
+            ? File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "PublisherStudio.xlsx")
+            : File(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "PublisherStudio.docx");
+    }
+
     /// <summary>
     /// Returns the council teams projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>

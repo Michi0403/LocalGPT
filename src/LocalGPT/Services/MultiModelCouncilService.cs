@@ -201,6 +201,7 @@ namespace LocalGPT.Services
         /// <param name="councilRuntime">Injected dependency used by the service.</param>
         /// <param name="councilText">Injected dependency used by the service.</param>
         /// <param name="catalog">Injected dependency used by the service.</param>
+        /// <param name="publisherMediaDelivery">Associates generated media with the paired peer that requested the run.</param>
         public MultiModelCouncilService(
             ILocalGptVocabularyService vocabulary,
             IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
@@ -239,7 +240,8 @@ namespace LocalGPT.Services
             ILogger<MultiModelCouncilService> logger,
             CouncilRuntimeService councilRuntime,
             CouncilTextService councilText,
-            LocalGptCatalogService catalog)
+            LocalGptCatalogService catalog,
+            OneWire.PublisherMediaDeliveryService publisherMediaDelivery)
         {
             this.vocabulary = vocabulary;
             this.optionsRoot = optionsRoot;
@@ -279,6 +281,7 @@ namespace LocalGPT.Services
             this.councilRuntime = councilRuntime;
             this.councilText = councilText;
             this.catalog = catalog;
+            this.publisherMediaDelivery = publisherMediaDelivery;
         }
 
 

@@ -24,6 +24,7 @@ namespace LocalGPT.Services;
 /// <param name="databaseInitialization">Database initialization dependency used to read persisted function policy without creating a registry/catalog dependency cycle.</param>
 /// <param name="dbContextFactory">Database context factory used to read persisted function policy without resolving the catalog service from the scoped service provider.</param>
 /// <param name="audit">Devexpress ai function invocation audit service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="publisherMediaDelivery">Delivery service for approved media generated for a paired PublisherStudio editor.</param>
 public sealed class DxAiFunctionRegistry(
     IHumanCollaborationService humanCollaboration,
     IDeferredDxAiInvocationService deferredInvocations,
@@ -37,7 +38,8 @@ public sealed class DxAiFunctionRegistry(
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDxAiFunctionInvocationAuditService audit,
-    ILogger<DxAiFunctionRegistry> logger) : IDxAiFunctionRegistry
+    ILogger<DxAiFunctionRegistry> logger,
+    OneWire.PublisherMediaDeliveryService publisherMediaDelivery) : IDxAiFunctionRegistry
 {
     // Keep the scoped registry itself on normal constructor injection. Handler construction is delayed until
     // the function directory is actually used, which prevents Chat page construction from eagerly resolving
@@ -353,6 +355,7 @@ public sealed class DxAiFunctionRegistry(
             };
             result.FunctionName = functionName;
             result.OperationId = operationId;
+            publisherMediaDelivery.Record(ambientContext.Current.CouncilRunId, result);
             logger.LogInformation(
                 "DXAIFunction {FunctionName} completed with status {FunctionStatus} and success={Succeeded}.",
                 functionName,

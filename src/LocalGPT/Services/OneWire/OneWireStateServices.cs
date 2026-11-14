@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.Collections.Concurrent;
+using System.Text.Json.Nodes;
 
 namespace LocalGPT.Services.OneWire;
 
@@ -433,6 +434,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     /// Stores the in-memory work items collection maintained internally by <see cref="OneWireWorkSpooler"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, OneWireWorkItem> workItems = new();
+
+    /// <inheritdoc/>
+    public event Action<Guid>? DocumentAvailable;
     /// <summary>
     /// Stores the internal queue state used by <see cref="OneWireWorkSpooler"/> while executing its surrounding workflow.
     /// </summary>
@@ -447,7 +451,8 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     /// </summary>
     /// <param name="envelope">Envelope value supplied to the one wire work spooler operation and used when producing its result.</param>
     /// <returns>The one wire work item produced by the operation.</returns>
-    public OneWireWorkItem Enqueue(OneWireEnvelope envelope)
+    /// <param name="documentConversationId">Local conversation that owns the returned Office file.</param>
+    public OneWireWorkItem Enqueue(OneWireEnvelope envelope, Guid? documentConversationId = null)
     {
     try
     {
@@ -460,6 +465,7 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 ExecutionMode = envelope.ExecutionMode,
                 NotBeforeUtc = envelope.NotBeforeUtc,
                 Request = envelope,
+                DocumentConversationId = documentConversationId,
                 Status = OneWireWorkStatus.Queued
             };
             workItems[item.Id] = item;
@@ -688,10 +694,17 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 });
                 return;
             }
-            if (string.IsNullOrWhiteSpace(error) && status is not OneWireWorkStatus.Failed)
-                Complete(item.Id, resultJson);
-            else
+            if (!string.IsNullOrWhiteSpace(error) || status is OneWireWorkStatus.Failed)
+            {
                 Fail(item.Id, error);
+                return;
+            }
+
+            if (item.CapabilityKey == "publisher.document.create")
+                resultJson = ReadDocumentResult(item, resultJson);
+            Complete(item.Id, resultJson);
+            if (item.DocumentBytes is not null && item.DocumentConversationId is Guid conversationId)
+                DocumentAvailable?.Invoke(conversationId);
     
     }
     catch (Exception __serviceMethodException)
@@ -703,6 +716,46 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
         throw;
     }
 }
+
+    /// <summary>Extracts a completed PublisherStudio document before storing model-visible metadata.</summary>
+    /// <param name="item">The correlated outgoing work item.</param>
+    /// <param name="resultJson">The paired peer's result.</param>
+    /// <returns>The result without file bytes, including the local download path when available.</returns>
+    private string ReadDocumentResult(OneWireWorkItem item, string resultJson)
+    {
+        try
+        {
+            if (JsonNode.Parse(resultJson) is not JsonObject result)
+                return resultJson;
+            var keys = result.Select(property => property.Key).ToArray();
+            var bytesKey = keys.FirstOrDefault(key => string.Equals(key, "documentBytes", StringComparison.OrdinalIgnoreCase));
+            if (bytesKey is null)
+                return resultJson;
+            var encoded = result[bytesKey]?.GetValue<string>();
+            result.Remove(bytesKey);
+            var kindKey = keys.FirstOrDefault(key => string.Equals(key, "kind", StringComparison.OrdinalIgnoreCase));
+            var kind = kindKey is null ? null : result[kindKey]?.GetValue<string>();
+            if (kind is "spreadsheet" or "text" && !string.IsNullOrEmpty(encoded))
+            {
+                var bytes = Convert.FromBase64String(encoded);
+                using var stream = new MemoryStream(bytes, writable: false);
+                using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
+                var documentPart = kind == "spreadsheet" ? "xl/workbook.xml" : "word/document.xml";
+                if (archive.GetEntry("[Content_Types].xml") is null || archive.GetEntry(documentPart) is null)
+                    throw new InvalidDataException("The returned file does not contain the expected Open XML parts.");
+
+                item.IsSpreadsheetDocument = kind == "spreadsheet";
+                item.DocumentBytes = bytes;
+                result["downloadUrl"] = $"/api/onewire/work/{item.Id:D}/document";
+            }
+            return result.ToJsonString();
+        }
+        catch (Exception exception) when (exception is System.Text.Json.JsonException or InvalidOperationException or FormatException or InvalidDataException)
+        {
+            logger.LogWarning("Rejected invalid PublisherStudio document result for work {WorkItemId} ({ErrorType}).", item.Id, exception.GetType().Name);
+            return new JsonObject { ["downloadError"] = "PublisherStudio returned invalid document data." }.ToJsonString();
+        }
+    }
 
     /// <summary>
     /// Finds by correlation for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.

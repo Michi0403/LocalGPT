@@ -1,0 +1,50 @@
+@inject ILocalAiArtifactService Artifacts
+@inject ILogger<ChatArtifactPreview> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
+@* razor-structural-renderer: message-template previews are individual native disclosures. *@
+
+@foreach (var item in previews)
+{
+    <details class="localgpt-artifact-preview" @key="item.ArtifactId">
+        <summary>Preview @item.FileName</summary>
+        @if (item.SupportsImagePreview)
+        {
+            <img src="@item.DownloadUrl" alt="@item.FileName" loading="lazy" style="max-width: 100%; max-height: 70vh;" />
+        }
+        else if (item.SupportsVideoPreview)
+        {
+            <video src="@item.DownloadUrl" controls preload="none" style="max-width: 100%; max-height: 70vh;"></video>
+        }
+        else if (item.SupportsAudioPreview)
+        {
+            <audio src="@item.DownloadUrl" controls preload="none"></audio>
+        }
+        else
+        {
+            <iframe src="@($"{item.DownloadUrl}?preview=true")" sandbox="" title="@item.FileName" loading="lazy" style="width: 100%; min-height: 16rem;"></iframe>
+        }
+        <a href="@item.DownloadUrl" download="@item.FileName">Download @item.FileName</a>
+    </details>
+}
+
+@code {
+    /// <summary>Message or tool result containing LocalGPT artifact links.</summary>
+    [Parameter]
+    public string? Content { get; set; }
+
+    private IReadOnlyList<LocalAiArtifactDescriptor> previews = [];
+    private string? previousContent;
+
+    /// <summary>Resolves only links issued by the LocalGPT artifact store.</summary>
+    protected override void OnParametersSet()
+    {
+        Logger.LogTrace("Resolving chat message artifact references.");
+        if (Content == previousContent)
+            return;
+
+        previousContent = Content;
+        previews = Artifacts.GetChatPreviews(Content);
+    }
+}

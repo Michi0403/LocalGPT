@@ -36,6 +36,8 @@ public sealed class OneWireOperationExecutor(
             {
                 var wireRequest = ReadPayload<OneWireCouncilRequest>(item.Request, "CouncilRequest");
                 var goalService = scope.ServiceProvider.GetRequiredService<IGoalExecutionService>();
+                scope.ServiceProvider.GetRequiredService<PublisherMediaDeliveryService>()
+                    .Register(item.CorrelationId, item.SourcePeerId, wireRequest.ExternalProjectContextJson);
                 var request = new MultiModelCouncilRequest
                 {
                     Prompt = wireRequest.Prompt,
@@ -351,6 +353,7 @@ public sealed class OneWireOperationExecutor(
 /// <param name="dispatchContextFactory">One wire dispatch context factory dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
 /// <param name="targetApprovalPolicy">One wire target approval policy dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="publisherMediaDelivery">Streams approved generated media to its requesting peer.</param>
 public sealed class OneWireMessageDispatcher(
     IOneWireEnvelopeCodec codec,
     IOneWireCapabilityCatalog capabilities,
@@ -363,7 +366,8 @@ public sealed class OneWireMessageDispatcher(
     IOneWireTransportSecurityPolicy transportSecurityPolicy,
     IOneWireDispatchContextFactory dispatchContextFactory,
     IOneWireTargetApprovalPolicy targetApprovalPolicy,
-    ILogger<OneWireMessageDispatcher> logger) : IOneWireMessageDispatcher
+    ILogger<OneWireMessageDispatcher> logger,
+    PublisherMediaDeliveryService publisherMediaDelivery) : IOneWireMessageDispatcher
 {
     /// <summary>
     /// Performs dispatch for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
@@ -533,6 +537,16 @@ public sealed class OneWireMessageDispatcher(
                         return Error(envelope, "The requested capability is not exposed to this linked peer.");
                     if (!selected.AllowPeerInvocation)
                         return Error(envelope, "The requested capability is discovery-only until the LocalGPT user enables peer invocation in the DX Function Catalog.");
+                    if (string.Equals(selected.Key, PublisherMediaDeliveryService.CapabilityKey, StringComparison.OrdinalIgnoreCase) &&
+                        !selected.RequiresFrontendUserConfirmation && !selected.RequiresHumanConfirmation)
+                    {
+                        if (context.IsInternal || !TryRead<PublisherMediaReadRequest>(envelope, "Parameters", out var mediaRequest) || mediaRequest is null)
+                            return Error(envelope, "A linked PublisherStudio media request is required.");
+                        var media = await publisherMediaDelivery.ReadAsync(context.AuthenticatedPeerId, mediaRequest, cancellationToken).ConfigureAwait(false);
+                        var response = Reply(envelope, OneWireMessageType.WorkResult, new Dictionary<string, object?> { ["Media"] = media });
+                        response.CapabilityKey = selected.Key;
+                        return response;
+                    }
                     envelope.RequiresHumanInteractionOnTargetSystem = selected.RequiresFrontendUserConfirmation || selected.RequiresHumanConfirmation;
                     envelope.InteractionKind = envelope.RequiresAutomatedInteractionOnTargetSystem
                         ? (envelope.RequiresHumanInteractionOnTargetSystem ? OneWireInteractionKind.HumanAndAutomated : OneWireInteractionKind.Automated)

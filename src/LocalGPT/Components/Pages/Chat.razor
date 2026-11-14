@@ -703,6 +703,10 @@
                 </div>
             </details>
         }
+        @if (ActiveConversationId is Guid conversationId)
+        {
+            <ChatOfficeDownloads @key="conversationId" ConversationId="conversationId" />
+        }
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
             <DxAIChat Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"
@@ -727,13 +731,14 @@
                         <div class="localgpt-function-call-list" data-testid="chat-function-call-info">
                             @foreach (var functionCall in functionMessage.FunctionCalls)
                             {
+                                <ChatArtifactPreview Content="@(functionCall.Result?.Result?.ToString())" />
                                 <details class="localgpt-function-call-info">
                                     <summary>
                                         <span class="localgpt-function-call-state" aria-hidden="true"></span>
-                                        <strong>@functionCall.Request.Name</strong>
+                                        <strong>@functionCall.Request?.Name</strong>
                                         <small>AI tool call</small>
                                     </summary>
-                                    @if (functionCall.Request.Arguments is { Count: > 0 } functionArguments)
+                                    @if (functionCall.Request?.Arguments is { Count: > 0 } functionArguments)
                                     {
                                         <DxFormLayout CssClass="razor-section-layout-owner">
     <DxFormLayoutItem ColSpanMd="12">
@@ -787,6 +792,7 @@
                         else
                         {
                             @(new MarkupString(RenderChatMessageHtml(messageContext.Content)))
+                            <ChatArtifactPreview Content="@messageContext.Content" />
                         }
                         @if (liveCouncilMessage is not null)
                         {

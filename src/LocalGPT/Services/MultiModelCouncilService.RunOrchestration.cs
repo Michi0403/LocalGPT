@@ -15,6 +15,7 @@ namespace LocalGPT.Services
     /// </summary>
     public sealed partial class MultiModelCouncilService
     {
+        private readonly OneWire.PublisherMediaDeliveryService publisherMediaDelivery;
         /// <summary>
         /// Performs run as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
@@ -30,6 +31,7 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(request.Prompt))
                     throw new InvalidOperationException("The council needs a prompt.");
 
+                publisherMediaDelivery.TrackRun(request.OneWireCorrelationId, request.RunId);
                 var organicTeam = await organicCouncilBlueprints.FindTeamAsync(request.CouncilTeamKey, cancellationToken).ConfigureAwait(false)
                     ?? await organicCouncilBlueprints.FindTeamAsync("general", cancellationToken).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("No enabled organic council team is available.");

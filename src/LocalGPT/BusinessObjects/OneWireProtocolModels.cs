@@ -63,6 +63,18 @@ public sealed class OneWireWorkItem
     /// </summary>
     /// <value>The result JSON value exposed by <see cref="OneWireWorkItem"/>.</value>
     public string ResultJson { get; set; } = string.Empty;
+
+    /// <summary>Identifies the LocalGPT conversation that queued document creation.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Guid? DocumentConversationId { get; set; }
+
+    /// <summary>Contains the file returned by an approved document creation request.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public byte[]? DocumentBytes { get; set; }
+
+    /// <summary>Indicates whether the received document is a spreadsheet.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsSpreadsheetDocument { get; set; }
     /// <summary>
     /// Gets or sets the error value that forms part of the one wire work item state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -156,6 +168,8 @@ public sealed class OneWireOptions
     /// </summary>
     /// <value>The maximum message bytes value exposed by <see cref="OneWireOptions"/>.</value>
     public int MaximumMessageBytes { get; set; } = OneWireProtocol.MaximumMessageBytes;
+    /// <summary>Minutes after a PublisherStudio Council starts that its generated media can be retrieved by that peer.</summary>
+    public int PublisherMediaDeliveryMinutes { get; set; } = 120;
     /// <summary>Gets or sets the traffic journal settings (section <c>OneWire:Traffic</c>).</summary>
     /// <value>The live traffic logging and view settings.</value>
     public OneWireTrafficOptions Traffic { get; set; } = new();

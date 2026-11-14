@@ -44,7 +44,9 @@ public sealed class OneWireTrafficJournal(
         try
         {
             var traffic = CurrentOptions;
-            if (!traffic.Enabled || string.Equals(traffic.PayloadMode, OneWireTrafficPayloadModes.None, StringComparison.OrdinalIgnoreCase))
+            if ((envelope.MessageType == OneWireMessageType.WorkResult &&
+                 string.Equals(envelope.CapabilityKey, PublisherMediaDeliveryService.CapabilityKey, StringComparison.OrdinalIgnoreCase)) ||
+                !traffic.Enabled || string.Equals(traffic.PayloadMode, OneWireTrafficPayloadModes.None, StringComparison.OrdinalIgnoreCase))
                 return string.Empty;
             return codec.Serialize(envelope, seal: false);
         }
@@ -66,13 +68,15 @@ public sealed class OneWireTrafficJournal(
                 return;
 
             var envelope = record.Envelope;
-            var plaintext = !string.IsNullOrEmpty(record.PlaintextJson)
+            var generatedMedia = envelope?.MessageType == OneWireMessageType.WorkResult &&
+                string.Equals(envelope.CapabilityKey, PublisherMediaDeliveryService.CapabilityKey, StringComparison.OrdinalIgnoreCase);
+            var plaintext = generatedMedia ? string.Empty : !string.IsNullOrEmpty(record.PlaintextJson)
                 ? record.PlaintextJson
                 : envelope is not null && !string.Equals(traffic.PayloadMode, OneWireTrafficPayloadModes.None, StringComparison.OrdinalIgnoreCase)
                     ? codec.Serialize(envelope, seal: false)
                     : string.Empty;
             var payload = formatter.Format(plaintext, traffic);
-            var rawFrame = traffic.IncludeRawFrame ? record.RawFrame ?? string.Empty : string.Empty;
+            var rawFrame = traffic.IncludeRawFrame && !generatedMedia ? record.RawFrame ?? string.Empty : string.Empty;
             var received = string.Equals(record.Direction, OneWireTrafficDirections.Received, StringComparison.Ordinal);
             var failed = !string.IsNullOrWhiteSpace(record.Error);
             var sequence = Interlocked.Increment(ref recorded);

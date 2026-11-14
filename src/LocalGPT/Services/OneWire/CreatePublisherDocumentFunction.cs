@@ -34,7 +34,7 @@ public sealed class CreatePublisherDocumentFunction(
         Name: "publisher.document.create.request",
         Method: "POST",
         Route: "/api/onewire/peers/connected/documents/create",
-        Purpose: "Creates a new spreadsheet or a new text document in the connected PublisherStudio publication after the user approved it in LocalGPT and in PublisherStudio. Use this to create new documents. For a spreadsheet, content is CSV text (first row = headers); for text, content is the plain text. Use publisher.sessions.list instead of asking the user for session ids; sessionId is only needed when several PublisherStudio editors are open. presentation is visible (default, selects the new object for the user) or silent (keeps the user's page and selection). The result arrives through organic.plugin.work.read and contains the created object id, kind, title and page, or says what the user must open.",
+        Purpose: "Creates a new spreadsheet or a new text document in the connected PublisherStudio publication after the user approved it in LocalGPT and in PublisherStudio. Use this to create new documents. For a spreadsheet, content is CSV text (first row = headers); for text, content is the plain text. Use publisher.sessions.list instead of asking the user for session ids; sessionId is only needed when several PublisherStudio editors are open. presentation is visible (default, selects the new object for the user) or silent (keeps the user's page and selection). Read the result through organic.plugin.work.read. Include the returned downloadUrl as a clickable Markdown link in the final chat answer when present. The result also contains the created object id, kind, title and page. If no file is returned, report its status without inventing a download.",
         Parameters: "kind, title, content, presentation, page, sessionId, peerId, workOrderKey",
         SafetyNotes: "Requires fresh LocalGPT approval and a fresh PublisherStudio approval for every request. Content is validated by PublisherStudio before anything is inserted; the insertion is undoable.",
         IsReadOnly: false,
@@ -113,7 +113,7 @@ public sealed class CreatePublisherDocumentFunction(
                 null,
                 request.UserConfirmed,
                 payload.GetRawText());
-            var work = spooler.Enqueue(envelope);
+            var work = spooler.Enqueue(envelope, request.ConversationId);
             if (!await connections.SendAsync(peer.PeerId, envelope, cancellationToken).ConfigureAwait(false))
             {
                 spooler.Fail(work.Id, "PublisherStudio disconnected before the document creation request was sent.");

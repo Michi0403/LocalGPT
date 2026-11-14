@@ -26,7 +26,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 "publisher.panel.modules.inspect", "publisher.panel.module.invoke"
             };
             if (string.Equals(category, "image", StringComparison.Ordinal))
-                preferred.Add("localai.image.generate");
+                preferred.AddRange(["localai.image.generate", "publisher.input.execute", "publisher.input.result"]);
             if (string.Equals(category, "video", StringComparison.Ordinal))
                 preferred.Add("localai.video.generate");
             return new OrganicCouncilTeamDefinition
@@ -48,7 +48,8 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     "If a choice is still needed, ask in the user-visible response and stop before generation, editor input or model setup. If the user already chose a path, use it. If export is requested, use the currently advertised formats and ask for the target only when required.",
                     "Never claim a video/image/audio was created unless an actual output file or validated media receipt exists.",
                     "Do not send hardware details to CanIRun.ai without its existing fresh human approval. Review installed models and source evidence first; never hard-code model rankings.",
-                    "No publication, browser or filesystem mutations without an exact scoped publisher command and its existing approval/review path."
+                    "No publication, browser or filesystem mutations without an exact scoped publisher command and its existing approval/review path.",
+                    "For an explicit Picture Studio drawing, inspect the visible editor through publisher.browser.view.inspect. Use publisher.input.result to confirm the tabId, then use that tabId for every action. Select Brush in the editor and submit ordered normalized points to publisher.input.execute with kind BrushStroke and selector #picture-studio-canvas. Use one stroke per path and confirm its completion before continuing. Leave the visible result open for review."
                 ],
                 WorkflowSteps =
                 [

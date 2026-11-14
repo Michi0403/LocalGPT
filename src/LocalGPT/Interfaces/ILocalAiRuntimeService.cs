@@ -242,4 +242,7 @@ public interface ILocalAiArtifactService
     /// <param name="fileName">File name value supplied to the local AI artifact operation and used when producing its result.</param>
     /// <returns>The local AI artifact descriptor produced by the operation.</returns>
     LocalAiArtifactDescriptor? Resolve(string artifactId, string fileName);
+
+    /// <summary>Resolves previewable LocalGPT artifacts referenced by chat or tool output.</summary>
+    IReadOnlyList<LocalAiArtifactDescriptor> GetChatPreviews(string? content);
 }

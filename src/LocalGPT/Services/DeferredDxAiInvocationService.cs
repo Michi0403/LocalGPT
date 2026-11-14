@@ -406,6 +406,7 @@ public sealed partial class DeferredDxAiInvocationService(ILocalGptVocabularySer
                     ApplicationVersion = candidate.ApplicationVersion
                 },
                 cancellationToken).ConfigureAwait(false);
+            scope.ServiceProvider.GetRequiredService<OneWire.PublisherMediaDeliveryService>().Record(candidate.CouncilRunId, result);
         }
         catch (Exception ex)
         {

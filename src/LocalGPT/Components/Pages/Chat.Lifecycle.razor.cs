@@ -288,9 +288,6 @@ namespace LocalGPT.Components.Pages
                     await RestoreCouncilChatFromSpoolAsync(rejoinRunId, restoredArchive).ConfigureAwait(false);
             }
 
-            // A restored team preference can arrive after the initial team list.
-            // Re-open required game presentation without starting another game or Council.
-            await EnsureRequiredAsciiSurfaceForSelectedCouncilTeamAsync().ConfigureAwait(true);
             StartAutoSaveLoop();
             StartInitialModelRefresh();
             ScheduleDirectCouncilStarterDispatch();
