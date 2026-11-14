@@ -20,6 +20,9 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         /// <value>The Ollama cores value exposed by <see cref="AICoreOptions"/>.</value>
         public List<OllamaCoreOptions> OllamaCores { get; set; } = new(); // Additional independently reachable Ollama hosts/preferred models
+        /// <summary>Provider-qualified preferred Council model routes, in user-selected priority order.</summary>
+        /// <value>Preferred routes for automatic selection; explicit request and team bindings take precedence.</value>
+        public List<string> PreferredCouncilModelKeys { get; set; } = [];
         /// <summary>
         /// Gets or sets LocalGPT-owned launch defaults for the local Ollama process without changing independently configured remote hosts.
         /// </summary>

@@ -33,7 +33,13 @@ namespace LocalGPT.Services
                 var organicTeam = await organicCouncilBlueprints.FindTeamAsync(request.CouncilTeamKey, cancellationToken).ConfigureAwait(false)
                     ?? await organicCouncilBlueprints.FindTeamAsync("general", cancellationToken).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("No enabled organic council team is available.");
+                var callerModelKeys = request.ModelSelections.Select(model => model.SelectionKey)
+                    .Concat(request.ModelNames)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 await ApplyConfiguredTeamModelBindingsAsync(request, organicTeam, cancellationToken).ConfigureAwait(false);
+                var teamAddedKeys = request.ModelNames
+                    .Where(key => !callerModelKeys.Contains(key))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var baseUri = councilText.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? catalog.DefaultOllamaUri, logger);
                 var selectedParticipants = await SelectParticipantsAsync(request, baseUri, cancellationToken).ConfigureAwait(false);
                 request.ModelRoutes = QualifyModelRoutes(request.ModelRoutes, request.ModelSelections);
@@ -67,6 +73,22 @@ namespace LocalGPT.Services
                     OneWireCorrelationId = request.OneWireCorrelationId,
                     StartedAtUtc = DateTime.UtcNow
                 };
+                var preferredKeys = optionsRoot.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
+                foreach (var model in result.ModelSelections)
+                {
+                    var preferenceOrder = preferredKeys.FindIndex(key => string.Equals(key, model.SelectionKey, StringComparison.OrdinalIgnoreCase));
+                    var source = teamAddedKeys.Contains(model.SelectionKey)
+                        ? $"Saved Council team '{organicTeam.Key}' role/workflow binding"
+                        : callerModelKeys.Contains(model.SelectionKey)
+                            ? "Caller/goal-provided provider-qualified route"
+                            : preferenceOrder >= 0 ? $"Automatic selection; user-preferred priority {preferenceOrder + 1}"
+                            : "Automatic discovery fallback";
+                    var preference = preferenceOrder >= 0 ? $"; saved preference priority={preferenceOrder + 1}" : string.Empty;
+                    var detail = $"{model.SelectionKey}: {source}{preference}; configured={model.IsConfigured}; reachable={model.IsReachable}";
+                    result.ModelSelectionReasons.Add(detail);
+                    logger.LogInformation("Council run {RunId} selected model {ModelKey}: {SelectionReason}.",
+                        result.RunId, model.SelectionKey, source);
+                }
                 // Create the CouncilLogs artifact as soon as the run identity exists. The same path is
                 // atomically refreshed at completion/failure, so a remote or UI cancellation cannot
                 // leave an otherwise valid Council run with no diagnostic markdown at all.

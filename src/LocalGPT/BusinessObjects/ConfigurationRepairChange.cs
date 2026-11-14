@@ -12,7 +12,10 @@ public sealed class ConfigurationRepairChange
     /// <summary>Change kind for adding one item to a runtime collection stored as a JSON string array.</summary>
     public const string RuntimeCollectionAddKind = "RuntimeCollectionAdd";
 
-    /// <summary>Gets or sets the change kind (<see cref="SystemVariableKind"/> or <see cref="RuntimeCollectionAddKind"/>).</summary>
+    /// <summary>Change kind for replacing exact provider-qualified role bindings in a user-owned Council team.</summary>
+    public const string CouncilTeamRolesKind = "CouncilTeamRoles";
+
+    /// <summary>Gets or sets the change kind (<see cref="SystemVariableKind"/>, <see cref="RuntimeCollectionAddKind"/> or <see cref="CouncilTeamRolesKind"/>).</summary>
     /// <value>Change kind.</value>
     public string TargetKind { get; set; } = SystemVariableKind;
 

@@ -174,8 +174,14 @@ namespace LocalGPT.Services
                 if (references.Count == 0)
                 {
                     var candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
+                    var preferred = optionsRoot.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
                     references = candidates
                         .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
+                        .OrderBy(candidate =>
+                        {
+                            var index = preferred.FindIndex(key => string.Equals(key, candidate.SelectionKey, StringComparison.OrdinalIgnoreCase));
+                            return index >= 0 ? index : int.MaxValue;
+                        })
                         .Take(catalog.MaxParticipants)
                         .Select(candidate => candidate.ToReference())
                         .ToList();

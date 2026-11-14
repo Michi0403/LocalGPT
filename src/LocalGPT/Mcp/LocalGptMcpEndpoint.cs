@@ -1,4 +1,5 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.Services.OneWire;
 using LocalGPT.Interfaces;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
@@ -31,7 +32,7 @@ public sealed class LocalGptMcpEndpoint(
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="LocalGptMcpEndpoint"/> while executing its surrounding workflow.
     /// </summary>
-    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    private readonly JsonSerializerOptions JsonOptions = new(new FamilyWireJsonConventions().CreateWebOptions())
     {
         WriteIndented = false
     };

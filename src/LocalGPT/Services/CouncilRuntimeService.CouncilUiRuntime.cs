@@ -49,6 +49,14 @@ namespace LocalGPT.Services
                 .AppendLine(result.Prompt)
                 .AppendLine();
 
+                builder.AppendLine("## Model Selection Audit").AppendLine();
+                if (result.ModelSelectionReasons.Count == 0)
+                    builder.AppendLine("Model selection provenance was unavailable for this run.");
+                else
+                    foreach (var reason in result.ModelSelectionReasons)
+                        builder.AppendLine($"- {reason}");
+                builder.AppendLine();
+
                 if (result.ContinuedFromConversationId is Guid continuedFrom)
                 {
                     builder

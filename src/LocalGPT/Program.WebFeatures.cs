@@ -154,7 +154,7 @@ namespace LocalGPT
         {
             try
             {
-                options.PropertyNameCaseInsensitive = true;
+                new FamilyWireJsonConventions().ApplyEnumCompatibility(options);
                 options.WriteIndented = true;
                 options.PropertyNamingPolicy = null;
                 options.IgnoreReadOnlyFields = false;
@@ -162,7 +162,6 @@ namespace LocalGPT
                 options.IncludeFields = false;
                 options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
                 options.AllowTrailingCommas = true;
-                options.Converters.Add(new JsonStringEnumConverter());
                 options.NumberHandling = JsonNumberHandling.AllowReadingFromString |
                     JsonNumberHandling.WriteAsString;
             }

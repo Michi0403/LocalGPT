@@ -365,6 +365,10 @@ namespace LocalGPT.BusinessObjects
         /// <value>The model selections value exposed by <see cref="MultiModelCouncilResult"/>.</value>
         public List<ProviderModelReference> ModelSelections { get; set; } = [];
 
+        /// <summary>Per-model route selection provenance persisted with the Council log.</summary>
+        /// <value>Model key, selection source, and configuration/availability information.</value>
+        public List<string> ModelSelectionReasons { get; set; } = [];
+
         /// <summary>
         /// Gets or sets continued from conversation identifier.
         /// </summary>

@@ -160,11 +160,11 @@ public sealed class OneWireHttpController(
                 Error = item.Error,
                 Properties = new Dictionary<string, JsonElement>
                 {
-                    ["WorkItemId"] = JsonSerializer.SerializeToElement(item.Id),
-                    ["Status"] = JsonSerializer.SerializeToElement(item.Status.ToString()),
-                    ["ResultJson"] = JsonSerializer.SerializeToElement(item.ResultJson),
-                    ["CreatedUtc"] = JsonSerializer.SerializeToElement(item.CreatedUtc),
-                    ["UpdatedUtc"] = JsonSerializer.SerializeToElement(item.UpdatedUtc)
+                    ["WorkItemId"] = JsonSerializer.SerializeToElement(item.Id, codec.JsonOptions),
+                    ["Status"] = JsonSerializer.SerializeToElement(item.Status.ToString(), codec.JsonOptions),
+                    ["ResultJson"] = JsonSerializer.SerializeToElement(item.ResultJson, codec.JsonOptions),
+                    ["CreatedUtc"] = JsonSerializer.SerializeToElement(item.CreatedUtc, codec.JsonOptions),
+                    ["UpdatedUtc"] = JsonSerializer.SerializeToElement(item.UpdatedUtc, codec.JsonOptions)
                 }
             };
             return await RespondAsync(response, "The HTTP/JSON work response requires an MFA-verified peer before application data can be returned.", cancellationToken).ConfigureAwait(false);

@@ -13,10 +13,12 @@ namespace LocalGPT.Services.ConfigurationSteward;
 /// </summary>
 /// <param name="dbContextFactory">LocalGPT database used for the compare-and-set transaction.</param>
 /// <param name="runtimePolicy">Runtime policy snapshot reloaded after a committed repair.</param>
+/// <param name="roleIndex">Searchable model-assignment index synchronized after approved team changes.</param>
 /// <param name="logger">Logger for repair diagnostics; changed values are logged because they are configuration, not secrets.</param>
 public sealed class ConfigurationRepairApplier(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    CouncilRoleAssignmentIndexService roleIndex,
     ILogger<ConfigurationRepairApplier> logger) : IConfigurationRepairApplier
 {
     /// <inheritdoc />
@@ -33,6 +35,52 @@ public sealed class ConfigurationRepairApplier(
             await using var transactionDisposal = transaction.ConfigureAwait(false);
             foreach (var change in option.Changes)
             {
+                if (change.TargetKind == ConfigurationRepairChange.CouncilTeamRolesKind)
+                {
+                    var team = await db.CouncilTeamConfigurations.SingleOrDefaultAsync(item =>
+                        item.Key == change.TargetKey, cancellationToken).ConfigureAwait(false);
+                    if (team is null || team.IsSystemSeed || team.IsDeleted || !team.IsEnabled ||
+                        !string.Equals(team.RolesJson, change.ExpectedCurrentValue, StringComparison.Ordinal))
+                    {
+                        await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                        outcome.Status = ConfigurationRepairOutcome.StateChanged;
+                        outcome.Message = "The selected team is missing, protected as a system seed or changed since diagnosis; no roles were changed.";
+                        outcome.AppliedChanges.Clear();
+                        return outcome;
+                    }
+
+                    var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+                    var before = JsonSerializer.Deserialize<List<OrganicCouncilRoleDefinition>>(team.RolesJson, jsonOptions)
+                        ?? throw new InvalidDataException("Saved Council roles are not a valid list.");
+                    var after = JsonSerializer.Deserialize<List<OrganicCouncilRoleDefinition>>(change.NewValue, jsonOptions)
+                        ?? throw new InvalidDataException("Approved Council roles are not a valid list.");
+                    if (before.Count != after.Count || before.Count == 0 ||
+                        before.Where((role, index) =>
+                            !string.Equals(role.Role, after[index].Role, StringComparison.OrdinalIgnoreCase)).Any())
+                        throw new InvalidDataException("A steward model repair may not change the team's role inventory.");
+                    // The approval authorizes only changing provider-qualified model keys,
+                    // not role permissions, prompts, policies or execution modes.
+                    var normalizedBefore = JsonSerializer.Deserialize<List<OrganicCouncilRoleDefinition>>(team.RolesJson, jsonOptions)!;
+                    for (var index = 0; index < before.Count; index++)
+                        normalizedBefore[index].AssignedModelKeys = after[index].AssignedModelKeys.ToList();
+                    if (JsonSerializer.Serialize(normalizedBefore, jsonOptions) !=
+                        JsonSerializer.Serialize(after, jsonOptions))
+                        throw new InvalidDataException("A steward model repair may not modify non-model role configuration.");
+                    var changedRoles = before.Where((role, index) =>
+                        !role.AssignedModelKeys.SequenceEqual(after[index].AssignedModelKeys, StringComparer.OrdinalIgnoreCase)).ToList();
+                    if (changedRoles.Count != 1)
+                        throw new InvalidDataException("A steward model repair must replace one exact role assignment.");
+
+                    team.RolesJson = change.NewValue;
+                    team.IsUserModified = true;
+                    team.UpdatedAtUtc = DateTime.UtcNow;
+                    await roleIndex.SynchronizeAsync(db, new OrganicCouncilTeamDefinition
+                    {
+                        Key = team.Key, Roles = after, IsDeleted = team.IsDeleted
+                    }, cancellationToken).ConfigureAwait(false);
+                    outcome.AppliedChanges.Add($"{team.Key}: approved exact provider-model replacement in role {changedRoles[0].Role}");
+                    continue;
+                }
                 var row = await db.SystemVariables.SingleOrDefaultAsync(item => item.Name == change.TargetKey, cancellationToken).ConfigureAwait(false);
                 if (row is null || !string.Equals(row.ValueString, change.ExpectedCurrentValue, StringComparison.Ordinal))
                 {

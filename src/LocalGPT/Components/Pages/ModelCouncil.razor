@@ -4,6 +4,8 @@
 @attribute [LocalGptUiLayoutSurface("editor", "Model Council · editor", "/model-council")]
 @inject CouncilTextService CouncilText
 @inject IMultiModelCouncilService CouncilService
+@inject IOptionsMonitor<LocalGPT.BusinessObjects.ConfigurationRoot> PreferredCouncilOptions
+@inject LocalGptCatalogService CouncilCatalog
 @inject IGoalExecutionService Goals
 @inject IChatMemoryService ChatMemory
 @inject ILocalGptProjectService ProjectService

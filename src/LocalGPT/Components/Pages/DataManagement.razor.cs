@@ -209,6 +209,8 @@ public partial class DataManagement
                 ?? AllTables.FirstOrDefault(table => table.GroupKey == ActiveGroup);
             ActivePageSize = Math.Clamp(RowLimit, 1, 500);
             await LoadSelectedTableCoreAsync().ConfigureAwait(true);
+            if (ActiveGroup == "councils")
+                await LoadPreferredModelsCoreAsync().ConfigureAwait(true);
             StatusText = string.Format(CultureInfo.CurrentCulture, T("DataManagement.Reloaded", "Loaded {0} entities and {1} active model-health decisions."), AllTables.Count, ActiveModelHealthExclusions.Count);
         }
         catch (Exception ex)
@@ -238,6 +240,8 @@ public partial class DataManagement
             RelationColumn = null;
             RelationValue = null;
             await LoadSelectedTableCoreAsync().ConfigureAwait(true);
+            if (ActiveGroup == "councils")
+                await LoadPreferredModelsCoreAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {

@@ -117,9 +117,11 @@ public sealed class OneWireOperationExecutor(
                     if (goal.CouncilResult is null)
                     {
                         var missing = string.Join(", ", goal.MissingRequirements);
-                        var suggestion = goal.MissingRequirements.Contains("CouncilParticipants", StringComparer.OrdinalIgnoreCase)
-                            ? " No configured AI participant is reachable. Start the selected local provider (for example Ollama), refresh model discovery, and retry."
-                            : string.Empty;
+                        var suggestion = goal.MissingRequirements.Contains("AssignedModelUnavailable", StringComparer.OrdinalIgnoreCase)
+                            ? " The saved Council team has unavailable provider-qualified model assignments. Review the Configuration Steward team diagnosis; approve an offered repair for a user-owned team or update a protected system team through the team editor. The 1-Wire bridge will not silently replace a model."
+                            : goal.MissingRequirements.Contains("CouncilParticipants", StringComparer.OrdinalIgnoreCase)
+                                ? " No usable AI participant was discovered for this goal. Check the current provider models and the Configuration Steward team diagnosis, then retry."
+                                : string.Empty;
                         throw new InvalidOperationException("Goal execution blocked; missing runtime requirements: "
                             + missing + "." + suggestion);
                     }
@@ -1095,11 +1097,13 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
 /// <param name="spooler">One wire work spooler dependency used by the one wire work processor workflow to provide the corresponding application capability.</param>
 /// <param name="executor">One wire operation executor dependency used by the one wire work processor workflow to provide the corresponding application capability.</param>
 /// <param name="connections">One wire connection registry dependency used by the one wire work processor workflow to provide the corresponding application capability.</param>
+/// <param name="codec">The established authenticated 1-Wire JSON codec used for result properties.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireWorkProcessorHostedService(
     IOneWireWorkSpooler spooler,
     IOneWireOperationExecutor executor,
     IOneWireConnectionRegistry connections,
+    IOneWireEnvelopeCodec codec,
     ILogger<OneWireWorkProcessorHostedService> logger) : BackgroundService
 {
     /// <summary>
@@ -1168,9 +1172,9 @@ public sealed class OneWireWorkProcessorHostedService(
                 Error = error,
                 Properties = new Dictionary<string, JsonElement>
                 {
-                    ["WorkItemId"] = JsonSerializer.SerializeToElement(item.Id),
-                    ["Status"] = JsonSerializer.SerializeToElement(status.ToString()),
-                    ["ResultJson"] = JsonSerializer.SerializeToElement(resultJson)
+                    ["WorkItemId"] = JsonSerializer.SerializeToElement(item.Id, codec.JsonOptions),
+                    ["Status"] = JsonSerializer.SerializeToElement(status.ToString(), codec.JsonOptions),
+                    ["ResultJson"] = JsonSerializer.SerializeToElement(resultJson, codec.JsonOptions)
                 }
             };
             if (!await connections.SendAsync(item.SourcePeerId, envelope, cancellationToken).ConfigureAwait(false))

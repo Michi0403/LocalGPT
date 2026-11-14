@@ -3,7 +3,6 @@ using LocalGPT.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace LocalGPT.Services.OneWire;
 
@@ -272,12 +271,7 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
     {
         try
         {
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                Converters = { new JsonStringEnumConverter() }
-            };
+            var options = new FamilyWireJsonConventions().CreateOneWireOptions();
             logger.LogTrace($"Created the LocalGPT 1-Wire JSON serializer options.");
             return options;
         }

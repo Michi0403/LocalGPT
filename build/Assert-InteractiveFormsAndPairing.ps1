@@ -32,6 +32,17 @@ foreach ($component in @(Get-ChildItem -LiteralPath $componentRoot -Recurse -Fil
         $checkedCount++
     }
 }
+# Protect the Data Management preferred-model editor from the .NET ConfigurationRoot
+# ambiguity observed after the other goal-execution constructor was qualified.
+$preferredModelCode = Join-Path $RepositoryRoot 'src/LocalGPT/Components/Pages/DataManagement.PreferredModels.razor.cs'
+if (-not (Test-Path -LiteralPath $preferredModelCode -PathType Leaf)) {
+    throw 'PREFERREDMODELS0001: Preferred-model editor code-behind is missing.'
+}
+$preferredModelSource = [System.IO.File]::ReadAllText($preferredModelCode)
+if ($preferredModelSource -notmatch 'new\s+LocalGPT\.BusinessObjects\.ConfigurationRoot\b' -or
+    $preferredModelSource -match '(?<![\w.])new\s+ConfigurationRoot\s*[({]') {
+    throw 'PREFERREDMODELS0002: Use the explicitly qualified LocalGPT.BusinessObjects.ConfigurationRoot in the preferred-model editor.'
+}
 foreach ($project in @(Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'src') -Recurse -File -Filter '*.csproj')) {
     $projectSource = [System.IO.File]::ReadAllText($project.FullName)
     $declaredVersion = [regex]::Match($projectSource, '<Version>([^<]+)</Version>')

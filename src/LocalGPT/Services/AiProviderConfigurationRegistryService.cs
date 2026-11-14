@@ -99,6 +99,7 @@ public sealed class AiProviderConfigurationRegistryService(
             {
                 OllamaCore = detachedPrimaryOllama,
                 OllamaCores = detachedAdditionalOllamas,
+                PreferredCouncilModelKeys = (source.PreferredCouncilModelKeys ?? []).ToList(),
                 OllamaRuntime = CloneOllamaRuntime(source.OllamaRuntime),
                 ChatGPTLocalCore = CloneLocalOpenAi(source.ChatGPTLocalCore),
                 ChatGPTLocalCores = (source.ChatGPTLocalCores ?? []).Select(CloneLocalOpenAi).ToList(),
@@ -278,6 +279,8 @@ public sealed class AiProviderConfigurationRegistryService(
                     .ToList();
             }
 
+            // Data Management owns these preferences. An older Install page draft must not overwrite them.
+            target.PreferredCouncilModelKeys = (target.PreferredCouncilModelKeys ?? []).ToList();
             target.OllamaRuntime = CloneOllamaRuntime(draft.OllamaRuntime);
             target.LmStudioRuntime = CloneLmStudioRuntime(draft.LmStudioRuntime);
 

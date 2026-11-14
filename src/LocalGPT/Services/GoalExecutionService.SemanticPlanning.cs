@@ -8,7 +8,7 @@ namespace LocalGPT.Services;
 /// <summary>Model-assisted, schema-validated goal decomposition using the existing provider-qualified runtime.</summary>
 public sealed partial class GoalExecutionService
 {
-    /// <summary>Reads a model plan only from configured, reachable provider identities and validates it later against live catalogs.</summary>
+    /// <summary>Uses configured or user-preferred provider routes for goal planning and validates proposals against live catalogs.</summary>
     /// <param name="goalText">Original requested outcome.</param>
     /// <param name="request">Original non-escalating caller constraints.</param>
     /// <param name="configuredTeams">Current persisted teams.</param>
@@ -30,11 +30,23 @@ public sealed partial class GoalExecutionService
         try
         {
             var candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
-            var chosen = candidates.FirstOrDefault(candidate => candidate.IsConfigured &&
+            var preferredKeys = configuration.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
+            var chosen = candidates
+                .OrderBy(candidate =>
+                        {
+                            var index = preferredKeys.FindIndex(key => string.Equals(key, candidate.SelectionKey, StringComparison.OrdinalIgnoreCase));
+                            return index >= 0 ? index : int.MaxValue;
+                        })
+                .FirstOrDefault(candidate => (candidate.IsConfigured ||
+                preferredKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)) &&
                 (candidate.IsInstalled || !candidate.IsLocal) &&
                 (models.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)
                     || models.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase)));
             if (chosen is null) return null;
+            logger.LogInformation("Goal {GoalId} semantic planner selected {ModelKey}; reason={Reason}.",
+                request.CouncilRequest.RunId, chosen.SelectionKey,
+                preferredKeys.Contains(chosen.SelectionKey, StringComparer.OrdinalIgnoreCase)
+                    ? "user-preferred provider-qualified route" : "configured provider route");
             var policy = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
             using var client = providerModels.CreateChatClient(chosen.ToReference(), policy.DefaultSessionKeepAlive,
                 request.CouncilRequest.MaxContextTokens,

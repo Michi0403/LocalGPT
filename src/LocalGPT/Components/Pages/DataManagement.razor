@@ -2,6 +2,9 @@
 @page "/data-management"
 @attribute [LocalGptUiLayoutSurface("page", "Data Management", "/data-management", CanHide = false)]
 @inject IDataManagementCatalogService DataCatalog
+@inject IProviderModelRuntimeService PreferredModelRuntime
+@inject IOptionsMonitor<LocalGPT.BusinessObjects.ConfigurationRoot> PreferredOptions
+@inject IConfigurationWriter PreferredConfigurationWriter
 @inject ISqliteTableEditorService TableEditor
 @inject ISqliteEditorPreferenceService EditorPreferences
 @inject SqliteGridPresentationService GridPresentation
@@ -69,6 +72,59 @@
                         </div>
 
                         <div class="data-management-stage">
+                            @if (ActiveGroup == "councils")
+                            {
+                                <div class="data-management-panel">
+                                    <div class="data-management-heading">
+                                        <div>
+                                            <h2>@T("DataManagement.PreferredModels", "Preferred Council models")</h2>
+                                            <p>@T("DataManagement.PreferredModelsHelp", "Choose provider-qualified models for automatic Council and goal execution. Explicit requests and team assignments always win; unavailable saved preferences stay visible.")</p>
+                                        </div>
+                                    </div>
+                                    <div class="data-management-actions">
+                                        <DxButton Text="Refresh discovered models" Enabled="@(!Busy && !PreferredModelsBusy)" Click="RefreshPreferredModelsAsync" RenderStyle="ButtonRenderStyle.Secondary" />
+                                        <DxButton Text="Save preferred models" Enabled="@(!Busy && !PreferredModelsBusy)" Click="SavePreferredModelsAsync" RenderStyle="ButtonRenderStyle.Primary" />
+                                    </div>
+                                    @if (PreferredModelsBusy)
+                                    {
+                                        <p role="status">Refreshing provider-qualified model discovery…</p>
+                                    }
+                                    else if (PreferredModelCandidates.Count == 0 && PreferredSelectionKeys.Count == 0)
+                                    {
+                                        <p>No models discovered. Start Ollama or configure a provider on Install, then refresh.</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="data-management-preferred-list">
+                                            @foreach (var candidate in PreferredModelCandidates)
+                                            {
+                                                <div @key="candidate.SelectionKey" class="data-management-preferred-item">
+                                                    <DxCheckBox Text="@PreferredModelDisplay(candidate)"
+                                                                Checked="@PreferredSelectionKeys.Contains(candidate.SelectionKey)"
+                                                                CheckedChanged="@((bool value) => TogglePreferredModel(candidate.SelectionKey, value))"
+                                                                ValidationEnabled="false"
+                                                                Enabled="@(!Busy && !PreferredModelsBusy)" />
+                                                    @if (PreferredSelectionKeys.Contains(candidate.SelectionKey))
+                                                    {
+                                                        <DxButton Text="↑" Click="@(() => MovePreferredModel(candidate.SelectionKey, -1))" Enabled="@(!Busy && CanMovePreferredModel(candidate.SelectionKey, -1))" RenderStyle="ButtonRenderStyle.Secondary" />
+                                                        <DxButton Text="↓" Click="@(() => MovePreferredModel(candidate.SelectionKey, 1))" Enabled="@(!Busy && CanMovePreferredModel(candidate.SelectionKey, 1))" RenderStyle="ButtonRenderStyle.Secondary" />
+                                                    }
+                                                </div>
+                                            }
+                                            @foreach (var savedKey in PreferredSelectionKeys.Where(key => !PreferredModelCandidates.Any(candidate => string.Equals(candidate.SelectionKey, key, StringComparison.OrdinalIgnoreCase))))
+                                            {
+                                                <div @key="savedKey" class="data-management-preferred-item">
+                                                    <DxCheckBox Text="@("Saved but unavailable · " + savedKey)" Checked="true" CheckedChanged="@((bool value) => TogglePreferredModel(savedKey, value))" ValidationEnabled="false" Enabled="@(!Busy && !PreferredModelsBusy)" />
+                                                    <DxButton Text="↑" Click="@(() => MovePreferredModel(savedKey, -1))" Enabled="@(!Busy && CanMovePreferredModel(savedKey, -1))" RenderStyle="ButtonRenderStyle.Secondary" />
+                                                    <DxButton Text="↓" Click="@(() => MovePreferredModel(savedKey, 1))" Enabled="@(!Busy && CanMovePreferredModel(savedKey, 1))" RenderStyle="ButtonRenderStyle.Secondary" />
+                                                </div>
+                                            }
+                                        </div>
+                                        <p class="hint">@PreferredSelectionKeys.Count saved preferred model(s). Use the arrows to change priority; uncheck a model to remove it. Save to persist.</p>
+                                    }
+                                </div>
+                            }
+
                             @if (ActiveGroup == "approvals")
                             {
                                 <div class="data-management-panel data-management-health-panel">

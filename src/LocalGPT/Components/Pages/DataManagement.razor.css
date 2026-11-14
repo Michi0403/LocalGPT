@@ -45,3 +45,6 @@
 .data-management-footer{margin:0;display:flex;gap:.55rem;align-items:center;flex-wrap:wrap}
 @media(max-width:950px){.data-management-workbench{grid-template-columns:minmax(0,1fr)}.data-management-sidebar{position:static;max-height:none}.data-management-entity-tree{max-height:16rem}.data-management-health-controls{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:560px){.data-management-page{padding:.5rem}.data-management-stage{overflow-x:auto}.data-management-splitter{min-width:35rem}.data-management-record-browser{padding:.4rem}.data-management-editor-toolbar{padding:.45rem}.data-management-editor-footer{gap:.3rem}}
+
+.data-management-preferred-list { display: grid; gap: .6rem; margin-top: .9rem; }
+.data-management-preferred-item { display: flex; gap: .75rem; align-items: center; overflow-wrap: anywhere; }

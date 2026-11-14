@@ -251,8 +251,17 @@ namespace LocalGPT.Components.Pages
 
            if (SelectedModels.Count == 0)
            {
-               foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled || candidate.IsConfigured).Take(2))
-                   SelectedModels.Add(candidate.SelectionKey);
+               var preferredKeys = PreferredCouncilOptions.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
+               foreach (var key in preferredKeys.Take(CouncilCatalog.MaxParticipants))
+               {
+                   var candidate = Candidates.FirstOrDefault(item => item.IsInstalled &&
+                       string.Equals(item.SelectionKey, key, StringComparison.OrdinalIgnoreCase));
+                   if (candidate is not null)
+                       SelectedModels.Add(candidate.SelectionKey);
+               }
+               if (SelectedModels.Count == 0)
+                   foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled || candidate.IsConfigured).Take(2))
+                       SelectedModels.Add(candidate.SelectionKey);
            }
 
            statusText = Candidates.Count == 0

@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using Microsoft.Extensions.Options;
 
 namespace LocalGPT.Services;
 
@@ -14,6 +15,7 @@ namespace LocalGPT.Services;
 /// <param name="gameBootstrap">Ensures the configured game session before delegating to Council.</param>
 /// <param name="logger">Execution diagnostics without user prompt or source contents.</param>
 /// <param name="providerModels">Bounded planning-only inference with registered model routes.</param>
+/// <param name="configuration">Live user configuration for preferred Council model selection when no explicit model route is assigned.</param>
 /// <param name="runtimePolicy">Database-configurable planner instructions and limits.</param>
 /// <param name="ledger">Durable step checkpoints and per-goal coordination.</param>
 /// <param name="aiHelpEscalator">Shared recovery diagnostics for exhausted goal steps.</param>
@@ -28,6 +30,7 @@ public sealed partial class GoalExecutionService(
     IMultiModelCouncilService council,
     CouncilGameWorkflowBootstrapService gameBootstrap,
     IProviderModelRuntimeService providerModels,
+    IOptionsMonitor<LocalGPT.BusinessObjects.ConfigurationRoot> configuration,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     IGoalExecutionLedgerService ledger,
     IAiHelpEscalatorService aiHelpEscalator,
@@ -115,11 +118,22 @@ public sealed partial class GoalExecutionService(
         // Provider candidates are supplied by the Council runtime, never inferred from catalog prose.
         var installed = new List<MultiModelCouncilModelCandidate>();
         if (models.Count == 0)
+        {
+            var preferredKeys = configuration.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
             installed = (await council.GetCandidatesAsync(cancellationToken).ConfigureAwait(false))
-                .Where(candidate => candidate.IsInstalled && candidate.IsConfigured)
-                .OrderByDescending(candidate => candidate.IsLoaded)
+                // Newly pulled Ollama models are installed but are intentionally not marked
+                // as user-configured. The goal planner must see them just like Council does.
+                // Explicit role bindings remain authoritative below; this is not a rewrite.
+                .Where(candidate => candidate.IsInstalled || (candidate.IsConfigured && !candidate.IsLocal))
+                .OrderBy(candidate =>
+                        {
+                            var index = preferredKeys.FindIndex(key => string.Equals(key, candidate.SelectionKey, StringComparison.OrdinalIgnoreCase));
+                            return index >= 0 ? index : int.MaxValue;
+                        })
+                .ThenByDescending(candidate => candidate.IsLoaded)
                 .ThenBy(candidate => candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+        }
         // A team whose distinct-assignment roles need more models than this run can supply would only fail inside
         // Council role assignment. Unstaffable teams are never auto-selected; an explicitly preserved one is reported.
         var availableModelCount = models.Count > 0 ? models.Count : installed.Count;
@@ -139,20 +153,44 @@ public sealed partial class GoalExecutionService(
                 .Select(role => Math.Max(1, role.MinimumAiParticipants))
                 .DefaultIfEmpty(1).Max());
             var assignedKeys = selected?.Roles
+                .Where(role => role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
+                    (role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange))
                 .SelectMany(role => role.AssignedModelKeys)
                 .Where(key => !string.IsNullOrWhiteSpace(key))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase)
                 ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (assignedKeys.Count > 0)
             {
-                discoveredModels = installed.Where(candidate => assignedKeys.Contains(candidate.SelectionKey))
-                    .Select(candidate => candidate.ToReference()).ToList();
-                if (discoveredModels.Count == 0)
-                    missing.Add("AssignedModelUnavailable");
+                var identity = new ProviderModelIdentity();
+                foreach (var key in assignedKeys.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
+                {
+                    var candidate = installed.FirstOrDefault(item =>
+                        item.SelectionKey.Equals(key, StringComparison.OrdinalIgnoreCase));
+                    if (candidate is null)
+                        candidate = identity.ResolveEquivalentCandidate(key, installed, out _);
+                    if (candidate is null)
+                    {
+                        // Do not silently replace a missing exact host/model binding
+                        // with an unrelated newly installed model.
+                        missing.Add("AssignedModelUnavailable");
+                        continue;
+                    }
+                    if (!discoveredModels.Any(model => model.SelectionKey.Equals(candidate.SelectionKey, StringComparison.OrdinalIgnoreCase)))
+                        discoveredModels.Add(candidate.ToReference());
+                }
             }
             else
                 discoveredModels = installed.Take(requiredParticipants).Select(candidate => candidate.ToReference()).ToList();
             models.AddRange(discoveredModels.Select(model => model.SelectionKey));
+            var preferences = configuration.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
+            foreach (var model in discoveredModels)
+            {
+                var priority = preferences.FindIndex(key => string.Equals(key, model.SelectionKey, StringComparison.OrdinalIgnoreCase));
+                var reason = assignedKeys.Count > 0 ? "saved team assignment"
+                    : priority >= 0 ? $"user-preferred priority {priority + 1}" : "installed-model fallback";
+                logger.LogInformation("Goal {GoalId} selected {ModelKey}: {SelectionReason}, team={TeamKey}.",
+                    request.CouncilRequest.RunId, model.SelectionKey, reason, selected?.Key);
+            }
         }
         if (models.Count == 0)
             missing.Add("CouncilParticipants");
