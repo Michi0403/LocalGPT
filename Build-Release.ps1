@@ -242,7 +242,7 @@ if ($appVersion -notmatch '^\d+\.[0-9]\.[0-9]$') {
 function Get-ReleaseSourceFingerprint {
     $rootFull = [IO.Path]::GetFullPath($root).TrimEnd([char[]]@('\', '/'))
     $rootPrefix = $rootFull + [IO.Path]::DirectorySeparatorChar
-    $excludedSegments = @('.git', 'artifacts', 'bin', 'obj', '__pycache__', '.pytest_cache', 'packages')
+    $excludedSegments = @('.git', '.vs', 'artifacts', 'bin', 'obj', '__pycache__', '.pytest_cache', 'packages')
     $fingerprintLines = New-Object 'System.Collections.Generic.List[string]'
     $files = @(Get-ChildItem -LiteralPath $rootFull -File -Recurse -Force -ErrorAction SilentlyContinue | Sort-Object FullName)
     foreach ($file in $files) {

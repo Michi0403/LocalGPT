@@ -28,3 +28,4 @@ Work from the current human request, keep changes reviewable, and state which ch
 - After each workload: release builds, installed on the owner's Windows the regular way, tested as installed release.
 - The owner is the approval breakpoint. Do not answer approvals. Closing an AI help question by text starts a follow-up run; do not do it.
 - Local model tests use small models (at most 4B on the 7900 XTX) and normal settings unless the owner says otherwise.
+- No tunable value as a constant or static: limits, sizes, timeouts, counts and thresholds are application settings (options classes bound from appsettings in PublisherStudio, database runtime values in LocalGPT), with the setting named in the error message. Check every new file for `const`, `static` and bare numbers before delivering.

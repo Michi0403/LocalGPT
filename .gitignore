@@ -131,3 +131,4 @@ src/LocalGPT/wwwroot/help-docs/
 # and in release ZIPs but are not published.
 /maintenance/*
 !/maintenance/changelogs/
+!/maintenance/ONEWIRE-EDGE-TESTS.md

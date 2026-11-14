@@ -578,12 +578,13 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     /// Performs mark pending approval for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
     /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="peerId">Authenticated sender of the approval or work result.</param>
     /// <param name="resultJson">Result json value supplied to the one wire work spooler operation and used when producing its result.</param>
-    public void MarkPendingApproval(Guid correlationId, string resultJson)
+    public void MarkPendingApproval(Guid correlationId, string peerId, string resultJson)
     {
     try
     {
-            var item = FindByCorrelation(correlationId);
+            var item = FindByCorrelation(correlationId, peerId);
             if (item is null)
                 return;
             Mutate(item.Id, current =>
@@ -656,14 +657,15 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     /// Applies external result for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
     /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="peerId">Authenticated sender of the approval or work result.</param>
     /// <param name="resultJson">Result json value supplied to the one wire work spooler operation and used when producing its result.</param>
     /// <param name="error">Error value supplied to the one wire work spooler operation and used when producing its result.</param>
     /// <param name="status">Status value supplied to the one wire work spooler operation and used when producing its result.</param>
-    public void ApplyExternalResult(Guid correlationId, string resultJson, string error, OneWireWorkStatus? status = null)
+    public void ApplyExternalResult(Guid correlationId, string peerId, string resultJson, string error, OneWireWorkStatus? status = null)
     {
     try
     {
-            var item = FindByCorrelation(correlationId);
+            var item = FindByCorrelation(correlationId, peerId);
             if (item is null)
                 return;
             if (status is OneWireWorkStatus.Declined)
@@ -706,13 +708,14 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     /// Finds by correlation for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
     /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="peerId">Authenticated sender of the approval or work result.</param>
     /// <returns>The one wire work item produced by the operation.</returns>
-    private OneWireWorkItem? FindByCorrelation(Guid correlationId) {
+    private OneWireWorkItem? FindByCorrelation(Guid correlationId, string peerId) {
     try
     {
         return workItems.Values
         .OrderByDescending(candidate => candidate.CreatedUtc)
-        .FirstOrDefault(candidate => candidate.CorrelationId == correlationId);
+        .FirstOrDefault(candidate => candidate.CorrelationId == correlationId && string.Equals(candidate.Request.TargetPeerId, peerId, StringComparison.OrdinalIgnoreCase));
     }
     catch (Exception __serviceMethodException)
     {

@@ -188,10 +188,7 @@ function Get-LocalGptDocumentationSystemMemoryBytes {
 
 $documentationSystemMemoryBytes = Get-LocalGptDocumentationSystemMemoryBytes
 $documentationSystemMemoryGiB = if ($documentationSystemMemoryBytes -gt 0) { [Math]::Round($documentationSystemMemoryBytes / 1GB, 1) } else { 0.0 }
-# Browser PDF parts stay deliberately small on every host. Larger RAM budgets are used for
-# DocFX/Node concurrency and heap headroom, not for giant browser print jobs. This keeps the
-# durable/restartable browser path consistent with the 8-page profile proven on constrained macOS
-# hardware while allowing only a modest increase on larger developer workstations.
+# Keep small browser PDF parts on macOS and other hosts by default.
 $browserPdfChunkPages = 8
 $browserJavaScriptHeapMb = 4096
 $documentationNodeHeapMb = 4096
@@ -241,6 +238,18 @@ if ($documentationSystemMemoryBytes -gt 0) {
         $browserJavaScriptHeapMb = 4096
         $documentationNodeHeapMb = 4096
         $docfxBuildMaxParallelism = 10
+    }
+}
+# Windows workstations with sufficient memory can print larger parts and start fewer browser processes.
+if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) {
+    if ($documentationSystemMemoryBytes -gt 48GB) {
+        $browserPdfChunkPages = 75
+    }
+    elseif ($documentationSystemMemoryBytes -gt 32GB) {
+        $browserPdfChunkPages = 50
+    }
+    elseif ($documentationSystemMemoryBytes -gt 24GB) {
+        $browserPdfChunkPages = 32
     }
 }
 if ([string]::Equals([string]$env:FUTURE2_DOCUMENTATION_LOW_MEMORY, '1', [StringComparison]::OrdinalIgnoreCase) -or

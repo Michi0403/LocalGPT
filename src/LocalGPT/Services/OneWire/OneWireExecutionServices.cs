@@ -555,7 +555,7 @@ public sealed class OneWireMessageDispatcher(
 
                 case OneWireMessageType.ApprovalRequired:
                     var approvalJson = envelope.Properties is null ? string.Empty : JsonSerializer.Serialize(envelope.Properties, codec.JsonOptions);
-                    spooler.MarkPendingApproval(envelope.CorrelationId, approvalJson);
+                    spooler.MarkPendingApproval(envelope.CorrelationId, envelope.SourcePeerId, approvalJson);
                     return null;
 
                 case OneWireMessageType.WorkResult:
@@ -563,7 +563,7 @@ public sealed class OneWireMessageDispatcher(
                     OneWireWorkStatus? externalStatus = null;
                     if (TryRead<string>(envelope, "Status", out var statusText) && Enum.TryParse<OneWireWorkStatus>(statusText, true, out var parsedStatus))
                         externalStatus = parsedStatus;
-                    spooler.ApplyExternalResult(envelope.CorrelationId, resultJson, envelope.Error, externalStatus);
+                    spooler.ApplyExternalResult(envelope.CorrelationId, envelope.SourcePeerId, resultJson, envelope.Error, externalStatus);
                     return null;
 
                 case OneWireMessageType.Ping:

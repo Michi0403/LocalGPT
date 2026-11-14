@@ -382,8 +382,9 @@ public interface IOneWireWorkSpooler
     /// Performs mark pending approval for <see cref="IOneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
     /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="peerId">Authenticated sender of the approval or work result.</param>
     /// <param name="resultJson">Result json value supplied to the one wire work spooler operation and used when producing its result.</param>
-    void MarkPendingApproval(Guid correlationId, string resultJson);
+    void MarkPendingApproval(Guid correlationId, string peerId, string resultJson);
     /// <summary>
     /// Performs complete for <see cref="IOneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
@@ -400,10 +401,11 @@ public interface IOneWireWorkSpooler
     /// Applies external result for <see cref="IOneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
     /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="peerId">Authenticated sender of the approval or work result.</param>
     /// <param name="resultJson">Result json value supplied to the one wire work spooler operation and used when producing its result.</param>
     /// <param name="error">Error value supplied to the one wire work spooler operation and used when producing its result.</param>
     /// <param name="status">Status value supplied to the one wire work spooler operation and used when producing its result.</param>
-    void ApplyExternalResult(Guid correlationId, string resultJson, string error, OneWireWorkStatus? status = null);
+    void ApplyExternalResult(Guid correlationId, string peerId, string resultJson, string error, OneWireWorkStatus? status = null);
 }
 
 /// <summary>
