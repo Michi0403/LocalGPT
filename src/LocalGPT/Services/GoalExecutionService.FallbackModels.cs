@@ -19,7 +19,7 @@ public sealed partial class GoalExecutionService
     /// <summary>Orders installed model candidates for the goal fallback: preferred key index, adequate size, loaded state, then size descending.</summary>
     /// <param name="candidates">Installed or configured model candidates.</param>
     /// <param name="preferredKeys">User-preferred Council model selection keys in priority order.</param>
-    /// <param name="minimumBillions">Models below this many billion parameters (and not preferred) are placed last.</param>
+    /// <param name="minimumBillions">Models below this many billion parameters (and not preferred) are placed last; 0 means no size floor.</param>
     /// <param name="smallKeys">Receives the selection keys of the non-preferred models below the minimum.</param>
     /// <returns>The candidates in fallback order.</returns>
     private List<MultiModelCouncilModelCandidate> OrderFallbackCandidates(
@@ -36,7 +36,7 @@ public sealed partial class GoalExecutionService
                 var key = candidate.SelectionKey;
                 var index = preferredKeys.FindIndex(value => string.Equals(value, key, StringComparison.OrdinalIgnoreCase));
                 var billions = EstimateModelBillionParameters(candidate);
-                var isSmall = index < 0 && billions is not null && billions.Value < minimumBillions;
+                var isSmall = minimumBillions > 0 && index < 0 && billions is not null && billions.Value < minimumBillions;
                 if (isSmall)
                     small.Add(key);
                 return (Candidate: candidate, Key: key, Index: index >= 0 ? index : int.MaxValue, IsSmall: isSmall, Billions: billions ?? minimumBillions);
@@ -83,7 +83,7 @@ public sealed partial class GoalExecutionService
     }
 
     /// <summary>Reads the configured minimum model size in billions of parameters for the goal fallback.</summary>
-    /// <returns>The configured value, or 7 when the runtime value is unavailable.</returns>
+    /// <returns>The configured value (0 means no size floor), or 0 when the runtime value is unavailable.</returns>
     private int ReadFallbackMinimumModelBillionParameters()
     {
         try
@@ -92,8 +92,8 @@ public sealed partial class GoalExecutionService
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Runtime value {Key} is unavailable; the goal model fallback uses a minimum of 7 billion parameters.", FallbackMinimumModelBillionParametersKey);
-            return 7;
+            logger.LogWarning(exception, "Runtime value {Key} is unavailable; the goal model fallback applies no model size floor.", FallbackMinimumModelBillionParametersKey);
+            return 0;
         }
     }
 }

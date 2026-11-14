@@ -95,6 +95,13 @@ public interface ILocalGptRuntimePolicyDataService
     /// <returns>The t produced by the operation.</returns>
     T GetJson<T>(string key);
     /// <summary>
+    /// Reads a JSON object that maps a key to a list of strings and adds the shipped default entries whose keys are missing from the stored value.
+    /// Entries stored by the user always win; only absent keys are filled from the seed, so databases created by an older release receive new defaults.
+    /// </summary>
+    /// <param name="key">Runtime value key holding the JSON map.</param>
+    /// <returns>A case-insensitive map of the stored entries plus the shipped entries that were missing.</returns>
+    Dictionary<string, List<string>> GetJsonListMapWithShippedDefaults(string key);
+    /// <summary>
     /// Retrieves pattern as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>

@@ -75,7 +75,8 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
                 .. DefaultArchitectureContracts(),
                 "The first answer round is a blind independent best-of-N pass: participants receive the same user task but no peer answers, so strong minority solutions and model diversity remain observable.",
                 "Review happens only after the independent candidate answers are frozen. Reviewers may compare them, but must not rewrite history or erase the original per-model outputs.",
-                "Final consensus may synthesize or select the strongest evidence, while the individual candidate and review steps remain first-class Council transcript artifacts."
+                "Final consensus may synthesize or select the strongest evidence, while the individual candidate and review steps remain first-class Council transcript artifacts.",
+                "When the task asks for a new spreadsheet or text document in a connected PublisherStudio, use publisher.document.create.request (spreadsheet content is CSV) and find open sessions with publisher.sessions.list; never ask the user for session ids."
             ]
         },
         new()
@@ -183,13 +184,14 @@ Original request:
                 new() { Role = "Visual/layout reviewer", Expertise = "readability, formatting, charts and print/export behavior", Responsibility = "review visual evidence supplied by the eyes organ" },
                 new() { Role = "Hand-eye workflow coordinator", Expertise = "sequential 1-Wire spools and UI action safety", Responsibility = "order screenshot and input packages, \u0061wait results and prevent overlapping gestures/deadlocks" }
             ],
-            PreferredCapabilities = ["publisher.spreadsheet.inspect", "publisher.screen.capture", "publisher.screen.capture.result", "publisher.input.execute", "publisher.input.result", "publisher.text.insert.propose"],
+            PreferredCapabilities = ["publisher.sessions.list", "publisher.document.create", "publisher.spreadsheet.inspect", "publisher.screen.capture", "publisher.screen.capture.result", "publisher.input.execute", "publisher.input.result", "publisher.text.insert.propose"],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
                 "Treat the workbook/session as authoritative; inspect before proposing and require current user approval before mutation.",
                 "Run hand-eye packages sequentially per work order and carry each result into the next council heartbeat.",
-                "Do not overlap browser input with the user's active gesture owner."
+                "Do not overlap browser input with the user's active gesture owner.",
+                "To create a new spreadsheet call publisher.document.create.request with CSV content; find open sessions with publisher.sessions.list instead of asking the user for session ids."
             ]
         },
         new()

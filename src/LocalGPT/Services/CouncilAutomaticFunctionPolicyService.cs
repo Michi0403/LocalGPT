@@ -245,9 +245,7 @@ public sealed class CouncilAutomaticFunctionPolicyService(
             Dictionary<string, List<string>> map;
             try
             {
-                map = new Dictionary<string, List<string>>(
-                    runtimePolicy.GetJson<Dictionary<string, List<string>>>(CapabilityNativeFunctionsKey),
-                    StringComparer.OrdinalIgnoreCase);
+                map = runtimePolicy.GetJsonListMapWithShippedDefaults(CapabilityNativeFunctionsKey);
             }
             catch (Exception exception)
             {

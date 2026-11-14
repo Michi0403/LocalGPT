@@ -160,8 +160,7 @@ public sealed partial class GoalExecutionService
     {
         try
         {
-            var map = new Dictionary<string, List<string>>(
-                runtimePolicy.GetJson<Dictionary<string, List<string>>>(CapabilityNativeFunctionsKey), StringComparer.OrdinalIgnoreCase);
+            var map = runtimePolicy.GetJsonListMapWithShippedDefaults(CapabilityNativeFunctionsKey);
             return checkpoint.RequiredCapabilities
                 .SelectMany(capability => map.TryGetValue(capability, out var served) ? served : Enumerable.Empty<string>())
                 .Where(name => !string.IsNullOrWhiteSpace(name))

@@ -10,6 +10,8 @@
   ],
   "capabilityKeys": [
     "publisher.spreadsheet.inspect",
+    "publisher.document.create",
+    "publisher.sessions.list",
     "publisher.screen.capture",
     "publisher.screenreader.start",
     "publisher.openscad.generate",

@@ -35,6 +35,8 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
   "publisher.text.insert.propose": ["publisher.text.proposal.request"],
   "publisher.text.edit.request": ["publisher.text.feedback.request"],
   "publisher.spreadsheet.inspect": ["publisher.spreadsheet.inspect"],
+  "publisher.document.create": ["publisher.document.create.request"],
+  "publisher.sessions.list": ["publisher.sessions.list"],
   "publisher.screen.capture": ["publisher.screen.capture.request"],
   "publisher.screen.record": ["publisher.screen.record.request"],
   "publisher.website.content.request": ["publisher.website.content.request"],
@@ -44,7 +46,7 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
                 new("CouncilFinalRecoveryTaskExcerptCharacters", "6000", "System.Int32"),
                 new("GoalDeliveryObjectiveTemplate", "Deliver the finished result of the original goal now: invoke {{Functions}} exactly as the original request specifies (target, format and the complete final text). Reuse the completed step outputs below; do not redo earlier work and do not answer with a description instead of the delivery.", "System.String"),
                 new("GoalCatalogFallbackMinimumTeamScore", "6", "System.Int32"),
-                new("GoalFallbackMinimumModelBillionParameters", "7", "System.Int32"),
+                new("GoalFallbackMinimumModelBillionParameters", "0", "System.Int32"),
                 new("ConfigurationStewardPolicyJson", """
 {
   "minimumRecommendedCouncilLoadPercent": 60,
