@@ -157,6 +157,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<ILocalAiArtifactService, LocalAiArtifactService>();
                 builder.Services.AddSingleton<LocalGPT.Services.OneWire.PublisherMediaDeliveryService>();
                 builder.Services.AddScoped<ILocalAiRuntimeService, LocalAiRuntimeService>();
+                builder.Services.AddScoped<IModelTrainingService, ModelTrainingService>();
                 builder.Services.AddScoped<ILocalAiAcquisitionService, LocalAiAcquisitionService>();
                 builder.Services.AddScoped<IHuggingFaceModelCatalogService, HuggingFaceModelCatalogService>();
                 builder.Services.AddScoped<IWebSearchProvider, DuckDuckGoWebSearchProvider>();

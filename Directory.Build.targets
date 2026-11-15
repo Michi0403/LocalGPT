@@ -425,4 +425,17 @@
     <Error Condition="!Exists('$(CouncilDevelopmentLifecycleScript)')" Text="Missing mandatory Council development lifecycle guard." />
     <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(CouncilDevelopmentLifecycleScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
+
+  <!-- Identity training integration: packaged trainer, runtime-value ownership and approval-gated functions. -->
+  <PropertyGroup>
+    <ModelTrainingContractScript>$(MSBuildThisFileDirectory)build/Assert-ModelTrainingContract.ps1</ModelTrainingContractScript>
+  </PropertyGroup>
+  <Target Name="AssertLocalGptModelTrainingContract"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
+    <Error Condition="!Exists('$(ModelTrainingContractScript)')" Text="Missing mandatory model training contract guard." />
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(ModelTrainingContractScript)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true"
+          StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
 </Project>

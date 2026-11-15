@@ -957,6 +957,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
 }
 """, "System.String"),
                     .. CreateGoalDeliveryAndStewardValues(),
+                    .. CreateModelTrainingValues(),
                 ],
                 Collections =
                 [
@@ -988,6 +989,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                     new("ChatAppleControlTokens", ["<|start_of_role|>assistant<|end_of_role|>", "<|start_of_role|>analysis<|end_of_role|>", "<|start_of_turn|>assistant", "<|end_of_turn|>", "<|end_of_text|>", "<|eot_id|>"]),
                     new("ChatThinkTagsModelHints", ["qwq", "qwen3", "thinking"]),
                     .. CreateGoalDeliveryAndStewardCollections(),
+                    .. CreateModelTrainingCollections(),
                 ],
                 RegexPatterns =
                 [
