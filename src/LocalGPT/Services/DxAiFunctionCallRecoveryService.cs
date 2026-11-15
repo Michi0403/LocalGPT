@@ -77,6 +77,45 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
+    /// Recovers only explicit tagged function calls from completed assistant text, wherever the tag appears. Calls resolve against the live registry exactly like <see cref="Recover"/>, so approval-gated functions keep their normal Human Collaboration path.
+    /// </summary>
+    /// <param name="content">Completed assistant text that may contain an explicit tagged function call after other prose.</param>
+    /// <param name="automaticInvocation">Value indicating whether the recovered calls are resolved for automatic invocation.</param>
+    /// <returns>The recovery result; not recognized when the text holds no tag or the tagged JSON names no registered function.</returns>
+    public DxAiFunctionTextRecoveryResult RecoverTagged(string content, bool automaticInvocation = true)
+    {
+        try
+        {
+            var result = new DxAiFunctionTextRecoveryResult { VisibleContent = content ?? string.Empty };
+            if (string.IsNullOrWhiteSpace(content))
+                return result;
+
+            var tagged = textPatterns.CouncilDxFunctionCallPattern.Match(WebUtility.HtmlDecode(content));
+            if (!tagged.Success || !tagged.Groups["json"].Success)
+                return result;
+
+            var recovered = ParseCandidate(tagged.Groups["json"].Value, "localgpt-dx-call", automaticInvocation);
+            if (recovered.Count == 0)
+                return result;
+
+            result.Recognized = true;
+            result.Calls.AddRange(recovered);
+            result.VisibleContent = textPatterns.CouncilDxFunctionCallPattern.Replace(WebUtility.HtmlDecode(content), string.Empty).Trim();
+            result.SuppressRecoveredContent = string.IsNullOrWhiteSpace(result.VisibleContent);
+            logger.LogInformation("Recovered {FunctionCount} tagged DX function call(s) from completed assistant text; raw arguments were omitted from logs.", recovered.Count);
+            return result;
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionCallRecoveryService)}.{nameof(RecoverTagged)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionCallRecoveryService)}.{nameof(RecoverTagged)} failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Performs looks like structured function call as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="content">Content value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>

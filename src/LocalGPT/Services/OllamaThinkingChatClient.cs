@@ -490,6 +490,22 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                             yield return recoveryUpdate;
                     }
                 }
+                else if (toolCalls.Count == 0
+                    && functionCallRecovery is not null
+                    && assistantContent.Length > 0
+                    && functionCallRecovery.RecoverTagged(assistantContent.ToString(), automaticInvocation: true) is { Recognized: true } taggedRecovery)
+                {
+                    // The model wrote the explicit tag after prose, so the first-chunk gate above did not buffer it.
+                    // The prose was already streamed; keep it out of re-emission and only route the calls through the registry.
+                    toolCalls = ToOllamaToolCalls(taggedRecovery.Calls);
+                    assistantContent.Clear();
+                    assistantContent.Append(taggedRecovery.VisibleContent);
+                    var taggedRecoveryUpdate = councilRuntime.OllamaThinkingChatClientCreateStreamingStatusUpdate(
+                        $"LocalGPT recovered {toolCalls.Count} tagged DX function call(s) written after prose and routed them through the normal function policy.",
+                        logger);
+                    if (taggedRecoveryUpdate is not null)
+                        yield return taggedRecoveryUpdate;
+                }
                 else if (toolCalls.Count == 0 && pendingContent.Length > 0)
                 {
                     foreach (var text in formatter.AppendContent(pendingContent.ToString()))

@@ -547,6 +547,15 @@ namespace LocalGPT.Services
                         visibleContent = $"_{finalAnswerError}_";
                     }
 
+                    if (finalAnswerError is null && string.IsNullOrWhiteSpace(visibleContent))
+                    {
+                        // An empty answer is a failure, not a quiet success: the Error makes FormatStepProgress print a failure block
+                        // and lets round recovery classify the slot as an empty answer before the replacement member starts.
+                        finalAnswerError = $"{modelName} returned no answer during {phase} (possible model crash, out-of-memory or context overflow).";
+                        logger.LogWarning("Council model {ModelName} returned no answer during {Phase}; the member step is marked failed so recovery is visible.", modelName, phase);
+                        progressMessage?.Invoke(finalAnswerError);
+                    }
+
                     stopwatch.Stop();
                     var completedStep = new MultiModelCouncilStep
                     {
@@ -590,6 +599,8 @@ namespace LocalGPT.Services
                     stopwatch.Stop();
                     var message = $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
                     logger.LogWarning("{Message}", message);
+                    var timeoutNotice = allowRecovery ? $"{message} LocalGPT is starting the safe-limit retry for this member." : message;
+                    streamUpdate?.Invoke($"<p class=\"localgpt-stream-status\"><em>{WebUtility.HtmlEncode(timeoutNotice)}</em></p>\n\n");
                     runtimeLease?.Dispose();
                     runtimeLease = null;
                     if (allowRecovery)
@@ -626,6 +637,10 @@ namespace LocalGPT.Services
                 {
                     stopwatch.Stop();
                     logger.LogWarning(ex, "Council participant {ModelName} failed in {Phase}.", modelName, phase);
+                    var failureNotice = $"{modelName} failed during {phase}: {ex.Message}";
+                    if (allowRecovery && ex is not ProviderStreamRepetitionException)
+                        failureNotice += " LocalGPT is starting the safe-limit retry for this member.";
+                    streamUpdate?.Invoke($"<p class=\"localgpt-stream-status\"><em>{WebUtility.HtmlEncode(failureNotice)}</em></p>\n\n");
                     runtimeLease?.Dispose();
                     runtimeLease = null;
                     if (allowRecovery && ex is not ProviderStreamRepetitionException)

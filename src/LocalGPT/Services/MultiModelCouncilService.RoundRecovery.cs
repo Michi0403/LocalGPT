@@ -155,7 +155,7 @@ namespace LocalGPT.Services
                             ? GoalMemberFailureKind.HostUnreachable
                             : failedStep.RepetitionWatchdogStopped
                                 ? GoalMemberFailureKind.RepetitionWatchdog
-                                : string.IsNullOrWhiteSpace(failedStep.Error)
+                                : string.IsNullOrWhiteSpace(failedStep.Error) || string.IsNullOrWhiteSpace(failedStep.VisibleContent)
                                     ? GoalMemberFailureKind.EmptyAnswer
                                     : GoalMemberFailureKind.ProviderFailure;
                     var attemptedModels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
