@@ -21,7 +21,8 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
             };
             var preferred = new List<string>
             {
-                "initial.setup.status", "initial.setup.canirun.recommendations",
+                "localai.models.installed", "localai.huggingface.search", "localai.model.install",
+                "initial.setup.canirun.recommendations",
                 "publisher.media.capabilities", "publisher.file.formats", "publisher.browser.view.inspect",
                 "publisher.panel.modules.inspect", "publisher.panel.module.invoke"
             };
@@ -45,7 +46,10 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 ArchitectureContracts =
                 [
                     choiceInstruction,
+                    "Determine whether the user made a choice from their own messages. A Council step's recommendation or a generic request to create media does not select a workflow.",
                     "If a choice is still needed, ask in the user-visible response and stop before generation, editor input or model setup. If the user already chose a path, use it. If export is requested, use the currently advertised formats and ask for the target only when required.",
+                    "Use localai.models.installed as the source for specialized generator availability and installation IDs. Ollama chat, vision analysis and OCR inventories cannot establish image or video generation capability. Use LocalGPT's Local AI setup for specialized model suggestions or installation.",
+                    "If the user explicitly asks to install a missing model, use the registered Hugging Face catalog and request localai.model.install for a compatible model through the normal approval gate. Check the installation receipt and refresh localai.models.installed before attempting generation.",
                     "Never claim a video/image/audio was created unless an actual output file or validated media receipt exists.",
                     "Do not send hardware details to CanIRun.ai without its existing fresh human approval. Review installed models and source evidence first; never hard-code model rankings.",
                     "No publication, browser or filesystem mutations without an exact scoped publisher command and its existing approval/review path.",
@@ -54,13 +58,13 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 WorkflowSteps =
                 [
                     Step($"{category}-readiness", "Verify generation readiness", 10, "Discovery", "Provider readiness reviewer",
-                        $"{choiceInstruction} Use the installed-provider inventory from initial.setup.status when available. For images/videos inspect capability-bound localai.image.generate/localai.video.generate only if present and configured; audio may need a separate provider or native Audio Studio. Distinguish text-only Council models from media generators and installed tools. When none is verified, explain that absence and offer a separately approved initial.setup.canirun.recommendations lookup with reviewed hardware details; list only sourced, category-relevant results. Never assume a model from an example list is installed. User task: {{{{UserPrompt}}}}",
+                        $"{choiceInstruction} If the user chose model generation, call localai.models.installed and match the requested generation capability. Use the verified installation ID for generation. If the inventory was unavailable, report that it could not be checked. If there is no match, offer LocalGPT's Local AI setup or a separately approved initial.setup.canirun.recommendations lookup. When the user has yet to choose, return the choice question without probing or preparing installs. User task: {{{{UserPrompt}}}}",
                         "LeaderSingle", canUseOrganicFunctions: true),
                     Step($"{category}-authoring", "Create or plan approved media", 20, "Execution", "Media author",
                         "If the user still needs to choose, carry the question into the final answer and perform no media action. After the user selects a workflow, invoke only advertised authorized generation (localai.image.generate/localai.video.generate where supported) or PublisherStudio editing operations. Use native media timelines and browser/1-Wire commands when they suffice, avoiding expensive analysis for simple trims/cuts. No autonomous installs or unapproved network calls. Report the exact returned artifacts and receipts, or provide a reviewable work plan with model readiness still pending. Task: {{UserPrompt}}\nEvidence: {{Transcript}}",
                         "LeaderSingle", canUseOrganicFunctions: true),
                     Step($"{category}-verify", "Review output and handoff", 30, "Review", "Result reviewer",
-                        "If the user has not selected a workflow, present the available choices and wait for their response. Otherwise identify produced files/receipts and supported PublisherStudio insertion steps. Do not confuse a proposed prompt, source text or media editor launch with a generated asset. State outstanding approval/compatibility gaps. Task: {{UserPrompt}}\nTranscript: {{Transcript}}",
+                        $"Recheck the user's task for an explicit workflow selection before reviewing results. {choiceInstruction} If there is no selection, answer with the choice question even if the transcript contains guesses about installed models. Otherwise identify produced files/receipts and supported PublisherStudio insertion steps. State outstanding approval or compatibility gaps. Task: {{{{UserPrompt}}}}\nTranscript: {{{{Transcript}}}}",
                         "LeaderSingle", producesFinalAnswer: true)
                 ]
             };

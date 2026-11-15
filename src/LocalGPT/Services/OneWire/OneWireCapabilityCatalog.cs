@@ -175,6 +175,7 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
                 Controller = "OneWire", Method = "GET", Route = "/api/onewire/http-json",
                 Organs = ["eyes"], UiActivationKeys = ["publisherstudio.media.insert"],
                 IsReadOnly = true, IsExposedToPeer = true, AllowPeerInvocation = true,
+                RequiresHumanConfirmation = false, RequiresFrontendUserConfirmation = false,
                 InteractionEditor = OneWireInteractionEditor.None, ConfigurationKey = "builtin:localgpt.media.delivery.read", Source = "LocalGPT"
             });
             functions.Add(new OneWireCapabilityDescriptor
