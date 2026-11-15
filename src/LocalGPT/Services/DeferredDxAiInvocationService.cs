@@ -146,10 +146,12 @@ public sealed partial class DeferredDxAiInvocationService(ILocalGptVocabularySer
     /// <summary>Checks whether an exact deferred invocation for this Council run is still waiting for the local human approval decision.</summary>
     /// <param name="councilRunId">Identifier of the Council run.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="functionName">Optional registered function name used to narrow the pending approval check.</param>
     /// <returns><see langword="true"/> while at least one invocation remains pending approval.</returns>
     public async Task<bool> HasPendingApprovalForRunAsync(
         Guid councilRunId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? functionName = null)
     {
         try
         {
@@ -161,7 +163,8 @@ public sealed partial class DeferredDxAiInvocationService(ILocalGptVocabularySer
                 var pendingApprovalStatus = vocabulary.Get().DeferredPendingApproval;
                 return await db.DeferredDxAiInvocations.AsNoTracking()
                     .AnyAsync(
-                        item => item.CouncilRunId == councilRunId && item.Status == pendingApprovalStatus,
+                        item => item.CouncilRunId == councilRunId && item.Status == pendingApprovalStatus &&
+                            (functionName == null || item.FunctionName == functionName),
                         cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -231,7 +234,9 @@ public sealed partial class DeferredDxAiInvocationService(ILocalGptVocabularySer
                 var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 var candidates = await db.DeferredDxAiInvocations
-                    .Where(item => item.ApprovalRequestId == approvalRequestId && item.Status == vocabulary.Get().DeferredPendingApproval)
+                    .Where(item => item.ApprovalRequestId == approvalRequestId &&
+                        item.Status == vocabulary.Get().DeferredPendingApproval &&
+                        item.FunctionName != "council.x.revisit")
                     .OrderBy(item => item.CreatedAtUtc)
                     .Take(8)
                     .ToListAsync(cancellationToken)

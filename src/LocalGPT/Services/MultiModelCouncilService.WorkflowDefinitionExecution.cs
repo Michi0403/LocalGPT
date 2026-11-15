@@ -598,6 +598,15 @@ namespace LocalGPT.Services
                         roundStep.XRoundCause = xRoundCause ?? string.Empty;
                     }
 
+                    var approvedDeferredEvidence = await WaitForDeferredApprovalsBeforeNextStepAsync(
+                        result,
+                        request,
+                        definition,
+                        round,
+                        phase,
+                        xRoundActive && definition.XCanRevisit,
+                        cancellationToken).ConfigureAwait(false);
+
                     IReadOnlyList<CouncilXRoundDirective> emittedXDirectives = [];
                     if (xRoundActive)
                     {
@@ -748,13 +757,6 @@ namespace LocalGPT.Services
                         }
                     }
 
-                    var approvedDeferredEvidence = await WaitForDeferredApprovalsBeforeNextStepAsync(
-                        result,
-                        request,
-                        definition,
-                        round,
-                        phase,
-                        cancellationToken).ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(approvedDeferredEvidence))
                     {
                         stageAnswer = MultiModelCouncilServiceAppendPromptSection(

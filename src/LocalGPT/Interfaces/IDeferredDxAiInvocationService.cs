@@ -40,10 +40,12 @@ public interface IDeferredDxAiInvocationService
     /// <summary>Checks whether this Council run still owns one or more exact deferred invocations awaiting a local human approval decision.</summary>
     /// <param name="councilRunId">Identifier of the Council run.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="functionName">Optional registered function name used to narrow the pending approval check.</param>
     /// <returns><see langword="true"/> while at least one invocation remains pending approval.</returns>
     Task<bool> HasPendingApprovalForRunAsync(
         Guid councilRunId,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? functionName = null);
 
     /// <summary>
     /// Executes approved for approval request as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.

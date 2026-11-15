@@ -19,6 +19,7 @@
       }
     },
     "https": {
+      "commandLineArgs": "--onewire-port 41140 --LocalGPT:McpGateway:Port 41142",
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,

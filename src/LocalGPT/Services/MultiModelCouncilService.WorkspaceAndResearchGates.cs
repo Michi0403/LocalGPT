@@ -326,6 +326,7 @@ namespace LocalGPT.Services
         /// <param name="definition">Configured workflow step controlling whether waiting is required.</param>
         /// <param name="round">Current Council round.</param>
         /// <param name="phase">Current Council phase.</param>
+        /// <param name="canRevisit">Whether the current step can execute an approved X-Round revisit.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the operation.</param>
         /// <returns>A bounded briefing containing approved deferred-function results, or an empty string when no request was pending.</returns>
         private async Task<string> WaitForDeferredApprovalsBeforeNextStepAsync(
@@ -334,13 +335,16 @@ namespace LocalGPT.Services
             CouncilWorkflowStepDefinition definition,
             int round,
             string phase,
+            bool canRevisit,
             CancellationToken cancellationToken)
         {
             try
             {
-                if (!definition.WaitForDeferredApprovalsBeforeNextStep)
+                if (!definition.WaitForDeferredApprovalsBeforeNextStep && !canRevisit)
                     return string.Empty;
 
+                var pendingFunction = definition.WaitForDeferredApprovalsBeforeNextStep ? null : "council.x.revisit";
+                using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase);
                 var outcomes = new List<DeferredDxAiExecutionOutcome>();
                 var waitingStepAdded = false;
                 while (true)
@@ -370,12 +374,12 @@ namespace LocalGPT.Services
                         request.StepCompleted?.Invoke(deferredStep);
                     }
 
-                    if (!await deferredDxAiInvocations.HasPendingApprovalForRunAsync(result.RunId, cancellationToken).ConfigureAwait(false))
+                    if (!await deferredDxAiInvocations.HasPendingApprovalForRunAsync(result.RunId, cancellationToken, pendingFunction).ConfigureAwait(false))
                         break;
 
                     if (!waitingStepAdded)
                     {
-                        var visible = $"Council paused after '{definition.DisplayName}' because an exact external/tool request awaits local approval in Approvals & team. Approve the requested DuckDuckGo/web operation to add its sources, or decline it to continue with local evidence only.";
+                        var visible = $"Council paused after '{definition.DisplayName}' because an exact external/tool request awaits local approval in Approvals & team. Approve or decline the exact request to continue.";
                         var waitingStep = new MultiModelCouncilStep
                         {
                             Round = round,
@@ -401,7 +405,7 @@ namespace LocalGPT.Services
                     humanCollaboration.Changed += HandleChanged;
                     try
                     {
-                        if (!await deferredDxAiInvocations.HasPendingApprovalForRunAsync(result.RunId, cancellationToken).ConfigureAwait(false))
+                        if (!await deferredDxAiInvocations.HasPendingApprovalForRunAsync(result.RunId, cancellationToken, pendingFunction).ConfigureAwait(false))
                             continue;
                         var fallbackSeconds = runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumAvailabilityWaitSeconds;
                         var fallback = Task.Delay(TimeSpan.FromSeconds(fallbackSeconds), cancellationToken);

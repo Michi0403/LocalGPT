@@ -32,3 +32,11 @@ Klar begrenzte Tests, Quellsuche und Logauswertung an die günstigsten verfügba
 
 Je Fall Build- und Produktversion, Team, tatsächliches Modell, sichtbaren UI-Status und bei Bedarf die 1-Wire-Korrelations-ID festhalten. `PASS` steht für einen vollständig belegten Ablauf, `FAIL` für eine beobachtete Abweichung und `BLOCKED` für eine konkret benannte fehlende Voraussetzung. Sensible Nutzdaten, Schlüssel und vollständige Prompt- oder Log-Dumps aus dem Protokoll heraushalten.
 
+## Gemma-Codingworkflow in Edge
+
+1. Build the LocalGPT solution in Visual Studio with the repository PowerShell gates enabled. Start the LocalGPT debug profile and open Local Chat in Edge.
+2. In Chat configuration, select AI Council and only the local Ollama model gemma4:26b. Enable Council downloadable artifacts. For the scratch test, disable Council memory and set the context to 16,384 tokens, the answer budget to about 4,096 tokens, and peer review rounds to zero. Confirm the actual model and context in the live lane.
+3. Ask for a downloadable, dependency-free .NET console project named EfDatabaseIdentitySmoke. Request an injectable instance service for the SQLite database name and absolute Data Source path, with explicit handling of :memory:. Ask LocalGPT to build and run self-tests for relative paths, absolute paths and :memory:, then deliver the sources and actual execution status. Use a scratch project.
+4. If the source curator or compiler operator requests council.x.revisit, use Approvals & team to review the exact action. Approve the compiler-generate repeat once. Confirm the originating step records the deferred execution outcome and the workflow enters a new Generation revision. To exercise declining, use a separate run and confirm the request closes without executing the repeat.
+5. A passing coding run displays successful artifact verification, actual build and test results, and a working ZIP download from the chat. Record the run ID, actual model settings, first failure if any, and whether a repeat executed. A scratch project checks the coding workflow. Use the live installation information in Edge to check LocalGPT's own configured database path.
+
