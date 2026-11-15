@@ -132,3 +132,4 @@ src/LocalGPT/wwwroot/help-docs/
 /maintenance/*
 !/maintenance/changelogs/
 !/maintenance/ONEWIRE-EDGE-TESTS.md
+src/LocalGPT/Runtime/Python/__pycache__/
