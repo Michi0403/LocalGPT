@@ -22,6 +22,7 @@ namespace LocalGPT.Services
         /// <param name="promptCharacters">Characters of all messages plus serialized native tool schemas.</param>
         /// <param name="modelName">Ollama model used for diagnostics.</param>
         /// <param name="logger">Logger of the calling chat client.</param>
+        /// <param name="modelMaximumContextTokens">Largest context the model supports according to Ollama; <see langword="null"/> when unknown.</param>
         /// <returns>The effective request budget.</returns>
         public OllamaRequestBudget OllamaThinkingChatClientResolveRequestBudget(
             int? configuredContextTokens,
@@ -29,7 +30,8 @@ namespace LocalGPT.Services
             bool thinkingRequested,
             long promptCharacters,
             string modelName,
-            ILogger logger)
+            ILogger logger,
+            int? modelMaximumContextTokens = null)
         {
             try
             {
@@ -42,11 +44,19 @@ namespace LocalGPT.Services
                 var charactersPerToken = policy.CharactersPerToken is > 0.5 and < 16 ? policy.CharactersPerToken : 3.2;
                 var promptTokens = (int)Math.Min(int.MaxValue / 4, Math.Ceiling(Math.Max(0, promptCharacters) / charactersPerToken));
                 var required = (int)Math.Min(int.MaxValue / 2, (long)promptTokens + numPredict + Math.Max(0, policy.ContextSafetyMarginTokens));
+                var configuredBeforeModelLimit = configuredContextTokens;
+                var modelLimit = modelMaximumContextTokens is > 0 ? modelMaximumContextTokens : null;
+                if (modelLimit is not null && configuredContextTokens is > 0)
+                    configuredContextTokens = Math.Min(configuredContextTokens.Value, modelLimit.Value);
                 var current = configuredContextTokens is > 0
                     ? configuredContextTokens.Value
                     : Math.Max(256, policy.AssumedProviderDefaultContextTokens);
                 if (required <= current)
                 {
+                    if (modelLimit is not null)
+                        logger.LogInformation(
+                            "Ollama context for model {Model}: configured {Configured}, model maximum {ModelMaximum}, effective context {Context} tokens, effective output {NumPredict} tokens (configuration is unchanged).",
+                            modelName, configuredBeforeModelLimit?.ToString() ?? "provider default", modelLimit, configuredContextTokens?.ToString() ?? "provider default", numPredict);
                     logger.LogDebug(
                         "Ollama request for model {Model} fits its context: estimated prompt {PromptTokens} tokens, output {NumPredict} tokens (thinking reserve {ThinkingReserved}), context {Context}.",
                         modelName, promptTokens, numPredict, thinkingRequested, configuredContextTokens?.ToString() ?? "provider default");
@@ -55,6 +65,8 @@ namespace LocalGPT.Services
 
                 var step = Math.Max(256, policy.ContextGrowthStepTokens);
                 var ceiling = Math.Max(current, policy.MaximumFittedContextTokens);
+                if (modelLimit is not null)
+                    ceiling = Math.Min(ceiling, modelLimit.Value);
                 var raised = (int)Math.Min(ceiling, (long)Math.Ceiling(required / (double)step) * step);
                 var exceeds = required > raised;
                 if (exceeds)
@@ -80,13 +92,17 @@ namespace LocalGPT.Services
                         "Ollama request for model {Model} needs about {Required} context tokens (prompt {PromptTokens}, output {NumPredict}) but the configured maximum is {Ceiling}; the provider may cut the oldest prompt content. Reduce attached tools or raise {PolicyKey}.MaximumFittedContextTokens.",
                         modelName, required, promptTokens, numPredict, ceiling, OllamaRequestBudgetPolicyKey);
                 }
-                else
+                else if (raised > current)
                 {
                     logger.LogInformation(
                         "Raised the Ollama context for model {Model} from {Configured} to {Raised} tokens for this request so the prompt ({PromptTokens} estimated tokens incl. native tool schemas) and {NumPredict} output tokens fit.",
                         modelName, configuredContextTokens?.ToString() ?? "provider default", raised, promptTokens, numPredict);
                 }
 
+                if (modelLimit is not null)
+                    logger.LogInformation(
+                        "Ollama context for model {Model}: configured {Configured}, model maximum {ModelMaximum}, effective context {Context} tokens, effective output {NumPredict} tokens (configuration is unchanged).",
+                        modelName, configuredBeforeModelLimit?.ToString() ?? "provider default", modelLimit, raised, numPredict);
                 return new OllamaRequestBudget(numPredict, raised, promptTokens, required, raised > current, exceeds);
             }
             catch (Exception ex)

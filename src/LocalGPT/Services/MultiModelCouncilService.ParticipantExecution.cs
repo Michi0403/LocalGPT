@@ -556,6 +556,15 @@ namespace LocalGPT.Services
                         progressMessage?.Invoke(finalAnswerError);
                     }
 
+                    if (finalAnswerError is null && MultiModelCouncilServiceIsPlaceholderTokenContent(visibleContent, logger))
+                    {
+                        // Placeholder-only text is how an overflowing model fails; show it as a failed step instead of a consensus.
+                        finalAnswerError = $"{modelName} produced placeholder tokens instead of text (likely context or memory overflow for this model) during {phase}.";
+                        visibleContent = $"_{finalAnswerError}_";
+                        logger.LogWarning("Council model {ModelName} produced placeholder tokens instead of text during {Phase}; the member step is marked failed.", modelName, phase);
+                        progressMessage?.Invoke(finalAnswerError);
+                    }
+
                     stopwatch.Stop();
                     var completedStep = new MultiModelCouncilStep
                     {

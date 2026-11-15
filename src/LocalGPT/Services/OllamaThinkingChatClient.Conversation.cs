@@ -62,7 +62,7 @@ public sealed partial class OllamaThinkingChatClient
     /// <param name="stream">Value indicating whether stream should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The Ollama chat request produced by the operation.</returns>
-    private Task<OllamaChatRequest> CreateRequestAsync(
+    private async Task<OllamaChatRequest> CreateRequestAsync(
         IReadOnlyList<OllamaChatMessage> messages,
         ChatOptions? options,
         bool stream,
@@ -74,6 +74,7 @@ public sealed partial class OllamaThinkingChatClient
             var requestMessages = messages.Select(CloneMessage).ToList();
             bool? think = councilRuntime.OllamaThinkingChatClientShouldSkipExplicitThinking(http.BaseAddress, model, logger) ? null : true;
             var tools = BuildAutomaticTools();
+            var modelMaximumContext = await councilRuntime.OllamaThinkingChatClientResolveModelMaximumContextAsync(http, model, logger, cancellationToken).ConfigureAwait(false);
             // Ollama silently drops the oldest prompt content (system prompt and native tool schemas first) when
             // prompt + output exceed num_ctx, and thinking tokens count against num_predict. Size both per request.
             var budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
@@ -82,8 +83,9 @@ public sealed partial class OllamaThinkingChatClient
                 think == true,
                 MeasureRequestCharacters(requestMessages, tools),
                 model,
-                logger);
-            return Task.FromResult(new OllamaChatRequest
+                logger,
+                modelMaximumContext);
+            return new OllamaChatRequest
             {
                 Model = model,
                 Stream = stream,
@@ -98,7 +100,7 @@ public sealed partial class OllamaThinkingChatClient
                     NumGpu = numGpu,
                     Temperature = options?.Temperature
                 }
-            });
+            };
     
     }
     catch (Exception __serviceMethodException)

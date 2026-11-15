@@ -371,6 +371,58 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
+        /// Detects an answer that consists predominantly of model placeholder tokens (the runtime value <c>CouncilPlaceholderTokenPrefix</c>,
+        /// then digits, then <c>&gt;</c>), which a model emits when it overflows its trained context or its memory.
+        /// The share of the answer that must be placeholders is the runtime value <c>CouncilPlaceholderOutputMinimumPercent</c>.
+        /// </summary>
+        /// <param name="content">Visible answer text of one council member step.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns><see langword="true"/> when placeholder tokens make up at least the configured share of the non-whitespace answer.</returns>
+        public bool MultiModelCouncilServiceIsPlaceholderTokenContent(string content, ILogger logger)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(content))
+                    return false;
+                var prefix = runtimePolicy.GetString("CouncilPlaceholderTokenPrefix");
+                var minimumPercent = runtimePolicy.GetInt("CouncilPlaceholderOutputMinimumPercent");
+                if (string.IsNullOrEmpty(prefix))
+                    return false;
+
+                long placeholderCharacters = 0;
+                var position = 0;
+                while (position < content.Length)
+                {
+                    var start = content.IndexOf(prefix, position, StringComparison.Ordinal);
+                    if (start < 0)
+                        break;
+                    var digitsEnd = start + prefix.Length;
+                    while (digitsEnd < content.Length && char.IsAsciiDigit(content[digitsEnd]))
+                        digitsEnd++;
+                    if (digitsEnd > start + prefix.Length && digitsEnd < content.Length && content[digitsEnd] == '>')
+                    {
+                        placeholderCharacters += digitsEnd + 1 - start;
+                        position = digitsEnd + 1;
+                    }
+                    else
+                    {
+                        position = start + prefix.Length;
+                    }
+                }
+
+                if (placeholderCharacters == 0)
+                    return false;
+                long visibleCharacters = content.Count(character => !char.IsWhiteSpace(character));
+                return placeholderCharacters * 100 >= (long)minimumPercent * visibleCharacters;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "IsPlaceholderTokenContent");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Performs multi model council service get council keep alive as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
         /// <param name="request">Request containing the caller-supplied values that control this operation.</param>

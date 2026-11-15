@@ -958,6 +958,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
 """, "System.String"),
                     .. CreateGoalDeliveryAndStewardValues(),
                     .. CreateModelTrainingValues(),
+                    .. CreateModelContextFitValues(),
                 ],
                 Collections =
                 [
