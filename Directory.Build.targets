@@ -340,19 +340,16 @@
   </Target>
 
   <Target Name="IncludeLocalGptDocumentationInPublish"
-          AfterTargets="ComputeFilesToPublish"
-          BeforeTargets="CopyFilesToPublishDirectory"
+          AfterTargets="CopyFilesToPublishDirectory"
           DependsOnTargets="BuildLocalGptDocumentation"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <ItemGroup>
       <LocalGptDocumentationPublishFiles Include="$(LocalGptDocumentationOutputRoot)/**/*" />
-      <ResolvedFileToPublish Include="@(LocalGptDocumentationPublishFiles)">
-        <RelativePath>wwwroot/help-docs/%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
-        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      </ResolvedFileToPublish>
     </ItemGroup>
     <Error Condition="'@(LocalGptDocumentationPublishFiles)' == ''" Text="No generated LocalGPT documentation files were available for publish: $(LocalGptDocumentationOutputRoot)" />
+    <!-- Copy the generated Help tree once the SDK has published its static web assets. -->
+    <Copy SourceFiles="@(LocalGptDocumentationPublishFiles)"
+          DestinationFiles="@(LocalGptDocumentationPublishFiles->'$(PublishDir)wwwroot/help-docs/%(RecursiveDir)%(Filename)%(Extension)')" />
     <Message Importance="High" Text="Added @(LocalGptDocumentationPublishFiles->Count()) generated documentation files to the LocalGPT publish payload." />
   </Target>
 

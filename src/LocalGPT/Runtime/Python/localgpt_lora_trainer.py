@@ -19,7 +19,7 @@ Backends
   cuda-nvidia  PyTorch CUDA (optional bitsandbytes 4-bit QLoRA)
   rocm         PyTorch ROCm (torch.version.hip set; Linux or WSL2)
   mps          PyTorch on Apple Metal (fp16/fp32; bf16 only if a runtime test passes)
-  mlx          Apple MLX via `python -m mlx_lm.lora`  (mlx-lm >= 0.21 ASSUMED, UNVERIFIED)
+  mlx          Apple MLX via `python -m mlx_lm.lora`, including prequantized 4-bit MLX models
   cpu          PyTorch on CPU, only when the config sets allow_cpu = true
 
 Memory estimate (used by `probe` and by the `train` pre-flight; deliberately conservative)
@@ -603,9 +603,10 @@ def validate_paths(cfg: dict) -> dict:
     return {"shards": shards, "train_examples": train_n, "eval_examples": eval_n}
 
 
-def count_parameters(shards: list[Path]) -> int:
-    """Exact parameter count from safetensors headers (stdlib only, no weights are loaded)."""
+def count_parameters(shards: list[Path], mlx_quantization: dict | None = None) -> int:
+    """Count logical weights, expanding MLX's uint32-packed matrices without loading them."""
     total = 0
+    tensors = {}
     for shard in shards:
         try:
             with open(shard, "rb") as handle:
@@ -614,9 +615,23 @@ def count_parameters(shards: list[Path]) -> int:
         except Exception as exc:
             raise TrainerError(f"Cannot read the safetensors header of {shard.name}: {exc}",
                                "Re-copy or re-download the checkpoint; the file looks truncated or corrupt.", "base_model")
-        for name, meta in header.items():
-            if name != "__metadata__":
-                total += math.prod(meta["shape"])
+        tensors.update((name, meta) for name, meta in header.items() if name != "__metadata__")
+    packed_counts = {}
+    if mlx_quantization:
+        for name, meta in tensors.items():
+            if not name.endswith(".weight") or meta["dtype"] != "U32":
+                continue
+            module = name.removesuffix(".weight")
+            scales = tensors.get(f"{module}.scales")
+            settings = mlx_quantization.get(module, mlx_quantization)
+            group_size = settings.get("group_size") if isinstance(settings, dict) else None
+            if scales and isinstance(group_size, int) and group_size > 0:
+                packed_counts[name] = math.prod(scales["shape"]) * group_size
+    auxiliary = {f"{name.removesuffix('.weight')}.{suffix}"
+                 for name in packed_counts for suffix in ("scales", "biases")}
+    for name, meta in tensors.items():
+        if name not in auxiliary:
+            total += packed_counts.get(name, math.prod(meta["shape"]))
     return total
 
 
@@ -783,11 +798,30 @@ def train_torch(cfg: dict, backend: str, precision: str, info: dict) -> dict:
 
 # --------------------------------------------------------------------------- training: mlx path
 
-_MLX_LOSS = re.compile(r"Iter\s+(\d+):\s+(Train|Val)\s+loss\s+([-+0-9.eE]+|nan|inf)", re.I)
+_MLX_LOSS_VALUE = r"[+-]?(?:\d+(?:\.\d*)?(?:e[+-]?\d+)?|nan|inf(?:inity)?)"
+_MLX_LEGACY_LOSS = re.compile(rf"\bIter\s+(\d+):\s+(Train|Val)\s+loss\s+({_MLX_LOSS_VALUE})(?=\s|,|$)", re.I)
+_MLX_VAL_ROW = re.compile(rf"\s*(\d+)\s+val\s+({_MLX_LOSS_VALUE})\s+\d+(?:\.\d+)?s\s*", re.I)
+_MLX_TRAIN_ROW = re.compile(rf"\s*(\d+)\s+({_MLX_LOSS_VALUE})\s+[▲▼]\s+[\d,]+\s+\d+(?:\.\d+)?k\s*", re.I)
+_MLX_ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def parse_mlx_loss(line: str) -> tuple[int, str, float] | None:
+    """Read loss from either MLX-LM's legacy messages or its colored progress table."""
+    clean = _MLX_ANSI.sub("", line)
+    legacy = _MLX_LEGACY_LOSS.search(clean)
+    if legacy:
+        return int(legacy[1]), legacy[2].lower(), float(legacy[3])
+    validation = _MLX_VAL_ROW.fullmatch(clean)
+    if validation:
+        return int(validation[1]), "val", float(validation[2])
+    training = _MLX_TRAIN_ROW.fullmatch(clean)
+    if training:
+        return int(training[1]), "train", float(training[2])
+    return None
 
 
 def train_mlx(cfg: dict, info: dict) -> dict:
-    """Run `python -m mlx_lm.lora`. ASSUMES mlx-lm >= 0.21 CLI flags (UNVERIFIED: not run here)."""
+    """Run the MLX-LM LoRA CLI and report the child's observed validation losses."""
     out = Path(cfg["output_dir"])
     out.mkdir(parents=True)
     data = out / "mlx_data"
@@ -821,9 +855,9 @@ def train_mlx(cfg: dict, info: dict) -> dict:
         for line in proc.stdout:
             print(line.rstrip(), file=sys.stderr)
             tail = (tail + [line.rstrip()])[-15:]
-            m = _MLX_LOSS.search(line)
-            if m:
-                step, kind, loss = int(m.group(1)), m.group(2).lower(), float(m.group(3))
+            report = parse_mlx_loss(line)
+            if report is not None:
+                step, kind, loss = report
                 if not math.isfinite(loss):
                     proc.kill()
                     raise TrainerError("Training loss became NaN/inf.", "Lower learning_rate or use a smaller model.", "learning_rate")
@@ -843,7 +877,7 @@ def train_mlx(cfg: dict, info: dict) -> dict:
                            "and that this trainer's assumed flags match your mlx-lm version (`python -m mlx_lm.lora --help`).")
     if not (adapter_dir / "adapters.safetensors").is_file() or len(vals) < 2:
         raise TrainerError("mlx_lm.lora finished but no adapter or baseline/final validation loss was found.",
-                           "Check the stderr log; the mlx-lm output format may differ from what this trainer assumes (UNVERIFIED).")
+                           "Check the stderr log for the adapter save and the initial/final validation passes.")
     return {"train_loss": train_losses[-1] if train_losses else None, "baseline_eval_loss": vals[0], "eval_loss": vals[-1],
             "adapter_path": str(adapter_dir), "merged_path": None}
 
@@ -877,14 +911,20 @@ def cmd_train(args: argparse.Namespace) -> int:
                                "Use an already MLX-quantized checkpoint as base_model and set quantization to \"none\".", "quantization")
         if not isinstance(cfg.get("mlx_num_layers"), int) or isinstance(cfg.get("mlx_num_layers"), bool):
             raise _missing("mlx_num_layers", "an integer (number of layers to adapt, -1 for all; required for the mlx backend)")
-    params = count_parameters(info["shards"])
+    model_path = Path(cfg["base_model"])
+    model_config = json.loads((model_path / "config.json").read_text(encoding="utf-8")) if backend == "mlx" else None
+    mlx_quantization = model_config.get("quantization") if isinstance(model_config, dict) else None
+    if not isinstance(mlx_quantization, dict):
+        mlx_quantization = None
+    mlx_four = bool(mlx_quantization and mlx_quantization.get("bits") == 4)
+    params = count_parameters(info["shards"], mlx_quantization)
     est = estimate_report(
         env, backend, params / 1e9, cfg["lora_rank"],
         tokens_per_step=cfg["batch_size"] * cfg["max_sequence_length"],
-        gradient_checkpointing=cfg["gradient_checkpointing"], vocab_size=vocab_size_of(Path(cfg["base_model"])))
-    chosen = est["qlora_4bit" if four else "lora_16bit"]
+        gradient_checkpointing=cfg["gradient_checkpointing"], vocab_size=vocab_size_of(model_path))
+    chosen = est["qlora_4bit" if four or mlx_four else "lora_16bit"]
     emit("preflight", backend=backend, device_name=env["detail"][backend]["device_name"], precision=precision,
-         quantization=cfg["quantization"], parameters_billions=round(params / 1e9, 4),
+         quantization=cfg["quantization"], prequantized_mlx=mlx_four, parameters_billions=round(params / 1e9, 4),
          estimated_need_mib=chosen["need_mib"], available_mib=est["available_mib"], verdict=chosen["verdict"],
          train_examples=info["train_examples"], eval_examples=info["eval_examples"])
     if chosen["verdict"] == "does-not-fit" and not cfg.get("force", False):
