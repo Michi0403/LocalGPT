@@ -35,6 +35,23 @@ public sealed partial class OllamaThinkingChatClient
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var registryName = ResolveRegistryFunctionName(call.Function.Name);
+                var arguments = NormalizeArguments(call.Function.Arguments);
+                // Some models (gpt-oss Harmony recipients) emit the envelope itself as the tool name, for example
+                // "localgpt-dx-call" or "assistant" with {"functionName": ..., "parameters": {...}}. Unwrap it so the
+                // real registered function runs; the allow-list check inside ResolveRegistryFunctionName still applies.
+                if (registryName is null && arguments.ValueKind == JsonValueKind.Object &&
+                    arguments.TryGetProperty("functionName", out var envelopeName) && envelopeName.ValueKind == JsonValueKind.String)
+                {
+                    registryName = ResolveRegistryFunctionName(envelopeName.GetString() ?? string.Empty);
+                    if (registryName is not null)
+                    {
+                        arguments = arguments.TryGetProperty("parameters", out var envelopeParameters) && envelopeParameters.ValueKind == JsonValueKind.Object
+                            ? envelopeParameters.Clone()
+                            : JsonSerializer.SerializeToElement(new { });
+                        logger.LogInformation("Unwrapped Ollama tool envelope {EnvelopeTool} into registered function {Function} for model {Model}.",
+                            call.Function.Name, registryName, model);
+                    }
+                }
                 DxAiFunctionInvocationResult result;
 
                 if (functionRegistry is null || registryName is null)
@@ -67,7 +84,7 @@ public sealed partial class OllamaThinkingChatClient
                         registryName,
                         new DxAiFunctionInvocationRequest
                         {
-                            Parameters = NormalizeArguments(call.Function.Arguments),
+                            Parameters = arguments,
                             AutomaticInvocation = true,
                             UserConfirmed = false,
                             RequestedBy = $"Ollama:{model}",

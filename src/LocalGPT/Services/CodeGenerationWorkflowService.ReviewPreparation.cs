@@ -194,6 +194,8 @@ namespace LocalGPT.Services
                 throw new ArgumentException("A concrete generation goal is required.", nameof(request));
             if (request.Files.Count == 0 && request.CodeDomTypes.Count == 0 && request.Outputs.Count == 0)
                 throw new ArgumentException("The generation request needs reviewed files, CodeDOM types, or a concrete output target. LocalGPT could not infer one from the current database-backed code-generation regex catalog.", nameof(request));
+            if (request.CodeDomTypes.Count > 0 && !request.Files.Any(file => !string.IsNullOrWhiteSpace(file.Content)))
+                throw new ArgumentException("codeDomTypes only emit a one-method string stub (an interface or service declared there becomes a sealed class whose method returns its own return-type name). Resend codegen.review.create with files[] where each entry has relativePath and the COMPLETE source text in content, including the .csproj, Program.cs and every type; keep codeDomTypes empty.", nameof(request));
             foreach (var file in request.Files)
                 _ = NormalizeRelativePath(file.RelativePath);
             foreach (var type in request.CodeDomTypes)

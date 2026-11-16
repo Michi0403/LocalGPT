@@ -136,6 +136,10 @@ $appProperties = @(
 if ($UseWireProtocolPackage) { $appProperties += "-p:RestorePackagesPath=$packageRestoreCache" }
 Write-Host "Restoring and building LocalGPT..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $appProperties) -FailureMessage "LocalGPT application restore failed."
+# The application build skips project references for speed, so the small plugin-contract library must be built first;
+# otherwise a clean or partially cleaned obj folder fails with CS0006 (missing ref\LocalGPT.PluginContracts.dll).
+$pluginContractsProject = Join-Path $solutionRoot "LocalGPT.PluginContracts/LocalGPT.PluginContracts.csproj"
+Invoke-DotNet -Arguments @("build", $pluginContractsProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1") -FailureMessage "LocalGPT plugin contracts build failed."
 Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false", "-p:SeedLocalGptGitHubPagesSnapshotOnBuild=false") + $appProperties) -FailureMessage "LocalGPT application build failed."
 
 Write-Host "Restoring and building the installer..." -ForegroundColor Cyan
