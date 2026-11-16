@@ -23,7 +23,7 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
         _logger = logger;
         try
         {
-            DefaultMaxOutputTokens = new SystemVariableDefinition<int>("DefaultMaxOutputTokens", 262144);
+            DefaultMaxOutputTokens = new SystemVariableDefinition<int>("DefaultMaxOutputTokens", 16384);
             DefaultMaxPromptCharacters = new SystemVariableDefinition<int>("DefaultMaxPromptCharacters", int.MaxValue);
             MaxBootstrapCharacters = new SystemVariableDefinition<int>("MaxBootstrapCharacters", 6000);
             DefaultMaxParallelModels = new SystemVariableDefinition<int>("DefaultMaxParallelModels", 1);
@@ -31,7 +31,7 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
             DefaultCouncilResourceLoadPercent = new SystemVariableDefinition<int>("DefaultCouncilResourceLoadPercent", 100);
             DefaultCouncilCritiqueRounds = new SystemVariableDefinition<int>("DefaultCouncilCritiqueRounds", 1);
             MinContextTokens = new SystemVariableDefinition<int>("MinContextTokens", 2048);
-            DefaultContextTokens = new SystemVariableDefinition<int>("DefaultContextTokens", 262144);
+            DefaultContextTokens = new SystemVariableDefinition<int>("DefaultContextTokens", 32768);
             MaxContextTokens = new SystemVariableDefinition<int>("MaxContextTokens", 262144);
             MinOutputTokens = new SystemVariableDefinition<int>("MinOutputTokens", 64);
             MaxOutputTokens = new SystemVariableDefinition<int>("MaxOutputTokens", 262144);
@@ -44,6 +44,7 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
             CouncilDxMaximumParameterCharacters = new SystemVariableDefinition<int>("CouncilDxMaximumParameterCharacters", 24000);
             CouncilDxMaximumResultCharacters = new SystemVariableDefinition<int>("CouncilDxMaximumResultCharacters", 1100000);
             FirstRunOnboardingCompleted = new SystemVariableDefinition<bool>("FirstRunOnboardingCompleted", false);
+            LastChatProviderSession = new SystemVariableDefinition<string>("LastChatProviderSession", string.Empty);
             LegacyCouncilResourceLoadPercent = 30;
             InitialValues =
             [
@@ -67,7 +68,8 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
                 ToInitialVariable(CouncilDxMaximumCallsPerStep),
                 ToInitialVariable(CouncilDxMaximumParameterCharacters),
                 ToInitialVariable(CouncilDxMaximumResultCharacters),
-                ToInitialVariable(FirstRunOnboardingCompleted)
+                ToInitialVariable(FirstRunOnboardingCompleted),
+                ToInitialVariable(LastChatProviderSession)
             ];
             _logger.LogInformation($"Initialized {InitialValues.Count} LocalGPT system-variable definitions and seed defaults.");
         }
@@ -183,6 +185,9 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
     /// </summary>
     /// <value>The first run onboarding completed value exposed by <see cref="SystemVariableDefinitionService"/>.</value>
     public SystemVariableDefinition<bool> FirstRunOnboardingCompleted { get; }
+    /// <summary>Gets the provider session the owner last chose in Chat, restored on the next visit instead of the first configured session.</summary>
+    /// <value>The provider session name, or empty for the configured order.</value>
+    public SystemVariableDefinition<string> LastChatProviderSession { get; }
     /// <summary>
     /// Gets the legacy council resource load percent value that forms part of the system variable definition state consumed or produced by the surrounding workflow.
     /// </summary>

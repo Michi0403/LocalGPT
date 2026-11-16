@@ -121,6 +121,9 @@ public interface ISystemVariableDefinitionService
     /// </summary>
     /// <value>The first run onboarding completed value exposed by <see cref="ISystemVariableDefinitionService"/>.</value>
     SystemVariableDefinition<bool> FirstRunOnboardingCompleted { get; }
+    /// <summary>Gets the provider session the owner last chose in Chat.</summary>
+    /// <value>The provider session name, or empty for the configured order.</value>
+    SystemVariableDefinition<string> LastChatProviderSession { get; }
     /// <summary>Gets the former hard-coded Council resource-load percentage for migration diagnostics.</summary>
     /// <value>The legacy council resource load percent value exposed by <see cref="ISystemVariableDefinitionService"/>.</value>
     int LegacyCouncilResourceLoadPercent { get; }

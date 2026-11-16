@@ -501,6 +501,8 @@ namespace LocalGPT.Components.Pages
                 return;
 
             hasUserSelectedSession = true;
+            if (string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName))
+                await VariableStore.SetAsync(SystemVariables.LastChatProviderSession.Name, value.Name);
 
             if (!string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName) &&
                 ! (MatchesRequestedDiagnosticSession(value, DiagnosticRequestedSessionName) ?? false))

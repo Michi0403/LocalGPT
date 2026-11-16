@@ -65,7 +65,7 @@
 
     <details class="benchmark-reviewer-picker">
         <summary>Benchmark Council reviewer pool (@SelectedReviewerCount selected)</summary>
-        <p>Provider-qualified reviewers are independent from benchmark targets. gpt-oss:20b is preferred by default when available; deepscaler/tiny models are not preferred unless you select them.</p>
+        <p>Provider-qualified reviewers are independent from benchmark targets. Reviewers follow your ordered Preferred Council models (Data Management); other models rank after them.</p>
         <div class="benchmark-reviewer-grid">
             @foreach (var reviewer in Models.OrderBy(ReviewerPolicy.GetPriority).ThenBy(model => model.DisplayName, StringComparer.OrdinalIgnoreCase))
             {

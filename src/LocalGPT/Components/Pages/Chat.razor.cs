@@ -1855,6 +1855,19 @@ namespace LocalGPT.Components.Pages
             SystemVariables.DefaultCouncilCritiqueRounds,
             value => CouncilCritiqueRounds = Math.Clamp(value, 0, 3)).ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<string>(
+            SystemVariables.LastChatProviderSession,
+            value =>
+            {
+                // Restore the provider the owner chose last time instead of the first configured session.
+                if (string.IsNullOrWhiteSpace(value) || hasUserSelectedSession || ChatClientProvider is null ||
+                    !string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName))
+                    return;
+                var remembered = ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
+                    string.Equals(session.Name, value, StringComparison.OrdinalIgnoreCase));
+                if (remembered is not null)
+                    ChatClientProvider.SelectedSession = remembered;
+            }).ConfigureAwait(false);
+        await TryApplyDatabaseVariableAsync<string>(
             SystemVariables.DefaultOllamaEndpoint,
             value => OllamaEndpoint = string.IsNullOrWhiteSpace(value)
                 ? Catalog.DefaultOllamaEndpoint
