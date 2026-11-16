@@ -188,6 +188,7 @@ namespace LocalGPT.Services
                 messages.Add(new ChatMessage(ChatRole.User, $"""
                 Your previous {phase} response for LocalGPT produced provider thinking/status but no substantive user-visible final answer.
                 {taskSection}{partialSection}Preserve normal provider-supplied thinking/self-correction if your runtime emits it, and use an exact registered DXFunction only when genuinely needed. LocalGPT keeps provider thinking and tool activity visibly separated from the final answer.
+                If this step's job is to call a registered DXFunction (for example codegen.review.create with the files you already prepared), do not describe or plan the call: put the exact <localgpt-dx-call> tag with the complete JSON parameters (every file with its full content) directly after "Final answer:". LocalGPT executes it.
                 Focus on finishing this task rather than restarting the analysis from scratch. Deliver the requested result itself; do not describe LocalGPT, the Council or your readiness instead. Keep thinking short. You must emit a substantive final visible answer now in concise Markdown.
                 Start the visible answer with: Final answer:
                 """));
