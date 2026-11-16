@@ -210,6 +210,9 @@ public sealed class GoalExecutionCheckpoint
     public int MaxOutputTokens { get; set; } = 1024;
     /// <summary>Caller-configured context token limit.</summary><value>Context limit.</value>
     public int MaxContextTokens { get; set; } = 4096;
+    /// <summary>Per-model hardware roads chosen by the user, restored so subgoals keep their token ceilings.</summary>
+    /// <value>Provider-qualified model routes.</value>
+    public List<OneWireCouncilModelRoute> ModelRoutes { get; set; } = [];
     /// <summary>Caller-configured concurrent model limit.</summary><value>Concurrency limit.</value>
     public int MaxParallelModels { get; set; } = 1;
     /// <summary>Caller-configured model timeout seconds.</summary><value>Timeout setting.</value>

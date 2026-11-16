@@ -149,6 +149,12 @@ public sealed class OneWireOptions
     /// <value>The discovery port value exposed by <see cref="OneWireOptions"/>.</value>
     public int DiscoveryPort { get; set; } = OneWireProtocol.DefaultDiscoveryPort;
     /// <summary>
+    /// Gets or sets how many seconds the 1-Wire TCP listener waits before retrying a bind that failed, for example
+    /// because Windows temporarily reserved the port in a Hyper-V/WSL excluded port range. 0 disables retries.
+    /// </summary>
+    /// <value>Retry delay in seconds, configured as OneWire:ListenRetrySeconds.</value>
+    public int ListenRetrySeconds { get; set; } = 15;
+    /// <summary>
     /// Gets or sets the broadcast address that identifies the network or application endpoint associated with this one wire state.
     /// </summary>
     /// <value>The broadcast address value exposed by <see cref="OneWireOptions"/>.</value>

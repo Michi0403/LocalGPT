@@ -50,8 +50,30 @@ public sealed class OneWireTcpHostedService(
         try
         {
             var listenAddress = listenAddressResolver.Resolve(options.Value);
-            listener = new TcpListener(listenAddress, Program.OneWirePort);
-            listener.Start();
+            // Windows can reserve 51140 inside a dynamic Hyper-V/WSL excluded range (SocketError.AccessDenied, 10013)
+            // until the next reboot or until the range moves. Keep retrying instead of silently leaving 1-Wire dead.
+            while (true)
+            {
+                try
+                {
+                    listener = new TcpListener(listenAddress, Program.OneWirePort);
+                    listener.Start();
+                    break;
+                }
+                catch (SocketException bindException) when (!stoppingToken.IsCancellationRequested && options.Value.ListenRetrySeconds > 0)
+                {
+                    listener?.Stop();
+                    listener = null;
+                    var cause = bindException.SocketErrorCode == SocketError.AccessDenied
+                        ? "Windows reserved this port (check 'netsh int ipv4 show excludedportrange protocol=tcp'; WSL/Hyper-V ranges move after reboot) or change OneWire:ServicePort"
+                        : bindException.SocketErrorCode == SocketError.AddressAlreadyInUse
+                            ? "another process (or a second LocalGPT instance) already listens on this port"
+                            : bindException.SocketErrorCode.ToString();
+                    logger.LogError(bindException, "The 1-Wire TCP listener could not bind to {Address}:{Port}: {Cause}. Retrying in {Seconds}s (OneWire:ListenRetrySeconds).",
+                        listenAddress, Program.OneWirePort, cause, options.Value.ListenRetrySeconds);
+                    await Task.Delay(TimeSpan.FromSeconds(options.Value.ListenRetrySeconds), stoppingToken).ConfigureAwait(false);
+                }
+            }
             logger.LogInformation("LocalGPT 1-Wire service listening on {Address}:{Port}. LAN transport is {LanState}.",
                 listenAddress, Program.OneWirePort, options.Value.EnableLanTransport ? "enabled" : "disabled");
             while (!stoppingToken.IsCancellationRequested)

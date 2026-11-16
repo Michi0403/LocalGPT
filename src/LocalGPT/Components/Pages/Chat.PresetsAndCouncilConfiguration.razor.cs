@@ -729,7 +729,7 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task OnCouncilMaxOutputTokensChangedAsync(int value)
+    private async Task OnCouncilMaxOutputTokensChangedAsync(int value)
     {
         try
         {
@@ -747,10 +747,10 @@ namespace LocalGPT.Components.Pages
             SelectedModelPreset = null;
             SynchronizeSelectedCouncilRoutes();
             SavePreparationConfiguration();
+            // Persist so a reload or a goal restore does not fall back to the seeded maximum.
+            await VariableStore.SetAsync(SystemVariables.DefaultMaxOutputTokens.Name, value);
             modelStatus = $"Future Council sessions will use an output ceiling of {value:N0} tokens.";
         }
-
-        return Task.CompletedTask;
     
         }
         catch (Exception __componentMethodException)
@@ -765,7 +765,7 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private Task OnCouncilMaxContextTokensChangedAsync(int value)
+    private async Task OnCouncilMaxContextTokensChangedAsync(int value)
     {
         try
         {
@@ -781,11 +781,12 @@ namespace LocalGPT.Components.Pages
         {
             CouncilMaxContextTokens = value;
             SelectedModelPreset = null;
+            SynchronizeSelectedCouncilRoutes();
             SavePreparationConfiguration();
+            // Persist so a reload or a goal restore does not fall back to the seeded maximum.
+            await VariableStore.SetAsync(SystemVariables.DefaultContextTokens.Name, value);
             modelStatus = $"Future Council sessions will use a context ceiling of {value:N0} tokens.";
         }
-
-        return Task.CompletedTask;
     
         }
         catch (Exception __componentMethodException)

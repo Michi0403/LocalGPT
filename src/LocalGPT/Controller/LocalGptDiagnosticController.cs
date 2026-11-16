@@ -431,6 +431,8 @@ namespace LocalGPT.Controller
         {
             try
             {
+                // Model-written links often capture a closing quote or bracket (HelloMath.zip%22); trim those before validation.
+                fileName = (fileName ?? string.Empty).Trim().TrimEnd('"', '\'', ')', ']', '>', '.', ',', ';');
                 var safeFileName = Path.GetFileName(fileName);
                 var isSource = councilText.EndsWithText(safeFileName, ".cs");
                 var isRazor = councilText.EndsWithText(safeFileName, ".razor");
@@ -442,7 +444,7 @@ namespace LocalGPT.Controller
 
                 var path = Path.Combine(artifacts.ArtifactRoot, safeFileName);
                 if (!System.IO.File.Exists(path))
-                    return Results.NotFound();
+                    return Results.NotFound($"Council artifact '{safeFileName}' does not exist. It was never produced (no approved codegen.review.execute / artifact ZIP ran), or the link was written by a model without a real artifact.");
 
                 HttpContext.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{safeFileName}\"";
                 HttpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";

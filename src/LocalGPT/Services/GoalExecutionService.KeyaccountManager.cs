@@ -31,15 +31,23 @@ public sealed partial class GoalExecutionService
             // blank inherits one of its explicit provider selections. Never auto-switch a
             // deliberately configured reviewer to an unrelated provider.
             var reviewerKey = runtimePolicy.GetString("GoalKeyaccountReviewerModelKey")?.Trim();
-            var selected = choices.FirstOrDefault(candidate => candidate.IsConfigured &&
+            // Blank reviewer = a model the run actually used. Installed-but-unslotted Ollama models are
+            // IsConfigured=false yet usable by Council, so only an explicit reviewer key requires IsConfigured.
+            var identity = new ProviderModelIdentity();
+            var usedKeys = result.ModelSelections.Select(model => model.SelectionKey)
+                .Concat(checkpoint.ModelSelectionKeys)
+                .Where(key => !string.IsNullOrWhiteSpace(key)).ToList();
+            var selected = choices.FirstOrDefault(candidate =>
                 (candidate.IsInstalled || !candidate.IsLocal) &&
                 (string.IsNullOrWhiteSpace(reviewerKey)
-                    ? checkpoint.ModelSelectionKeys.Any(key =>
-                        string.Equals(key, candidate.SelectionKey, StringComparison.OrdinalIgnoreCase) ||
+                    ? usedKeys.Any(key => identity.IsEquivalentCandidate(key, candidate) ||
                         string.Equals(key, candidate.ModelName, StringComparison.OrdinalIgnoreCase))
-                    : string.Equals(reviewerKey, candidate.SelectionKey, StringComparison.OrdinalIgnoreCase)));
+                    : candidate.IsConfigured &&
+                      string.Equals(reviewerKey, candidate.SelectionKey, StringComparison.OrdinalIgnoreCase)));
             if (selected is null)
             {
+                logger.LogWarning("Keyaccount review for Council run {RunId} found no reviewer among {CandidateCount} candidates; reviewer setting '{ReviewerKey}', used models: {UsedKeys}.",
+                    result.RunId, choices.Count, reviewerKey, string.Join("; ", usedKeys));
                 review.NeedsHumanReview = true;
                 review.Reason = "Configured Keyaccount reviewer or selected Council model is unavailable";
                 return review;

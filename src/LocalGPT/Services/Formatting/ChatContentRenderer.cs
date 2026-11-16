@@ -300,6 +300,8 @@ public sealed class ChatContentRenderer(
             var text = SanitizeInvalidUnicode(content);
             text = DecodeHumanTextEntities(text);
             text = DecodeFencedCodeEntities(text);
+            text = CloseFenceBeforeLocalPanels(text);
+            text = StripModelControlMarkup(text);
             // Self-assessment envelopes are tiny machine-readable islands even inside very large Council
             // transcripts. Normalize them before generic Markdown so URLs cannot corrupt JSON and encoded
             // tags/entities do not leak into the visible chat as \uXXXX or &amp; artifacts.
@@ -409,6 +411,93 @@ public sealed class ChatContentRenderer(
         throw;
     }
 }
+
+    /// <summary>
+    /// Closes a model fence left open when a LocalGPT-owned trace panel follows it, so the panel is not swallowed as code.
+    /// Council snapshots (stream ids) are isolated per stream elsewhere and are left unchanged.
+    /// </summary>
+    /// <param name="text">Normalized chat snapshot.</param>
+    /// <returns>The snapshot with a closing fence inserted before such a panel.</returns>
+    private string CloseFenceBeforeLocalPanels(string text)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text) || text.Contains("data-localgpt-stream-id=", StringComparison.OrdinalIgnoreCase))
+                return text;
+            var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+            var builder = new StringBuilder(text.Length + 8);
+            string? fence = null;
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                var trimmed = line.TrimStart();
+                if (fence is null)
+                    fence = trimmed.StartsWith("```", StringComparison.Ordinal) ? "```" : trimmed.StartsWith("~~~", StringComparison.Ordinal) ? "~~~" : null;
+                else if (trimmed.StartsWith(fence, StringComparison.Ordinal))
+                    fence = null;
+                else if (trimmed.StartsWith("<details class=\"council-step", StringComparison.Ordinal) ||
+                         trimmed.StartsWith("<details class=\"model-thinking", StringComparison.Ordinal))
+                {
+                    builder.Append(fence).Append("\n\n");
+                    fence = null;
+                }
+                if (i > 0) builder.Append('\n');
+                builder.Append(line);
+            }
+            return builder.ToString();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Closing an open fence before a LocalGPT panel failed; the original snapshot is kept.");
+            return text;
+        }
+    }
+
+    /// <summary>Removes explicit DX call markup and placeholder tokens (raw or HTML-encoded) outside fenced code.</summary>
+    /// <param name="text">Normalized chat snapshot.</param>
+    /// <returns>The snapshot without model control markup; unchanged when the runtime patterns are not loaded.</returns>
+    private string StripModelControlMarkup(string text)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text) || text.Contains("data-localgpt-stream-id=", StringComparison.OrdinalIgnoreCase))
+                return text;
+            var dxCall = runtimePolicy.GetPattern("runtime.render.dx-call-markup");
+            var placeholder = runtimePolicy.GetPattern("runtime.render.placeholder-token");
+            var result = new StringBuilder(text.Length);
+            var outside = new StringBuilder();
+            void Flush()
+            {
+                if (outside.Length == 0) return;
+                result.Append(placeholder.Replace(dxCall.Replace(outside.ToString(), string.Empty), string.Empty));
+                outside.Clear();
+            }
+            string? fence = null;
+            foreach (var line in text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+            {
+                var trimmed = line.TrimStart();
+                if (fence is null && (trimmed.StartsWith("```", StringComparison.Ordinal) || trimmed.StartsWith("~~~", StringComparison.Ordinal)))
+                {
+                    Flush();
+                    fence = trimmed[..3];
+                    result.Append(line).Append('\n');
+                }
+                else if (fence is not null)
+                {
+                    result.Append(line).Append('\n');
+                    if (trimmed.StartsWith(fence, StringComparison.Ordinal)) fence = null;
+                }
+                else outside.Append(line).Append('\n');
+            }
+            Flush();
+            return result.ToString().TrimEnd('\n');
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Stripping model control markup failed; the original snapshot is kept.");
+            return text;
+        }
+    }
 
     /// <summary>
     /// Repairs conservative, display-only spacing omissions in prose without applying spacing edits inside fenced code, inline code or raw HTML lines.

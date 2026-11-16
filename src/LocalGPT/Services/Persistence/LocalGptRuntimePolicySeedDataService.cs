@@ -1072,6 +1072,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                     new("runtime.render.stream-id-attribute", "data-localgpt-stream-id=\\\"(?<id>[a-f0-9]{32})\\\"", "i,c,compiled"),
                     new("runtime.render.pre-start", @"<pre(?:\s[^>]*)?>", "i,c,compiled"),
                     new("runtime.render.pre-end", @"</pre>", "i,c,compiled"),
+                    new("runtime.render.dx-call-markup", @"(?:<|&lt;)localgpt-dx-call(?:>|&gt;).*?(?:(?:<|&lt;)/localgpt-dx-call(?:>|&gt;)|$)", "i,s,c,compiled"),
+                    new("runtime.render.placeholder-token", @"(?:<|&lt;)unused\d+(?:>|&gt;)", "i,c,compiled"),
                     new("builtin.toolchain-knowledge-block", @"(?s)```localgpt-toolchain\s*(?<json>\{.*?\})\s*```", "s,c"),
                     new("builtin.toolchain-version-token", @"(?i)(?<![A-Za-z0-9])(?:version\s*)?(?<version>\d+(?:\.\d+){0,4}(?:[-+][A-Za-z0-9._-]+)?)(?![A-Za-z0-9])", "i,c"),
                     new("builtin.toolchain-version-token-v2", @"(?i)(?<![A-Za-z0-9])(?:(?:version\s*)|v)?(?<version>\d+(?:\.\d+){0,4}(?:[-+][A-Za-z0-9._-]+)?)(?![A-Za-z0-9])", "i,c"),

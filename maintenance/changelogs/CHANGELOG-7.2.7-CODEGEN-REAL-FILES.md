@@ -13,3 +13,8 @@ In /chat with team program-compiler-team (gemma4:26b), ask for a small .NET 10 c
 ## Also in 7.2.7
 - gpt-oss tool calls arrived with the envelope as tool name (`localgpt-dx-call`, `assistant`) and failed as "not registered". Ollama tool calls are now unwrapped to the inner `functionName`/`parameters` (allow-list still applies).
 - Build-LocalDevelopment.ps1 builds LocalGPT.PluginContracts before the app (fixed CS0006 on a cleaned obj folder).
+- 1-Wire listener: a failed bind (10013 = Windows excluded port range, 10048 = port in use) now retries every OneWire:ListenRetrySeconds and logs the cause instead of leaving 1-Wire silently dead. This was the "connection refused" PublisherStudio saw on 15 Nov.
+- Keyaccount reviewer: blank reviewer now uses the model the run actually used (endpoint-equivalent match, no IsConfigured requirement); the warning log names the keys when nothing matches.
+- Token settings: Council answer/context token changes are saved to DefaultMaxOutputTokens/DefaultContextTokens, context changes sync per-model routes, and goal checkpoints keep ModelRoutes, so restarts and subgoals no longer fall back to 262,144.
+- Single-AI chat rendering: an open model code fence is closed before LocalGPT trace panels, and raw or encoded <localgpt-dx-call>/<unusedNN> markup is stripped outside code (patterns runtime.render.dx-call-markup / placeholder-token).
+- /__artifacts/council/: trailing quote/bracket characters in model links are trimmed; a missing artifact returns a clear message instead of an empty 404.
