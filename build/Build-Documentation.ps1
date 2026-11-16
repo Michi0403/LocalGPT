@@ -157,6 +157,13 @@ $browserPdfTimeoutExplicit = [int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_
 if ($browserPdfTimeoutExplicit) {
     $browserPdfTimeoutMilliseconds = $configuredBrowserTimeout
 }
+# A detached Edge helper can keep the redirected stdout/stderr pipes open after the PDF is complete (seen on the
+# MacBook Neo). Diagnostic output is drained only for this long; PDF validation stays authoritative.
+$browserDiagnosticDrainMilliseconds = 15000
+$configuredDiagnosticDrain = 0
+if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_DIAGNOSTIC_DRAIN_MS, [ref]$configuredDiagnosticDrain) -and $configuredDiagnosticDrain -gt 0) {
+    $browserDiagnosticDrainMilliseconds = $configuredDiagnosticDrain
+}
 function Get-LocalGptDocumentationSystemMemoryBytes {
     $configuredBytes = 0L
     if ([long]::TryParse([string]$env:FUTURE2_DOCUMENTATION_SYSTEM_MEMORY_BYTES, [ref]$configuredBytes) -and $configuredBytes -gt 0) {
@@ -2381,8 +2388,16 @@ function Invoke-LocalGptBrowserPdf {
                 }
                 Stop-LocalGptDocumentationBrowserProfileProcesses -ProfileRoot $profileRoot
                 $output = @()
-                try { $output += @(([string]$stdoutTask.Result -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } catch { }
-                try { $output += @(([string]$stderrTask.Result -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } catch { }
+                foreach ($drainTask in @($stdoutTask, $stderrTask)) {
+                    try {
+                        if ($drainTask.Wait($browserDiagnosticDrainMilliseconds)) {
+                            $output += @(([string]$drainTask.Result -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+                        }
+                        else {
+                            $diagnostics.Add("Browser diagnostic output was still held open by a detached helper after $browserDiagnosticDrainMilliseconds ms; continuing with PDF validation (FUTURE2_DOCUMENTATION_BROWSER_DIAGNOSTIC_DRAIN_MS).")
+                        }
+                    } catch { }
+                }
                 $process.Dispose()
                 foreach ($line in $output) {
                     $safeLine = [regex]::Replace([string]$line, '(?i)\berror\s*:', 'diagnostic:')

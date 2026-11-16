@@ -40,13 +40,25 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(sourceStep);
-        if (string.IsNullOrWhiteSpace(sourceStep.VisibleContent))
+        if (string.IsNullOrWhiteSpace(sourceStep.VisibleContent) && string.IsNullOrWhiteSpace(sourceStep.Thinking))
             return [];
 
         try
         {
             var policy = await policies.GetPolicyAsync(cancellationToken).ConfigureAwait(false);
-            var matches = patterns.CouncilDxFunctionCallPattern.Matches(sourceStep.VisibleContent);
+            IReadOnlyList<Match> matches = patterns.CouncilDxFunctionCallPattern.Matches(sourceStep.VisibleContent ?? string.Empty).ToList();
+            if (matches.Count == 0 && !string.IsNullOrWhiteSpace(sourceStep.Thinking))
+            {
+                // gemma4:26b repeatedly wrote its complete call tag only into the thinking channel. Use the last complete
+                // call from thinking (its final intent, not earlier drafts); registry policy and approvals still apply.
+                var thinkingMatches = patterns.CouncilDxFunctionCallPattern.Matches(sourceStep.Thinking);
+                if (thinkingMatches.Count > 0)
+                {
+                    matches = [thinkingMatches[^1]];
+                    logger.LogInformation("Council step {Phase} by {Model} wrote its DX call only in thinking; LocalGPT routes the last complete call through the normal function policy.",
+                        sourceStep.Phase, sourceStep.ModelName);
+                }
+            }
             if (matches.Count == 0)
                 return [];
 
