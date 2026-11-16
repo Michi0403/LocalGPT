@@ -118,6 +118,14 @@ namespace LocalGPT.Services
                             xRoundCause: nextXRoundCause,
                             suppressOrganicFunctions: nextExecutionIsReconsideration,
                             cancellationToken: cancellationToken).ConfigureAwait(false);
+                        if (ShouldYieldCouncilPreflightToGoalExecution(result))
+                        {
+                            var notice = "Configuration Steward / GoalExecution AI: Council yielded a request-size preflight failure before inference. " +
+                                "GoalExecution can now plan a smaller verified task or a measured-context retry.";
+                            request.ProgressMessage?.Invoke(notice);
+                            request.StreamUpdate?.Invoke("<p class=\"localgpt-stream-status\">" + notice + "</p>\n\n");
+                            return notice;
+                        }
                         nextExecutionIsReconsideration = false;
                         nextXRoundCause = string.Empty;
 
@@ -176,6 +184,14 @@ namespace LocalGPT.Services
                                         loopMaximumIterations: 1, workflowRevision: nextRevision,
                                         xRoundCause: firstStep.WorkspaceFileReadRecoveryPromptTemplate,
                                         suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                                    if (ShouldYieldCouncilPreflightToGoalExecution(result))
+                                    {
+                                        var notice = "Configuration Steward / GoalExecution AI: Council yielded a request-size preflight failure before inference. " +
+                                            "GoalExecution can now plan a smaller verified task or a measured-context retry.";
+                                        request.ProgressMessage?.Invoke(notice);
+                                        request.StreamUpdate?.Invoke("<p class=\"localgpt-stream-status\">" + notice + "</p>\n\n");
+                                        return notice;
+                                    }
                                     // The recovery service read these exact pages and supplied their
                                     // content to this completed model turn. Record server-origin page
                                     // receipts only after a real Council response, never on curator
@@ -338,6 +354,14 @@ namespace LocalGPT.Services
                                 nextXRoundCause,
                                 nextExecutionIsReconsideration,
                                 cancellationToken).ConfigureAwait(false);
+                            if (ShouldYieldCouncilPreflightToGoalExecution(result))
+                            {
+                                var notice = "Configuration Steward / GoalExecution AI: Council yielded a request-size preflight failure before inference. " +
+                                    "GoalExecution can now plan a smaller verified task or a measured-context retry.";
+                                request.ProgressMessage?.Invoke(notice);
+                                request.StreamUpdate?.Invoke("<p class=\"localgpt-stream-status\">" + notice + "</p>\n\n");
+                                return notice;
+                            }
                             nextExecutionIsReconsideration = false;
                             nextXRoundCause = string.Empty;
 
@@ -473,6 +497,14 @@ namespace LocalGPT.Services
                                 loopMaximumIterations: 1, workflowRevision: revision,
                                 xRoundCause: rule.RecoveryPromptTemplate,
                                 suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                            if (ShouldYieldCouncilPreflightToGoalExecution(result))
+                            {
+                                var notice = "Configuration Steward / GoalExecution AI: Council yielded a request-size preflight failure before inference. " +
+                                    "GoalExecution can now plan a smaller verified task or a measured-context retry.";
+                                request.ProgressMessage?.Invoke(notice);
+                                request.StreamUpdate?.Invoke("<p class=\"localgpt-stream-status\">" + notice + "</p>\n\n");
+                                return notice;
+                            }
                             recoveredCompletion = true;
                         }
                         if (!HasVerifiedCouncilFunctionResult(result, rule.FunctionName))
@@ -502,6 +534,14 @@ namespace LocalGPT.Services
                             loopMaximumIterations: 1, workflowRevision: revision,
                             xRoundCause: team.CompletionRecovery.FinalReviewPromptTemplate,
                             suppressOrganicFunctions: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        if (ShouldYieldCouncilPreflightToGoalExecution(result))
+                        {
+                            var notice = "Configuration Steward / GoalExecution AI: Council yielded a request-size preflight failure before inference. " +
+                                "GoalExecution can now plan a smaller verified task or a measured-context retry.";
+                            request.ProgressMessage?.Invoke(notice);
+                            request.StreamUpdate?.Invoke("<p class=\"localgpt-stream-status\">" + notice + "</p>\n\n");
+                            return notice;
+                        }
                     }
                 }
 
@@ -1010,6 +1050,38 @@ namespace LocalGPT.Services
             {
                 logger.LogError(ex, "Council run {RunId} failed while waiting for X-Round human approval.", result.RunId);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Let the owning GoalExecutionService regain control on a deterministic provider
+        /// preflight failure. A completed model step or possible external side effect
+        /// prevents automatic replay; the existing receipt/approval workflow remains authoritative.
+        /// </summary>
+        private bool ShouldYieldCouncilPreflightToGoalExecution(MultiModelCouncilResult result)
+        {
+            try
+            {
+                var failed = result.Steps.Any(step =>
+                    !string.IsNullOrWhiteSpace(step.Error) &&
+                    step.Error.Contains("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase));
+                if (!failed || result.Artifacts.Count > 0)
+                    return false;
+                // A genuine participating model result, not a health/preflight notice,
+                // must never be discarded just to satisfy a context estimator.
+                var usefulWork = result.Steps.Any(step =>
+                    string.IsNullOrWhiteSpace(step.Error) &&
+                    !step.ModelName.StartsWith("LocalGPT:", StringComparison.OrdinalIgnoreCase) &&
+                    !step.ModelName.StartsWith("Human:", StringComparison.OrdinalIgnoreCase) &&
+                    (!string.IsNullOrWhiteSpace(step.VisibleContent) ||
+                     !string.IsNullOrWhiteSpace(step.Content)));
+                return !usefulWork;
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception,
+                    "Council run {RunId} could not classify safe preflight handoff; preserving ordinary execution.", result.RunId);
+                return false;
             }
         }
 

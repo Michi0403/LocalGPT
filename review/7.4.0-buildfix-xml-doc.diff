@@ -1,0 +1,23 @@
+--- a/src/LocalGPT/Services/ConfigurationSteward/ConfigurationStewardService.cs
++++ b/src/LocalGPT/Services/ConfigurationSteward/ConfigurationStewardService.cs
+@@ -18,6 +18,10 @@
+ /// <param name="collaboration">Common LocalGPT approval and collaboration store.</param>
+ /// <param name="vocabulary">Database-owned request kinds and statuses.</param>
+ /// <param name="runtimePolicy">Database-backed steward thresholds.</param>
++/// <param name="hardwareInventory">Read-only local hardware inventory used to assess available system and GPU resources.</param>
++/// <param name="hostHardware">Provider-endpoint hardware profiles, preserving user-confirmed remote and local host facts.</param>
++/// <param name="performancePresets">Existing measured performance profiles used for run-local resource recommendations.</param>
++/// <param name="providerModels">Selected provider-qualified model runtime for optional bounded steward AI advice.</param>
+ /// <param name="ambientContext">Current Council run and actor for the approval request.</param>
+ /// <param name="logger">Logger for steward diagnostics.</param>
+ public sealed class ConfigurationStewardService(
+--- a/src/LocalGPT/Services/GoalExecutionService.cs
++++ b/src/LocalGPT/Services/GoalExecutionService.cs
+@@ -17,6 +17,7 @@
+ /// <param name="providerModels">Bounded planning-only inference with registered model routes.</param>
+ /// <param name="configuration">Live user configuration for preferred Council model selection when no explicit model route is assigned.</param>
+ /// <param name="runtimePolicy">Database-configurable planner instructions and limits.</param>
++/// <param name="configurationSteward">Injected configuration steward providing automatic run-local resource advice without changing approved settings.</param>
+ /// <param name="ledger">Durable step checkpoints and per-goal coordination.</param>
+ /// <param name="aiHelpEscalator">Shared recovery diagnostics for exhausted goal steps.</param>
+ /// <param name="wirePeers">Live advertised 1-Wire peer capabilities.</param>

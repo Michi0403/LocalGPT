@@ -87,7 +87,39 @@ public sealed partial class GoalExecutionService
             if (checkpoint.ReplanCount >= limit)
                 return false;
 
-            // Directly invokes the existing DI-wired goal semantic planner.
+            AnnounceGoalAgent(request, "GoalExecution AI",
+                "Council returned a model preflight failure before inference. Inspecting hardware and delegating corrective work.");
+            var failure = checkpoint.Receipts.LastOrDefault(receipt =>
+                IsGoalContextBudgetError(receipt.FailureSummary))?.FailureSummary;
+            var advice = await configurationSteward.AdviseGoalResourcesAsync(
+                request, failure, cancellationToken).ConfigureAwait(false);
+            AnnounceGoalAgent(request,
+                advice.AiConsulted ? "Configuration Steward AI · Subagent" : "Configuration Steward",
+                advice.Reason);
+            if (!advice.IsManual && advice.RecommendedContextTokens > request.CouncilRequest.MaxContextTokens &&
+                checkpoint.ReplanCount == 0)
+            {
+                // Verified benchmark route, not a guessed memory-to-context ratio.
+                var corrected = checkpoint.Steps[failedIndex];
+                var next = checkpoint.ReplanCount + 1;
+                checkpoint.ReplanCount = next;
+                checkpoint.Steps = checkpoint.Steps.Take(failedIndex).Append(new GoalExecutionPlanStep
+                {
+                    Key = ContextFitStepPrefix + next.ToString(CultureInfo.InvariantCulture),
+                    Objective = corrected.Objective,
+                    TeamKey = corrected.TeamKey
+                }).ToList();
+                request.CouncilRequest.MaxContextTokens = advice.RecommendedContextTokens;
+                request.CouncilRequest.ResourceLoadPercent = 100;
+                await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+                AnnounceGoalAgent(request, "GoalExecution AI",
+                    $"Retrying with measured context {advice.RecommendedContextTokens:N0} and a new Council run identity.");
+                return true;
+            }
+            // The existing semantic planner is the AI subagent: it sees the previous
+            // failure and can produce smaller goals in the permitted saved team catalog.
+            AnnounceGoalAgent(request, "GoalExecution AI · Subagent planner",
+                "Planning smaller work packets using the original goal, registered teams and verified evidence.");
             if (await TryReplanRemainingAsync(request, checkpoint, failedIndex,
                 liveTeams, cancellationToken).ConfigureAwait(false))
             {
@@ -115,6 +147,8 @@ public sealed partial class GoalExecutionService
             checkpoint.ReplanCount = nextReplan;
             checkpoint.Steps = checkpoint.Steps.Take(failedIndex).Append(replacement).ToList();
             await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+            AnnounceGoalAgent(request, "GoalExecution AI · Coding subagent",
+                $"Reissuing a bounded objective to the selected team {previous.TeamKey}; prior failed work remains recorded.");
             logger.LogInformation(
                 "Goal {GoalId} requested a compact continuation in team {Team} (replan {Replan}/{Limit}); " +
                 "the previous failed Council receipt remains immutable.",
@@ -238,4 +272,22 @@ public sealed partial class GoalExecutionService
             return Math.Max(1, checkpoint.MaxOutputTokens);
         }
     }
+    /// <summary>Render observable helper-role messages through the existing Chat/Council spooler callbacks.</summary>
+    private void AnnounceGoalAgent(GoalExecutionRequest request, string role, string message)
+    {
+        try
+        {
+            var safeRole = System.Net.WebUtility.HtmlEncode(role);
+            var safeMessage = System.Net.WebUtility.HtmlEncode(message);
+            request.CouncilRequest.ProgressMessage?.Invoke($"{role}: {message}");
+            request.CouncilRequest.StreamUpdate?.Invoke(
+                $"<p class=\"localgpt-stream-status\"><strong>{safeRole}</strong> · {safeMessage}</p>\n\n");
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Goal {GoalId} helper-role progress could not be published.",
+                request.CouncilRequest.RunId);
+        }
+    }
+
 }

@@ -43,3 +43,18 @@ public sealed class ConfigurationStewardPolicy
     /// <value>Approval risk level.</value>
     public string ApprovalRiskLevel { get; set; } = "High";
 }
+
+/// <summary>A read-only, run-local recommendation; it never rewrites user configuration or grants function approval.</summary>
+public sealed class GoalResourceAdvice
+{
+    /// <summary>Whether the operator selected exact manual settings.</summary>
+    public bool IsManual { get; set; }
+    /// <summary>True only if a registered steward AI returned a valid bounded advisory result.</summary>
+    public bool AiConsulted { get; set; }
+    /// <summary>Measured/verified context capacity recommended for the next attempt; never lower than caller settings.</summary>
+    public int RecommendedContextTokens { get; set; }
+    /// <summary>Whether the available evidence favors smaller AI work packets instead of a larger context.</summary>
+    public bool PreferSubagents { get; set; }
+    /// <summary>Concise hardware or benchmark evidence, not a claim that a model completed a task.</summary>
+    public string Reason { get; set; } = string.Empty;
+}

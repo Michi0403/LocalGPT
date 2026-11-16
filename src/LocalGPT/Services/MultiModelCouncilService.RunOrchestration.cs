@@ -196,7 +196,19 @@ namespace LocalGPT.Services
 
                 request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models per AI host: {maxParallelModels}; participating AI hosts: {participatingAiHostCount}. Preflight checked {preflight.RegexPatternCount} regexes, {preflight.KnowledgeEntryCount} knowledge entries, {preflight.ProjectCount} projects and {preflight.DxFunctionCount} DXFunctions.");
 
-                var roleIsolatedContext = UsesRoleIsolatedContext(organicTeam);
+                // GoalExecution owns task recovery. Its subagent work packet has already
+                // retained the original goal, selected team and durable receipts, so do
+                // not add the complete old chat, knowledge catalog and mandatory preflight
+                // a second time. Tools remain available for targeted source/knowledge reads.
+                var roleIsolatedContext = UsesRoleIsolatedContext(organicTeam) ||
+                    request.GoalRecoveryCompactContext;
+                if (request.GoalRecoveryCompactContext)
+                {
+                    logger.LogInformation("Council {RunId} is executing a compact GoalExecution recovery packet " +
+                        "in saved team {Team}; original user goal and evidence remain durable.",
+                        result.RunId, organicTeam.Key);
+                    request.ProgressMessage?.Invoke("GoalExecution AI · Subagent: compact, evidence-directed Council context active.");
+                }
                 var bootstrap = roleIsolatedContext
                     ? BuildRoleIsolatedBootstrap(organicTeam)
                     : request.IncludeMemory

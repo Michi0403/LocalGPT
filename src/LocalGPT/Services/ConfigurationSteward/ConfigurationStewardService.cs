@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using LocalGPT.WireProtocol;
+using Microsoft.Extensions.AI;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 
@@ -16,6 +18,10 @@ namespace LocalGPT.Services.ConfigurationSteward;
 /// <param name="collaboration">Common LocalGPT approval and collaboration store.</param>
 /// <param name="vocabulary">Database-owned request kinds and statuses.</param>
 /// <param name="runtimePolicy">Database-backed steward thresholds.</param>
+/// <param name="hardwareInventory">Read-only local hardware inventory used to assess available system and GPU resources.</param>
+/// <param name="hostHardware">Provider-endpoint hardware profiles, preserving user-confirmed remote and local host facts.</param>
+/// <param name="performancePresets">Existing measured performance profiles used for run-local resource recommendations.</param>
+/// <param name="providerModels">Selected provider-qualified model runtime for optional bounded steward AI advice.</param>
 /// <param name="ambientContext">Current Council run and actor for the approval request.</param>
 /// <param name="logger">Logger for steward diagnostics.</param>
 public sealed class ConfigurationStewardService(
@@ -24,6 +30,10 @@ public sealed class ConfigurationStewardService(
     IHumanCollaborationService collaboration,
     ILocalGptVocabularyService vocabulary,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    IHardwareInventoryService hardwareInventory,
+    IConfiguredAiHostHardwareService hostHardware,
+    IHardwarePerformancePresetService performancePresets,
+    IProviderModelRuntimeService providerModels,
     IAmbientLocalGptContext ambientContext,
     ILogger<ConfigurationStewardService> logger) : IConfigurationStewardService
 {
@@ -229,6 +239,250 @@ public sealed class ConfigurationStewardService(
 
     /// <summary>Reads the steward policy, falling back to the documented defaults with a warning.</summary>
     /// <returns>The current policy.</returns>
+    /// <summary>
+    /// Recommend an effective context for one GoalExecution attempt. Only measured provider benchmarks
+    /// may raise automatic context; weak RAM/VRAM discovery never fabricates a safe token capacity.
+    /// Small and unknown hosts are served through bounded AI subgoals instead of a hardcoded token wall.
+    /// </summary>
+    public async Task<GoalResourceAdvice> AdviseGoalResourcesAsync(
+        GoalExecutionRequest request, string? contextFailure = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.CouncilRequest);
+        var originalContext = request.CouncilRequest.MaxContextTokens;
+        var advice = new GoalResourceAdvice
+        {
+            RecommendedContextTokens = originalContext,
+            PreferSubagents = true,
+            Reason = "No verified larger-context benchmark; use the existing goal AI and bounded subagent work packets."
+        };
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            advice.IsManual = string.Equals(runtimePolicy.GetString("GoalExecutionResourceMode"),
+                "Manual", StringComparison.OrdinalIgnoreCase);
+            if (advice.IsManual)
+            {
+                advice.PreferSubagents = false;
+                advice.Reason = "Manual run resources are authoritative; GoalExecution will not change their context settings.";
+                return advice;
+            }
+            if (request.CouncilRequest.ModelRoutes.Count > 0)
+            {
+                advice.Reason = "This run has explicit hardware routes; preserve their configured limits and split failed work instead.";
+                return advice;
+            }
+
+            var selected = request.CouncilRequest.ModelSelections
+                .FirstOrDefault(model => model.IsLocal && !string.IsNullOrWhiteSpace(model.Endpoint));
+            var endpoint = selected?.Endpoint ?? string.Empty;
+            var localEndpoint = Uri.TryCreate(endpoint, UriKind.Absolute, out var address) &&
+                (address.IsLoopback || string.Equals(address.Host, "localhost", StringComparison.OrdinalIgnoreCase));
+            long? systemMemory = null;
+            long? dedicatedGpuMemory = null;
+            if (!string.IsNullOrWhiteSpace(endpoint))
+            {
+                var host = await hostHardware.GetForEndpointAsync(endpoint, cancellationToken).ConfigureAwait(false);
+                systemMemory = host?.SystemMemoryBytes;
+                dedicatedGpuMemory = host?.Gpus.Where(gpu => gpu.DedicatedMemoryBytes is > 0)
+                    .Max(gpu => gpu.DedicatedMemoryBytes) ?? null;
+            }
+            if (localEndpoint)
+            {
+                systemMemory ??= await hardwareInventory.GetSystemMemoryBytesAsync(cancellationToken).ConfigureAwait(false);
+                if (dedicatedGpuMemory is null)
+                {
+                    var devices = await hardwareInventory.GetHardwareAsync(cancellationToken).ConfigureAwait(false);
+                    dedicatedGpuMemory = devices.Where(device => device.DedicatedMemoryBytes is > 0)
+                        .Select(device => device.DedicatedMemoryBytes).Max();
+                }
+            }
+
+            // A stored benchmark is a measured per-provider route. No performance profile is
+            // applied or persisted here. Manual presets and another host's measurements do not
+            // grant permission to raise the current model's context.
+            var benchmarks = await performancePresets.GetPresetsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            var measuredContext = 0;
+            foreach (var preset in benchmarks.Where(item => item.SourceRunId.HasValue &&
+                         item.SourceKind.Contains("Benchmark", StringComparison.OrdinalIgnoreCase)))
+            {
+                List<OneWireCouncilModelRoute>? routes;
+                try
+                {
+                    routes = JsonSerializer.Deserialize<List<OneWireCouncilModelRoute>>(preset.ModelRoutesJson);
+                }
+                catch (JsonException exception)
+                {
+                    logger.LogWarning(exception, "Ignoring invalid benchmark route data in preset {PresetId}.", preset.Id);
+                    continue;
+                }
+                foreach (var route in routes ?? [])
+                {
+                    var sameModel = selected is not null &&
+                        (string.Equals(route.ProviderModelName, selected.ModelName, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(route.ModelName, selected.SelectionKey, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(route.ModelName, selected.ModelName, StringComparison.OrdinalIgnoreCase));
+                    if (!sameModel || !string.Equals(route.ProviderEndpoint, selected!.Endpoint, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    measuredContext = Math.Max(measuredContext, route.MaxContextTokens);
+                }
+            }
+            if (measuredContext > originalContext)
+            {
+                advice.RecommendedContextTokens = measuredContext;
+                advice.PreferSubagents = false;
+                advice.Reason = $"Verified benchmark for {selected?.ModelName} on its exact provider host supports " +
+                    $"a context of {measuredContext:N0} tokens; saved settings are untouched.";
+            }
+            else if (!string.IsNullOrWhiteSpace(contextFailure) &&
+                     systemMemory is > 0 && dedicatedGpuMemory is > 0)
+            {
+                var minimumHostGiB = Math.Max(1, runtimePolicy.GetInt("GoalAutoResourceProbeMinimumHostGiB"));
+                var minimumGpuGiB = Math.Max(1, runtimePolicy.GetInt("GoalAutoResourceProbeMinimumGpuGiB"));
+                var unit = 1024L * 1024 * 1024;
+                long required = 0;
+                long reportedMax = 0;
+                foreach (var field in contextFailure.Split(';', StringSplitOptions.TrimEntries))
+                {
+                    if (field.StartsWith("required=", StringComparison.OrdinalIgnoreCase))
+                        long.TryParse(field[9..], System.Globalization.NumberStyles.Integer,
+                            System.Globalization.CultureInfo.InvariantCulture, out required);
+                    else if (field.StartsWith("max=", StringComparison.OrdinalIgnoreCase))
+                        long.TryParse(field[4..], System.Globalization.NumberStyles.Integer,
+                            System.Globalization.CultureInfo.InvariantCulture, out reportedMax);
+                }
+                // One bounded per-run capacity probe on a verified high-resource host.
+                // A model's advertised maximum is necessary, but not evidence of an
+                // affordable KV cache; if this probe fails, GoalExecution decomposes.
+                if (systemMemory.Value >= minimumHostGiB * unit &&
+                    dedicatedGpuMemory.Value >= minimumGpuGiB * unit &&
+                    required > originalContext && reportedMax >= required)
+                {
+                    var policy = runtimePolicy.GetJson<OllamaRequestBudgetPolicy>("OllamaRequestBudgetPolicyJson");
+                    var step = Math.Max(256, policy.ContextGrowthStepTokens);
+                    var target = ((required + step - 1L) / step) * step;
+                    if (target <= reportedMax && target <= int.MaxValue)
+                    {
+                        advice.RecommendedContextTokens = (int)target;
+                        advice.PreferSubagents = false;
+                        advice.Reason = $"Verified host RAM/GPU and model-advertised context permit one " +
+                            $"run-local capacity probe at {target:N0} tokens; " +
+                            "this is not a benchmark guarantee, and failure will delegate to smaller subagents.";
+                    }
+                }
+            }
+            else
+            {
+                var memoryDescription = systemMemory is > 0
+                    ? $"host RAM {systemMemory.Value / 1024d / 1024d / 1024d:F1} GiB"
+                    : "host RAM unknown";
+                var gpuDescription = dedicatedGpuMemory is > 0
+                    ? $", GPU memory {dedicatedGpuMemory.Value / 1024d / 1024d / 1024d:F1} GiB"
+                    : ", GPU allocation unknown";
+                advice.Reason = $"{memoryDescription}{gpuDescription}; no verified larger-context route. " +
+                    "Prefer measured settings and small, goal-directed subagent packets.";
+            }
+            if (!string.IsNullOrWhiteSpace(contextFailure) && advice.PreferSubagents &&
+                bool.TryParse(runtimePolicy.GetString("GoalStewardAiEnabled"), out var stewardAiEnabled) && stewardAiEnabled)
+            {
+                // The steward's AI is a small planning subagent, not a model selector
+                // or a second executor. It cannot override observed hardware or
+                // the goal's existing approval/receipt boundaries.
+                var modelAdvice = await AskStewardAiAsync(request, advice.Reason,
+                    contextFailure, cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(modelAdvice))
+                {
+                    advice.AiConsulted = true;
+                    advice.Reason += " Steward AI subagent: " + modelAdvice;
+                }
+            }
+            logger.LogInformation("Configuration Steward advised goal {GoalId}: context {Context}, decompose {Decompose}, AI consulted {AiConsulted}, {Reason}",
+                request.CouncilRequest.RunId, advice.RecommendedContextTokens,
+                advice.PreferSubagents, advice.AiConsulted, advice.Reason);
+            return advice;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "Configuration Steward could not inspect hardware for goal {GoalId}; saved run settings remain unchanged.",
+                request.CouncilRequest.RunId);
+            advice.Reason = "Hardware/benchmark inspection unavailable; retain the current run and use bounded goal subagents.";
+            return advice;
+        }
+    }
+
+    /// <summary>
+    /// Optional bounded inference by the existing selected model for one recovery
+    /// advisory. The deterministic hardware/approval rules remain authoritative.
+    /// </summary>
+    private async Task<string?> AskStewardAiAsync(GoalExecutionRequest request,
+        string observedHardware, string contextFailure, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var selected = request.CouncilRequest.ModelSelections.FirstOrDefault(model =>
+                model.IsReachable && (model.IsLocal || model.IsConfigured));
+            if (selected is null)
+                return null;
+            var runtime = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
+            var timeoutSeconds = Math.Clamp(runtimePolicy.GetInt("GoalStewardAiTimeoutSeconds"), 5, 120);
+            using var client = providerModels.CreateChatClient(selected,
+                runtime.DefaultSessionKeepAlive,
+                request.CouncilRequest.MaxContextTokens,
+                TimeSpan.FromSeconds(timeoutSeconds),
+                request.CouncilRequest.OllamaNumGpu,
+                enableAutomaticTools: false, throwOnFailure: false);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+            var message = JsonSerializer.Serialize(new
+            {
+                goal = request.GoalText.Length > 1200 ? request.GoalText[..1200] : request.GoalText,
+                model = selected.SelectionKey,
+                configuredContext = request.CouncilRequest.MaxContextTokens,
+                observedHardware,
+                contextFailure = contextFailure.Length > 800 ? contextFailure[..800] : contextFailure,
+                invariant = "Propose a smaller model task; never write, build, execute or approve from this helper."
+            });
+            var answer = await client.GetResponseAsync(
+                [new ChatMessage(ChatRole.System, runtimePolicy.GetString("GoalStewardAiSystemPrompt")),
+                 new ChatMessage(ChatRole.User, message)],
+                new ChatOptions { MaxOutputTokens = 256, Temperature = 0f },
+                timeout.Token).ConfigureAwait(false);
+            var text = answer.Text?.Trim() ?? string.Empty;
+            if (!text.StartsWith('{') || !text.EndsWith('}'))
+                return null;
+            using var document = JsonDocument.Parse(text);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("strategy", out var strategy) ||
+                !string.Equals(strategy.GetString(), "decompose", StringComparison.OrdinalIgnoreCase) ||
+                !root.TryGetProperty("reason", out var reason) || reason.ValueKind != JsonValueKind.String)
+                return null;
+            var advice = reason.GetString()?.Trim();
+            return string.IsNullOrWhiteSpace(advice) ? null
+                : advice[..Math.Min(280, advice.Length)];
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Steward AI advisory timed out; deterministic goal recovery continues.");
+            return null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "Steward AI advisory was unavailable; deterministic hardware advice and GoalExecution AI remain active.");
+            return null;
+        }
+    }
+
     private ConfigurationStewardPolicy ReadPolicy()
     {
         try

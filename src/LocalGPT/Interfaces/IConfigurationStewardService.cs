@@ -23,4 +23,8 @@ public interface IConfigurationStewardService
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The repair outcome.</returns>
     Task<ConfigurationRepairOutcome> RequestRepairAsync(string findingKey, string requestedBy, CancellationToken cancellationToken = default);
+
+    /// <summary>Advises GoalExecution from live host hardware and verified model benchmarks; does not alter saved settings.</summary>
+    Task<GoalResourceAdvice> AdviseGoalResourcesAsync(GoalExecutionRequest request,
+        string? contextFailure = null, CancellationToken cancellationToken = default);
 }

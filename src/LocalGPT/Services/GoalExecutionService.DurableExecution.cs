@@ -195,6 +195,10 @@ public sealed partial class GoalExecutionService
         var originalPrompt = request.CouncilRequest.Prompt;
         var originalTeam = request.CouncilRequest.CouncilTeamKey;
         var originalOutputBudget = request.CouncilRequest.MaxOutputTokens;
+        var originalIncludeMemory = request.CouncilRequest.IncludeMemory;
+        var originalCompactFlag = request.CouncilRequest.GoalRecoveryCompactContext;
+        var originalContextBudget = request.CouncilRequest.MaxContextTokens;
+        var originalLoad = request.CouncilRequest.ResourceLoadPercent;
         try
         {
             for (var stepIndex = 0; stepIndex < checkpoint.Steps.Count; stepIndex++)
@@ -257,6 +261,16 @@ public sealed partial class GoalExecutionService
                 request.CouncilRequest.MaxOutputTokens = recoveryStep
                     ? FitGoalRecoveryOutputBudget(checkpoint)
                     : originalOutputBudget;
+                request.CouncilRequest.GoalRecoveryCompactContext = recoveryStep;
+                if (recoveryStep &&
+                    !string.Equals(runtimePolicy.GetString("GoalExecutionResourceMode"), "Manual", StringComparison.OrdinalIgnoreCase))
+                {
+                    // The full history remains durable. Only this recovered inference
+                    // excludes unrelated memory to make space for registered DX tools.
+                    request.CouncilRequest.IncludeMemory = false;
+                    AnnounceGoalAgent(request, "GoalExecution AI · Context steward",
+                        "Sending a bounded recovery work packet without replaying the old chat memory.");
+                }
                 await gameBootstrap.EnsureSessionAsync(request.CouncilRequest, cancellationToken).ConfigureAwait(false);
                 MultiModelCouncilResult councilResult;
                 try
@@ -489,6 +503,10 @@ public sealed partial class GoalExecutionService
             request.CouncilRequest.Prompt = originalPrompt;
             request.CouncilRequest.CouncilTeamKey = originalTeam;
             request.CouncilRequest.MaxOutputTokens = originalOutputBudget;
+            request.CouncilRequest.IncludeMemory = originalIncludeMemory;
+            request.CouncilRequest.GoalRecoveryCompactContext = originalCompactFlag;
+            request.CouncilRequest.MaxContextTokens = originalContextBudget;
+            request.CouncilRequest.ResourceLoadPercent = originalLoad;
         }
     }
 

@@ -17,6 +17,7 @@ namespace LocalGPT.Services;
 /// <param name="providerModels">Bounded planning-only inference with registered model routes.</param>
 /// <param name="configuration">Live user configuration for preferred Council model selection when no explicit model route is assigned.</param>
 /// <param name="runtimePolicy">Database-configurable planner instructions and limits.</param>
+/// <param name="configurationSteward">Injected configuration steward providing automatic run-local resource advice without changing approved settings.</param>
 /// <param name="ledger">Durable step checkpoints and per-goal coordination.</param>
 /// <param name="aiHelpEscalator">Shared recovery diagnostics for exhausted goal steps.</param>
 /// <param name="wirePeers">Live advertised 1-Wire peer capabilities.</param>
@@ -32,6 +33,7 @@ public sealed partial class GoalExecutionService(
     IProviderModelRuntimeService providerModels,
     IOptionsMonitor<LocalGPT.BusinessObjects.ConfigurationRoot> configuration,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    IConfigurationStewardService configurationSteward,
     IGoalExecutionLedgerService ledger,
     IAiHelpEscalatorService aiHelpEscalator,
     IOneWirePeerRegistry wirePeers,
@@ -254,6 +256,20 @@ public sealed partial class GoalExecutionService(
         ArgumentNullException.ThrowIfNull(request);
         if (request.CouncilRequest.RunId == Guid.Empty)
             request.CouncilRequest.RunId = Guid.NewGuid();
+        AnnounceGoalAgent(request, "GoalExecution AI", "Observing the original goal and available execution routes.");
+        var resourceAdvice = await configurationSteward.AdviseGoalResourcesAsync(request,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+        AnnounceGoalAgent(request, "Configuration Steward", resourceAdvice.Reason);
+        if (!resourceAdvice.IsManual &&
+            resourceAdvice.RecommendedContextTokens > request.CouncilRequest.MaxContextTokens)
+        {
+            request.CouncilRequest.MaxContextTokens = resourceAdvice.RecommendedContextTokens;
+            // The run-local resource load is adjusted only for a measured benchmark.
+            // Saved routes/settings and all manual-mode runs stay authoritative.
+            request.CouncilRequest.ResourceLoadPercent = 100;
+            AnnounceGoalAgent(request, "GoalExecution AI",
+                $"Selected the verified benchmark context {resourceAdvice.RecommendedContextTokens:N0} for this run.");
+        }
         using var lease = await ledger.AcquireAsync(request.CouncilRequest.RunId, cancellationToken).ConfigureAwait(false);
         var existing = await ledger.LoadAsync(request.CouncilRequest.RunId, cancellationToken).ConfigureAwait(false);
         if (existing is not null)

@@ -1312,7 +1312,13 @@ namespace LocalGPT.Components.Pages
                     if (attached)
                         Logger.LogInformation("Attached this browser window to running Council {RunId} after the session list selected it.", runId);
                     else
-                        Logger.LogDebug("Automatic attachment to running Council {RunId} was not completed; the explicit rejoin control remains available.", runId);
+                    {
+                        // A failed attach is not a completed attempt. The next live-session
+                        // notification may retry in this circuit without creating another run.
+                        if (automaticLiveCouncilAttachRunId == runId)
+                            automaticLiveCouncilAttachRunId = null;
+                        Logger.LogDebug("Automatic attachment to running Council {RunId} was not completed; a future notification may retry.", runId);
+                    }
                 },
                 componentLifetimeToken);
         }

@@ -1,22 +1,50 @@
 {
-  "baseCommit": "73d1e8234e677c6300a4616050bf298e3fcf1404",
-  "version": "7.3.9",
+  "baseCommit": "d8783ff5e8bffb94788743bc3e2ff3816909d381",
+  "lastKnownWorking": "5f27971604aca190e8fde34133451b5afae9b81a",
+  "version": "7.4.0",
   "modified": [
+    "Directory.Build.targets",
+    "src/LocalGPT/BusinessObjects/ConfigurationStewardPolicy.cs",
+    "src/LocalGPT/BusinessObjects/MultiModelCouncilModels.cs",
+    "src/LocalGPT/Interfaces/IConfigurationStewardService.cs",
     "src/LocalGPT/LocalGPT.csproj",
-    "src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs",
-    "src/LocalGPT/Services/GoalExecutionService.SemanticPlanning.cs",
-    "src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs",
-    "src/LocalGPT/Services/OllamaThinkingChatClient.cs",
-    "src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs",
-    "src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs"
-  ],
-  "added": [
-    "maintenance/changelogs/CHANGELOG-7.3.7-GOAL-OWNED-CONTEXT-RECOVERY.md",
-    "maintenance/changelogs/CHANGELOG-7.3.8-GOAL-DI-AND-PLANNER-WIRING.md",
+    "src/LocalGPT/Services/ConfigurationSteward/ConfigurationStewardService.cs",
+    "src/LocalGPT/Services/GoalExecutionService.cs",
     "src/LocalGPT/Services/GoalExecutionService.ContextRecovery.cs",
-    "maintenance/changelogs/CHANGELOG-7.3.9-NONTHROWING-GOAL-HANDOFF.md"
+    "src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs",
+    "src/LocalGPT/Services/MultiModelCouncilService.RunOrchestration.cs",
+    "src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs",
+    "src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs",
+    "src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs",
+    "src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs"
   ],
+  "added": [],
   "deleted": [],
-  "noAutomaticGit": true,
-  "compiled": false
+  "autoCommit": false,
+  "compiled": false,
+  "sourcePatchApplyChecked": true,
+  "exactGithubBaselineSha1": {
+    "Directory.Build.targets": "09cfb32e7f91e67f8e78376468bb698e23d6ce42",
+    "src/LocalGPT/BusinessObjects/ConfigurationStewardPolicy.cs": "2e372b05e49f0ee6301a9590374f06844f8dd491",
+    "src/LocalGPT/BusinessObjects/MultiModelCouncilModels.cs": "6c9bfefe50a46c850906c43939252e196110bd86",
+    "src/LocalGPT/Interfaces/IConfigurationStewardService.cs": "57e1d181a7052bf659bba094151eb03f1a1a6878",
+    "src/LocalGPT/LocalGPT.csproj": "0daf2841a3d23f1d99c2c81d01227d942875102e",
+    "src/LocalGPT/Services/ConfigurationSteward/ConfigurationStewardService.cs": "fad7bd69fb260566ea1d3bd526c11aa3a0af5f25",
+    "src/LocalGPT/Services/GoalExecutionService.cs": "5bdce7f439c448c5e4ca26397369dbd0bb87f8ba",
+    "src/LocalGPT/Services/GoalExecutionService.ContextRecovery.cs": "59bcb8fcfb8398860999d52b77a6055ca897686a",
+    "src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs": "e1a6b7dd3d3abc0551271573f654a4585572bbab",
+    "src/LocalGPT/Services/MultiModelCouncilService.RunOrchestration.cs": "61e20f50bcb7c6bc0072da9cb6a1c668142977e6",
+    "src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs": "afa4a0b65bf69d442233ba0b52f72aed426f6dec",
+    "src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs": "d02b62056bdfe764c8b1412641835edb416dede5",
+    "src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs": "2cd2e65e6e31b02e4ddb310cfaa048fe551ef87f",
+    "src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs": "24bc531f1fab9c5a88c78749deda955405fc0e4b"
+  },
+  "buildLogCs1573ParamTagsAdded": [
+    "ConfigurationStewardService.hardwareInventory",
+    "ConfigurationStewardService.hostHardware",
+    "ConfigurationStewardService.performancePresets",
+    "ConfigurationStewardService.providerModels",
+    "GoalExecutionService.configurationSteward"
+  ],
+  "releaseStatus": "7.4.0 source revision; XML documentation correction only; no .NET compilation run in this environment"
 }

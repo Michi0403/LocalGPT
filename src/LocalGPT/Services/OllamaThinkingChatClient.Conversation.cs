@@ -145,7 +145,8 @@ public sealed partial class OllamaThinkingChatClient
             {
                 var diagnostic =
                     $"OllamaContextBudgetExceeded;required={budget.RequiredContextTokens};" +
-                    $"allowed={budget.NumCtx.GetValueOrDefault()};output={budget.NumPredict}; " +
+                    $"allowed={budget.NumCtx.GetValueOrDefault()};output={budget.NumPredict};" +
+                    $"max={modelMaximumContext.GetValueOrDefault()}; " +
                     $"The request for {model} needs about {budget.RequiredContextTokens:N0} context tokens, " +
                     $"but at most {budget.NumCtx:N0} are allowed. " +
                     $"Configured num_ctx={contextLength?.ToString() ?? "provider default"}; " +

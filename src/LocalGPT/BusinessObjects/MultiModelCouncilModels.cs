@@ -123,6 +123,13 @@ namespace LocalGPT.BusinessObjects
         public bool IncludeMemory { get; set; } = true;
 
         /// <summary>
+        /// One transient, explicitly goal-owned recovery packet. Council must not reinject
+        /// the full earlier corpus/preflight into a packet that GoalExecution just reduced.
+        /// This does not change model routes, saved teams, permissions or user memory.
+        /// </summary>
+        public bool GoalRecoveryCompactContext { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether save to memory applies to the multi model council state.
         /// </summary>
         /// <value>The save to memory value exposed by <see cref="MultiModelCouncilRequest"/>.</value>

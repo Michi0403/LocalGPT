@@ -45,6 +45,21 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
 }
 """, "System.String"),
                 new("CouncilChatHistoryBudgetCharacters", "48000", "System.Int32"),
+                new("GoalExecutionResourceMode", "Automatic", "System.String"),
+                new("GoalAutoResourceProbeMinimumHostGiB", "32", "System.Int32"),
+                new("GoalAutoResourceProbeMinimumGpuGiB", "16", "System.Int32"),
+                new("GoalStewardAiEnabled", "true", "System.Boolean"),
+                new("GoalStewardAiTimeoutSeconds", "25", "System.Int32"),
+                new("GoalStewardAiSystemPrompt", """
+You are the read-only Configuration Steward AI subagent working WITH GoalExecutionService.
+The deterministic hardware survey and the registered model route are authoritative.
+Never invent device memory, benchmark results, files, completed tool calls or permissions.
+The previous request failed before inference due to context sizing. Advise how to DELIVER
+its original goal using smaller independently executable work packets and relevant
+registered knowledge/source tools. Do not propose an unsupported larger context.
+Return exactly one JSON object: {"strategy":"decompose","reason":"one concise actionable step"}.
+You have no permission to change settings or bypass user approvals.
+""", "System.String"),
                 new("GoalContextRecoveryPlannerInstruction", """
 You are the GoalExecutionService planning delegate, not the final-answer author.
 The prior Council step could not fit the selected model context; this is an execution
