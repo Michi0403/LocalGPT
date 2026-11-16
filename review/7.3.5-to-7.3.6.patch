@@ -1,0 +1,390 @@
+diff --git a/maintenance/changelogs/CHANGELOG-7.3.6-CONTEXT-AND-SUBAGENTS.md b/maintenance/changelogs/CHANGELOG-7.3.6-CONTEXT-AND-SUBAGENTS.md
+new file mode 100644
+index 0000000..f985b38
+--- /dev/null
++++ b/maintenance/changelogs/CHANGELOG-7.3.6-CONTEXT-AND-SUBAGENTS.md
+@@ -0,0 +1,17 @@
++# LocalGPT 7.3.6 — bounded conversation context and knowledge-assisted coding subagents
++
++- The Chat→Council prompt now retains whole recent normalized turns within the operator-owned `CouncilChatHistoryBudgetCharacters` budget (default 48,000 characters). It removes older conversational repetition **from the provider request only**; the durable transcript and original attachments are unchanged. This does not circumvent an Ollama model's advertised maximum context length.
++- Adds the `knowledge-assisted-coding-subagents` Council blueprint: evidence retrieval and regex preparation, bounded multi-model code candidates, approval-gated materialization through `codegen.review.create`, independent `council.development.artifact.verify` check, and truthful download handoff. Role members remain provider-qualified and user-configurable (no hard-coded Gemma or DeepSeek preference).
++- Existing `program-compiler-team` is retained. Existing user-edited Council teams remain database-owned and are not replaced by this seed.
++- Ollama request preflight amendment (in the upgrade patch) removes optional older conversation turns before dropping provider-native tool schemas and reports which effective context boundary caused a failure.
++
++## Validation limits
++
++This is a source overlay for the latest GitHub main (7.3.5), **not a compiled 7.3.6 release**. The offline assistant container lacks .NET 10, PowerShell and the DevExpress NuGet feed. Run `Build-LocalDevelopment.ps1` and a full UI/Ollama approval/build/ZIP test on your machine before promotion.
++
++## Acceptance
++
++1. Council started from a long DXAiChat history with gemma4:26b and 65,536 fitted-context ceiling: history is compacted; no unbounded identical context-overflow retries.
++2. Verify the new team uses knowledge evidence and all role participants can be assigned without a hard-coded model family.
++3. Request HelloMath; codegen creates both real files, approval enters Human Collaboration inbox, owner approves, .NET 10 build and test run, artifact verify returns success and a nonempty downloadable ZIP.
++4. On pending approval/failed build, the final handoff must not claim a ZIP was delivered.
+diff --git a/src/LocalGPT/Services/CouncilRuntimeService.PromptAndTextRuntime.cs b/src/LocalGPT/Services/CouncilRuntimeService.PromptAndTextRuntime.cs
+index cdf0985..5b7bad6 100644
+--- a/src/LocalGPT/Services/CouncilRuntimeService.PromptAndTextRuntime.cs
++++ b/src/LocalGPT/Services/CouncilRuntimeService.PromptAndTextRuntime.cs
+@@ -65,10 +65,7 @@ namespace LocalGPT.Services
+                 const int maximumUserTurns = 24;
+                 var retainedUserTurns = normalizedHistory.Count(item => item.Role == ChatRole.User);
+                 var usersToSkip = Math.Max(0, retainedUserTurns - maximumUserTurns);
+-                var builder = new StringBuilder()
+-                    .AppendLine("Answer this DXAiChat conversation as the LocalGPT AI Council.")
+-                    .AppendLine("Use the selected members, preserve user intent, and include a concise consensus.")
+-                    .AppendLine();
++                var recentHistory = new List<(ChatRole Role, string Text)>();
+                 foreach (var item in normalizedHistory)
+                 {
+                     if (item.Role == ChatRole.User && usersToSkip > 0)
+@@ -76,17 +73,48 @@ namespace LocalGPT.Services
+                         usersToSkip--;
+                         continue;
+                     }
+-                    builder
+-                        .Append(item.Role == ChatRole.Assistant ? "Previous assistant consensus" : "User")
+-                        .AppendLine(":")
+-                        .AppendLine(item.Text)
+-                        .AppendLine();
++                    recentHistory.Add(item);
+                 }
+ 
+-                var prompt = builder.ToString().Trim();
+-                return prompt.Length <= catalog.MaxDxAiChatPromptCharacters
+-                    ? prompt
+-                    : prompt[^catalog.MaxDxAiChatPromptCharacters..];
++                // History is evidence, not the current instruction. A long chat must not consume
++                // the entire model context or force an identical failed Council retry. The
++                // operator owns this value in the existing database-backed runtime policy.
++                var configuredLimit = runtimePolicy.GetInt("CouncilChatHistoryBudgetCharacters");
++                var historyLimit = Math.Clamp(configuredLimit, 4_096,
++                    Math.Max(4_096, catalog.MaxDxAiChatPromptCharacters));
++                const string introduction =
++                    "Answer this DXAiChat conversation as the LocalGPT AI Council.\n" +
++                    "Use the selected members, preserve user intent, and include a concise consensus.\n\n";
++                const string omittedNotice =
++                    "[Earlier chat turns were omitted from this model prompt to fit the configured context. " +
++                    "The original conversation remains in LocalGPT persistent storage.]\n\n";
++                var selected = new List<string>();
++                var reserved = introduction.Length + omittedNotice.Length;
++                // Start at the most recent user message. Keep complete normalized turns; do
++                // not chop a source file, code block or DX function call halfway through.
++                // Normalization already bounds individual historical turns to 32K chars.
++                for (var index = recentHistory.Count - 1; index >= 0; index--)
++                {
++                    var item = recentHistory[index];
++                    var block = (item.Role == ChatRole.Assistant ? "Previous assistant consensus" : "User") +
++                        ":\n" + item.Text + "\n\n";
++                    if (selected.Sum(text => text.Length) + block.Length + reserved > historyLimit)
++                        continue;
++                    selected.Add(block);
++                }
++                selected.Reverse();
++                var omittedCount = recentHistory.Count - selected.Count;
++                var builder = new StringBuilder(introduction);
++                if (omittedCount > 0)
++                {
++                    builder.Append(omittedNotice);
++                    logger.LogInformation(
++                        "Council chat prompt retained {Retained} of {Total} recent normalized turns; {Omitted} older turns remain in the durable transcript. Configured history budget {Budget} characters.",
++                        selected.Count, recentHistory.Count, omittedCount, historyLimit);
++                }
++                foreach (var block in selected)
++                    builder.Append(block);
++                return builder.ToString().Trim();
+             }
+             catch (Exception ex)
+             {
+diff --git a/src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.KnowledgeAssistedSubagents.cs b/src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.KnowledgeAssistedSubagents.cs
+new file mode 100644
+index 0000000..7b21454
+--- /dev/null
++++ b/src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.KnowledgeAssistedSubagents.cs
+@@ -0,0 +1,139 @@
++using LocalGPT.BusinessObjects;
++
++namespace LocalGPT.Services;
++
++/// <summary>
++/// A model-neutral helper Council that transfers verified knowledge and task decomposition
++/// from one selected participant to smaller coding subagents, then requires real receipts.
++/// The operator assigns stronger and weaker provider-qualified models through the existing
++/// Council role editor; no model family, parameter count or host is hard-coded.
++/// </summary>
++public sealed partial class OrganicCouncilBlueprintSeedDataService
++{
++    private OrganicCouncilTeamDefinition CreateKnowledgeAssistedSubagentCodingTeam()
++    {
++        var prepare = ResilientStep(
++            "subagent-evidence", "Retrieve bounded knowledge and establish evidence", 10,
++            "Preparation", "Knowledge guide", """
++Read the actual user task. Retrieve only relevant verified LocalGPT Knowledge, regex,
++project and toolchain facts through the registered read-only functions. Distinguish a
++working .NET 10 project from an invented plan. Report a compact evidence packet:
++required files, relevant framework/version, verified API/function names, concrete
++constraints and the exact next coding task. Cite tool results, not model memories.
++Do not generate code or claim a build yet.
++Task: {{UserPrompt}}
++""", "LeaderSingle", canUseOrganicFunctions: true,
++            includePriorTranscript: false,
++            allowedAutomaticFunctions: ["localgpt.knowledge.list", "localgpt.regex.list",
++                "localgpt.regex.get", "localgpt.regex.test", "project.maintenance.get",
++                "toolchain.installation.list", "project.workspace.files.list",
++                "project.workspace.file.read", "chat.upload_workspace_files", "chat.upload_workspace_file"]);
++        // The guide retrieves bounded evidence explicitly; automatic full-corpus injection is intentionally off.
++        prepare.IncludeLocalResearchEvidence = false;
++        prepare.TranscriptVisibility = CouncilTranscriptVisibilityMode.None;
++        prepare.MemberFailureRecoveryAttempts = 1;
++
++        var implement = ResilientStep(
++            "subagent-implementation", "Small-model coding contributions", 20,
++            "Implementation", "Coding subagent", """
++You are an independent coding subagent. Use the compact verified evidence and
++bounded work order below, not the full chat history. Do not try to rediscover the
++entire project or imitate the model that prepared the task. Produce exact, small
++file contents or a bounded proposed patch for the user's requested behavior.
++Do not claim files were written, compiled, tested or downloaded unless a real
++registered function result proves it. You may consult the listed Knowledge or
++regex tools to settle one specific uncertainty.
++User request: {{UserPrompt}}
++Grounded preparation: {{PreviousStep}}
++""", "AllMembersParallel", canUseOrganicFunctions: true,
++            includePriorTranscript: false,
++            allowedAutomaticFunctions: ["localgpt.knowledge.list", "localgpt.regex.get",
++                "localgpt.regex.test", "project.workspace.file.read", "chat.upload_workspace_file"]);
++        implement.TranscriptVisibility = CouncilTranscriptVisibilityMode.None;
++        implement.MemberFailureRecoveryAttempts = 1;
++
++        var integrate = ResilientStep(
++            "subagent-integration", "Review and materialize the candidate", 30,
++            "Integration", "Integration guide", """
++Check the subagents' actual proposed files for correctness, including project
++metadata, compiler target and explicit user constraints. Give credit for useful
++small-model contributions, but do not assume consensus makes code correct.
++For greenfield programs invoke codegen.review.create with COMPLETE relative file
++paths and COMPLETE source text. This function raises the necessary deferred
++codegen.review.execute approval; do not replace its tool call with prose or an
++informal yes/no question. For existing repositories, use the approved staged
++workspace pathway and never write to a random temp clone.
++Original request: {{UserPrompt}}
++Subagent proposals: {{PreviousStep}}
++""", "LeaderSingle", canUseOrganicFunctions: true,
++            includePriorTranscript: false,
++            allowedAutomaticFunctions: ["codegen.capabilities", "codegen.review.create",
++                "codegen.review.get", "codegen.review.list", "council.artifact_workspace_files",
++                "council.artifact_workspace_file.read", "council.artifact_workspace_file.write",
++                "council.repository.workspace.stage"]);
++        integrate.TranscriptVisibility = CouncilTranscriptVisibilityMode.None;
++        integrate.MemberFailureRecoveryAttempts = 1;
++        integrate.WaitForDeferredApprovalsBeforeNextStep = true;
++
++        var verify = ResilientStep(
++            "subagent-verification", "Check actual build and source ZIP", 40,
++            "Verification", "Artifact verifier", """
++Require an actual successful codegen.review.execute approval/build receipt and
++call council.development.artifact.verify for its reviewId. Inspect the exact
++files and DownloadUrl. If an approval is still pending, report Pending and stop:
++no claim of a finished ZIP, compilation or self-test is allowed. If the build
++failed, report the first compiler error and return the smallest corrective work
++order to the operator. The original model's reasoning is not a test receipt.
++User request: {{UserPrompt}}
++Integration evidence: {{PreviousStep}}
++""", "LeaderSingle", canUseOrganicFunctions: true,
++            includePriorTranscript: false,
++            allowedAutomaticFunctions: ["codegen.review.get", "codegen.review.list",
++                "council.development.artifact.verify", "council.artifact_workspaces",
++                "council.artifact_workspace_files", "council.artifact_workspace_zip",
++                "toolchain.installation.list", "localgpt.console.history"]);
++        verify.TranscriptVisibility = CouncilTranscriptVisibilityMode.None;
++        verify.MemberFailureRecoveryAttempts = 1;
++        verify.WaitForDeferredApprovalsBeforeNextStep = true;
++
++        var handoff = ResilientStep(
++            "subagent-handoff", "Deliver verified files or exact blocker", 50,
++            "Handoff", "Artifact verifier", """
++Return the generated source files and real DownloadUrl only after the verified
++artifact receipt exists. State which subagent contributed, which knowledge was
++used and the actual build/self-test result. A pending approval, missing artifact
++or failed build must be reported as pending/failed, not disguised as success.
++User request: {{UserPrompt}}
++Verification result: {{PreviousStep}}
++""", "LeaderSingle", producesFinalAnswer: true,
++            includePriorTranscript: false);
++        handoff.TranscriptVisibility = CouncilTranscriptVisibilityMode.None;
++
++        return new OrganicCouncilTeamDefinition
++        {
++            Key = "knowledge-assisted-coding-subagents",
++            DisplayName = "Knowledge-Assisted Coding Subagents",
++            Purpose = "A stronger selected guide prepares verified Knowledge/regex evidence and bounded work so weaker role-assigned models can produce useful code. Generation, approval and compiler verification remain authoritative LocalGPT functions; no model size is hard-coded.",
++            RequiredCompletedFunctions = ["council.development.artifact.verify"],
++            AllMembersReadinessPreflightMode = CouncilAllMembersReadinessPreflightMode.Disabled,
++            Roles =
++            [
++                new() { Role = "Knowledge guide", Expertise = "knowledge retrieval, regex, provenance and compact task decomposition", Responsibility = "Prepare grounded small-model work without doing the subagent's implementation" },
++                new() { Role = "Coding subagent", Expertise = "small, bounded implementations using verified knowledge", Responsibility = "Produce precise buildable files from the compact preparation; do not simulate execution" },
++                new() { Role = "Integration guide", Expertise = "source review and approved codegen workflow", Responsibility = "Select and materialize correct subagent work through registered functions" },
++                new() { Role = "Artifact verifier", Expertise = "compiler receipts, approval state and download verification", Responsibility = "Report only verified outputs and actual ZIP paths" }
++            ],
++            PreferredCapabilities = ["localgpt.knowledge.list", "localgpt.regex.get", "localgpt.regex.test",
++                "codegen.review.create", "codegen.review.get", "council.development.artifact.verify"],
++            WorkflowSteps = [prepare, implement, integrate, verify, handoff],
++            ArchitectureContracts =
++            [
++                .. DefaultArchitectureContracts(),
++                "Guide and coding-subagent roles are assigned through persisted provider-qualified role settings. No model is presumed stronger by name or parameter count.",
++                "Prior transcript is excluded from narrow subagent steps; each role consumes the preceding verified handoff and the current user request.",
++                "Verified retrieval is context assistance, not evidence of an unperformed action.",
++                "Generated files, builds, approval and ZIP delivery require the existing registered function receipts; user verbal consent is not substituted for persisted approval."
++            ]
++        };
++    }
++}
+diff --git a/src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs b/src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs
+index f5ad3d3..2ce6c07 100644
+--- a/src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs
++++ b/src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs
+@@ -114,6 +114,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
+         CreateJavaHostedDevelopmentTeam(),
+         CreateMinecraftDevelopmentTeam(),
+         CreateProgramCompilerTeam(),
++        CreateKnowledgeAssistedSubagentCodingTeam(),
+         CreateProjectReleaseOrchestrationTeam(),
+         CreateConfigurationStewardTeam(),
+         new()
+diff --git a/src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs b/src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs
+index 715d0b5..d25d1b4 100644
+--- a/src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs
++++ b/src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs
+@@ -43,6 +43,7 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
+   "publisher.embedded.wiring.edit.request": ["publisher.embedded.wiring.edit.request"]
+ }
+ """, "System.String"),
++                new("CouncilChatHistoryBudgetCharacters", "48000", "System.Int32"),
+                 new("CouncilFinalRecoveryTaskExcerptCharacters", "6000", "System.Int32"),
+                 new("GoalDeliveryObjectiveTemplate", "Deliver the finished result of the original goal now: invoke {{Functions}} exactly as the original request specifies (target, format and the complete final text). Reuse the completed step outputs below; do not redo earlier work and do not answer with a description instead of the delivery.", "System.String"),
+                 new("GoalCatalogFallbackMinimumTeamScore", "6", "System.Int32"),
+diff --git a/src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs b/src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs
+--- a/src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs
++++ b/src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs
+@@ -84,8 +84,45 @@
+                 MeasureRequestCharacters(requestMessages, tools),
+                 model,
+                 logger,
+                 modelMaximumContext);
++            // Preserve the latest user request and every system instruction, and keep
++            // the complete original chat in database storage. Older turns are only
++            // removed from this cloned provider payload when the provider's actual
++            // context limit cannot accommodate them. Keep native DX tools if possible.
++            var reducedHistoryTurns = 0;
++            while (budget.PromptExceedsMaximum)
++            {
++                var lastUserIndex = requestMessages.FindLastIndex(message =>
++                    string.Equals(message.Role, "user", StringComparison.OrdinalIgnoreCase));
++                if (lastUserIndex <= 0)
++                    break;
++                var oldestUserIndex = -1;
++                for (var index = 0; index < lastUserIndex; index++)
++                {
++                    if (string.Equals(requestMessages[index].Role, "user", StringComparison.OrdinalIgnoreCase))
++                    {
++                        oldestUserIndex = index;
++                        break;
++                    }
++                }
++                if (oldestUserIndex < 0)
++                    break;
++                var nextTurn = oldestUserIndex + 1;
++                while (nextTurn < lastUserIndex &&
++                    !string.Equals(requestMessages[nextTurn].Role, "user", StringComparison.OrdinalIgnoreCase))
++                    nextTurn++;
++                requestMessages.RemoveRange(oldestUserIndex, nextTurn - oldestUserIndex);
++                reducedHistoryTurns++;
++                budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
++                    contextLength, options?.MaxOutputTokens ?? 2048, think == true,
++                    MeasureRequestCharacters(requestMessages, tools), model, logger, modelMaximumContext);
++            }
++            if (reducedHistoryTurns > 0)
++                logger.LogWarning(
++                    "Ollama request for {Model} exceeded its effective context; omitted {Count} old conversation turn(s) from the provider payload only. System messages, the last user request and durable chat history are preserved.",
++                    model, reducedHistoryTurns);
++
+             // Never send a payload the budget already proved too large: Ollama silently truncates (system prompt and
+             // tool schemas first) or rejects it, and the run then ends empty. Shed the largest tool schemas first.
+             while (budget.PromptExceedsMaximum && tools is { Count: > 0 })
+             {
+@@ -101,9 +138,10 @@
+                 tools = null;
+             if (budget.PromptExceedsMaximum)
+                 throw new InvalidOperationException(
+                     $"The request for {model} needs about {budget.RequiredContextTokens:N0} context tokens, but at most {budget.NumCtx:N0} are allowed. " +
+-                    "Use a model with a larger context, shorten the request or attachments, or raise MaximumFittedContextTokens in the OllamaRequestBudgetPolicyJson runtime value.");
++                    $"Requested num_ctx={contextLength?.ToString() ?? "provider default"}; advertised model context limit={modelMaximumContext?.ToString() ?? "unknown"}. " +
++                    "The configured request context and the model's advertised maximum are separate limits. Shorten large tool/attachment payloads or change the corresponding limit only when the provider genuinely supports it.");
+             return new OllamaChatRequest
+             {
+                 Model = model,
+                 Stream = stream,
+diff --git a/src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs b/src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs
+--- a/src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs
++++ b/src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs
+@@ -624,17 +624,21 @@
+                 }
+                 catch (Exception ex)
+                 {
+                     stopwatch.Stop();
+                     logger.LogWarning(ex, "Council participant {ModelName} failed in {Phase}.", modelName, phase);
++                    // A context rejection is deterministic at this prompt and model limit.
++                    // Do not promise or attempt an identical safe-limit retry.
++                    var contextOverflow = ex.Message.Contains("needs about", StringComparison.OrdinalIgnoreCase) &&
++                        ex.Message.Contains("context tokens", StringComparison.OrdinalIgnoreCase);
+                     var failureNotice = $"{modelName} failed during {phase}: {ex.Message}";
+-                    if (allowRecovery && ex is not ProviderStreamRepetitionException)
++                    if (allowRecovery && ex is not ProviderStreamRepetitionException && !contextOverflow)
+                         failureNotice += " LocalGPT is starting the safe-limit retry for this member.";
+                     streamUpdate?.Invoke($"<p class=\"localgpt-stream-status\"><em>{WebUtility.HtmlEncode(failureNotice)}</em></p>\n\n");
+                     runtimeLease?.Dispose();
+                     runtimeLease = null;
+-                    if (allowRecovery && ex is not ProviderStreamRepetitionException)
++                    if (allowRecovery && ex is not ProviderStreamRepetitionException && !contextOverflow)
+                     {
+                         var recovered = await RetryParticipantWithSafeLimitsAsync(
+                             baseUri, modelName, councilMembers, round, phase, role, prompt, bootstrap,
+                             maxOutputTokens, keepAlive, maxContextTokens, modelTimeoutSeconds,
+                             streamUpdate, cancellationToken, ex.Message, executionPlan).ConfigureAwait(false);
+diff --git a/src/LocalGPT/Services/MultiModelCouncilService.RoundRecovery.cs b/src/LocalGPT/Services/MultiModelCouncilService.RoundRecovery.cs
+--- a/src/LocalGPT/Services/MultiModelCouncilService.RoundRecovery.cs
++++ b/src/LocalGPT/Services/MultiModelCouncilService.RoundRecovery.cs
+@@ -147,10 +147,21 @@
+                 {
+                     cancellationToken.ThrowIfCancellationRequested();
+                     var failedModel = failedSlots[slotIndex];
+                     var failedStep = primarySteps.LastOrDefault(step =>
+                         string.Equals(step.ModelName, failedModel, StringComparison.OrdinalIgnoreCase));
++                    // A deterministic context rejection cannot improve through the same
++                    // model with identical prompt/tools and context. Keep the original
++                    // failed step visible, but allow a different role-pool model to try.
++                    var contextOverflow = failedStep?.Error?.Contains("needs about", StringComparison.OrdinalIgnoreCase) == true &&
++                        failedStep.Error.Contains("context tokens", StringComparison.OrdinalIgnoreCase);
++                    if (contextOverflow && (sameMemberOnly ||
++                        recoveryPool.All(candidate => string.Equals(candidate, failedModel, StringComparison.OrdinalIgnoreCase))))
++                    {
++                        result.Warnings.Add($"Council step '{definition.DisplayName}' cannot retry {failedModel}: its request exceeds the reported context limit. The original failure and durable transcript are preserved; shorten historical context or select a model with sufficient capacity.");
++                        continue;
++                    }
+                     var failureKind = failedStep is null
+                         ? GoalMemberFailureKind.NoStep
+                         : failedStep.HostUnreachable
+                             ? GoalMemberFailureKind.HostUnreachable
+                             : failedStep.RepetitionWatchdogStopped
+diff --git a/src/LocalGPT/LocalGPT.csproj b/src/LocalGPT/LocalGPT.csproj
+--- a/src/LocalGPT/LocalGPT.csproj
++++ b/src/LocalGPT/LocalGPT.csproj
+@@ -1,6 +1,6 @@
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+   <PropertyGroup>
+-    <Version>7.3.5</Version>
++    <Version>7.3.6</Version>
+     <Product>LocalGPT</Product>
+     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
+ 	  <TargetFramework>net10.0</TargetFramework>

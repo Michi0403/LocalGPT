@@ -44,6 +44,7 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
   "publisher.embedded.wiring.edit.request": ["publisher.embedded.wiring.edit.request"]
 }
 """, "System.String"),
+                new("CouncilChatHistoryBudgetCharacters", "48000", "System.Int32"),
                 new("CouncilFinalRecoveryTaskExcerptCharacters", "6000", "System.Int32"),
                 new("GoalDeliveryObjectiveTemplate", "Deliver the finished result of the original goal now: invoke {{Functions}} exactly as the original request specifies (target, format and the complete final text). Reuse the completed step outputs below; do not redo earlier work and do not answer with a description instead of the delivery.", "System.String"),
                 new("GoalCatalogFallbackMinimumTeamScore", "6", "System.Int32"),

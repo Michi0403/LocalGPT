@@ -114,6 +114,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
         CreateJavaHostedDevelopmentTeam(),
         CreateMinecraftDevelopmentTeam(),
         CreateProgramCompilerTeam(),
+        CreateKnowledgeAssistedSubagentCodingTeam(),
         CreateProjectReleaseOrchestrationTeam(),
         CreateConfigurationStewardTeam(),
         new()

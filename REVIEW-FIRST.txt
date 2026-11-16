@@ -1,0 +1,42 @@
+LocalGPT 7.3.6 — CHANGED SOURCE FILES ONLY — REVIEW FIRST
+
+BASE: GitHub LocalGPT main at 7.3.5, commit fee133cd2f4d14e1f3a38d3accefecba1999d6bf
+CODEx: codex/neo-integration-handoff remains separate; this ZIP does not touch it.
+
+Contents:
+- Exactly 9 complete added/modified source files in original repository-relative paths.
+- 7 existing files revised, 2 new files added, ZERO files deleted.
+- review/7.3.5-to-7.3.6.patch: identical unified diff, supplied for inspection.
+- review/SHA256SUMS.txt: checksums for all 9 source files.
+
+There is NO installer, no executable action, no commit, no branch creation,
+no push, no automatic file replacement, and no repository cloning.
+Unzipping into a SEPARATE empty folder is safe; the archive itself does nothing.
+
+Inspection workflow (Windows PowerShell):
+1. Extract to an empty folder, e.g. C:\Temp\LocalGPT-736-Review.
+2. Open the files beside the corresponding files in your real checkout;
+   use your IDE's Compare Files view or your preferred diff viewer.
+3. To validate the optional patch WITHOUT changing anything, go to your
+   actual repo root and run:
+       git apply --check "C:\Temp\LocalGPT-736-Review\review\7.3.5-to-7.3.6.patch"
+   This validates applicability but writes no files and commits nothing.
+4. Only when YOU approve, you can copy the source files into the checkout
+   or manually run git apply (not invoked by this package).
+5. After manually applying: git diff; dotnet build; run your repository guards.
+   No automatic commit is required. Your changes can remain uncommitted.
+
+IMPORTANT: The 7 modified source files are FULL replacement files, not line-only
+snippets. They were reconstructed against the EXACT GitHub 7.3.5 base blobs
+and rechecked by reversing the patch. If your local checkout has changed since
+fee133cd, don't overwrite its newer files. Compare/merge the changes manually.
+
+Scope of 7.3.6 proposal:
+- bounded conversation replay and Ollama prompt-context preflight;
+- no identical retry on deterministic context overflow;
+- role-based knowledge-assisted coding subagents with existing DX approval tools;
+- version and changelog.
+
+LIMITATIONS: No .NET SDK/DevExpress build or running-model validation was
+performed in this environment. The proposal is reviewable source, not a
+certified release. No database or PublisherStudio files are included.

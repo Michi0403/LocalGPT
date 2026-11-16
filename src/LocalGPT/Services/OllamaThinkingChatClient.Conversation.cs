@@ -85,6 +85,43 @@ public sealed partial class OllamaThinkingChatClient
                 model,
                 logger,
                 modelMaximumContext);
+            // Preserve the latest user request and every system instruction, and keep
+            // the complete original chat in database storage. Older turns are only
+            // removed from this cloned provider payload when the provider's actual
+            // context limit cannot accommodate them. Keep native DX tools if possible.
+            var reducedHistoryTurns = 0;
+            while (budget.PromptExceedsMaximum)
+            {
+                var lastUserIndex = requestMessages.FindLastIndex(message =>
+                    string.Equals(message.Role, "user", StringComparison.OrdinalIgnoreCase));
+                if (lastUserIndex <= 0)
+                    break;
+                var oldestUserIndex = -1;
+                for (var index = 0; index < lastUserIndex; index++)
+                {
+                    if (string.Equals(requestMessages[index].Role, "user", StringComparison.OrdinalIgnoreCase))
+                    {
+                        oldestUserIndex = index;
+                        break;
+                    }
+                }
+                if (oldestUserIndex < 0)
+                    break;
+                var nextTurn = oldestUserIndex + 1;
+                while (nextTurn < lastUserIndex &&
+                    !string.Equals(requestMessages[nextTurn].Role, "user", StringComparison.OrdinalIgnoreCase))
+                    nextTurn++;
+                requestMessages.RemoveRange(oldestUserIndex, nextTurn - oldestUserIndex);
+                reducedHistoryTurns++;
+                budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
+                    contextLength, options?.MaxOutputTokens ?? 2048, think == true,
+                    MeasureRequestCharacters(requestMessages, tools), model, logger, modelMaximumContext);
+            }
+            if (reducedHistoryTurns > 0)
+                logger.LogWarning(
+                    "Ollama request for {Model} exceeded its effective context; omitted {Count} old conversation turn(s) from the provider payload only. System messages, the last user request and durable chat history are preserved.",
+                    model, reducedHistoryTurns);
+
             // Never send a payload the budget already proved too large: Ollama silently truncates (system prompt and
             // tool schemas first) or rejects it, and the run then ends empty. Shed the largest tool schemas first.
             while (budget.PromptExceedsMaximum && tools is { Count: > 0 })
@@ -99,10 +136,13 @@ public sealed partial class OllamaThinkingChatClient
             }
             if (tools is { Count: 0 })
                 tools = null;
-            if (budget.PromptExceedsMaximum)
-                throw new InvalidOperationException(
-                    $"The request for {model} needs about {budget.RequiredContextTokens:N0} context tokens, but at most {budget.NumCtx:N0} are allowed. " +
-                    "Use a model with a larger context, shorten the request or attachments, or raise MaximumFittedContextTokens in the OllamaRequestBudgetPolicyJson runtime value.");
+            // Michi0403 comment: I don't allow hardcoded borders, just dynamically and informative one which should be finetuned and benchmarked till they work and no blocker code like that
+            // Helps neither with use nor security
+            //if (budget.PromptExceedsMaximum)
+            //    throw new InvalidOperationException(
+            //        $"The request for {model} needs about {budget.RequiredContextTokens:N0} context tokens, but at most {budget.NumCtx:N0} are allowed. " +
+            //        $"Requested num_ctx={contextLength?.ToString() ?? "provider default"}; advertised model context limit={modelMaximumContext?.ToString() ?? "unknown"}. " +
+            //        "The configured request context and the model's advertised maximum are separate limits. Shorten large tool/attachment payloads or change the corresponding limit only when the provider genuinely supports it.");
             return new OllamaChatRequest
             {
                 Model = model,

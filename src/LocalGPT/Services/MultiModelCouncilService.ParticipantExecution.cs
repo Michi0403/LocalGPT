@@ -648,13 +648,17 @@ namespace LocalGPT.Services
                 {
                     stopwatch.Stop();
                     logger.LogWarning(ex, "Council participant {ModelName} failed in {Phase}.", modelName, phase);
+                    // A context rejection is deterministic at this prompt and model limit.
+                    // Do not promise or attempt an identical safe-limit retry.
+                    var contextOverflow = ex.Message.Contains("needs about", StringComparison.OrdinalIgnoreCase) &&
+                        ex.Message.Contains("context tokens", StringComparison.OrdinalIgnoreCase);
                     var failureNotice = $"{modelName} failed during {phase}: {ex.Message}";
-                    if (allowRecovery && ex is not ProviderStreamRepetitionException)
+                    if (allowRecovery && ex is not ProviderStreamRepetitionException && !contextOverflow)
                         failureNotice += " LocalGPT is starting the safe-limit retry for this member.";
                     streamUpdate?.Invoke($"<p class=\"localgpt-stream-status\"><em>{WebUtility.HtmlEncode(failureNotice)}</em></p>\n\n");
                     runtimeLease?.Dispose();
                     runtimeLease = null;
-                    if (allowRecovery && ex is not ProviderStreamRepetitionException)
+                    if (allowRecovery && ex is not ProviderStreamRepetitionException && !contextOverflow)
                     {
                         var recovered = await RetryParticipantWithSafeLimitsAsync(
                             baseUri, modelName, councilMembers, round, phase, role, prompt, bootstrap,

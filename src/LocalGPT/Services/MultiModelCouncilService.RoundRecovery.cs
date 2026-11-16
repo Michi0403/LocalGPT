@@ -149,6 +149,17 @@ namespace LocalGPT.Services
                     var failedModel = failedSlots[slotIndex];
                     var failedStep = primarySteps.LastOrDefault(step =>
                         string.Equals(step.ModelName, failedModel, StringComparison.OrdinalIgnoreCase));
+                    // A deterministic context rejection cannot improve through the same
+                    // model with identical prompt/tools and context. Keep the original
+                    // failed step visible, but allow a different role-pool model to try.
+                    var contextOverflow = failedStep?.Error?.Contains("needs about", StringComparison.OrdinalIgnoreCase) == true &&
+                        failedStep.Error.Contains("context tokens", StringComparison.OrdinalIgnoreCase);
+                    if (contextOverflow && (sameMemberOnly ||
+                        recoveryPool.Pool.All(candidate => string.Equals(candidate, failedModel, StringComparison.OrdinalIgnoreCase))))
+                    {
+                        result.Warnings.Add($"Council step '{definition.DisplayName}' cannot retry {failedModel}: its request exceeds the reported context limit. The original failure and durable transcript are preserved; shorten historical context or select a model with sufficient capacity.");
+                        continue;
+                    }
                     var failureKind = failedStep is null
                         ? GoalMemberFailureKind.NoStep
                         : failedStep.HostUnreachable

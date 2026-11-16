@@ -65,10 +65,7 @@ namespace LocalGPT.Services
                 const int maximumUserTurns = 24;
                 var retainedUserTurns = normalizedHistory.Count(item => item.Role == ChatRole.User);
                 var usersToSkip = Math.Max(0, retainedUserTurns - maximumUserTurns);
-                var builder = new StringBuilder()
-                    .AppendLine("Answer this DXAiChat conversation as the LocalGPT AI Council.")
-                    .AppendLine("Use the selected members, preserve user intent, and include a concise consensus.")
-                    .AppendLine();
+                var recentHistory = new List<(ChatRole Role, string Text)>();
                 foreach (var item in normalizedHistory)
                 {
                     if (item.Role == ChatRole.User && usersToSkip > 0)
@@ -76,17 +73,48 @@ namespace LocalGPT.Services
                         usersToSkip--;
                         continue;
                     }
-                    builder
-                        .Append(item.Role == ChatRole.Assistant ? "Previous assistant consensus" : "User")
-                        .AppendLine(":")
-                        .AppendLine(item.Text)
-                        .AppendLine();
+                    recentHistory.Add(item);
                 }
 
-                var prompt = builder.ToString().Trim();
-                return prompt.Length <= catalog.MaxDxAiChatPromptCharacters
-                    ? prompt
-                    : prompt[^catalog.MaxDxAiChatPromptCharacters..];
+                // History is evidence, not the current instruction. A long chat must not consume
+                // the entire model context or force an identical failed Council retry. The
+                // operator owns this value in the existing database-backed runtime policy.
+                var configuredLimit = runtimePolicy.GetInt("CouncilChatHistoryBudgetCharacters");
+                var historyLimit = Math.Clamp(configuredLimit, 4_096,
+                    Math.Max(4_096, catalog.MaxDxAiChatPromptCharacters));
+                const string introduction =
+                    "Answer this DXAiChat conversation as the LocalGPT AI Council.\n" +
+                    "Use the selected members, preserve user intent, and include a concise consensus.\n\n";
+                const string omittedNotice =
+                    "[Earlier chat turns were omitted from this model prompt to fit the configured context. " +
+                    "The original conversation remains in LocalGPT persistent storage.]\n\n";
+                var selected = new List<string>();
+                var reserved = introduction.Length + omittedNotice.Length;
+                // Start at the most recent user message. Keep complete normalized turns; do
+                // not chop a source file, code block or DX function call halfway through.
+                // Normalization already bounds individual historical turns to 32K chars.
+                for (var index = recentHistory.Count - 1; index >= 0; index--)
+                {
+                    var item = recentHistory[index];
+                    var block = (item.Role == ChatRole.Assistant ? "Previous assistant consensus" : "User") +
+                        ":\n" + item.Text + "\n\n";
+                    if (selected.Sum(text => text.Length) + block.Length + reserved > historyLimit)
+                        continue;
+                    selected.Add(block);
+                }
+                selected.Reverse();
+                var omittedCount = recentHistory.Count - selected.Count;
+                var builder = new StringBuilder(introduction);
+                if (omittedCount > 0)
+                {
+                    builder.Append(omittedNotice);
+                    logger.LogInformation(
+                        "Council chat prompt retained {Retained} of {Total} recent normalized turns; {Omitted} older turns remain in the durable transcript. Configured history budget {Budget} characters.",
+                        selected.Count, recentHistory.Count, omittedCount, historyLimit);
+                }
+                foreach (var block in selected)
+                    builder.Append(block);
+                return builder.ToString().Trim();
             }
             catch (Exception ex)
             {
