@@ -194,6 +194,7 @@ public sealed partial class GoalExecutionService
         var originalRunId = request.CouncilRequest.RunId;
         var originalPrompt = request.CouncilRequest.Prompt;
         var originalTeam = request.CouncilRequest.CouncilTeamKey;
+        var originalOutputBudget = request.CouncilRequest.MaxOutputTokens;
         try
         {
             for (var stepIndex = 0; stepIndex < checkpoint.Steps.Count; stepIndex++)
@@ -248,8 +249,14 @@ public sealed partial class GoalExecutionService
                 await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false); // write-ahead record
                 request.CouncilRequest.RunId = councilRunId;
                 request.CouncilRequest.CouncilTeamKey = step.TeamKey;
-                request.CouncilRequest.Prompt = checkpoint.Steps.Count == 1 ? originalPrompt :
-                    RenderStepPrompt(checkpoint, step, stepIndex);
+                var recoveryStep = IsGoalContextRecoveryStep(checkpoint, step);
+                request.CouncilRequest.Prompt = recoveryStep
+                    ? RenderGoalContextRecoveryPrompt(checkpoint, step, stepIndex)
+                    : checkpoint.Steps.Count == 1 ? originalPrompt :
+                        RenderStepPrompt(checkpoint, step, stepIndex);
+                request.CouncilRequest.MaxOutputTokens = recoveryStep
+                    ? FitGoalRecoveryOutputBudget(checkpoint)
+                    : originalOutputBudget;
                 await gameBootstrap.EnsureSessionAsync(request.CouncilRequest, cancellationToken).ConfigureAwait(false);
                 MultiModelCouncilResult councilResult;
                 try
@@ -280,17 +287,24 @@ public sealed partial class GoalExecutionService
                 // Council's public result does not expose a complete invocation-by-invocation
                 // write receipt. Without that proof, an enabled consequential function is a
                 // possible side effect even when no artifact was returned.
-                receipt.ExternalEffectsPossible = councilResult.Artifacts.Count > 0 ||
-                    checkpoint.RequiredFunctions.Count > 0 ||
-                    directorySnapshot.Functions.Any(function => function.AvailableToAi && !function.IsCoordinationOnly &&
-                        !function.IsReadOnly && (function.SupportsAutomaticInvocation || function.SupportsDirectInvocation)) ||
-                    receipt.Evidence.Any(evidence => evidence.Kind == "VerifiedWorkspaceRead");
+                // GoalExecution, not the Ollama provider, owns the continuation decision.
+                // Function *availability* is not evidence that a function executed. A Council
+                // preflight rejection that contains no function/approval/artifact receipt is
+                // safe to replan. All other ambiguous attempts retain the conservative guard.
+                var confirmedSideEffectFreeContextFailure =
+                    IsGoalContextPreflightFailureWithoutEffects(councilResult, receipt);
+                receipt.ExternalEffectsPossible = !confirmedSideEffectFreeContextFailure &&
+                    (councilResult.Artifacts.Count > 0 ||
+                     checkpoint.RequiredFunctions.Count > 0 ||
+                     directorySnapshot.Functions.Any(function => function.AvailableToAi && !function.IsCoordinationOnly &&
+                         !function.IsReadOnly && (function.SupportsAutomaticInvocation || function.SupportsDirectInvocation)) ||
+                     receipt.Evidence.Any(evidence => evidence.Kind == "VerifiedWorkspaceRead"));
                 receipt.FailureSummary = councilResult.Steps.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.Error))?.Error
                     ?? (string.IsNullOrWhiteSpace(councilResult.FinalAnswer) ? "EmptyCouncilResult" : string.Empty);
                 // The Keyaccount Manager checks every Council subrun, regardless of its saved team workflow.
                 // This is a read-only reviewer, not a replacement for tool or user approval receipts.
                 GoalKeyaccountReview? keyaccountReview = null;
-                if (checkpoint.KeyaccountReviewEnabled)
+                if (checkpoint.KeyaccountReviewEnabled && !confirmedSideEffectFreeContextFailure)
                 {
                     keyaccountReview = await ReviewKeyaccountCompletionAsync(request, checkpoint, step,
                         councilResult, receipt, cancellationToken).ConfigureAwait(false);
@@ -312,11 +326,24 @@ public sealed partial class GoalExecutionService
                 outcome.CouncilResult = councilResult;
                 if (receipt.State == GoalExecutionState.Failed)
                 {
-                    if (!receipt.ExternalEffectsPossible && await TryReplanRemainingAsync(request, checkpoint, stepIndex,
-                        liveTeams, cancellationToken).ConfigureAwait(false))
+                    // The goal observer handles a recoverable context problem *before* the
+                    // generic failed-step and human-approval branches. It can ask the existing
+                    // semantic planner for a valid subagent/team decomposition, then fall back
+                    // to one bounded, focused retry of the originally selected team.
+                    if (confirmedSideEffectFreeContextFailure &&
+                        await TryRecoverGoalContextFailureAsync(request, checkpoint, stepIndex,
+                            liveTeams, cancellationToken).ConfigureAwait(false))
                     {
                         outcome.PlanSteps = checkpoint.Steps.ToList();
-                        stepIndex--; // retry only the newly proposed remaining work; prior committed work is never replayed
+                        stepIndex--;
+                        continue;
+                    }
+                    if (!confirmedSideEffectFreeContextFailure && !receipt.ExternalEffectsPossible &&
+                        await TryReplanRemainingAsync(request, checkpoint, stepIndex,
+                            liveTeams, cancellationToken).ConfigureAwait(false))
+                    {
+                        outcome.PlanSteps = checkpoint.Steps.ToList();
+                        stepIndex--; // retry only newly proposed remaining work; never replay committed effects
                         continue;
                     }
                     checkpoint.State = receipt.ExternalEffectsPossible ? GoalExecutionState.NeedsApproval : GoalExecutionState.Failed;
@@ -461,6 +488,7 @@ public sealed partial class GoalExecutionService
             request.CouncilRequest.RunId = originalRunId;
             request.CouncilRequest.Prompt = originalPrompt;
             request.CouncilRequest.CouncilTeamKey = originalTeam;
+            request.CouncilRequest.MaxOutputTokens = originalOutputBudget;
         }
     }
 
@@ -495,7 +523,7 @@ public sealed partial class GoalExecutionService
     {
         if (checkpoint.ReplanCount >= Math.Max(0, runtimePolicy.GetInt("GoalMaximumReplans")))
             return false;
-        checkpoint.ReplanCount++;
+        var nextReplanNumber = checkpoint.ReplanCount + 1;
         var snapshot = await directory.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         var models = checkpoint.ModelSelectionKeys;
         var configured = await teams.GetTeamsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -518,10 +546,11 @@ public sealed partial class GoalExecutionService
             .Take(Math.Max(1, runtimePolicy.GetInt("GoalMaximumPlanSteps")) - failedIndex)
             .Select((step, index) => new GoalExecutionPlanStep
             {
-                Key = "replan-" + checkpoint.ReplanCount + "-" + (index + 1),
+                Key = "replan-" + nextReplanNumber + "-" + (index + 1),
                 Objective = step.Objective, TeamKey = step.TeamKey
             }).ToList();
         if (replacements is not { Count: > 0 }) return false;
+        checkpoint.ReplanCount = nextReplanNumber;
         // Prior committed steps are immutable; failed steps remain in receipt history for audit.
         checkpoint.Steps = checkpoint.Steps.Take(failedIndex).Concat(replacements).ToList();
         await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);

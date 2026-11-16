@@ -45,6 +45,30 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
 }
 """, "System.String"),
                 new("CouncilChatHistoryBudgetCharacters", "48000", "System.Int32"),
+                new("GoalContextRecoveryPlannerInstruction", """
+You are the GoalExecutionService planning delegate, not the final-answer author.
+The prior Council step could not fit the selected model context; this is an execution
+obstacle, not a completed or cancelled user goal. Use the original goal and the
+previousFailure evidence included in this planner input. Produce valid schema-conforming
+steps using real team keys from the supplied catalog. When team selection is permitted,
+prefer an available knowledge-assisted subagent team that decomposes evidence retrieval,
+code generation and verification into separately executable work packets. Otherwise
+retain the requested team and split its objective into smaller independent steps.
+Respect explicitly selected provider-qualified model routes, team preservation and all
+human approvals; do not invent a new model, team, tool, generated file, build or ZIP.
+Each proposed step must reduce the previous prompt/tool scope and name the next concrete
+action; do not propose repeating the failed Council transcript or claiming success.
+""", "System.String"),
+                new("GoalContextRecoverySubstepInstruction", """
+GoalExecutionService is continuing the original goal after a previous Council context
+preflight failure. Complete ONLY the assigned current step below; use the configured
+team's existing approved DX functions and concise relevant knowledge, and hand off
+verified evidence to subsequent goal steps. Do not paste failed Council transcripts.
+The original user deliverable and approvals remain mandatory. A build, test, codegen
+review, execution, receipt, or downloadable ZIP may be reported successful ONLY when
+its actual registered tool result proves success. If approval is pending, report that
+state and stop consequential actions until the user grants it.
+""", "System.String"),
                 new("CouncilFinalRecoveryTaskExcerptCharacters", "6000", "System.Int32"),
                 new("GoalDeliveryObjectiveTemplate", "Deliver the finished result of the original goal now: invoke {{Functions}} exactly as the original request specifies (target, format and the complete final text). Reuse the completed step outputs below; do not redo earlier work and do not answer with a description instead of the delivery.", "System.String"),
                 new("GoalCatalogFallbackMinimumTeamScore", "6", "System.Int32"),

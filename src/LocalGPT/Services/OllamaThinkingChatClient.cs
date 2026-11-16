@@ -205,7 +205,14 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
 
             for (var round = 0; round <= MaxAutomaticToolRounds; round++)
             {
-                response = await SendAsync(conversation, options, stream: false, cancellationToken).ConfigureAwait(false);
+                var preparedResponse = await SendAsync(conversation, options, stream: false, cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(preparedResponse.PreflightFailure))
+                {
+                    // The goal observer handles this machine-readable failure. No exception
+                    // escapes the provider and no known-oversized request reaches Ollama.
+                    return CreateFailureResponse(preparedResponse.PreflightFailure);
+                }
+                response = preparedResponse.Response;
                 if (response is null)
                 {
                     if (throwOnFailure)
@@ -294,7 +301,16 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
 
             for (var round = 0; round <= MaxAutomaticToolRounds; round++)
             {
-                var request = await CreateRequestAsync(conversation, options, stream: true, cancellationToken).ConfigureAwait(false);
+                var preparedRequest = await CreateRequestAsync(conversation, options, stream: true, cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(preparedRequest.PreflightFailure))
+                {
+                    // Council receives a provider result rather than an exception. Its
+                    // participant executor marks this as a failed step; GoalExecutionService
+                    // uses the existing checkpoint and replanning/subagent wiring.
+                    yield return CreateStreamingUpdate(preparedRequest.PreflightFailure);
+                    yield break;
+                }
+                var request = preparedRequest.Request!;
 
                 var waitingUpdate = councilRuntime.OllamaThinkingChatClientCreateStreamingStatusUpdate(
                     $"LocalGPT sent the request to Ollama model {model}. Waiting for the local runtime to accept the stream...",
@@ -646,7 +662,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     /// <param name="stream">Value indicating whether stream should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The Ollama chat response produced by the operation.</returns>
-    private async Task<OllamaChatResponse?> SendAsync(
+    private async Task<(OllamaChatResponse? Response, string? PreflightFailure)> SendAsync(
         IReadOnlyList<OllamaChatMessage> messages,
         ChatOptions? options,
         bool stream,
@@ -654,7 +670,10 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     {
         try
         {
-            var request = await CreateRequestAsync(messages, options, stream, cancellationToken).ConfigureAwait(false);
+            var preparedRequest = await CreateRequestAsync(messages, options, stream, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(preparedRequest.PreflightFailure))
+                return (null, preparedRequest.PreflightFailure);
+            var request = preparedRequest.Request!;
             using var response = await SendRequestWithToolFallbackAsync(
                     request,
                     HttpCompletionOption.ResponseContentRead,
@@ -664,7 +683,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
             await councilRuntime.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger)
                 .ConfigureAwait(false);
 
-            return await response.Content.ReadFromJsonAsync<OllamaChatResponse>(jsonOptions, cancellationToken).ConfigureAwait(false);
+            return (await response.Content.ReadFromJsonAsync<OllamaChatResponse>(jsonOptions, cancellationToken).ConfigureAwait(false), null);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -673,7 +692,9 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
         catch (Exception ex)
         {
             logger.LogError(ex, "Ollama request failed for model {Model}; streaming={Streaming}.", model, stream);
-            return null;
+            // Transport failures follow existing provider policy; context preflight
+            // is returned explicitly above and is never an exception at this call site.
+            return (null, null);
         }
     }
 }

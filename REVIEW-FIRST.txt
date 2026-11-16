@@ -1,42 +1,24 @@
-LocalGPT 7.3.6 — CHANGED SOURCE FILES ONLY — REVIEW FIRST
+LocalGPT 7.3.9 COMPLETE SOURCE CHANGES — REVIEW-ONLY, BASED ON GITHUB main 7.3.6
+GitHub commit: 73d1e8234e677c6300a4616050bf298e3fcf1404
 
-BASE: GitHub LocalGPT main at 7.3.5, commit fee133cd2f4d14e1f3a38d3accefecba1999d6bf
-CODEx: codex/neo-integration-handoff remains separate; this ZIP does not touch it.
+This complete overlay supersedes the earlier 7.3.7/7.3.8 files and includes their necessary GoalExecution DI/replanning changes, while removing the 7.3.7/7.3.8 Ollama context exception. It is intended for a clean 7.3.6 checkout; if you already have local 7.3.7 or 7.3.8 changes, use the diff review and merge carefully. Never bulk overwrite unknown local modifications.
 
-Contents:
-- Exactly 9 complete added/modified source files in original repository-relative paths.
-- 7 existing files revised, 2 new files added, ZERO files deleted.
-- review/7.3.5-to-7.3.6.patch: identical unified diff, supplied for inspection.
-- review/SHA256SUMS.txt: checksums for all 9 source files.
+NO deleted files. NO installer, NO automatic Git operation, NO commits or pushes, NO extra DI service registration, NO static helpers.
 
-There is NO installer, no executable action, no commit, no branch creation,
-no push, no automatic file replacement, and no repository cloning.
-Unzipping into a SEPARATE empty folder is safe; the archive itself does nothing.
+Primary source call chain:
+  OllamaThinkingChatClient.CreateRequestAsync (return preflight failure, no throw)
+  -> OllamaThinkingChatClient.GetStreamingResponseAsync (stream failed provider result)
+  -> MultiModelCouncilService.ParticipantExecution (persist failed member Error)
+  -> CouncilChatClient -> scoped IGoalExecutionService.ExecuteAsync
+  -> GoalExecutionService.DurableExecution (observes Council result, invokes recovery)
+  -> GoalExecutionService.ContextRecovery.TryRecoverGoalContextFailureAsync
+  -> GoalExecutionService.TryReplanRemainingAsync / TrySemanticPlanAsync
+  -> GoalExecutionService.ContinueAsync -> Council.RunAsync with revised goal briefing.
 
-Inspection workflow (Windows PowerShell):
-1. Extract to an empty folder, e.g. C:\Temp\LocalGPT-736-Review.
-2. Open the files beside the corresponding files in your real checkout;
-   use your IDE's Compare Files view or your preferred diff viewer.
-3. To validate the optional patch WITHOUT changing anything, go to your
-   actual repo root and run:
-       git apply --check "C:\Temp\LocalGPT-736-Review\review\7.3.5-to-7.3.6.patch"
-   This validates applicability but writes no files and commits nothing.
-4. Only when YOU approve, you can copy the source files into the checkout
-   or manually run git apply (not invoked by this package).
-5. After manually applying: git diff; dotnet build; run your repository guards.
-   No automatic commit is required. Your changes can remain uncommitted.
+Notes:
+- This is NOT instantaneous per-member mid-round GoalExecution handoff: GoalExecution receives the failed Council subrun when Council returns. The original selected model/team and approval constraints remain authoritative.
+- The replan is not a guaranteed success; if the model cannot fit even the compact task, the goal must still report incomplete.
+- Some catastrophic transport errors may still throw in the underlying HTTP pipeline. This patch removes the routine context preflight exception specifically. Explicit Stop/cancellation is always respected.
+- This package is NOT verified by a .NET 10 build or Ollama runtime test. Verify the actual user/chat UI preservation separately.
 
-IMPORTANT: The 7 modified source files are FULL replacement files, not line-only
-snippets. They were reconstructed against the EXACT GitHub 7.3.5 base blobs
-and rechecked by reversing the patch. If your local checkout has changed since
-fee133cd, don't overwrite its newer files. Compare/merge the changes manually.
-
-Scope of 7.3.6 proposal:
-- bounded conversation replay and Ollama prompt-context preflight;
-- no identical retry on deterministic context overflow;
-- role-based knowledge-assisted coding subagents with existing DX approval tools;
-- version and changelog.
-
-LIMITATIONS: No .NET SDK/DevExpress build or running-model validation was
-performed in this environment. The proposal is reviewable source, not a
-certified release. No database or PublisherStudio files are included.
+To inspect safely: extract into a separate folder; use an IDE diff against your checkout. For a checkout exactly at GitHub commit 73d1..., `git apply --check` review/7.3.6-to-7.3.9.diff checks applicability without writing. Do not run `git apply` or copy files until you have reviewed them.

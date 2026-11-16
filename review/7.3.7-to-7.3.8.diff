@@ -1,0 +1,530 @@
+--- /dev/null
++++ b/maintenance/changelogs/CHANGELOG-7.3.8-GOAL-DI-AND-PLANNER-WIRING.md
+@@ -0,0 +1,18 @@
++# LocalGPT 7.3.8 — DI-owned GoalExecution continuation and selected-model planner repair
++
++- Fix the GoalExecutionService.ContextRecovery partial: all helpers are *instance* methods on the existing scoped GoalExecutionService, not static wrappers or a new layer. Uses the injected ILogger<GoalExecutionService>, Council/planner, runtime policy and ledger through the existing calling chain. Methods log and handle exceptions explicitly.
++- Fix model planning: an installed, explicitly selected model may plan even when it was not separately flagged configured or preferred. ProviderModelIdentity resolves against the **full candidate inventory** and refuses ambiguous bare keys. User-selected providers/teams remain authoritative.
++- Give goal-level recovery actual user-editable instructions (GoalContextRecoveryPlannerInstruction, GoalContextRecoverySubstepInstruction) via the existing database-owned runtime policy; no separate coordinator or hard-coded model role.
++- Preflight context overflows produce a structured signal through existing Ollama→Council→GoalExecution wiring. GoalExecution attempts validated semantic subgoals (including existing knowledge-assisted team if permitted), then a bounded compact continuation with a fresh Council run. Original output preference, durable receipts and user approvals remain intact.
++- This overlay preserves the 7.3.7 partial/file layout and corrects its architecture-policy violation. No source file deletions, Git actions or changes to DI registrations.
++
++## Review/acceptance
++
++1. Run build/Assert-ApplicationStaticPolicy.ps1: no static fallback declarations in GoalExecutionService.ContextRecovery.cs.
++2. On a selected installed Ollama model not marked configured/preferred: semantic planner must select exactly that provider-qualified candidate (or fail safely if ambiguous/unavailable).
++3. Inject an over-budget Council request: error travels from client to Council failed-step evidence, then GoalExecution replans into smaller configured subgoals or a compact attempt. No identical retry, no changed saved token setting.
++4. Verify codegen review creation -> human approval -> actual .NET 10 build and self-test -> verified downloadable ZIP; never report a ZIP without a real receipt.
++5. Simulate provider HTTP 500 after an uncertain function call: do not replay side effects automatically.
++6. Test with PreserveSelectedTeam enabled and disabled. Disabled allows the configured knowledge-assisted subagent team; enabled preserves the user's selected team.
++
++This assistant environment lacks .NET SDK 10, PowerShell and DevExpress packages: no full compilation or live application testing is claimed.
+--- a/src/LocalGPT/LocalGPT.csproj
++++ b/src/LocalGPT/LocalGPT.csproj
+@@ -1,6 +1,6 @@
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+   <PropertyGroup>
+-    <Version>7.3.7</Version>
++    <Version>7.3.8</Version>
+     <Product>LocalGPT</Product>
+     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
+ 	  <TargetFramework>net10.0</TargetFramework>
+--- a/src/LocalGPT/Services/GoalExecutionService.ContextRecovery.cs
++++ b/src/LocalGPT/Services/GoalExecutionService.ContextRecovery.cs
+@@ -1,182 +1,241 @@
+ using LocalGPT.BusinessObjects;
+ using System.Globalization;
+-using System.Text.RegularExpressions;
+ 
+ namespace LocalGPT.Services;
+ 
+ /// <summary>
+-/// Goal-owned continuation for deterministic model-context preflight failures.
+-/// Extends the durable GoalExecutionService rather than creating a competing
+-/// coordinator or allowing the provider client to decide goal completion.
++/// Context-fit continuation implemented as methods on the existing DI-scoped
++/// GoalExecutionService. There is no additional service layer: the current durable
++/// loop invokes these methods, which call the existing injected Council, planner,
++/// ledger, runtime-policy and AI-help collaborators through normal instance wiring.
+ /// </summary>
+ public sealed partial class GoalExecutionService
+ {
+     private const string ContextFitStepPrefix = "context-fit-";
+     private const string ContextFitDiagnostic = "OllamaContextBudgetExceeded;";
+ 
+-    /// <summary>
+-    /// Only a failure before a usable model request, with no recorded tool call,
+-    /// approval or artifact, may be retried without separate human authorization.
+-    /// Missing receipts on other kinds of failure are NOT proof of no side effects.
+-    /// </summary>
+-    private static bool IsGoalContextPreflightFailureWithoutEffects(
++    /// <summary>Identify only known model-context preflight errors, not generic crashes.</summary>
++    private bool IsGoalContextBudgetError(string? error)
++    {
++        try
++        {
++            return !string.IsNullOrWhiteSpace(error) &&
++                (error.Contains(ContextFitDiagnostic, StringComparison.OrdinalIgnoreCase) ||
++                 (error.Contains("needs about", StringComparison.OrdinalIgnoreCase) &&
++                  error.Contains("context tokens", StringComparison.OrdinalIgnoreCase)));
++        }
++        catch (Exception exception)
++        {
++            logger.LogWarning(exception, "Goal context error classification failed.");
++            return false;
++        }
++    }
++
++    /// <summary>
++    /// Allow automatic replanning only after a recognized pre-request failure
++    /// without any action/artifact/approval evidence. Uncertain side effects
++    /// remain in the existing GoalExecution approval path.
++    /// </summary>
++    private bool IsGoalContextPreflightFailureWithoutEffects(
+         MultiModelCouncilResult result, GoalExecutionStepReceipt receipt)
+     {
+-        if (result.Artifacts.Count > 0 || result.Steps.Count == 0 ||
+-            receipt.Evidence.Any(item =>
+-                item.Kind is "ApprovalGatedRequest" or "CouncilArtifact" or "VerifiedWorkspaceRead"))
+-            return false;
+-
+-        var errors = result.Steps
+-            .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+-            .Select(step => step.Error!)
+-            .ToArray();
+-        if (errors.Length == 0 || errors.Any(error => !IsGoalContextBudgetError(error)))
+-            return false;
+-
+-        // Council may already have processed an allowed tool or issued a review
+-        // before a later participant hit the context limit. Its result must then
+-        // go through the existing approval/verification gate, never replay.
+-        return !result.Steps.Any(step =>
+-        {
+-            var output = (step.VisibleContent ?? string.Empty) + "\n" + (step.Content ?? string.Empty);
+-            return output.Contains("Function call ·", StringComparison.OrdinalIgnoreCase) ||
+-                   output.Contains("Function result ·", StringComparison.OrdinalIgnoreCase) ||
+-                   output.Contains("<localgpt-dx-call>", StringComparison.OrdinalIgnoreCase) ||
+-                   output.Contains("codegen.review.execute", StringComparison.OrdinalIgnoreCase);
+-        });
+-    }
+-
+-    private static bool IsGoalContextBudgetError(string? error) =>
+-        !string.IsNullOrWhiteSpace(error) &&
+-        (error.Contains(ContextFitDiagnostic, StringComparison.OrdinalIgnoreCase) ||
+-         (error.Contains("needs about", StringComparison.OrdinalIgnoreCase) &&
+-          error.Contains("context tokens", StringComparison.OrdinalIgnoreCase)));
+-
+-    /// <summary>
+-    /// Preserve current team, assigned providers, original goal and all prior receipts.
+-    /// First reuse the current semantic replanner: it may select a registered
+-    /// subagent-capable team, subject to the original team-selection policy.
+-    /// If no valid decomposition is proposed, run one bounded, focused step in
+-    /// the original team. Replan count, not an unbounded loop, owns retries.
++        try
++        {
++            if (result.Artifacts.Count != 0 || result.Steps.Count == 0 ||
++                receipt.Evidence.Any(item => item.Kind is
++                    "ApprovalGatedRequest" or "CouncilArtifact" or "VerifiedWorkspaceRead"))
++                return false;
++            var failures = result.Steps
++                .Where(step => !string.IsNullOrWhiteSpace(step.Error)).ToList();
++            if (failures.Count == 0 || failures.Any(step => !IsGoalContextBudgetError(step.Error)))
++                return false;
++            // Council can already have completed other actions before a later
++            // member exceeded context. Never turn an uncertain write into a retry.
++            foreach (var step in result.Steps)
++            {
++                var evidence = (step.VisibleContent ?? string.Empty) + "\n" + (step.Content ?? string.Empty);
++                if (evidence.Contains("Function call ·", StringComparison.OrdinalIgnoreCase) ||
++                    evidence.Contains("Function result ·", StringComparison.OrdinalIgnoreCase) ||
++                    evidence.Contains("<localgpt-dx-call>", StringComparison.OrdinalIgnoreCase) ||
++                    evidence.Contains("codegen.review.execute", StringComparison.OrdinalIgnoreCase))
++                    return false;
++            }
++            return true;
++        }
++        catch (Exception exception)
++        {
++            logger.LogWarning(exception,
++                "Goal context preflight evidence inspection failed for Council run {RunId}.", result.RunId);
++            return false; // uncertain = never replay automatically
++        }
++    }
++
++    /// <summary>
++    /// The current GoalExecutionService calls its existing semantic replanner
++    /// directly. That planner selects registered role-capable teams and the
++    /// *already selected* model, or this method schedules one smaller work item
++    /// in the original team. Existing goal checkpointing owns the retry bound.
+     /// </summary>
+     private async Task<bool> TryRecoverGoalContextFailureAsync(
+         GoalExecutionRequest request, GoalExecutionCheckpoint checkpoint,
+         int failedIndex, HashSet<string> liveTeams, CancellationToken cancellationToken)
+     {
+-        var limit = Math.Max(0, runtimePolicy.GetInt("GoalMaximumReplans"));
+-        if (checkpoint.ReplanCount >= limit)
++        try
++        {
++            cancellationToken.ThrowIfCancellationRequested();
++            var limit = Math.Max(0, runtimePolicy.GetInt("GoalMaximumReplans"));
++            if (checkpoint.ReplanCount >= limit)
++                return false;
++
++            // Directly invokes the existing DI-wired goal semantic planner.
++            if (await TryReplanRemainingAsync(request, checkpoint, failedIndex,
++                liveTeams, cancellationToken).ConfigureAwait(false))
++            {
++                logger.LogInformation(
++                    "Goal {GoalId} planned corrective subgoals through its injected model runtime; replan {Replan}.",
++                    checkpoint.GoalId, checkpoint.ReplanCount);
++                return true;
++            }
++
++            // The selected model may fail to produce valid planner JSON. Keep
++            // trying to deliver the goal through a single, *changed* compact
++            // Council request; never duplicate the original oversized prompt.
++            if (checkpoint.ReplanCount >= limit)
++                return false;
++            var previous = checkpoint.Steps[failedIndex];
++            if (!liveTeams.Contains(previous.TeamKey))
++                return false;
++            var nextReplan = checkpoint.ReplanCount + 1;
++            var replacement = new GoalExecutionPlanStep
++            {
++                Key = ContextFitStepPrefix + nextReplan.ToString(CultureInfo.InvariantCulture),
++                TeamKey = previous.TeamKey,
++                Objective = previous.Objective
++            };
++            checkpoint.ReplanCount = nextReplan;
++            checkpoint.Steps = checkpoint.Steps.Take(failedIndex).Append(replacement).ToList();
++            await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
++            logger.LogInformation(
++                "Goal {GoalId} requested a compact continuation in team {Team} (replan {Replan}/{Limit}); " +
++                "the previous failed Council receipt remains immutable.",
++                checkpoint.GoalId, previous.TeamKey, nextReplan, limit);
++            return true;
++        }
++        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
++        {
++            throw;
++        }
++        catch (Exception exception)
++        {
++            logger.LogError(exception, "Goal {GoalId} could not safely replan its context-failed subgoal.",
++                checkpoint.GoalId);
++            throw;
++        }
++    }
++
++    /// <summary>Run the reduced briefing for a newly planned recovery objective.</summary>
++    private bool IsGoalContextRecoveryStep(GoalExecutionCheckpoint checkpoint, GoalExecutionPlanStep step)
++    {
++        try
++        {
++            if (step.Key.StartsWith(ContextFitStepPrefix, StringComparison.OrdinalIgnoreCase))
++                return true;
++            return step.Key.StartsWith("replan-", StringComparison.OrdinalIgnoreCase) &&
++                checkpoint.Receipts.Any(receipt => IsGoalContextBudgetError(receipt.FailureSummary));
++        }
++        catch (Exception exception)
++        {
++            logger.LogWarning(exception, "Goal {GoalId} could not classify its recovery step {StepKey}.",
++                checkpoint.GoalId, step.Key);
+             return false;
+-
+-        // Existing model-assisted decomposition is already responsible for
+-        // selecting real configured teams, tools and subagents. Do not duplicate
+-        // its catalog, hard-code a model or override PreserveSelectedTeam.
+-        if (await TryReplanRemainingAsync(request, checkpoint, failedIndex,
+-                liveTeams, cancellationToken).ConfigureAwait(false))
+-        {
+-            logger.LogInformation(
+-                "Goal {GoalId} delegated a context-bound step through the existing semantic goal planner; replan {Replan}.",
+-                checkpoint.GoalId, checkpoint.ReplanCount);
+-            return true;
+-        }
+-
+-        if (checkpoint.ReplanCount >= limit)
+-            return false;
+-        var previous = checkpoint.Steps[failedIndex];
+-        if (!liveTeams.Contains(previous.TeamKey))
+-            return false;
+-        var nextReplan = checkpoint.ReplanCount + 1;
+-        var replacement = new GoalExecutionPlanStep
+-        {
+-            Key = ContextFitStepPrefix + nextReplan.ToString(CultureInfo.InvariantCulture),
+-            TeamKey = previous.TeamKey,
+-            Objective = previous.Objective
+-        };
+-        // Preserve all completed subgoals. The failed Council run remains an
+-        // immutable receipt; this replacement gets a fresh Council run ID.
+-        checkpoint.ReplanCount = nextReplan;
+-        checkpoint.Steps = checkpoint.Steps.Take(failedIndex).Append(replacement).ToList();
+-        await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+-        logger.LogWarning(
+-            "Goal {GoalId} rescheduled context-bound step {Step} in the existing team {Team} (replan {Replan}/{Limit}); " +
+-            "next request contains the original goal but omits recursive chat history.",
+-            checkpoint.GoalId, previous.Key, previous.TeamKey, nextReplan, limit);
+-        return true;
+-    }
+-
+-    private static bool IsGoalContextRecoveryStep(GoalExecutionCheckpoint checkpoint, GoalExecutionPlanStep step)
+-    {
+-        if (step.Key.StartsWith(ContextFitStepPrefix, StringComparison.OrdinalIgnoreCase))
+-            return true;
+-        return step.Key.StartsWith("replan-", StringComparison.OrdinalIgnoreCase) &&
+-               checkpoint.Receipts.Any(receipt => IsGoalContextBudgetError(receipt.FailureSummary));
+-    }
+-
+-    /// <summary>
+-    /// Use the original exact goal and the database-managed substep template,
+-    /// not an oversized recap of previous Council attempts. Full transcripts,
+-    /// files and receipts remain in the durable goal journal.
++        }
++    }
++
++    /// <summary>
++    /// Handoff briefing for Council. The instruction is user-editable and seeded
++    /// in the runtime policy, not hard-coded in a wrapper or newly created service.
++    /// Original goal, current objective and verified outputs remain available;
++    /// full prior failure transcripts remain in durable storage, not the prompt.
+     /// </summary>
+     private string RenderGoalContextRecoveryPrompt(
+         GoalExecutionCheckpoint checkpoint, GoalExecutionPlanStep step, int stepIndex)
+     {
+-        var previous = string.Join("\n", checkpoint.Receipts
+-            .Where(receipt => receipt.State == GoalExecutionState.Completed)
+-            .Select(receipt => receipt.StepKey + ": " + receipt.Answer));
+-        var evidenceLimit = Math.Max(0, runtimePolicy.GetInt("CouncilFinalRecoveryTaskExcerptCharacters"));
+-        if (previous.Length > evidenceLimit)
+-            previous = "[Earlier verified results remain in the durable goal journal.]\n" +
+-                       previous[^evidenceLimit..];
+-        var objective = string.Equals(step.Objective.Trim(), checkpoint.GoalText.Trim(),
+-            StringComparison.Ordinal) ? "Complete the original goal above using the relevant registered functions." : step.Objective;
+-        var prompt = runtimePolicy.GetString("GoalCouncilSubstepPromptTemplate")
+-            .Replace("{{OriginalGoal}}", checkpoint.GoalText, StringComparison.Ordinal)
+-            .Replace("{{ConversationContext}}", "[Earlier unsuccessful Council transcripts are persisted but not replayed.]", StringComparison.Ordinal)
+-            .Replace("{{StepNumber}}", (stepIndex + 1).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+-            .Replace("{{StepCount}}", checkpoint.Steps.Count.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+-            .Replace("{{StepObjective}}", objective, StringComparison.Ordinal)
+-            .Replace("{{PreviousOutputs}}", previous, StringComparison.Ordinal);
+-        return prompt + "\n\nGoal-level recovery: this is a NEW attempt following an Ollama context-fit preflight failure. " +
+-            "Use only the functions necessary for this step. Preserve human approvals and report only actual " +
+-            "code-generation, build, test and artifact receipts. Do not repeat the failed transcript.";
+-    }
+-
+-    /// <summary>
+-    /// Reduce this Council invocation's output reserve by the *observed*
+-    /// overflow amount, using the operator-owned Ollama budget policy. Never
+-    /// silently overwrite the saved user output preference or model route.
+-    /// A compact prompt is still used when older errors have no numeric detail.
++        try
++        {
++            var previous = string.Join("\n", checkpoint.Receipts
++                .Where(receipt => receipt.State == GoalExecutionState.Completed)
++                .Select(receipt => receipt.StepKey + ": " + receipt.Answer));
++            var evidenceLimit = Math.Max(0,
++                runtimePolicy.GetInt("CouncilFinalRecoveryTaskExcerptCharacters"));
++            if (previous.Length > evidenceLimit)
++                previous = evidenceLimit > 0 ? previous[^evidenceLimit..] : string.Empty;
++            var prompt = runtimePolicy.GetString("GoalCouncilSubstepPromptTemplate")
++                .Replace("{{OriginalGoal}}", checkpoint.GoalText, StringComparison.Ordinal)
++                .Replace("{{ConversationContext}}", string.Empty, StringComparison.Ordinal)
++                .Replace("{{StepNumber}}", (stepIndex + 1).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
++                .Replace("{{StepCount}}", checkpoint.Steps.Count.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
++                .Replace("{{StepObjective}}", step.Objective, StringComparison.Ordinal)
++                .Replace("{{PreviousOutputs}}", previous, StringComparison.Ordinal);
++            return runtimePolicy.GetString("GoalContextRecoverySubstepInstruction") +
++                Environment.NewLine + Environment.NewLine + prompt;
++        }
++        catch (Exception exception)
++        {
++            logger.LogError(exception, "Goal {GoalId} could not assemble the recovery briefing for {StepKey}.",
++                checkpoint.GoalId, step.Key);
++            // No empty prompt and no silent success, keep original user task visible.
++            return checkpoint.GoalText;
++        }
++    }
++
++    /// <summary>
++    /// Adapt the *attempt*, not the saved user preference, using the measured
++    /// provider overflow and the existing database-owned Ollama budget policy.
++    /// No regex static fallback or duplicate context-sizing service is introduced.
+     /// </summary>
+     private int FitGoalRecoveryOutputBudget(GoalExecutionCheckpoint checkpoint)
+     {
+-        var originalBudget = Math.Max(1, checkpoint.MaxOutputTokens);
+-        var failure = checkpoint.Receipts.LastOrDefault(receipt =>
+-            IsGoalContextBudgetError(receipt.FailureSummary))?.FailureSummary;
+-        if (string.IsNullOrWhiteSpace(failure))
+-            return originalBudget;
+-        var result = Regex.Match(failure,
+-            @"OllamaContextBudgetExceeded;required=(?<required>\d+);allowed=(?<allowed>\d+);output=(?<output>\d+);",
+-            RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
+-            TimeSpan.FromSeconds(1));
+-        if (!result.Success ||
+-            !long.TryParse(result.Groups["required"].Value, NumberStyles.None,
+-                CultureInfo.InvariantCulture, out var required) ||
+-            !long.TryParse(result.Groups["allowed"].Value, NumberStyles.None,
+-                CultureInfo.InvariantCulture, out var allowed) ||
+-            !long.TryParse(result.Groups["output"].Value, NumberStyles.None,
+-                CultureInfo.InvariantCulture, out var predictedOutput) ||
+-            allowed <= 0 || required <= allowed)
+-            return originalBudget;
+-        var policy = runtimePolicy.GetJson<OllamaRequestBudgetPolicy>("OllamaRequestBudgetPolicyJson");
+-        var minimum = Math.Min(originalBudget, Math.Max(1, policy.MinimumFittedOutputTokens));
+-        var fitted = predictedOutput - (required - allowed) -
+-                     Math.Max(0, policy.ContextSafetyMarginTokens) -
+-                     Math.Max(0, policy.ThinkingReserveTokens);
+-        var adapted = (int)Math.Clamp(fitted, minimum, originalBudget);
+-        logger.LogInformation(
+-            "Goal {GoalId} adapted output reserve for context recovery: configured {Original}, next attempt {Adapted}, " +
+-            "observed required context {Required}, allowed {Allowed}; user setting remains unchanged.",
+-            checkpoint.GoalId, originalBudget, adapted, required, allowed);
+-        return adapted;
++        try
++        {
++            var original = Math.Max(1, checkpoint.MaxOutputTokens);
++            var failure = checkpoint.Receipts.LastOrDefault(receipt =>
++                IsGoalContextBudgetError(receipt.FailureSummary))?.FailureSummary;
++            if (string.IsNullOrWhiteSpace(failure))
++                return original;
++            long required = 0;
++            long allowed = 0;
++            long output = 0;
++            // The Ollama client reports numerical facts, it does not decide how
++            // to replan. This observer can consume that diagnostic without a
++            // model-dependent heuristic or new runtime regex pattern.
++            foreach (var field in failure.Split(';', StringSplitOptions.RemoveEmptyEntries))
++            {
++                if (field.StartsWith("required=", StringComparison.OrdinalIgnoreCase))
++                    long.TryParse(field[9..], NumberStyles.Integer, CultureInfo.InvariantCulture, out required);
++                else if (field.StartsWith("allowed=", StringComparison.OrdinalIgnoreCase))
++                    long.TryParse(field[8..], NumberStyles.Integer, CultureInfo.InvariantCulture, out allowed);
++                else if (field.StartsWith("output=", StringComparison.OrdinalIgnoreCase))
++                    long.TryParse(field[7..], NumberStyles.Integer, CultureInfo.InvariantCulture, out output);
++            }
++            if (allowed <= 0 || required <= allowed || output <= 0)
++                return original;
++            var policy = runtimePolicy.GetJson<OllamaRequestBudgetPolicy>("OllamaRequestBudgetPolicyJson");
++            var minimum = Math.Min(original, Math.Max(1, policy.MinimumFittedOutputTokens));
++            var fitted = output - (required - allowed) -
++                Math.Max(0, policy.ContextSafetyMarginTokens) -
++                Math.Max(0, policy.ThinkingReserveTokens);
++            var adapted = (int)Math.Clamp(fitted, minimum, original);
++            logger.LogInformation(
++                "Goal {GoalId} reduced its next output budget from {Original} to {Adapted} " +
++                "using observed required={Required} and allowed={Allowed}; saved preference unchanged.",
++                checkpoint.GoalId, original, adapted, required, allowed);
++            return adapted;
++        }
++        catch (Exception exception)
++        {
++            logger.LogWarning(exception, "Goal {GoalId} could not fit its output budget; original is retained.",
++                checkpoint.GoalId);
++            return Math.Max(1, checkpoint.MaxOutputTokens);
++        }
+     }
+ }
+--- a/src/LocalGPT/Services/GoalExecutionService.SemanticPlanning.cs
++++ b/src/LocalGPT/Services/GoalExecutionService.SemanticPlanning.cs
+@@ -31,22 +31,32 @@
+         {
+             var candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
+             var preferredKeys = configuration.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
+-            var chosen = candidates
++            // The caller's selected provider-qualified model is an explicit assignment;
++            // it does not need a second Installed+Configured/Preferred declaration to plan.
++            // Resolve against the *whole* inventory so an ambiguous bare name cannot
++            // accidentally send the goal planner to a different provider or host.
++            var modelIdentity = new ProviderModelIdentity();
++            var availableCandidates = candidates
++                .Where(candidate => candidate.IsInstalled || !candidate.IsLocal)
++                .ToList();
++            var selectedCandidates = models
++                .Select(key => modelIdentity.ResolveEquivalentCandidate(key, availableCandidates, out _))
++                .Where(candidate => candidate is not null)
++                .DistinctBy(candidate => candidate!.SelectionKey, StringComparer.OrdinalIgnoreCase)
++                .ToList();
++            var chosen = selectedCandidates
+                 .OrderBy(candidate =>
+-                        {
+-                            var index = preferredKeys.FindIndex(key => string.Equals(key, candidate.SelectionKey, StringComparison.OrdinalIgnoreCase));
+-                            return index >= 0 ? index : int.MaxValue;
+-                        })
+-                .FirstOrDefault(candidate => (candidate.IsConfigured ||
+-                preferredKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)) &&
+-                (candidate.IsInstalled || !candidate.IsLocal) &&
+-                (models.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)
+-                    || models.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase)));
++                {
++                    var index = preferredKeys.FindIndex(key => string.Equals(key,
++                        candidate!.SelectionKey, StringComparison.OrdinalIgnoreCase));
++                    return index >= 0 ? index : int.MaxValue;
++                })
++                .FirstOrDefault();
+             if (chosen is null) return null;
+             logger.LogInformation("Goal {GoalId} semantic planner selected {ModelKey}; reason={Reason}.",
+                 request.CouncilRequest.RunId, chosen.SelectionKey,
+                 preferredKeys.Contains(chosen.SelectionKey, StringComparer.OrdinalIgnoreCase)
+-                    ? "user-preferred provider-qualified route" : "configured provider route");
++                    ? "user-preferred provider-qualified route" : "explicitly selected provider-qualified route");
+             var policy = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
+             using var client = providerModels.CreateChatClient(chosen.ToReference(), policy.DefaultSessionKeepAlive,
+                 request.CouncilRequest.MaxContextTokens,
+@@ -91,13 +101,19 @@
+                 connectedCapabilities = connected.Select(capability => new { capability.Key, capability.DisplayName, capability.Description }),
+                 participants = models
+             });
++            // GoalExecution owns corrective planning. The existing injected provider runtime
++            // receives a *database-managed* instruction when called after a failed Council
++            // step. This is an actual model instruction, not a commented helper wrapper.
++            var plannerInstruction = runtimePolicy.GetString("GoalSemanticPlannerSystemPrompt")
++                + Environment.NewLine + runtimePolicy.GetString("HelpEscalatorGlobalInstruction");
++            if (!string.IsNullOrWhiteSpace(recoveryContext))
++                plannerInstruction += Environment.NewLine +
++                    runtimePolicy.GetString("GoalContextRecoveryPlannerInstruction");
+             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(10,
+                 runtimePolicy.GetInt("GoalPlannerTimeoutSeconds"))));
+             var response = await client.GetResponseAsync(
+-                [new ChatMessage(ChatRole.System,
+-                    runtimePolicy.GetString("GoalSemanticPlannerSystemPrompt")
+-                    + Environment.NewLine + runtimePolicy.GetString("HelpEscalatorGlobalInstruction")),
++                [new ChatMessage(ChatRole.System, plannerInstruction),
+                  new ChatMessage(ChatRole.User, catalog)],
+                 new ChatOptions
+                 {
+--- a/src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs
++++ b/src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs
+@@ -45,6 +45,30 @@
+ }
+ """, "System.String"),
+                 new("CouncilChatHistoryBudgetCharacters", "48000", "System.Int32"),
++                new("GoalContextRecoveryPlannerInstruction", """
++You are the GoalExecutionService planning delegate, not the final-answer author.
++The prior Council step could not fit the selected model context; this is an execution
++obstacle, not a completed or cancelled user goal. Use the original goal and the
++previousFailure evidence included in this planner input. Produce valid schema-conforming
++steps using real team keys from the supplied catalog. When team selection is permitted,
++prefer an available knowledge-assisted subagent team that decomposes evidence retrieval,
++code generation and verification into separately executable work packets. Otherwise
++retain the requested team and split its objective into smaller independent steps.
++Respect explicitly selected provider-qualified model routes, team preservation and all
++human approvals; do not invent a new model, team, tool, generated file, build or ZIP.
++Each proposed step must reduce the previous prompt/tool scope and name the next concrete
++action; do not propose repeating the failed Council transcript or claiming success.
++""", "System.String"),
++                new("GoalContextRecoverySubstepInstruction", """
++GoalExecutionService is continuing the original goal after a previous Council context
++preflight failure. Complete ONLY the assigned current step below; use the configured
++team's existing approved DX functions and concise relevant knowledge, and hand off
++verified evidence to subsequent goal steps. Do not paste failed Council transcripts.
++The original user deliverable and approvals remain mandatory. A build, test, codegen
++review, execution, receipt, or downloadable ZIP may be reported successful ONLY when
++its actual registered tool result proves success. If approval is pending, report that
++state and stop consequential actions until the user grants it.
++""", "System.String"),
+                 new("CouncilFinalRecoveryTaskExcerptCharacters", "6000", "System.Int32"),
+                 new("GoalDeliveryObjectiveTemplate", "Deliver the finished result of the original goal now: invoke {{Functions}} exactly as the original request specifies (target, format and the complete final text). Reuse the completed step outputs below; do not redo earlier work and do not answer with a description instead of the delivery.", "System.String"),
+                 new("GoalCatalogFallbackMinimumTeamScore", "6", "System.Int32"),

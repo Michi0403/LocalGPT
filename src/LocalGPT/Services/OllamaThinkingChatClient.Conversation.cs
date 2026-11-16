@@ -61,8 +61,8 @@ public sealed partial class OllamaThinkingChatClient
     /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
     /// <param name="stream">Value indicating whether stream should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The Ollama chat request produced by the operation.</returns>
-    private async Task<OllamaChatRequest> CreateRequestAsync(
+    /// <returns>Prepared request or a context-fit failure for the owning Council and GoalExecutionService.</returns>
+    private async Task<(OllamaChatRequest? Request, string? PreflightFailure)> CreateRequestAsync(
         IReadOnlyList<OllamaChatMessage> messages,
         ChatOptions? options,
         bool stream,
@@ -122,9 +122,11 @@ public sealed partial class OllamaThinkingChatClient
                     "Ollama request for {Model} exceeded its effective context; omitted {Count} old conversation turn(s) from the provider payload only. System messages, the last user request and durable chat history are preserved.",
                     model, reducedHistoryTurns);
 
-            // Never send a payload the budget already proved too large: Ollama silently truncates (system prompt and
-            // tool schemas first) or rejects it, and the run then ends empty. Shed the largest tool schemas first.
-            while (budget.PromptExceedsMaximum && tools is { Count: > 0 })
+            // Native tools selected by a Council role are deliberate capabilities, not
+            // dispensable padding. The goal observer can reduce the work and reassign an
+            // eligible subagent; silently deleting its codegen/approval tools cannot.
+            // Generic, unscoped chat still sheds the largest optional tool definitions.
+            while (budget.PromptExceedsMaximum && automaticFunctionAllowList is null && tools is { Count: > 0 })
             {
                 var largest = tools.MaxBy(tool => JsonSerializer.Serialize(tool, jsonOptions).Length)!;
                 tools.Remove(largest);
@@ -136,14 +138,25 @@ public sealed partial class OllamaThinkingChatClient
             }
             if (tools is { Count: 0 })
                 tools = null;
-            // Michi0403 comment: I don't allow hardcoded borders, just dynamically and informative one which should be finetuned and benchmarked till they work and no blocker code like that
-            // Helps neither with use nor security
-            //if (budget.PromptExceedsMaximum)
-            //    throw new InvalidOperationException(
-            //        $"The request for {model} needs about {budget.RequiredContextTokens:N0} context tokens, but at most {budget.NumCtx:N0} are allowed. " +
-            //        $"Requested num_ctx={contextLength?.ToString() ?? "provider default"}; advertised model context limit={modelMaximumContext?.ToString() ?? "unknown"}. " +
-            //        "The configured request context and the model's advertised maximum are separate limits. Shorten large tool/attachment payloads or change the corresponding limit only when the provider genuinely supports it.");
-            return new OllamaChatRequest
+            // Provider preflight owns only the fit check. It must neither throw a
+            // routine context-capacity exception nor send a request known not to fit.
+            // Return an observable failure to the existing Council -> GoalExecution path.
+            if (budget.PromptExceedsMaximum)
+            {
+                var diagnostic =
+                    $"OllamaContextBudgetExceeded;required={budget.RequiredContextTokens};" +
+                    $"allowed={budget.NumCtx.GetValueOrDefault()};output={budget.NumPredict}; " +
+                    $"The request for {model} needs about {budget.RequiredContextTokens:N0} context tokens, " +
+                    $"but at most {budget.NumCtx:N0} are allowed. " +
+                    $"Configured num_ctx={contextLength?.ToString() ?? "provider default"}; " +
+                    $"advertised model context={modelMaximumContext?.ToString() ?? "unknown"}.";
+                logger.LogWarning(
+                    "Ollama preflight cannot fit model {Model}: estimated {Required} tokens, " +
+                    "effective context {Allowed}. Returning an observed failure to Council/GoalExecution.",
+                    model, budget.RequiredContextTokens, budget.NumCtx);
+                return (null, diagnostic);
+            }
+            return (new OllamaChatRequest
             {
                 Model = model,
                 Stream = stream,
@@ -158,7 +171,7 @@ public sealed partial class OllamaThinkingChatClient
                     NumGpu = numGpu,
                     Temperature = options?.Temperature
                 }
-            };
+            }, null);
     
     }
     catch (Exception __serviceMethodException)

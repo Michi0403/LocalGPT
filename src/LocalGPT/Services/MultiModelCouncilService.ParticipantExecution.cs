@@ -463,6 +463,18 @@ namespace LocalGPT.Services
                         .ConfigureAwait(false);
 
                     string? finalAnswerError = null;
+                    // The provider preflight reports expected context-capacity failures as
+                    // data, not exceptions. Turn that result into a Council failure receipt
+                    // so GoalExecutionService can call its existing safe recovery methods.
+                    if (visibleContent.Contains("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var diagnosticIndex = visibleContent.IndexOf("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase);
+                        finalAnswerError = visibleContent[diagnosticIndex..].Trim();
+                        logger.LogWarning(
+                            "Council received Ollama context-fit preflight result for model {Model} during {Phase}; " +
+                            "this slot is failed and its goal observer may safely replan after Council returns.",
+                            modelName, phase);
+                    }
                     var roleComplianceFailureDetected = MultiModelCouncilServiceLooksLikeGenericRoleRefusal(visibleContent, logger);
                     var roleComplianceSucceeded = !roleComplianceFailureDetected;
                     var remainingRoleComplianceRetries = Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries);

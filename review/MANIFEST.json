@@ -1,0 +1,22 @@
+{
+  "baseCommit": "73d1e8234e677c6300a4616050bf298e3fcf1404",
+  "version": "7.3.9",
+  "modified": [
+    "src/LocalGPT/LocalGPT.csproj",
+    "src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs",
+    "src/LocalGPT/Services/GoalExecutionService.SemanticPlanning.cs",
+    "src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs",
+    "src/LocalGPT/Services/OllamaThinkingChatClient.cs",
+    "src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.GoalDeliveryAndSteward.cs",
+    "src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs"
+  ],
+  "added": [
+    "maintenance/changelogs/CHANGELOG-7.3.7-GOAL-OWNED-CONTEXT-RECOVERY.md",
+    "maintenance/changelogs/CHANGELOG-7.3.8-GOAL-DI-AND-PLANNER-WIRING.md",
+    "src/LocalGPT/Services/GoalExecutionService.ContextRecovery.cs",
+    "maintenance/changelogs/CHANGELOG-7.3.9-NONTHROWING-GOAL-HANDOFF.md"
+  ],
+  "deleted": [],
+  "noAutomaticGit": true,
+  "compiled": false
+}

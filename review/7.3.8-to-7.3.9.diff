@@ -1,0 +1,204 @@
+--- /dev/null
++++ b/maintenance/changelogs/CHANGELOG-7.3.9-NONTHROWING-GOAL-HANDOFF.md
+@@ -0,0 +1,18 @@
++# LocalGPT 7.3.9 — nonthrowing provider preflight and goal-owned continuation
++
++## Scope
++
++- Restore the user requirement: NO `throw new InvalidOperationException` for a routine Ollama context-fit preflight in `CreateRequestAsync`.
++- Instead, provider request creation returns a tuple containing either a prepared request or a machine-readable failure. An oversized request is never sent to Ollama.
++- Streaming returns that failure as a normal observable response update; nonstreaming uses `CreateFailureResponse`.
++- `MultiModelCouncilService.ParticipantExecution` explicitly classifies the response as a failed member step and stores the diagnostic in `Error` for the existing recovery/journal pipeline.
++- The existing 7.3.8 `GoalExecutionService.DurableExecution` and `GoalExecutionService.ContextRecovery` consume the observed result, replan through the injected provider planner and Council, and preserve original goal receipts and human approval boundaries.
++- Existing selected-provider/DI-planner fix from 7.3.8 remains unchanged. No new service, extra DI registration, static helper, or tool registry was added.
++
++## Limitations and acceptance
++
++- GoalExecution can act only once an owning Council subrun returns; this patch does not implement a mid-round Council interruption/handoff.
++- User-initiated cancellation remains authoritative; no automatic resume after Stop.
++- The preflight must produce `OllamaContextBudgetExceeded` in the saved member `Error`, not a provider exception or a fake successful consensus.
++- Confirm that the UI preserves the streamed failure and prior chat transcript, and the goal checkpoint records a distinct replanned attempt without losing verified tool receipts.
++- Not compiled or integration-tested in this environment (requires .NET 10 and project dependencies). Inspect and test before use.
+--- a/src/LocalGPT/LocalGPT.csproj
++++ b/src/LocalGPT/LocalGPT.csproj
+@@ -1,6 +1,6 @@
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+   <PropertyGroup>
+-    <Version>7.3.8</Version>
++    <Version>7.3.9</Version>
+     <Product>LocalGPT</Product>
+     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
+ 	  <TargetFramework>net10.0</TargetFramework>
+--- a/src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs
++++ b/src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs
+@@ -463,6 +463,18 @@
+                         .ConfigureAwait(false);
+ 
+                     string? finalAnswerError = null;
++                    // The provider preflight reports expected context-capacity failures as
++                    // data, not exceptions. Turn that result into a Council failure receipt
++                    // so GoalExecutionService can call its existing safe recovery methods.
++                    if (visibleContent.Contains("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase))
++                    {
++                        var diagnosticIndex = visibleContent.IndexOf("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase);
++                        finalAnswerError = visibleContent[diagnosticIndex..].Trim();
++                        logger.LogWarning(
++                            "Council received Ollama context-fit preflight result for model {Model} during {Phase}; " +
++                            "this slot is failed and its goal observer may safely replan after Council returns.",
++                            modelName, phase);
++                    }
+                     var roleComplianceFailureDetected = MultiModelCouncilServiceLooksLikeGenericRoleRefusal(visibleContent, logger);
+                     var roleComplianceSucceeded = !roleComplianceFailureDetected;
+                     var remainingRoleComplianceRetries = Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries);
+--- a/src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs
++++ b/src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs
+@@ -61,8 +61,8 @@
+     /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+     /// <param name="stream">Value indicating whether stream should apply to this operation.</param>
+     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+-    /// <returns>The Ollama chat request produced by the operation.</returns>
+-    private async Task<OllamaChatRequest> CreateRequestAsync(
++    /// <returns>Prepared request or a context-fit failure for the owning Council and GoalExecutionService.</returns>
++    private async Task<(OllamaChatRequest? Request, string? PreflightFailure)> CreateRequestAsync(
+         IReadOnlyList<OllamaChatMessage> messages,
+         ChatOptions? options,
+         bool stream,
+@@ -138,22 +138,25 @@
+             }
+             if (tools is { Count: 0 })
+                 tools = null;
+-            // 7.3.7: a provider request that is already known not to fit must not
+-            // be sent with silently truncated system/tool instructions. This is an
+-            // explicit *recoverable* diagnostic, not a terminal goal decision.
+-            // Council records the failed step; GoalExecutionService applies its
+-            // persisted replan and subagent workflow while respecting approvals.
++            // Provider preflight owns only the fit check. It must neither throw a
++            // routine context-capacity exception nor send a request known not to fit.
++            // Return an observable failure to the existing Council -> GoalExecution path.
+             if (budget.PromptExceedsMaximum)
+-                throw new InvalidOperationException(
++            {
++                var diagnostic =
+                     $"OllamaContextBudgetExceeded;required={budget.RequiredContextTokens};" +
+                     $"allowed={budget.NumCtx.GetValueOrDefault()};output={budget.NumPredict}; " +
+                     $"The request for {model} needs about {budget.RequiredContextTokens:N0} context tokens, " +
+                     $"but at most {budget.NumCtx:N0} are allowed. " +
+                     $"Configured num_ctx={contextLength?.ToString() ?? "provider default"}; " +
+-                    $"advertised model context={modelMaximumContext?.ToString() ?? "unknown"}. " +
+-                    "GoalExecution must replan this failed step using the original user goal, " +
+-                    "smaller context/output work packets or an allowed Council subagent.");
+-            return new OllamaChatRequest
++                    $"advertised model context={modelMaximumContext?.ToString() ?? "unknown"}.";
++                logger.LogWarning(
++                    "Ollama preflight cannot fit model {Model}: estimated {Required} tokens, " +
++                    "effective context {Allowed}. Returning an observed failure to Council/GoalExecution.",
++                    model, budget.RequiredContextTokens, budget.NumCtx);
++                return (null, diagnostic);
++            }
++            return (new OllamaChatRequest
+             {
+                 Model = model,
+                 Stream = stream,
+@@ -168,7 +171,7 @@
+                     NumGpu = numGpu,
+                     Temperature = options?.Temperature
+                 }
+-            };
++            }, null);
+     
+     }
+     catch (Exception __serviceMethodException)
+--- a/src/LocalGPT/Services/OllamaThinkingChatClient.cs
++++ b/src/LocalGPT/Services/OllamaThinkingChatClient.cs
+@@ -205,7 +205,14 @@
+ 
+             for (var round = 0; round <= MaxAutomaticToolRounds; round++)
+             {
+-                response = await SendAsync(conversation, options, stream: false, cancellationToken).ConfigureAwait(false);
++                var preparedResponse = await SendAsync(conversation, options, stream: false, cancellationToken).ConfigureAwait(false);
++                if (!string.IsNullOrWhiteSpace(preparedResponse.PreflightFailure))
++                {
++                    // The goal observer handles this machine-readable failure. No exception
++                    // escapes the provider and no known-oversized request reaches Ollama.
++                    return CreateFailureResponse(preparedResponse.PreflightFailure);
++                }
++                response = preparedResponse.Response;
+                 if (response is null)
+                 {
+                     if (throwOnFailure)
+@@ -260,8 +267,7 @@
+         catch (Exception ex)
+         {
+             logger.LogError(ex, "Ollama non-streaming response failed for model {Model}.", model);
+-            if (throwOnFailure || (ex is InvalidOperationException &&
+-                ex.Message.Contains("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase)))
++            if (throwOnFailure)
+                 throw;
+             return CreateFailureResponse($"Ollama model '{model}' could not complete the response. Review LocalGPT application logs and verify the local runtime.");
+         }
+@@ -295,7 +301,16 @@
+ 
+             for (var round = 0; round <= MaxAutomaticToolRounds; round++)
+             {
+-                var request = await CreateRequestAsync(conversation, options, stream: true, cancellationToken).ConfigureAwait(false);
++                var preparedRequest = await CreateRequestAsync(conversation, options, stream: true, cancellationToken).ConfigureAwait(false);
++                if (!string.IsNullOrWhiteSpace(preparedRequest.PreflightFailure))
++                {
++                    // Council receives a provider result rather than an exception. Its
++                    // participant executor marks this as a failed step; GoalExecutionService
++                    // uses the existing checkpoint and replanning/subagent wiring.
++                    yield return CreateStreamingUpdate(preparedRequest.PreflightFailure);
++                    yield break;
++                }
++                var request = preparedRequest.Request!;
+ 
+                 var waitingUpdate = councilRuntime.OllamaThinkingChatClientCreateStreamingStatusUpdate(
+                     $"LocalGPT sent the request to Ollama model {model}. Waiting for the local runtime to accept the stream...",
+@@ -647,7 +662,7 @@
+     /// <param name="stream">Value indicating whether stream should apply to this operation.</param>
+     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+     /// <returns>The Ollama chat response produced by the operation.</returns>
+-    private async Task<OllamaChatResponse?> SendAsync(
++    private async Task<(OllamaChatResponse? Response, string? PreflightFailure)> SendAsync(
+         IReadOnlyList<OllamaChatMessage> messages,
+         ChatOptions? options,
+         bool stream,
+@@ -655,7 +670,10 @@
+     {
+         try
+         {
+-            var request = await CreateRequestAsync(messages, options, stream, cancellationToken).ConfigureAwait(false);
++            var preparedRequest = await CreateRequestAsync(messages, options, stream, cancellationToken).ConfigureAwait(false);
++            if (!string.IsNullOrWhiteSpace(preparedRequest.PreflightFailure))
++                return (null, preparedRequest.PreflightFailure);
++            var request = preparedRequest.Request!;
+             using var response = await SendRequestWithToolFallbackAsync(
+                     request,
+                     HttpCompletionOption.ResponseContentRead,
+@@ -665,7 +683,7 @@
+             await councilRuntime.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger)
+                 .ConfigureAwait(false);
+ 
+-            return await response.Content.ReadFromJsonAsync<OllamaChatResponse>(jsonOptions, cancellationToken).ConfigureAwait(false);
++            return (await response.Content.ReadFromJsonAsync<OllamaChatResponse>(jsonOptions, cancellationToken).ConfigureAwait(false), null);
+         }
+         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+         {
+@@ -674,14 +692,9 @@
+         catch (Exception ex)
+         {
+             logger.LogError(ex, "Ollama request failed for model {Model}; streaming={Streaming}.", model, stream);
+-            // A context-capacity preflight is a recoverable *goal* event.
+-            // Returning null here discards the only diagnostic and makes Council
+-            // record an unrelated empty response. Let the existing Council
+-            // failure step and GoalExecutionService observe it instead.
+-            if (ex is InvalidOperationException &&
+-                ex.Message.Contains("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase))
+-                throw;
+-            return null;
++            // Transport failures follow existing provider policy; context preflight
++            // is returned explicitly above and is never an exception at this call site.
++            return (null, null);
+         }
+     }
+ }

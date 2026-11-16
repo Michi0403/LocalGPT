@@ -31,22 +31,32 @@ public sealed partial class GoalExecutionService
         {
             var candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
             var preferredKeys = configuration.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
-            var chosen = candidates
+            // The caller's selected provider-qualified model is an explicit assignment;
+            // it does not need a second Installed+Configured/Preferred declaration to plan.
+            // Resolve against the *whole* inventory so an ambiguous bare name cannot
+            // accidentally send the goal planner to a different provider or host.
+            var modelIdentity = new ProviderModelIdentity();
+            var availableCandidates = candidates
+                .Where(candidate => candidate.IsInstalled || !candidate.IsLocal)
+                .ToList();
+            var selectedCandidates = models
+                .Select(key => modelIdentity.ResolveEquivalentCandidate(key, availableCandidates, out _))
+                .Where(candidate => candidate is not null)
+                .DistinctBy(candidate => candidate!.SelectionKey, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var chosen = selectedCandidates
                 .OrderBy(candidate =>
-                        {
-                            var index = preferredKeys.FindIndex(key => string.Equals(key, candidate.SelectionKey, StringComparison.OrdinalIgnoreCase));
-                            return index >= 0 ? index : int.MaxValue;
-                        })
-                .FirstOrDefault(candidate => (candidate.IsConfigured ||
-                preferredKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)) &&
-                (candidate.IsInstalled || !candidate.IsLocal) &&
-                (models.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)
-                    || models.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase)));
+                {
+                    var index = preferredKeys.FindIndex(key => string.Equals(key,
+                        candidate!.SelectionKey, StringComparison.OrdinalIgnoreCase));
+                    return index >= 0 ? index : int.MaxValue;
+                })
+                .FirstOrDefault();
             if (chosen is null) return null;
             logger.LogInformation("Goal {GoalId} semantic planner selected {ModelKey}; reason={Reason}.",
                 request.CouncilRequest.RunId, chosen.SelectionKey,
                 preferredKeys.Contains(chosen.SelectionKey, StringComparer.OrdinalIgnoreCase)
-                    ? "user-preferred provider-qualified route" : "configured provider route");
+                    ? "user-preferred provider-qualified route" : "explicitly selected provider-qualified route");
             var policy = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
             using var client = providerModels.CreateChatClient(chosen.ToReference(), policy.DefaultSessionKeepAlive,
                 request.CouncilRequest.MaxContextTokens,
@@ -91,13 +101,19 @@ public sealed partial class GoalExecutionService
                 connectedCapabilities = connected.Select(capability => new { capability.Key, capability.DisplayName, capability.Description }),
                 participants = models
             });
+            // GoalExecution owns corrective planning. The existing injected provider runtime
+            // receives a *database-managed* instruction when called after a failed Council
+            // step. This is an actual model instruction, not a commented helper wrapper.
+            var plannerInstruction = runtimePolicy.GetString("GoalSemanticPlannerSystemPrompt")
+                + Environment.NewLine + runtimePolicy.GetString("HelpEscalatorGlobalInstruction");
+            if (!string.IsNullOrWhiteSpace(recoveryContext))
+                plannerInstruction += Environment.NewLine +
+                    runtimePolicy.GetString("GoalContextRecoveryPlannerInstruction");
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(10,
                 runtimePolicy.GetInt("GoalPlannerTimeoutSeconds"))));
             var response = await client.GetResponseAsync(
-                [new ChatMessage(ChatRole.System,
-                    runtimePolicy.GetString("GoalSemanticPlannerSystemPrompt")
-                    + Environment.NewLine + runtimePolicy.GetString("HelpEscalatorGlobalInstruction")),
+                [new ChatMessage(ChatRole.System, plannerInstruction),
                  new ChatMessage(ChatRole.User, catalog)],
                 new ChatOptions
                 {
