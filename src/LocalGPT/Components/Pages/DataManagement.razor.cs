@@ -210,7 +210,10 @@ public partial class DataManagement
             ActivePageSize = Math.Clamp(RowLimit, 1, 500);
             await LoadSelectedTableCoreAsync().ConfigureAwait(true);
             if (ActiveGroup == "councils")
+            {
                 await LoadPreferredModelsCoreAsync().ConfigureAwait(true);
+                await LoadCommonRolesCoreAsync().ConfigureAwait(true);
+            }
             StatusText = string.Format(CultureInfo.CurrentCulture, T("DataManagement.Reloaded", "Loaded {0} entities and {1} active model-health decisions."), AllTables.Count, ActiveModelHealthExclusions.Count);
         }
         catch (Exception ex)
@@ -241,7 +244,10 @@ public partial class DataManagement
             RelationValue = null;
             await LoadSelectedTableCoreAsync().ConfigureAwait(true);
             if (ActiveGroup == "councils")
+            {
                 await LoadPreferredModelsCoreAsync().ConfigureAwait(true);
+                await LoadCommonRolesCoreAsync().ConfigureAwait(true);
+            }
         }
         catch (Exception ex)
         {

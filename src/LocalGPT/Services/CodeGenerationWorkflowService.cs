@@ -184,6 +184,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
 
             db.CodeGenerationChangeReviews.Add(entity);
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await WriteProposalSnapshotAsync(entity, payload, cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation(
                 "Created code-generation review {ReviewId} with {FileCount} source file(s), {CodeDomCount} CodeDOM type(s), {OutputCount} output target(s), and review hash prefix {ReviewHashPrefix}.",

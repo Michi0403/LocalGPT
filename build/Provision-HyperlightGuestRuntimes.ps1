@@ -8,8 +8,8 @@ $ErrorActionPreference = 'Stop'
 
 # Runtime images share the driver protocol of this pinned hluk release. Do not fetch "latest".
 $version = 'v0.19.1'
-$runtimeIds = @('python', 'dotnet-jit', 'powershell')
-$runtimeTemplates = @{ python = 'python'; 'dotnet-jit' = 'dotnet'; powershell = 'powershell' }
+$runtimeIds = @('python', 'dotnet-jit', 'powershell', 'node', 'quickjs', 'php', 'java', 'bash')
+$runtimeTemplates = @{ python = 'python'; 'dotnet-jit' = 'dotnet'; powershell = 'powershell'; node = 'node'; quickjs = 'quickjs'; php = 'php'; java = 'java'; bash = 'bash' }
 $repo = 'hyperlight-dev/hyperlight-unikraft'
 $headers = @{ 'User-Agent' = 'LocalGPT-Hyperlight-Guest-Provisioner'; 'Accept' = 'application/vnd.github+json' }
 
@@ -178,7 +178,7 @@ try {
     }
     $manifestPath = Join-Path $imageOutput 'manifest.json'
     $metadata | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
-    Write-Host "Provisioned and verified Python, .NET JIT and PowerShell Hyperlight $version runtimes for $effectiveTarget in $root"
+    Write-Host "Provisioned and verified Python, .NET JIT, PowerShell, Node.js, QuickJS, PHP, Java and shell Hyperlight $version runtimes for $effectiveTarget in $root"
 }
 catch {
     $message = "LocalGPT Hyperlight guest provisioning did not complete: $($_.Exception.Message) No untrusted source executes on the host."

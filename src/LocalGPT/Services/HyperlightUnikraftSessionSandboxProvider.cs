@@ -20,7 +20,12 @@ public sealed class HyperlightUnikraftSessionSandboxProvider(IPlatformRuntimeSer
     [
         new("hyperlight-python", "hyperlight-unikraft", "Python · Hyperlight micro-VM", "python", ".py"),
         new("hyperlight-csharp", "hyperlight-unikraft", "C# · Hyperlight .NET JIT micro-VM", "dotnet-jit", ".cs"),
-        new("hyperlight-powershell", "hyperlight-unikraft", "PowerShell · Hyperlight micro-VM", "powershell", ".ps1")
+        new("hyperlight-powershell", "hyperlight-unikraft", "PowerShell · Hyperlight micro-VM", "powershell", ".ps1"),
+        new("hyperlight-node", "hyperlight-unikraft", "JavaScript · Node.js 22 Hyperlight micro-VM", "node", ".js"),
+        new("hyperlight-quickjs", "hyperlight-unikraft", "JavaScript · QuickJS Hyperlight micro-VM (fast start)", "quickjs", ".mjs"),
+        new("hyperlight-php", "hyperlight-unikraft", "PHP 8.5 · Hyperlight micro-VM", "php", ".php"),
+        new("hyperlight-java", "hyperlight-unikraft", "Java 25 · JShell Hyperlight micro-VM", "java", ".java"),
+        new("hyperlight-bash", "hyperlight-unikraft", "Shell (BusyBox) · Hyperlight micro-VM", "bash", ".sh")
     ];
 
     /// <summary>Constructs a fail-closed argument-list invocation of hluk.</summary>
@@ -63,6 +68,8 @@ public sealed class HyperlightUnikraftSessionSandboxProvider(IPlatformRuntimeSer
         {
             "dotnet-jit" => "768",
             "powershell" => "1024",
+            "java" => "1024",
+            "node" => "512",
             _ => "256"
         });
         start.ArgumentList.Add(submittedSourcePath);

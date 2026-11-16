@@ -1067,7 +1067,7 @@
                 <div class="session-sandbox-runtime-readiness" aria-label="Hyperlight guest runtimes available with this build">
                     @foreach (var readiness in SandboxRuns.RuntimeReadiness)
                     {
-                        <small>@readiness.DisplayName · @(readiness.Provisioned ? "Provisioned" : "Not provisioned") — @readiness.Explanation</small>
+                        <div><small>@readiness.DisplayName · @(readiness.Provisioned ? "Provisioned" : "Not provisioned") — @readiness.Explanation</small></div>
                     }
                 </div>
                 <div class="session-sandbox-controls">
@@ -1096,7 +1096,7 @@
                     </div>
                     <DxButton Text="Generate runnable C# source with CodeDOM" Click="StageCodeDomSandboxSourceAsync" />
                 </details>
-                <label class="session-sandbox-source-label">Python / C# / PowerShell source to debug or test
+                <label class="session-sandbox-source-label">Source to debug or test in the selected runtime
                     <DxMemo @bind-Text="@sandboxSource" Rows="7" NullText="Paste code to run inside a Hyperlight micro-VM" />
                 </label>
                 <div class="session-sandbox-buttons">

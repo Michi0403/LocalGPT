@@ -46,7 +46,7 @@
             <DxFormLayoutGroup Caption='@Localization.GetText("Responsive layout envelope")' ColSpanMd="6">
                 <DxFormLayoutItem Caption='@Localization.GetText("Display name")' ColSpanMd="12"><DxTextBox @bind-Text="draft.DisplayName" /></DxFormLayoutItem>
                 <DxFormLayoutItem Caption='@Localization.GetText("Visible")' ColSpanMd="4">
-                    <DxCheckBox @bind-Checked="draft.Visible" Text='@Localization.GetText("Render this section")' Enabled="@draft.CanHide" />
+                    <DxCheckBox @bind-Checked="draft.Visible" Enabled="@draft.CanHide">@Localization.GetText("Render this section")</DxCheckBox>
                     @if (!draft.CanHide)
                     {
                         <small class="field-help">@Localization.GetText("Recovery-safe source surface: visibility is locked on.")</small>

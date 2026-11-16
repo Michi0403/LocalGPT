@@ -11,6 +11,9 @@
 @inject IHumanCollaborationService HumanCollaboration
 @inject ILocalHumanInteractionContext HumanAmbientContext
 @inject ILocalGptRuntimePolicyDataService RuntimePolicy
+@inject ICouncilTeamConfigurationService TeamConfigurations
+@inject IVariableStoreService CommonRoleVariables
+@inject IJsonTextService JsonText
 @inject CouncilTextService CouncilText
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 @inject ILogger<DataManagement> Logger
@@ -99,11 +102,11 @@
                                             @foreach (var candidate in PreferredModelCandidates)
                                             {
                                                 <div @key="candidate.SelectionKey" class="data-management-preferred-item">
-                                                    <DxCheckBox Text="@PreferredModelDisplay(candidate)"
+                                                    <DxCheckBox
                                                                 Checked="@PreferredSelectionKeys.Contains(candidate.SelectionKey)"
                                                                 CheckedChanged="@((bool value) => TogglePreferredModel(candidate.SelectionKey, value))"
                                                                 ValidationEnabled="false"
-                                                                Enabled="@(!Busy && !PreferredModelsBusy)" />
+                                                                Enabled="@(!Busy && !PreferredModelsBusy)">@PreferredModelDisplay(candidate)</DxCheckBox>
                                                     @if (PreferredSelectionKeys.Contains(candidate.SelectionKey))
                                                     {
                                                         <DxButton Text="↑" Click="@(() => MovePreferredModel(candidate.SelectionKey, -1))" Enabled="@(!Busy && CanMovePreferredModel(candidate.SelectionKey, -1))" RenderStyle="ButtonRenderStyle.Secondary" />
@@ -114,7 +117,7 @@
                                             @foreach (var savedKey in PreferredSelectionKeys.Where(key => !PreferredModelCandidates.Any(candidate => string.Equals(candidate.SelectionKey, key, StringComparison.OrdinalIgnoreCase))))
                                             {
                                                 <div @key="savedKey" class="data-management-preferred-item">
-                                                    <DxCheckBox Text="@("Saved but unavailable · " + savedKey)" Checked="true" CheckedChanged="@((bool value) => TogglePreferredModel(savedKey, value))" ValidationEnabled="false" Enabled="@(!Busy && !PreferredModelsBusy)" />
+                                                    <DxCheckBox Checked="true" CheckedChanged="@((bool value) => TogglePreferredModel(savedKey, value))" ValidationEnabled="false" Enabled="@(!Busy && !PreferredModelsBusy)">@("Saved but unavailable · " + savedKey)</DxCheckBox>
                                                     <DxButton Text="↑" Click="@(() => MovePreferredModel(savedKey, -1))" Enabled="@(!Busy && CanMovePreferredModel(savedKey, -1))" RenderStyle="ButtonRenderStyle.Secondary" />
                                                     <DxButton Text="↓" Click="@(() => MovePreferredModel(savedKey, 1))" Enabled="@(!Busy && CanMovePreferredModel(savedKey, 1))" RenderStyle="ButtonRenderStyle.Secondary" />
                                                 </div>
@@ -122,6 +125,102 @@
                                         </div>
                                         <p class="hint">@PreferredSelectionKeys.Count saved preferred model(s). Use the arrows to change priority; uncheck a model to remove it. Save to persist.</p>
                                     }
+                                </div>
+
+                                <div class="data-management-panel data-management-common-roles-panel">
+                                    <div class="data-management-heading">
+                                        <div>
+                                            <h2>@T("DataManagement.CommonRoles", "Common roles")</h2>
+                                            <p>@T("DataManagement.CommonRolesHelp", "Reusable role presets for Council teams. Changes are staged until saved; applying them updates matching roles in existing teams.")</p>
+                                        </div>
+                                    </div>
+                                    <div class="data-management-actions">
+                                        <DxButton Text='@T("DataManagement.CommonRolesAdd", "Add role")' Enabled="@CommonRolesCanRun" Click="AddCommonRole" RenderStyle="ButtonRenderStyle.Secondary" />
+                                        <DxButton Text='@T("DataManagement.CommonRolesEdit", "Edit selected role")' Enabled="@CommonRolesCanChangeSelected" Click="EditCommonRole" RenderStyle="ButtonRenderStyle.Secondary" />
+                                        <DxButton Text='@T("DataManagement.CommonRolesRemove", "Remove selected role")' Enabled="@CommonRolesCanChangeSelected" Click="RemoveCommonRole" RenderStyle="ButtonRenderStyle.Secondary" />
+                                        <DxButton Text='@T("DataManagement.CommonRolesSave", "Save common roles")' Enabled="@CommonRolesCanRun" Click="SaveCommonRolesAsync" RenderStyle="ButtonRenderStyle.Primary" />
+                                    </div>
+                                    @if (CommonRolesBusy)
+                                    {
+                                        <p role="status">@T("DataManagement.CommonRolesBusy", "Working on common roles…")</p>
+                                    }
+                                    <DxGrid Data="@CommonRoles" FocusedRowEnabled="true" FocusedRowChanged="OnCommonRoleFocusedRowChanged" ShowSearchBox="true" TextWrapEnabled="false">
+                                        <Columns>
+                                            <DxGridDataColumn FieldName="@nameof(OrganicCouncilRoleDefinition.Role)" Caption='@T("DataManagement.CommonRolesRole", "Role")' />
+                                            <DxGridDataColumn FieldName="@nameof(OrganicCouncilRoleDefinition.Expertise)" Caption='@T("DataManagement.CommonRolesExpertise", "Expertise")' />
+                                            <DxGridDataColumn FieldName="@nameof(OrganicCouncilRoleDefinition.Responsibility)" Caption='@T("DataManagement.CommonRolesResponsibility", "Responsibility")' />
+                                            <DxGridDataColumn FieldName="@nameof(OrganicCouncilRoleDefinition.PerformanceMode)" Caption='@T("DataManagement.CommonRolesPerformanceMode", "Performance mode")' />
+                                            <DxGridDataColumn FieldName="@nameof(OrganicCouncilRoleDefinition.BoundaryMode)" Caption='@T("DataManagement.CommonRolesBoundaryMode", "Boundary mode")' />
+                                            <DxGridDataColumn FieldName="@nameof(OrganicCouncilRoleDefinition.LanguageMode)" Caption='@T("DataManagement.CommonRolesLanguageMode", "Language mode")' />
+                                            <DxGridDataColumn FieldName="@nameof(OrganicCouncilRoleDefinition.HumanParticipationMode)" Caption='@T("DataManagement.CommonRolesHumanMode", "Human participation")' />
+                                            <DxGridDataColumn FieldName="@nameof(OrganicCouncilRoleDefinition.MinimumAiParticipants)" Caption='@T("DataManagement.CommonRolesMinAi", "Min AI participants")' />
+                                            <DxGridDataColumn FieldName="@nameof(OrganicCouncilRoleDefinition.MaximumAiParticipants)" Caption='@T("DataManagement.CommonRolesMaxAi", "Max AI participants")' />
+                                        </Columns>
+                                    </DxGrid>
+                                    @if (CommonRoleDraft is not null)
+                                    {
+                                        <DxFormLayout CssClass="data-management-record-form">
+                                            <DxFormLayoutItem Caption='@T("DataManagement.CommonRolesRole", "Role")' ColSpanMd="6">
+                                                <DxTextBox @bind-Text="CommonRoleDraft.Role" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption='@T("DataManagement.CommonRolesPerformanceMode", "Performance mode")' ColSpanMd="6">
+                                                <DxComboBox Data="@CommonRolePerformanceModes" @bind-Value="CommonRoleDraft.PerformanceMode" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption='@T("DataManagement.CommonRolesExpertise", "Expertise")' ColSpanMd="12">
+                                                <DxMemo @bind-Text="CommonRoleDraft.Expertise" Rows="3" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption='@T("DataManagement.CommonRolesResponsibility", "Responsibility")' ColSpanMd="12">
+                                                <DxMemo @bind-Text="CommonRoleDraft.Responsibility" Rows="3" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption='@T("DataManagement.CommonRolesBoundaryMode", "Boundary mode")' ColSpanMd="6">
+                                                <DxComboBox Data="@CommonRoleBoundaryModes" @bind-Value="CommonRoleDraft.BoundaryMode" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption='@T("DataManagement.CommonRolesLanguageMode", "Language mode")' ColSpanMd="6">
+                                                <DxComboBox Data="@CommonRoleLanguageModes" @bind-Value="CommonRoleDraft.LanguageMode" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption='@T("DataManagement.CommonRolesHumanMode", "Human participation")' ColSpanMd="4">
+                                                <DxComboBox Data="@CommonRoleHumanModes" @bind-Value="CommonRoleDraft.HumanParticipationMode" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption='@T("DataManagement.CommonRolesMinAi", "Min AI participants")' ColSpanMd="4">
+                                                <DxSpinEdit @bind-Value="CommonRoleDraft.MinimumAiParticipants" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption='@T("DataManagement.CommonRolesMaxAi", "Max AI participants")' ColSpanMd="4">
+                                                <DxSpinEdit @bind-Value="CommonRoleDraft.MaximumAiParticipants" />
+                                            </DxFormLayoutItem>
+                                        </DxFormLayout>
+                                        <div class="data-management-actions">
+                                            <DxButton Text='@T("DataManagement.CommonRolesAccept", "Accept role")' Click="AcceptCommonRoleDraft" RenderStyle="ButtonRenderStyle.Primary" />
+                                            <DxButton Text='@T("DataManagement.CommonRolesCancel", "Cancel edit")' Click="CancelCommonRoleDraft" RenderStyle="ButtonRenderStyle.Secondary" />
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(CommonRolesStatus))
+                                    {
+                                        <p class="hint" role="status">@CommonRolesStatus</p>
+                                    }
+                                    <div class="data-management-actions">
+                                        <DxCheckBox @bind-Checked="CommonRolesApplyConfirmed" ValidationEnabled="false" Enabled="@CommonRolesCanRun">@T("DataManagement.CommonRolesApplyConfirm", "I confirm that matching roles in all enabled teams are overwritten with these presets (assigned models and paired roles stay).")</DxCheckBox>
+                                        <DxButton Text='@T("DataManagement.CommonRolesApply", "Apply to team roles with the same name")' Enabled="@CommonRolesCanApply" Click="ApplyCommonRolesToTeamsAsync" RenderStyle="ButtonRenderStyle.Primary" />
+                                    </div>
+                                </div>
+
+                                <div class="data-management-panel data-management-keyaccount-panel">
+                                    <div class="data-management-heading">
+                                        <div>
+                                            <h2>@T("DataManagement.KeyaccountReviewer", "Keyaccount reviewer model")</h2>
+                                            <p>@T("DataManagement.KeyaccountReviewerHelp", "Model that reviews goal completion. Leave blank to use the model of the run.")</p>
+                                        </div>
+                                    </div>
+                                    <DxComboBox Data="@KeyaccountReviewerOptions"
+                                                Value="@KeyaccountReviewerKey"
+                                                ValueChanged="@((string value) => SetKeyaccountReviewerKey(value))"
+                                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                                NullText='@T("DataManagement.KeyaccountReviewerBlank", "Use the model of the run")'
+                                                ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                                                Enabled="@CommonRolesCanRun" />
+                                    <div class="data-management-actions">
+                                        <DxButton Text='@T("DataManagement.KeyaccountReviewerSave", "Save reviewer model")' Enabled="@CommonRolesCanRun" Click="SaveKeyaccountReviewerAsync" RenderStyle="ButtonRenderStyle.Primary" />
+                                    </div>
                                 </div>
                             }
 

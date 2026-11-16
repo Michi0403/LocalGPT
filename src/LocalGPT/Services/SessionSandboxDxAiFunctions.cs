@@ -54,8 +54,8 @@ public sealed class RunSessionSandboxFunction(
     /// <summary>Approval-gated source execution, not an unrestricted host command.</summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "session.sandbox.run", "POST", "/api/dxai/functions/session.sandbox.run/invoke",
-        "Runs submitted Python, C# or PowerShell SOURCE inside the configured Hyperlight micro-VM, not on the host. Returns a queued runId to poll with session.sandbox.runs.",
-        "Required languageKey and source; optional sessionId, projectId and conversationId. Source is a single guest snippet, not a mounted repository tree.",
+        "Runs submitted Python, C#, PowerShell, JavaScript (Node.js or QuickJS), PHP, Java or shell SOURCE inside the configured Hyperlight micro-VM, not on the host. Returns a queued runId to poll with session.sandbox.runs.",
+        "Required languageKey and source; optional sessionId, projectId and conversationId. Source is a single guest snippet, not a mounted repository tree. languageKey is one of hyperlight-python, hyperlight-csharp, hyperlight-powershell, hyperlight-node, hyperlight-quickjs, hyperlight-php, hyperlight-java, hyperlight-bash.",
         "Requires fresh human confirmation. No host interpreter, repository mount, network or automatic execution. Does not prove compilation until the completed receipt succeeds.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: false,

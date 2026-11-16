@@ -65,7 +65,7 @@
                     <DxTextBox @bind-Text="CertificateRequest.Password" @bind-Text:after="ValidateCertificateForm" Password="true" />
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption="Certificate store">
-                    <DxCheckBox @bind-Checked="CertificateRequest.InstallToStore" @bind-Checked:after="ValidateCertificateForm" Text="Install the generated certificate into a Windows/.NET certificate store" />
+                    <DxCheckBox @bind-Checked="CertificateRequest.InstallToStore" @bind-Checked:after="ValidateCertificateForm">Install the generated certificate into a Windows/.NET certificate store</DxCheckBox>
                 </DxFormLayoutItem>
                 @if (CertificateRequest.InstallToStore)
                 {
@@ -77,7 +77,7 @@
                     </DxFormLayoutItem>
                 }
                 <DxFormLayoutItem>
-                    <DxCheckBox @bind-Checked="CertificateRequest.RequireServerAuthentication" @bind-Checked:after="ValidateCertificateForm" Text="Use the generated PFX for the remote Kestrel endpoint" />
+                    <DxCheckBox @bind-Checked="CertificateRequest.RequireServerAuthentication" @bind-Checked:after="ValidateCertificateForm">Use the generated PFX for the remote Kestrel endpoint</DxCheckBox>
                     <ValidationMessage For="@(() => CertificateRequest.RequireServerAuthentication)" />
                 </DxFormLayoutItem>
                 <DxFormLayoutItem>

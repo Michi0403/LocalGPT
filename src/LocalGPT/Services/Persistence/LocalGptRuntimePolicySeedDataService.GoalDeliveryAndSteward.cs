@@ -29,6 +29,7 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
   "minimumFittedOutputTokens": 1024
 }
 """, "System.String"),
+                new("CouncilCommonRolesJson", "[]", "System.String"),
                 new("CouncilUnlistedStepNativeToolMode", "CompactWithBroker", "System.String"),
                 new("CouncilCapabilityNativeFunctionsJson", """
 {

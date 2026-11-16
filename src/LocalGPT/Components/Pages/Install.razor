@@ -431,8 +431,7 @@
                         <DxTextBox @bind-Text="Model.ChatGPTLocalCore.ModelName" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem>
-                        <DxCheckBox @bind-Checked="Model.ChatGPTLocalCore.AutoStartServer"
-                                    Text="Auto start server if not running" />
+                        <DxCheckBox @bind-Checked="Model.ChatGPTLocalCore.AutoStartServer">Auto start server if not running</DxCheckBox>
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Working Directory">
                         <DxTextBox @bind-Text="Model.ChatGPTLocalCore.WorkingDir" />
@@ -606,7 +605,7 @@
             </div>
             <DxFormLayout>
                 <DxFormLayoutItem Caption="Enable remote endpoint">
-                    <DxCheckBox @bind-Checked="NetworkModel.Enabled" Text="Listen on a second network endpoint" />
+                    <DxCheckBox @bind-Checked="NetworkModel.Enabled">Listen on a second network endpoint</DxCheckBox>
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption="Bind address">
                     <DxTextBox @bind-Text="NetworkModel.Address" />
@@ -679,14 +678,14 @@
                             <DxFormLayout CssClass="mcp-form-layout">
                                 <DxFormLayoutGroup Caption="Gateway endpoints" ColSpanMd="12">
                                     <DxFormLayoutItem Caption="Enable MCP gateway" ColSpanMd="6">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.Enabled" Text="Serve the configured MCP endpoint after restart" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.Enabled">Serve the configured MCP endpoint after restart</DxCheckBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Dedicated listener" ColSpanMd="6">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.DedicatedListenerEnabled" Text="Start an isolated MCP-only Kestrel endpoint" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.DedicatedListenerEnabled">Start an isolated MCP-only Kestrel endpoint</DxCheckBox>
                                         <p class="field-help">Recommended: other routes on this listener return 404.</p>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Also on primary loopback" ColSpanMd="6">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.ExposeOnPrimaryEndpoint" Text="Expose the MCP path on 127.0.0.1:5000 too" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.ExposeOnPrimaryEndpoint">Expose the MCP path on 127.0.0.1:5000 too</DxCheckBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Bind address" ColSpanMd="3">
                                         <DxTextBox @bind-Text="McpGatewayModel.Address" NullText="127.0.0.1" />
@@ -702,22 +701,22 @@
                                 </DxFormLayoutGroup>
                                 <DxFormLayoutGroup Caption="Protocol compatibility" ColSpanMd="12">
                                     <DxFormLayoutItem Caption="Modern protocol" ColSpanMd="6">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.EnableModernProtocol" Text="Serve stateless modern MCP requests" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.EnableModernProtocol">Serve stateless modern MCP requests</DxCheckBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Modern version" ColSpanMd="6">
                                         <DxTextBox @bind-Text="McpGatewayModel.ProtocolVersion" NullText="2026-07-28" />
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Legacy compatibility" ColSpanMd="6">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.EnableLegacyProtocol" Text="Accept initialize-handshake MCP clients" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.EnableLegacyProtocol">Accept initialize-handshake MCP clients</DxCheckBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Legacy version" ColSpanMd="6">
                                         <DxTextBox @bind-Text="McpGatewayModel.LegacyProtocolVersion" NullText="2025-11-25" />
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Modern routing headers" ColSpanMd="6">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.RequireModernRoutingHeaders" Text="Require protocol / method / name header agreement" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.RequireModernRoutingHeaders">Require protocol / method / name header agreement</DxCheckBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Approval round trip" ColSpanMd="6">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.EnableApprovalMultiRoundTrip" Text="Return input_required for elicitation-capable clients" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.EnableApprovalMultiRoundTrip">Return input_required for elicitation-capable clients</DxCheckBox>
                                         <p class="field-help">The Human Collaboration decision remains authoritative.</p>
                                     </DxFormLayoutItem>
                                 </DxFormLayoutGroup>
@@ -753,14 +752,14 @@
                             <DxFormLayout CssClass="mcp-form-layout">
                                 <DxFormLayoutGroup Caption="Authentication" ColSpanMd="12">
                                     <DxFormLayoutItem Caption="Remote clients" ColSpanMd="4">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.AllowRemoteClients" Text="Permit non-loopback clients" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.AllowRemoteClients">Permit non-loopback clients</DxCheckBox>
                                         <p class="field-help">Remote mode forces API-key authentication when settings are saved.</p>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Require API key" ColSpanMd="4">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.RequireApiKey" Text="Require the configured MCP API key" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.RequireApiKey">Require the configured MCP API key</DxCheckBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Bearer alias" ColSpanMd="4">
-                                        <DxCheckBox @bind-Checked="McpGatewayModel.AcceptBearerToken" Text="Also accept Authorization: Bearer" />
+                                        <DxCheckBox @bind-Checked="McpGatewayModel.AcceptBearerToken">Also accept Authorization: Bearer</DxCheckBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="API key header" ColSpanMd="4">
                                         <DxTextBox @bind-Text="McpGatewayModel.ApiKeyHeader" NullText="X-LocalGPT-MCP-Key" />
@@ -793,15 +792,15 @@
                             <p class="field-help mcp-section-help">Discovery is a separate boundary from execution. You can expose protocol primitives while withholding mutating, approval-gated or unrelated DXFunctions.</p>
                             <DxFormLayout CssClass="mcp-form-layout">
                                 <DxFormLayoutGroup Caption="Protocol primitives" ColSpanMd="12">
-                                    <DxFormLayoutItem Caption="Tools" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeTools" Text="Expose MCP tools" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Resources" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeResources" Text="Expose MCP resources" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Prompts" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposePrompts" Text="Expose MCP prompts" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Tools" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeTools">Expose MCP tools</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Resources" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeResources">Expose MCP resources</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Prompts" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposePrompts">Expose MCP prompts</DxCheckBox></DxFormLayoutItem>
                                 </DxFormLayoutGroup>
                                 <DxFormLayoutGroup Caption="DXFunction bridge" ColSpanMd="12">
-                                    <DxFormLayoutItem Caption="Read-only" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeReadOnlyFunctions" Text="Bridge read-only DXFunctions" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Mutating" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeMutatingFunctions" Text="Bridge mutating DXFunctions" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Confirmation-gated" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeConfirmationRequiredFunctions" Text="Advertise gated functions" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Automatic invocation" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.AllowAutomaticFunctionInvocation" Text="Allow where LocalGPT policy permits" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Read-only" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeReadOnlyFunctions">Bridge read-only DXFunctions</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Mutating" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeMutatingFunctions">Bridge mutating DXFunctions</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Confirmation-gated" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeConfirmationRequiredFunctions">Advertise gated functions</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Automatic invocation" ColSpanMd="3"><DxCheckBox @bind-Checked="McpGatewayModel.AllowAutomaticFunctionInvocation">Allow where LocalGPT policy permits</DxCheckBox></DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Tool include prefixes" ColSpanMd="6">
                                         <DxMemo @bind-Text="McpGatewayModel.ToolIncludePrefixes" Rows="4" NullText="project.;knowledge.;artifact." />
                                         <p class="field-help">Optional allow-list. Empty means all functions surviving the switches above.</p>
@@ -821,28 +820,28 @@
                             <p class="field-help mcp-section-help">Start with metadata. Content, secrets, absolute paths and mutation lanes are separate opt-ins so a client receives only the domain slice it actually needs.</p>
                             <DxFormLayout CssClass="mcp-form-layout">
                                 <DxFormLayoutGroup Caption="Projects and knowledge" ColSpanMd="12">
-                                    <DxFormLayoutItem Caption="Projects" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeProjects" Text="Projects and revisions" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Knowledge" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeKnowledge" Text="Council knowledge metadata" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Knowledge content" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeKnowledgeContent" Text="Full knowledge content" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Regex" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeRegex" Text="Regex knowledge" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Archived" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.IncludeArchivedProjects" Text="Include archived projects / knowledge" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Projects" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeProjects">Projects and revisions</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Knowledge" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeKnowledge">Council knowledge metadata</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Knowledge content" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeKnowledgeContent">Full knowledge content</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Regex" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeRegex">Regex knowledge</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Archived" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.IncludeArchivedProjects">Include archived projects / knowledge</DxCheckBox></DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Allowed project GUIDs" ColSpanMd="12">
                                         <DxMemo @bind-Text="McpGatewayModel.AllowedProjectIds" Rows="4" NullText="One project GUID per line; empty permits all otherwise enabled projects" />
                                     </DxFormLayoutItem>
                                 </DxFormLayoutGroup>
                                 <DxFormLayoutGroup Caption="Artifacts and toolchains" ColSpanMd="12">
-                                    <DxFormLayoutItem Caption="Toolchains" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeToolchains" Text="Toolchain inventory" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Artifacts" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeArtifacts" Text="Project artifact metadata" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Artifact values" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeArtifactValues" Text="Artifact values / content" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Sensitive artifacts" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeSensitiveArtifacts" Text="Sensitive artifact values" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Environment" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeToolchainEnvironmentVariables" Text="Toolchain environment variables" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Download URLs" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ReturnDownloadUrls" Text="Return artifact/download URLs" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Toolchains" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeToolchains">Toolchain inventory</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Artifacts" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeArtifacts">Project artifact metadata</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Artifact values" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeArtifactValues">Artifact values / content</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Sensitive artifacts" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeSensitiveArtifacts">Sensitive artifact values</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Environment" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeToolchainEnvironmentVariables">Toolchain environment variables</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Download URLs" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ReturnDownloadUrls">Return artifact/download URLs</DxCheckBox></DxFormLayoutItem>
                                 </DxFormLayoutGroup>
                                 <DxFormLayoutGroup Caption="Operational surfaces and result bounds" ColSpanMd="12">
-                                    <DxFormLayoutItem Caption="Council" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeCouncil" Text="Council functions" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Runtime policy" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeRuntimePolicy" Text="Runtime-policy functions" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Diagnostics" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeDiagnostics" Text="Diagnostic functions" /></DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="System paths" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeSystemPaths" Text="Absolute system paths" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Council" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeCouncil">Council functions</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Runtime policy" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeRuntimePolicy">Runtime-policy functions</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Diagnostics" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeDiagnostics">Diagnostic functions</DxCheckBox></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="System paths" ColSpanMd="4"><DxCheckBox @bind-Checked="McpGatewayModel.ExposeSystemPaths">Absolute system paths</DxCheckBox></DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Maximum list records" ColSpanMd="4"><DxSpinEdit @bind-Value="McpGatewayModel.MaxListItems" Min="1" Max="10000" /></DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Maximum result characters" ColSpanMd="4"><DxSpinEdit @bind-Value="McpGatewayModel.MaxResultCharacters" Min="1024" Max="8000000" /></DxFormLayoutItem>
                                 </DxFormLayoutGroup>

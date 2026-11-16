@@ -173,9 +173,9 @@
                         Confidence
                         <DxSpinEdit @bind-Value="KnowledgeEdit.Confidence" MinValue="0" MaxValue="100" />
                     </label>
-                    <DxCheckBox @bind-Checked="KnowledgeEdit.IsUserApproved" Text="User approved" />
-                    <DxCheckBox @bind-Checked="KnowledgeEdit.IsPinned" Text="Pinned" />
-                    <DxCheckBox @bind-Checked="KnowledgeEdit.IsArchived" Text="Archived" />
+                    <DxCheckBox @bind-Checked="KnowledgeEdit.IsUserApproved">User approved</DxCheckBox>
+                    <DxCheckBox @bind-Checked="KnowledgeEdit.IsPinned">Pinned</DxCheckBox>
+                    <DxCheckBox @bind-Checked="KnowledgeEdit.IsArchived">Archived</DxCheckBox>
                 </div>
                 <fieldset class="knowledge-rating-panel">
                     <legend>Human knowledge rating</legend>
@@ -187,7 +187,7 @@
                         <label>Rating
                             <DxSpinEdit @bind-Value="KnowledgeRatingEdit.Rating" MinValue="0" MaxValue="100" />
                         </label>
-                        <DxCheckBox @bind-Checked="KnowledgeRatingEdit.ApprovedForCouncilUse" Text="Approve for council use" />
+                        <DxCheckBox @bind-Checked="KnowledgeRatingEdit.ApprovedForCouncilUse">Approve for council use</DxCheckBox>
                     </div>
                     <label>Rating notes
                         <DxMemo @bind-Text="KnowledgeRatingEdit.Notes" Rows="2" />
@@ -220,7 +220,7 @@
                                 Meaning type
                                 <DxComboBox Data="@RegexRelationshipPurposeOptions" @bind-Value="KnowledgeRegexPurpose" />
                             </label>
-                            <DxCheckBox @bind-Checked="KnowledgeRegexEnabled" Text="Recognition link enabled" />
+                            <DxCheckBox @bind-Checked="KnowledgeRegexEnabled">Recognition link enabled</DxCheckBox>
                         </div>
                         <label title="Explain what a successful match means in the context of this knowledge entry.">
                             Match meaning
