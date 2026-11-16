@@ -506,6 +506,21 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                     if (taggedRecoveryUpdate is not null)
                         yield return taggedRecoveryUpdate;
                 }
+                else if (toolCalls.Count == 0
+                    && functionCallRecovery is not null
+                    && string.IsNullOrWhiteSpace(assistantContent.ToString())
+                    && assistantThinking.Length > 0
+                    && functionCallRecovery.RecoverTagged(assistantThinking.ToString(), automaticInvocation: true) is { Recognized: true } thinkingRecovery)
+                {
+                    // Some models (gemma4:26b) write the complete explicit call tag into the thinking channel and never
+                    // emit an answer. Route it through the normal registry and approval policy instead of losing the work.
+                    toolCalls = ToOllamaToolCalls(thinkingRecovery.Calls);
+                    var thinkingRecoveryUpdate = councilRuntime.OllamaThinkingChatClientCreateStreamingStatusUpdate(
+                        $"LocalGPT recovered {toolCalls.Count} tagged DX function call(s) the model wrote only in its thinking and routed them through the normal function policy.",
+                        logger);
+                    if (thinkingRecoveryUpdate is not null)
+                        yield return thinkingRecoveryUpdate;
+                }
                 else if (toolCalls.Count == 0 && pendingContent.Length > 0)
                 {
                     foreach (var text in formatter.AppendContent(pendingContent.ToString()))
