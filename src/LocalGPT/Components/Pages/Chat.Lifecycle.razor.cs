@@ -455,6 +455,8 @@ namespace LocalGPT.Components.Pages
                 return;
             }
 
+            if (string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName))
+                await VariableStore.SetAsync(SystemVariables.LastChatProviderSession.Name, selectedSession.Name).ConfigureAwait(true);
             await OnModelChanged(selectedSession).ConfigureAwait(true);
         }
         catch (Exception exception)

@@ -1824,6 +1824,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>Gets or sets the provider session remembered from the owner's last choice; applied when sessions are (re)built.</summary>
+    private string rememberedProviderSessionName = string.Empty;
+
     /// <summary>
     /// Loads database backed defaults for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
@@ -1859,6 +1862,7 @@ namespace LocalGPT.Components.Pages
             value =>
             {
                 // Restore the provider the owner chose last time instead of the first configured session.
+                rememberedProviderSessionName = value ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(value) || hasUserSelectedSession || ChatClientProvider is null ||
                     !string.IsNullOrWhiteSpace(DiagnosticRequestedSessionName))
                     return;

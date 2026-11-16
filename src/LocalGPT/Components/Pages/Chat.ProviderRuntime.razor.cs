@@ -48,7 +48,10 @@ namespace LocalGPT.Components.Pages
             if (ChatClientProvider is null)
                 return;
 
-            var previousSelection = ChatClientProvider.SelectedSession?.Name;
+            // Until the owner picks a provider in this circuit, prefer the one remembered from the last visit.
+            var previousSelection = !hasUserSelectedSession && !string.IsNullOrWhiteSpace(rememberedProviderSessionName)
+                ? rememberedProviderSessionName
+                : ChatClientProvider.SelectedSession?.Name;
             var previousMessages = ChatClientProvider.AvailableChatClients
                 .Where(filter => CouncilRuntime.IsDynamicSession(filter, Logger) ?? new())
                 .ToDictionary(session => session.Name, session => session.Messages.ToList(), StringComparer.OrdinalIgnoreCase);
