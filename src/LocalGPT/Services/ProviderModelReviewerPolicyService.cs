@@ -1,11 +1,15 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using Microsoft.Extensions.Options;
 
 namespace LocalGPT.Services;
 
 /// <summary>Owns the provider-model reviewer ranking policy so frontend defaults and benchmark execution cannot drift.</summary>
+/// <param name="optionsRoot">Application configuration whose ordered PreferredCouncilModelKeys rank reviewers.</param>
 /// <param name="logger">Logger used for reviewer-policy diagnostics.</param>
-public sealed class ProviderModelReviewerPolicyService(ILogger<ProviderModelReviewerPolicyService> logger) : IProviderModelReviewerPolicyService
+public sealed class ProviderModelReviewerPolicyService(
+    IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
+    ILogger<ProviderModelReviewerPolicyService> logger) : IProviderModelReviewerPolicyService
 {
     /// <summary>
     /// Retrieves priority as part of the provider model reviewer policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -16,14 +20,13 @@ public sealed class ProviderModelReviewerPolicyService(ILogger<ProviderModelRevi
         try
         {
             ArgumentNullException.ThrowIfNull(model);
-            var name = model.ModelName ?? string.Empty;
-            if (name.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase)) return 0;
-            if (name.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase)) return 1;
-            if (name.Contains("qwen", StringComparison.OrdinalIgnoreCase) && name.Contains("coder", StringComparison.OrdinalIgnoreCase)) return 2;
-            if (name.Contains("deepseek", StringComparison.OrdinalIgnoreCase) && name.Contains("coder", StringComparison.OrdinalIgnoreCase)) return 3;
-            if (name.Contains("openthinker", StringComparison.OrdinalIgnoreCase) || name.Contains("qwen", StringComparison.OrdinalIgnoreCase) || name.Contains("gemma", StringComparison.OrdinalIgnoreCase)) return 4;
-            if (name.Contains("deepscaler", StringComparison.OrdinalIgnoreCase) || name.Contains("1.5b", StringComparison.OrdinalIgnoreCase) || name.Contains("0.8b", StringComparison.OrdinalIgnoreCase)) return 20;
-            return 10;
+            // The owner's ordered "Preferred Council models" decide the reviewer order. No model family is
+            // favoured in code; models that are not in the preferred list share one neutral rank after them.
+            var preferred = optionsRoot.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
+            var index = preferred.FindIndex(key =>
+                string.Equals(key, model.SelectionKey, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(key, model.ModelName, StringComparison.OrdinalIgnoreCase));
+            return index >= 0 ? index : preferred.Count;
         }
         catch (Exception exception)
         {

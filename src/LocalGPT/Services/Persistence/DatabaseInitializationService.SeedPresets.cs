@@ -66,27 +66,37 @@ public sealed partial class DatabaseInitializationService
                     createProjectPerRun: false),
                 BuildPreset(
                     "Adaptive Mixed Hardware Council",
-                    "Four-member Council with independent per-model CPU/GPU token roads. The session slider interpolates each model from its own minimum to maximum.",
-                    ["gpt-oss:20b", "deepseek-r1:8b", "qwen3:8b", "gemma3:12b"],
+                    "First-run default for 8-16 GB machines: gemma4:e4b for fast subtasks, deepseek-r1:8b for reasoning and gemma4:12b as the main member, each with its own CPU/GPU token road.",
+                    ["gemma4:12b", "deepseek-r1:8b", "gemma4:e4b"],
                     [
-                        Route("gpt-oss:20b", OneWireHardwareKind.Gpu, 0, "GPU 1", 1024, 32768, 8192, 262144, 32),
-                        Route("deepseek-r1:8b", OneWireHardwareKind.Cpu, 0, "CPU", 512, 12288, 4096, 131072, 0),
-                        Route("qwen3:8b", OneWireHardwareKind.Gpu, 1, "GPU 2", 512, 16384, 4096, 131072, 24),
-                        Route("gemma3:12b", OneWireHardwareKind.Gpu, 0, "GPU 1", 512, 12288, 4096, 98304, 20)
+                        Route("gemma4:12b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 12288, 4096, 65536, null),
+                        Route("deepseek-r1:8b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 8192, 4096, 32768, null),
+                        Route("gemma4:e4b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 384, 4096, 4096, 32768, null)
                     ],
                     isDefault: true,
                     maxParallel: 3),
                 BuildPreset(
                     "Learning Round",
                     "Database, chat-memory, regex, logs, project and knowledge maintenance round with conservative model-specific roads.",
-                    ["gpt-oss:20b", "qwen3:8b", "deepseek-r1:8b"],
+                    ["gemma4:12b", "deepseek-r1:8b", "gemma4:e4b"],
                     [
-                        Route("gpt-oss:20b", OneWireHardwareKind.Gpu, 0, "GPU 1", 1024, 24576, 8192, 262144, 32),
-                        Route("qwen3:8b", OneWireHardwareKind.Gpu, 1, "GPU 2", 512, 12288, 4096, 131072, 24),
-                        Route("deepseek-r1:8b", OneWireHardwareKind.Cpu, 0, "CPU", 512, 8192, 4096, 98304, 0)
+                        Route("gemma4:12b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 12288, 4096, 65536, null),
+                        Route("deepseek-r1:8b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 8192, 4096, 32768, null),
+                        Route("gemma4:e4b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 384, 4096, 4096, 32768, null)
                     ],
                     isDefault: false,
                     maxParallel: 3),
+                BuildPreset(
+                    "Large GPU Council (24 GB)",
+                    "For 20-24 GB GPUs: gemma4:26b leads, gemma4:12b reviews and gemma4:e4b takes small subtasks.",
+                    ["gemma4:26b", "gemma4:12b", "gemma4:e4b"],
+                    [
+                        Route("gemma4:26b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 1024, 16384, 8192, 65536, null),
+                        Route("gemma4:12b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 512, 12288, 4096, 65536, null),
+                        Route("gemma4:e4b", OneWireHardwareKind.Gpu, 0, "Auto GPU", 384, 4096, 4096, 32768, null)
+                    ],
+                    isDefault: false,
+                    maxParallel: 1),
                 BuildPreset(
                     "Fast Game Council (Low-B)",
                     "Small low-latency models for player controllers, creature/object subdirectors and GameDirector review. The deterministic runtime remains authoritative.",

@@ -188,7 +188,7 @@ namespace LocalGPT.Services
                 }
 
                 if (references.Count == 0)
-                    references.Add(await providerModels.ResolveAsync("gpt-oss:20b", cancellationToken).ConfigureAwait(false));
+                    throw new InvalidOperationException("No Council model is selected and no preferred or installed model was found. Choose models in Chat configuration → AI Council or in Data Management → Preferred Council models.");
 
                 foreach (var reference in references)
                     providerModels.Remember(reference);

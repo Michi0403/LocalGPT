@@ -944,11 +944,13 @@ public sealed class GetCodeGenerationReviewFunction(
 /// <param name="json">Devexpress ai function json service dependency used by the create code generation review function workflow to provide the corresponding application capability.</param>
 /// <param name="workflow">Code generation workflow service dependency used by the create code generation review function workflow to provide the corresponding application capability.</param>
 /// <param name="ambientContext">Ambient Council invocation context used to bind greenfield generation to the active database-backed Council project and revision.</param>
+/// <param name="services">Service provider used to resolve the DXAI function registry lazily (avoids a constructor cycle) when raising the execute approval.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CreateCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     IAmbientLocalGptContext ambientContext,
+    IServiceProvider services,
     ILogger<CreateCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -961,7 +963,7 @@ public sealed class CreateCodeGenerationReviewFunction(
         "/api/dxai/functions/codegen.review.create/invoke",
         "Create a database-backed change review containing the exact proposed files, CodeDOM types, output targets, current project-state summary, council summary, safety summary, and immutable review hash.",
         "JSON parameters follow CreateCodeGenerationReviewRequest. goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; Put every real source file (including .csproj and Program.cs) in files with its complete content; codeDomTypes is only a one-method string stub demo and is rejected unless files with content are also supplied.",
-        "Coordination-only review metadata. It does not write a project workspace, build, execute, load, or integrate generated code. The actual codegen.review.execute step remains separately approval-gated.",
+        "Coordination-only review metadata. It does not build, execute, load, or integrate generated code; the proposal is written to CouncilArtifacts for inspection. LocalGPT itself immediately raises the approval-gated codegen.review.execute (write + build) request in the human inbox, so do not ask the human for this approval with human.collaboration.request; continue with other work or wait for the build result.",
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1130,6 +1132,7 @@ public sealed class CreateCodeGenerationReviewFunction(
                 parameters.CouncilRunId = activeCouncilRunId;
             var review = await workflow.CreateReviewAsync(parameters, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("DXAIFunction created review {ReviewId} with hash prefix {HashPrefix}.", review.Id, review.ReviewHash[..Math.Min(12, review.ReviewHash.Length)]);
+            await RaiseExecuteApprovalAsync(review, request, cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = review.Status, Value = review };
     
     }
@@ -1142,6 +1145,45 @@ public sealed class CreateCodeGenerationReviewFunction(
         throw;
     }
 }
+
+    /// <summary>
+    /// Queues the exact codegen.review.execute (write + build) call for the new review through the normal DXAI approval gate,
+    /// so the owner's single inbox approval writes and builds the files even when the model never calls execute itself
+    /// (small models tend to ask a free-text human question instead, which cannot start the build).
+    /// </summary>
+    /// <param name="review">The review just created.</param>
+    /// <param name="createRequest">The originating create invocation, used for requester and conversation context.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the approval request has been raised or the failure has been logged.</returns>
+    private async Task RaiseExecuteApprovalAsync(CodeGenerationReviewSnapshot review, DxAiFunctionInvocationRequest createRequest, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!string.Equals(review.Status, CodeGenerationReviewStatuses.AwaitingUserDecision, StringComparison.Ordinal))
+                return;
+            var registry = services.GetRequiredService<IDxAiFunctionRegistry>();
+            var executeParameters = JsonSerializer.SerializeToElement(new
+            {
+                reviewId = review.Id,
+                request = new { expectedReviewHash = review.ReviewHash, buildAfterGeneration = true }
+            });
+            var result = await registry.InvokeAsync("codegen.review.execute", new DxAiFunctionInvocationRequest
+            {
+                Parameters = executeParameters,
+                ConfirmationSummaryHash = review.ReviewHash,
+                RequestedBy = createRequest.RequestedBy,
+                ConversationId = createRequest.ConversationId,
+                ProjectId = createRequest.ProjectId,
+                ProjectVersionId = createRequest.ProjectVersionId,
+                ApplicationVersion = createRequest.ApplicationVersion
+            }, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Raised codegen.review.execute approval for review {ReviewId}: {Status}.", review.Id, result.Status);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Could not raise the codegen.review.execute approval for review {ReviewId}; the model or owner can still call it.", review.Id);
+        }
+    }
 }
 
 /// <summary>

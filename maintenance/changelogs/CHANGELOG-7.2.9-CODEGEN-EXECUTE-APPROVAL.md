@@ -1,0 +1,6 @@
+# LocalGPT 7.2.9 — code generation reaches the build
+
+- Problem: after codegen.review.create the models asked a free-text human question ("Approve HelloMath Project Generation") instead of calling codegen.review.execute. Answering that question cannot start a build, so no files, binaries or ZIP ever appeared although the answer claimed success.
+- Fix: codegen.review.create now raises the exact codegen.review.execute request (review hash pinned, buildAfterGeneration=true) through the normal DXAI approval gate itself. One owner approval in the inbox writes the workspace, builds it and produces the ZIP. The function description tells models not to ask for this approval separately.
+- No hard-coded model preference: the Council no longer falls back to gpt-oss:20b when no model is selected (it shows a clear error naming where to choose models), and the reviewer ranking follows your ordered "Preferred Council models" instead of favouring gpt-oss/qwen/deepseek by name.
+- Seeded Council presets fit first-time machines: the default "Adaptive Mixed Hardware Council" and "Learning Round" now use gemma4:12b, deepseek-r1:8b and gemma4:e4b (8-16 GB) with 32k-64k context ceilings instead of gpt-oss:20b at 262,144; a new "Large GPU Council (24 GB)" preset leads with gemma4:26b. Existing databases keep their saved presets.
