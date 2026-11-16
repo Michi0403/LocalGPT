@@ -7,6 +7,13 @@ namespace LocalGPT.Interfaces;
 /// </summary>
 public interface ICodeGenerationWorkflowService
 {
+    /// <summary>Processes one operation on the active Council's persisted source draft.</summary>
+    /// <param name="request">Draft operation and its input.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>Compact progress or a finalized review.</returns>
+    Task<(object Progress, CodeGenerationReviewSnapshot? Review)> ProcessDraftAsync(
+        CreateCodeGenerationReviewRequest request, CancellationToken cancellationToken);
+
     /// <summary>
     /// Creates review as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

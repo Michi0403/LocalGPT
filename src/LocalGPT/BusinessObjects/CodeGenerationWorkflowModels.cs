@@ -307,6 +307,12 @@ public sealed class CodeGenerationOutputSpec
 /// </summary>
 public sealed class CreateCodeGenerationReviewRequest
 {
+    /// <summary>Optional Council draft operation: begin, next, complete, or submit.</summary>
+    public string? DraftOperation { get; set; }
+
+    /// <summary>Ordered relative file paths and their work instructions for a new Council draft.</summary>
+    public Dictionary<string, string>? DraftManifest { get; set; }
+
     /// <summary>
     /// Gets or sets the stable project identifier used to identify or correlate this create code generation review instance with related application state.
     /// </summary>

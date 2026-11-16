@@ -212,7 +212,7 @@ ExistingProject (existing repository ZIP, registered project or approved absolut
 5. A previously failed step's "Why this step runs again" identifies the exact wrong/missing file or diagnostic; patch only that file in the same staged workspace using approved tools. Do not switch silently to a greenfield generation workflow.
 
 Greenfield (an explicitly new program):
-1. Call codegen.capabilities only if the output shape needs checking. Call codegen.review.create with all exact relative files, any optional codeDomTypes, and output targets. Preserve the selected language/runtime and concise review summaries.
+1. Call codegen.capabilities only if the output shape needs checking. For a new project with multiple files, call codegen.review.create with draftOperation begin, goal, outputs and draftManifest (each relative path mapped to a short work order). Call next to take one workspace file and complete with exactly that file's full contents in files. Repeat until readyToSubmit, then call submit without files. For a single file or CodeDOM request, the direct review is available. Preserve the selected language/runtime and concise review summaries.
 2. Call codegen.review.execute with the returned reviewId/reviewHash and actual nested request, setting buildAfterGeneration only when requested. Approval fields are provided by the registry. Do not invent human confirmation.
 3. Preserve a pending approval without filing duplicate reviews. After approval/execution, retain the actual generated workspace, build status and source ZIP receipt. Repair a failed review through a new reviewed generation, never claim it was built merely because files were planned.
 

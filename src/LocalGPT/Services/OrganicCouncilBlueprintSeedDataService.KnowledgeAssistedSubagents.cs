@@ -38,8 +38,9 @@ Task: {{UserPrompt}}
             "Implementation", "Coding subagent", """
 You are an independent coding subagent. Use the compact verified evidence and
 bounded work order below, not the full chat history. Do not try to rediscover the
-entire project or imitate the model that prepared the task. Produce exact, small
-file contents or a bounded proposed patch for the user's requested behavior.
+entire project or imitate the model that prepared the task. Propose a compact file
+manifest and the interfaces, dependencies and implementation details needed by the
+file author. Keep the handoff bounded and leave full file authoring to the workspace steps.
 Do not claim files were written, compiled, tested or downloaded unless a real
 registered function result proves it. You may consult the listed Knowledge or
 regex tools to settle one specific uncertainty.
@@ -49,7 +50,7 @@ Grounded preparation: {{PreviousStep}}
             includePriorTranscript: false,
             allowedAutomaticFunctions: ["localgpt.knowledge.list", "localgpt.regex.get",
                 "localgpt.regex.test", "project.workspace.file.read", "chat.upload_workspace_file"]);
-        implement.TranscriptVisibility = CouncilTranscriptVisibilityMode.None;
+        implement.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
         implement.MemberFailureRecoveryAttempts = 1;
 
         var integrate = ResilientStep(
@@ -58,11 +59,11 @@ Grounded preparation: {{PreviousStep}}
 Check the subagents' actual proposed files for correctness, including project
 metadata, compiler target and explicit user constraints. Give credit for useful
 small-model contributions, but do not assume consensus makes code correct.
-For greenfield programs invoke codegen.review.create with COMPLETE relative file
-paths and COMPLETE source text. This function raises the necessary deferred
-codegen.review.execute approval; do not replace its tool call with prose or an
-informal yes/no question. For existing repositories, use the approved staged
-workspace pathway and never write to a random temp clone.
+For greenfield programs call codegen.review.create with draftOperation begin, goal,
+output targets and draftManifest mapping each required relative path to a short
+self-contained work order. Report the saved manifest count and a compact contract
+for the file author. For existing repositories, use the approved staged workspace
+pathway and report the resulting workspace name.
 Original request: {{UserPrompt}}
 Subagent proposals: {{PreviousStep}}
 """, "LeaderSingle", canUseOrganicFunctions: true,
@@ -71,9 +72,41 @@ Subagent proposals: {{PreviousStep}}
                 "codegen.review.get", "codegen.review.list", "council.artifact_workspace_files",
                 "council.artifact_workspace_file.read", "council.artifact_workspace_file.write",
                 "council.repository.workspace.stage"]);
-        integrate.TranscriptVisibility = CouncilTranscriptVisibilityMode.None;
+        integrate.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
         integrate.MemberFailureRecoveryAttempts = 1;
         integrate.WaitForDeferredApprovalsBeforeNextStep = true;
+
+        var author = ResilientStep(
+            "subagent-file-author", "Take next file from workspace", 35,
+            "Implementation", "Coding subagent", """
+For a new project, call codegen.review.create with draftOperation next to take the
+next workspace file. Author only that file, then call draftOperation complete
+with a single files entry containing its relativePath and complete content.
+Report only the file receipt, a brief interface note and any remaining interface contract needed by the next file. Emit SOURCE_DRAFT_READY
+only when the function returns readyToSubmit true. If this is an existing
+repository handled in the prior step, emit SOURCE_DRAFT_READY immediately.
+Original request: {{UserPrompt}}
+Previous handoff: {{PreviousStep}}
+""", "LeaderSingle", canUseOrganicFunctions: true,
+            includePriorTranscript: false, allowedAutomaticFunctions: ["codegen.review.create"]);
+        author.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
+        author.LoopGroup = "source-draft-files";
+        author.LoopCompletionMarker = "SOURCE_DRAFT_READY";
+        author.MaximumLoopIterations = 128;
+
+        var submit = ResilientStep(
+            "subagent-submit", "Submit complete workspace", 37,
+            "Integration", "Integration guide", """
+For a new project call codegen.review.create with draftOperation submit and no
+files. The service checks the manifest and queues the exact generation approval.
+Report the returned reviewId and status. For an existing repository report its
+staged workspace name from the preceding role or use the workspace list.
+Original request: {{UserPrompt}}
+File progress: {{PreviousStep}}
+""", "LeaderSingle", canUseOrganicFunctions: true,
+            includePriorTranscript: false, allowedAutomaticFunctions: ["codegen.review.create", "council.artifact_workspaces"]);
+        submit.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
+        submit.WaitForDeferredApprovalsBeforeNextStep = true;
 
         var verify = ResilientStep(
             "subagent-verification", "Check actual build and source ZIP", 40,
@@ -92,7 +125,7 @@ Integration evidence: {{PreviousStep}}
                 "council.development.artifact.verify", "council.artifact_workspaces",
                 "council.artifact_workspace_files", "council.artifact_workspace_zip",
                 "toolchain.installation.list", "localgpt.console.history"]);
-        verify.TranscriptVisibility = CouncilTranscriptVisibilityMode.None;
+        verify.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
         verify.MemberFailureRecoveryAttempts = 1;
         verify.WaitForDeferredApprovalsBeforeNextStep = true;
 
@@ -107,7 +140,7 @@ User request: {{UserPrompt}}
 Verification result: {{PreviousStep}}
 """, "LeaderSingle", producesFinalAnswer: true,
             includePriorTranscript: false);
-        handoff.TranscriptVisibility = CouncilTranscriptVisibilityMode.None;
+        handoff.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
 
         return new OrganicCouncilTeamDefinition
         {
@@ -123,9 +156,9 @@ Verification result: {{PreviousStep}}
                 new() { Role = "Integration guide", Expertise = "source review and approved codegen workflow", Responsibility = "Select and materialize correct subagent work through registered functions" },
                 new() { Role = "Artifact verifier", Expertise = "compiler receipts, approval state and download verification", Responsibility = "Report only verified outputs and actual ZIP paths" }
             ],
-            PreferredCapabilities = ["localgpt.knowledge.list", "localgpt.regex.get", "localgpt.regex.test",
+            PreferredCapabilities = [CouncilContextCapabilities.RoleIsolated, "localgpt.knowledge.list", "localgpt.regex.get", "localgpt.regex.test",
                 "codegen.review.create", "codegen.review.get", "council.development.artifact.verify"],
-            WorkflowSteps = [prepare, implement, integrate, verify, handoff],
+            WorkflowSteps = [prepare, implement, integrate, author, submit, verify, handoff],
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),

@@ -962,7 +962,7 @@ public sealed class CreateCodeGenerationReviewFunction(
         "POST",
         "/api/dxai/functions/codegen.review.create/invoke",
         "Create a database-backed change review containing the exact proposed files, CodeDOM types, output targets, current project-state summary, council summary, safety summary, and immutable review hash.",
-        "JSON parameters follow CreateCodeGenerationReviewRequest. goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; Put every real source file (including .csproj and Program.cs) in files with its complete content; codeDomTypes is only a one-method string stub demo and is rejected unless files with content are also supplied.",
+        "For Council drafts call begin with goal, outputs and draftManifest (relative paths mapped to short work orders). Call next to take the next workspace file, complete with exactly one files entry containing that file, and repeat until readyToSubmit. Call submit without any files to freeze the complete draft and queue the existing approval. For a direct review, goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; Put every real source file (including .csproj and Program.cs) in files with its complete content; codeDomTypes is only a one-method string stub demo and is rejected unless files with content are also supplied.",
         "Coordination-only review metadata. It does not build, execute, load, or integrate generated code; the proposal is written to CouncilArtifacts for inspection. LocalGPT itself immediately raises the approval-gated codegen.review.execute (write + build) request in the human inbox, so do not ask the human for this approval with human.collaboration.request; continue with other work or wait for the build result.",
         IsReadOnly: false,
         AvailableToAi: true,
@@ -976,6 +976,8 @@ public sealed class CreateCodeGenerationReviewFunction(
           "type": "object",
           "description": "CreateCodeGenerationReviewRequest with exact reviewed files, CodeDOM types, and output targets.",
           "properties": {
+            "draftOperation": {"type":"string","enum":["begin","next","complete","submit"]},
+            "draftManifest": {"type":"object","additionalProperties":{"type":"string"}},
             "projectId": {
               "type": [
                 "string",
@@ -1107,9 +1109,6 @@ public sealed class CreateCodeGenerationReviewFunction(
               }
             }
           },
-          "required": [
-            "goal"
-          ],
           "additionalProperties": false
         }
         """);
@@ -1130,6 +1129,23 @@ public sealed class CreateCodeGenerationReviewFunction(
             var parameters = binding.Value;
             if (parameters.CouncilRunId is null && ambientContext.Current.CouncilRunId is Guid activeCouncilRunId)
                 parameters.CouncilRunId = activeCouncilRunId;
+            if (parameters.DraftOperation is not null)
+            {
+                if (ambientContext.Current.CouncilRunId is not Guid councilRunId)
+                    return json.InvalidParameters("Draft operations require an active Council run.");
+                parameters.CouncilRunId = councilRunId;
+                try
+                {
+                    var draft = await workflow.ProcessDraftAsync(parameters, cancellationToken).ConfigureAwait(false);
+                    if (draft.Review is { } submitted)
+                        await RaiseExecuteApprovalAsync(submitted, request, cancellationToken).ConfigureAwait(false);
+                    return json.Success(draft.Progress);
+                }
+                catch (ArgumentException exception)
+                {
+                    return json.InvalidParameters(exception.Message);
+                }
+            }
             var review = await workflow.CreateReviewAsync(parameters, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("DXAIFunction created review {ReviewId} with hash prefix {HashPrefix}.", review.Id, review.ReviewHash[..Math.Min(12, review.ReviewHash.Length)]);
             await RaiseExecuteApprovalAsync(review, request, cancellationToken).ConfigureAwait(false);

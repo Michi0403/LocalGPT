@@ -61,7 +61,8 @@ namespace LocalGPT.Services
                         // entries are intentionally absent from that tiny prompt subset.
                         // ReadFileAsync below remains the authoritative bounded text gate.
                         candidates.AddRange(page.Files.Where(file =>
-                            file.RelativePath.StartsWith("extracted/", StringComparison.OrdinalIgnoreCase) &&
+                            (file.RelativePath.StartsWith("extracted/", StringComparison.OrdinalIgnoreCase) ||
+                             file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase)) &&
                             file.Length > 0));
                         pages++;
                         if (page.NextOffset is not int nextOffset || nextOffset <= offset) break;

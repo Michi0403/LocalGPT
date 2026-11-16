@@ -107,9 +107,20 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The code generation review snapshot produced by the operation.</returns>
-    public async Task<CodeGenerationReviewSnapshot> CreateReviewAsync(
+    public Task<CodeGenerationReviewSnapshot> CreateReviewAsync(
         CreateCodeGenerationReviewRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        CreateReviewCoreAsync(request, null, cancellationToken);
+
+    /// <summary>Creates a review or promotes the complete Council draft atomically.</summary>
+    /// <param name="request">Exact reviewed generation payload.</param>
+    /// <param name="draft">Optional persisted draft selected for promotion.</param>
+    /// <param name="cancellationToken">Cancels generation review preparation.</param>
+    /// <returns>The immutable review snapshot.</returns>
+    private async Task<CodeGenerationReviewSnapshot> CreateReviewCoreAsync(
+        CreateCodeGenerationReviewRequest request,
+        CodeGenerationChangeReview? draft,
+        CancellationToken cancellationToken)
     {
     try
     {
@@ -164,6 +175,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
 
             var entity = new CodeGenerationChangeReview
             {
+                Id = draft?.Id ?? Guid.NewGuid(),
                 ProjectId = request.ProjectId,
                 ProjectRevisionId = request.ProjectRevisionId,
                 ProjectTopicId = request.ProjectTopicId,
@@ -177,13 +189,37 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
                     "Generation is restricted to an isolated LocalGPT workspace. When a project revision is selected, approved tracked files are cloned byte-for-byte before reviewed changes are applied. No generated program or script is executed automatically. Builds require a separate current human confirmation."),
                 PayloadJson = payloadJson,
                 Status = CodeGenerationReviewStatuses.AwaitingUserDecision,
-                CreatedAtUtc = DateTime.UtcNow,
+                CreatedAtUtc = draft?.CreatedAtUtc ?? DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             };
             entity.ReviewHash = ComputeReviewHash(entity);
 
-            db.CodeGenerationChangeReviews.Add(entity);
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            if (draft is null)
+            {
+                db.CodeGenerationChangeReviews.Add(entity);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                var changed = await db.CodeGenerationChangeReviews
+                    .Where(row => row.Id == draft.Id && row.Status == DraftStatus && row.PayloadJson == draft.PayloadJson)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(row => row.ProjectId, entity.ProjectId)
+                        .SetProperty(row => row.ProjectRevisionId, entity.ProjectRevisionId)
+                        .SetProperty(row => row.ProjectTopicId, entity.ProjectTopicId)
+                        .SetProperty(row => row.Title, entity.Title)
+                        .SetProperty(row => row.Goal, entity.Goal)
+                        .SetProperty(row => row.CurrentProjectState, entity.CurrentProjectState)
+                        .SetProperty(row => row.CouncilSummary, entity.CouncilSummary)
+                        .SetProperty(row => row.ChangeSummary, entity.ChangeSummary)
+                        .SetProperty(row => row.SafetySummary, entity.SafetySummary)
+                        .SetProperty(row => row.PayloadJson, entity.PayloadJson)
+                        .SetProperty(row => row.ReviewHash, entity.ReviewHash)
+                        .SetProperty(row => row.Status, entity.Status)
+                        .SetProperty(row => row.UpdatedAtUtc, entity.UpdatedAtUtc), cancellationToken).ConfigureAwait(false);
+                if (changed == 0)
+                    throw new InvalidOperationException("The draft changed during submission. Retry submit to retrieve the review.");
+            }
             await WriteProposalSnapshotAsync(entity, payload, cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation(
@@ -224,7 +260,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entity = await db.CodeGenerationChangeReviews
                 .AsNoTracking()
-                .SingleOrDefaultAsync(review => review.Id == reviewId, cancellationToken)
+                .SingleOrDefaultAsync(review => review.Id == reviewId && review.Status != DraftStatus, cancellationToken)
                 .ConfigureAwait(false);
             if (entity is null)
             {
@@ -270,7 +306,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
 
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
-            var query = db.CodeGenerationChangeReviews.AsNoTracking();
+            var query = db.CodeGenerationChangeReviews.AsNoTracking().Where(review => review.Status != DraftStatus);
             if (projectId is Guid selectedProjectId)
                 query = query.Where(review => review.ProjectId == selectedProjectId);
 

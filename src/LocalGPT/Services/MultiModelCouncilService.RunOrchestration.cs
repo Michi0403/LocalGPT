@@ -200,8 +200,10 @@ namespace LocalGPT.Services
                 // retained the original goal, selected team and durable receipts, so do
                 // not add the complete old chat, knowledge catalog and mandatory preflight
                 // a second time. Tools remain available for targeted source/knowledge reads.
+                var workspaceReviewContext = organicTeam.WorkflowSteps.Any(step => step.IsEnabled &&
+                    (step.RequiresCompleteUploadWorkspaceCuration || step.RequiresVerifiedWorkspaceFileRead));
                 var roleIsolatedContext = UsesRoleIsolatedContext(organicTeam) ||
-                    request.GoalRecoveryCompactContext;
+                    request.GoalRecoveryCompactContext || workspaceReviewContext;
                 if (request.GoalRecoveryCompactContext)
                 {
                     logger.LogInformation("Council {RunId} is executing a compact GoalExecution recovery packet " +
