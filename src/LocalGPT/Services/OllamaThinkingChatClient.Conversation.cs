@@ -85,6 +85,24 @@ public sealed partial class OllamaThinkingChatClient
                 model,
                 logger,
                 modelMaximumContext);
+            // Never send a payload the budget already proved too large: Ollama silently truncates (system prompt and
+            // tool schemas first) or rejects it, and the run then ends empty. Shed the largest tool schemas first.
+            while (budget.PromptExceedsMaximum && tools is { Count: > 0 })
+            {
+                var largest = tools.MaxBy(tool => JsonSerializer.Serialize(tool, jsonOptions).Length)!;
+                tools.Remove(largest);
+                logger.LogWarning("Dropped native tool {Tool} from the {Model} request to fit its context window ({Remaining} tool(s) remain).",
+                    largest.Function.Name, model, tools.Count);
+                budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
+                    contextLength, options?.MaxOutputTokens ?? 2048, think == true,
+                    MeasureRequestCharacters(requestMessages, tools), model, logger, modelMaximumContext);
+            }
+            if (tools is { Count: 0 })
+                tools = null;
+            if (budget.PromptExceedsMaximum)
+                throw new InvalidOperationException(
+                    $"The request for {model} needs about {budget.RequiredContextTokens:N0} context tokens, but at most {budget.NumCtx:N0} are allowed. " +
+                    "Use a model with a larger context, shorten the request or attachments, or raise MaximumFittedContextTokens in the OllamaRequestBudgetPolicyJson runtime value.");
             return new OllamaChatRequest
             {
                 Model = model,

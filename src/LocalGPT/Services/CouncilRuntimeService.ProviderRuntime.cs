@@ -47,7 +47,8 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "Ollama HTTP response validation failed with status {StatusCode}.", response.StatusCode);
-
+                // Rethrow: swallowing here made rejected requests (e.g. context overflow) look successful and runs ended empty.
+                throw;
             }
         }
 

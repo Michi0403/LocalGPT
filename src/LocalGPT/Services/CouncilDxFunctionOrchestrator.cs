@@ -60,7 +60,19 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
                 }
             }
             if (matches.Count == 0)
+            {
+                // An opened but never closed call tag means the model ran out of output while writing the call.
+                // Say so visibly instead of silently ignoring the step.
+                var visible = sourceStep.VisibleContent ?? string.Empty;
+                if (visible.Contains("<localgpt-dx-call>", StringComparison.OrdinalIgnoreCase) &&
+                    !visible.Contains("</localgpt-dx-call>", StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning("Council step {Phase} by {Model} opened a DX call tag but never closed it (output budget reached).", sourceStep.Phase, sourceStep.ModelName);
+                    return [CreateGatewayStep(sourceStep, "Function request incomplete",
+                        "The model started a function call but its output ended before the call was complete, so nothing was executed. Raise the Council answer tokens or let the step retry.")];
+                }
                 return [];
+            }
 
             var output = new List<MultiModelCouncilStep>();
             var processed = new HashSet<string>(StringComparer.Ordinal);

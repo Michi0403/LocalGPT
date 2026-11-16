@@ -516,7 +516,9 @@ namespace LocalGPT.Services
                             modelName,
                             phase,
                             messages,
-                            Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 128), Math.Clamp(finalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumFinalRecoveryOutputTokens)), catalog.MinOutputTokens, catalog.MaxOutputTokens),
+                            // The recovery may need the whole answer budget (a complete codegen call carries every file), so the
+                            // step's recovery ceiling only raises, never lowers, the run's own output budget.
+                            Math.Clamp(Math.Max(Math.Max(maxOutputTokens, 128), Math.Clamp(finalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumFinalRecoveryOutputTokens)), catalog.MinOutputTokens, catalog.MaxOutputTokens),
                             streamUpdate,
                             participantCts.Token,
                             logger,
