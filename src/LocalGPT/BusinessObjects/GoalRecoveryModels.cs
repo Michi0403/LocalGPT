@@ -12,7 +12,9 @@ public enum GoalMemberFailureKind
     /// <summary>The repetition watchdog stopped a looping stream; no same-member retry has happened yet.</summary>
     RepetitionWatchdog = 3,
     /// <summary>The member's AI host did not answer the outage wait and the single reachability check.</summary>
-    HostUnreachable = 4
+    HostUnreachable = 4,
+    /// <summary>The first inference request did not receive provider response headers before its startup deadline.</summary>
+    ProviderStartupTimeout = 5
 }
 
 /// <summary>Defines what the goal recovery helper decided for one failed Council member slot.</summary>

@@ -68,6 +68,34 @@ public sealed partial class OllamaThinkingChatClient
 }
 
     /// <summary>
+    /// Selects the complete existing discovery broker plus workspace readers for an unscoped request.
+    /// </summary>
+    /// <param name="tools">Native tools already permitted by the registry and request policy.</param>
+    /// <returns>A smaller usable tool directory, or null if reducing it would remove necessary broker capabilities.</returns>
+    private List<OllamaToolDefinition>? GetDiscoveryBrokerTools(IReadOnlyList<OllamaToolDefinition> tools)
+    {
+        try
+        {
+            if (automaticFunctionAllowList is not null)
+                return null;
+            var names = tools.Select(tool => tool.Function.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (!names.Contains(ToTransportToolName("dxai.tools.discover")) ||
+                !names.Contains(ToTransportToolName("dxai.tools.preview")) ||
+                !names.Contains(ToTransportToolName("dxai.tools.invoke")))
+                return null;
+            var compact = tools.Where(tool =>
+                tool.Function.Name.StartsWith("dxai_tools_", StringComparison.OrdinalIgnoreCase) ||
+                tool.Function.Name.StartsWith("chat_upload_workspace_", StringComparison.OrdinalIgnoreCase)).ToList();
+            return compact.Count < tools.Count ? compact : null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not select the discovery broker for Ollama model {Model}.", model);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Retrieves automatic functions for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
     /// <returns>The collection produced by the operation.</returns>

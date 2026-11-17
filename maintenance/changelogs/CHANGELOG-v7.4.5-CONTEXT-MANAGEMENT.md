@@ -1,0 +1,16 @@
+# LocalGPT 7.4.5 — context construction and recovery repair
+
+Source candidate derived from 7.4.4. Owner reported successful compilation of 7.4.4, but an 83K estimated context payload prevented the 32K Intake from running. Context ceilings prevented an excessively large inference allocation but did not solve the underlying request construction.
+
+## Source behavior changes
+
+- Scope optional bootstrap references to the existing hardware plan and persisted reference policy. Use phase-specific native tool metadata and the existing discovery directory, instead of copying every function description, parameter and safety description into each global prompt. Preserve strict and preferred function policy and normal dispatcher approvals. Retain the original user goal, current role instructions, user-selected project and conversation context. The full directory and saved records remain in existing stores.
+- Keep future configured workflow prompt bodies in their saved steps, not in the global blueprint. Avoid unrelated peer capabilities. Retain configured steps, assignments, role boundaries and required completion receipts.
+- Ordinary Council inference, semantic planning, completion review and optional configuration steward calls use their exact selected hardware road and a fitted native context allocation, not the theoretical model context or the entire road allocation. Benchmarks keep their requested sample allocations. Preserve selected load percentages; no universal model-family context setting. Log estimated decoded payload sizes by category, allocation and provider token counters. Estimates need runtime calibration.
+- Avoid repeating the entire selected receipt-based delivery workflow for each speculative semantic subgoal. A side-effect-free context rejection now first retries the original step using the existing focused context mode, preserving the original goal, later steps and previous receipt. Refit the changed payload rather than carrying the earlier reduced output into this retry. Normal existing semantic recovery remains available if the changed packet is insufficient.
+- Context preflight rejections do not count as model failures in health/exclusion decisions or current/recent benchmark summaries. Do not repeat a deterministically rejected request by substituting another member with the same payload. Keep error evidence visible. Host outages are also not competence failures. Prior queued exclusions are not silently deleted.
+- Existing architecture checks extended for these paths; no gate turned off, no migration or publisher changes, no introduced Qwen drafts.
+
+## Verification and remaining work
+
+Run the normal repository PowerShell validations and compile on the owner's environment, then test representative small and large tasks using all configured hardware tiers and multiple hosts. Verify actual artifact receipts, continuation, approval safety, actual context use and physical memory behavior; see TASKS.md. This editing environment has no PowerShell and no .NET build was attempted. No GitHub access. Do not claim complete persistent context compaction, OOM-safe automatic hardware calibration, or completed specialist training. Large mandatory input/tool results that still cannot fit remain an explicit unfinished case. Source ZIP integrity is not a compiler or runtime validation.

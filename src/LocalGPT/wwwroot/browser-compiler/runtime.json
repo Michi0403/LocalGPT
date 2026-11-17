@@ -1,0 +1,16 @@
+{
+  "providerId": "browser-wasix-clang",
+  "executionLocation": "client-browser",
+  "sdkVersion": "0.8.0",
+  "compilerPackage": "clang/clang@0.160000.1",
+  "languages": [
+    { "key": "c", "extension": "c", "compilerLanguage": "c", "standards": ["c89", "c99", "c11", "c17"], "defaultStandard": "c11" },
+    { "key": "cpp", "extension": "cpp", "compilerLanguage": "c++", "standards": ["c++98", "c++03", "c++11", "c++14", "c++17", "c++20"], "defaultStandard": "c++17" }
+  ],
+  "maximumSourceBytes": 1048576,
+  "maximumHyperlightSnippetCharacters": 160000,
+  "maximumModuleBytes": 67108864,
+  "maximumToolchainBytes": 536870912,
+  "maximumOutputCharacters": 65536,
+  "timeoutMilliseconds": 300000
+}

@@ -14,7 +14,7 @@ namespace LocalGPT.Services
         /// <summary>
         /// Computes the effective <c>num_predict</c> and <c>num_ctx</c> for one Ollama chat request. Explicit thinking
         /// receives its own output reserve so it no longer consumes the visible answer budget, and the context window
-        /// is raised (never lowered) up to the configured maximum when the measured prompt would otherwise be cut.
+        /// is capped by the selected hardware road and the advertised model maximum. Oversized work is returned for replanning.
         /// </summary>
         /// <param name="configuredContextTokens">Context chosen by the hardware road or caller; <see langword="null"/> means provider default.</param>
         /// <param name="requestedOutputTokens">Visible-answer budget requested by the caller.</param>
@@ -51,24 +51,24 @@ namespace LocalGPT.Services
                 var current = configuredContextTokens is > 0
                     ? configuredContextTokens.Value
                     : Math.Max(256, policy.AssumedProviderDefaultContextTokens);
+                if (modelLimit is not null)
+                    current = Math.Min(current, modelLimit.Value);
                 if (required <= current)
                 {
                     if (modelLimit is not null)
                         logger.LogInformation(
                             "Ollama context for model {Model}: configured {Configured}, model maximum {ModelMaximum}, effective context {Context} tokens, effective output {NumPredict} tokens (configuration is unchanged).",
-                            modelName, configuredBeforeModelLimit?.ToString() ?? "provider default", modelLimit, configuredContextTokens?.ToString() ?? "provider default", numPredict);
+                            modelName, configuredBeforeModelLimit?.ToString() ?? "provider default", modelLimit, current, numPredict);
                     logger.LogDebug(
                         "Ollama request for model {Model} fits its context: estimated prompt {PromptTokens} tokens, output {NumPredict} tokens (thinking reserve {ThinkingReserved}), context {Context}.",
                         modelName, promptTokens, numPredict, thinkingRequested, configuredContextTokens?.ToString() ?? "provider default");
-                    return new OllamaRequestBudget(numPredict, configuredContextTokens, promptTokens, required, false, false);
+                    return new OllamaRequestBudget(numPredict, current, promptTokens, required, false, false);
                 }
 
-                var step = Math.Max(256, policy.ContextGrowthStepTokens);
-                var ceiling = Math.Max(current, policy.MaximumFittedContextTokens);
-                if (modelLimit is not null)
-                    ceiling = Math.Min(ceiling, modelLimit.Value);
-                var raised = (int)Math.Min(ceiling, (long)Math.Ceiling(required / (double)step) * step);
-                var exceeds = required > raised;
+                // The model's theoretical limit is not a memory budget. The selected
+                // road (or conservative explicit default) is the maximum allocation.
+                var ceiling = current;
+                var exceeds = required > ceiling;
                 if (exceeds)
                 {
                     // The configured output stays the upper bound; only this request's output is reduced so it fits.
@@ -82,33 +82,51 @@ namespace LocalGPT.Services
                             modelName, numPredict, fittedOutput, promptTokens, ceiling);
                         numPredict = fittedOutput;
                         required = (int)Math.Min(int.MaxValue / 2, (long)promptTokens + numPredict + margin);
-                        raised = (int)Math.Min(ceiling, (long)Math.Ceiling(required / (double)step) * step);
-                        exceeds = required > raised;
+                        exceeds = required > ceiling;
                     }
                 }
                 if (exceeds)
                 {
                     logger.LogWarning(
-                        "Ollama request for model {Model} needs about {Required} context tokens (prompt {PromptTokens}, output {NumPredict}) but the configured maximum is {Ceiling}; the provider may cut the oldest prompt content. Reduce attached tools or raise {PolicyKey}.MaximumFittedContextTokens.",
-                        modelName, required, promptTokens, numPredict, ceiling, OllamaRequestBudgetPolicyKey);
+                        "Ollama request for model {Model} needs about {Required} context tokens (prompt {PromptTokens}, output {NumPredict}) but the selected hardware context is {Ceiling}; the request will not be sent. Split the work into smaller bounded requests.",
+                        modelName, required, promptTokens, numPredict, ceiling);
                 }
-                else if (raised > current)
-                {
-                    logger.LogInformation(
-                        "Raised the Ollama context for model {Model} from {Configured} to {Raised} tokens for this request so the prompt ({PromptTokens} estimated tokens incl. native tool schemas) and {NumPredict} output tokens fit.",
-                        modelName, configuredContextTokens?.ToString() ?? "provider default", raised, promptTokens, numPredict);
-                }
-
                 if (modelLimit is not null)
                     logger.LogInformation(
                         "Ollama context for model {Model}: configured {Configured}, model maximum {ModelMaximum}, effective context {Context} tokens, effective output {NumPredict} tokens (configuration is unchanged).",
-                        modelName, configuredBeforeModelLimit?.ToString() ?? "provider default", modelLimit, raised, numPredict);
-                return new OllamaRequestBudget(numPredict, raised, promptTokens, required, raised > current, exceeds);
+                        modelName, configuredBeforeModelLimit?.ToString() ?? "provider default", modelLimit, ceiling, numPredict);
+                return new OllamaRequestBudget(numPredict, ceiling, promptTokens, required, false, exceeds);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Could not size the Ollama request for model {Model}; the caller's output and context values are used unchanged.", modelName);
-                return new OllamaRequestBudget(Math.Clamp(requestedOutputTokens, 64, 262144), configuredContextTokens, 0, 0, false, false);
+                logger.LogError(ex, "Could not size the Ollama request for model {Model}; an unmeasured request will not be sent.", modelName);
+                // Unknown fit is not a successful preflight.
+                throw;
+            }
+        }
+
+        /// <summary>Allocates the smallest configured context increment covering the complete fitted payload.</summary>
+        /// <param name="budget">Measured request including output and safety reserve.</param>
+        /// <param name="modelName">Selected provider model for diagnostics.</param>
+        /// <param name="logger">Calling provider logger.</param>
+        /// <returns>The allocation, bounded by the original hardware and model ceiling.</returns>
+        public int? FitOllamaRequestContext(OllamaRequestBudget budget, string modelName, ILogger logger)
+        {
+            try
+            {
+                if (budget.PromptExceedsMaximum || budget.NumCtx is not int ceiling)
+                    return budget.NumCtx;
+                var increment = Math.Max(1, ReadOllamaRequestBudgetPolicy(logger).ContextGrowthStepTokens);
+                var rounded = ((long)budget.RequiredContextTokens + increment - 1) / increment * increment;
+                var fitted = (int)Math.Min(ceiling, rounded);
+                logger.LogInformation("Ollama model {Model}: allocated context {Allocated}, hardware/model ceiling {Ceiling}, required estimate {Required}.",
+                    modelName, fitted, ceiling, budget.RequiredContextTokens);
+                return fitted;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Could not fit the measured context allocation for {Model}.", modelName);
+                throw;
             }
         }
 

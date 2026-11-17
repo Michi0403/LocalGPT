@@ -42,6 +42,7 @@ namespace LocalGPT.Services
         /// <param name="roleComplianceRetryCount">Number of bounded corrective retries allowed for generic refusal or non-performance of the assigned role task.</param>
         /// <param name="finalAnswerRecoveryEnabled">Whether a separate provider turn may recover a missing final answer after streamed thinking/tool activity.</param>
         /// <param name="finalAnswerRecoveryMaxOutputTokens">Maximum output-token budget for the optional final-answer recovery turn.</param>
+        /// <param name="requestOutputCeiling">Optional output limit for this unit of work, applied after acquiring the live hardware road.</param>
         /// <returns>The multi model council step produced by the operation.</returns>
         private async Task<MultiModelCouncilStep?> RunParticipantAsync(
             string baseUri,
@@ -67,7 +68,8 @@ namespace LocalGPT.Services
             IReadOnlyCollection<string>? automaticFunctionAllowList = null,
             int roleComplianceRetryCount = 1,
             bool finalAnswerRecoveryEnabled = true,
-            int finalAnswerRecoveryMaxOutputTokens = 8192)
+            int finalAnswerRecoveryMaxOutputTokens = 8192,
+            int? requestOutputCeiling = null)
         {
             try
             {
@@ -94,6 +96,9 @@ namespace LocalGPT.Services
                     1);
                 ICouncilModelRequestLease? runtimeLease = null;
                 var participantRequestStarted = false;
+                var awaitingInitialProviderResponse = false;
+                var initialProviderResponseObserved = false;
+                var startupWaitSeconds = 0;
 
                 try
                 {
@@ -127,6 +132,8 @@ namespace LocalGPT.Services
                             return skipped;
                         }
 
+                        if (requestOutputCeiling is int workCeiling)
+                            executionPlan = executionPlan with { EffectiveMaxOutputTokens = Math.Min(executionPlan.EffectiveMaxOutputTokens, Math.Max(64, workCeiling)) };
                         maxOutputTokens = executionPlan.EffectiveMaxOutputTokens;
                         maxContextTokens = executionPlan.EffectiveMaxContextTokens;
                         ollamaNumGpu = executionPlan.OllamaNumGpu;
@@ -179,6 +186,11 @@ namespace LocalGPT.Services
                         }
                     }
 
+                    if (requestOutputCeiling is int unitCeiling)
+                    {
+                        maxOutputTokens = Math.Min(maxOutputTokens, Math.Max(64, unitCeiling));
+                        executionPlan = executionPlan with { EffectiveMaxOutputTokens = maxOutputTokens };
+                    }
                     // DurationSeconds is provider execution time, not time spent waiting for this host/lane lease.
                     // This keeps small-model timing comparable in large sequential-per-host Councils.
                     started = DateTime.UtcNow;
@@ -193,10 +205,17 @@ namespace LocalGPT.Services
                             ? ollamaNumGpu
                             : null,
                         enableAutomaticTools: enableAutomaticTools,
-                        automaticFunctionAllowList: automaticFunctionAllowList);
+                        automaticFunctionAllowList: automaticFunctionAllowList,
+                        fitContextToRequest: true);
 
                     using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
                     participantCts.CancelAfter(TimeSpan.FromSeconds(modelTimeoutSeconds));
+                    if (councilRunId.HasValue && providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                    {
+                        startupWaitSeconds = Math.Clamp(
+                            runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumProviderStartupWaitSeconds,
+                            1, modelTimeoutSeconds);
+                    }
 
                     var participantBootstrap = bootstrap;
                     var observedContributionIds = new HashSet<Guid>();
@@ -295,8 +314,27 @@ namespace LocalGPT.Services
                                 },
                                 streamCts.Token).WithCancellation(streamCts.Token).ConfigureAwait(false))
                             {
+                                var isStatusUpdate = councilRuntime.IsLocalGptStreamingStatusUpdate(update.Text, logger);
+                                // Only the first native request is eligible for a startup handoff. A later
+                                // provider turn may follow an already executed function and is not replay-safe.
+                                if (startupWaitSeconds > 0 && !initialProviderResponseObserved)
+                                {
+                                    if (isStatusUpdate && update.Text?.Contains("Waiting for the local runtime to accept the stream...", StringComparison.Ordinal) == true && !awaitingInitialProviderResponse)
+                                    {
+                                        awaitingInitialProviderResponse = true;
+                                        participantCts.CancelAfter(TimeSpan.FromSeconds(Math.Min(startupWaitSeconds, Math.Max(1d, modelTimeoutSeconds - stopwatch.Elapsed.TotalSeconds))));
+                                    }
+                                    else if (awaitingInitialProviderResponse &&
+                                        ((isStatusUpdate && update.Text?.Contains("Ollama accepted the request.", StringComparison.Ordinal) == true) ||
+                                         (!isStatusUpdate && !string.IsNullOrEmpty(update.Text))))
+                                    {
+                                        awaitingInitialProviderResponse = false;
+                                        initialProviderResponseObserved = true;
+                                        participantCts.CancelAfter(TimeSpan.FromSeconds(Math.Max(1d, modelTimeoutSeconds - stopwatch.Elapsed.TotalSeconds)));
+                                    }
+                                }
                                 streamUpdate?.Invoke(update.Text);
-                                if (!councilRuntime.IsLocalGptStreamingStatusUpdate(update.Text, logger))
+                                if (!isStatusUpdate)
                                 {
                                     attemptBuilder.Append(update.Text);
                                     allContent.Append(update.Text);
@@ -475,7 +513,7 @@ namespace LocalGPT.Services
                             "this slot is failed and its goal observer may safely replan after Council returns.",
                             modelName, phase);
                     }
-                    var roleComplianceFailureDetected = MultiModelCouncilServiceLooksLikeGenericRoleRefusal(visibleContent, logger);
+                    var roleComplianceFailureDetected = finalAnswerError is null && MultiModelCouncilServiceLooksLikeGenericRoleRefusal(visibleContent, logger);
                     var roleComplianceSucceeded = !roleComplianceFailureDetected;
                     var remainingRoleComplianceRetries = Math.Clamp(roleComplianceRetryCount, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumRoleComplianceRetries);
                     while (remainingRoleComplianceRetries > 0 && !roleComplianceSucceeded)
@@ -530,7 +568,7 @@ namespace LocalGPT.Services
                             messages,
                             // The recovery may need the whole answer budget (a complete codegen call carries every file), so the
                             // step's recovery ceiling only raises, never lowers, the run's own output budget.
-                            Math.Clamp(Math.Max(Math.Max(maxOutputTokens, 128), Math.Clamp(finalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumFinalRecoveryOutputTokens)), catalog.MinOutputTokens, catalog.MaxOutputTokens),
+                            Math.Clamp(Math.Min(maxOutputTokens, Math.Clamp(finalAnswerRecoveryMaxOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumFinalRecoveryOutputTokens, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumFinalRecoveryOutputTokens)), catalog.MinOutputTokens, catalog.MaxOutputTokens),
                             streamUpdate,
                             participantCts.Token,
                             logger,
@@ -620,13 +658,19 @@ namespace LocalGPT.Services
                 catch (OperationCanceledException)
                 {
                     stopwatch.Stop();
-                    var message = $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
+                    var startupTimeout = awaitingInitialProviderResponse && !initialProviderResponseObserved;
+                    var message = startupTimeout
+                        ? runtimePolicy.GetString("CouncilProviderStartupTimeoutNotice")
+                            .Replace("{Model}", modelName, StringComparison.Ordinal)
+                            .Replace("{Seconds}", startupWaitSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                        : $"{modelName} exceeded the {modelTimeoutSeconds}s council timeout during {phase}.";
                     logger.LogWarning("{Message}", message);
-                    var timeoutNotice = allowRecovery ? $"{message} LocalGPT is starting the safe-limit retry for this member." : message;
+                    var retryTimedOutMember = allowRecovery && !startupTimeout;
+                    var timeoutNotice = retryTimedOutMember ? $"{message} LocalGPT is starting the safe-limit retry for this member." : message;
                     streamUpdate?.Invoke($"<p class=\"localgpt-stream-status\"><em>{WebUtility.HtmlEncode(timeoutNotice)}</em></p>\n\n");
                     runtimeLease?.Dispose();
                     runtimeLease = null;
-                    if (allowRecovery)
+                    if (retryTimedOutMember)
                     {
                         var recovered = await RetryParticipantWithSafeLimitsAsync(
                             baseUri, modelName, councilMembers, round, phase, role, prompt, bootstrap,
@@ -650,8 +694,8 @@ namespace LocalGPT.Services
                         StartedAtUtc = started,
                         CompletedAtUtc = DateTime.UtcNow,
                         DurationSeconds = stopwatch.Elapsed.TotalSeconds,
-                        Error = message,
-                        HostUnreachable = IsCouncilHostUnavailableForCurrentRun(modelName)
+                        Error = startupTimeout ? $"CouncilProviderStartupTimeout;{message}" : message,
+                        HostUnreachable = !startupTimeout && IsCouncilHostUnavailableForCurrentRun(modelName)
                     };
                     ApplyHardwarePlan(timeoutStep, executionPlan);
                     return timeoutStep;
@@ -662,15 +706,17 @@ namespace LocalGPT.Services
                     logger.LogWarning(ex, "Council participant {ModelName} failed in {Phase}.", modelName, phase);
                     // A context rejection is deterministic at this prompt and model limit.
                     // Do not promise or attempt an identical safe-limit retry.
-                    var contextOverflow = ex.Message.Contains("needs about", StringComparison.OrdinalIgnoreCase) &&
-                        ex.Message.Contains("context tokens", StringComparison.OrdinalIgnoreCase);
+                    var contextOverflow = ex.Message.Contains("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase) ||
+                        (ex.Message.Contains("needs about", StringComparison.OrdinalIgnoreCase) &&
+                         ex.Message.Contains("context tokens", StringComparison.OrdinalIgnoreCase));
                     var failureNotice = $"{modelName} failed during {phase}: {ex.Message}";
-                    if (allowRecovery && ex is not ProviderStreamRepetitionException && !contextOverflow)
+                    var retryFailedMember = allowRecovery && ex is not ProviderStreamRepetitionException && !contextOverflow;
+                    if (retryFailedMember)
                         failureNotice += " LocalGPT is starting the safe-limit retry for this member.";
                     streamUpdate?.Invoke($"<p class=\"localgpt-stream-status\"><em>{WebUtility.HtmlEncode(failureNotice)}</em></p>\n\n");
                     runtimeLease?.Dispose();
                     runtimeLease = null;
-                    if (allowRecovery && ex is not ProviderStreamRepetitionException && !contextOverflow)
+                    if (retryFailedMember)
                     {
                         var recovered = await RetryParticipantWithSafeLimitsAsync(
                             baseUri, modelName, councilMembers, round, phase, role, prompt, bootstrap,

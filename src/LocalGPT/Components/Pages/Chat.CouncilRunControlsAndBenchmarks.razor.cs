@@ -420,29 +420,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            return new()
-    {
-        ModelName = route.ModelName,
-        ProviderKind = route.ProviderKind,
-        ProviderName = route.ProviderName,
-        ProviderEndpoint = route.ProviderEndpoint,
-        ProviderModelName = route.ProviderModelName,
-        HardwareKind = route.HardwareKind,
-        HardwareIndex = route.HardwareIndex,
-        HardwareName = route.HardwareName,
-        MinOutputTokens = route.MinOutputTokens,
-        MaxOutputTokens = route.MaxOutputTokens,
-        MinContextTokens = route.MinContextTokens,
-        MaxContextTokens = route.MaxContextTokens,
-        OllamaNumGpu = route.OllamaNumGpu,
-        LoadPercentOverride = route.LoadPercentOverride,
-        SelfReportedDxFunctions = [.. route.SelfReportedDxFunctions],
-        SelfReportedControllerMethods = [.. route.SelfReportedControllerMethods],
-        SelfReportedOrganicCapabilities = [.. route.SelfReportedOrganicCapabilities],
-        SelfReportedSkills = [.. route.SelfReportedSkills],
-        IsEnabled = route.IsEnabled,
-        MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
-    };
+            return CouncilHardwareRoads.CloneRoute(route);
         }
         catch (Exception __componentMethodException)
         {

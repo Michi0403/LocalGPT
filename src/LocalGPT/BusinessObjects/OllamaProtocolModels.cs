@@ -45,6 +45,10 @@ public sealed class OllamaChatRequest
     /// </summary>
     /// <value>The options value exposed by <see cref="OllamaChatRequest"/>.</value>
     public OllamaRequestOptions? Options { get; set; }
+    /// <summary>Local hardware ceiling retained across compatibility retries; never sent to Ollama.</summary>
+    /// <value>The original effective hardware and model ceiling in tokens.</value>
+    [JsonIgnore]
+    public int? ContextCeiling { get; set; }
 }
 
 /// <summary>
@@ -202,4 +206,14 @@ public sealed class OllamaChatResponse
     /// </summary>
     /// <value>The message value exposed by <see cref="OllamaChatResponse"/>.</value>
     public OllamaChatMessage? Message { get; set; }
+
+    /// <summary>Gets or sets the prompt token count reported by Ollama, when available.</summary>
+    /// <value>The provider-observed prompt tokens, not a local estimate.</value>
+    [JsonPropertyName("prompt_eval_count")]
+    public int? PromptEvalCount { get; set; }
+
+    /// <summary>Gets or sets the generated token count reported by Ollama, including provider reasoning.</summary>
+    /// <value>The provider-observed output tokens, when supplied.</value>
+    [JsonPropertyName("eval_count")]
+    public int? EvalCount { get; set; }
 }

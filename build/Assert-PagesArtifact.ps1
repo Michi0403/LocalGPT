@@ -40,6 +40,17 @@ function Assert-HtmlSite([string]$Root) {
             if ($text -notmatch '(?is)<(?:main|article)\b') { throw "HTML landmark missing: $($file.FullName)" }
             if ($text -match '(?is)<img\b(?![^>]*\balt\s*=)[^>]*>') { throw "HTML image without alt: $($file.FullName)" }
         }
+        # The Mermaid recovery module is resolved relative to the injected theme script.
+        # Validate the local generated chunk just as we validate ordinary page links.
+        foreach ($script in [regex]::Matches($text, '(?is)<script\b[^>]*\bdata-localgpt-mermaid-module\s*=\s*"(?<module>[^"]+)"[^>]*>')) {
+            $scriptSource = [regex]::Match($script.Value, '(?i)\bsrc\s*=\s*"(?<src>[^"]+)"')
+            if (-not $scriptSource.Success) { throw "Mermaid module declaration has no theme script source: $($file.FullName)" }
+            $sourcePath = ($scriptSource.Groups['src'].Value -split '[?#]', 2)[0]
+            $scriptPath = Assert-ContainedPath $Root (Join-Path $file.DirectoryName $sourcePath)
+            $modulePath = [System.Net.WebUtility]::HtmlDecode($script.Groups['module'].Value)
+            $moduleTarget = Assert-ContainedPath $Root (Join-Path (Split-Path -Parent $scriptPath) $modulePath)
+            if (-not (Test-Path -LiteralPath $moduleTarget -PathType Leaf)) { throw "Broken generated Mermaid module: $($file.FullName) -> $modulePath" }
+        }
         foreach ($match in [regex]::Matches($text, '(?is)\b(?:href|src)\s*=\s*["\x27](?<value>[^"\x27]+)["\x27]')) {
             $raw = $match.Groups['value'].Value
             if ($raw -match '^(?:#|mailto:|tel:|javascript:|data:|[a-z][a-z0-9+.-]*:|//)') { continue }

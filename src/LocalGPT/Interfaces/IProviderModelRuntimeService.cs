@@ -66,6 +66,7 @@ public interface IProviderModelRuntimeService
     /// <param name="enableAutomaticTools">Value indicating whether enable automatic tools should apply to this operation.</param>
     /// <param name="throwOnFailure">Value indicating whether throw on failure should apply to this operation.</param>
     /// <param name="automaticFunctionAllowList">Optional exact registered-function allow-list. Null or empty preserves the historical full policy-approved automatic catalog.</param>
+    /// <param name="fitContextToRequest">Whether to allocate only the measured context needed by ordinary inference, rather than the full benchmark road.</param>
     /// <returns>The i chat client produced by the operation.</returns>
     IChatClient CreateChatClient(
         ProviderModelReference model,
@@ -75,7 +76,8 @@ public interface IProviderModelRuntimeService
         int? ollamaNumGpu,
         bool enableAutomaticTools = true,
         bool throwOnFailure = false,
-        IReadOnlyCollection<string>? automaticFunctionAllowList = null);
+        IReadOnlyCollection<string>? automaticFunctionAllowList = null,
+        bool fitContextToRequest = false);
     /// <summary>
     /// Creates session as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

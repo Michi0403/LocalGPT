@@ -57,6 +57,9 @@ namespace LocalGPT.Services
                         builder.AppendLine($"- {reason}");
                 builder.AppendLine();
 
+                if (result.ChatRunId is Guid chatRunId)
+                    builder.AppendLine($"Originating chat run: {chatRunId}").AppendLine();
+
                 if (result.ContinuedFromConversationId is Guid continuedFrom)
                 {
                     builder

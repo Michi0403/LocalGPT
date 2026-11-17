@@ -366,11 +366,13 @@ namespace LocalGPT.Components.Pages
                 }
 
                 var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
-                var receipt = knownReceipt?.RunId == runId ? knownReceipt : CouncilSpooler.GetSnapshot(runId);
-                var spoolTranscript = receipt is null ? string.Empty : CouncilText.BuildCouncilChatTranscriptFromSpool(receipt, marker);
+                var receipts = CouncilSpooler.GetChatSnapshots(runId);
+                if (receipts.Count == 0 && knownReceipt is { } known && known.RunId == runId)
+                    receipts = [known];
+                var spoolTranscript = CouncilText.BuildCouncilChatTranscriptFromSpool(receipts, marker);
                 var liveTranscript = CouncilLiveSessions.GetTranscript(runId);
                 var content = CouncilText.SelectMostCompleteCouncilMessage(message.Content, marker, liveTranscript, spoolTranscript);
-                if (content.Length <= (message.Content?.Length ?? 0))
+                if (string.Equals(content, message.Content, StringComparison.Ordinal))
                 {
                     result.Add(message);
                     continue;
@@ -1143,10 +1145,12 @@ namespace LocalGPT.Components.Pages
             // reads transcript and participant lanes directly from the server-owned live-session service.
             // When the run finishes, materialize the transcript once so persisted chat history remains complete.
             var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
-            var completedTranscript = snapshot.IsRunning ? string.Empty : CouncilLiveSessions.GetTranscript(runId);
+            var completedTranscript = snapshot.IsRunning ? string.Empty : CouncilText.SelectMostCompleteCouncilMessage(
+                string.Empty, marker, CouncilLiveSessions.GetTranscript(runId),
+                CouncilText.BuildCouncilChatTranscriptFromSpool(CouncilSpooler.GetChatSnapshots(runId), marker));
             var assistantContent = snapshot.IsRunning || string.IsNullOrWhiteSpace(completedTranscript)
                 ? marker
-                : $"{marker}\n{completedTranscript}";
+                : completedTranscript;
 
             await InvokeAsync(() =>
             {

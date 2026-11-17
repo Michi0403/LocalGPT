@@ -641,8 +641,18 @@ async function recoverMermaidDiagrams() {
       if (pendingBlocks.length === 0 && (!desktop || !renderedBlocks.some(hasClippedMermaidLabels))) return true;
 
       const themeScript = document.querySelector('script[data-localgpt-kawaii-script]');
-      const moduleUrl = new URL("../public/mermaid.core-PFJTYFYY.min.js", themeScript?.src || import.meta.url);
-      localgptMermaidModulePromise ??= import(moduleUrl.href);
+      const modulePath = themeScript?.getAttribute('data-localgpt-mermaid-module');
+      // The documentation builder resolves the actual DocFX chunk from the generated site.
+      // A hardcoded hash becomes invalid when DocFX changes its bundled Mermaid dependencies.
+      if (!modulePath) {
+        if (!pendingBlocks.length) return renderedBlocks.every(fitAlreadyRenderedMermaidLabels);
+        throw new Error("No generated DocFX Mermaid module is declared by the documentation build.");
+      }
+      const moduleUrl = new URL(modulePath, themeScript.src);
+      localgptMermaidModulePromise ??= import(moduleUrl.href).catch(error => {
+        localgptMermaidModulePromise = null;
+        throw error;
+      });
       const mermaid = (await localgptMermaidModulePromise).default;
       if (!mermaid?.initialize || !mermaid?.run) throw new Error("DocFX Mermaid renderer is unavailable.");
       if (document.fonts?.ready) {

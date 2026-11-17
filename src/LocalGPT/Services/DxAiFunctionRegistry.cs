@@ -962,7 +962,7 @@ public sealed class CreateCodeGenerationReviewFunction(
         "POST",
         "/api/dxai/functions/codegen.review.create/invoke",
         "Create a database-backed change review containing the exact proposed files, CodeDOM types, output targets, current project-state summary, council summary, safety summary, and immutable review hash.",
-        "For Council drafts call begin with goal, outputs and draftManifest (relative paths mapped to short work orders). Call next to take the next workspace file, complete with exactly one files entry containing that file, and repeat until readyToSubmit. Call submit without any files to freeze the complete draft and queue the existing approval. For a direct review, goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; Put every real source file (including .csproj and Program.cs) in files with its complete content; codeDomTypes is only a one-method string stub demo and is rejected unless files with content are also supplied.",
+        "For Council drafts call begin with goal, outputs and draftManifest (relative paths mapped to short work orders), optional draftSharedContract and draftDependencies. If the configured Council assigns file authors, let the scheduler commit the individual file responses. In older sequential workflows call next and complete with exactly one file until readyToSubmit. Call submit without files to freeze the complete draft and queue approval. For a completed file-authored review, repair with draftRepairReviewId, draftRepairReviewHash and draftManifest containing only exact faulty or missing paths and concrete repair work orders; the successor preserves all other source and needs fresh approval. For a direct review, goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; Put every real source file (including .csproj and Program.cs) in files with its complete content; codeDomTypes is only a one-method string stub demo and is rejected unless files with content are also supplied.",
         "Coordination-only review metadata. It does not build, execute, load, or integrate generated code; the proposal is written to CouncilArtifacts for inspection. LocalGPT itself immediately raises the approval-gated codegen.review.execute (write + build) request in the human inbox, so do not ask the human for this approval with human.collaboration.request; continue with other work or wait for the build result.",
         IsReadOnly: false,
         AvailableToAi: true,
@@ -976,7 +976,13 @@ public sealed class CreateCodeGenerationReviewFunction(
           "type": "object",
           "description": "CreateCodeGenerationReviewRequest with exact reviewed files, CodeDOM types, and output targets.",
           "properties": {
-            "draftOperation": {"type":"string","enum":["begin","next","complete","submit"]},
+            "draftOperation": {"type":"string","enum":["begin","next","complete","submit","repair"]},
+            "draftWorkspaceMode": {"type":"string","enum":["ReviewedSourceDraft","HyperlightSourceDraft"]},
+            "draftGuestLanguageKey": {"type":"string"},
+            "draftSharedContract": {"type":"string"},
+            "draftDependencies": {"type":"object","additionalProperties":{"type":"array","items":{"type":"string"}}},
+            "draftRepairReviewId": {"type":["string","null"],"format":"uuid"},
+            "draftRepairReviewHash": {"type":"string"},
             "draftManifest": {"type":"object","additionalProperties":{"type":"string"}},
             "projectId": {
               "type": [
@@ -1189,8 +1195,8 @@ public sealed class CreateCodeGenerationReviewFunction(
                 ConfirmationSummaryHash = review.ReviewHash,
                 RequestedBy = createRequest.RequestedBy,
                 ConversationId = createRequest.ConversationId,
-                ProjectId = createRequest.ProjectId,
-                ProjectVersionId = createRequest.ProjectVersionId,
+                ProjectId = review.ProjectId,
+                ProjectVersionId = review.ProjectRevisionId,
                 ApplicationVersion = createRequest.ApplicationVersion
             }, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Raised codegen.review.execute approval for review {ReviewId}: {Status}.", review.Id, result.Status);

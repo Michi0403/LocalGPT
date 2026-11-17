@@ -250,7 +250,7 @@ namespace LocalGPT.Services
                     throw new InvalidOperationException("The Council has no model participant available.");
 
                 var failedModels = result.Steps
-                    .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+                    .Where(step => !step.IsInfrastructureFailure && !string.IsNullOrWhiteSpace(step.Error))
                     .Select(step => step.ModelName)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 if (!string.IsNullOrWhiteSpace(preferredModel) && !failedModels.Contains(preferredModel))
@@ -383,10 +383,12 @@ namespace LocalGPT.Services
             {
                 var failures = result.Steps
                     .Where(step => string.Equals(step.ModelName, modelName, StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrWhiteSpace(step.Error))
+                        && !step.IsInfrastructureFailure && !string.IsNullOrWhiteSpace(step.Error))
                     .Select(step => $"{step.Phase}: {step.Error}")
                     .Take(4)
                     .ToList();
+                if (failures.Count == 0)
+                    return;
                 var spec = CreateModelHealthExclusionRequest(modelName, result.RunId, string.Join(" | ", failures));
                 await humanCollaboration.AuthorizeOrEnqueueAsync(spec, cancellationToken: cancellationToken).ConfigureAwait(false);
                 result.Warnings.Add($"A local approval was queued to exclude {modelName} from one subsequent Council run. This does not permanently disable the model.");
@@ -462,7 +464,7 @@ namespace LocalGPT.Services
                         item.Index,
                         Failed = result.Steps.Count(step =>
                             string.Equals(step.ModelName, item.Model, StringComparison.OrdinalIgnoreCase) &&
-                            !string.IsNullOrWhiteSpace(step.Error)),
+                            !step.IsInfrastructureFailure && !string.IsNullOrWhiteSpace(step.Error)),
                         SuccessfulDurations = result.Steps
                             .Where(step =>
                                 string.Equals(step.ModelName, item.Model, StringComparison.OrdinalIgnoreCase) &&
@@ -496,7 +498,7 @@ namespace LocalGPT.Services
     try
     {
                 foreach (var group in result.Steps
-                    .Where(step => !string.IsNullOrWhiteSpace(step.ModelName))
+                    .Where(step => !step.IsInfrastructureFailure && !string.IsNullOrWhiteSpace(step.ModelName))
                     .GroupBy(step => step.ModelName, StringComparer.OrdinalIgnoreCase))
                 {
                     // A step only counts as successful when it has no error and usable visible content (an empty answer is not success).

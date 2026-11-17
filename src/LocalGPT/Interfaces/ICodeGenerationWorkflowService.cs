@@ -7,6 +7,49 @@ namespace LocalGPT.Interfaces;
 /// </summary>
 public interface ICodeGenerationWorkflowService
 {
+    /// <summary>Reads compact, actual draft/review state for the originating Council.</summary>
+    /// <param name="runId">Council execution identifier.</param>
+    /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <returns>The active draft or latest submitted draft review, if present.</returns>
+    Task<CodeGenerationDraftProgress?> GetCouncilDraftProgressAsync(Guid runId, CancellationToken cancellationToken);
+
+    /// <summary>Reserves distinct dependency-ready files for an authorized batch of model routes.</summary>
+    /// <param name="runId">Council execution identifier.</param>
+    /// <param name="modelNames">Eligible provider-qualified routes in scheduling order.</param>
+    /// <param name="maximumAttempts">Configured maximum attempts per file in this workflow revision.</param>
+    /// <param name="cancellationToken">Cancels reservation before inference.</param>
+    /// <returns>Persisted distinct file work packets.</returns>
+    Task<IReadOnlyList<CodeGenerationDraftWorkPacket>> ReserveDraftFilesAsync(Guid runId,
+        IReadOnlyList<string> modelNames, int maximumAttempts, CancellationToken cancellationToken);
+
+    /// <summary>Commits the candidate from one actual file-author response, or records a failed attempt.</summary>
+    /// <param name="runId">Council execution identifier.</param>
+    /// <param name="assignment">Exact server-issued assignment; obsolete assignments cannot write.</param>
+    /// <param name="modelName">Actual executing provider-qualified model.</param>
+    /// <param name="visibleContent">The completed model's visible file response, excluding provider reasoning.</param>
+    /// <param name="error">Actual provider/worker error, if any.</param>
+    /// <param name="cancellationToken">Cancels the draft compare-and-swap write.</param>
+    /// <returns>Persisted assignment receipt or diagnostic.</returns>
+    /// <param name="guestReceipt">Actual completed isolated script receipt when the draft selected guest authoring.</param>
+    Task<CodeGenerationDraftAssignment> CompleteDraftFileAsync(Guid runId, CodeGenerationDraftAssignment assignment,
+        string modelName, string visibleContent, string? error, CancellationToken cancellationToken,
+        SessionSandboxRunSnapshot? guestReceipt = null);
+
+    /// <summary>Gets current candidates and dependency evidence that still require independent inspection.</summary>
+    /// <param name="runId">Owning Council execution.</param>
+    /// <param name="cancellationToken">Cancels inspection reads.</param>
+    /// <returns>Exact candidate packets with source and dependency hashes.</returns>
+    Task<IReadOnlyList<CodeGenerationDraftInspection>> GetDraftInspectionsAsync(Guid runId, CancellationToken cancellationToken);
+
+    /// <summary>Records an independent inspection and reopens only the specifically rejected source file.</summary>
+    /// <param name="runId">Owning Council execution.</param>
+    /// <param name="packet">Previously issued candidate inspection evidence.</param>
+    /// <param name="decision">Validated independent opinion tied to the exact hash and reviewer.</param>
+    /// <param name="cancellationToken">Cancels the persisted decision.</param>
+    /// <returns>A task that completes after the decision is committed.</returns>
+    Task RecordDraftInspectionAsync(Guid runId, CodeGenerationDraftInspection packet,
+        CodeGenerationDraftInspectionDecision decision, CancellationToken cancellationToken);
+
     /// <summary>Processes one operation on the active Council's persisted source draft.</summary>
     /// <param name="request">Draft operation and its input.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>

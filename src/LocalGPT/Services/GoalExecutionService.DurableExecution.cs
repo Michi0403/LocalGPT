@@ -68,6 +68,7 @@ public sealed partial class GoalExecutionService
         CouncilRequest = new MultiModelCouncilRequest
         {
             RunId = checkpoint.GoalId,
+            ChatRunId = checkpoint.GoalId,
             Prompt = checkpoint.Prompt,
             GoalText = checkpoint.GoalText,
             KeyaccountReviewEnabled = checkpoint.KeyaccountReviewEnabled,
@@ -166,8 +167,8 @@ public sealed partial class GoalExecutionService
             request.CouncilRequest.ModelSelections = choices;
             request.CouncilRequest.ModelNames = choices.Select(choice => choice.ModelName).ToList();
         }
-        var liveTeams = (await teams.GetTeamsAsync(cancellationToken: cancellationToken).ConfigureAwait(false))
-            .Select(team => team.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var configuredTeams = await teams.GetTeamsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var liveTeams = configuredTeams.Select(team => team.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var directorySnapshot = await directory.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         var executableFunctions = directorySnapshot.Functions.Where(function => function.AvailableToAi &&
             !function.IsCoordinationOnly && (function.SupportsAutomaticInvocation || function.SupportsDirectInvocation || function.SupportsDeferredApprovalRequest))
@@ -192,6 +193,7 @@ public sealed partial class GoalExecutionService
             return outcome;
         }
         var originalRunId = request.CouncilRequest.RunId;
+        request.CouncilRequest.ChatRunId ??= checkpoint.GoalId;
         var originalPrompt = request.CouncilRequest.Prompt;
         var originalTeam = request.CouncilRequest.CouncilTeamKey;
         var originalOutputBudget = request.CouncilRequest.MaxOutputTokens;
@@ -205,6 +207,8 @@ public sealed partial class GoalExecutionService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var step = checkpoint.Steps[stepIndex];
+                var developmentTeam = configuredTeams.Any(team => string.Equals(team.Key, step.TeamKey, StringComparison.OrdinalIgnoreCase) &&
+                    (team.RequiredCompletedFunctions ?? []).Contains("council.development.artifact.verify", StringComparer.OrdinalIgnoreCase));
                 var saved = checkpoint.Receipts.LastOrDefault(receipt => receipt.StepKey == step.Key);
                 if (saved?.State == GoalExecutionState.Completed) continue;
                 // Human-approved extension may proceed to a distinct later objective without
@@ -256,10 +260,10 @@ public sealed partial class GoalExecutionService
                 var recoveryStep = IsGoalContextRecoveryStep(checkpoint, step);
                 request.CouncilRequest.Prompt = recoveryStep
                     ? RenderGoalContextRecoveryPrompt(checkpoint, step, stepIndex)
-                    : checkpoint.Steps.Count == 1 ? originalPrompt :
+                    : checkpoint.Steps.Count == 1 && !step.Key.StartsWith("source-manifest-", StringComparison.Ordinal) ? originalPrompt :
                         RenderStepPrompt(checkpoint, step, stepIndex);
                 request.CouncilRequest.MaxOutputTokens = recoveryStep
-                    ? FitGoalRecoveryOutputBudget(checkpoint)
+                    ? (step.Key.StartsWith(ContextFitStepPrefix, StringComparison.OrdinalIgnoreCase) ? originalOutputBudget : FitGoalRecoveryOutputBudget(checkpoint))
                     : originalOutputBudget;
                 request.CouncilRequest.GoalRecoveryCompactContext = recoveryStep;
                 if (recoveryStep &&
@@ -295,6 +299,11 @@ public sealed partial class GoalExecutionService
                 }
                 receipt.Answer = councilResult.FinalAnswer;
                 receipt.Evidence = ObserveCouncil(councilResult);
+                var requiresDevelopmentArtifact = developmentTeam && councilResult.CoordinatedSourceWork;
+                if (requiresDevelopmentArtifact)
+                    checkpoint.KeyaccountExpectedArtifacts = Math.Max(1, checkpoint.KeyaccountExpectedArtifacts);
+                var verifiedDevelopmentArtifact = requiresDevelopmentArtifact && councilResult.DevelopmentArtifactVerified &&
+                    receipt.Evidence.Any(item => item.Kind == "CouncilArtifact" && item.Succeeded);
                 var approvalGatedDelivery = IsApprovalGatedDeliveryGoal(checkpoint);
                 if (approvalGatedDelivery)
                     receipt.Evidence.AddRange(await ObserveApprovalGatedRequestsAsync(councilResult.RunId, cancellationToken).ConfigureAwait(false));
@@ -307,7 +316,9 @@ public sealed partial class GoalExecutionService
                 // safe to replan. All other ambiguous attempts retain the conservative guard.
                 var confirmedSideEffectFreeContextFailure =
                     IsGoalContextPreflightFailureWithoutEffects(councilResult, receipt);
-                receipt.ExternalEffectsPossible = !confirmedSideEffectFreeContextFailure &&
+                var safeManifestRetry = requiresDevelopmentArtifact && councilResult.SourceManifestRetrySafe &&
+                    councilResult.Artifacts.Count == 0 && councilResult.ChangeReview is null;
+                receipt.ExternalEffectsPossible = !confirmedSideEffectFreeContextFailure && !safeManifestRetry &&
                     (councilResult.Artifacts.Count > 0 ||
                      checkpoint.RequiredFunctions.Count > 0 ||
                      directorySnapshot.Functions.Any(function => function.AvailableToAi && !function.IsCoordinationOnly &&
@@ -325,12 +336,21 @@ public sealed partial class GoalExecutionService
                     // Deterministic delivery evaluation for approval-gated 1-Wire goals: a missing delivery
                     // becomes the next objective instead of an unspecific human stop.
                     ApplyApprovalGatedDeliveryRule(checkpoint, keyaccountReview);
+                    if (requiresDevelopmentArtifact && !verifiedDevelopmentArtifact)
+                    {
+                        keyaccountReview.Complete = false;
+                        keyaccountReview.NeedsHumanReview = !safeManifestRetry;
+                        keyaccountReview.Reason = runtimePolicy.GetString("GoalDevelopmentArtifactMissingNotice");
+                        if (safeManifestRetry)
+                            keyaccountReview.NextObjective = runtimePolicy.GetString("GoalDevelopmentManifestRetryObjective");
+                    }
                     checkpoint.KeyaccountReviews.Add(keyaccountReview);
                     checkpoint.KeyaccountPendingObjective = keyaccountReview.Complete
                         ? string.Empty : keyaccountReview.NextObjective;
                 }
-                receipt.State = string.IsNullOrWhiteSpace(councilResult.FinalAnswer) ||
-                    councilResult.Steps.Any(item => !string.IsNullOrWhiteSpace(item.Error))
+                receipt.State = verifiedDevelopmentArtifact ? GoalExecutionState.Completed :
+                    (requiresDevelopmentArtifact || string.IsNullOrWhiteSpace(councilResult.FinalAnswer) ||
+                    councilResult.Steps.Any(item => !string.IsNullOrWhiteSpace(item.Error)))
                     ? GoalExecutionState.Failed
                     : councilResult.Artifacts.Count > 0 || checkpoint.RequiredFunctions.Count > 0 ||
                       checkpoint.RequiredCapabilities.Count > 0
@@ -340,6 +360,33 @@ public sealed partial class GoalExecutionService
                 outcome.CouncilResult = councilResult;
                 if (receipt.State == GoalExecutionState.Failed)
                 {
+                    // A missing artifact is a failed engineering objective even if all model streams completed.
+                    // Only a pre-mutation manifest failure may be retried as a new bounded Council attempt.
+                    if (safeManifestRetry && checkpoint.KeyaccountContinuationsScheduled < checkpoint.KeyaccountContinuationLimit &&
+                        stepIndex == checkpoint.Steps.Count - 1)
+                    {
+                        var recovery = await aiHelpEscalator.ReportAttemptAsync(new AiHelpAttemptReport
+                        {
+                            TaskId = $"goal:{checkpoint.GoalId:N}:source-manifest", AttemptId = councilResult.RunId,
+                            Task = checkpoint.GoalText[..Math.Min(2000, checkpoint.GoalText.Length)], Action = "source manifest",
+                            Status = "failed", CouncilRunId = councilResult.RunId,
+                            Error = new AiHelpFailureEvidence { Code = "SourceManifestMissing", Message = runtimePolicy.GetString("GoalDevelopmentArtifactMissingNotice"), Source = "validator" }
+                        }, cancellationToken).ConfigureAwait(false);
+                        if (recovery.Type is "try_alternative" or "retry_with_guidance")
+                        {
+                            // Replace only the unsuccessful plan step. Its failed receipt remains in the journal.
+                            checkpoint.KeyaccountContinuationsScheduled++;
+                            checkpoint.Steps[stepIndex] = new GoalExecutionPlanStep
+                            {
+                                Key = $"source-manifest-{checkpoint.KeyaccountContinuationsScheduled}", TeamKey = step.TeamKey,
+                                Objective = runtimePolicy.GetString("GoalDevelopmentManifestRetryObjective") + "\n" + recovery.Instruction
+                            };
+                            outcome.PlanSteps = checkpoint.Steps.ToList();
+                            await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
+                            stepIndex--;
+                            continue;
+                        }
+                    }
                     // The goal observer handles a recoverable context problem *before* the
                     // generic failed-step and human-approval branches. It can ask the existing
                     // semantic planner for a valid subagent/team decomposition, then fall back
@@ -352,7 +399,7 @@ public sealed partial class GoalExecutionService
                         stepIndex--;
                         continue;
                     }
-                    if (!confirmedSideEffectFreeContextFailure && !receipt.ExternalEffectsPossible &&
+                    if (!requiresDevelopmentArtifact && !confirmedSideEffectFreeContextFailure && !receipt.ExternalEffectsPossible &&
                         await TryReplanRemainingAsync(request, checkpoint, stepIndex,
                             liveTeams, cancellationToken).ConfigureAwait(false))
                     {
@@ -466,7 +513,7 @@ public sealed partial class GoalExecutionService
             if (outcome.CouncilResult is not null)
             {
                 outcome.CouncilResult.FinalAnswer = string.Join("\n\n", checkpoint.Receipts
-                    .Where(receipt => receipt.State is GoalExecutionState.Completed or GoalExecutionState.NeedsVerification)
+                    .Where(receipt => receipt.State is GoalExecutionState.Completed or GoalExecutionState.NeedsVerification or GoalExecutionState.Failed)
                     .Select(receipt => receipt.Answer).Where(answer => !string.IsNullOrWhiteSpace(answer)));
                 outcome.CouncilResult.DeliverableText = BuildDeliverableText(checkpoint);
                 if (checkpoint.KeyaccountReviewEnabled)
@@ -546,8 +593,13 @@ public sealed partial class GoalExecutionService
         var models = checkpoint.ModelSelectionKeys;
         var configured = await teams.GetTeamsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var last = checkpoint.Receipts.LastOrDefault(receipt => receipt.StepKey == checkpoint.Steps[failedIndex].Key);
+        var contextFailure = IsGoalContextBudgetError(last?.FailureSummary);
         var cause = System.Text.Json.JsonSerializer.Serialize(new
         {
+            contextFailure,
+            maximumContextTokens = checkpoint.MaxContextTokens,
+            resourceLoadPercent = checkpoint.ResourceLoadPercent,
+            remainingSteps = checkpoint.Steps.Skip(failedIndex).Select(step => new { step.Objective, step.TeamKey }),
             failedObjective = checkpoint.Steps[failedIndex].Objective,
             verifiedFailure = last?.FailureSummary ?? "TeamUnavailable",
             completedSteps = checkpoint.Receipts.Where(receipt => receipt.State == GoalExecutionState.Completed)
@@ -557,17 +609,26 @@ public sealed partial class GoalExecutionService
             snapshot.Functions.Where(item => item.AvailableToAi && !item.IsCoordinationOnly).ToArray(),
             snapshot.Skills.Where(item => item.IsEnabled && item.IsOnline).ToArray(), models,
             cancellationToken, recoveryContext: cause).ConfigureAwait(false);
+        var availableSlots = Math.Max(1, runtimePolicy.GetInt("GoalMaximumPlanSteps")) - failedIndex;
+        if (contextFailure && (proposal is null || proposal.Steps.Count > availableSlots))
+            return false;
         var replacements = proposal?.Steps.Where(step => !string.IsNullOrWhiteSpace(step.Objective)
             && liveTeams.Contains(step.TeamKey)
             && (!checkpoint.PreserveSelectedTeam || string.Equals(step.TeamKey,
                 checkpoint.RequestedTeamKey, StringComparison.OrdinalIgnoreCase)))
-            .Take(Math.Max(1, runtimePolicy.GetInt("GoalMaximumPlanSteps")) - failedIndex)
+            .Take(availableSlots)
             .Select((step, index) => new GoalExecutionPlanStep
             {
                 Key = "replan-" + nextReplanNumber + "-" + (index + 1),
                 Objective = step.Objective, TeamKey = step.TeamKey
             }).ToList();
         if (replacements is not { Count: > 0 }) return false;
+        if (contextFailure && replacements.Count != proposal!.Steps.Count)
+            return false;
+        if (contextFailure && replacements.Count == 1 && string.Equals(
+                replacements[0].Objective.Trim(), checkpoint.Steps[failedIndex].Objective.Trim(),
+                StringComparison.OrdinalIgnoreCase))
+            return false;
         checkpoint.ReplanCount = nextReplanNumber;
         // Prior committed steps are immutable; failed steps remain in receipt history for audit.
         checkpoint.Steps = checkpoint.Steps.Take(failedIndex).Concat(replacements).ToList();

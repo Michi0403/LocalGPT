@@ -191,6 +191,8 @@ namespace LocalGPT.Services
         /// <param name="allowDxFunctions">Value indicating whether automatic/native functions may be exposed for this configured participant execution.</param>
         /// <param name="automaticFunctionPolicy">Resolved user-owned function policy containing the effective enabled state and optional exact allow-list.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="allowParticipantRecovery">Whether the participant may internally retry its provider request. Startup handoffs disable same-route retries.</param>
+        /// <param name="recoveryTargetModelName">Original slot identity when this participant replaces a failed provider-qualified member.</param>
         /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RunConfiguredParticipantAsync(
             MultiModelCouncilResult result,
@@ -219,9 +221,11 @@ namespace LocalGPT.Services
             int modelTimeoutSeconds,
             bool allowDxFunctions,
             CouncilAutomaticFunctionPolicyResolution automaticFunctionPolicy,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool allowParticipantRecovery = true,
+            string? recoveryTargetModelName = null)
         {
-            var activityKey = BuildCouncilParticipantActivityKey(round, phase, definition.Role, modelName);
+            var activityKey = BuildCouncilParticipantActivityKey(result.RunId, round, phase, definition.Role, modelName);
             try
             {
                 var plan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
@@ -238,8 +242,8 @@ namespace LocalGPT.Services
                         ollamaNumGpu,
                         1);
                 var routeLabel = $"{GetCouncilExecutionHostKey(modelName)} · {plan.LaneKey}";
-                liveCouncilSessions.BeginParticipantActivity(result.RunId, activityKey, modelName, phase, definition.Role, routeLabel);
-                liveCouncilSessions.SetParticipantActivityStatus(result.RunId, activityKey, $"Running on {routeLabel}.");
+                liveCouncilSessions.BeginParticipantActivity((result.ChatRunId ?? result.RunId), activityKey, modelName, phase, definition.Role, routeLabel);
+                liveCouncilSessions.SetParticipantActivityStatus((result.ChatRunId ?? result.RunId), activityKey, $"Running on {routeLabel}.");
 
                 // Configured single/sequential workflow steps must expose the same rich producer-side lane as
                 // parallel Council phases. Keep that lane current on every provider fragment, but coalesce the
@@ -250,7 +254,7 @@ namespace LocalGPT.Services
                     if (string.IsNullOrEmpty(text))
                         return;
 
-                    liveCouncilSessions.AppendParticipantActivity(result.RunId, activityKey, text);
+                    liveCouncilSessions.AppendParticipantActivity((result.ChatRunId ?? result.RunId), activityKey, text);
                     if (orderedPresentationBuffer is null)
                         return;
 
@@ -301,20 +305,22 @@ namespace LocalGPT.Services
                             modelTimeoutSeconds,
                             participantStreamUpdate,
                             participantCancellation.Token,
+                            allowRecovery: allowParticipantRecovery,
                             fallbackPlan: plan,
                             progressMessage: request.ProgressMessage,
                             enableAutomaticTools: allowDxFunctions,
                             automaticFunctionAllowList: automaticFunctionPolicy.AutomaticFunctionAllowList,
                             roleComplianceRetryCount: definition.RoleComplianceRetryCount,
                             finalAnswerRecoveryEnabled: definition.FinalAnswerRecoveryEnabled,
-                            finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens).ConfigureAwait(false);
+                            finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens,
+                            requestOutputCeiling: GetFileWorkPreparationOutputCeiling(team.Key, definition.Key)).ConfigureAwait(false);
                     }
                 }
                 catch (OperationCanceledException) when (roundSkipToken.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                 {
                     participantStep = CreateRoundSkippedStep(modelName, participants, round, phase, definition.Role, plan);
                     liveCouncilSessions.CompleteParticipantActivity(
-                        result.RunId,
+                        (result.ChatRunId ?? result.RunId),
                         activityKey,
                         "Participant was skipped because the current Council phase was cancelled.");
                 }
@@ -326,11 +332,17 @@ namespace LocalGPT.Services
                 }
 
                 ArgumentNullException.ThrowIfNull(participantStep);
-                liveCouncilSessions.SetParticipantActivityResult(result.RunId, activityKey, participantStep.VisibleContent);
+                if (!string.IsNullOrWhiteSpace(recoveryTargetModelName))
+                    {
+                    participantStep.RecoveryTargetModelName = recoveryTargetModelName;
+                    if (!allowParticipantRecovery && participantStep.VisibleContent.Contains("was disabled for this running Council session", StringComparison.OrdinalIgnoreCase))
+                        participantStep.Error = $"CouncilRouteDisabled;{participantStep.VisibleContent}";
+                }
+                liveCouncilSessions.SetParticipantActivityResult((result.ChatRunId ?? result.RunId), activityKey, participantStep.VisibleContent);
                 if (!roundSkipToken.IsCancellationRequested || cancellationToken.IsCancellationRequested)
                 {
                     liveCouncilSessions.CompleteParticipantActivity(
-                        result.RunId,
+                        (result.ChatRunId ?? result.RunId),
                         activityKey,
                         string.IsNullOrWhiteSpace(participantStep.Error)
                             ? "Model completed. Its thinking, function activity and answer are already available in this live lane; the ordered transcript copy is synchronized separately."
@@ -342,7 +354,7 @@ namespace LocalGPT.Services
                     participantStep,
                     request.StepCompleted,
                     request.ProgressMessage,
-                    allowDxFunctions,
+                    allowDxFunctions && !participantStep.IsProviderStartupTimeout,
                     cancellationToken,
                     automaticFunctionPolicy.IsStrict ? automaticFunctionPolicy.AutomaticFunctionAllowList : null).ConfigureAwait(false);
                 if (allowDxFunctions && functionSteps.Count > 0)
@@ -392,7 +404,7 @@ namespace LocalGPT.Services
                 if (__serviceMethodException is OperationCanceledException)
                 {
                     liveCouncilSessions.CompleteParticipantActivity(
-                        result.RunId,
+                        (result.ChatRunId ?? result.RunId),
                         activityKey,
                         "Configured participant was cancelled before its Council step completed.");
                     logger.LogDebug(
@@ -404,7 +416,7 @@ namespace LocalGPT.Services
                 else
                 {
                     liveCouncilSessions.CompleteParticipantActivity(
-                        result.RunId,
+                        (result.ChatRunId ?? result.RunId),
                         activityKey,
                         $"Configured participant failed before its Council step could complete: {__serviceMethodException.Message}");
                     logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(RunConfiguredParticipantAsync)} failed.");
@@ -527,8 +539,12 @@ namespace LocalGPT.Services
                         $"AI assignment: {DescribeConfiguredRoleAiPolicy(role)}. Human participation: {role.HumanParticipationMode}. " +
                         $"Performance: {role.PerformanceMode}. Boundary: {role.BoundaryMode}. Language: {role.LanguageMode}. " +
                         $"Runtime classes: {(role.RuntimeClassKeys.Count == 0 ? "none" : string.Join(", ", role.RuntimeClassKeys))}."));
-                var boundedTranscript = transcript.Length <= 160000 ? transcript : transcript[^160000..];
-                var boundedPreviousStep = previousStep.Length <= 80000 ? previousStep : previousStep[^80000..];
+                var filePolicy = runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson");
+                var compilerBudget = filePolicy.Enabled && string.Equals(team.Key, filePolicy.TeamKey, StringComparison.OrdinalIgnoreCase)
+                    ? Math.Max(0, filePolicy.MaximumPlanEvidenceCharacters) : 160000;
+                var previousBudget = Math.Min(80000, compilerBudget);
+                var boundedTranscript = transcript.Length <= compilerBudget ? transcript : transcript[^compilerBudget..];
+                var boundedPreviousStep = previousStep.Length <= previousBudget ? previousStep : previousStep[^previousBudget..];
                 var roleMembers = roleAssignment.AiParticipants.Count == 0
                     ? "No AI members; the role is performed by the human participant."
                     : string.Join(", ", roleAssignment.AiParticipants);
@@ -715,8 +731,9 @@ namespace LocalGPT.Services
         /// Builds bounded provider-qualified evidence for one configured role coordination turn.
         /// </summary>
         /// <param name="steps">Council steps whose visible outputs should be supplied as role evidence.</param>
+        /// <param name="evidenceLimit">Optional workflow-specific bound for retrieved visible evidence.</param>
         /// <returns>Provider-qualified role evidence suitable for a peer-review or synthesis prompt.</returns>
-        private string BuildConfiguredRoleEvidence(IReadOnlyList<MultiModelCouncilStep> steps)
+        private string BuildConfiguredRoleEvidence(IReadOnlyList<MultiModelCouncilStep> steps, int? evidenceLimit = null)
         {
             try
             {
@@ -730,7 +747,8 @@ namespace LocalGPT.Services
                     return string.Empty;
 
                 var perMemberLimit = Math.Max(1, runtimePolicy.GetInt("CouncilRoleEvidenceMaximumPerMemberCharacters"));
-                var totalLimit = Math.Max(1, runtimePolicy.GetInt("CouncilRoleEvidenceMaximumTotalCharacters"));
+                var totalLimit = Math.Max(1, Math.Min(evidenceLimit ?? int.MaxValue, runtimePolicy.GetInt("CouncilRoleEvidenceMaximumTotalCharacters")));
+                if (evidenceLimit.HasValue) perMemberLimit = Math.Min(perMemberLimit, Math.Max(1, totalLimit / usable.Count));
                 var builder = new StringBuilder();
                 foreach (var step in usable)
                 {

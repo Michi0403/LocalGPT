@@ -251,6 +251,21 @@ public sealed class VerifyCouncilDevelopmentArtifactFunction(
                 using var archive = ZipFile.OpenRead(zip);
                 if (!archive.Entries.Any(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal)))
                     return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed generation ZIP contains no files." };
+                if (review.IsSourceDraftReview)
+                {
+                    if (review.Status != CodeGenerationReviewStatuses.BuildPassed)
+                        return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Coordinated solution build has not passed." };
+                    foreach (var file in review.Files)
+                    {
+                        var matches = archive.Entries.Where(entry => string.Equals(entry.FullName.Replace('\\', '/'), file.RelativePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)).ToList();
+                        if (matches.Count != 1)
+                            return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed source path is missing or ambiguous in ZIP: " + file.RelativePath };
+                        await using var content = matches[0].Open();
+                        var actualHash = Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(content, cancellationToken).ConfigureAwait(false));
+                        if (actualHash != file.ContentHash)
+                            return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "ZIP source differs from approved file: " + file.RelativePath };
+                    }
+                }
                 return json.Success(new { Mode = "ReviewedGeneration", review.Id, review.Status, review.BuildStatus,
                     review.ReviewHash, review.WorkspaceName,
                     DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(review.ZipFileName)}",

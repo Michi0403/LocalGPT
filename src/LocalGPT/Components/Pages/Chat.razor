@@ -1064,6 +1064,7 @@
             <summary>Session code sandboxes · @TotalRunningSandboxes running</summary>
             <div class="session-sandbox-body" aria-label="Isolated session debugging and test execution">
                 <p class="memory-status">Backend-owned execution: sandboxes remain active when Chat disconnects. The guest has no network or project mounts; Python, C# and PowerShell runtimes are provisioned at build/publish time. Only the explicitly submitted source enters the micro-VM. A missing Hyperlight runtime never falls back to host execution.</p>
+                <p class="memory-status"><a href="browser-compiler/index.html" target="_blank" rel="noopener noreferrer" data-testid="browser-wasix-workbench">Open client-side C/C++ WASIX compiler</a> · Separate browser-owned execution; no server fallback.</p>
                 <div class="session-sandbox-runtime-readiness" aria-label="Hyperlight guest runtimes available with this build">
                     @foreach (var readiness in SandboxRuns.RuntimeReadiness)
                     {

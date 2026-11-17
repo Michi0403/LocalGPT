@@ -137,29 +137,31 @@ public sealed partial class CouncilChatClient(
             yield break;
         }
 
+        var chatRunId = request.RunId;
+        request.ChatRunId = chatRunId;
         var introduction = $"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Provider thinking, tool activity and answer text remain visible; model execution is host-aware while each member stream is presented as an intact readable block._\n\n";
-        var liveMessageMarker = $"<!-- localgpt-live-council:{request.RunId:N} -->\n";
+        var liveMessageMarker = $"<!-- localgpt-live-council:{chatRunId:N} -->\n";
         var initiatingUserMessage = requestMessages
             .LastOrDefault(message => message.Role == ChatRole.User)
             ?.Text
             ?.Trim() ?? string.Empty;
         var liveCancellation = liveSessions.Begin(
-            request.RunId,
+            chatRunId,
             request.ModelNames,
             initiatingUserMessage,
             introduction);
-        liveSessions.SetStatus(request.RunId, "Preparing Council preflight and host-aware execution lanes.");
+        liveSessions.SetStatus(chatRunId, "Preparing Council preflight and host-aware execution lanes.");
 
         void Publish(string text)
         {
             if (string.IsNullOrEmpty(text))
                 return;
-            liveSessions.Append(request.RunId, text);
+            liveSessions.Append(chatRunId, text);
             if (Volatile.Read(ref attached) == 1)
                 updates.Writer.TryWrite(text);
         }
 
-        request.ProgressMessage = message => liveSessions.SetStatus(request.RunId, message);
+        request.ProgressMessage = message => liveSessions.SetStatus(chatRunId, message);
         request.StreamUpdate = Publish;
         request.StepCompleted = step => Publish(councilRuntime.FormatStepProgress(step, logger));
 
@@ -197,7 +199,7 @@ public sealed partial class CouncilChatClient(
                     // Heartbeats are live-session state, not model transcript content. Touching the
                     // session refreshes the visual running indicator without injecting status text
                     // into a member's thinking, answer, saved transcript, or missing-feature report.
-                    liveSessions.Touch(request.RunId);
+                    liveSessions.Touch(chatRunId);
                     nextHeartbeatAt = DateTimeOffset.UtcNow.AddSeconds(10);
                 }
             }
@@ -212,7 +214,7 @@ public sealed partial class CouncilChatClient(
             // or stopped consuming updates. The explicit Stop command owns cancellation.
             logger.LogInformation(
                 "AI Council DXChat observer detached for run {RunId}; streamCanceled={CancellationRequested}.",
-                request.RunId, cancellationToken.IsCancellationRequested);
+                chatRunId, cancellationToken.IsCancellationRequested);
         }
     }
 
@@ -228,6 +230,7 @@ public sealed partial class CouncilChatClient(
         ChannelWriter<string> writer,
         Action<string> publish)
     {
+        var chatRunId = request.ChatRunId ?? request.RunId;
         try
         {
             var scope = serviceScopeFactory.CreateAsyncScope();
@@ -271,7 +274,7 @@ public sealed partial class CouncilChatClient(
         }
         finally
         {
-            liveSessions.Complete(request.RunId);
+            liveSessions.Complete(chatRunId);
             writer.TryComplete();
         }
     }

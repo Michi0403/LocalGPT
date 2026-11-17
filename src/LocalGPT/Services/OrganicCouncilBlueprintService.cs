@@ -97,13 +97,13 @@ public sealed class OrganicCouncilBlueprintService(
             foreach (var role in team.Roles)
                 builder.AppendLine($"- {role.Role}: {role.Expertise}. Responsibility: {role.Responsibility}");
             builder.AppendLine($"Preferred organic capabilities: {string.Join(", ", team.PreferredCapabilities)}");
-            if (!string.IsNullOrWhiteSpace(team.MainRoundInstructionTemplate))
+            if (usesBuiltInWorkflow && !string.IsNullOrWhiteSpace(team.MainRoundInstructionTemplate))
                 builder.AppendLine("Editable main-round instruction:").AppendLine(team.MainRoundInstructionTemplate);
             if (team.WorkflowSteps.Count > 0)
             {
                 builder.AppendLine("Editable heartbeat workflow:");
                 foreach (var step in team.WorkflowSteps.Where(item => item.IsEnabled).OrderBy(item => item.SortOrder))
-                    builder.AppendLine($"- {step.SortOrder}: {step.DisplayName} [{step.ExecutionMode}] / {step.Role}: {step.PromptTemplate}");
+                    builder.AppendLine($"- {step.SortOrder}: {step.DisplayName} [{step.ExecutionMode}] / {step.Role}");
             }
             builder.AppendLine("Architecture contracts:");
             foreach (var contract in team.ArchitectureContracts)
@@ -121,7 +121,7 @@ public sealed class OrganicCouncilBlueprintService(
             {
                 builder.AppendLine("Connected organic 1-Wire capability teaching:")
                     .AppendLine("Every member must use the exact advertised input contract, carry the WorkResult CorrelationId into the next heartbeat, and never infer permission from capability visibility.");
-                foreach (var item in connectedCapabilities.Take(80))
+                foreach (var item in connectedCapabilities.Where(item => request.RequestedOrganicCapabilities.Contains(item.Capability.Key, StringComparer.OrdinalIgnoreCase) || team.PreferredCapabilities.Contains(item.Capability.Key, StringComparer.OrdinalIgnoreCase)))
                 {
                     var capability = item.Capability;
                     builder.AppendLine($"- {capability.Key} from {item.DisplayName} ({item.PeerId})")

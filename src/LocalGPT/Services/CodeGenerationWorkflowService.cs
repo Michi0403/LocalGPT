@@ -162,6 +162,14 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             var payload = new CodeGenerationReviewPayload
             {
                 Files = request.Files.Select(NormalizeFile).ToList(),
+                DraftManifest = draft is null ? null : request.DraftManifest,
+                DraftWorkspaceMode = request.DraftWorkspaceMode,
+                DraftGuestLanguageKey = request.DraftGuestLanguageKey,
+                DraftInspections = draft is null ? [] : request.DraftInspections,
+                DraftSharedContract = draft is null ? string.Empty : request.DraftSharedContract,
+                DraftDependencies = draft is null ? null : request.DraftDependencies,
+                DraftAssignments = draft is null ? [] : request.DraftAssignments,
+                DraftRepairReviewId = draft is null ? null : request.DraftRepairReviewId,
                 CodeDomTypes = request.CodeDomTypes.Select(NormalizeCodeDomType).ToList(),
                 Outputs = request.Outputs.Count == 0
                     ? [new CodeGenerationOutputSpec()]

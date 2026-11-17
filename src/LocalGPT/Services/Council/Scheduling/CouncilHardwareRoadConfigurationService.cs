@@ -6,8 +6,10 @@ namespace LocalGPT.Services.Council.Scheduling;
 /// <summary>
 /// Coordinates council hardware road configuration behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="runtimePolicy">Seed-backed Council defaults.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilHardwareRoadConfigurationService(
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilHardwareRoadConfigurationService> logger) : ICouncilHardwareRoadConfigurationService
 {
     /// <summary>
@@ -55,9 +57,9 @@ public sealed class CouncilHardwareRoadConfigurationService(
                         HardwareIndex = -1,
                         HardwareName = "Automatic",
                         MinOutputTokens = 256,
-                        MaxOutputTokens = 262144,
+                        MaxOutputTokens = runtimePolicy.GetInt("DefaultCouncilOutputTokens"),
                         MinContextTokens = 2048,
-                        MaxContextTokens = 262144,
+                        MaxContextTokens = runtimePolicy.GetInt("DefaultCouncilContextTokens"),
                         MaxConcurrentModelsOnLane = 1,
                         IsEnabled = true
                     };
@@ -77,6 +79,100 @@ public sealed class CouncilHardwareRoadConfigurationService(
         }
     }
 
+
+    /// <inheritdoc />
+    public IReadOnlyList<OneWireCouncilModelRoute> ResolvePresetRoutes(
+        IEnumerable<string> modelNames, IEnumerable<OneWireCouncilModelRoute> existingRoutes,
+        IReadOnlyList<MultiModelCouncilModelCandidate> candidates)
+    {
+        try
+        {
+            var identity = new ProviderModelIdentity();
+            var configured = Synchronize(modelNames, existingRoutes.Select(CloneRoute));
+            var resolved = new List<OneWireCouncilModelRoute>();
+            var missing = new List<OneWireCouncilModelRoute>();
+            foreach (var route in configured)
+            {
+                var generic = !identity.LooksProviderQualified(route.ModelName)
+                    && string.IsNullOrWhiteSpace(route.ProviderEndpoint)
+                    && (string.IsNullOrWhiteSpace(route.ProviderKind) || route.ProviderKind == ProviderModelKinds.Ollama);
+                var matches = generic
+                    ? candidates.Where(candidate => candidate.IsInstalled && candidate.ProviderKind == ProviderModelKinds.Ollama
+                        && identity.ModelNamesEquivalent(route.ModelName, candidate.ModelName)).ToList()
+                    : candidates.Where(candidate => candidate.SelectionKey.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase)
+                        || (!string.IsNullOrWhiteSpace(route.ProviderEndpoint)
+                            && candidate.ProviderKind.Equals(route.ProviderKind, StringComparison.OrdinalIgnoreCase)
+                            && identity.NormalizeEndpoint(candidate.Endpoint) == identity.NormalizeEndpoint(route.ProviderEndpoint)
+                            && identity.ModelNamesEquivalent(route.ProviderModelName, candidate.ModelName))).ToList();
+                if (matches.Count == 0)
+                {
+                    if (generic)
+                        missing.Add(route);
+                    else
+                        resolved.Add(route);
+                    continue;
+                }
+                foreach (var candidate in matches.OrderBy(item => item.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                {
+                    var qualified = CloneRoute(route);
+                    qualified.ModelName = candidate.SelectionKey;
+                    qualified.ProviderKind = candidate.ProviderKind;
+                    qualified.ProviderName = candidate.Provider;
+                    qualified.ProviderEndpoint = candidate.Endpoint;
+                    qualified.ProviderModelName = candidate.ModelName;
+                    resolved.Add(Normalize(qualified));
+                }
+            }
+            // A generic template describes a pool, not a requirement to install every model.
+            // Preserve unresolved selections when none can run so normal readiness can report them.
+            if (resolved.Count == 0)
+                resolved.AddRange(missing);
+            return resolved.DistinctBy(route => route.ModelName, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Resolving Council preset routes against configured providers failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Copies one editable road without sharing mutable capability lists between providers.</summary>
+    /// <param name="route">The original road.</param>
+    /// <returns>An independent copy of the road.</returns>
+    public OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route)
+    {
+        try
+        {
+            return new()
+    {
+        ModelName = route.ModelName,
+        ProviderKind = route.ProviderKind,
+        ProviderName = route.ProviderName,
+        ProviderEndpoint = route.ProviderEndpoint,
+        ProviderModelName = route.ProviderModelName,
+        HardwareKind = route.HardwareKind,
+        HardwareIndex = route.HardwareIndex,
+        HardwareName = route.HardwareName,
+        MinOutputTokens = route.MinOutputTokens,
+        MaxOutputTokens = route.MaxOutputTokens,
+        MinContextTokens = route.MinContextTokens,
+        MaxContextTokens = route.MaxContextTokens,
+        OllamaNumGpu = route.OllamaNumGpu,
+        LoadPercentOverride = route.LoadPercentOverride,
+        SelfReportedDxFunctions = [.. route.SelfReportedDxFunctions],
+        SelfReportedControllerMethods = [.. route.SelfReportedControllerMethods],
+        SelfReportedOrganicCapabilities = [.. route.SelfReportedOrganicCapabilities],
+        SelfReportedSkills = [.. route.SelfReportedSkills],
+        IsEnabled = route.IsEnabled,
+        MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
+    };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Copying a Council hardware road failed.");
+            throw;
+        }
+    }
 
     /// <summary>Checks whether one existing road already satisfies the normalization invariants used by <see cref="Normalize(OneWireCouncilModelRoute)"/>.</summary>
     /// <param name="route">Existing route inspected without mutating it.</param>

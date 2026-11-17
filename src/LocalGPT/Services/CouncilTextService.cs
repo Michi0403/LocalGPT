@@ -403,7 +403,8 @@ namespace LocalGPT.Services
                 var members = receipt.ModelNames.Count > 0 ? string.Join(", ", receipt.ModelNames) : "no recorded members";
                 var builder = new StringBuilder();
                 builder.Append(liveMessageMarker).Append('\n');
-                builder.Append("_AI Council · ").Append(receipt.CouncilTeamKey).Append(" · ").Append(receipt.Status)
+                builder.Append("<!-- localgpt-council-evidence:").Append(receipt.RunId.ToString("N")).Append(" -->\n");
+                builder.Append("_AI Council · ").Append(receipt.RunId.ToString("N")).Append(" · ").Append(receipt.CouncilTeamKey).Append(" · ").Append(receipt.Status)
                     .Append(" · round ").Append(receipt.CurrentRound.ToString(CultureInfo.InvariantCulture)).Append(" · ").Append(receipt.Phase)
                     .Append(". Restored from the saved Council evidence: ").Append(steps.Count.ToString(CultureInfo.InvariantCulture))
                     .Append(" recorded step(s); members: ").Append(members).Append("._\n\n");
@@ -440,31 +441,61 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Renders retained original and delegated Council runs as one chat history.</summary>
+        /// <param name="receipts">Correlated Council snapshots in execution order.</param>
+        /// <param name="liveMessageMarker">The original chat marker.</param>
+        /// <returns>Combined durable transcript without changing run identities.</returns>
+        public string BuildCouncilChatTranscriptFromSpool(IReadOnlyList<CouncilSpoolerSnapshot> receipts, string liveMessageMarker)
+        {
+            try
+            {
+                if (receipts.Count == 0)
+                    return string.Empty;
+                var builder = new StringBuilder(liveMessageMarker).AppendLine();
+                foreach (var receipt in receipts)
+                    builder.AppendLine(BuildCouncilChatTranscriptFromSpool(receipt, string.Empty));
+                return builder.ToString();
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Building the correlated Council chat transcript failed.");
+                throw;
+            }
+        }
+
         /// <summary>
-        /// Chooses the most complete content for one Council chat message. All candidates describe the same run and only grow over time, so the
-        /// longest one is the most complete: the saved chat copy (which may hold only the run marker or a stream with dropped chunks), the
-        /// in-memory live transcript of a finished run, or the transcript rebuilt from the durable spool.
+        /// Chooses the most complete content for one Council chat message, preserving correlated run coverage before comparing transcript lengths.
+        /// The saved chat, live transcript and durable spool may hold different stages of the delegated execution.
         /// </summary>
         /// <param name="currentContent">Content currently stored for the Council message.</param>
         /// <param name="liveMessageMarker">Exact live-Council marker of the run.</param>
         /// <param name="liveTranscript">In-memory ordered transcript, or an empty value when the process no longer holds the run.</param>
-        /// <param name="spoolTranscript">Transcript built by <see cref="BuildCouncilChatTranscriptFromSpool"/>, or an empty value.</param>
+        /// <param name="spoolTranscript">Transcript built by <see cref="BuildCouncilChatTranscriptFromSpool(CouncilSpoolerSnapshot, string)"/>, or an empty value.</param>
         /// <returns>The current content instance when nothing more complete exists; otherwise the more complete content.</returns>
         public string SelectMostCompleteCouncilMessage(string? currentContent, string liveMessageMarker, string? liveTranscript, string? spoolTranscript)
         {
             try
             {
+                const string evidenceMarker = "<!-- localgpt-council-evidence:";
                 var best = currentContent ?? string.Empty;
                 if (!string.IsNullOrWhiteSpace(liveTranscript))
                 {
                     var live = liveTranscript.Contains(liveMessageMarker, StringComparison.Ordinal)
                         ? liveTranscript
                         : liveMessageMarker + "\n" + liveTranscript;
-                    if (live.Length > best.Length)
+                    var savedEvidence = best.Split('\n').Where(line => line.StartsWith(evidenceMarker, StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal);
+                    var liveEvidence = live.Split('\n').Where(line => line.StartsWith(evidenceMarker, StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal);
+                    if (savedEvidence.IsSubsetOf(liveEvidence) && (liveEvidence.Count > savedEvidence.Count || live.Length > best.Length))
                         best = live;
                 }
-                if (!string.IsNullOrWhiteSpace(spoolTranscript) && spoolTranscript.Length > best.Length)
-                    best = spoolTranscript;
+                if (!string.IsNullOrWhiteSpace(spoolTranscript))
+                {
+                    var savedEvidence = best.Split('\n').Where(line => line.StartsWith(evidenceMarker, StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal);
+                    var spoolEvidence = spoolTranscript.Split('\n').Where(line => line.StartsWith(evidenceMarker, StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal);
+                    if (savedEvidence.IsSubsetOf(spoolEvidence) &&
+                        (spoolEvidence.Count > savedEvidence.Count || spoolTranscript.Length > best.Length))
+                        best = spoolTranscript;
+                }
                 return best;
             }
             catch (Exception exception)

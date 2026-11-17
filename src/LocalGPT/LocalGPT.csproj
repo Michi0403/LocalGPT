@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>7.4.1</Version>
+    <Version>7.5.0</Version>
     <Product>LocalGPT</Product>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
@@ -32,6 +32,7 @@
 	  </RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
+    <Content Update="wwwroot/browser-compiler/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <EmbeddedResource Include="GameTemplates/GodotSceneRuntime.cs.txt" />
     <!-- System games are database content: these documents seed their game projects and rule rows. -->
     <Content Remove="GameTemplates/Seeds/*.json" />
@@ -68,6 +69,7 @@
 		<Content Include="..\..\docs\reference\capability-map.md" Link="docs\reference\capability-map.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/capability-map.md')" />
 		<Content Include="..\..\docs\reference\toolchain-discovery.md" Link="docs\reference\toolchain-discovery.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/toolchain-discovery.md')" />
 		<Content Include="..\..\docs\reference\runtime-path-layout.md" Link="docs\reference\runtime-path-layout.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/runtime-path-layout.md')" />
+		<Content Include="../../docs/reference/browser-wasix-compiler.md" Link="docs/reference/browser-wasix-compiler.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/browser-wasix-compiler.md')" />
 		<Content Include="..\..\docs\reference\local-ai-runtime.md" Link="docs\reference\local-ai-runtime.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/local-ai-runtime.md')" />
 		<Content Include="..\..\docs\reference\ai-provider-installation.md" Link="docs\reference\ai-provider-installation.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ai-provider-installation.md')" />
 		<Content Include="..\..\docs\reference\ascii-game-authoring.md" Link="docs\reference\ascii-game-authoring.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(MSBuildProjectDirectory)/../../docs/reference/ascii-game-authoring.md')" />

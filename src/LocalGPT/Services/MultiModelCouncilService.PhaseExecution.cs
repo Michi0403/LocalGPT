@@ -4,6 +4,7 @@ using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Threading.Channels;
@@ -48,6 +49,10 @@ namespace LocalGPT.Services
         /// <param name="toolResultContinuationMode">Policy controlling whether text-gateway function evidence is returned to the same member.</param>
         /// <param name="toolResultContinuationRounds">Maximum bounded same-member function-result continuation turns.</param>
         /// <param name="strictAutomaticFunctions">Whether the current configured step selected an exclusive tool list, independently of function permissions.</param>
+        /// <param name="allowStartupHostTakeover">Whether the configured, unpaired role permits a different selected provider-qualified member to take over a request that never received response headers.</param>
+        /// <param name="exactAssignments">Preserves every explicitly reserved route rather than dropping one of its unique file work orders.</param>
+        /// <param name="requestOutputCeiling">Optional run-local task output ceiling preserved across live route acquisition.</param>
+        /// <param name="onParticipantCompletedAsync">Optional owned persistence callback for an individual completed assignment, before the phase barrier.</param>
         /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RunPhaseAsync(
             MultiModelCouncilResult result,
@@ -79,7 +84,11 @@ namespace LocalGPT.Services
             int finalAnswerRecoveryMaxOutputTokens = 8192,
             CouncilToolResultContinuationMode toolResultContinuationMode = CouncilToolResultContinuationMode.Disabled,
             int toolResultContinuationRounds = 0,
-            bool strictAutomaticFunctions = false)
+            bool strictAutomaticFunctions = false,
+            bool allowStartupHostTakeover = false,
+            bool exactAssignments = false,
+            Func<MultiModelCouncilStep, Task>? onParticipantCompletedAsync = null,
+            int? requestOutputCeiling = null)
         {
             try
             {
@@ -92,18 +101,18 @@ namespace LocalGPT.Services
                     modelTimeoutSeconds = Math.Clamp(runConfiguration.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumModelTimeoutSeconds);
                 }
                 var failedModels = result.Steps
-                    .Where(step => !string.IsNullOrWhiteSpace(step.Error))
+                    .Where(step => !string.IsNullOrWhiteSpace(step.Error) && !step.IsContextBudgetFailure)
                     .Select(step => step.ModelName)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var phaseParticipants = OrderParticipantsByObservedHealth(
                     result,
-                    participants.Where(model => !failedModels.Contains(model))).ToList();
+                    participants.Where(model => exactAssignments || !failedModels.Contains(model))).ToList();
                 if (phaseParticipants.Count == 0)
                     phaseParticipants.Add(SelectHealthyParticipant(result, participants));
                 if (phaseParticipants.Count < participants.Count)
                 {
                     var excluded = participants.Where(model => !phaseParticipants.Contains(model, StringComparer.OrdinalIgnoreCase));
-                    progressMessage?.Invoke($"Council health guard excluded {string.Join(", ", excluded)} from {phase} after recovery failed earlier in this run.");
+                    progressMessage?.Invoke($"Council recovery omitted previously failed provider routes from {phase}: {string.Join(", ", excluded)}. The decision is scoped to this run.");
                 }
                 var hostCount = phaseParticipants
                     .Select(GetCouncilExecutionHostKey)
@@ -128,7 +137,7 @@ namespace LocalGPT.Services
                     var hostKey = GetCouncilExecutionHostKey(modelName);
                     if (!hostGates.ContainsKey(hostKey))
                     {
-                        var capacity = allowParallelHardwareRoads ? maxParallelModels : 1;
+                        var capacity = !sequentialPerHost && allowParallelHardwareRoads ? maxParallelModels : 1;
                         hostGates[hostKey] = new SemaphoreSlim(capacity, capacity);
                     }
                 }
@@ -144,17 +153,25 @@ namespace LocalGPT.Services
                             AllowSynchronousContinuations = false
                         }),
                         StringComparer.OrdinalIgnoreCase);
-                var presentationTask = participantStreams is null
-                    ? Task.CompletedTask
-                    : PumpCouncilParticipantStreamsAsync(
-                        result.RunId,
-                        round,
-                        phase,
-                        role,
-                        phaseParticipants,
-                        participantStreams,
-                        streamUpdate!,
-                        cancellationToken);
+                // Parallel lanes transport their own live fragments. Publish closed streams in completion
+                // order so an earlier slow host cannot block the shared chat. A serial phase retains
+                // its foreground stream and incremental presentation.
+                var publishCompletedFirst = hostCount > 1 ||
+                    (!sequentialPerHost && allowParallelHardwareRoads && maxParallelModels > 1);
+                var presentationOrder = participantStreams is null
+                    ? null
+                    : Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+                    {
+                        SingleReader = true,
+                        SingleWriter = !publishCompletedFirst,
+                        AllowSynchronousContinuations = false
+                    });
+                if (presentationOrder is not null && !publishCompletedFirst)
+                {
+                    foreach (var modelName in phaseParticipants)
+                        presentationOrder.Writer.TryWrite(modelName);
+                    presentationOrder.Writer.TryComplete();
+                }
 
                 // Publish every selected member to the live board before host execution starts.
                 // This makes remote/queued members visible immediately and keeps every provider-qualified
@@ -164,10 +181,10 @@ namespace LocalGPT.Services
                     var plannedRoad = modelRoutes.TryGetValue(modelName, out var configuredPlan)
                         ? configuredPlan
                         : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
-                    var queuedActivityKey = BuildCouncilParticipantActivityKey(round, phase, role, modelName);
+                    var queuedActivityKey = BuildCouncilParticipantActivityKey(result.RunId, round, phase, role, modelName);
                     var queuedRouteLabel = $"{GetCouncilExecutionHostKey(modelName)} · {plannedRoad.LaneKey}";
-                    liveCouncilSessions.BeginParticipantActivity(result.RunId, queuedActivityKey, modelName, phase, role, queuedRouteLabel);
-                    liveCouncilSessions.SetParticipantActivityStatus(result.RunId, queuedActivityKey, $"Queued for {queuedRouteLabel}; waiting for this member's one Council turn.");
+                    liveCouncilSessions.BeginParticipantActivity((result.ChatRunId ?? result.RunId), queuedActivityKey, modelName, phase, role, queuedRouteLabel);
+                    liveCouncilSessions.SetParticipantActivityStatus((result.ChatRunId ?? result.RunId), queuedActivityKey, $"Queued for {queuedRouteLabel}; waiting for this member's one Council turn.");
                 }
 
                 var participantBootstrap = bootstrap;
@@ -184,6 +201,22 @@ namespace LocalGPT.Services
                 }
 
                 var roundSkipToken = runConfigurations.GetRoundCancellationToken(result.RunId, round, phase);
+                var presentationTask = participantStreams is null
+                    ? Task.CompletedTask
+                    : PumpCouncilParticipantStreamsAsync(
+                        result.RunId,
+                        phase,
+                        role,
+                        presentationOrder!.Reader,
+                        participantStreams,
+                        streamUpdate!,
+                        publishCompletedFirst);
+                // Phase workers publish only to the concurrent completion queues; the coordinator
+                // remains the sole writer of result.Steps and of ordered DX function dispatch.
+                var completedPrimarySteps = new ConcurrentQueue<MultiModelCouncilStep>();
+                var completedTakeoverSteps = new ConcurrentQueue<MultiModelCouncilStep>();
+                var hostKeys = phaseParticipants.ToDictionary(member => member, GetCouncilExecutionHostKey, StringComparer.OrdinalIgnoreCase);
+                var previousPhaseSteps = result.Steps.ToArray();
                 try
                 {
                     async Task<MultiModelCouncilStep> ExecuteParticipantAsync(string modelName, SemaphoreSlim? hostGate)
@@ -193,7 +226,7 @@ namespace LocalGPT.Services
                             : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
                         var gateAcquired = false;
                         var participantStream = participantStreams is null ? null : participantStreams[modelName];
-                        var activityKey = BuildCouncilParticipantActivityKey(round, phase, role, modelName);
+                        var activityKey = BuildCouncilParticipantActivityKey(result.RunId, round, phase, role, modelName);
                         var routeLabel = $"{GetCouncilExecutionHostKey(modelName)} · {fallbackPlan.LaneKey}";
                         Action<string>? participantStreamUpdate = participantStream is null
                             ? null
@@ -202,10 +235,8 @@ namespace LocalGPT.Services
                                 if (!string.IsNullOrEmpty(text))
                                 {
                                     participantStream.Writer.TryWrite(text);
-                                    // The ordered transcript is still pumped member-by-member to avoid corrupting
-                                    // provider HTML/thinking markup. This side channel makes every host/model visible
-                                    // immediately while the host queues execute in parallel.
-                                    liveCouncilSessions.AppendParticipantActivity(result.RunId, activityKey, text);
+                                    // Each lane remains live while the shared transcript presents intact blocks.
+                                    liveCouncilSessions.AppendParticipantActivity((result.ChatRunId ?? result.RunId), activityKey, text);
                                 }
                             };
                         try
@@ -213,12 +244,12 @@ namespace LocalGPT.Services
                             if (hostGate is not null)
                             {
                                 using var gateCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
-                                liveCouncilSessions.SetParticipantActivityStatus(result.RunId, activityKey, $"Waiting for AI host road {routeLabel}.");
+                                liveCouncilSessions.SetParticipantActivityStatus((result.ChatRunId ?? result.RunId), activityKey, $"Waiting for AI host road {routeLabel}.");
                                 await hostGate.WaitAsync(gateCancellation.Token).ConfigureAwait(false);
                                 gateAcquired = true;
                             }
 
-                            liveCouncilSessions.SetParticipantActivityStatus(result.RunId, activityKey, $"Running on {routeLabel}.");
+                            liveCouncilSessions.SetParticipantActivityStatus((result.ChatRunId ?? result.RunId), activityKey, $"Running on {routeLabel}.");
                             var step = await RunParticipantAsync(
                                 baseUri, modelName, councilMembers ?? participants, round, phase, role, promptFactory(modelName), participantBootstrap,
                                 fallbackPlan.EffectiveMaxOutputTokens, keepAlive, fallbackPlan.OllamaNumGpu, fallbackPlan.EffectiveMaxContextTokens,
@@ -229,37 +260,198 @@ namespace LocalGPT.Services
                                 automaticFunctionAllowList: automaticFunctionAllowList,
                                 roleComplianceRetryCount: roleComplianceRetryCount,
                                 finalAnswerRecoveryEnabled: finalAnswerRecoveryEnabled,
-                                finalAnswerRecoveryMaxOutputTokens: finalAnswerRecoveryMaxOutputTokens).ConfigureAwait(false);
+                                finalAnswerRecoveryMaxOutputTokens: finalAnswerRecoveryMaxOutputTokens,
+                                requestOutputCeiling: requestOutputCeiling).ConfigureAwait(false);
                             ArgumentNullException.ThrowIfNull(step);
+                            if (onParticipantCompletedAsync is not null)
+                                await onParticipantCompletedAsync(step).ConfigureAwait(false);
                             liveCouncilSessions.SetParticipantActivityResult(
-                                result.RunId,
+                                (result.ChatRunId ?? result.RunId),
                                 activityKey,
                                 step.VisibleContent);
                             liveCouncilSessions.CompleteParticipantActivity(
-                                result.RunId,
+                                (result.ChatRunId ?? result.RunId),
                                 activityKey,
                                 string.IsNullOrWhiteSpace(step.Error)
-                                    ? "Model completed. Its live result is available in this lane now; ordered transcript integration may follow later."
-                                    : $"Model completed with an error: {step.Error}");
+                                    ? "Model completed. Its live result is available in this lane and queued for transcript integration."
+                                    : step.IsProviderStartupTimeout ? step.VisibleContent : $"Model completed with an error: {step.Error}");
+                            completedPrimarySteps.Enqueue(step);
+
+                            // Only a first-response timeout is safe to hand off without reconciling
+                            // tool receipts. Preserve the failed provider and the replacement as
+                            // separate evidence; never change the identity of the original step.
+                            if (allowStartupHostTakeover && publishCompletedFirst && step.IsProviderStartupTimeout &&
+                                !roundSkipToken.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                            {
+                                if (gateAcquired)
+                                {
+                                    hostGate!.Release();
+                                    gateAcquired = false;
+                                }
+                                try
+                                {
+                                    var finished = completedPrimarySteps.ToArray();
+                                    var failedHost = hostKeys[modelName];
+                                    var providerIdentity = new ProviderModelIdentity();
+                                    if (providerIdentity.TryParseSelectionKey(modelName, out var failedReference))
+                                    {
+                                        // Only candidates whose original phase work is done may volunteer.
+                                        // Prefer the quickest observed successful copy of the same model,
+                                        // not a hard-coded main computer or a parameter-count ranking.
+                                        var candidates = finished.Where(candidate =>
+                                            IsUsableConfiguredRoundStep(candidate) && candidate.DurationSeconds > 0 &&
+                                            !candidate.VisibleContent.Contains("was disabled for this running Council session", StringComparison.OrdinalIgnoreCase) &&
+                                            hostKeys.TryGetValue(candidate.ModelName, out var candidateHost) &&
+                                            !string.Equals(candidateHost, failedHost, StringComparison.OrdinalIgnoreCase) &&
+                                            modelRoutes.ContainsKey(candidate.ModelName) &&
+                                            providerIdentity.TryParseSelectionKey(candidate.ModelName, out var candidateReference) &&
+                                            string.Equals(candidateReference.ProviderKind, failedReference.ProviderKind, StringComparison.OrdinalIgnoreCase) &&
+                                            string.Equals(candidateReference.ModelName, failedReference.ModelName, StringComparison.OrdinalIgnoreCase) &&
+                                            phaseParticipants.Where(member => string.Equals(hostKeys[member], candidateHost, StringComparison.OrdinalIgnoreCase))
+                                                .All(member => finished.Any(done => string.Equals(done.ModelName, member, StringComparison.OrdinalIgnoreCase))))
+                                            .OrderBy(candidate => candidate.DurationSeconds)
+                                            .Select(candidate => candidate.ModelName)
+                                            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                                        if (candidates.Count > 0)
+                                        {
+                                            var decision = await goalRecovery.DecideMemberRecoveryAsync(new GoalMemberRecoveryContext
+                                            {
+                                                RunId = result.RunId,
+                                                TeamKey = result.CouncilTeamKey,
+                                                WorkflowStepKey = phase,
+                                                RoleName = role,
+                                                Round = round,
+                                                FailedModel = modelName,
+                                                FailureKind = GoalMemberFailureKind.ProviderStartupTimeout,
+                                                RecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool,
+                                                AttemptNumber = 1,
+                                                RunParticipants = candidates.Append(modelName).ToList(),
+                                                RolePool = candidates,
+                                                AttemptedModels = [modelName],
+                                                HostKeys = hostKeys,
+                                                RunSteps = previousPhaseSteps.Concat(finished).Concat(completedTakeoverSteps.ToArray()).ToList()
+                                            }, cancellationToken).ConfigureAwait(false);
+                                            var replacementModel = decision.ModelName;
+                                            if (decision.Action == GoalMemberRecoveryAction.UseOtherMember && candidates.Contains(replacementModel, StringComparer.OrdinalIgnoreCase))
+                                            {
+                                                var replacementGate = hostGates[hostKeys[replacementModel]];
+                                                // Never wait for a second host while holding the primary gate.
+                                                // If another handoff acquired it, normal configured recovery can decide later.
+                                                var takeoverPhase = $"{phase} · automatic member recovery startup takeover {phaseParticipants.IndexOf(modelName) + 1}";
+                                                var replacementPlan = modelRoutes[replacementModel];
+                                                var replacementActivityKey = BuildCouncilParticipantActivityKey(result.RunId, round, takeoverPhase, role, replacementModel);
+                                                var chatRunId = result.ChatRunId ?? result.RunId;
+                                                var notice = runtimePolicy.GetString("CouncilProviderStartupTakeoverNotice")
+                                                    .Replace("{Model}", modelName, StringComparison.Ordinal)
+                                                    .Replace("{Candidate}", replacementModel, StringComparison.Ordinal);
+                                                if (await replacementGate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+                                                {
+                                                    try
+                                                    {
+                                                        using var takeoverCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
+                                                        takeoverCancellation.Token.ThrowIfCancellationRequested();
+                                                        using var takeoverScope = ambientContext.PushCouncil(result.RunId, round, takeoverPhase);
+                                                        liveCouncilSessions.BeginParticipantActivity(chatRunId, replacementActivityKey, replacementModel, takeoverPhase, role, $"{hostKeys[replacementModel]} · {replacementPlan.LaneKey}");
+                                                        liveCouncilSessions.SetParticipantActivityStatus(chatRunId, replacementActivityKey, notice);
+                                                        progressMessage?.Invoke(notice);
+                                                        var takeoverNotice = Environment.NewLine + Environment.NewLine + "> " + WebUtility.HtmlEncode(notice) + Environment.NewLine + Environment.NewLine;
+                                                        participantStream?.Writer.TryWrite(takeoverNotice);
+                                                        liveCouncilSessions.AppendParticipantActivity(chatRunId, replacementActivityKey, takeoverNotice);
+                                                        Action<string> replacementStreamUpdate = text =>
+                                                        {
+                                                            if (string.IsNullOrEmpty(text))
+                                                                return;
+                                                            participantStream?.Writer.TryWrite(text);
+                                                            liveCouncilSessions.AppendParticipantActivity(chatRunId, replacementActivityKey, text);
+                                                        };
+                                                        var replacement = await RunParticipantAsync(
+                                                            baseUri, replacementModel, councilMembers ?? participants, round, takeoverPhase, role,
+                                                            promptFactory(replacementModel), participantBootstrap, replacementPlan.EffectiveMaxOutputTokens,
+                                                            keepAlive, replacementPlan.OllamaNumGpu, replacementPlan.EffectiveMaxContextTokens,
+                                                            modelTimeoutSeconds, replacementStreamUpdate, takeoverCancellation.Token,
+                                                            allowRecovery: false, fallbackPlan: replacementPlan, progressMessage: progressMessage,
+                                                            enableAutomaticTools: allowDxFunctions, automaticFunctionAllowList: automaticFunctionAllowList,
+                                                            roleComplianceRetryCount: roleComplianceRetryCount, finalAnswerRecoveryEnabled: finalAnswerRecoveryEnabled,
+                                                            finalAnswerRecoveryMaxOutputTokens: finalAnswerRecoveryMaxOutputTokens,
+                                requestOutputCeiling: requestOutputCeiling).ConfigureAwait(false);
+                                                        ArgumentNullException.ThrowIfNull(replacement);
+                                                        replacement.RecoveryTargetModelName = modelName;
+                                                        if (replacement.VisibleContent.Contains("was disabled for this running Council session", StringComparison.OrdinalIgnoreCase))
+                                                            replacement.Error = $"CouncilRouteDisabled;{replacement.VisibleContent}";
+                                                        completedTakeoverSteps.Enqueue(replacement);
+                                                        liveCouncilSessions.SetParticipantActivityResult(chatRunId, replacementActivityKey, replacement.VisibleContent);
+                                                        liveCouncilSessions.CompleteParticipantActivity(chatRunId, replacementActivityKey,
+                                                            IsUsableConfiguredRoundStep(replacement) ? notice : replacement.Error ?? notice);
+                                                    }
+                                                    catch (OperationCanceledException)
+                                                    {
+                                                        liveCouncilSessions.CompleteParticipantActivity(chatRunId, replacementActivityKey,
+                                                            runtimePolicy.GetString("CouncilPhaseCancellationPreservedNotice"));
+                                                        if (cancellationToken.IsCancellationRequested)
+                                                            throw;
+                                                        if (!roundSkipToken.IsCancellationRequested)
+                                                            throw;
+                                                        var skippedReplacement = CreateRoundSkippedStep(replacementModel, councilMembers ?? participants, round, takeoverPhase, role, replacementPlan);
+                                                        skippedReplacement.RecoveryTargetModelName = modelName;
+                                                        completedTakeoverSteps.Enqueue(skippedReplacement);
+                                                    }
+                                                    catch (Exception exception)
+                                                    {
+                                                        // A replacement might already have invoked a native function.
+                                                        // Record the actual failure and let the configured round retain it
+                                                        // rather than starting another potentially consequential attempt.
+                                                        logger.LogError(exception, "Council startup handoff to {Replacement} for {Original} failed.", replacementModel, modelName);
+                                                        var now = DateTime.UtcNow;
+                                                        var replacementFailure = new MultiModelCouncilStep
+                                                        {
+                                                            ModelName = replacementModel, RecoveryTargetModelName = modelName,
+                                                            Round = round, Phase = takeoverPhase, Role = role,
+                                                            CouncilMembers = (councilMembers ?? participants).ToList(),
+                                                            Error = exception.Message, StartedAtUtc = now, CompletedAtUtc = now
+                                                        };
+                                                        ApplyHardwarePlan(replacementFailure, replacementPlan);
+                                                        completedTakeoverSteps.Enqueue(replacementFailure);
+                                                        liveCouncilSessions.CompleteParticipantActivity(chatRunId, replacementActivityKey, exception.Message);
+                                                    }
+                                                    finally
+                                                    {
+                                                        replacementGate.Release();
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                                {
+                                    throw;
+                                }
+                                catch (Exception exception)
+                                {
+                                    logger.LogWarning(exception, "Council startup handoff could not be scheduled for {Model}; normal configured recovery retains the original failure.", modelName);
+                                }
+                            }
                             return step;
                         }
                         catch (OperationCanceledException) when (
                             roundSkipToken.IsCancellationRequested &&
                             !cancellationToken.IsCancellationRequested)
                         {
-                            liveCouncilSessions.CompleteParticipantActivity(result.RunId, activityKey, "Participant was skipped because the current Council phase was cancelled.");
-                            return CreateRoundSkippedStep(
+                            liveCouncilSessions.CompleteParticipantActivity((result.ChatRunId ?? result.RunId), activityKey, "Participant was skipped because the current Council phase was cancelled.");
+                            var skippedStep = CreateRoundSkippedStep(
                                 modelName,
                                 councilMembers ?? participants,
                                 round,
                                 phase,
                                 role,
                                 fallbackPlan);
+                            completedPrimarySteps.Enqueue(skippedStep);
+                            return skippedStep;
                         }
                         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                         {
                             liveCouncilSessions.CompleteParticipantActivity(
-                                result.RunId,
+                                (result.ChatRunId ?? result.RunId),
                                 activityKey,
                                 "Participant stopped because the Council run was cancelled by its caller.");
                             throw;
@@ -273,11 +465,11 @@ namespace LocalGPT.Services
                                 round,
                                 phase);
                             liveCouncilSessions.CompleteParticipantActivity(
-                                result.RunId,
+                                (result.ChatRunId ?? result.RunId),
                                 activityKey,
                                 $"Participant infrastructure failed: {ex.Message}");
                             var failedAtUtc = DateTime.UtcNow;
-                            return new MultiModelCouncilStep
+                            var failedStep = new MultiModelCouncilStep
                             {
                                 Round = round,
                                 Phase = phase,
@@ -291,10 +483,15 @@ namespace LocalGPT.Services
                                 CompletedAtUtc = failedAtUtc,
                                 DurationSeconds = 0d
                             };
+                            ApplyHardwarePlan(failedStep, fallbackPlan);
+                            completedPrimarySteps.Enqueue(failedStep);
+                            return failedStep;
                         }
                         finally
                         {
                             participantStream?.Writer.TryComplete();
+                            if (publishCompletedFirst)
+                                presentationOrder?.Writer.TryWrite(modelName);
                             if (gateAcquired)
                                 hostGate!.Release();
                         }
@@ -315,7 +512,7 @@ namespace LocalGPT.Services
                             {
                                 var hostSteps = new List<MultiModelCouncilStep>();
                                 foreach (var modelName in queue)
-                                    hostSteps.Add(await ExecuteParticipantAsync(modelName, hostGate: null).ConfigureAwait(false));
+                                    hostSteps.Add(await ExecuteParticipantAsync(modelName, hostGates[hostKeys[modelName]]).ConfigureAwait(false));
                                 return hostSteps;
                             })
                             .ToList();
@@ -334,27 +531,26 @@ namespace LocalGPT.Services
                             })
                             .ToList();
 
-                        var pending = tasks.ToList();
-                        while (pending.Count > 0)
-                        {
-                            var completed = await Task.WhenAny(pending).ConfigureAwait(false);
-                            pending.Remove(completed);
-                            var step = await completed.ConfigureAwait(false);
-                            ArgumentNullException.ThrowIfNull(step);
-                            steps.Add(step);
-                        }
+                        // Await every producer before closing presentation or disposing host gates,
+                        // including when an individual participant observes cancellation.
+                        steps.AddRange(await Task.WhenAll(tasks).ConfigureAwait(false));
                     }
 
+                    steps.AddRange(completedTakeoverSteps.ToArray());
+                    presentationOrder?.Writer.TryComplete();
                     await presentationTask.ConfigureAwait(false);
 
                     var participantOrder = phaseParticipants
                         .Select((modelName, index) => new { modelName, index })
                         .ToDictionary(item => item.modelName, item => item.index, StringComparer.OrdinalIgnoreCase);
 
-                    foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(step.ModelName, out var index) ? index : int.MaxValue))
+                    foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(
+                        string.IsNullOrWhiteSpace(step.RecoveryTargetModelName) ? step.ModelName : step.RecoveryTargetModelName,
+                        out var index) ? index : int.MaxValue).ThenBy(step => string.IsNullOrWhiteSpace(step.RecoveryTargetModelName) ? 0 : 1))
                     {
                         var strictFunctionNames = strictAutomaticFunctions ? automaticFunctionAllowList : null;
-                        var functionSteps = await AddCouncilStepAsync(result, step, stepCompleted, progressMessage, allowDxFunctions, cancellationToken, strictFunctionNames).ConfigureAwait(false);
+                        var functionSteps = await AddCouncilStepAsync(result, step, stepCompleted, progressMessage,
+                            allowDxFunctions && !step.IsProviderStartupTimeout, cancellationToken, strictFunctionNames).ConfigureAwait(false);
                         if (allowDxFunctions && functionSteps.Count > 0)
                         {
                             var continuationPlan = modelRoutes.TryGetValue(step.ModelName, out var configuredContinuationPlan)
@@ -385,6 +581,22 @@ namespace LocalGPT.Services
                         }
                     }
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // Task.WhenAll has joined the producers before throwing. Retain their completed
+                    // evidence, but do not dispatch any deferred text function calls on Stop.
+                    var retained = completedPrimarySteps.ToArray().Concat(completedTakeoverSteps.ToArray()).ToList();
+                    foreach (var step in retained.Where(step => !result.Steps.Contains(step))
+                        .OrderBy(step => phaseParticipants.IndexOf(string.IsNullOrWhiteSpace(step.RecoveryTargetModelName) ? step.ModelName : step.RecoveryTargetModelName))
+                        .ThenBy(step => string.IsNullOrWhiteSpace(step.RecoveryTargetModelName) ? 0 : 1))
+                    {
+                        MultiModelCouncilServiceAddOrderedStep(result, step, logger);
+                        stepCompleted?.Invoke(step);
+                    }
+                    if (retained.Count > 0)
+                        result.Warnings.Add(runtimePolicy.GetString("CouncilPhaseCancellationPreservedNotice"));
+                    throw;
+                }
                 finally
                 {
                     if (participantStreams is not null)
@@ -392,8 +604,16 @@ namespace LocalGPT.Services
                         foreach (var stream in participantStreams.Values)
                             stream.Writer.TryComplete();
                     }
-                    foreach (var gate in hostGates.Values)
-                        gate.Dispose();
+                    presentationOrder?.Writer.TryComplete();
+                    try
+                    {
+                        await presentationTask.ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        foreach (var gate in hostGates.Values)
+                            gate.Dispose();
+                    }
                 }
 
 
@@ -420,17 +640,18 @@ namespace LocalGPT.Services
             }
         }
 
-        /// <summary>Builds the stable run-local key used for one participant's live activity card.</summary>
+        /// <summary>Builds the execution-qualified key used for a participant card in the shared chat.</summary>
+        /// <param name="runId">Actual Council execution identifier, distinct from the root chat identity.</param>
         /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
         /// <returns>The string produced by the operation.</returns>
-        private string BuildCouncilParticipantActivityKey(int round, string phase, string role, string modelName)
+        private string BuildCouncilParticipantActivityKey(Guid runId, int round, string phase, string role, string modelName)
         {
             try
             {
-                return $"{round}:{phase}:{role}:{modelName}";
+                return $"{runId:N}:{round}:{phase}:{role}:{modelName}";
             }
             catch (Exception ex)
             {
@@ -483,44 +704,45 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Performs pump council participant streams as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// Publishes intact participant streams to the shared chat without making parallel hosts wait for selection-order presentation.
         /// </summary>
         /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
-        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="participantOrder">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="presentationOrder">Queue of participant identities, in completion order for parallel phases or selection order for serial phases.</param>
         /// <param name="participantStreams">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
         /// <param name="streamUpdate">Stream update value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="publishCompletedFirst">Whether streams are already closed when queued and no foreground participant owns the direct-message claim.</param>
         /// <returns>A task that completes when the operation has finished.</returns>
         private async Task PumpCouncilParticipantStreamsAsync(
             Guid councilRunId,
-            int round,
             string phase,
             string role,
-            IReadOnlyList<string> participantOrder,
+            ChannelReader<string> presentationOrder,
             IReadOnlyDictionary<string, Channel<string>> participantStreams,
             Action<string> streamUpdate,
-            CancellationToken cancellationToken)
+            bool publishCompletedFirst)
         {
             try
             {
-                foreach (var modelName in participantOrder)
+                // Read to producer-owned completion even when the Council is stopped, so completed
+                // answers and closed partial streams are not discarded from the shared chat.
+                await foreach (var modelName in presentationOrder.ReadAllAsync().ConfigureAwait(false))
                 {
                     if (!participantStreams.TryGetValue(modelName, out var stream))
                         continue;
 
                     var consumerKey = BuildLiveInputConsumerKey(modelName, phase, role);
-                    humanCollaboration.SetPreferredDirectUserMessageConsumer(councilRunId, consumerKey);
+                    if (!publishCompletedFirst)
+                        humanCollaboration.SetPreferredDirectUserMessageConsumer(councilRunId, consumerKey);
                     try
                     {
-                        // Rich participant activities are updated immediately on the producer side. The ordered
+                        // Rich participant activities are updated immediately on the producer side. The shared
                         // transcript is presentation-only, so coalesce its many tiny provider fragments into bounded
                         // chunks. This prevents a completed member from spending minutes replaying thousands of
                         // fragments through DXAIChat before later ordered presentation catches up.
                         var orderedPresentationBuffer = new StringBuilder();
-                        await foreach (var text in stream.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                        await foreach (var text in stream.Reader.ReadAllAsync().ConfigureAwait(false))
                         {
                             if (string.IsNullOrEmpty(text))
                                 continue;
@@ -535,13 +757,10 @@ namespace LocalGPT.Services
                     }
                     finally
                     {
-                        humanCollaboration.ClearPreferredDirectUserMessageConsumer(councilRunId, consumerKey);
+                        if (!publishCompletedFirst)
+                            humanCollaboration.ClearPreferredDirectUserMessageConsumer(councilRunId, consumerKey);
                     }
                 }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
             }
             catch (Exception ex)
             {

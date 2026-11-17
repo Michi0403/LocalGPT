@@ -91,6 +91,10 @@ namespace LocalGPT.Services
                         sourceAuthority, "Verified continuation archive/source metadata", curatedContinuation.Content, logger);
                 }
                 CouncilXRoundDirective? xDirective = null;
+                var filePolicy = runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson");
+                int? fileEvidenceLimit = filePolicy.Enabled && string.Equals(team.Key, filePolicy.TeamKey, StringComparison.OrdinalIgnoreCase)
+                    ? Math.Max(1, filePolicy.MaximumPlanEvidenceCharacters) : null;
+                var preparationOutputCeiling = GetFileWorkPreparationOutputCeiling(team.Key, definition.Key);
                 var repeatCount = Math.Clamp(definition.RepeatCount, 1, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumLoopIterations);
                 var automaticFunctionPolicy = councilAutomaticFunctionPolicy.Resolve(team, definition, suppressOrganicFunctions, request.RequestedOrganicCapabilities);
                 var effectiveAllowDxFunctions = automaticFunctionPolicy.Enabled;
@@ -122,6 +126,12 @@ namespace LocalGPT.Services
                         definition,
                         roleAssignment.AiParticipants,
                         cancellationToken).ConfigureAwait(false);
+                    var allowStartupHostTakeover = definition.MemberFailureRecoveryAttempts > 0 &&
+                        runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumMemberRecoveryAttempts > 0 &&
+                        definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool &&
+                        string.IsNullOrWhiteSpace(roleAssignment.Definition?.PairedRole) &&
+                        !team.Roles.Any(role => string.Equals(role.PairedRole, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase)) &&
+                        !rolePairings.Any(pairing => string.Equals(pairing.RoleName, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase));
                     var visiblePreviousStep = BuildConfiguredWorkflowPreviousStep(
                         result,
                         definition,
@@ -408,7 +418,9 @@ namespace LocalGPT.Services
                                         finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens,
                                         toolResultContinuationMode: definition.ToolResultContinuationMode,
                                         toolResultContinuationRounds: definition.ToolResultContinuationRounds,
-                                        strictAutomaticFunctions: automaticFunctionPolicy.IsStrict).ConfigureAwait(false);
+                                        strictAutomaticFunctions: automaticFunctionPolicy.IsStrict,
+                                        allowStartupHostTakeover: allowStartupHostTakeover,
+                                        requestOutputCeiling: preparationOutputCeiling).ConfigureAwait(false);
                                     break;
                                 }
                             case "AllMembersSequentialOnEachAIHostParallel":
@@ -460,7 +472,9 @@ namespace LocalGPT.Services
                                         finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens,
                                         toolResultContinuationMode: definition.ToolResultContinuationMode,
                                         toolResultContinuationRounds: definition.ToolResultContinuationRounds,
-                                        strictAutomaticFunctions: automaticFunctionPolicy.IsStrict).ConfigureAwait(false);
+                                        strictAutomaticFunctions: automaticFunctionPolicy.IsStrict,
+                                        allowStartupHostTakeover: allowStartupHostTakeover,
+                                        requestOutputCeiling: preparationOutputCeiling).ConfigureAwait(false);
                                     break;
                                 }
                             case "AllMembersSequential":
@@ -635,7 +649,7 @@ namespace LocalGPT.Services
                         var rolePeerReviewPhase = $"{phase} · role peer review {repeatIndex + 1}";
                         request.ProgressMessage?.Invoke(
                             $"Configured role '{roleAssignment.RoleName}' is running the optional peer usefulness/voting round across {usablePrimaryAiSteps.Count} role members.");
-                        var roleEvidence = BuildConfiguredRoleEvidence(roundSteps);
+                        var roleEvidence = BuildConfiguredRoleEvidence(roundSteps, fileEvidenceLimit);
                         await RunPhaseAsync(
                             result,
                             baseUri,
@@ -665,7 +679,7 @@ namespace LocalGPT.Services
                             request.AllowParallelHardwareRoads,
                             cancellationToken,
                             allowDxFunctions: false,
-                            councilMembers: participants).ConfigureAwait(false);
+                            councilMembers: participants, requestOutputCeiling: preparationOutputCeiling).ConfigureAwait(false);
 
                         rolePeerReviewSteps = result.Steps
                             .Where(step =>
@@ -694,8 +708,8 @@ namespace LocalGPT.Services
                         var roleSynthesisPhase = $"{phase} · role synthesis {repeatIndex + 1}";
                         request.ProgressMessage?.Invoke(
                             $"Configured role '{roleAssignment.RoleName}' is consolidating {usablePrimaryAiSteps.Count} member results through {synthesisParticipant}.");
-                        var roleEvidence = BuildConfiguredRoleEvidence(roundSteps);
-                        var peerReviewEvidence = BuildConfiguredRoleEvidence(rolePeerReviewSteps);
+                        var roleEvidence = BuildConfiguredRoleEvidence(roundSteps, fileEvidenceLimit);
+                        var peerReviewEvidence = BuildConfiguredRoleEvidence(rolePeerReviewSteps, fileEvidenceLimit);
                         await RunPhaseAsync(
                             result,
                             baseUri,
@@ -725,7 +739,7 @@ namespace LocalGPT.Services
                             request.AllowParallelHardwareRoads,
                             cancellationToken,
                             allowDxFunctions: false,
-                            councilMembers: participants).ConfigureAwait(false);
+                            councilMembers: participants, requestOutputCeiling: preparationOutputCeiling).ConfigureAwait(false);
 
                         var synthesisSteps = result.Steps
                             .Where(step =>

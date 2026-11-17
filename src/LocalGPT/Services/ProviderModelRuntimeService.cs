@@ -542,6 +542,7 @@ public sealed class ProviderModelRuntimeService(
     /// <param name="enableAutomaticTools">Value indicating whether enable automatic tools should apply to this operation.</param>
     /// <param name="throwOnFailure">Value indicating whether throw on failure should apply to this operation.</param>
     /// <param name="automaticFunctionAllowList">Optional exact registered-function allow-list for provider-native automatic tools.</param>
+    /// <param name="fitContextToRequest">Whether to allocate only the measured context needed by ordinary inference, rather than the full benchmark road.</param>
     /// <returns>The i chat client produced by the operation.</returns>
     public IChatClient CreateChatClient(
         ProviderModelReference model,
@@ -551,7 +552,8 @@ public sealed class ProviderModelRuntimeService(
         int? ollamaNumGpu,
         bool enableAutomaticTools = true,
         bool throwOnFailure = false,
-        IReadOnlyCollection<string>? automaticFunctionAllowList = null)
+        IReadOnlyCollection<string>? automaticFunctionAllowList = null,
+        bool fitContextToRequest = false)
     {
     try
     {
@@ -577,7 +579,8 @@ public sealed class ProviderModelRuntimeService(
                         enableAutomaticTools,
                         throwOnFailure,
                         automaticFunctionAllowList,
-                        sessionContext),
+                        sessionContext,
+                        fitContextToRequest),
                     loggerFactory.CreateLogger($"AI.Ollama.{model.StableId}"));
             }
 

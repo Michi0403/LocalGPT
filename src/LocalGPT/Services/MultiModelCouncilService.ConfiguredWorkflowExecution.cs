@@ -87,6 +87,20 @@ namespace LocalGPT.Services
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var firstStep = configuredSteps[stepIndex];
+                    var filePolicy = runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson");
+                    if (filePolicy.Enabled && string.Equals(team.Key, filePolicy.TeamKey, StringComparison.OrdinalIgnoreCase) &&
+                        firstStep.Key == filePolicy.PlanStepKey && configuredSteps.Any(item => item.Key == filePolicy.GenerationStepKey) &&
+                        configuredSteps.Any(item => item.Key == filePolicy.VerificationStepKey))
+                    {
+                        var delivered = await RunCoordinatedFileWorkAsync(result, request, team, configuredSteps, filePolicy,
+                            baseUri, participants, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu, maxContextTokens,
+                            modelTimeoutSeconds, state.Round, roleAssignments, cancellationToken).ConfigureAwait(false);
+                        if (delivered is not null)
+                        {
+                            result.CoordinatedSourceWork = true;
+                            return delivered;
+                        }
+                    }
                     if (string.IsNullOrWhiteSpace(firstStep.LoopGroup))
                     {
                         var revision = workflowRevisions.TryGetValue(firstStep.Key, out var previousRevision)
@@ -859,6 +873,7 @@ namespace LocalGPT.Services
                 var childRequest = new MultiModelCouncilRequest
                 {
                     RunId = Guid.NewGuid(),
+                    ChatRunId = request.ChatRunId ?? result.RunId,
                     Prompt = childPrompt,
                     ModelNames = request.ModelNames.ToList(),
                     AttachedWorkspaceNames = request.AttachedWorkspaceNames.ToList(),
@@ -895,7 +910,8 @@ namespace LocalGPT.Services
                     ExternalProjectContextJson = request.ExternalProjectContextJson,
                     XRoundChildDepth = request.XRoundChildDepth + 1,
                     ProgressMessage = message => request.ProgressMessage?.Invoke($"X child Council {teamKey}: {message}"),
-                    StreamUpdate = request.StreamUpdate
+                    StreamUpdate = request.StreamUpdate,
+                    StepCompleted = request.StepCompleted
                 };
                 request.ProgressMessage?.Invoke(
                     $"X-Function starting child Council team '{teamKey}' at depth {childRequest.XRoundChildDepth}/{maximumDepth}. The child has its own run identity and normal approval boundaries.");

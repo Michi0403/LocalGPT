@@ -104,17 +104,17 @@ public interface IHumanCollaborationService
         string content,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Marks the participant currently owning ordered live presentation as the preferred immediate heartbeat consumer for this Council run.</summary>
+    /// <summary>Marks the participant currently owning serial live presentation as the preferred immediate heartbeat consumer for this Council run.</summary>
     /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
     /// <param name="consumerKey">Consumer key value supplied to the human collaboration operation and used when producing its result.</param>
     void SetPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey);
 
-    /// <summary>Clears the preferred immediate heartbeat consumer when that participant leaves ordered live presentation.</summary>
+    /// <summary>Clears the preferred immediate heartbeat consumer when that participant leaves serial live presentation.</summary>
     /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
     /// <param name="consumerKey">Consumer key value supplied to the human collaboration operation and used when producing its result.</param>
     void ClearPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey);
 
-    /// <summary>Atomically claims one direct user message for immediate interruption of exactly one active model stream, preferring the participant currently visible in ordered live presentation.</summary>
+    /// <summary>Atomically claims one direct user message for immediate interruption of exactly one active model stream, preferring the serial foreground participant when one exists.</summary>
     /// <param name="contributionId">Identifier of the contribution to use for this operation.</param>
     /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
     /// <param name="consumerKey">Consumer key value supplied to the human collaboration operation and used when producing its result.</param>

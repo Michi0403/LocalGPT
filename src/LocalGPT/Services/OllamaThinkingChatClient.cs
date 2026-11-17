@@ -16,6 +16,9 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed partial class OllamaThinkingChatClient : IChatClient
 {
+    /// <summary>Whether ordinary inference uses an allocation fitted to its payload rather than a benchmark allocation.</summary>
+    private readonly bool fitContextToRequest;
+
     // DXAIChat reparses the accumulated Markdown snapshot for every streamed update.
     // Coalescing very small provider deltas into a ~20 FPS presentation cadence prevents
     // long answers from building a render backlog while preserving genuinely live output.
@@ -127,6 +130,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     /// <param name="throwOnFailure">Value indicating whether throw on failure should apply to this operation.</param>
     /// <param name="automaticFunctionAllowList">Optional native-function preference/allow-list. Null or empty advertises all registered automatic-safe functions; a nonempty list advertises the named functions. The Council policy determines whether names are preferences or a strict boundary.</param>
     /// <param name="sessionContext">Optional scoped chat/project identity propagated into provider-native automatic DXFunction calls.</param>
+    /// <param name="fitContextToRequest">Whether to use the smallest measured allocation within the selected road for normal inference.</param>
     public OllamaThinkingChatClient(
         OllamaCoreOptions options,
         ILogger logger,
@@ -143,9 +147,11 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
         bool enableAutomaticTools = true,
         bool throwOnFailure = false,
         IReadOnlyCollection<string>? automaticFunctionAllowList = null,
-        IChatSessionContext? sessionContext = null)
+        IChatSessionContext? sessionContext = null,
+        bool fitContextToRequest = false)
     {
         ArgumentNullException.ThrowIfNull(options);
+        this.fitContextToRequest = fitContextToRequest;
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.councilRuntime = councilRuntime ?? throw new ArgumentNullException(nameof(councilRuntime));
         providerOptions = options;
@@ -210,7 +216,8 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                 {
                     // The goal observer handles this machine-readable failure. No exception
                     // escapes the provider and no known-oversized request reaches Ollama.
-                    return CreateFailureResponse(preparedResponse.PreflightFailure);
+                    return CreateFailureResponse(automaticToolTrace.ToString() +
+                        preparedResponse.PreflightFailure + (round > 0 ? ";priorToolActivity=true;" : string.Empty));
                 }
                 response = preparedResponse.Response;
                 if (response is null)
@@ -307,7 +314,8 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                     // Council receives a provider result rather than an exception. Its
                     // participant executor marks this as a failed step; GoalExecutionService
                     // uses the existing checkpoint and replanning/subagent wiring.
-                    yield return CreateStreamingUpdate(preparedRequest.PreflightFailure);
+                    yield return CreateStreamingUpdate(preparedRequest.PreflightFailure +
+                        (round > 0 ? ";priorToolActivity=true;" : string.Empty));
                     yield break;
                 }
                 var request = preparedRequest.Request!;
@@ -318,11 +326,18 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                 if (waitingUpdate is not null)
                     yield return waitingUpdate;
 
-                using var response = await SendRequestWithToolFallbackAsync(
+                var transport = await SendRequestWithToolFallbackAsync(
                         request,
                         HttpCompletionOption.ResponseHeadersRead,
                         cancellationToken)
                     .ConfigureAwait(false);
+                if (transport.PreflightFailure is not null)
+                {
+                    yield return CreateStreamingUpdate(transport.PreflightFailure +
+                        (round > 0 ? ";priorToolActivity=true;" : string.Empty));
+                    yield break;
+                }
+                using var response = transport.Response!;
 
                 await councilRuntime.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger)
                     .ConfigureAwait(false);
@@ -390,6 +405,9 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                         continue;
                     }
 
+                    if (chunk?.PromptEvalCount is not null || chunk?.EvalCount is not null)
+                        logger.LogInformation("Ollama observed token usage for {Model} at {Provider}: prompt {PromptTokens}, output {OutputTokens}, allocated context {Context}.",
+                            model, http.BaseAddress?.Authority, chunk?.PromptEvalCount, chunk?.EvalCount, request.Options?.NumCtx);
                     if (chunk?.Message?.ToolCalls is { Count: > 0 } chunkCalls)
                         toolCalls.AddRange(chunkCalls);
 
@@ -674,16 +692,23 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
             if (!string.IsNullOrWhiteSpace(preparedRequest.PreflightFailure))
                 return (null, preparedRequest.PreflightFailure);
             var request = preparedRequest.Request!;
-            using var response = await SendRequestWithToolFallbackAsync(
+            var transport = await SendRequestWithToolFallbackAsync(
                     request,
                     HttpCompletionOption.ResponseContentRead,
                     cancellationToken)
                 .ConfigureAwait(false);
+            if (transport.PreflightFailure is not null)
+                return (null, transport.PreflightFailure);
+            using var response = transport.Response!;
 
             await councilRuntime.OllamaThinkingChatClientEnsureSuccessOrThrowAsync(response, cancellationToken, logger)
                 .ConfigureAwait(false);
 
-            return (await response.Content.ReadFromJsonAsync<OllamaChatResponse>(jsonOptions, cancellationToken).ConfigureAwait(false), null);
+            var providerResponse = await response.Content.ReadFromJsonAsync<OllamaChatResponse>(jsonOptions, cancellationToken).ConfigureAwait(false);
+            if (providerResponse?.PromptEvalCount is not null || providerResponse?.EvalCount is not null)
+                logger.LogInformation("Ollama observed token usage for {Model} at {Provider}: prompt {PromptTokens}, output {OutputTokens}, allocated context {Context}.",
+                    model, http.BaseAddress?.Authority, providerResponse?.PromptEvalCount, providerResponse?.EvalCount, request.Options?.NumCtx);
+            return (providerResponse, null);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

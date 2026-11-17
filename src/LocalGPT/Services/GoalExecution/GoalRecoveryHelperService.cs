@@ -73,7 +73,8 @@ public sealed partial class GoalRecoveryHelperService : IGoalRecoveryHelperServi
             var texts = Texts;
             var state = GetRunState(context.RunId);
             var failedHost = HostOf(context, context.FailedModel);
-            var failedHostUsable = IsHostUsable(state, failedHost);
+            var startupTimeout = context.FailureKind == GoalMemberFailureKind.ProviderStartupTimeout;
+            var failedHostUsable = IsHostUsable(state, failedHost) && !startupTimeout;
 
             if (context.SameMemberOnly)
             {
@@ -87,7 +88,9 @@ public sealed partial class GoalRecoveryHelperService : IGoalRecoveryHelperServi
                     : new GoalMemberRecoveryDecision
                     {
                         Action = GoalMemberRecoveryAction.SkipSlot,
-                        Reason = Render(texts.ReasonSameMemberHostDown, ("Model", context.FailedModel), ("Host", failedHost))
+                        Reason = startupTimeout
+                            ? Render(texts.ReasonNoCandidate, ("Model", context.FailedModel), ("Role", context.RoleName))
+                            : Render(texts.ReasonSameMemberHostDown, ("Model", context.FailedModel), ("Host", failedHost))
                     });
             }
 
@@ -103,11 +106,19 @@ public sealed partial class GoalRecoveryHelperService : IGoalRecoveryHelperServi
             }
 
             var evidence = BuildCandidateEvidence(context, state);
+            var providerIdentity = new ProviderModelIdentity();
+            var hasFailedReference = providerIdentity.TryParseSelectionKey(context.FailedModel, out var failedReference);
             var usable = evidence
-                .Where(item => item.HostAvailable && IsSuitable(item))
+                .Where(item => item.HostAvailable && IsSuitable(item) &&
+                    (!startupTimeout || !string.Equals(item.HostKey, failedHost, StringComparison.OrdinalIgnoreCase)) &&
+                    !context.RunSteps.Any(step => step.IsProviderStartupTimeout && string.Equals(step.ModelName, item.ModelName, StringComparison.OrdinalIgnoreCase)))
                 .Select((item, index) => (Evidence: item, Index: index))
                 .OrderBy(item => item.Evidence.InRolePool ? 0 : 1)
                 .ThenBy(item => string.Equals(item.Evidence.HostKey, failedHost, StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+                .ThenBy(item => startupTimeout && hasFailedReference &&
+                    providerIdentity.TryParseSelectionKey(item.Evidence.ModelName, out var candidateReference) &&
+                    string.Equals(candidateReference.ProviderKind, failedReference.ProviderKind, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(candidateReference.ModelName, failedReference.ModelName, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
                 .ThenBy(item => item.Evidence.RunFailures)
                 .ThenByDescending(item => SuccessScore(item.Evidence))
                 .ThenBy(item => item.Index)
@@ -240,7 +251,7 @@ public sealed partial class GoalRecoveryHelperService : IGoalRecoveryHelperServi
                         InRolePool = rolePoolSet.Contains(member),
                         HostAvailable = IsHostUsable(state, hostKey),
                         RunSuccesses = runSteps.Count(step => string.IsNullOrWhiteSpace(step.Error) && !string.IsNullOrWhiteSpace(step.VisibleContent)),
-                        RunFailures = runSteps.Count(step => !string.IsNullOrWhiteSpace(step.Error)),
+                        RunFailures = runSteps.Count(step => !step.IsInfrastructureFailure && !string.IsNullOrWhiteSpace(step.Error)),
                         HistorySuccesses = historySteps.Count(item => item.Succeeded),
                         HistoryFailures = historySteps.Count(item => item.Failed && !item.HostUnreachable)
                     };

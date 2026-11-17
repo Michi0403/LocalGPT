@@ -99,6 +99,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                 runs[result.RunId] = new CouncilSpoolerSnapshot
                 {
                     RunId = result.RunId,
+                    ChatRunId = result.ChatRunId,
                     StartedAtUtc = result.StartedAtUtc,
                     UpdatedAtUtc = DateTime.UtcNow,
                     Status = vocabulary.Get().CouncilSpoolerRunning,
@@ -204,6 +205,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                     snapshot = new CouncilSpoolerSnapshot { RunId = result.RunId, StartedAtUtc = result.StartedAtUtc };
                     runs[result.RunId] = snapshot;
                 }
+                snapshot.ChatRunId = result.ChatRunId;
                 snapshot.Status = failed ? vocabulary.Get().CouncilSpoolerFailed : vocabulary.Get().CouncilSpoolerCompleted;
                 snapshot.CompletedAtUtc = result.CompletedAtUtc ?? DateTime.UtcNow;
                 snapshot.UpdatedAtUtc = DateTime.UtcNow;
@@ -295,7 +297,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                     .Where(item => excludeRunId is not Guid excluded || item.RunId != excluded)
                     .OrderByDescending(item => item.UpdatedAtUtc)
                     .Take(Math.Clamp(takeRuns, 1, QueryParameters.CouncilSpoolerMaximum))
-                    .SelectMany(item => item.Steps.Select(step => new CouncilMemberOutcome
+                    .SelectMany(item => item.Steps.Where(step => !step.IsInfrastructureFailure).Select(step => new CouncilMemberOutcome
                     {
                         RunId = item.RunId,
                         CouncilTeamKey = item.CouncilTeamKey,
@@ -339,6 +341,23 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         throw;
     }
 }
+
+    /// <inheritdoc />
+    public IReadOnlyList<CouncilSpoolerSnapshot> GetChatSnapshots(Guid chatRunId)
+    {
+        try
+        {
+            lock (mutationGate)
+                return runs.Values.Where(item => item.RunId == chatRunId || item.ChatRunId == chatRunId)
+                    .OrderBy(item => item.StartedAtUtc).ThenBy(item => item.RunId)
+                    .Select(CloneSnapshot).ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading correlated Council spool evidence failed for chat {ChatRunId}.", chatRunId);
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs notify changed as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -443,6 +462,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         return new()
     {
         RunId = source.RunId,
+        ChatRunId = source.ChatRunId,
         StartedAtUtc = source.StartedAtUtc,
         UpdatedAtUtc = source.UpdatedAtUtc,
         CompletedAtUtc = source.CompletedAtUtc,
@@ -481,6 +501,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         Round = source.Round,
         Phase = source.Phase,
         ModelName = source.ModelName,
+        ProviderName = source.ProviderName,
+        ProviderEndpoint = source.ProviderEndpoint,
+        ProviderModelName = source.ProviderModelName,
         CouncilMembers = [.. source.CouncilMembers],
         Role = source.Role,
         HardwareLane = source.HardwareLane,

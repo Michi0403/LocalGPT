@@ -22,6 +22,7 @@ namespace LocalGPT.Services.ConfigurationSteward;
 /// <param name="hostHardware">Provider-endpoint hardware profiles, preserving user-confirmed remote and local host facts.</param>
 /// <param name="performancePresets">Existing measured performance profiles used for run-local resource recommendations.</param>
 /// <param name="providerModels">Selected provider-qualified model runtime for optional bounded steward AI advice.</param>
+/// <param name="hardwareRoadPlanner">Existing provider-qualified hardware road planner for the selected model.</param>
 /// <param name="ambientContext">Current Council run and actor for the approval request.</param>
 /// <param name="logger">Logger for steward diagnostics.</param>
 public sealed class ConfigurationStewardService(
@@ -34,6 +35,7 @@ public sealed class ConfigurationStewardService(
     IConfiguredAiHostHardwareService hostHardware,
     IHardwarePerformancePresetService performancePresets,
     IProviderModelRuntimeService providerModels,
+    ICouncilHardwareRoadPlanner hardwareRoadPlanner,
     IAmbientLocalGptContext ambientContext,
     ILogger<ConfigurationStewardService> logger) : IConfigurationStewardService
 {
@@ -431,19 +433,22 @@ public sealed class ConfigurationStewardService(
                 return null;
             var runtime = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
             var timeoutSeconds = Math.Clamp(runtimePolicy.GetInt("GoalStewardAiTimeoutSeconds"), 5, 120);
+            var road = hardwareRoadPlanner.BuildPlans(request.CouncilRequest.ModelRoutes, [selected.SelectionKey],
+                request.CouncilRequest.MaxOutputTokens, request.CouncilRequest.MaxContextTokens,
+                request.CouncilRequest.ResourceLoadPercent, request.CouncilRequest.OllamaNumGpu)[selected.SelectionKey];
             using var client = providerModels.CreateChatClient(selected,
                 runtime.DefaultSessionKeepAlive,
-                request.CouncilRequest.MaxContextTokens,
+                road.EffectiveMaxContextTokens,
                 TimeSpan.FromSeconds(timeoutSeconds),
-                request.CouncilRequest.OllamaNumGpu,
-                enableAutomaticTools: false, throwOnFailure: false);
+                road.OllamaNumGpu,
+                enableAutomaticTools: false, throwOnFailure: false, fitContextToRequest: true);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
             var message = JsonSerializer.Serialize(new
             {
                 goal = request.GoalText.Length > 1200 ? request.GoalText[..1200] : request.GoalText,
                 model = selected.SelectionKey,
-                configuredContext = request.CouncilRequest.MaxContextTokens,
+                configuredContext = road.EffectiveMaxContextTokens,
                 observedHardware,
                 contextFailure = contextFailure.Length > 800 ? contextFailure[..800] : contextFailure,
                 invariant = "Propose a smaller model task; never write, build, execute or approve from this helper."
@@ -451,7 +456,7 @@ public sealed class ConfigurationStewardService(
             var answer = await client.GetResponseAsync(
                 [new ChatMessage(ChatRole.System, runtimePolicy.GetString("GoalStewardAiSystemPrompt")),
                  new ChatMessage(ChatRole.User, message)],
-                new ChatOptions { MaxOutputTokens = 256, Temperature = 0f },
+                new ChatOptions { MaxOutputTokens = Math.Min(256, road.EffectiveMaxOutputTokens), Temperature = 0f },
                 timeout.Token).ConfigureAwait(false);
             var text = answer.Text?.Trim() ?? string.Empty;
             if (!text.StartsWith('{') || !text.EndsWith('}'))

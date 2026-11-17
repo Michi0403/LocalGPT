@@ -2,6 +2,49 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $required = @(
+    # Artifact-first source recovery: normalize architecture metadata, keep exact file bytes, publish only verified ZIPs.
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkManifest.cs'; Tokens = @('contract.GetRawText()', 'JsonValueKind.Object or JsonValueKind.Array', 'GetFileWorkPreparationOutputCeiling') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('PreviousValidationError = planDiagnostic', '!beginAttempted', '!alternativeRouteObserved', 'attemptedInspections', 'result.Artifacts.Add(new CouncilArtifact', 'result.DevelopmentArtifactVerified = true', 'verified.Succeeded', 'File.Exists(zipPath)') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs'; Tokens = @('requestOutputCeiling is int workCeiling', 'Math.Min(executionPlan.EffectiveMaxOutputTokens') }
+    @{ Path = 'src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs'; Tokens = @('councilResult.CoordinatedSourceWork', 'councilResult.DevelopmentArtifactVerified', 'safeManifestRetry', 'checkpoint.KeyaccountContinuationsScheduled++', 'verifiedDevelopmentArtifact ? GoalExecutionState.Completed') }
+    # Coordinated source authoring: one route, exclusive assignment, exact receipts, immutable approvals.
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs'; Tokens = @('RunCoordinatedFileWorkAsync', 'CouncilFileWorkRuntimeParametersJson') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('ReserveDraftFilesAsync', 'CompleteDraftFileAsync', 'GetDraftInspectionsAsync', 'RecordDraftInspectionAsync', 'GetCodeGenerationBuildEvidenceAsync', 'draftRepairReviewHash', 'draftWorkspaceMode', 'exactAssignments: true') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftAssignments.cs'; Tokens = @('DraftAssignments', 'DependencyHashes', 'SaveDraftPlanAsync', 'PayloadJson ==', 'SHA256.HashData') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftInspection.cs'; Tokens = @('decision.Accepted == true', 'plan.Files.Remove(file)', 'packet.DependencyHashes') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkGuest.cs'; Tokens = @('session.sandbox.run', 'run.SourceSha256 == sourceHash', 'guest.OutputTruncated', 'CompleteDraftFileAsync') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftGuest.cs'; Tokens = @('actualId != assignment.Id', 'assignment.RelativePath', 'Convert.FromBase64String') }
+    @{ Path = 'src/LocalGPT/Services/CouncilDevelopmentDxAiFunctions.cs'; Tokens = @('review.IsSourceDraftReview', 'actualHash != file.ContentHash') }
+    # Startup delay is route infrastructure, not model competence. Keep host handoff scoped to the configured role and preserve Stop evidence.
+    @{ Path = 'src/LocalGPT/BusinessObjects/MultiModelCouncilModels.cs'; Tokens = @('IsProviderStartupTimeout =>', 'IsContextBudgetFailure || IsProviderStartupTimeout || HostUnreachable') }
+    @{ Path = 'src/LocalGPT/BusinessObjects/ServiceRuntimeParameterModels.cs'; Tokens = @('MaximumProviderStartupWaitSeconds') }
+    @{ Path = 'src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs'; Tokens = @('"maximumProviderStartupWaitSeconds"', 'CouncilProviderStartupTimeoutNotice', 'CouncilProviderStartupTakeoverNotice', 'CouncilPhaseCancellationPreservedNotice') }
+    @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.cs'; Tokens = @('Waiting for the local runtime to accept the stream...', 'Ollama accepted the request.') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs'; Tokens = @('MaximumProviderStartupWaitSeconds', 'awaitingInitialProviderResponse && !initialProviderResponseObserved', 'allowRecovery && !startupTimeout', 'CouncilProviderStartupTimeout;') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.PhaseExecution.cs'; Tokens = @('completedPrimarySteps.Enqueue(step)', 'completedTakeoverSteps.Enqueue(replacement)', 'replacementGate.WaitAsync(0, cancellationToken)', 'replacement.RecoveryTargetModelName = modelName', 'allowRecovery: false, fallbackPlan: replacementPlan', 'candidateReference.ModelName, failedReference.ModelName', 'MultiModelCouncilServiceAddOrderedStep(result, step, logger)', 'CouncilPhaseCancellationPreservedNotice') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.WorkflowDefinitionExecution.cs'; Tokens = @('definition.MemberFailureRecoveryAttempts > 0', 'allowStartupHostTakeover: allowStartupHostTakeover') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.RoundRecovery.cs'; Tokens = @('GoalMemberFailureKind.ProviderStartupTimeout', 'previousTakeover is not null && !previousTakeover.IsProviderStartupTimeout', 'allowParticipantRecovery: failureKind != GoalMemberFailureKind.ProviderStartupTimeout') }
+    @{ Path = 'src/LocalGPT/Services/GoalExecution/GoalRecoveryHelperService.cs'; Tokens = @('IsHostUsable(state, failedHost) && !startupTimeout', 'candidateReference.ModelName, failedReference.ModelName') }
+    @{ Path = 'src/LocalGPT/Services/AiContextBootstrapService.cs'; Tokens = @( 'AiBootstrapReferenceContextPercent', 'AiBootstrapFunctionDiscoveryInstruction', 'includeReferenceContext') }
+    @{ Path = 'src/LocalGPT/Services/GoalExecutionService.SemanticPlanning.cs'; Tokens = @( 'hardwareRoadPlanner.BuildPlans', 'road.EffectiveMaxContextTokens', 'fitContextToRequest: true') }
+    @{ Path = 'src/LocalGPT/Services/GoalExecutionService.KeyaccountManager.cs'; Tokens = @( 'hardwareRoadPlanner.BuildPlans', 'road.EffectiveMaxContextTokens', 'fitContextToRequest: true') }
+    @{ Path = 'src/LocalGPT/Services/ConfigurationSteward/ConfigurationStewardService.cs'; Tokens = @( 'hardwareRoadPlanner.BuildPlans', 'road.EffectiveMaxContextTokens', 'fitContextToRequest: true') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.LiveInputAndHealth.cs'; Tokens = @( '!step.IsInfrastructureFailure', 'if (failures.Count == 0)') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.RoundRecovery.cs'; Tokens = @( 'failedStep?.IsContextBudgetFailure == true') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.PhaseExecution.cs'; Tokens = @('var publishCompletedFirst = hostCount > 1 ||', 'if (presentationOrder is not null && !publishCompletedFirst)', 'await foreach (var modelName in presentationOrder.ReadAllAsync().ConfigureAwait(false))', 'liveCouncilSessions.AppendParticipantActivity((result.ChatRunId ?? result.RunId), activityKey, text)', 'await Task.WhenAll(hostTasks)', 'await Task.WhenAll(tasks)', 'foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue') }
+    @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.Transport.cs'; Tokens = @( 'request.ContextCeiling', 'FitOllamaRequestContext(budget, model, logger)') }
+    @{ Path = 'src/LocalGPT/Services/GoalExecutionService.ContextRecovery.cs'; Tokens = @( 'checkpoint.Steps[failedIndex] = new GoalExecutionPlanStep', 'checkpoint.Prompt') }
+    @{ Path = 'src/LocalGPT/Services/CouncilChatClient.cs'; Tokens = @('request.ChatRunId = chatRunId', 'liveSessions.Touch(chatRunId)') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs'; Tokens = @('ChatRunId = request.ChatRunId ?? result.RunId', 'StepCompleted = request.StepCompleted') }
+    @{ Path = 'src/LocalGPT/Services/Council/CouncilSpoolerService.cs'; Tokens = @('GetChatSnapshots(Guid chatRunId)', 'ChatRunId = result.ChatRunId') }
+    @{ Path = 'src/LocalGPT/Services/Council/Scheduling/CouncilHardwareRoadConfigurationService.cs'; Tokens = @('ResolvePresetRoutes', 'identity.ModelNamesEquivalent(route.ModelName, candidate.ModelName)', 'runtimePolicy.GetInt("DefaultCouncilContextTokens")') }
+    @{ Path = 'src/LocalGPT/Services/Persistence/DatabaseInitializationService.SeedPresets.cs'; Tokens = @('CreateDefaultCouncilModelPresets(legacy: true)', 'row.ModelRoutesJson != previous.ModelRoutesJson', 'preset.MaxParallelModels = 1') }
+    @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs'; Tokens = @('ToOllamaMessages(message, toolNames)', 'MeasureRequestCharacters', 'GetDiscoveryBrokerTools(tools)', 'OllamaContextBudgetExceeded;') }
+    @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.MessageMapping.cs'; Tokens = @('OfType<FunctionCallContent>()', 'OfType<FunctionResultContent>()', 'toolNames.TryGetValue(result.CallId', 'Images = message.Images?.ToList()') }
+    @{ Path = 'src/LocalGPT/Services/CouncilRuntimeService.OllamaRequestBudget.cs'; Tokens = @('var ceiling = current;', 'current = Math.Min(current, modelLimit.Value)', 'numPredict, ceiling, promptTokens, required, false, exceeds') }
+    @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.Transport.cs'; Tokens = @('MeasureRequestCharacters(request.Messages, request.Tools)', 'requestOptions.NumCtx', 'budget.PromptExceedsMaximum') }
+    @{ Path = 'src/LocalGPT/Services/GoalExecutionService.ContextRecovery.cs'; Tokens = @('priorToolActivity=true', 'TryReplanRemainingAsync', 'The selected hardware-road limits remain unchanged.') }
+    @{ Path = 'src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs'; Tokens = @('remainingSteps = checkpoint.Steps.Skip(failedIndex)', 'proposal.Steps.Count > availableSlots', 'contextFailure && replacements.Count != proposal!.Steps.Count') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.RunOrchestration.cs'; Tokens = @('LoadContinuationConversationAsync','ContinuedFromConversationId') }
     @{ Path = 'src/LocalGPT/Services/CouncilRuntimeService.PromptAndTextRuntime.cs'; Tokens = @('CreateUpdate') }
     @{ Path = 'src/LocalGPT/Services/CouncilRuntimeService.cs'; Tokens = @('NotRunLane') }
@@ -21,7 +64,7 @@ $required = @(
     @{ Path = 'src/LocalGPT/Components/Shared/ProviderModelRoleEditor.razor'; Tokens = @('ShowSearchBox="true"', 'Save role assignments', 'ListRenderMode.Virtual', 'DxComboBox TData="TeamOption" TValue="string"', 'ValueChanged="@(async (string key) => await TeamChangedAsync(key))"', 'ValuesChanged="@(async (IEnumerable<string> values) => await SelectedChangedAsync(values))"') }
     @{ Path = 'src/LocalGPT/Migrations/20261029123000_AddCouncilRoleAssignments.cs'; Tokens = @('CouncilRoleIndexes', 'CouncilRoleModelBindings') }
     @{ Path = 'src/LocalGPT/Services/Council/CouncilSpoolerService.cs'; Tokens = @('GetRecentSummaries(int take = 50)', 'CouncilSpoolerRunSummary') }
-    @{ Path = 'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs'; Tokens = @('OpenSelectedCouncilHistoryAsync', 'SelectCouncilSessionAsync', 'CouncilSpooler.GetSnapshot(runId)') }
+    @{ Path = 'src/LocalGPT/Components/Pages/Chat.LiveCouncil.razor.cs'; Tokens = @('OpenSelectedCouncilHistoryAsync', 'SelectCouncilSessionAsync', 'CouncilSpooler.GetChatSnapshots(runId)') }
     @{ Path = 'src/LocalGPT/Components/Pages/Chat.Lifecycle.razor.cs'; Tokens = @('openedCouncilArchive = CouncilSpooler.GetSnapshot(rejoinRunId)', 'localGptReconnect.clearCouncilRun') }
     @{ Path = 'src/LocalGPT/Services/UploadProcessingRecommendationService.cs'; Tokens = @('imageOnly', 'RequiresVerifiedWorkspaceFileRead', 'localgpt.vision.ocr.capability') }
     @{ Path = 'src/LocalGPT/Components/Shared/UploadProcessingAdvisor.razor'; Tokens = @('Check local OCR availability', 'Run OCR on quarantined image', 'RecognizeWorkspaceImageAsync') }
@@ -42,6 +85,23 @@ $required = @(
 
 )
 $findings = [Collections.Generic.List[string]]::new()
+$phaseSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/MultiModelCouncilService.PhaseExecution.cs'))
+# A completed remote lane must be queued only after its stream is closed. The
+# single reader can then drain it without waiting for another provider's stream.
+if ($phaseSource -notmatch 'participantStream\?\.Writer\.TryComplete\(\);\s*if \(publishCompletedFirst\)\s*presentationOrder\?\.Writer\.TryWrite\(modelName\);') {
+    $findings.Add('MultiModelCouncilService.PhaseExecution.cs: queue the closed provider stream on participant completion, not in selection order for parallel phases.')
+}
+if ($phaseSource -match 'foreach\s*\(var modelName in participantOrder\)') {
+    $findings.Add('MultiModelCouncilService.PhaseExecution.cs: a fixed-order presentation pump blocks completed remote streams behind slow participants.')
+}
+$budgetSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CouncilRuntimeService.OllamaRequestBudget.cs'))
+if ($budgetSource -match 'Math\.Max\(current,\s*policy\.MaximumFittedContextTokens\)') {
+    $findings.Add('CouncilRuntimeService.OllamaRequestBudget.cs: selected hardware context is a ceiling; split work instead of silently raising allocation.')
+}
+$recoverySource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/GoalExecutionService.ContextRecovery.cs'))
+if ($recoverySource -match 'request\.CouncilRequest\.(?:MaxContextTokens|ResourceLoadPercent)\s*=') {
+    $findings.Add('GoalExecutionService.ContextRecovery.cs: automatic context recovery must not change selected hardware limits.')
+}
 foreach ($entry in $required) {
     $file = Join-Path $root $entry.Path
     if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { $findings.Add('Missing source: ' + $entry.Path); continue }
@@ -296,7 +356,12 @@ else {
             'if (Volatile.Read(ref attached) == 1)',
             'RunCouncilInBackgroundAsync(request, liveCancellation,',
             'yield break;',
-            'liveSessions.Append(request.RunId, text)',
+            'var chatRunId = request.RunId;',
+            'request.ChatRunId = chatRunId;',
+            'liveSessions.Begin(',
+            'liveSessions.Append(chatRunId, text)',
+            'liveSessions.SetStatus(chatRunId, message)',
+            'liveSessions.Touch(chatRunId)',
             'Channel.CreateBounded<string>(new BoundedChannelOptions(512)',
             'FullMode = BoundedChannelFullMode.DropOldest',
             'request.StreamUpdate = Publish'
@@ -310,10 +375,25 @@ else {
         }
     }
 }
-foreach ($contract in @('serviceScopeFactory.CreateAsyncScope()', 'liveSessions.Complete(request.RunId)', 'writer.TryComplete()')) {
-    if ($clientSource.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
-        $findings.Add('CouncilChatClient.cs: background owner contract missing: ' + $contract)
+# A durable goal may change request.RunId after the observer has attached.
+# The background owner must complete the same parent session that received updates.
+$workerStart = $clientSource.IndexOf($workerSignature, [StringComparison]::Ordinal)
+if ($workerStart -ge 0) {
+    $workerEnd = $clientSource.IndexOf('public object? GetService(', $workerStart, [StringComparison]::Ordinal)
+    if ($workerEnd -lt 0) {
+        $findings.Add('CouncilChatClient.cs: background owner boundary missing.')
     }
+    else {
+        $worker = $clientSource.Substring($workerStart, $workerEnd - $workerStart)
+        foreach ($contract in @('var chatRunId = request.ChatRunId ?? request.RunId;', 'serviceScopeFactory.CreateAsyncScope()', 'liveSessions.Complete(chatRunId)', 'writer.TryComplete()')) {
+            if ($worker.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
+                $findings.Add('CouncilChatClient.cs: background owner contract missing: ' + $contract)
+            }
+        }
+    }
+}
+if ($clientSource -match 'liveSessions\s*\.\s*(?:Begin|Append|SetStatus|Touch|Complete)\s*\(\s*request\.RunId\b') {
+    $findings.Add('CouncilChatClient.cs: live session ownership must use the stable parent Chat identity, not the mutable GoalExecution run ID.')
 }
 # 6.8.7: a disposed Chat circuit must not turn a request-factory cancellation
 # into ArgumentNullException or launch a second backend Council run.
@@ -494,5 +574,5 @@ else {
     }
 }
 
-if ($findings.Count -gt 0) { foreach ($finding in $findings) { Write-Error $finding }; throw ('Source contract audit failed: ' + $findings.Count + ' finding(s).') }
+if ($findings.Count -gt 0) { foreach ($finding in $findings) { Write-Error $finding -ErrorAction Continue }; throw ('Source contract audit failed: ' + $findings.Count + ' finding(s).') }
 Write-Host 'Maintained PowerShell source contract audit passed.'

@@ -1,0 +1,12 @@
+# LocalGPT 7.5.0 — Potato Prime: artifact-first recovery (source candidate)
+
+Baseline: 7.4.9. Evidence: 7.4.8 Council run d44e61d9-4515-4008-83d2-ac0233dab5f2; three invalid plan attempts, no delivered ZIP, GoalExecution expected zero artifacts. User reports earlier rare successful deliveries; retain these as regression references.
+
+- Accept a structured shared architecture contract without changing persisted schema; retry with concrete plan validation feedback. Retain configured existing repository generation and guarded ordinary legacy fallback before any observed mutation.
+- Distinguish an unavailable/invalid reviewer from an actual source defect. Preserve committed bytes and exact dependencies while trying another assigned reviewer. Retain exact-hash inspection and immutable build approval. Permit a compiler-evidenced omitted path in bounded repair generations.
+- Publish a coordinated delivery into the Council artifact collection only after registered verifier success and presence of the corresponding source ZIP. GoalExecution now requires that evidence for coordinated delivery, rather than counting successful model streams. Earlier participant failures alone do not invalidate a verified delivery.
+- Use existing help escalation for bounded safe pre-mutation manifest continuation when fallback is disabled. Do not replay approved writes or ambiguous effects, or treat partially committed drafts as finished. Keep the legacy/existing repository completion behavior unchanged.
+- Apply resettable work-specific output ceilings to preparation, architecture and independent file requests after live hardware-road acquisition. Preserve smaller configured ceilings, saved presets and host concurrency. No blanket startup-timeout change or physical capacity claim.
+- Extend maintained Council X-Round PowerShell source checks; update the task ledger with P0 end-to-end acceptance and regression cases. No database migration, no neural expansion, no changes to other repositories or WASIX/Hyperlight execution providers.
+
+Validation status: source candidate only. The editing environment has no dotnet or PowerShell executable; the maintained gates, owner build, runtime replay, prior-success regression tests and 30/100 verified-delivery target remain pending. Full post-tool context compaction and automatic same-draft continuation after partial effects are not implemented. The ZIP packaging/integrity check is not a C# compilation or runtime verification.

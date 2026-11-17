@@ -11,6 +11,9 @@ public sealed class CouncilSpoolerSnapshot
     /// </summary>
     /// <value>The run identifier value exposed by <see cref="CouncilSpoolerSnapshot"/>.</value>
     public Guid RunId { get; set; }
+    /// <summary>Correlates delegated runs to the originating chat without merging their execution receipts.</summary>
+    /// <value>The originating chat run identifier when recorded.</value>
+    public Guid? ChatRunId { get; set; }
     /// <summary>
     /// Gets or sets the started at UTC associated with this council spooler snapshot state, using the time semantics implied by the member name.
     /// </summary>

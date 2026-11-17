@@ -307,11 +307,39 @@ public sealed class CodeGenerationOutputSpec
 /// </summary>
 public sealed class CreateCodeGenerationReviewRequest
 {
-    /// <summary>Optional Council draft operation: begin, next, complete, or submit.</summary>
+    /// <summary>Optional Council draft operation: begin, next, complete, repair, or submit.</summary>
     public string? DraftOperation { get; set; }
+
+    /// <summary>Authoritative workspace mode for this source-draft lineage. ReviewedSourceDraft is the existing approved artifact-workspace route.</summary>
+    public string DraftWorkspaceMode { get; set; } = "ReviewedSourceDraft";
+    /// <summary>One installed isolated guest language selected for the entire draft, when guest authoring is requested.</summary>
+    public string DraftGuestLanguageKey { get; set; } = string.Empty;
+
+    /// <summary>Independent candidate inspection history maintained by the Council coordinator.</summary>
+    public List<CodeGenerationDraftInspectionDecision> DraftInspections { get; set; } = [];
+
 
     /// <summary>Ordered relative file paths and their work instructions for a new Council draft.</summary>
     public Dictionary<string, string>? DraftManifest { get; set; }
+
+    /// <summary>Optional shared interface contract supplied once by the architect.</summary>
+    public string DraftSharedContract { get; set; } = string.Empty;
+
+    /// <summary>Direct dependency paths for each file; all paths must belong to the manifest.</summary>
+    public Dictionary<string, List<string>>? DraftDependencies { get; set; }
+
+    /// <summary>Server-owned assignment history persisted inside the existing draft payload.</summary>
+    public List<CodeGenerationDraftAssignment> DraftAssignments { get; set; } = [];
+
+    /// <summary>Immutable review to copy when preparing a targeted corrective draft.</summary>
+    public Guid? DraftRepairReviewId { get; set; }
+
+    /// <summary>Exact hash of the immutable base review for a repair.</summary>
+    public string DraftRepairReviewHash { get; set; } = string.Empty;
+
+    /// <summary>Server-owned previous source of explicitly reopened paths; supplied only to their authors.</summary>
+    public Dictionary<string, string> DraftRepairSources { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
 
     /// <summary>
     /// Gets or sets the stable project identifier used to identify or correlate this create code generation review instance with related application state.
@@ -439,6 +467,24 @@ public sealed class RejectCodeGenerationReviewRequest
 /// </summary>
 public sealed class CodeGenerationReviewPayload
 {
+    /// <summary>Original source work manifest retained with an immutable submitted draft.</summary>
+    public Dictionary<string, string>? DraftManifest { get; set; }
+    /// <summary>Authoritative workspace route retained across immutable reviews and corrective drafts.</summary>
+    public string DraftWorkspaceMode { get; set; } = "ReviewedSourceDraft";
+    /// <summary>One installed isolated guest language selected for the entire draft, when guest authoring is requested.</summary>
+    public string DraftGuestLanguageKey { get; set; } = string.Empty;
+    /// <summary>Independent inspection evidence, separate from compilation and build evidence.</summary>
+    public List<CodeGenerationDraftInspectionDecision> DraftInspections { get; set; } = [];
+
+    /// <summary>Shared file-interface contract retained for targeted repair.</summary>
+    public string DraftSharedContract { get; set; } = string.Empty;
+    /// <summary>Declared direct dependencies retained with the reviewed source bytes.</summary>
+    public Dictionary<string, List<string>>? DraftDependencies { get; set; }
+    /// <summary>Actual assignment attempts and file receipts included in the immutable review.</summary>
+    public List<CodeGenerationDraftAssignment> DraftAssignments { get; set; } = [];
+    /// <summary>Prior immutable review identifier when only selected paths were reopened.</summary>
+    public Guid? DraftRepairReviewId { get; set; }
+
     /// <summary>
     /// Gets or sets the files collection maintained or exposed by this code generation review payload instance for downstream processing.
     /// </summary>
@@ -461,6 +507,8 @@ public sealed class CodeGenerationReviewPayload
 /// </summary>
 public sealed class CodeGenerationReviewSnapshot
 {
+    /// <summary>Whether the review contains a coordinated source-draft manifest.</summary>
+    public bool IsSourceDraftReview { get; set; }
     /// <summary>
     /// Gets or sets the stable identifier used to identify or correlate this code generation review snapshot instance with related application state.
     /// </summary>

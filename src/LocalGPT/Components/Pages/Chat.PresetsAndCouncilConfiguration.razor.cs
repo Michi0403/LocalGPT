@@ -450,9 +450,10 @@ namespace LocalGPT.Components.Pages
         {
         SelectedModelPreset = preset;
         ModelPresetName = preset.Name;
-        SelectedCouncilModelNames = NormalizeProviderSelectionKeys(
-            JsonSerializer.Deserialize<List<string>>(preset.ModelNamesJson) ?? []);
-        CouncilModelRoutes = ParseModelRoutes(preset.ModelRoutesJson);
+        CouncilModelRoutes = CouncilHardwareRoads.ResolvePresetRoutes(
+            JsonSerializer.Deserialize<List<string>>(preset.ModelNamesJson) ?? [],
+            ParseModelRoutes(preset.ModelRoutesJson), OllamaCandidates).ToList();
+        SelectedCouncilModelNames = CouncilModelRoutes.Select(route => route.ModelName).ToList();
         SynchronizeSelectedCouncilRoutes();
         var loadOverrides = CouncilModelRoutes.Where(route => route.LoadPercentOverride.HasValue).Select(route => route.LoadPercentOverride!.Value).Distinct().ToList();
         if (loadOverrides.Count == 1) CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(loadOverrides[0] / 5d) * 5, 0, 100);

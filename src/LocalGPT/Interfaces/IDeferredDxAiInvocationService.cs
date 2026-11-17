@@ -69,4 +69,10 @@ public interface IDeferredDxAiInvocationService
     Task<IReadOnlyList<DeferredDxAiInvocationSummary>> GetForRunAsync(
         Guid councilRunId,
         CancellationToken cancellationToken = default);
+    /// <summary>Retrieves only the compiler diagnostics of an exact completed code-generation review owned by the Council.</summary>
+    /// <param name="councilRunId">Owning Council run.</param>
+    /// <param name="reviewId">Exact reviewed source generation.</param>
+    /// <param name="cancellationToken">Cancels retrieval.</param>
+    /// <returns>Persisted compiler diagnostics or an empty string if unavailable.</returns>
+    Task<string> GetCodeGenerationBuildEvidenceAsync(Guid councilRunId, Guid reviewId, CancellationToken cancellationToken = default);
 }

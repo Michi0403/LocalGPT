@@ -339,9 +339,9 @@ namespace LocalGPT.Services
                         $"Awaiting human clarification before {upcomingPhase}",
                         true);
                     liveCouncilSessions.SetStatus(
-                        result.RunId,
+                        (result.ChatRunId ?? result.RunId),
                         $"Waiting for {gate.BlockingRequests.Count} blocking human question(s) before {upcomingPhase}. There is no inactivity timeout; the Council remains alive until the questions are answered or the run is explicitly stopped.");
-                    liveCouncilSessions.Touch(result.RunId);
+                    liveCouncilSessions.Touch((result.ChatRunId ?? result.RunId));
 
                     var changed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     void HandleChanged() => changed.TrySetResult(true);

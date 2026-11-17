@@ -58,10 +58,13 @@ public sealed partial class GoalExecutionService
                 preferredKeys.Contains(chosen.SelectionKey, StringComparer.OrdinalIgnoreCase)
                     ? "user-preferred provider-qualified route" : "explicitly selected provider-qualified route");
             var policy = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
+            var road = hardwareRoadPlanner.BuildPlans(request.CouncilRequest.ModelRoutes, [chosen.SelectionKey],
+                request.CouncilRequest.MaxOutputTokens, request.CouncilRequest.MaxContextTokens,
+                request.CouncilRequest.ResourceLoadPercent, request.CouncilRequest.OllamaNumGpu)[chosen.SelectionKey];
             using var client = providerModels.CreateChatClient(chosen.ToReference(), policy.DefaultSessionKeepAlive,
-                request.CouncilRequest.MaxContextTokens,
+                road.EffectiveMaxContextTokens,
                 TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt("GoalPlannerTimeoutSeconds"))),
-                request.CouncilRequest.OllamaNumGpu, enableAutomaticTools: false, throwOnFailure: true);
+                road.OllamaNumGpu, enableAutomaticTools: false, throwOnFailure: true, fitContextToRequest: true);
             // Present only a bounded, goal-relevant catalog to the planner. The proposal is
             // still checked against the entire live directory in GoalExecutionService.PlanAsync;
             // this is an inference budget, not an authorization filter.
@@ -117,7 +120,7 @@ public sealed partial class GoalExecutionService
                  new ChatMessage(ChatRole.User, catalog)],
                 new ChatOptions
                 {
-                    MaxOutputTokens = Math.Max(256, runtimePolicy.GetInt("GoalPlannerOutputTokens")),
+                    MaxOutputTokens = Math.Min(road.EffectiveMaxOutputTokens, Math.Max(256, runtimePolicy.GetInt("GoalPlannerOutputTokens"))),
                     Temperature = 0f
                 }, timeout.Token).ConfigureAwait(false);
             var responseText = response.Text ?? string.Empty;

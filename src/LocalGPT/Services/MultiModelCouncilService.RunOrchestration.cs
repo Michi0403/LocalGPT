@@ -66,6 +66,7 @@ namespace LocalGPT.Services
                 result = new MultiModelCouncilResult
                 {
                     RunId = request.RunId,
+                    ChatRunId = request.ChatRunId,
                     Prompt = request.Prompt.Trim(),
                     ModelNames = participants,
                     ModelSelections = request.ModelSelections
@@ -118,6 +119,7 @@ namespace LocalGPT.Services
                     : participants;
                 humanCollaboration.BeginCouncilRun(result.RunId, collaborationMembers);
                 councilSpooler.Begin(result);
+                request.StreamUpdate?.Invoke($"\n<!-- localgpt-council-evidence:{result.RunId:N} -->\n\n");
 
                 var provisioning = organicTeam.ProjectProvisioningMode;
                 var gameProjectRequired = provisioning == CouncilProjectProvisioningMode.EnsureGameProject;
@@ -180,8 +182,6 @@ namespace LocalGPT.Services
                     result.Warnings.Add("Hardware-road scheduling is active inside each AI host: configured CPU/GPU lanes remain independently bounded so host-level concurrency does not bypass model-road limits.");
                 if (request.MaxOutputTokens > 32768)
                     result.Warnings.Add("Very large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
-                if (maxContextTokens < 64000)
-                    result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens. Values below 64K are quick-chat/diagnostic budgets, not valid source-generation acceptance tests.");
                 if (ollamaParticipants.Count > 0 && participants.Count > 1 && maxParallelModels == 1 && keepAlive == "0s")
                     result.Warnings.Add("Ollama keep_alive=0s is active for native Ollama participants so they can unload between calls; cloud and OpenAI-compatible participants are unaffected.");
                 if (ollamaParticipants.Count > 0 && ollamaNumGpu == 0)
@@ -203,7 +203,7 @@ namespace LocalGPT.Services
                 var workspaceReviewContext = organicTeam.WorkflowSteps.Any(step => step.IsEnabled &&
                     (step.RequiresCompleteUploadWorkspaceCuration || step.RequiresVerifiedWorkspaceFileRead));
                 var roleIsolatedContext = UsesRoleIsolatedContext(organicTeam) ||
-                    request.GoalRecoveryCompactContext || workspaceReviewContext;
+                    workspaceReviewContext;
                 if (request.GoalRecoveryCompactContext)
                 {
                     logger.LogInformation("Council {RunId} is executing a compact GoalExecution recovery packet " +
@@ -211,11 +211,12 @@ namespace LocalGPT.Services
                         result.RunId, organicTeam.Key);
                     request.ProgressMessage?.Invoke("GoalExecution AI · Subagent: compact, evidence-directed Council context active.");
                 }
+                var sharedContextTokens = modelRoutes.Values.Select(route => route.EffectiveMaxContextTokens)
+                    .DefaultIfEmpty(maxContextTokens).Min();
                 var bootstrap = roleIsolatedContext
                     ? BuildRoleIsolatedBootstrap(organicTeam)
-                    : request.IncludeMemory
-                        ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken).ConfigureAwait(false)
-                        : string.Empty;
+                    : await bootstrapService.BuildBootstrapPromptAsync(cancellationToken, sharedContextTokens,
+                        request.IncludeMemory && !request.GoalRecoveryCompactContext).ConfigureAwait(false);
                 if (!roleIsolatedContext)
                 {
                     bootstrap = MultiModelCouncilServiceAppendPromptSection(
@@ -237,7 +238,10 @@ namespace LocalGPT.Services
                     var continuationContext = MultiModelCouncilServiceBuildContinuationContext(continuedConversation, logger);
                     if (!string.IsNullOrWhiteSpace(continuationContext))
                         bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Selected prior council conversation", continuationContext, logger);
-                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Mandatory database, regex, function and hardware preflight", preflight.PromptContext, logger);
+                    if (!request.GoalRecoveryCompactContext)
+                        bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Mandatory database, regex, function and hardware preflight", preflight.PromptContext, logger);
+                    else if (preflight.MissingRequirements.Count > 0)
+                        bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Open preflight requirements", string.Join(Environment.NewLine, preflight.MissingRequirements), logger);
                     var dxFunctionPolicy = await councilDxPolicy.GetPolicyAsync(cancellationToken).ConfigureAwait(false);
                     bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, nameof(CouncilDxFunctionPolicy), dxFunctionPolicy.PromptInstruction, logger);
                 }
@@ -489,18 +493,18 @@ namespace LocalGPT.Services
                     // participant. Publish its own producer-side lane so the UI can show this real work
                     // while the ordered transcript is still being assembled.
                     var consensusActivityKey = BuildCouncilParticipantActivityKey(
-                        consensusRound, "Consensus", "Consensus writer", consensusModel);
+                        result.RunId, consensusRound, "Consensus", "Consensus writer", consensusModel);
                     var consensusRouteLabel = GetCouncilExecutionHostKey(consensusModel);
                     liveCouncilSessions.BeginParticipantActivity(
-                        result.RunId, consensusActivityKey, consensusModel, "Consensus", "Consensus writer", consensusRouteLabel);
+                        (result.ChatRunId ?? result.RunId), consensusActivityKey, consensusModel, "Consensus", "Consensus writer", consensusRouteLabel);
                     liveCouncilSessions.SetParticipantActivityStatus(
-                        result.RunId, consensusActivityKey, $"Running on {consensusRouteLabel}.");
+                        (result.ChatRunId ?? result.RunId), consensusActivityKey, $"Running on {consensusRouteLabel}.");
                     Action<string> consensusStreamUpdate = text =>
                     {
                         if (string.IsNullOrEmpty(text))
                             return;
 
-                        liveCouncilSessions.AppendParticipantActivity(result.RunId, consensusActivityKey, text);
+                        liveCouncilSessions.AppendParticipantActivity((result.ChatRunId ?? result.RunId), consensusActivityKey, text);
                         request.StreamUpdate?.Invoke(text);
                     };
                     MultiModelCouncilStep? consensusStep;
@@ -528,9 +532,9 @@ namespace LocalGPT.Services
                         }
                         ArgumentNullException.ThrowIfNull(consensusStep);
                         liveCouncilSessions.SetParticipantActivityResult(
-                            result.RunId, consensusActivityKey, consensusStep.VisibleContent);
+                            (result.ChatRunId ?? result.RunId), consensusActivityKey, consensusStep.VisibleContent);
                         liveCouncilSessions.CompleteParticipantActivity(
-                            result.RunId,
+                            (result.ChatRunId ?? result.RunId),
                             consensusActivityKey,
                             string.IsNullOrWhiteSpace(consensusStep.Error)
                                 ? "Consensus writer completed. Its response is available in this lane."
@@ -540,7 +544,7 @@ namespace LocalGPT.Services
                     {
                         logger.LogError(ex, "Council consensus writer failed for run {RunId}.", result.RunId);
                         liveCouncilSessions.CompleteParticipantActivity(
-                            result.RunId, consensusActivityKey, $"Consensus writer failed: {ex.Message}");
+                            (result.ChatRunId ?? result.RunId), consensusActivityKey, $"Consensus writer failed: {ex.Message}");
                         throw;
                     }
                     var consensusFunctionSteps = await AddCouncilStepAndExecuteDxFunctionsAsync(result, consensusStep, request.StepCompleted, request.ProgressMessage, cancellationToken).ConfigureAwait(false);
@@ -724,7 +728,7 @@ namespace LocalGPT.Services
                 var adviceOnlyPrompt = councilRuntime.IsAdviceOnlyPrompt(result.Prompt, logger) ?? false;
                 // Acceptance is a gate, not a remark: a run without its required function receipts
                 // never turns its prose into implementation artifacts or change reviews.
-                var requestedGeneration = request.GenerateImplementationArtifact &&
+                var requestedGeneration = request.GenerateImplementationArtifact && result.ChangeReview is null &&
                     missingFunctionNames.Count == 0 &&
                     !adviceOnlyPrompt &&
                     councilRuntime.MultiModelCouncilServiceShouldGenerateSafeSandboxArtifactWithoutBlocking(result.Prompt, logger);
@@ -734,6 +738,10 @@ namespace LocalGPT.Services
                     result.Warnings.Add(
                         $"Implementation artifacts were not generated because the team's required completion evidence is missing ({string.Join(", ", missingFunctionNames)}). " +
                         "LocalGPT does not turn an unverified run into generated files.");
+                }
+                else if (result.ChangeReview is not null && result.ChangeReview.IsSourceDraftReview)
+                {
+                    // The coordinated workflow already owns this exact approval/build/artifact lineage.
                 }
                 else if (requiresPollAnswer)
                 {
@@ -840,7 +848,8 @@ namespace LocalGPT.Services
                 logger.LogError(ex, "Error in council RunAsync.");
                 var failedResult = result ?? new MultiModelCouncilResult
                 {
-                    RunId = collaborationRunId ?? Guid.NewGuid(),
+                    RunId = collaborationRunId ?? request?.RunId ?? Guid.NewGuid(),
+                    ChatRunId = request?.ChatRunId,
                     Prompt = request?.Prompt?.Trim() ?? string.Empty,
                     ModelNames = request?.ModelNames?.ToList() ?? [],
                     StartedAtUtc = DateTime.UtcNow

@@ -21,15 +21,38 @@ public sealed partial class DatabaseInitializationService
     {
     try
     {
-            var existingNames = await db.CouncilModelPresets
-                .Select(item => item.Name)
-                .ToListAsync(token)
-                .ConfigureAwait(false);
-            var existing = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var existing = await db.CouncilModelPresets.ToListAsync(token).ConfigureAwait(false);
+            var legacy = CreateDefaultCouncilModelPresets(legacy: true);
             var presets = CreateDefaultCouncilModelPresets();
+            foreach (var preset in presets)
+            {
+                var row = existing.FirstOrDefault(item => item.Name.Equals(preset.Name, StringComparison.OrdinalIgnoreCase));
+                if (row is null)
+                {
+                    if (existing.Any(item => item.IsDefault && !item.IsArchived))
+                        preset.IsDefault = false;
+                    db.CouncilModelPresets.Add(preset);
+                    existing.Add(preset);
+                    continue;
+                }
 
-            foreach (var preset in presets.Where(item => !existing.Contains(item.Name)))
-                db.CouncilModelPresets.Add(preset);
+                // Only evolve an unchanged shipped preset; retain user selections, IDs and custom roads.
+                var previous = legacy.Single(item => item.Name == preset.Name);
+                if (row.IsArchived || row.Description != previous.Description || row.ModelNamesJson != previous.ModelNamesJson
+                    || row.ModelRoutesJson != previous.ModelRoutesJson || row.MaxOutputTokens != previous.MaxOutputTokens
+                    || row.MaxContextTokens != previous.MaxContextTokens || row.MaxParallelModels != previous.MaxParallelModels
+                    || row.AllowParallelHardwareRoads != previous.AllowParallelHardwareRoads || row.IncludeMemory != previous.IncludeMemory
+                    || row.CreateProjectPerRun != previous.CreateProjectPerRun || row.GenerateArtifacts != previous.GenerateArtifacts
+                    || row.OllamaNumGpu != previous.OllamaNumGpu || row.IsUserApproved != previous.IsUserApproved)
+                    continue;
+
+                row.ModelRoutesJson = preset.ModelRoutesJson;
+                row.MaxOutputTokens = preset.MaxOutputTokens;
+                row.MaxContextTokens = preset.MaxContextTokens;
+                row.MaxParallelModels = preset.MaxParallelModels;
+                row.UpdatedAtUtc = DateTime.UtcNow;
+                logger.LogInformation("Updated unchanged built-in Council preset {PresetName} with bounded hardware roads.", row.Name);
+            }
     
     }
     catch (Exception __serviceMethodException)
@@ -43,7 +66,9 @@ public sealed partial class DatabaseInitializationService
 }
 
     /// <summary>Builds the authoritative maintained model presets for additive repairs and post-commit verification.</summary>
-    private CouncilModelPreset[] CreateDefaultCouncilModelPresets()
+    /// <param name="legacy">Reconstructs the previous shipped defaults for non-destructive seed evolution.</param>
+    /// <returns>The maintained preset templates.</returns>
+    private CouncilModelPreset[] CreateDefaultCouncilModelPresets(bool legacy = false)
     {
         try
         {
@@ -145,6 +170,23 @@ public sealed partial class DatabaseInitializationService
                     includeMemory: false,
                     createProjectPerRun: false)
             };
+            if (!legacy)
+            {
+                foreach (var preset in presets)
+                {
+                    var routes = JsonSerializer.Deserialize<OneWireCouncilModelRoute[]>(preset.ModelRoutesJson) ?? [];
+                    var contextCeiling = preset.Name is "Adaptive Mixed Hardware Council" or "Learning Round" ? 16384 : 32768;
+                    foreach (var route in routes)
+                    {
+                        route.MaxOutputTokens = Math.Min(route.MaxOutputTokens, 4096);
+                        route.MaxContextTokens = Math.Min(route.MaxContextTokens, contextCeiling);
+                    }
+                    preset.ModelRoutesJson = JsonSerializer.Serialize(routes);
+                    preset.MaxOutputTokens = routes.Max(route => route.MaxOutputTokens);
+                    preset.MaxContextTokens = routes.Max(route => route.MaxContextTokens);
+                    preset.MaxParallelModels = 1;
+                }
+            }
             return presets;
         }
         catch (Exception exception)

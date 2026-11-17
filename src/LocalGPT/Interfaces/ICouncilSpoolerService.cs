@@ -57,4 +57,8 @@ public interface ICouncilSpoolerService
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <returns>The council spooler snapshot produced by the operation.</returns>
     CouncilSpoolerSnapshot? GetSnapshot(Guid runId);
+    /// <summary>Returns the retained evidence for a chat and its delegated runs in start order.</summary>
+    /// <param name="chatRunId">Originating chat run identifier.</param>
+    /// <returns>Independent snapshots correlated to the chat.</returns>
+    IReadOnlyList<CouncilSpoolerSnapshot> GetChatSnapshots(Guid chatRunId);
 }

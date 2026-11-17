@@ -34,3 +34,7 @@ A task is complete only after implementation, compatibility review, validation, 
 ## Carry-forward rule
 
 Every unresolved item moves into the next current changelog, issue, or release-planning source. Historical pass manifests and superseded task lists remain available under `docs/internal-notes`, excluded from DocFX, so the public documentation stays focused without losing the trail that led here.
+
+## Context and model improvement continuation
+
+The repository-root `TASKS.md` carries the ordered 7.4.2 context-management, Nurse, model specialization, four-host scheduling, training and UML verification tasks. The source candidate is not a verified release; the pending owner-side gates and runtime acceptance tests remain mandatory.

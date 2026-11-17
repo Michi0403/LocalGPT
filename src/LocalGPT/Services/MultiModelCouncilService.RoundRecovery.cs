@@ -106,7 +106,8 @@ namespace LocalGPT.Services
                     .ToList();
 
                 // An explicit human "skip current round" is authoritative and must never be undone by automatic recovery.
-                if (primarySteps.Any(IsRoundSkippedStep))
+                if (primarySteps.Any(IsRoundSkippedStep) ||
+                    runConfigurations.GetRoundCancellationToken(result.RunId, round, phase).IsCancellationRequested)
                     return [];
 
                 var allMemberExecution = executionMode is "AllMembersParallel" or "AllMembersSequentialOnEachAIHostParallel" or "AllMembersSequential";
@@ -130,7 +131,9 @@ namespace LocalGPT.Services
                 if (failedSlots.Count == 0)
                     return [];
 
-                var recoverySteps = new List<MultiModelCouncilStep>();
+                var recoverySteps = result.Steps.Where(step => step.Round == round &&
+                    step.Phase.StartsWith($"{phase} · automatic member recovery startup takeover ", StringComparison.Ordinal) &&
+                    !string.IsNullOrWhiteSpace(step.RecoveryTargetModelName)).ToList();
                 var recoveryPool = BuildConfiguredRoundRecoveryPool(definition, executionMode, participants, roleAssignment, roleAssignments);
                 var maximumAttempts = Math.Clamp(
                     definition.MemberFailureRecoveryAttempts,
@@ -149,33 +152,42 @@ namespace LocalGPT.Services
                     var failedModel = failedSlots[slotIndex];
                     var failedStep = primarySteps.LastOrDefault(step =>
                         string.Equals(step.ModelName, failedModel, StringComparison.OrdinalIgnoreCase));
-                    // A deterministic context rejection cannot improve through the same
-                    // model with identical prompt/tools and context. Keep the original
-                    // failed step visible, but allow a different role-pool model to try.
-                    var contextOverflow = failedStep?.Error?.Contains("needs about", StringComparison.OrdinalIgnoreCase) == true &&
-                        failedStep.Error.Contains("context tokens", StringComparison.OrdinalIgnoreCase);
-                    if (contextOverflow && (sameMemberOnly ||
-                        recoveryPool.Pool.All(candidate => string.Equals(candidate, failedModel, StringComparison.OrdinalIgnoreCase))))
+                    // A context-management failure requires changed work packets, not another
+                    // inference attempt with the same payload or a negative model-health decision.
+                    if (failedStep?.IsContextBudgetFailure == true)
                     {
-                        result.Warnings.Add($"Council step '{definition.DisplayName}' cannot retry {failedModel}: its request exceeds the reported context limit. The original failure and durable transcript are preserved; shorten historical context or select a model with sufficient capacity.");
+                        result.Warnings.Add($"Council step '{definition.DisplayName}' requires context recovery for {failedModel}; model substitution with the same payload was skipped. The durable transcript is preserved.");
+                        continue;
+                    }
+                    var previousTakeover = recoverySteps.FirstOrDefault(step =>
+                        string.Equals(step.RecoveryTargetModelName, failedModel, StringComparison.OrdinalIgnoreCase));
+                    if (previousTakeover is not null && !previousTakeover.IsProviderStartupTimeout)
+                    {
+                        // A completed handoff covered the slot, or it may have run tools. Never repeat it blindly.
+                        if (!IsUsableConfiguredRoundStep(previousTakeover))
+                            result.Warnings.Add(runtimePolicy.GetString("CouncilProviderStartupTakeoverUnresolvedNotice").Replace("{Model}", failedModel, StringComparison.Ordinal));
                         continue;
                     }
                     var failureKind = failedStep is null
                         ? GoalMemberFailureKind.NoStep
-                        : failedStep.HostUnreachable
-                            ? GoalMemberFailureKind.HostUnreachable
-                            : failedStep.RepetitionWatchdogStopped
-                                ? GoalMemberFailureKind.RepetitionWatchdog
-                                : string.IsNullOrWhiteSpace(failedStep.Error) || string.IsNullOrWhiteSpace(failedStep.VisibleContent)
-                                    ? GoalMemberFailureKind.EmptyAnswer
-                                    : GoalMemberFailureKind.ProviderFailure;
+                        : failedStep.IsProviderStartupTimeout
+                            ? GoalMemberFailureKind.ProviderStartupTimeout
+                            : failedStep.HostUnreachable
+                                ? GoalMemberFailureKind.HostUnreachable
+                                : failedStep.RepetitionWatchdogStopped
+                                    ? GoalMemberFailureKind.RepetitionWatchdog
+                                    : string.IsNullOrWhiteSpace(failedStep.Error) || string.IsNullOrWhiteSpace(failedStep.VisibleContent)
+                                        ? GoalMemberFailureKind.EmptyAnswer
+                                        : GoalMemberFailureKind.ProviderFailure;
                     var attemptedModels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (previousTakeover is not null)
+                        attemptedModels.Add(previousTakeover.ModelName);
                     // RunParticipantAsync already exhausted its same-member safe fallback, except after a repetition-watchdog stop:
                     // that path never retries, so the configured "same member, then role pool" order starts with the same member.
                     // A member whose AI host is unavailable in this run is not retried on that host.
                     if ((definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool
                          && failureKind != GoalMemberFailureKind.RepetitionWatchdog)
-                        || failureKind == GoalMemberFailureKind.HostUnreachable)
+                        || failureKind is GoalMemberFailureKind.HostUnreachable or GoalMemberFailureKind.ProviderStartupTimeout)
                         attemptedModels.Add(failedModel);
                     var hostKeys = participants
                         .Append(failedModel)
@@ -211,7 +223,7 @@ namespace LocalGPT.Services
                     var previousAttemptEmpty = failureKind == GoalMemberFailureKind.EmptyAnswer;
                     var identicalRetries = 0;
 
-                    for (var attemptIndex = 0; attemptIndex < maximumAttempts; attemptIndex++)
+                    for (var attemptIndex = previousTakeover is null ? 0 : 1; attemptIndex < maximumAttempts; attemptIndex++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var decision = await goalRecovery.DecideMemberRecoveryAsync(new GoalMemberRecoveryContext
@@ -295,7 +307,9 @@ namespace LocalGPT.Services
                             modelTimeoutSeconds,
                             allowDxFunctions,
                             automaticFunctionPolicy,
-                            cancellationToken).ConfigureAwait(false);
+                            cancellationToken,
+                            allowParticipantRecovery: failureKind != GoalMemberFailureKind.ProviderStartupTimeout,
+                            recoveryTargetModelName: failedModel).ConfigureAwait(false);
 
                         var recoveryStep = result.Steps.LastOrDefault(step =>
                             step.Round == round &&
@@ -327,6 +341,13 @@ namespace LocalGPT.Services
                             IsUsableConfiguredRoundStep(recoveryStep) ? "recovered the slot" : "did not produce a usable answer");
                         previousAttemptModel = recoveryModel;
                         previousAttemptEmpty = string.IsNullOrWhiteSpace(recoveryStep.Error) && string.IsNullOrWhiteSpace(recoveryStep.VisibleContent);
+                        if (failureKind == GoalMemberFailureKind.ProviderStartupTimeout &&
+                            !recoveryStep.IsProviderStartupTimeout && !IsUsableConfiguredRoundStep(recoveryStep))
+                        {
+                            result.Warnings.Add(runtimePolicy.GetString("CouncilProviderStartupTakeoverUnresolvedNotice").Replace("{Model}", failedModel, StringComparison.Ordinal));
+                            leftEmptyByDecision = true;
+                            break;
+                        }
                         if (IsUsableConfiguredRoundStep(recoveryStep))
                         {
                             recovered = true;

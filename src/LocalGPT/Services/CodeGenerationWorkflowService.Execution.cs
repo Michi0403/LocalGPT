@@ -90,7 +90,7 @@ namespace LocalGPT.Services
             result.WorkspacePath = workspaceRoot;
 
             string clonedSolutionPath = string.Empty;
-            if (entity.ProjectId is Guid projectId)
+            if (payload.DraftManifest is null && entity.ProjectId is Guid projectId)
                 clonedSolutionPath = await CopyTrackedProjectIntoWorkspaceAsync(workspaceRoot, projectId, entity.ProjectRevisionId, result, cancellationToken).ConfigureAwait(false);
 
             await WriteReviewDocumentAsync(workspaceRoot, entity, payload, cancellationToken).ConfigureAwait(false);
@@ -142,8 +142,19 @@ namespace LocalGPT.Services
             }
 
             var buildTargets = new List<string>();
-            foreach (var output in payload.Outputs)
-                await ScaffoldOutputAsync(workspaceRoot, output, reviewedSources, result.WrittenFiles, buildTargets, cancellationToken).ConfigureAwait(false);
+            if (payload.DraftManifest is null)
+            {
+                foreach (var output in payload.Outputs)
+                    await ScaffoldOutputAsync(workspaceRoot, output, reviewedSources, result.WrittenFiles, buildTargets, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                // Every authored source path is already explicit. Scaffolding would introduce unreviewed duplicate project files.
+                var solutions = reviewedSources.Where(source => Path.GetExtension(source.RelativePath) is ".sln" or ".slnx").ToList();
+                buildTargets.AddRange((solutions.Count > 0 ? solutions : reviewedSources.Where(source =>
+                    Path.GetExtension(source.RelativePath).Equals(".csproj", StringComparison.OrdinalIgnoreCase)).ToList())
+                    .Select(source => ResolveInsideRoot(workspaceRoot, source.RelativePath)));
+            }
 
             var registeredSolutionPath = string.Empty;
             if (entity.ProjectId is Guid registeredProjectId && entity.ProjectRevisionId is Guid baseRevisionId)

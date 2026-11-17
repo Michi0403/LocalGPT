@@ -51,6 +51,10 @@ namespace LocalGPT.Services
         /// Stores the code generation workflow service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly ICodeGenerationWorkflowService codeGenerationWorkflow;
+        /// <summary>Registered function gateway for exact, application-owned draft submission and artifact verification operations.</summary>
+        private readonly IDxAiFunctionRegistry fileWorkFunctions;
+        /// <summary>Session-owned isolated execution receipts for approved source-generating scripts.</summary>
+        private readonly ISessionSandboxExecutionService fileWorkSandboxes;
         /// <summary>
         /// Stores the council code generation plan service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
@@ -172,6 +176,8 @@ namespace LocalGPT.Services
         /// <param name="projectService">Injected dependency used by the service.</param>
         /// <param name="projectArchitecture">Injected dependency used by the service.</param>
         /// <param name="codeGenerationWorkflow">Injected dependency used by the service.</param>
+        /// <param name="fileWorkFunctions">Registered function gateway preserving normal authorization and approval.</param>
+        /// <param name="fileWorkSandboxes">Session-owned isolated source-generation execution service.</param>
         /// <param name="codeGenerationPlanService">Injected dependency used by the service.</param>
         /// <param name="humanCollaboration">Injected dependency used by the service.</param>
         /// <param name="aiHelpEscalator">Shared bounded diagnostic escalation after Council retries are exhausted.</param>
@@ -212,6 +218,8 @@ namespace LocalGPT.Services
             ILocalGptProjectService projectService,
             IProjectArchitectureService projectArchitecture,
             ICodeGenerationWorkflowService codeGenerationWorkflow,
+            IDxAiFunctionRegistry fileWorkFunctions,
+            ISessionSandboxExecutionService fileWorkSandboxes,
             ICouncilCodeGenerationPlanService codeGenerationPlanService,
             IHumanCollaborationService humanCollaboration,
             IAiHelpEscalatorService aiHelpEscalator,
@@ -252,6 +260,8 @@ namespace LocalGPT.Services
             this.projectService = projectService;
             this.projectArchitecture = projectArchitecture;
             this.codeGenerationWorkflow = codeGenerationWorkflow;
+            this.fileWorkFunctions = fileWorkFunctions;
+            this.fileWorkSandboxes = fileWorkSandboxes;
             this.codeGenerationPlanService = codeGenerationPlanService;
             this.humanCollaboration = humanCollaboration;
             this.aiHelpEscalator = aiHelpEscalator;

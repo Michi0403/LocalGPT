@@ -1,3 +1,4 @@
+using System.Text.Json;
 using LocalGPT.BusinessObjects;
 using Microsoft.EntityFrameworkCore;
 
@@ -50,5 +51,32 @@ public sealed partial class DeferredDxAiInvocationService
                 logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(GetForRunAsync)} failed.");
             throw;
         }
+    }
+    /// <inheritdoc />
+    public async Task<string> GetCodeGenerationBuildEvidenceAsync(Guid councilRunId, Guid reviewId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var candidates = await db.DeferredDxAiInvocations.AsNoTracking()
+                .Where(item => item.CouncilRunId == councilRunId && item.FunctionName == "codegen.review.execute")
+                .OrderByDescending(item => item.UpdatedAtUtc).Select(item => item.ResultSummary)
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var candidate in candidates)
+            {
+                try
+                {
+                    using var json = JsonDocument.Parse(candidate);
+                    if (json.RootElement.TryGetProperty("Value", out var value) && value.ValueKind == JsonValueKind.Object &&
+                        value.TryGetProperty("ReviewId", out var id) && id.TryGetGuid(out var actual) && actual == reviewId &&
+                        value.TryGetProperty("Status", out var status) && status.GetString() == CodeGenerationReviewStatuses.BuildFailed &&
+                        value.TryGetProperty("BuildDiagnostics", out var diagnostic) && diagnostic.ValueKind == JsonValueKind.String)
+                        return diagnostic.GetString() ?? string.Empty;
+                }
+                catch (JsonException exception) { logger.LogDebug(exception, "A deferred code-generation result is not a complete JSON receipt."); }
+            }
+            return string.Empty;
+        }
+        catch (Exception exception) { logger.LogError(exception, "Reading exact compiler evidence for Council {CouncilRunId} failed.", councilRunId); throw; }
     }
 }

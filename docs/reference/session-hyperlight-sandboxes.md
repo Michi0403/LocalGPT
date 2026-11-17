@@ -50,3 +50,7 @@ This verifies the bundled CLI and CPIO hashes and executes distinct Python, C# a
 The backend owns sandbox runs by Chat/Council session ID, not by a Blazor component. A navigation/disconnect only stops observing. Only the explicit Stop command or timeout terminates guest execution. No guest network access, host project mounts, or host functions are supplied. Only the explicitly confirmed snippet enters the guest; sandbox execution receipts include source SHA-256, status, bounded stdout/stderr and exit code. Artifact hashes are validated again before runtime start.
 
 The guest images are large and are **not stored in source control**. The pinned release binaries and rootfs images are fetched during build and are bundled into the runtime payload, not attached to the source archive. Third-party licenses and provenance should be reviewed before distributing a bundled release. Runtime inference and language-provider extensions can be integrated later without changing Council lifetime semantics.
+
+## Client-owned WASM compilation
+
+The separate [browser WASIX compiler](browser-wasix-compiler.md) is available from the Chat sandbox panel. It is not a Hyperlight runtime image and cannot create server-side execution receipts. It complements the existing backend guest lifecycle without changing its permissions or fallback policy.

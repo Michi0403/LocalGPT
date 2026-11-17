@@ -1,0 +1,209 @@
+--- a/src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs
++++ b/src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs
+@@ -405,8 +405,31 @@
+ 
+                         if (xJumpedFromLoop)
+                             break;
+ 
++                        // A generic loop marker comes from untrusted model prose. When an
++                        // existing workflow loop has codegen.review.create available, consult
++                        // the injected code-generation service instead of trusting that marker
++                        // to mean every source file has actually been persisted. Other loops
++                        // and existing-repository flows without a draft retain their behavior.
++                        if (loopSteps.Any(item => item.AllowedAutomaticFunctions.Contains(
++                                "codegen.review.create", StringComparer.OrdinalIgnoreCase)))
++                        {
++                            var draft = await codeGenerationWorkflow.GetCouncilDraftReadinessAsync(
++                                result.RunId, cancellationToken).ConfigureAwait(false);
++                            if (draft.Exists)
++                            {
++                                if (completionReportedThisIteration && !draft.ReadyToSubmit)
++                                    request.ProgressMessage?.Invoke(
++                                        $"Council source draft is incomplete ({draft.CompletedFiles}/{draft.PlannedFiles} files persisted). " +
++                                        "Ignoring an unverified completion marker and continuing the existing workflow.");
++                                else if (!completionReportedThisIteration && draft.ReadyToSubmit)
++                                    request.ProgressMessage?.Invoke(
++                                        "Council source draft completion verified from persisted file receipts; continuing to review submission.");
++                                completionReportedThisIteration = draft.ReadyToSubmit;
++                            }
++                        }
++
+                         if (!string.IsNullOrWhiteSpace(completionMarker) && completionReportedThisIteration)
+                         {
+                             completed = true;
+                             request.ProgressMessage?.Invoke(
+--- a/src/LocalGPT/Interfaces/ICodeGenerationWorkflowService.cs
++++ b/src/LocalGPT/Interfaces/ICodeGenerationWorkflowService.cs
+@@ -12,8 +12,15 @@
+     /// <param name="cancellationToken">Cancels the operation.</param>
+     /// <returns>Compact progress or a finalized review.</returns>
+     Task<(object Progress, CodeGenerationReviewSnapshot? Review)> ProcessDraftAsync(
+         CreateCodeGenerationReviewRequest request, CancellationToken cancellationToken);
++
++    /// <summary>Reads source-draft progress from the existing Council run without writing or approving anything.</summary>
++    /// <param name="councilRunId">The original Council run that owns the draft.</param>
++    /// <param name="cancellationToken">Cancels the database read.</param>
++    /// <returns>Whether a draft exists, whether all files are complete, and the persisted file counts.</returns>
++    Task<(bool Exists, bool ReadyToSubmit, int CompletedFiles, int PlannedFiles)>
++        GetCouncilDraftReadinessAsync(Guid councilRunId, CancellationToken cancellationToken = default);
+ 
+     /// <summary>
+     /// Creates review as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+     /// </summary>
+--- a/src/LocalGPT/LocalGPT.csproj
++++ b/src/LocalGPT/LocalGPT.csproj
+@@ -1,7 +1,7 @@
+ <Project Sdk="Microsoft.NET.Sdk.Web">
+   <PropertyGroup>
+-    <Version>7.4.1</Version>
++    <Version>7.4.2</Version>
+     <Product>LocalGPT</Product>
+     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
+ 	  <TargetFramework>net10.0</TargetFramework>
+     <Nullable>enable</Nullable>
+--- a/docs/docfx.json
++++ b/docs/docfx.json
+@@ -46,9 +46,9 @@
+     ],
+     "globalMetadata": {
+       "_appName": "LocalGPT Documentation",
+       "_appTitle": "LocalGPT Documentation",
+-      "_appFooter": "LocalGPT 7.4.1 Â· generated documentation",
+-      "localgptVersion": "7.4.1"
++      "_appFooter": "LocalGPT 7.4.2 Â· generated documentation",
++      "localgptVersion": "7.4.2"
+     }
+   }
+ }
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -1,7 +1,7 @@
+ # LocalGPT documentation
+ 
+-**Version 7.4.1**
++**Version 7.4.2**
+ 
+ LocalGPT is a local-first AI workbench for direct chat, configurable AI Councils, project maintenance, persistent knowledge, provider-qualified model routing, embedded planning, game runtimes, and guarded local execution.
+ 
+ Its broader **Future2** mission is user-owned, human-authoritative AI/software infrastructure: local operation first, optional external providers, and an architecture intended to scale from one workstation through approved devices and robots to independently operated AI centers.
+@@ -57,5 +57,5 @@
+ The conceptual pages are built together with compiler-generated XML documentation for public types and members. The same themed HTML site is shipped inside LocalGPT and published to GitHub Pages.
+ 
+ The packaged PDF is rendered from the same reviewed Kawaii HTML tree as the website. It contains every maintained guide, architecture, engineering, and reference chapter together with every generated API page; a tiny source-only or fallback PDF is rejected by the release and Pages gates.
+ 
+-[🐾 Download the Kawaii handbook](LocalGPT-7.4.1.pdf)
++[🐾 Download the Kawaii handbook](LocalGPT-7.4.2.pdf)
+--- a/docs/pdf-cover.html
++++ b/docs/pdf-cover.html
+@@ -2,9 +2,9 @@
+ <html class="localgpt-kawaii-docs" lang="en">
+ <head>
+   <meta charset="utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1" />
+-  <title>LocalGPT 7.4.1 Documentation</title>
++  <title>LocalGPT 7.4.2 Documentation</title>
+   <style>
+     html, body { height: 100%; margin: 0; }
+     body { display: grid; place-items: center; font-family: "Segoe UI", system-ui, sans-serif; background: #f5f5f5; color: #171717; }
+     main { width: min(900px, 82vw); border-top: 12px solid #0078d4; padding-top: 48px; }
+@@ -52,9 +52,9 @@
+ <body>
+   <main>
+     <h1>LocalGPT Documentation</h1>
+     <p>Complete product, architecture, engineering, and XML-generated API reference.</p>
+-    <p class="version">Version 7.4.1</p>
++    <p class="version">Version 7.4.2</p>
+   </main>
+ <script type="module" src="styles/localgpt-kawaii.js?v=14de60697876" data-localgpt-kawaii-script="true"></script>
+ </body>
+ </html>
+--- a/docs/pdf/toc.yml
++++ b/docs/pdf/toc.yml
+@@ -1,7 +1,7 @@
+ order: 200
+ pdf: true
+-pdfFileName: LocalGPT-7.4.1.pdf
++pdfFileName: LocalGPT-7.4.2.pdf
+ pdfTocPage: true
+ pdfCoverPage: pdf-cover.html
+ pdfPrintBackground: true
+ items:
+--- /dev/null
++++ b/src/LocalGPT/Services/CodeGenerationWorkflowService.DraftReadiness.cs
+@@ -0,0 +1,76 @@
++using System.Text.Json;
++using LocalGPT.BusinessObjects;
++using Microsoft.EntityFrameworkCore;
++
++namespace LocalGPT.Services;
++
++/// <summary>
++/// Read-only, persisted progress checks for Council source-draft loops. This extends the
++/// existing code-generation workflow service; it does not create another orchestrator.
++/// </summary>
++public sealed partial class CodeGenerationWorkflowService
++{
++    /// <inheritdoc />
++    public async Task<(bool Exists, bool ReadyToSubmit, int CompletedFiles, int PlannedFiles)>
++        GetCouncilDraftReadinessAsync(Guid councilRunId, CancellationToken cancellationToken = default)
++    {
++        try
++        {
++            if (councilRunId == Guid.Empty)
++                return (false, false, 0, 0);
++
++            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
++            await using var database = db.ConfigureAwait(false);
++            var row = await db.CodeGenerationChangeReviews.AsNoTracking()
++                .SingleOrDefaultAsync(item => item.Id == councilRunId && item.CouncilRunId == councilRunId,
++                    cancellationToken).ConfigureAwait(false);
++            if (row is null)
++                return (false, false, 0, 0);
++
++            // A successfully submitted draft has already passed CreateReviewCoreAsync's
++            // completeness and validation checks. Never re-open or duplicate its approval.
++            if (string.Equals(row.Status, CodeGenerationReviewStatuses.AwaitingUserDecision,
++                    StringComparison.Ordinal))
++                return (true, true, 0, 0);
++
++            if (!string.Equals(row.Status, DraftStatus, StringComparison.Ordinal))
++                return (true, false, 0, 0);
++
++            var plan = JsonSerializer.Deserialize<CreateCodeGenerationReviewRequest>(
++                row.PayloadJson, JsonOptions);
++            var manifest = plan?.DraftManifest;
++            var files = plan?.Files;
++            if (manifest is not { Count: > 0 } || files is null)
++                return (true, false, files?.Count ?? 0, manifest?.Count ?? 0);
++
++            var accepted = 0;
++            foreach (var expected in manifest)
++            {
++                if (accepted >= files.Count)
++                    break;
++                var file = files[accepted];
++                if (file is null || file.Content is null ||
++                    !string.Equals(file.RelativePath, expected.Key, StringComparison.OrdinalIgnoreCase))
++                    return (true, false, accepted, manifest.Count);
++                accepted++;
++            }
++
++            // A model's SOURCE_DRAFT_READY prose is never proof of file completion.
++            // Only the durable, ordered manifest and complete source payload may end the loop.
++            var ready = accepted == manifest.Count && files.Count == manifest.Count;
++            return (true, ready, accepted, manifest.Count);
++        }
++        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
++        {
++            throw;
++        }
++        catch (Exception error)
++        {
++            // An unavailable database must never turn model prose into proof of completion.
++            logger.LogWarning(error,
++                "Could not verify persisted Council source draft for run {CouncilRunId}; loop completion remains unverified.",
++                councilRunId);
++            return (true, false, 0, 0);
++        }
++    }
++}

@@ -1,3 +1,5 @@
+using LocalGPT.BusinessObjects;
+
 namespace LocalGPT.Interfaces;
 
 /// <summary>
@@ -15,6 +17,20 @@ public interface ICouncilHardwareRoadConfigurationService
     IReadOnlyList<OneWireCouncilModelRoute> Synchronize(
         IEnumerable<string> modelNames,
         IEnumerable<OneWireCouncilModelRoute>? existingRoutes);
+
+    /// <summary>Copies one road and its mutable capability lists independently of the original.</summary>
+    /// <param name="route">The original road.</param>
+    /// <returns>An independent road copy.</returns>
+    OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route);
+
+    /// <summary>Expands generic preset roads over available Ollama providers while retaining explicit provider bindings and per-road limits.</summary>
+    /// <param name="modelNames">Preset model selections.</param>
+    /// <param name="existingRoutes">Saved road templates.</param>
+    /// <param name="candidates">Current provider inventory.</param>
+    /// <returns>Provider-qualified road copies for the editable selection.</returns>
+    IReadOnlyList<OneWireCouncilModelRoute> ResolvePresetRoutes(
+        IEnumerable<string> modelNames, IEnumerable<OneWireCouncilModelRoute> existingRoutes,
+        IReadOnlyList<MultiModelCouncilModelCandidate> candidates);
 
     /// <summary>
     /// Performs normalize as part of the council hardware road configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.

@@ -80,6 +80,25 @@ namespace LocalGPT
                     await next(context).ConfigureAwait(false);
                 });
                 MapMcpGateway(app, logger);
+                // WASIX requires a cross-origin-isolated document. Keep these headers local to
+                // the independent browser workbench; do not change Chat, DevExpress, or MCP.
+                app.Use(async (context, next) =>
+                {
+                    if (context.Request.Path.StartsWithSegments("/browser-compiler"))
+                    {
+                        var headers = context.Response.Headers;
+                        headers["Cross-Origin-Opener-Policy"] = "same-origin";
+                        headers["Cross-Origin-Embedder-Policy"] = "require-corp";
+                        headers["Cross-Origin-Resource-Policy"] = "same-origin";
+                        headers["Referrer-Policy"] = "no-referrer";
+                        headers["X-Content-Type-Options"] = "nosniff";
+                        var assetScope = Microsoft.AspNetCore.Http.Extensions.UriHelper.BuildAbsolute(
+                            context.Request.Scheme, context.Request.Host, context.Request.PathBase, "/browser-compiler/");
+                        headers["Content-Security-Policy"] = $"default-src 'none'; script-src {assetScope} 'wasm-unsafe-eval' blob:; worker-src {assetScope} blob:; connect-src {assetScope} blob:; style-src {assetScope}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+                        headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), usb=(), serial=(), hid=(), payment=()";
+                    }
+                    await next(context).ConfigureAwait(false);
+                });
                 app.UseStaticFiles();
                 app.UseRouting();
                 if (!app.Environment.IsDevelopment())

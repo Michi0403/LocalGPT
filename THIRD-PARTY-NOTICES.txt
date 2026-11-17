@@ -528,3 +528,6 @@ compliance solely from the presence of this consolidated file.
 The upstream copyright banners remain in their original shipped asset files.
 For DevExpress, the developer/runtime redistribution rights must be assessed
 against the applicable commercial agreement; no license key is bundled here.
+
+## Optional browser WASIX compiler toolchain
+LocalGPT's client compiler adapter is adapted from the supplied MeowReal project. The optional administrator-provisioned @wasmer/sdk (0.8.0) and clang/clang (0.160000.1) package are not included in this source archive. Preserve the licenses, notices and provenance of the exact reviewed SDK and compiler distribution when provisioning or redistributing the binaries.

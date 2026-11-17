@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LocalGPT · Browser WASIX compiler</title>
+<link rel="stylesheet" href="./workbench.css">
+</head>
+<body>
+<main>
+<h1>Browser WASIX compiler</h1>
+<p>Client-owned C/C++ compilation and WebAssembly execution. Source, compilation and program output remain in this browser. This workbench does not invoke Hyperlight, host compilers or server-side runtime plugins.</p>
+<p>The reviewed local Wasmer/Clang bundle must be provisioned before use. No CDN or registry downloads are performed by this page. HTTPS or localhost and browser cross-origin isolation are required.</p>
+<p id="status" role="status">Checking browser and installed toolchain…</p>
+<label for="language">Language</label><select id="language" disabled></select>
+<label for="standard">Language standard</label><select id="standard" disabled></select>
+<label for="sourceFile">Load one local source file (optional)</label><input id="sourceFile" type="file" accept=".c,.cc,.cpp,.cxx,.txt" disabled>
+<label for="source">Source code (not uploaded)</label>
+<textarea id="source" rows="12" spellcheck="false" disabled></textarea>
+<div class="actions"><button id="compile" disabled>Compile to WASM</button><button id="run" disabled>Execute compiled module</button><button id="stop" disabled>Stop browser worker</button></div>
+<label for="moduleFile">Or load an existing WASM module for explicit execution</label><input id="moduleFile" type="file" accept=".wasm" disabled>
+<div class="actions"><a id="moduleDownload" hidden download="workshop.wasm">Download WASM</a><a id="receiptDownload" hidden download="browser-execution-receipt.json">Download local receipt</a></div>
+<div class="actions"><button id="guestExport" disabled>Prepare Hyperlight WASI guest snippet</button><a id="guestDownload" hidden download="hyperlight-wasi.js">Download guest snippet</a></div>
+<p>Optional transfer: only small standalone WASI Preview 1 modules can be wrapped. Inspect the exported JavaScript, then explicitly submit it to the existing Hyperlight Node.js sandbox. This page does not run or approve that guest and does not register a plugin.</p>
+<h2>Compiler diagnostics / program output</h2><pre id="output" aria-live="polite"></pre>
+<p>Closing this page stops observation and browser-owned work. Receipts are client-reported evidence, not trusted server build verification. Downloaded modules are not automatically installed as executable LocalGPT plugins.</p>
+</main>
+<script type="module" src="./workbench.mjs"></script>
+</body>
+</html>

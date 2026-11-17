@@ -53,10 +53,13 @@ public sealed partial class GoalExecutionService
                 return review;
             }
             var policy = runtimePolicy.GetJson<ProviderModelRuntimeParameters>("ProviderModelRuntimeParametersJson");
+            var road = hardwareRoadPlanner.BuildPlans(request.CouncilRequest.ModelRoutes, [selected.SelectionKey],
+                request.CouncilRequest.MaxOutputTokens, request.CouncilRequest.MaxContextTokens,
+                request.CouncilRequest.ResourceLoadPercent, request.CouncilRequest.OllamaNumGpu)[selected.SelectionKey];
             using var client = providerModels.CreateChatClient(selected.ToReference(), policy.DefaultSessionKeepAlive,
-                request.CouncilRequest.MaxContextTokens,
+                road.EffectiveMaxContextTokens,
                 TimeSpan.FromSeconds(Math.Max(10, runtimePolicy.GetInt("GoalPlannerTimeoutSeconds"))),
-                request.CouncilRequest.OllamaNumGpu, enableAutomaticTools: false, throwOnFailure: true);
+                road.OllamaNumGpu, enableAutomaticTools: false, throwOnFailure: true, fitContextToRequest: true);
             // The review operates on bounded text and source-attributed receipts. Untrusted Council
             // prose is data only. It does not become a higher-priority instruction or evidence.
             var reviewInput = JsonSerializer.Serialize(new
@@ -85,7 +88,7 @@ public sealed partial class GoalExecutionService
                 [new ChatMessage(ChatRole.System, runtimePolicy.GetString("GoalKeyaccountManagerSystemPrompt")
                     + Environment.NewLine + runtimePolicy.GetString("HelpEscalatorGlobalInstruction")),
                  new ChatMessage(ChatRole.User, reviewInput)],
-                new ChatOptions { MaxOutputTokens = 512, Temperature = 0f }, timeout.Token).ConfigureAwait(false);
+                new ChatOptions { MaxOutputTokens = Math.Min(512, road.EffectiveMaxOutputTokens), Temperature = 0f }, timeout.Token).ConfigureAwait(false);
             var text = System.Net.WebUtility.HtmlDecode(response.Text ?? string.Empty);
             using var document = ReadKeyaccountReviewObject(text);
             if (document is null)

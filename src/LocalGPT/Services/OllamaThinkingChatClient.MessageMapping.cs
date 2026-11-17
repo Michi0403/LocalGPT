@@ -99,6 +99,7 @@ public sealed partial class OllamaThinkingChatClient
         Content = message.Content,
         Thinking = message.Thinking,
         ToolName = message.ToolName,
+        Images = message.Images?.ToList(),
         ToolCalls = message.ToolCalls?.Select(call => new OllamaToolCall
         {
             Function = new OllamaToolFunctionCall
@@ -120,32 +121,64 @@ public sealed partial class OllamaThinkingChatClient
 }
 
     /// <summary>
-    /// Performs to Ollama message for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
+    /// Maps a chat message and its structured function history into native Ollama messages without invoking any historical calls.
     /// </summary>
-    /// <param name="message">Message value supplied to the Ollama thinking chat operation and used when producing its result.</param>
-    /// <returns>The Ollama chat message produced by the operation.</returns>
-    private OllamaChatMessage ToOllamaMessage(ChatMessage message) {
-    try
+    /// <param name="message">The original chat message containing text or function content.</param>
+    /// <param name="toolNames">Request-local mapping from function call identifiers to their wire names for result correlation.</param>
+    /// <returns>Native messages in their original call/result order.</returns>
+    private IReadOnlyList<OllamaChatMessage> ToOllamaMessages(ChatMessage message, Dictionary<string, string> toolNames)
     {
-        return new()
-    {
-        Role = message.Role == ChatRole.System
-            ? "system"
-            : message.Role == ChatRole.Assistant
-                ? "assistant"
-                : "user",
-        Content = message.Text ?? string.Empty
-    };
+        try
+        {
+            var mapped = new List<OllamaChatMessage>();
+            var native = new OllamaChatMessage
+            {
+                Role = message.Role == ChatRole.System ? "system" :
+                    message.Role == ChatRole.Assistant ? "assistant" :
+                    message.Role == ChatRole.Tool ? "tool" : "user",
+                Content = message.Text ?? string.Empty
+            };
+            foreach (var call in message.Contents.OfType<FunctionCallContent>())
+            {
+                var name = ToOllamaToolName(call.Name);
+                toolNames[call.CallId] = name;
+                native.ToolCalls ??= [];
+                native.ToolCalls.Add(new OllamaToolCall
+                {
+                    Function = new OllamaToolFunctionCall
+                    {
+                        Name = name,
+                        Arguments = call.Arguments is null ? JsonSerializer.SerializeToElement(new { }) :
+                            NormalizeArguments(JsonSerializer.SerializeToElement(call.Arguments))
+                    }
+                });
+            }
+            if (native.Content.Length > 0 || native.ToolCalls is { Count: > 0 } ||
+                (message.Role == ChatRole.Tool && !message.Contents.OfType<FunctionResultContent>().Any()))
+                mapped.Add(native);
+            foreach (var result in message.Contents.OfType<FunctionResultContent>())
+            {
+                if (!toolNames.TryGetValue(result.CallId, out var name))
+                {
+                    // An isolated result cannot be associated with an invented tool name.
+                    // Retain the evidence as a tool message; Ollama supports unnamed results.
+                    logger.LogWarning("Ollama history for {Model} contains a function result without its original call.", model);
+                }
+                mapped.Add(new OllamaChatMessage
+                {
+                    Role = "tool",
+                    ToolName = name,
+                    Content = result.Result is string text ? text : JsonSerializer.Serialize(result.Result, jsonOptions)
+                });
+            }
+            return mapped;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not map chat history for Ollama model {Model}.", model);
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToOllamaMessage)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToOllamaMessage)} failed.");
-        throw;
-    }
-}
 
     /// <summary>
     /// Adds system prompt for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.

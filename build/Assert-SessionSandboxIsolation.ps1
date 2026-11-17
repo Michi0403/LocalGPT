@@ -76,7 +76,34 @@ $providerSource = [System.IO.File]::ReadAllText((Join-Path $root $provider))
 foreach ($unsafe in @('start.ArgumentList.Add("--net")', 'start.ArgumentList.Add("--mount")', 'start.ArgumentList.Add("--port")', 'UseShellExecute = true')) {
     if ($providerSource.Contains($unsafe)) { throw "Sandbox isolation regression: $unsafe" }
 }
-Write-Host 'Session sandbox PowerShell source contract passed: backend lifetime, host-deny isolation, cancellation, evidence, CodeDOM staging and session UI.'
+# Client-side compilation is a distinct execution location, never an alias for Hyperlight.
+$browser = 'src/LocalGPT/wwwroot/browser-compiler/'
+Assert-SourceContains 'src/LocalGPT/Program.Middleware.cs' 'StartsWithSegments\("/browser-compiler"\)' 'cross-origin isolation only for the browser workbench'
+Assert-SourceContains 'src/LocalGPT/Program.Middleware.cs' 'Cross-Origin-Opener-Policy' 'browser worker COOP'
+Assert-SourceContains 'src/LocalGPT/Program.Middleware.cs' 'Cross-Origin-Embedder-Policy' 'browser worker COEP'
+Assert-SourceContains 'src/LocalGPT/Program.Middleware.cs' 'connect-src \{assetScope\} blob:' 'browser compiler network policy limited to workbench assets'
+Assert-SourceContains $ui 'browser-compiler/index.html' 'distinct browser workbench link'
+Assert-SourceContains ($browser + 'compiler-worker.mjs') 'crossOriginIsolated' 'fail closed without browser isolation'
+Assert-SourceContains ($browser + 'compiler-worker.mjs') 'Wasmer\.fromFile\(compilerBytes\)' 'local compiler package, not host interpreter'
+Assert-SourceContains ($browser + 'compiler-worker.mjs') 'WebAssembly\.validate' 'validate compiled and imported modules'
+Assert-SourceContains ($browser + 'compiler-worker.mjs') 'verifiedByServer: false' 'client receipt is not trusted server verification'
+Assert-SourceContains ($browser + 'compiler-worker.mjs') 'compilerSha256\.toLowerCase' 'validate installed compiler hash before loading'
+Assert-SourceContains ($browser + 'workbench.mjs') 'activeWorker\.terminate\(\)' 'browser worker cancellation'
+Assert-SourceContains ($browser + 'guest-export.mjs') 'wasi_snapshot_preview1' 'WASI Preview 1 guest transfer only'
+Assert-SourceContains ($browser + 'guest-export.mjs') 'preopens: \{\}' 'guest wrapper does not mount directories'
+Assert-SourceContains ($browser + 'guest-export.mjs') 'maximumSourceCharacters' 'guest source size checked before export'
+Assert-SourceContains 'build/Provision-BrowserCompilerToolchain.ps1' 'ExpectedClangSha256' 'administrator-reviewed offline toolchain identity'
+$browserDescriptor = Get-Content -LiteralPath (Join-Path $root ($browser + 'runtime.json')) -Raw | ConvertFrom-Json
+$backendSource = [IO.File]::ReadAllText((Join-Path $root $backend))
+$sourceLimit = [regex]::Match($backendSource, 'MaximumSourceCharacters\s*=\s*([0-9_]+)\s*;')
+if (-not $sourceLimit.Success -or [int]($sourceLimit.Groups[1].Value.Replace('_', '')) -ne [int]$browserDescriptor.maximumHyperlightSnippetCharacters) {
+    throw 'Browser WASI guest export limit must match the existing backend submission limit.'
+}
+$workerSource = [IO.File]::ReadAllText((Join-Path $root ($browser + 'compiler-worker.mjs')))
+if ($workerSource -match 'Wasmer\.fromRegistry\s*\(|https?://|wispUrl\s*:') {
+    throw 'Browser compiler must not resolve runtime registry/CDN packages or supply a guest network bridge.'
+}
+Write-Host 'Session sandbox PowerShell source contract passed: backend isolation and separately identified browser-owned compilation.'
 
 if (-not $RunGuestSmoke) { return }
 

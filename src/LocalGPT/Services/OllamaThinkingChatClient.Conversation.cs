@@ -27,9 +27,12 @@ public sealed partial class OllamaThinkingChatClient
     {
     try
     {
+            var toolNames = new Dictionary<string, string>(StringComparer.Ordinal);
             var mappedMessages = messages
-                .Select(ToOllamaMessage)
-                .Where(message => !string.IsNullOrWhiteSpace(message.Content))
+                .SelectMany(message => ToOllamaMessages(message, toolNames))
+                .Where(message => !string.IsNullOrWhiteSpace(message.Content) ||
+                    message.ToolCalls is { Count: > 0 } || message.Images is { Count: > 0 } ||
+                    message.Role == "tool")
                 .ToList();
 
             if (protocolResolver.Resolve(providerOptions) == ChatResponseProtocol.Harmony)
@@ -85,56 +88,43 @@ public sealed partial class OllamaThinkingChatClient
                 model,
                 logger,
                 modelMaximumContext);
-            // Preserve the latest user request and every system instruction, and keep
-            // the complete original chat in database storage. Older turns are only
-            // removed from this cloned provider payload when the provider's actual
-            // context limit cannot accommodate them. Keep native DX tools if possible.
-            var reducedHistoryTurns = 0;
-            while (budget.PromptExceedsMaximum)
+            // Only provider reasoning from completed, non-tool assistant turns is expendable.
+            // Never remove a user's correction, a system instruction, a tool receipt or a
+            // currently active tool transaction to make an otherwise oversized request fit.
+            if (budget.PromptExceedsMaximum)
             {
-                var lastUserIndex = requestMessages.FindLastIndex(message =>
-                    string.Equals(message.Role, "user", StringComparison.OrdinalIgnoreCase));
-                if (lastUserIndex <= 0)
-                    break;
-                var oldestUserIndex = -1;
-                for (var index = 0; index < lastUserIndex; index++)
+                var lastUserIndex = requestMessages.FindLastIndex(message => message.Role == "user");
+                var compactedTurns = 0;
+                for (var index = 0; index < lastUserIndex && budget.PromptExceedsMaximum; index++)
                 {
-                    if (string.Equals(requestMessages[index].Role, "user", StringComparison.OrdinalIgnoreCase))
-                    {
-                        oldestUserIndex = index;
-                        break;
-                    }
+                    var message = requestMessages[index];
+                    if (message.Role != "assistant" || string.IsNullOrWhiteSpace(message.Content) ||
+                        string.IsNullOrEmpty(message.Thinking) || message.ToolCalls is { Count: > 0 })
+                        continue;
+                    message.Thinking = null;
+                    compactedTurns++;
+                    budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
+                        contextLength, options?.MaxOutputTokens ?? 2048, think == true,
+                        MeasureRequestCharacters(requestMessages, tools), model, logger, modelMaximumContext);
                 }
-                if (oldestUserIndex < 0)
-                    break;
-                var nextTurn = oldestUserIndex + 1;
-                while (nextTurn < lastUserIndex &&
-                    !string.Equals(requestMessages[nextTurn].Role, "user", StringComparison.OrdinalIgnoreCase))
-                    nextTurn++;
-                requestMessages.RemoveRange(oldestUserIndex, nextTurn - oldestUserIndex);
-                reducedHistoryTurns++;
-                budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
-                    contextLength, options?.MaxOutputTokens ?? 2048, think == true,
-                    MeasureRequestCharacters(requestMessages, tools), model, logger, modelMaximumContext);
+                if (compactedTurns > 0)
+                    logger.LogInformation("Compacted provider-only reasoning from {Count} completed assistant turns for {Model}; original conversation and tool evidence are unchanged.",
+                        compactedTurns, model);
             }
-            if (reducedHistoryTurns > 0)
-                logger.LogWarning(
-                    "Ollama request for {Model} exceeded its effective context; omitted {Count} old conversation turn(s) from the provider payload only. System messages, the last user request and durable chat history are preserved.",
-                    model, reducedHistoryTurns);
 
-            // Native tools selected by a Council role are deliberate capabilities, not
-            // dispensable padding. The goal observer can reduce the work and reassign an
-            // eligible subagent; silently deleting its codegen/approval tools cannot.
-            // Generic, unscoped chat still sheds the largest optional tool definitions.
-            while (budget.PromptExceedsMaximum && automaticFunctionAllowList is null && tools is { Count: > 0 })
+            // A scoped tool list is part of the task contract. An unscoped request may
+            // use the existing discovery broker instead of a large directory, but only
+            // when discovery, preview and invocation are all available.
+            if (budget.PromptExceedsMaximum && automaticFunctionAllowList is null && tools is { Count: > 0 })
             {
-                var largest = tools.MaxBy(tool => JsonSerializer.Serialize(tool, jsonOptions).Length)!;
-                tools.Remove(largest);
-                logger.LogWarning("Dropped native tool {Tool} from the {Model} request to fit its context window ({Remaining} tool(s) remain).",
-                    largest.Function.Name, model, tools.Count);
-                budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
-                    contextLength, options?.MaxOutputTokens ?? 2048, think == true,
-                    MeasureRequestCharacters(requestMessages, tools), model, logger, modelMaximumContext);
+                var compactTools = GetDiscoveryBrokerTools(tools);
+                if (compactTools is not null)
+                {
+                    tools = compactTools;
+                    budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
+                        contextLength, options?.MaxOutputTokens ?? 2048, think == true,
+                        MeasureRequestCharacters(requestMessages, tools), model, logger, modelMaximumContext);
+                }
             }
             if (tools is { Count: 0 })
                 tools = null;
@@ -165,6 +155,7 @@ public sealed partial class OllamaThinkingChatClient
                 KeepAlive = keepAlive,
                 Messages = requestMessages,
                 Tools = tools,
+                ContextCeiling = budget.NumCtx,
                 Options = new OllamaRequestOptions
                 {
                     NumPredict = budget.NumPredict,
@@ -196,25 +187,30 @@ public sealed partial class OllamaThinkingChatClient
     {
         try
         {
-            long total = 0;
+            // Measure the actual serialized message and schema shape, including roles,
+            // separators, tool names, arguments and any image payloads. This is still
+            // an estimate, not the provider's tokenizer or multimodal token count.
+            var measurementOptions = new JsonSerializerOptions(jsonOptions)
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            };
+            long system = 0, user = 0, other = 0;
             foreach (var message in requestMessages)
             {
-                total += message.Content?.Length ?? 0;
-                total += message.Thinking?.Length ?? 0;
-                total += message.ToolName?.Length ?? 0;
-                if (message.ToolCalls is { Count: > 0 })
-                    total += message.ToolCalls.Sum(call => (long)(call.Function?.Name?.Length ?? 0) +
-                        (call.Function is null || call.Function.Arguments.ValueKind == JsonValueKind.Undefined
-                            ? 0 : call.Function.Arguments.GetRawText().Length));
+                var size = Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(message, measurementOptions));
+                if (message.Role == "system") system += size;
+                else if (message.Role == "user") user += size;
+                else other += size;
             }
-            if (tools is { Count: > 0 })
-                total += JsonSerializer.Serialize(tools, jsonOptions).Length;
-            return total;
+            var schema = tools is { Count: > 0 } ? Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(tools, measurementOptions)) : 0;
+            logger.LogInformation("Ollama payload size for {Model}: system {SystemChars}, user/task {UserChars}, assistant/tool history {OtherChars}, schemas {SchemaChars}, tools {ToolCount}; estimated decoded JSON UTF-8 sizes, no payload contents.",
+                model, system, user, other, schema, tools?.Count ?? 0);
+            return system + user + other + schema + requestMessages.Count + 2;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Could not measure the Ollama request size for model {Model}; the configured context is used unchanged.", model);
-            return 0;
+            logger.LogError(exception, "Could not measure the Ollama request size for model {Model}; an unmeasured request will not be sent.", model);
+            throw;
         }
     }
 

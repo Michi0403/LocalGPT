@@ -13,6 +13,11 @@ namespace LocalGPT.BusinessObjects
         /// <value>The run identifier value exposed by <see cref="MultiModelCouncilRequest"/>.</value>
         public Guid RunId { get; set; } = Guid.NewGuid();
 
+        /// <summary>Root chat run used only for presentation and transcript correlation; execution retains its own RunId.</summary>
+        /// <value>The trusted process-local chat identity, or null for a standalone execution.</value>
+        [JsonIgnore]
+        public Guid? ChatRunId { get; set; }
+
         /// <summary>
         /// Gets or sets the prompt value that forms part of the multi model council state consumed or produced by the surrounding workflow.
         /// </summary>
@@ -336,6 +341,10 @@ namespace LocalGPT.BusinessObjects
     /// </summary>
     public sealed class MultiModelCouncilResult
     {
+        /// <summary>Root chat identity shared by the original Council and its delegated Council runs.</summary>
+        /// <value>The originating chat run identifier, or null for a standalone result.</value>
+        public Guid? ChatRunId { get; set; }
+
         /// <summary>
         /// Gets or sets the stable run identifier used to identify or correlate this multi model council instance with related application state.
         /// </summary>
@@ -465,6 +474,14 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         /// <value>The change review value exposed by <see cref="MultiModelCouncilResult"/>.</value>
         public CodeGenerationReviewSnapshot? ChangeReview { get; set; }
+
+        /// <summary>True when the coordinated source workflow owns this result rather than the existing reviewed repository or legacy route.</summary>
+        public bool CoordinatedSourceWork { get; set; }
+
+        /// <summary>True only when the coordinated verifier succeeded and the actual source archive was registered for delivery.</summary>
+        public bool DevelopmentArtifactVerified { get; set; }
+        /// <summary>True only when ordinary source planning was attempted without a draft mutation or observed tool effects.</summary>
+        public bool SourceManifestRetrySafe { get; set; }
 
         /// <summary>
         /// Gets or sets the warnings collection maintained or exposed by this multi model council instance for downstream processing.
@@ -611,6 +628,24 @@ namespace LocalGPT.BusinessObjects
     /// </summary>
     public sealed class MultiModelCouncilStep
     {
+        /// <summary>Whether the harness reported a context-budget failure rather than a model capability result.</summary>
+        /// <value>True when a local preflight rejection was reported.</value>
+        [JsonIgnore]
+        public bool IsContextBudgetFailure => Error?.Contains("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase) == true ||
+            (Error?.Contains("needs about", StringComparison.OrdinalIgnoreCase) == true &&
+             Error.Contains("context tokens", StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>Whether the initial provider response exceeded the startup deadline without observing a model response.</summary>
+        /// <value>True for a route-specific startup timeout, not a host-wide outage or a model competence failure.</value>
+        [JsonIgnore]
+        public bool IsProviderStartupTimeout => Error?.StartsWith("CouncilProviderStartupTimeout;", StringComparison.Ordinal) == true;
+
+        /// <summary>Whether the recorded failure is an infrastructure condition and not a competence measurement.</summary>
+        /// <value>True when this outcome must not be used to score model competence.</value>
+        [JsonIgnore]
+        public bool IsInfrastructureFailure => IsContextBudgetFailure || IsProviderStartupTimeout || HostUnreachable ||
+            Error?.StartsWith("CouncilRouteDisabled;", StringComparison.Ordinal) == true;
+
         /// <summary>
         /// Gets or sets the sort order value that forms part of the multi model council step state consumed or produced by the surrounding workflow.
         /// </summary>

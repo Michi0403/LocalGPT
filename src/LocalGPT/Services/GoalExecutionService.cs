@@ -24,6 +24,7 @@ namespace LocalGPT.Services;
 /// <param name="wireConnections">Authoritative active 1-Wire connection state.</param>
 /// <param name="deferredInvocations">Approval-gated function requests recorded per Council run (delivery evidence).</param>
 /// <param name="vocabulary">Database-owned status vocabulary for deferred invocation states.</param>
+/// <param name="hardwareRoadPlanner">Existing provider-qualified hardware-road planner shared with Council execution.</param>
 /// <param name="staffing">Distinct-model staffing estimate for saved Council teams.</param>
 public sealed partial class GoalExecutionService(
     IRuntimeCapabilityDirectoryService directory,
@@ -41,6 +42,7 @@ public sealed partial class GoalExecutionService(
     IDeferredDxAiInvocationService deferredInvocations,
     ILocalGptVocabularyService vocabulary,
     ICouncilTeamStaffingEstimator staffing,
+    ICouncilHardwareRoadPlanner hardwareRoadPlanner,
     ILogger<GoalExecutionService> logger) : IGoalExecutionService
 {
     /// <inheritdoc />
@@ -196,9 +198,11 @@ public sealed partial class GoalExecutionService(
         if (models.Count == 0)
             missing.Add("CouncilParticipants");
 
-        var semantic = await TrySemanticPlanAsync(text, request, configuredTeams, functions, skills,
+        var workflowOwnsDelivery = request.PreserveSelectedTeam && selected is not null &&
+            selected.RequiredCompletedFunctions.Count > 0 && selected.WorkflowSteps.Count(step => step.IsEnabled) > 1;
+        var semantic = workflowOwnsDelivery ? null : await TrySemanticPlanAsync(text, request, configuredTeams, functions, skills,
             models, cancellationToken).ConfigureAwait(false);
-        var source = semantic is null ? "CatalogFallback" : "ModelSemantic";
+        var source = workflowOwnsDelivery ? "ConfiguredWorkflow" : semantic is null ? "CatalogFallback" : "ModelSemantic";
         var staffableKeys = configuredTeams.Where(team => staffing.CanStaff(team, Math.Max(availableModelCount, models.Count)))
             .Select(team => team.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (!request.PreserveSelectedTeam && semantic is not null)
@@ -264,9 +268,7 @@ public sealed partial class GoalExecutionService(
             resourceAdvice.RecommendedContextTokens > request.CouncilRequest.MaxContextTokens)
         {
             request.CouncilRequest.MaxContextTokens = resourceAdvice.RecommendedContextTokens;
-            // The run-local resource load is adjusted only for a measured benchmark.
-            // Saved routes/settings and all manual-mode runs stay authoritative.
-            request.CouncilRequest.ResourceLoadPercent = 100;
+            // Preserve the selected resource-load setting. A context recommendation is not a new resource-load tier.
             AnnounceGoalAgent(request, "GoalExecution AI",
                 $"Selected the verified benchmark context {resourceAdvice.RecommendedContextTokens:N0} for this run.");
         }

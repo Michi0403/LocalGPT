@@ -149,9 +149,10 @@ public sealed partial class DatabaseInitializationService
 
                 // Lossless default evolution: only replace values that exactly match a previous built-in default.
                 // Any user-edited value remains authoritative.
-                if (item.Name.Equals("DefaultContextTokens", StringComparison.OrdinalIgnoreCase)
-                    && row.ValueString == "65536"
-                    && item.Value == "262144")
+                if ((item.Name.Equals("DefaultCouncilOutputTokens", StringComparison.OrdinalIgnoreCase)
+                        || item.Name.Equals("DefaultCouncilContextTokens", StringComparison.OrdinalIgnoreCase))
+                    && row.ValueString == "262144"
+                    && item.Value != row.ValueString)
                 {
                     row.ValueString = item.Value;
                     row.DataType = item.DataType;

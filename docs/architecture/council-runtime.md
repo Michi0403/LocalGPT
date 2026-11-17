@@ -175,3 +175,7 @@ local NuGet helper package is rebuilt automatically; a rebuilt package must pass
 its original SHA-256 license-content guard or the single build command fails.
 The helper still owns its own version and its package version only changes when
 that helper's distributed contents change.
+
+### Initial provider-response timeout and cross-host recovery
+
+Native Ollama Council turns have a separate initial response deadline in the existing `CouncilExecutionRuntimeParametersJson` policy (`maximumProviderStartupWaitSeconds`, default 120). Once the first inference request is accepted, the remaining original generation timeout applies. A startup timeout is route-specific infrastructure evidence, not model incompetence or proof of host failure. Configured unpaired parallel roles that permit alternate member recovery can hand off to an already successful selected same-model-tag copy on a finished host, through the existing host gate and the destination's own hardware road. Both attempts retain their actual provider identities. Other cases use bounded configured round recovery. No startup handoff repeats a request known to have reached model execution; approval and tool policy continue to apply. On user Stop, completed phase results are retained without dispatching deferred text-requested functions. Post-acceptance stalls and crash-durable in-phase recovery require further implementation.

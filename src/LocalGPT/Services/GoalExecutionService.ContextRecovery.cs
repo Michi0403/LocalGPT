@@ -47,7 +47,8 @@ public sealed partial class GoalExecutionService
                 return false;
             var failures = result.Steps
                 .Where(step => !string.IsNullOrWhiteSpace(step.Error)).ToList();
-            if (failures.Count == 0 || failures.Any(step => !IsGoalContextBudgetError(step.Error)))
+            if (failures.Count == 0 || failures.Any(step => !IsGoalContextBudgetError(step.Error) ||
+                    step.Error!.Contains("priorToolActivity=true", StringComparison.OrdinalIgnoreCase)))
                 return false;
             // Council can already have completed other actions before a later
             // member exceeded context. Never turn an uncertain write into a retry.
@@ -72,9 +73,9 @@ public sealed partial class GoalExecutionService
 
     /// <summary>
     /// The current GoalExecutionService calls its existing semantic replanner
-    /// directly. That planner selects registered role-capable teams and the
-    /// *already selected* model, or this method schedules one smaller work item
-    /// in the original team. Existing goal checkpointing owns the retry bound.
+    /// directly. The planner selects registered role-capable teams and eligible selected models,
+    /// and persists smaller work items without changing the selected hardware limits.
+    /// Existing goal checkpointing owns the retry bound.
     /// </summary>
     private async Task<bool> TryRecoverGoalContextFailureAsync(
         GoalExecutionRequest request, GoalExecutionCheckpoint checkpoint,
@@ -89,31 +90,27 @@ public sealed partial class GoalExecutionService
 
             AnnounceGoalAgent(request, "GoalExecution AI",
                 "Council returned a model preflight failure before inference. Inspecting hardware and delegating corrective work.");
+            // Configuration advice is diagnostic only. A model context ceiling is not
+            // authorization to increase GPU/CPU load, context, or per-host concurrency.
             var failure = checkpoint.Receipts.LastOrDefault(receipt =>
                 IsGoalContextBudgetError(receipt.FailureSummary))?.FailureSummary;
             var advice = await configurationSteward.AdviseGoalResourcesAsync(
                 request, failure, cancellationToken).ConfigureAwait(false);
             AnnounceGoalAgent(request,
                 advice.AiConsulted ? "Configuration Steward AI · Subagent" : "Configuration Steward",
-                advice.Reason);
-            if (!advice.IsManual && advice.RecommendedContextTokens > request.CouncilRequest.MaxContextTokens &&
-                checkpoint.ReplanCount == 0)
+                advice.Reason + " The selected hardware-road limits remain unchanged.");
+            var failedStep = checkpoint.Steps[failedIndex];
+            if (!IsGoalContextRecoveryStep(checkpoint, failedStep))
             {
-                // Verified benchmark route, not a guessed memory-to-context ratio.
-                var corrected = checkpoint.Steps[failedIndex];
-                var next = checkpoint.ReplanCount + 1;
-                checkpoint.ReplanCount = next;
-                checkpoint.Steps = checkpoint.Steps.Take(failedIndex).Append(new GoalExecutionPlanStep
+                checkpoint.ReplanCount++;
+                checkpoint.Steps[failedIndex] = new GoalExecutionPlanStep
                 {
-                    Key = ContextFitStepPrefix + next.ToString(CultureInfo.InvariantCulture),
-                    Objective = corrected.Objective,
-                    TeamKey = corrected.TeamKey
-                }).ToList();
-                request.CouncilRequest.MaxContextTokens = advice.RecommendedContextTokens;
-                request.CouncilRequest.ResourceLoadPercent = 100;
+                    Key = ContextFitStepPrefix + checkpoint.ReplanCount.ToString(CultureInfo.InvariantCulture),
+                    TeamKey = failedStep.TeamKey,
+                    Objective = failedStep.Objective
+                };
                 await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
-                AnnounceGoalAgent(request, "GoalExecution AI",
-                    $"Retrying with measured context {advice.RecommendedContextTokens:N0} and a new Council run identity.");
+                logger.LogInformation("Goal {GoalId} kept the original objective and scheduled a compact context attempt; previous receipt retained.", checkpoint.GoalId);
                 return true;
             }
             // The existing semantic planner is the AI subagent: it sees the previous
@@ -129,31 +126,11 @@ public sealed partial class GoalExecutionService
                 return true;
             }
 
-            // The selected model may fail to produce valid planner JSON. Keep
-            // trying to deliver the goal through a single, *changed* compact
-            // Council request; never duplicate the original oversized prompt.
-            if (checkpoint.ReplanCount >= limit)
-                return false;
-            var previous = checkpoint.Steps[failedIndex];
-            if (!liveTeams.Contains(previous.TeamKey))
-                return false;
-            var nextReplan = checkpoint.ReplanCount + 1;
-            var replacement = new GoalExecutionPlanStep
-            {
-                Key = ContextFitStepPrefix + nextReplan.ToString(CultureInfo.InvariantCulture),
-                TeamKey = previous.TeamKey,
-                Objective = previous.Objective
-            };
-            checkpoint.ReplanCount = nextReplan;
-            checkpoint.Steps = checkpoint.Steps.Take(failedIndex).Append(replacement).ToList();
-            await ledger.SaveAsync(checkpoint, cancellationToken).ConfigureAwait(false);
-            AnnounceGoalAgent(request, "GoalExecution AI · Coding subagent",
-                $"Reissuing a bounded objective to the selected team {previous.TeamKey}; prior failed work remains recorded.");
-            logger.LogInformation(
-                "Goal {GoalId} requested a compact continuation in team {Team} (replan {Replan}/{Limit}); " +
-                "the previous failed Council receipt remains immutable.",
-                checkpoint.GoalId, previous.TeamKey, nextReplan, limit);
-            return true;
+            // An unchanged objective is not a decomposition. Do not discard the
+            // remaining plan or consume retries while repeatedly sending an oversized prompt.
+            logger.LogWarning("Goal {GoalId} could not obtain a smaller valid continuation through the configured planner; the durable plan and failed receipt are retained.",
+                checkpoint.GoalId);
+            return false;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -205,7 +182,7 @@ public sealed partial class GoalExecutionService
                 previous = evidenceLimit > 0 ? previous[^evidenceLimit..] : string.Empty;
             var prompt = runtimePolicy.GetString("GoalCouncilSubstepPromptTemplate")
                 .Replace("{{OriginalGoal}}", checkpoint.GoalText, StringComparison.Ordinal)
-                .Replace("{{ConversationContext}}", string.Empty, StringComparison.Ordinal)
+                .Replace("{{ConversationContext}}", checkpoint.Prompt, StringComparison.Ordinal)
                 .Replace("{{StepNumber}}", (stepIndex + 1).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
                 .Replace("{{StepCount}}", checkpoint.Steps.Count.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
                 .Replace("{{StepObjective}}", step.Objective, StringComparison.Ordinal)

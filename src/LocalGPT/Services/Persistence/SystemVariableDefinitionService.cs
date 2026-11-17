@@ -23,7 +23,7 @@ public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionS
         _logger = logger;
         try
         {
-            DefaultMaxOutputTokens = new SystemVariableDefinition<int>("DefaultMaxOutputTokens", 16384);
+            DefaultMaxOutputTokens = new SystemVariableDefinition<int>("DefaultMaxOutputTokens", 4096);
             DefaultMaxPromptCharacters = new SystemVariableDefinition<int>("DefaultMaxPromptCharacters", int.MaxValue);
             MaxBootstrapCharacters = new SystemVariableDefinition<int>("MaxBootstrapCharacters", 6000);
             DefaultMaxParallelModels = new SystemVariableDefinition<int>("DefaultMaxParallelModels", 1);

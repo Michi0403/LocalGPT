@@ -510,6 +510,7 @@ namespace LocalGPT.Services
         return new()
     {
         Id = entity.Id,
+        IsSourceDraftReview = payload.DraftManifest is not null,
         ProjectId = entity.ProjectId,
         ProjectRevisionId = entity.ProjectRevisionId,
         ProjectTopicId = entity.ProjectTopicId,

@@ -1,0 +1,10 @@
+# LocalGPT 7.4.6 — parallel Chat transcript integration
+
+Source candidate from 7.4.5. The owner observed actual remote inference and live activity lanes across four hosts, but remote completed answers did not appear promptly in the original Chat transcript. Existing presentation drained per-model channels in selection order, awaiting the end of each earlier stream before reading a later one.
+
+- In parallel phases, the existing single presentation pump now reads a completion queue. Each participant closes its own channel before queuing its identity; later completed models no longer wait for an unrelated slow provider. Provider thinking, function events, and visible answer fragments retain their original sequence and stream delimiters. Live lane rendering continues on the producer side. Serial phases retain incremental foreground presentation.
+- Keep deterministic Council step aggregation, saved workflow, approval policy, evidence, function handling, phase barriers and the existing host/hardware-road scheduler unchanged. The original ChatRunId/stream callback remains authoritative; no separate chat history or renderer added. Main Chat visual order during parallel phases is completion-queue order, not configured participant order.
+- Wait for all producers before closing presentation and disposing host gates. Drain closed queued streams even on ordinary run cancellation; explicit cancellation still stops provider execution. Keep single-consumer direct-input claims, with the serial foreground preference and no stale presentation-based preference in parallel phases.
+- Extend the existing PowerShell Council source contract and document the behavior and acceptance tests. No schema, preset, model-selection, context-manager, or PublisherStudio changes.
+
+Validation: source review and ZIP integrity only; PowerShell and compiler gates and the multi-host acceptance tests in TASKS.md must run on the owner's system. No .NET build or online GitHub access performed. This change addresses presentation head-of-line blocking, not missing provider output or unverified artifacts.

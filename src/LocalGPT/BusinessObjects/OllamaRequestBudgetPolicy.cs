@@ -18,12 +18,12 @@ public sealed class OllamaRequestBudgetPolicy
     /// <value>Safety margin in tokens.</value>
     public int ContextSafetyMarginTokens { get; set; } = 512;
 
-    /// <summary>Gets or sets the granularity used when the context window is raised so a prompt fits.</summary>
-    /// <value>Growth step in tokens.</value>
+    /// <summary>Gets or sets the legacy context growth granularity retained for persisted policy compatibility.</summary>
+    /// <value>Legacy growth step in tokens; requests no longer grow a selected hardware context.</value>
     public int ContextGrowthStepTokens { get; set; } = 1024;
 
-    /// <summary>Gets or sets the upper bound the context window may be raised to for one request.</summary>
-    /// <value>Maximum fitted context in tokens; the configured road context is never lowered.</value>
+    /// <summary>Gets or sets the legacy fitted-context ceiling retained for persisted policy compatibility.</summary>
+    /// <value>Legacy fitted-context limit; the selected hardware road and model maximum now remain authoritative.</value>
     public int MaximumFittedContextTokens { get; set; } = 32768;
 
     /// <summary>Gets or sets the context Ollama is assumed to use when LocalGPT sends no explicit context size.</summary>

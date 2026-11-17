@@ -1,0 +1,9 @@
+:root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
+body { margin: 0; }
+main { max-width: 68rem; margin: auto; padding: 1.5rem; }
+h1 { font-size: 1.65rem; } h2 { font-size: 1.15rem; }
+label { display: block; font-weight: 600; margin-top: 1rem; }
+textarea, pre { box-sizing: border-box; width: 100%; font: .95rem/1.5 monospace; padding: .8rem; border: 1px solid GrayText; border-radius: .4rem; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 5rem; }
+select, button, input { font: inherit; padding: .4rem; }
+.actions { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; margin: 1rem 0; }
