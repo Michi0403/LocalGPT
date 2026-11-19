@@ -58,7 +58,17 @@ namespace LocalGPT.Services
                     if (string.IsNullOrWhiteSpace(normalized))
                         continue;
                     if (message.Role == ChatRole.User && !seenUserTurns.Add(normalized))
-                        continue;
+                    {
+                        var previous = normalizedHistory.FindLastIndex(item => item.Role == ChatRole.User && item.Text == normalized);
+                        if (previous >= 0)
+                        {
+                            // A reissued user goal requests fresh work, not another copy of failed role reasoning.
+                            // Retain intervening human instructions and the earlier durable conversation.
+                            for (var prior = normalizedHistory.Count - 1; prior > previous; prior--)
+                                if (normalizedHistory[prior].Role == ChatRole.Assistant) normalizedHistory.RemoveAt(prior);
+                            normalizedHistory.RemoveAt(previous);
+                        }
+                    }
                     normalizedHistory.Add((message.Role, normalized));
                 }
 
@@ -89,7 +99,10 @@ namespace LocalGPT.Services
                     "[Earlier chat turns were omitted from this model prompt to fit the configured context. " +
                     "The original conversation remains in LocalGPT persistent storage.]\n\n";
                 var selected = new List<string>();
+                var assistantBudget = Math.Clamp(runtimePolicy.GetInt("CouncilChatAssistantHistoryBudgetCharacters"), 0, historyLimit);
                 var reserved = introduction.Length + omittedNotice.Length;
+                var userCharacters = recentHistory.Where(item => item.Role == ChatRole.User).Sum(item => item.Text.Length + 9);
+                assistantBudget = Math.Min(assistantBudget, Math.Max(0, historyLimit - reserved - userCharacters));
                 // Start at the most recent user message. Keep complete normalized turns; do
                 // not chop a source file, code block or DX function call halfway through.
                 // Normalization already bounds individual historical turns to 32K chars.
@@ -98,8 +111,11 @@ namespace LocalGPT.Services
                     var item = recentHistory[index];
                     var block = (item.Role == ChatRole.Assistant ? "Previous assistant consensus" : "User") +
                         ":\n" + item.Text + "\n\n";
+                    if (item.Role == ChatRole.Assistant && block.Length > assistantBudget)
+                        continue; // Do not break a code fence or turn a truncated answer into a requirement.
                     if (selected.Sum(text => text.Length) + block.Length + reserved > historyLimit)
                         continue;
+                    if (item.Role == ChatRole.Assistant) assistantBudget -= block.Length;
                     selected.Add(block);
                 }
                 selected.Reverse();
@@ -135,10 +151,14 @@ namespace LocalGPT.Services
             try
             {
                 var normalized = value.Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
+                normalized = StripLocalGptRenderingPanels(normalized);
                 normalized = assistantMessage
                     ? ExtractLatestAssistantConsensus(normalized)
                     : ExtractInnermostUserRequest(normalized);
-                normalized = StripLocalGptRenderingPanels(normalized);
+                // Failed Council prose stays in the conversation and run archive, not in the next team's active work packet.
+                if (assistantMessage && (normalized.Contains("## Council work incomplete", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Contains("**No final answer was emitted.**", StringComparison.OrdinalIgnoreCase)))
+                    return string.Empty;
                 normalized = runtimePolicy.GetPattern("runtime.council.stream-artifacts").Replace(normalized, string.Empty);
                 normalized = WebUtility.HtmlDecode(normalized);
                 normalized = RepairUnbalancedMarkdownFence(normalized);
@@ -319,9 +339,12 @@ namespace LocalGPT.Services
                 var builder = new StringBuilder()
                 .AppendLine()
                 .AppendLine("<p class=\"localgpt-stream-status\"><em>")
-                .Append(WebUtility.HtmlEncode($"{step.ModelName} finished {step.Phase} / {step.Role} in {step.DurationSeconds:n1}s. Step details were streamed above; final consensus appears below."))
+                .Append(WebUtility.HtmlEncode($"{step.ModelName} finished {step.Phase} / {step.Role} in {step.DurationSeconds:n1}s ({step.StartedAtUtc:u} → {step.CompletedAtUtc:u}). Step details were streamed above; final consensus appears below."))
                 .AppendLine("</em></p>")
                 .AppendLine();
+
+                if (!string.IsNullOrWhiteSpace(step.FileWorkReceiptJson))
+                    builder.AppendLine("<pre><code>" + WebUtility.HtmlEncode(step.FileWorkReceiptJson) + "</code></pre>").AppendLine();
 
                 if (!string.IsNullOrWhiteSpace(step.Error))
                 {

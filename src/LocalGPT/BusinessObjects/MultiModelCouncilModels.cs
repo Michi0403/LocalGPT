@@ -762,6 +762,15 @@ namespace LocalGPT.BusinessObjects
         /// <value>The visible content value exposed by <see cref="MultiModelCouncilStep"/>.</value>
         public string VisibleContent { get; set; } = string.Empty;
 
+        /// <summary>True only when the provider's visible response passed through the native Ollama HTML-safe Markdown formatter.</summary>
+        public bool VisibleContentHtmlEncoded { get; set; }
+
+        /// <summary>Exact coordinator-issued file-work instruction for this participant, retained separately from its answer.</summary>
+        public string FileWorkInstruction { get; set; } = string.Empty;
+
+        /// <summary>Service-origin file assignment or inspection receipt, kept separately from model prose.</summary>
+        public string FileWorkReceiptJson { get; set; } = string.Empty;
+
         /// <summary>
         /// Gets or sets the thinking value that forms part of the multi model council step state consumed or produced by the surrounding workflow.
         /// </summary>

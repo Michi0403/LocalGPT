@@ -88,7 +88,14 @@ namespace LocalGPT.Services
                         .AppendLine($"Council members: {string.Join(", ", step.CouncilMembers)}")
                         .AppendLine($"Round: {step.Round}")
                         .AppendLine($"Duration: {step.DurationSeconds:0.0}s")
+                        .AppendLine($"Started: {step.StartedAtUtc:u}")
+                        .AppendLine($"Completed: {step.CompletedAtUtc:u}")
                         .AppendLine();
+
+                    if (!string.IsNullOrWhiteSpace(step.FileWorkInstruction))
+                        builder.AppendLine("<pre><code>" + System.Net.WebUtility.HtmlEncode(step.FileWorkInstruction) + "</code></pre>").AppendLine();
+                    if (!string.IsNullOrWhiteSpace(step.FileWorkReceiptJson))
+                        builder.AppendLine("<pre><code>" + System.Net.WebUtility.HtmlEncode(step.FileWorkReceiptJson) + "</code></pre>").AppendLine();
 
                     if (!string.IsNullOrWhiteSpace(step.Thinking))
                         builder.AppendLine("#### Visible model thinking").AppendLine().AppendLine(step.Thinking).AppendLine();

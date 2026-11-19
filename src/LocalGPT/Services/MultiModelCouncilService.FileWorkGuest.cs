@@ -32,7 +32,7 @@ public sealed partial class MultiModelCouncilService
                     string.Empty, authored?.Error ?? "No guest script response was received.", cancellationToken).ConfigureAwait(false);
                 return;
             }
-            var answer = authored.VisibleContent.Trim();
+            var answer = ReadFileWorkAnswer(authored).Trim();
             var first = answer.IndexOf('\n');
             var last = answer.LastIndexOf('\n');
             if (!answer.StartsWith("```", StringComparison.Ordinal) || first < 0 || last <= first ||

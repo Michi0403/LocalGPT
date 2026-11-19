@@ -45,6 +45,7 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
 }
 """, "System.String"),
                 new("CouncilChatHistoryBudgetCharacters", "48000", "System.Int32"),
+                new("CouncilChatAssistantHistoryBudgetCharacters", "6000", "System.Int32"),
                 new("GoalExecutionResourceMode", "Automatic", "System.String"),
                 new("GoalAutoResourceProbeMinimumHostGiB", "32", "System.Int32"),
                 new("GoalAutoResourceProbeMinimumGpuGiB", "16", "System.Int32"),

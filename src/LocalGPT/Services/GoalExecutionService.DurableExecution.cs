@@ -344,6 +344,7 @@ public sealed partial class GoalExecutionService
                         if (safeManifestRetry)
                             keyaccountReview.NextObjective = runtimePolicy.GetString("GoalDevelopmentManifestRetryObjective");
                     }
+                    AnnounceGoalAgent(request, "GoalExecution AI · Keyaccount review", System.Text.Json.JsonSerializer.Serialize(keyaccountReview));
                     checkpoint.KeyaccountReviews.Add(keyaccountReview);
                     checkpoint.KeyaccountPendingObjective = keyaccountReview.Complete
                         ? string.Empty : keyaccountReview.NextObjective;
@@ -372,6 +373,7 @@ public sealed partial class GoalExecutionService
                             Status = "failed", CouncilRunId = councilResult.RunId,
                             Error = new AiHelpFailureEvidence { Code = "SourceManifestMissing", Message = runtimePolicy.GetString("GoalDevelopmentArtifactMissingNotice"), Source = "validator" }
                         }, cancellationToken).ConfigureAwait(false);
+                        AnnounceGoalAgent(request, "Nurse · Source manifest recovery", System.Text.Json.JsonSerializer.Serialize(recovery));
                         if (recovery.Type is "try_alternative" or "retry_with_guidance")
                         {
                             // Replace only the unsuccessful plan step. Its failed receipt remains in the journal.

@@ -7,3 +7,7 @@ textarea, pre { box-sizing: border-box; width: 100%; font: .95rem/1.5 monospace;
 pre { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 5rem; }
 select, button, input { font: inherit; padding: .4rem; }
 .actions { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; margin: 1rem 0; }
+
+.embedded main { max-width: none; padding: .65rem; }
+.embedded h1 { font-size: 1.15rem; margin-top: 0; }
+[hidden] { display: none !important; }

@@ -192,7 +192,8 @@
 
 .localgpt-assistant-rail ::deep .human-approval-bar,
 .localgpt-assistant-rail ::deep .human-inbox-launcher,
-.localgpt-assistant-rail ::deep .council-spooler-launcher {
+.localgpt-assistant-rail ::deep .council-spooler-launcher,
+.localgpt-assistant-rail ::deep .council-source-progress-launcher {
     position: static !important;
     inset: auto !important;
     transform: none !important;

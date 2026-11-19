@@ -324,6 +324,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<ICodeDomSourceService, CodeDomSourceService>();
                 builder.Services.AddScoped<ICouncilDevelopmentWorkspaceService, CouncilDevelopmentWorkspaceService>();
                 builder.Services.AddScoped<ICodeGenerationWorkflowService, CodeGenerationWorkflowService>();
+                builder.Services.AddScoped<IGuidUtilityService, GuidUtilityService>();
                 builder.Services.AddScoped<ICouncilCodeGenerationPlanService, CouncilCodeGenerationPlanService>();
                 builder.Services.AddSingleton<ICouncilSpoolerService, LocalGPT.Services.Council.CouncilSpoolerService>();
                 builder.Services.AddScoped<IRuntimeCapabilityDirectoryService, LocalGPT.Services.Council.RuntimeCapabilityDirectoryService>();

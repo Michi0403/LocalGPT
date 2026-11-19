@@ -319,7 +319,7 @@ namespace LocalGPT.Components.Pages
             if (ChatClientProvider?.SelectedSession is null || DxAiChat is null)
                 return;
 
-            await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
+            await PersistCurrentConversationAsync(force: true, showToast: false);
             foreach (var session in ChatClientProvider.AvailableChatClients)
                 session.Messages.Clear();
             canonicalConversationMessages.Clear();

@@ -107,6 +107,25 @@ public sealed class CodeGenerationController(
         }
     }
 
+    /// <summary>Reads the exact retained source draft progress for a Council execution.</summary>
+    /// <param name="runId">Existing Council run identity; the route never creates a project.</param>
+    /// <param name="cancellationToken">Cancels the read-only query.</param>
+    /// <returns>Persisted hashes, assignments and inspection history without raw source.</returns>
+    [HttpGet("council/{runId:guid}/progress")]
+    public async Task<IResult> GetCouncilProgress(Guid runId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var progress = await workflow.GetCouncilDraftProgressAsync(runId, cancellationToken, includePathHistory: true).ConfigureAwait(false);
+            return progress is null ? Results.NotFound() : Results.Ok(progress);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not load source draft progress for Council {RunId}.", runId);
+            return Results.InternalServerError();
+        }
+    }
+
     /// <summary>
     /// Creates review for the code generation API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>

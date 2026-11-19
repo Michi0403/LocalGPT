@@ -11,7 +11,7 @@ namespace LocalGPT.Services;
 public sealed partial class CodeGenerationWorkflowService
 {
     /// <inheritdoc />
-    public async Task<CodeGenerationDraftProgress?> GetCouncilDraftProgressAsync(Guid runId, CancellationToken cancellationToken)
+    public async Task<CodeGenerationDraftProgress?> GetCouncilDraftProgressAsync(Guid runId, CancellationToken cancellationToken, bool includePathHistory = false)
     {
         try
         {
@@ -29,11 +29,28 @@ public sealed partial class CodeGenerationWorkflowService
             var hashes = files.ToDictionary(file => file.RelativePath,
                 file => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(file.Content))),
                 StringComparer.OrdinalIgnoreCase);
+            var assignments = plan?.DraftAssignments ?? payload!.DraftAssignments;
+            var decisions = plan?.DraftInspections ?? payload!.DraftInspections;
+            var dependencies = plan?.DraftDependencies ?? payload?.DraftDependencies ?? [];
+            var paths = includePathHistory ? manifest.Keys.Select(path =>
+            {
+                var attempts = assignments.Where(item => string.Equals(item.RelativePath, path, StringComparison.OrdinalIgnoreCase)).ToList();
+                var inspections = decisions.Where(item => string.Equals(item.Path, path, StringComparison.OrdinalIgnoreCase)).ToList();
+                var current = hashes.GetValueOrDefault(path) ?? string.Empty;
+                var direct = dependencies.FirstOrDefault(pair => string.Equals(pair.Key, path, StringComparison.OrdinalIgnoreCase)).Value ?? [];
+                var accepted = current.Length > 0 && direct.All(hashes.ContainsKey) && inspections.Any(item =>
+                    item.Accepted == true && item.Sha256 == current && item.DependencyHashes.Count == direct.Count &&
+                    direct.All(dependency => item.DependencyHashes.TryGetValue(dependency, out var inspected) && inspected == hashes[dependency]));
+                var last = attempts.LastOrDefault();
+                return new CodeGenerationDraftPathProgress(path, current, last?.ModelName ?? string.Empty,
+                    last?.Attempt ?? 0, accepted, !string.IsNullOrWhiteSpace(last?.Diagnostic) ? last.Diagnostic : inspections.LastOrDefault()?.Diagnostic ?? string.Empty,
+                    direct, attempts, inspections) { DependencyDisplay = string.Join(", ", direct) };
+            }).ToList() : new List<CodeGenerationDraftPathProgress>();
             return new CodeGenerationDraftProgress(row.Id, row.ProjectId, row.ProjectRevisionId, row.Status,
                 row.ReviewHash, row.BuildStatus, row.WorkspaceName, row.ZipFileName,
                 manifest.Keys.Where(path => !hashes.ContainsKey(path)).ToList(), hashes, isDraft,
                 plan?.DraftWorkspaceMode ?? payload!.DraftWorkspaceMode,
-                plan?.DraftGuestLanguageKey ?? payload!.DraftGuestLanguageKey);
+                plan?.DraftGuestLanguageKey ?? payload!.DraftGuestLanguageKey) { Paths = paths };
         }
         catch (Exception exception)
         {
@@ -78,9 +95,12 @@ public sealed partial class CodeGenerationWorkflowService
                 var last = prior.LastOrDefault();
                 var model = available.OrderBy(candidate => last is not null &&
                         string.Equals(last.ModelName, candidate, StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+                    .ThenBy(candidate => prior.Count(attempt => string.Equals(attempt.ModelName, candidate, StringComparison.OrdinalIgnoreCase)))
                     .ThenByDescending(candidate => plan.DraftAssignments.Count(attempt =>
                         string.Equals(attempt.ModelName, candidate, StringComparison.OrdinalIgnoreCase) &&
-                        !string.IsNullOrEmpty(attempt.Sha256) && string.Equals(Path.GetExtension(attempt.RelativePath), Path.GetExtension(path), StringComparison.OrdinalIgnoreCase)))
+                        !string.IsNullOrEmpty(attempt.Sha256) && string.Equals(Path.GetExtension(attempt.RelativePath), Path.GetExtension(path), StringComparison.OrdinalIgnoreCase) &&
+                        plan.DraftInspections.Any(inspection => inspection.Accepted == true && inspection.Sha256 == attempt.Sha256 &&
+                            string.Equals(inspection.Path, attempt.RelativePath, StringComparison.OrdinalIgnoreCase))))
                     .First();
                 available.Remove(model);
                 var assignment = new CodeGenerationDraftAssignment
@@ -94,9 +114,12 @@ public sealed partial class CodeGenerationWorkflowService
                         StringComparer.OrdinalIgnoreCase)
                 };
                 plan.DraftAssignments.Add(assignment);
+                var lastRejection = plan.DraftInspections.LastOrDefault(inspection => inspection.Accepted == false &&
+                    string.Equals(inspection.Path, path, StringComparison.OrdinalIgnoreCase));
+                var correctiveEvidence = string.Join(Environment.NewLine, new[] { workOrder, lastRejection?.Diagnostic, last?.Diagnostic }
+                    .Where(value => !string.IsNullOrWhiteSpace(value)));
                 packets.Add(new CodeGenerationDraftWorkPacket(assignment, plan.Goal, plan.DraftSharedContract,
-                    string.IsNullOrWhiteSpace(last?.Diagnostic) ? workOrder : workOrder + Environment.NewLine + last.Diagnostic,
-                    sourceDependencies, plan.DraftRepairSources.GetValueOrDefault(path) ?? string.Empty));
+                    correctiveEvidence, sourceDependencies, plan.DraftRepairSources.GetValueOrDefault(path) ?? string.Empty));
             }
             if (packets.Count > 0 && !await SaveDraftPlanAsync(db, row, plan, cancellationToken).ConfigureAwait(false))
                 throw new InvalidOperationException("The source draft changed during assignment. No file workers were started.");
@@ -156,6 +179,28 @@ public sealed partial class CodeGenerationWorkflowService
                     return current;
                 if (plan.Files.Any(file => string.Equals(file.RelativePath, current.RelativePath, StringComparison.OrdinalIgnoreCase)))
                     throw new InvalidOperationException("The reserved file already has committed source.");
+                if (source is not null)
+                {
+                    var targetDiagnostic = ValidateDraftProjectTarget(plan.Goal, current.RelativePath, source);
+                    if (!string.IsNullOrEmpty(targetDiagnostic))
+                    {
+                        diagnostic = targetDiagnostic;
+                        source = null;
+                    }
+                }
+                if (source is not null)
+                {
+                    var candidateHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)));
+                    if (plan.DraftRepairSources.ContainsKey(current.RelativePath) &&
+                        plan.DraftInspections.Any(item => item.Accepted == false && item.Sha256 == candidateHash &&
+                            string.Equals(item.Path, current.RelativePath, StringComparison.OrdinalIgnoreCase) &&
+                            item.DependencyHashes.Count == current.DependencyHashes.Count &&
+                            current.DependencyHashes.All(pair => item.DependencyHashes.TryGetValue(pair.Key, out var previousHash) && previousHash == pair.Value)))
+                    {
+                        diagnostic = runtimePolicy.GetString("CouncilFileWorkRepeatedCandidateNotice");
+                        source = null;
+                    }
+                }
                 if (source is null)
                     current.Diagnostic = diagnostic;
                 else
@@ -269,14 +314,12 @@ public sealed partial class CodeGenerationWorkflowService
         try
         {
             var answer = visibleContent.Trim();
-            if (!answer.StartsWith("```", StringComparison.Ordinal))
+            var lines = answer.Split('\n');
+            var fences = Enumerable.Range(0, lines.Length).Where(index => lines[index].TrimStart().StartsWith("```", StringComparison.Ordinal)).ToArray();
+            if (fences.Length != 2 || fences[1] <= fences[0] + 1 ||
+                !string.Equals(lines[fences[1]].Trim(), "```", StringComparison.Ordinal))
                 return null;
-            var first = answer.IndexOf('\n');
-            var last = answer.LastIndexOf('\n');
-            if (first < 0 || last <= first || !string.Equals(answer[(last + 1)..].Trim(), "```", StringComparison.Ordinal) ||
-                answer[(first + 1)..last].Split('\n').Any(line => line.Trim().StartsWith("```", StringComparison.Ordinal)))
-                return null;
-            var source = answer[(first + 1)..(last + 1)];
+            var source = string.Join("\n", lines[(fences[0] + 1)..fences[1]]) + "\n";
             return string.IsNullOrWhiteSpace(source) || source.Contains('\0') ? null : source;
         }
         catch (Exception exception)

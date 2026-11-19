@@ -1,0 +1,167 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject ICouncilSpoolerService Spooler
+@inject ICodeGenerationWorkflowService Workflow
+@inject ILogger<CouncilSourceProgressPanel> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
+<div class="razor-component-boundary">
+    <DxFormLayout CssClass="razor-component-layout-owner CouncilSourceProgressPanel">
+        <DxFormLayoutItem ColSpanMd="12">
+            <Template Context="sourceProgressLauncherContext">
+                <DxButton Text="Session progress" CssClass="council-source-progress-launcher" Click="OpenAsync" />
+                <DxPopup @bind-Visible="visible" HeaderText="Council session progress" Width="90vw" Height="85dvh" CloseOnOutsideClick="true">
+                    <BodyContentTemplate Context="sourceProgressPopupContext">
+                        <DxFormLayout CssClass="razor-section-layout-owner">
+                            <DxFormLayoutItem Caption="Council run" ColSpanMd="9">
+                                <Template Context="sourceProgressRunContext">
+                                    <DxComboBox Data="@runs" Value="@selected" TextFieldName="@nameof(CouncilSpoolerRunSummary.DisplayLabel)"
+                                                ValueChanged="@((CouncilSpoolerRunSummary? run) => SelectAsync(run))" Enabled="@(!busy)" />
+                                </Template>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="3">
+                                <Template Context="sourceProgressRefreshContext">
+                                    <DxButton Text="Refresh evidence" Click="RefreshAsync" Enabled="@(!busy)" />
+                                </Template>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="12">
+                                <Template Context="sourceProgressBodyContext">
+                                    @if (selected is not null)
+                                    {
+                                        <p>@selected.RunId · @selected.StartedAtUtc.ToLocalTime().ToString("g") · @selected.Phase · @selected.Status</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(feedback))
+                                    {
+                                        <p role="status">@feedback</p>
+                                    }
+                                    @if (progress is { } snapshot)
+                                    {
+                                        <p>Project @snapshot.ProjectId · revision @snapshot.ProjectRevisionId · review @snapshot.ReviewId</p>
+                                        <p>Workspace: @snapshot.WorkspaceMode · status: @snapshot.Status · build: @snapshot.BuildStatus</p>
+                                        <p>Manifest: @snapshot.Paths.Count · stored: @snapshot.CompletedFiles.Count · inspected: @snapshot.Paths.Count(path => path.InspectionAccepted) · missing: @snapshot.MissingPaths.Count</p>
+                                        <p>Stored hashes and accepted inspections are not evidence of a completed build or artifact verification.</p>
+                                        <DxAccordion>
+                                            <Items>
+                                                <DxAccordionItem Text="Source files and current assignments" Expanded="true">
+                                                    <ContentTemplate Context="sourceProgressFilesContext">
+                                                        <DxGrid Data="@snapshot.Paths" PageSize="12" KeyFieldName="@nameof(CodeGenerationDraftPathProgress.Path)" ShowSearchBox="true" TextWrapEnabled="true">
+                                                            <Columns>
+                                                                <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftPathProgress.Path)" Caption="File" />
+                                                                <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftPathProgress.ModelName)" Caption="Last assigned route" />
+                                                                <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftPathProgress.Attempt)" Caption="Attempt" Width="85px" />
+                                                                <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftPathProgress.InspectionAccepted)" Caption="Inspected" Width="95px" />
+                                                                <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftPathProgress.Sha256)" Caption="Stored source SHA-256" />
+                                                                <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftPathProgress.Diagnostic)" Caption="Latest diagnostic" />
+                                                            </Columns>
+                                                            <DetailRowTemplate Context="sourceProgressDetailContext">
+                                                                @if (sourceProgressDetailContext.DataItem is CodeGenerationDraftPathProgress path)
+                                                                {
+                                                                    <p>Dependencies: @path.DependencyDisplay</p>
+                                                                    <DxGrid Data="@path.Assignments" PageSize="5">
+                                                                        <Columns>
+                                                                            <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftAssignment.Attempt)" />
+                                                                            <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftAssignment.ModelName)" />
+                                                                            <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftAssignment.Sha256)" />
+                                                                            <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftAssignment.Diagnostic)" />
+                                                                        </Columns>
+                                                                    </DxGrid>
+                                                                    <DxGrid Data="@path.Inspections" PageSize="5">
+                                                                        <Columns>
+                                                                            <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftInspectionDecision.Reviewer)" />
+                                                                            <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftInspectionDecision.Accepted)" />
+                                                                            <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftInspectionDecision.Sha256)" />
+                                                                            <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftInspectionDecision.Diagnostic)" />
+                                                                        </Columns>
+                                                                    </DxGrid>
+                                                                }
+                                                            </DetailRowTemplate>
+                                                        </DxGrid>
+                                                    </ContentTemplate>
+                                                </DxAccordionItem>
+                                                <DxAccordionItem Text="Approval, build and archive state">
+                                                    <ContentTemplate Context="sourceProgressArchiveContext">
+                                                        <p>Review hash: @snapshot.ReviewHash</p>
+                                                        <p>Materialized workspace: @snapshot.WorkspaceName</p>
+                                                        <p>Recorded ZIP name: @snapshot.ZipFileName</p>
+                                                        <p>Only the Council's registered successful artifact verification is a verified delivery receipt.</p>
+                                                    </ContentTemplate>
+                                                </DxAccordionItem>
+                                            </Items>
+                                        </DxAccordion>
+                                    }
+                                </Template>
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </BodyContentTemplate>
+                </DxPopup>
+            </Template>
+        </DxFormLayoutItem>
+    </DxFormLayout>
+</div>
+
+@code {
+    /// <summary>Controls whether the read-only source progress popup is displayed.</summary>
+    private bool visible;
+    /// <summary>Prevents overlapping refresh requests for this circuit.</summary>
+    private bool busy;
+    /// <summary>Recent lightweight Council headers, without provider transcripts.</summary>
+    private IReadOnlyList<CouncilSpoolerRunSummary> runs = [];
+    /// <summary>Selected run whose authoritative source draft is inspected.</summary>
+    private CouncilSpoolerRunSummary? selected;
+    /// <summary>Materialized source evidence, refreshed only by an awaited user action.</summary>
+    private CodeGenerationDraftProgress? progress;
+    /// <summary>User-visible status for an empty or unavailable source draft.</summary>
+    private string feedback = string.Empty;
+
+    /// <summary>Opens the progress view and loads recent run headers and the selected draft.</summary>
+    private async Task OpenAsync()
+    {
+        try
+        {
+            visible = true;
+            await RefreshAsync();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Opening Council source progress failed.");
+            feedback = "Source progress unavailable; see application diagnostics.";
+        }
+    }
+
+    /// <summary>Selects an actual retained Council run and refreshes its source evidence.</summary>
+    /// <param name="run">Selected run header, or null when the selection is cleared.</param>
+    private async Task SelectAsync(CouncilSpoolerRunSummary? run)
+    {
+        try
+        {
+            selected = run;
+            await RefreshAsync();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Selecting the Council source progress run failed.");
+            feedback = "Source progress unavailable; see application diagnostics.";
+        }
+    }
+
+    /// <summary>Refreshes a compact persisted projection without loading model streams or mutating the source workspace.</summary>
+    private async Task RefreshAsync()
+    {
+        if (busy) return;
+        busy = true;
+        try
+        {
+            runs = Spooler.GetRecentSummaries(50);
+            selected = runs.FirstOrDefault(run => run.RunId == selected?.RunId) ?? runs.FirstOrDefault();
+            progress = selected is null ? null : await Workflow.GetCouncilDraftProgressAsync(selected.RunId, CancellationToken.None, includePathHistory: true);
+            feedback = progress is null ? "No coordinated source draft has been persisted for this run." : string.Empty;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Reading Council source progress failed.");
+            progress = null;
+            feedback = "Source progress unavailable; see application diagnostics.";
+        }
+        finally { busy = false; }
+    }
+}

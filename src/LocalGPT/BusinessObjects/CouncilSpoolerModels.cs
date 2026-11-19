@@ -89,6 +89,8 @@ public sealed class CouncilSpoolerRunSummary
     public string Phase { get; init; } = string.Empty;
     /// <summary>Selected saved team key.</summary>
     public string CouncilTeamKey { get; init; } = string.Empty;
+    /// <summary>Distinguishable run label for a recent history selector.</summary>
+    public string DisplayLabel => $"{StartedAtUtc.ToLocalTime():g} · {CouncilTeamKey} · {Phase} · {RunId:N}";
 }
 
 /// <summary>Compact outcome of one retained Council member step, without prompts, thinking or answer text.</summary>

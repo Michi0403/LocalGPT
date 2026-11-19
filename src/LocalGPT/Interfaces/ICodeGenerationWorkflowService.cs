@@ -10,8 +10,9 @@ public interface ICodeGenerationWorkflowService
     /// <summary>Reads compact, actual draft/review state for the originating Council.</summary>
     /// <param name="runId">Council execution identifier.</param>
     /// <param name="cancellationToken">Cancels the lookup.</param>
+    /// <param name="includePathHistory">Includes per-path assignment and inspection history for an explicitly requested detail view.</param>
     /// <returns>The active draft or latest submitted draft review, if present.</returns>
-    Task<CodeGenerationDraftProgress?> GetCouncilDraftProgressAsync(Guid runId, CancellationToken cancellationToken);
+    Task<CodeGenerationDraftProgress?> GetCouncilDraftProgressAsync(Guid runId, CancellationToken cancellationToken, bool includePathHistory = false);
 
     /// <summary>Reserves distinct dependency-ready files for an authorized batch of model routes.</summary>
     /// <param name="runId">Council execution identifier.</param>
@@ -45,10 +46,11 @@ public interface ICodeGenerationWorkflowService
     /// <param name="runId">Owning Council execution.</param>
     /// <param name="packet">Previously issued candidate inspection evidence.</param>
     /// <param name="decision">Validated independent opinion tied to the exact hash and reviewer.</param>
+    /// <param name="requiredNegativeInspections">Configured corroboration threshold for the available independent reviewer pool.</param>
     /// <param name="cancellationToken">Cancels the persisted decision.</param>
     /// <returns>A task that completes after the decision is committed.</returns>
     Task RecordDraftInspectionAsync(Guid runId, CodeGenerationDraftInspection packet,
-        CodeGenerationDraftInspectionDecision decision, CancellationToken cancellationToken);
+        CodeGenerationDraftInspectionDecision decision, int requiredNegativeInspections, CancellationToken cancellationToken);
 
     /// <summary>Processes one operation on the active Council's persisted source draft.</summary>
     /// <param name="request">Draft operation and its input.</param>

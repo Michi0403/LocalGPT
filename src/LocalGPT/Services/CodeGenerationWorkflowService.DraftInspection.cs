@@ -35,12 +35,13 @@ public sealed partial class CodeGenerationWorkflowService
                     continue;
                 var author = plan.DraftAssignments.LastOrDefault(assignment => string.Equals(assignment.RelativePath, file.RelativePath,
                     StringComparison.OrdinalIgnoreCase) && assignment.Sha256 == hash)?.ModelName ?? string.Empty;
+                var previousDecisions = plan.DraftInspections.Where(decision => string.Equals(decision.Path, file.RelativePath, StringComparison.OrdinalIgnoreCase) &&
+                        decision.Sha256 == hash && decision.DependencyHashes.Count == hashes.Count &&
+                        hashes.All(pair => decision.DependencyHashes.TryGetValue(pair.Key, out var existing) && existing == pair.Value)).ToList();
                 inspections.Add(new CodeGenerationDraftInspection(row.Id, file.RelativePath, author, hash, file.Content,
                     plan.Goal, plan.DraftManifest![file.RelativePath], plan.DraftSharedContract, dependencies, hashes,
-                    plan.DraftInspections.Where(decision => string.Equals(decision.Path, file.RelativePath, StringComparison.OrdinalIgnoreCase) &&
-                        decision.Sha256 == hash && decision.DependencyHashes.Count == hashes.Count &&
-                        hashes.All(pair => decision.DependencyHashes.TryGetValue(pair.Key, out var existing) && existing == pair.Value))
-                        .Select(decision => decision.Reviewer).Distinct(StringComparer.OrdinalIgnoreCase).ToList()));
+                    previousDecisions.Select(decision => decision.Reviewer).Distinct(StringComparer.OrdinalIgnoreCase).ToList())
+                    { PreviousDecisions = previousDecisions });
             }
             return inspections;
         }
@@ -53,7 +54,7 @@ public sealed partial class CodeGenerationWorkflowService
 
     /// <inheritdoc />
     public async Task RecordDraftInspectionAsync(Guid runId, CodeGenerationDraftInspection packet,
-        CodeGenerationDraftInspectionDecision decision, CancellationToken cancellationToken)
+        CodeGenerationDraftInspectionDecision decision, int requiredNegativeInspections, CancellationToken cancellationToken)
     {
         try
         {
@@ -82,13 +83,21 @@ public sealed partial class CodeGenerationWorkflowService
                 }
                 decision.Path = packet.Path;
                 decision.DependencyHashes = new Dictionary<string, string>(packet.DependencyHashes, StringComparer.OrdinalIgnoreCase);
+                var matching = plan.DraftInspections.Where(item =>
+                    string.Equals(item.Path, packet.Path, StringComparison.OrdinalIgnoreCase) && item.Sha256 == packet.Sha256 &&
+                    item.DependencyHashes.Count == packet.DependencyHashes.Count &&
+                    packet.DependencyHashes.All(pair => item.DependencyHashes.TryGetValue(pair.Key, out var hash) && hash == pair.Value)).ToList();
+                if (matching.Any(item => string.Equals(item.Reviewer, decision.Reviewer, StringComparison.OrdinalIgnoreCase)))
+                    return; // Duplicate transport delivery is not another independent vote.
                 plan.DraftInspections.Add(decision);
-                if (decision.Accepted == false)
+                var rejectedBy = matching.Where(item => item.Accepted == false).Select(item => item.Reviewer)
+                    .Append(decision.Reviewer).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+                if (decision.Accepted == false && rejectedBy >= Math.Max(1, requiredNegativeInspections))
                 {
                     // Reopen only the defective file. Its previous source is evidence for the next attempt;
                     // dependency-hash mismatches cause independent reinspection, not destruction of good source.
                     plan.DraftRepairSources[packet.Path] = file.Content;
-                    plan.DraftManifest![packet.Path] += Environment.NewLine + decision.Diagnostic;
+                    // Keep the architect work order immutable; the rejection remains in the inspection history.
                     plan.Files.Remove(file);
                 }
                 if (await SaveDraftPlanAsync(db, row, plan, cancellationToken).ConfigureAwait(false))

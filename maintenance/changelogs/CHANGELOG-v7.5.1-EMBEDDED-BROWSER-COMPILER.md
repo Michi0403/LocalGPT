@@ -1,0 +1,8 @@
+# LocalGPT 7.5.1 — Embedded browser compiler
+
+- Added client-side C and C++ choices to the existing session sandbox runtime selector. The browser workbench is shown in the popup instead of opening another window. It keeps its own source editor, diagnostics, compile/run actions and local artifact downloads, so source is never sent through the Blazor circuit. Hyperlight entries and backend run evidence retain their identities.
+- Introduced explicit isolated Chat opt-in (`/chat?browserSandbox=1`) to permit the Wasmer browser worker inside a same-origin frame. Existing normal Chat and MCP headers remain unchanged; the workbench retains a restrictive asset-scoped CSP. A full page reload is required to change the top-level isolation policy. Browser checks fail closed when isolation or toolchain provisioning is unavailable. The standalone workbench remains available. Save browser work before changing runtimes or closing the popup.
+- Fixed missing `worker.postMessage(request)` in the previous workbench. Compile/execute now dispatch to the worker after handlers are installed.
+- Updated the existing PowerShell sandbox guard and operational reference. No database change, no Hyperlight or Council scheduling changes; no server plugin registration or automatic client dispatch.
+- Source candidate. JavaScript syntax checked; repository PowerShell gates, .NET compilation, actual Clang/Wasmer execution and integrated browser/WebView compatibility require local validation. The offline reviewed toolchain is not included.
+- A temporary headless Chromium embedding smoke attempt in the editing environment did not return a usable result; it is not listed as passing. No runtime certification is implied.

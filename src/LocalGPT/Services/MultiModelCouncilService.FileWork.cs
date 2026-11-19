@@ -38,6 +38,7 @@ public sealed partial class MultiModelCouncilService
             var verifyStep = steps.Single(item => item.Key == policy.VerificationStepKey);
             var curateStep = steps.SingleOrDefault(item => item.Key == policy.CurationStepKey) ?? verifyStep;
             var round = firstRound;
+            var requirementsInstruction = runtimePolicy.GetString("CouncilFileWorkRequirementsInstruction");
             // Do not bypass a user-configured required human or human-only role.
             if (steps.Any(step => roleAssignments.TryGetValue(step.Role, out var assigned) &&
                 assigned.HumanParticipationMode is HumanParticipationMode.Required or HumanParticipationMode.HumanOnly))
@@ -71,6 +72,7 @@ public sealed partial class MultiModelCouncilService
                 evidence.Add(new { step.Role, step.ModelName, Text = step.VisibleContent[..length] });
                 evidenceBudget -= length;
             }
+            var goal = string.IsNullOrWhiteSpace(request.GoalText) ? request.Prompt : request.GoalText;
             var progress = await codeGenerationWorkflow.GetCouncilDraftProgressAsync(result.RunId, cancellationToken).ConfigureAwait(false);
             if (progress is null)
             {
@@ -81,7 +83,7 @@ public sealed partial class MultiModelCouncilService
                 for (var attempt = 0; attempt < Math.Max(1, policy.MaximumPlanAttempts); attempt++)
                 {
                     var architect = architectRoutes[attempt % architectRoutes.Count];
-                    var prompt = policy.PlanPrompt + "\n" + JsonSerializer.Serialize(new { Goal = request.Prompt, Evidence = evidence, PreviousValidationError = planDiagnostic,
+                    var prompt = policy.PlanPrompt + "\n" + requirementsInstruction + "\n" + JsonSerializer.Serialize(new { Goal = goal, Evidence = evidence, PreviousValidationError = planDiagnostic,
                         GuestLanguages = fileWorkSandboxes.Languages.Where(language => fileWorkSandboxes.RuntimeReadiness.Any(runtime => runtime.Runtime == language.Runtime && runtime.Provisioned)).Select(language => language.Key).ToList() });
                     var replies = await RunFileWorkPhaseAsync(result, request, planStep, baseUri, routes, [architect],
                         round++, planStep.Phase, _ => prompt, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu,
@@ -90,12 +92,12 @@ public sealed partial class MultiModelCouncilService
                     if (reply is null) continue;
                     try
                     {
-                        var explicitPlan = ReadFileWorkJson<Dictionary<string, JsonElement>>(reply.VisibleContent);
+                        var explicitPlan = new Dictionary<string, JsonElement>(ReadFileWorkJson<Dictionary<string, JsonElement>>(ReadFileWorkAnswer(reply)), StringComparer.OrdinalIgnoreCase);
                         if (!explicitPlan.TryGetValue("draftWorkspaceMode", out var workspaceMode) || workspaceMode.ValueKind != JsonValueKind.String)
                             throw new ArgumentException("Choose one explicit workspace mode.");
                         ordinaryRoute = workspaceMode.GetString() == "ReviewedSourceDraft";
                         alternativeRouteObserved |= !ordinaryRoute;
-                        var plan = ReadSourceManifest(reply.VisibleContent);
+                        var plan = ReadSourceManifest(ReadFileWorkAnswer(reply));
                         if (plan.DraftWorkspaceMode == "ExistingRepository")
                             return null; // Existing staged-repository approval workflow remains authoritative.
                         if (plan.DraftWorkspaceMode == "HyperlightProject")
@@ -108,7 +110,7 @@ public sealed partial class MultiModelCouncilService
                             throw new ArgumentException("The selected isolated guest runtime is not provisioned.");
                         if (plan.DraftWorkspaceMode is not ("ReviewedSourceDraft" or "HyperlightSourceDraft"))
                             throw new ArgumentException("Unknown workspace mode.");
-                        plan.Goal = request.Prompt;
+                        plan.Goal = goal;
                         plan.CouncilRunId = result.RunId;
                         plan.DraftOperation = "begin";
                         // Never accept IDs, raw files or approval state from the planning model.
@@ -167,30 +169,35 @@ public sealed partial class MultiModelCouncilService
             result.ProjectRevisionId = progress.ProjectRevisionId;
             // A failed review transport is not a negative inspection of the source bytes.
             var attemptedInspections = new HashSet<(Guid DraftId, string Path, string Hash, string DependencyRevision, string Reviewer)>();
+            var draftRecoveryPass = 0;
+            var recoveryGuidance = string.Empty;
             for (var generation = 0; generation <= Math.Max(0, policy.MaximumRepairGenerations); generation++)
             {
                 if (progress.IsDraft)
                 {
-                    var maximumBatches = Math.Max(1, policy.MaximumManifestFiles) * Math.Max(1, policy.MaximumFileAttempts);
+                    var attemptAllowance = Math.Max(1, policy.MaximumFileAttempts) +
+                        draftRecoveryPass * Math.Max(0, policy.DraftRecoveryAdditionalAttempts);
+                    var maximumBatches = Math.Max(1, policy.MaximumManifestFiles) * attemptAllowance;
                     for (var batch = 0; batch < maximumBatches; batch++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var packets = await codeGenerationWorkflow.ReserveDraftFilesAsync(result.RunId, authorRoutes,
-                            Math.Max(1, policy.MaximumFileAttempts), cancellationToken).ConfigureAwait(false);
+                            attemptAllowance, cancellationToken).ConfigureAwait(false);
                         if (packets.Count > 0)
                         {
                             var byModel = packets.ToDictionary(packet => packet.Assignment.ModelName, StringComparer.OrdinalIgnoreCase);
                             var phase = $"{generateStep.Phase} · X-Round {generation + 1}.{batch + 1}";
                             await RunFileWorkPhaseAsync(result, request, generateStep, baseUri, routes, byModel.Keys.ToList(),
                                 round++, phase, model => (progress.WorkspaceMode == "HyperlightSourceDraft" ? policy.GuestAuthorPrompt : policy.AuthorPrompt)
-                                    + "\n" + JsonSerializer.Serialize(new { progress.WorkspaceMode, progress.GuestLanguageKey, Packet = byModel[model] }), modelRoutes, maxParallelModels, keepAlive,
+                                    + "\n" + requirementsInstruction + "\n" + JsonSerializer.Serialize(new { progress.WorkspaceMode, progress.GuestLanguageKey, RecoveryGuidance = recoveryGuidance, Packet = byModel[model] }), modelRoutes, maxParallelModels, keepAlive,
                                 ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, async step =>
                                 {
                                     if (progress.WorkspaceMode == "HyperlightSourceDraft") return; // Import only real, approved guest output after the batch.
                                     var packet = byModel[step.ModelName];
                                     var receipt = await codeGenerationWorkflow.CompleteDraftFileAsync(result.RunId, packet.Assignment,
-                                        step.ModelName, step.VisibleContent, step.Error, cancellationToken).ConfigureAwait(false);
-                                    step.VisibleContent += "\n\n" + JsonSerializer.Serialize(new { receipt.RelativePath, receipt.Id, receipt.Sha256, receipt.Diagnostic });
+                                        step.ModelName, ReadFileWorkAnswer(step), step.Error, cancellationToken).ConfigureAwait(false);
+                                    step.FileWorkReceiptJson = JsonSerializer.Serialize(new { receipt.RelativePath, receipt.Id, receipt.Sha256, receipt.Diagnostic });
+                                    step.VisibleContent += "\n\n" + System.Net.WebUtility.HtmlEncode(step.FileWorkReceiptJson);
                                     if (string.IsNullOrWhiteSpace(receipt.Sha256) && string.IsNullOrWhiteSpace(step.Error))
                                         step.Error = receipt.Diagnostic;
                                 }, cancellationToken).ConfigureAwait(false);
@@ -228,7 +235,7 @@ public sealed partial class MultiModelCouncilService
                             if (reviewPackets.Count > 0)
                             {
                                 await RunFileWorkPhaseAsync(result, request, curateStep, baseUri, routes, reviewPackets.Keys.ToList(),
-                                    round++, $"{curateStep.Phase} · X-Round {generation + 1}.{batch + 1}", model => policy.CuratorPrompt + "\n" + JsonSerializer.Serialize(reviewPackets[model]),
+                                    round++, $"{curateStep.Phase} · X-Round {generation + 1}.{batch + 1}", model => policy.CuratorPrompt + "\n" + requirementsInstruction + "\n" + JsonSerializer.Serialize(reviewPackets[model]),
                                     modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu, maxContextTokens, modelTimeoutSeconds,
                                     async step =>
                                     {
@@ -236,19 +243,25 @@ public sealed partial class MultiModelCouncilService
                                         try
                                         {
                                             if (!string.IsNullOrWhiteSpace(step.Error)) return;
-                                            var fields = ReadFileWorkJson<Dictionary<string, JsonElement>>(step.VisibleContent);
+                                            var fields = new Dictionary<string, JsonElement>(ReadFileWorkJson<Dictionary<string, JsonElement>>(ReadFileWorkAnswer(step)), StringComparer.OrdinalIgnoreCase);
                                             if (!fields.TryGetValue("accepted", out var accepted) || accepted.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
                                                 throw new ArgumentException("The inspection requires an explicit accepted boolean.");
-                                            var decision = ReadFileWorkJson<CodeGenerationDraftInspectionDecision>(step.VisibleContent);
+                                            if (fields.TryGetValue("diagnostic", out var diagnostic) && diagnostic.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                                                fields["diagnostic"] = JsonSerializer.SerializeToElement(diagnostic.GetRawText());
+                                            var decision = JsonSerializer.Deserialize<CodeGenerationDraftInspectionDecision>(JsonSerializer.Serialize(fields), new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                                                ?? throw new JsonException("Missing inspection decision.");
                                             if (decision.Sha256 != inspection.Sha256 || (decision.Accepted == false && string.IsNullOrWhiteSpace(decision.Diagnostic)))
                                                 throw new ArgumentException("The inspection did not bind a valid decision to the exact candidate.");
                                             decision.Reviewer = step.ModelName;
+                                            var independentCount = curatorRoutes.Count(model => !string.Equals(model, inspection.Author, StringComparison.OrdinalIgnoreCase));
                                             await codeGenerationWorkflow.RecordDraftInspectionAsync(result.RunId, reviewPackets[step.ModelName],
-                                                decision, cancellationToken).ConfigureAwait(false);
+                                                decision, Math.Max(1, Math.Min(policy.RequiredNegativeInspections, independentCount)), cancellationToken).ConfigureAwait(false);
+                                            step.FileWorkReceiptJson = JsonSerializer.Serialize(new { inspection.Path, inspection.DraftId, decision.Sha256, decision.Accepted, decision.Diagnostic, decision.Reviewer });
                                         }
                                         catch (Exception exception) when (exception is ArgumentException or JsonException or InvalidOperationException)
                                         {
                                             logger.LogWarning("Council inspection of {Path} returned no valid decision ({Category}); the source candidate remains unchanged.", inspection.Path, exception.GetType().Name);
+                                            step.FileWorkReceiptJson = JsonSerializer.Serialize(new { inspection.Path, inspection.DraftId, inspection.Sha256, Accepted = (bool?)null, Error = exception.GetType().Name });
                                         }
                                     }, cancellationToken).ConfigureAwait(false);
                             }
@@ -263,7 +276,39 @@ public sealed partial class MultiModelCouncilService
                     }
                     var unresolved = await codeGenerationWorkflow.GetDraftInspectionsAsync(result.RunId, cancellationToken).ConfigureAwait(false);
                     if (progress.MissingPaths.Count > 0 || (routes.Count > 1 && unresolved.Count > 0))
+                    {
+                        // Only read/author/inspect the existing unsubmitted draft. No approval or host operation may be replayed.
+                        if (draftRecoveryPass < Math.Max(0, policy.MaximumDraftRecoveryPasses) && progress.IsDraft &&
+                            progress.WorkspaceMode == "ReviewedSourceDraft" && progress.MissingPaths.Count > 0)
+                        {
+                            var recovery = await aiHelpEscalator.ReportAttemptAsync(new AiHelpAttemptReport
+                            {
+                                TaskId = $"council:{result.RunId:N}:draft:{progress.ReviewId:N}", AttemptId = Guid.NewGuid(),
+                                CouncilRunId = result.RunId, Task = string.Join("; ", progress.MissingPaths).Length > 2000
+                                    ? string.Join("; ", progress.MissingPaths)[..2000] : string.Join("; ", progress.MissingPaths),
+                                Action = "source draft recovery", Status = draftRecoveryPass == 0 ? "failed" : "no_progress",
+                                Error = new AiHelpFailureEvidence { Code = "SourceDraftIncomplete", Source = "validator",
+                                    Message = runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") }
+                            }, cancellationToken).ConfigureAwait(false);
+                            var notice = runtimePolicy.GetString("CouncilFileWorkRecoveryNotice") + "\n" + JsonSerializer.Serialize(recovery);
+                            var recoveryStep = new MultiModelCouncilStep { ModelName = "LocalGPT Nurse", Role = "Source recovery", Round = round++,
+                                Phase = generateStep.Phase, Content = notice, VisibleContent = System.Net.WebUtility.HtmlEncode(notice),
+                                StartedAtUtc = DateTime.UtcNow, CompletedAtUtc = DateTime.UtcNow };
+                            MultiModelCouncilServiceAddOrderedStep(result, recoveryStep, logger);
+                            request.StepCompleted?.Invoke(recoveryStep);
+                            request.StreamUpdate?.Invoke("\n\n<pre>" + System.Net.WebUtility.HtmlEncode(notice) + "</pre>\n\n");
+                            if (recovery.Type is "try_alternative" or "retry_with_guidance")
+                            {
+                                draftRecoveryPass++;
+                                recoveryGuidance = recovery.Instruction;
+                                generation--; // This is not a new build generation; the same draft and receipts remain authoritative.
+                                continue;
+                            }
+                        }
                         return runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" + JsonSerializer.Serialize(progress);
+                    }
+                    draftRecoveryPass = 0;
+                    recoveryGuidance = string.Empty;
                     // Submitting through the existing handler creates the immutable review and its exact deferred approval.
                     var submission = await InvokeFileWorkFunctionAsync(result, request, round, generateStep.Phase,
                         "codegen.review.create", new { draftOperation = "submit" }, cancellationToken).ConfigureAwait(false);
@@ -326,7 +371,7 @@ public sealed partial class MultiModelCouncilService
                     keepAlive, ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, null, cancellationToken).ConfigureAwait(false);
                 var repairReply = repairReplies.LastOrDefault(step => string.IsNullOrWhiteSpace(step.Error));
                 if (repairReply is null) break;
-                var repair = ReadFileWorkJson<Dictionary<string, string>>(repairReply.VisibleContent);
+                var repair = ReadFileWorkJson<Dictionary<string, string>>(ReadFileWorkAnswer(repairReply));
                 if (repair.Count == 0 || repair.Values.Any(string.IsNullOrWhiteSpace) ||
                     progress.CompletedFiles.Count + repair.Keys.Count(path => !progress.CompletedFiles.ContainsKey(path)) > Math.Max(1, policy.MaximumManifestFiles)) break;
                 var reopened = await InvokeFileWorkFunctionAsync(result, request, round, generateStep.Phase, "codegen.review.create",
@@ -396,6 +441,22 @@ public sealed partial class MultiModelCouncilService
         catch (Exception exception) { logger.LogError(exception, "Council file work phase {Phase} failed.", phase); throw; }
     }
 
+    /// <summary>Reverses the actual provider presentation encoding at the machine work boundary, without changing the displayed answer.</summary>
+    /// <param name="step">Completed provider step with server-owned presentation provenance.</param>
+    /// <returns>Plain source or JSON response; literal entities from unformatted providers remain unchanged.</returns>
+    private string ReadFileWorkAnswer(MultiModelCouncilStep step)
+    {
+        try
+        {
+            return step.VisibleContentHtmlEncoded ? System.Net.WebUtility.HtmlDecode(step.VisibleContent) : step.VisibleContent;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading the provider response for coordinated file work failed.");
+            throw;
+        }
+    }
+
     /// <summary>Parses an exact JSON object from a model, optionally enclosed in one Markdown fence.</summary>
     /// <typeparam name="T">Expected serialized work contract.</typeparam>
     /// <param name="answer">Visible model response, never the reasoning stream.</param>
@@ -405,25 +466,17 @@ public sealed partial class MultiModelCouncilService
         try
         {
             var value = answer.Trim();
-            if (value.StartsWith("```", StringComparison.Ordinal) && value.EndsWith("```", StringComparison.Ordinal))
-            {
-                var begin = value.IndexOf('\n');
-                if (begin < 0) throw new JsonException("Incomplete JSON fence.");
-                value = value[(begin + 1)..^3].Trim();
-            }
             var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-            try
-            {
-                return JsonSerializer.Deserialize<T>(value, options)
-                    ?? throw new JsonException("Missing structured work response.");
-            }
-            catch (JsonException) when (value.Contains("&quot;", StringComparison.Ordinal))
-            {
-                // Some display adapters encode JSON delimiters. Decode only if raw JSON fails,
-                // never mutate already valid JSON or the bytes of an authored source file.
-                return JsonSerializer.Deserialize<T>(System.Net.WebUtility.HtmlDecode(value), options)
-                    ?? throw new JsonException("Missing structured work response.");
-            }
+            if (value.StartsWith('{') && value.EndsWith('}'))
+                return JsonSerializer.Deserialize<T>(value, options) ?? throw new JsonException("Missing structured work response.");
+            var lines = value.Split('\n');
+            var fences = Enumerable.Range(0, lines.Length).Where(index => lines[index].TrimStart().StartsWith("```", StringComparison.Ordinal)).ToArray();
+            if (fences.Length != 2 || fences[1] <= fences[0] + 1 ||
+                !string.Equals(lines[fences[1]].Trim(), "```", StringComparison.Ordinal) ||
+                lines[fences[0]].Trim() is not ("```" or "```json" or "```JSON"))
+                throw new JsonException("Expected one complete JSON object or one unambiguous JSON fence.");
+            value = string.Join("\n", lines[(fences[0] + 1)..fences[1]]).Trim();
+            return JsonSerializer.Deserialize<T>(value, options) ?? throw new JsonException("Missing structured work response.");
         }
         catch (Exception exception) { logger.LogDebug(exception, "Council file contract JSON was invalid."); throw; }
     }

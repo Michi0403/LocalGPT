@@ -250,8 +250,12 @@ namespace LocalGPT.Services
                             }
 
                             liveCouncilSessions.SetParticipantActivityStatus((result.ChatRunId ?? result.RunId), activityKey, $"Running on {routeLabel}.");
+                            var participantPrompt = promptFactory(modelName);
+                            if (exactAssignments)
+                                participantStreamUpdate?.Invoke("\n\n<details class=\"council-step\"><summary>" + WebUtility.HtmlEncode($"{modelName} — {phase} / {role} · {runtimePolicy.GetString("CouncilFileWorkInstructionLabel")}") +
+                                    "</summary>\n\n<pre><code>" + WebUtility.HtmlEncode(participantPrompt) + "</code></pre>\n\n</details>\n\n");
                             var step = await RunParticipantAsync(
-                                baseUri, modelName, councilMembers ?? participants, round, phase, role, promptFactory(modelName), participantBootstrap,
+                                baseUri, modelName, councilMembers ?? participants, round, phase, role, participantPrompt, participantBootstrap,
                                 fallbackPlan.EffectiveMaxOutputTokens, keepAlive, fallbackPlan.OllamaNumGpu, fallbackPlan.EffectiveMaxContextTokens,
                                 modelTimeoutSeconds, participantStreamUpdate, cancellationToken,
                                 fallbackPlan: fallbackPlan,
@@ -263,6 +267,8 @@ namespace LocalGPT.Services
                                 finalAnswerRecoveryMaxOutputTokens: finalAnswerRecoveryMaxOutputTokens,
                                 requestOutputCeiling: requestOutputCeiling).ConfigureAwait(false);
                             ArgumentNullException.ThrowIfNull(step);
+                            if (exactAssignments)
+                                step.FileWorkInstruction = participantPrompt;
                             if (onParticipantCompletedAsync is not null)
                                 await onParticipantCompletedAsync(step).ConfigureAwait(false);
                             liveCouncilSessions.SetParticipantActivityResult(

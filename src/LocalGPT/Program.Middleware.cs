@@ -81,9 +81,15 @@ namespace LocalGPT
                 });
                 MapMcpGateway(app, logger);
                 // WASIX requires a cross-origin-isolated document. Keep these headers local to
-                // the independent browser workbench; do not change Chat, DevExpress, or MCP.
+                // the browser workbench and explicitly opted-in Chat documents; ordinary Chat and MCP remain unchanged.
                 app.Use(async (context, next) =>
                 {
+                    if (context.Request.Path.Equals(new PathString("/chat")) &&
+                        context.Request.Query.TryGetValue("browserSandbox", out var browserSandbox) && browserSandbox.ToString() == "1")
+                    {
+                        context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+                        context.Response.Headers["Cross-Origin-Embedder-Policy"] = "require-corp";
+                    }
                     if (context.Request.Path.StartsWithSegments("/browser-compiler"))
                     {
                         var headers = context.Response.Headers;
@@ -94,7 +100,7 @@ namespace LocalGPT
                         headers["X-Content-Type-Options"] = "nosniff";
                         var assetScope = Microsoft.AspNetCore.Http.Extensions.UriHelper.BuildAbsolute(
                             context.Request.Scheme, context.Request.Host, context.Request.PathBase, "/browser-compiler/");
-                        headers["Content-Security-Policy"] = $"default-src 'none'; script-src {assetScope} 'wasm-unsafe-eval' blob:; worker-src {assetScope} blob:; connect-src {assetScope} blob:; style-src {assetScope}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+                        headers["Content-Security-Policy"] = $"default-src 'none'; script-src {assetScope} 'wasm-unsafe-eval' blob:; worker-src {assetScope} blob:; connect-src {assetScope} blob:; style-src {assetScope}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'";
                         headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), usb=(), serial=(), hid=(), payment=()";
                     }
                     await next(context).ConfigureAwait(false);

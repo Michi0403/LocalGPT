@@ -2,6 +2,17 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $required = @(
+    # Preserve exact candidate evidence and bounded same-draft recovery.
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftInspection.cs'; Tokens = @('requiredNegativeInspections', 'rejectedBy', 'PreviousDecisions') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('MaximumDraftRecoveryPasses', 'DraftRecoveryAdditionalAttempts', 'RecoveryGuidance') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftAssignments.cs'; Tokens = @('includePathHistory', 'ValidateDraftProjectTarget', 'DraftRepairSources.ContainsKey') }
+    @{ Path = 'src/LocalGPT/Services/CouncilRuntimeService.PromptAndTextRuntime.cs'; Tokens = @('CouncilChatAssistantHistoryBudgetCharacters') }
+    @{ Path = 'src/LocalGPT/Services/GuidUtilityDxAiFunction.cs'; Tokens = @('identity.guid', 'RequiresHumanConfirmation: false') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('ReadFileWorkAnswer(step)', 'step.VisibleContentHtmlEncoded ? System.Net.WebUtility.HtmlDecode(step.VisibleContent)', 'step.FileWorkReceiptJson', 'plan.Goal = goal') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.PhaseExecution.cs'; Tokens = @('step.FileWorkInstruction = participantPrompt', 'WebUtility.HtmlEncode(participantPrompt)') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.ParticipantExecution.cs'; Tokens = @('VisibleContentHtmlEncoded = providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkGuest.cs'; Tokens = @('ReadFileWorkAnswer(authored).Trim()') }
+    @{ Path = 'src/LocalGPT/Services/Council/CouncilSpoolerService.cs'; Tokens = @('FileWorkInstruction = source.FileWorkInstruction', 'FileWorkReceiptJson = source.FileWorkReceiptJson', 'WorkflowStepKey = source.WorkflowStepKey') }
     # Artifact-first source recovery: normalize architecture metadata, keep exact file bytes, publish only verified ZIPs.
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkManifest.cs'; Tokens = @('contract.GetRawText()', 'JsonValueKind.Object or JsonValueKind.Array', 'GetFileWorkPreparationOutputCeiling') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('PreviousValidationError = planDiagnostic', '!beginAttempted', '!alternativeRouteObserved', 'attemptedInspections', 'result.Artifacts.Add(new CouncilArtifact', 'result.DevelopmentArtifactVerified = true', 'verified.Succeeded', 'File.Exists(zipPath)') }

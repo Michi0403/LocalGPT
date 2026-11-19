@@ -14,4 +14,8 @@ namespace LocalGPT.BusinessObjects;
 /// <param name="PreviousReviewers">Routes already attempted for these exact bytes and dependencies.</param>
 public sealed record CodeGenerationDraftInspection(Guid DraftId, string Path, string Author, string Sha256,
     string Source, string Goal, string WorkOrder, string SharedContract, IReadOnlyList<CodeGenerationFileSpec> Dependencies,
-    IReadOnlyDictionary<string, string> DependencyHashes, IReadOnlyList<string> PreviousReviewers);
+    IReadOnlyDictionary<string, string> DependencyHashes, IReadOnlyList<string> PreviousReviewers)
+{
+    /// <summary>Earlier exact candidate opinions supplied as review evidence rather than higher-priority instructions.</summary>
+    public IReadOnlyList<CodeGenerationDraftInspectionDecision> PreviousDecisions { get; init; } = [];
+}

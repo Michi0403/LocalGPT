@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $components = Join-Path $root 'src/LocalGPT/Components'
 $required = @(
+    @{ File='Layout/CouncilSourceProgressPanel.razor'; Tokens=@('DxPopup','DxAccordion','DxGrid','DetailRowTemplate','DxComboBox','DxFormLayout') },
     @{ File='Pages/Install.razor'; Tokens=@('DxHtmlEditor','DxComboBox','DxFormLayoutItem') },
     @{ File='Pages/DxFunctionCatalog.razor'; Tokens=@('DxGrid','DxMemo') },
     @{ File='Shared/LocalGptFormLayoutSurface.razor'; Tokens=@('DxFormLayout','DxFormLayoutItem') }

@@ -8,11 +8,11 @@
 </head>
 <body>
 <main>
-<h1>Browser WASIX compiler</h1>
+<h1 id="workbenchTitle">Browser WASIX compiler</h1>
 <p>Client-owned C/C++ compilation and WebAssembly execution. Source, compilation and program output remain in this browser. This workbench does not invoke Hyperlight, host compilers or server-side runtime plugins.</p>
 <p>The reviewed local Wasmer/Clang bundle must be provisioned before use. No CDN or registry downloads are performed by this page. HTTPS or localhost and browser cross-origin isolation are required.</p>
 <p id="status" role="status">Checking browser and installed toolchain…</p>
-<label for="language">Language</label><select id="language" disabled></select>
+<label id="languageLabel" for="language">Language</label><select id="language" disabled></select>
 <label for="standard">Language standard</label><select id="standard" disabled></select>
 <label for="sourceFile">Load one local source file (optional)</label><input id="sourceFile" type="file" accept=".c,.cc,.cpp,.cxx,.txt" disabled>
 <label for="source">Source code (not uploaded)</label>

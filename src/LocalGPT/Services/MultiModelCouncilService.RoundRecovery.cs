@@ -387,6 +387,13 @@ namespace LocalGPT.Services
                                     Source = "validator"
                                 }
                             }, cancellationToken).ConfigureAwait(false);
+                            var recoveryEvidence = System.Text.Json.JsonSerializer.Serialize(helpDecision);
+                            var nurseStep = new MultiModelCouncilStep { ModelName = "LocalGPT Nurse", Role = roleAssignment.RoleName,
+                                Round = round, Phase = phase, Content = recoveryEvidence, VisibleContent = System.Net.WebUtility.HtmlEncode(recoveryEvidence),
+                                StartedAtUtc = DateTime.UtcNow, CompletedAtUtc = DateTime.UtcNow };
+                            MultiModelCouncilServiceAddOrderedStep(result, nurseStep, logger);
+                            request.StepCompleted?.Invoke(nurseStep);
+                            request.StreamUpdate?.Invoke("\n\n<pre>" + System.Net.WebUtility.HtmlEncode(recoveryEvidence) + "</pre>\n\n");
                             logger.LogInformation("Council member recovery exhausted for run {RunId}, step {StepKey}, model {ModelName}; central help decision {DecisionType}, request {HumanRequestId}.",
                                 result.RunId, definition.Key, failedModel, helpDecision.Type, helpDecision.HumanRequestId);
                         }

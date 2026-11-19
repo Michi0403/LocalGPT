@@ -8,6 +8,7 @@ $appRoot = Join-Path $root 'src/LocalGPT'
 $expected = [ordered]@{
     'Components/InteractiveStartupMarker.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Layout/CouncilSpoolerPanel.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
+    'Components/Layout/CouncilSourceProgressPanel.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Layout/HumanCollaborationInbox.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Layout/MenuIsland.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Layout/NavMenu.razor' = '@rendermode InteractiveServer'

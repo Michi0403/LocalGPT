@@ -630,6 +630,7 @@ namespace LocalGPT.Services
                         Role = role,
                         Content = content,
                         VisibleContent = visibleContent,
+                        VisibleContentHtmlEncoded = providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase),
                         Thinking = thinking,
                         StartedAtUtc = started,
                         CompletedAtUtc = DateTime.UtcNow,

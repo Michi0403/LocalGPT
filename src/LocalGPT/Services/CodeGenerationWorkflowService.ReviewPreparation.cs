@@ -483,6 +483,8 @@ namespace LocalGPT.Services
             payload.Files ??= [];
             payload.CodeDomTypes ??= [];
             payload.Outputs ??= [];
+            payload.DraftAssignments ??= [];
+            payload.DraftInspections ??= [];
             return payload;
     
     }

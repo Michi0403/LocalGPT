@@ -57,7 +57,26 @@ public partial class Chat
         Guid.TryParse(selectedSandboxSession, out var sessionId) && sessionId != Guid.Empty
             ? sessionId : CurrentSandboxSessionId;
 
-    private IReadOnlyList<SessionSandboxLanguage> SandboxLanguageOptions => SandboxRuns.Languages;
+    /// <summary>Manual sandbox choices include client-only compilers without advertising them to backend Council execution.</summary>
+    private IReadOnlyList<LocalGptSelectionOption<string>> SandboxLanguageOptions => SandboxRuns.Languages
+        .Select(language => new LocalGptSelectionOption<string>(language.Key, language.DisplayName))
+        .Concat(new[]
+        {
+            new LocalGptSelectionOption<string>("browser-wasix-c", "C · Browser WASIX / Clang"),
+            new LocalGptSelectionOption<string>("browser-wasix-cpp", "C++ · Browser WASIX / Clang")
+        }).ToArray();
+
+    /// <summary>Distinguishes browser-only choices from backend guest execution.</summary>
+    private bool IsBrowserSandboxSelected => selectedSandboxLanguage is "browser-wasix-c" or "browser-wasix-cpp";
+
+    /// <summary>Selects the fixed language of the embedded client workbench without transmitting source or results.</summary>
+    private string BrowserSandboxFrameUrl => selectedSandboxLanguage == "browser-wasix-c"
+        ? "browser-compiler/index.html?embedded=1&language=c"
+        : "browser-compiler/index.html?embedded=1&language=cpp";
+
+    /// <summary>Indicates whether the current Chat URL requests document-level isolation; the browser itself verifies effective isolation.</summary>
+    private bool BrowserSandboxIsolationRequested => Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(NavigationManager.Uri).Query)
+        .TryGetValue("browserSandbox", out var value) && value.ToString() == "1";
     private IReadOnlyList<SessionSandboxRunSnapshot> SessionSandboxRuns => SandboxRuns.ListRuns(EffectiveSandboxSessionId);
     private int TotalRunningSandboxes => SandboxRuns.ListRuns().Count(run => run.Status is "Queued" or "Running");
 
@@ -82,6 +101,11 @@ public partial class Chat
     {
         try
         {
+            if (IsBrowserSandboxSelected)
+            {
+                Logger.LogWarning("A client-only WASIX selection cannot be submitted to the backend sandbox queue.");
+                return Task.CompletedTask;
+            }
             var request = new SessionSandboxRunRequest(
                 EffectiveSandboxSessionId,
                 SessionContext.ConversationId,

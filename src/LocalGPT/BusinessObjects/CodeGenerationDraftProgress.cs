@@ -17,4 +17,8 @@ namespace LocalGPT.BusinessObjects;
 public sealed record CodeGenerationDraftProgress(
     Guid ReviewId, Guid? ProjectId, Guid? ProjectRevisionId, string Status, string ReviewHash,
     string BuildStatus, string WorkspaceName, string ZipFileName, IReadOnlyList<string> MissingPaths,
-    IReadOnlyDictionary<string, string> CompletedFiles, bool IsDraft, string WorkspaceMode, string GuestLanguageKey);
+    IReadOnlyDictionary<string, string> CompletedFiles, bool IsDraft, string WorkspaceMode, string GuestLanguageKey)
+{
+    /// <summary>Read-only file progress projected from the persisted manifest, assignments and inspections.</summary>
+    public IReadOnlyList<CodeGenerationDraftPathProgress> Paths { get; init; } = [];
+}

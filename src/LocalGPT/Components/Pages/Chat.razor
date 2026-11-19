@@ -1064,7 +1064,7 @@
             <summary>Session code sandboxes · @TotalRunningSandboxes running</summary>
             <div class="session-sandbox-body" aria-label="Isolated session debugging and test execution">
                 <p class="memory-status">Backend-owned execution: sandboxes remain active when Chat disconnects. The guest has no network or project mounts; Python, C# and PowerShell runtimes are provisioned at build/publish time. Only the explicitly submitted source enters the micro-VM. A missing Hyperlight runtime never falls back to host execution.</p>
-                <p class="memory-status"><a href="browser-compiler/index.html" target="_blank" rel="noopener noreferrer" data-testid="browser-wasix-workbench">Open client-side C/C++ WASIX compiler</a> · Separate browser-owned execution; no server fallback.</p>
+                <p class="memory-status"><a href="browser-compiler/index.html" target="_blank" rel="noopener noreferrer" data-testid="browser-wasix-workbench">Open client-side C/C++ WASIX compiler</a> · Standalone alternative; C and C++ are also available in the selector below.</p>
                 <div class="session-sandbox-runtime-readiness" aria-label="Hyperlight guest runtimes available with this build">
                     @foreach (var readiness in SandboxRuns.RuntimeReadiness)
                     {
@@ -1082,31 +1082,45 @@
                     <label>Isolated runtime
                         <DxComboBox Data="@SandboxLanguageOptions"
                                     @bind-Value="@selectedSandboxLanguage"
-                                    ValueFieldName="@nameof(SessionSandboxLanguage.Key)"
-                                    TextFieldName="@nameof(SessionSandboxLanguage.DisplayName)" />
+                                    ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                    TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
                     </label>
                 </div>
-                <details class="session-sandbox-codedom" data-testid="session-sandbox-codedom">
-                    <summary>CodeDOM source generator · create a C# executable test</summary>
-                    <p class="memory-status">Uses the same CodeDOM source generator as reviewed projects. Generate the source, inspect or edit it below, then explicitly approve an isolated run. C++ execution requires a separate available language provider and a verified guest compiler.</p>
-                    <div class="session-sandbox-codedom-fields">
-                        <label>Namespace <DxTextBox @bind-Text="@sandboxCodeDomNamespace" /></label>
-                        <label>Class <DxTextBox @bind-Text="@sandboxCodeDomTypeName" /></label>
-                        <label>Method <DxTextBox @bind-Text="@sandboxCodeDomMethodName" /></label>
-                        <label>Returned text <DxTextBox @bind-Text="@sandboxCodeDomMethodResult" /></label>
-                    </div>
-                    <DxButton Text="Generate runnable C# source with CodeDOM" Click="StageCodeDomSandboxSourceAsync" />
-                </details>
-                <label class="session-sandbox-source-label">Source to debug or test in the selected runtime
-                    <DxMemo @bind-Text="@sandboxSource" Rows="7" NullText="Paste code to run inside a Hyperlight micro-VM" />
-                </label>
-                <div class="session-sandbox-buttons">
-                    <DxButton Text="Run inside sandbox" RenderStyle="ButtonRenderStyle.Primary" Click="StartSandboxExecutionAsync" />
-                    <DxButton Text="Refresh sandboxes" Click="RefreshSandboxExecutionAsync" />
-                </div>
-                @if (!string.IsNullOrWhiteSpace(sandboxFeedback))
+                @if (IsBrowserSandboxSelected)
                 {
-                    <p class="memory-status" role="status">@sandboxFeedback</p>
+                    <p class="memory-status">Client-owned WASIX compilation and execution. The editor and output below stay in the browser. They are not backend Council or Hyperlight receipts. Save your module or receipt before switching runtimes or closing session tools.</p>
+                    @if (!BrowserSandboxIsolationRequested)
+                    {
+                        <p class="memory-status"><a href="@(NavigationManager.GetUriWithQueryParameter("browserSandbox", "1"))" data-enhance-nav="false">Enable browser compiler isolation in this Chat</a> · Requires a full page reload. Backend Council and sandbox runs remain independent of this page; save unsent edits first. Reopen session tools and select C or C++ after reload.</p>
+                    }
+                    <iframe @key="selectedSandboxLanguage" class="session-sandbox-browser-frame" data-testid="session-sandbox-browser-frame"
+                            src="@BrowserSandboxFrameUrl" title="Client-side C/C++ WASIX sandbox"
+                            allow="cross-origin-isolated" sandbox="allow-scripts allow-same-origin allow-downloads" referrerpolicy="no-referrer"></iframe>
+                }
+                else
+                {
+                    <details class="session-sandbox-codedom" data-testid="session-sandbox-codedom">
+                        <summary>CodeDOM source generator · create a C# executable test</summary>
+                        <p class="memory-status">Uses the same CodeDOM source generator as reviewed projects. Generate the source, inspect or edit it below, then explicitly approve an isolated run. C++ execution requires a separate available language provider and a verified guest compiler.</p>
+                        <div class="session-sandbox-codedom-fields">
+                            <label>Namespace <DxTextBox @bind-Text="@sandboxCodeDomNamespace" /></label>
+                            <label>Class <DxTextBox @bind-Text="@sandboxCodeDomTypeName" /></label>
+                            <label>Method <DxTextBox @bind-Text="@sandboxCodeDomMethodName" /></label>
+                            <label>Returned text <DxTextBox @bind-Text="@sandboxCodeDomMethodResult" /></label>
+                        </div>
+                        <DxButton Text="Generate runnable C# source with CodeDOM" Click="StageCodeDomSandboxSourceAsync" />
+                    </details>
+                    <label class="session-sandbox-source-label">Source to debug or test in the selected runtime
+                        <DxMemo @bind-Text="@sandboxSource" Rows="7" NullText="Paste code to run inside a Hyperlight micro-VM" />
+                    </label>
+                    <div class="session-sandbox-buttons">
+                        <DxButton Text="Run inside sandbox" RenderStyle="ButtonRenderStyle.Primary" Click="StartSandboxExecutionAsync" />
+                        <DxButton Text="Refresh sandboxes" Click="RefreshSandboxExecutionAsync" />
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(sandboxFeedback))
+                    {
+                        <p class="memory-status" role="status">@sandboxFeedback</p>
+                    }
                 }
                 @foreach (var sandbox in SessionSandboxRuns)
                 {

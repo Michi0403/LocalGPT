@@ -3453,3 +3453,15 @@
 .chat-council-live-replay .chat-council-live-transcript-hint { margin:.3rem 0; opacity:.85; }
 .chat-council-live-member { margin-top:.45rem; border-top:1px solid var(--bs-border-color, #666); padding-top:.35rem; }
 .chat-council-live-member summary { cursor:pointer; }
+
+/* Client document owns its source editor and execution; no Blazor data binding. */
+.session-sandbox-browser-frame {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: min(78vh, 58rem);
+    min-height: 30rem;
+    border: 1px solid var(--bs-border-color, #adb5bd);
+    border-radius: 0.65rem;
+    color-scheme: light dark;
+}

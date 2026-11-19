@@ -31,6 +31,12 @@ public sealed class CouncilFileWorkRuntimeParameters
     public int MaximumAuthorOutputTokens { get; set; } = 16384;
     /// <summary>Maximum authoring attempts for each distinct path in a draft.</summary>
     public int MaximumFileAttempts { get; set; }
+    /// <summary>Independent negative decisions required before removing a stored candidate, bounded by eligible non-author reviewers.</summary>
+    public int RequiredNegativeInspections { get; set; } = 2;
+    /// <summary>Additional safe source-only recovery passes after a stalled draft, without repeating approvals or builds.</summary>
+    public int MaximumDraftRecoveryPasses { get; set; } = 2;
+    /// <summary>Additional author attempts per missing path in each explicitly supervised recovery pass.</summary>
+    public int DraftRecoveryAdditionalAttempts { get; set; } = 2;
     /// <summary>Maximum attempts to obtain a valid explicit plan before declaring a blocker.</summary>
     public int MaximumPlanAttempts { get; set; }
     /// <summary>Maximum targeted build-repair generations after the initial approved build.</summary>
