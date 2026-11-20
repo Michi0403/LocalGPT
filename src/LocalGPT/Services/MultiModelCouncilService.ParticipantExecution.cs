@@ -148,8 +148,7 @@ namespace LocalGPT.Services
                             $"Settings revision {runtimeLease.Revision}; {accelerationSummary}; output={maxOutputTokens}; context={maxContextTokens}.");
                     }
 
-                    if (allowRecovery
-                        && councilRunId is Guid admissionRunId
+                    if (councilRunId is Guid admissionRunId
                         && providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
                     {
                         // A host that the goal recovery helper marked down in this run is checked once instead of being

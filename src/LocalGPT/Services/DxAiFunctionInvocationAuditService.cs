@@ -28,9 +28,11 @@ public sealed class DxAiFunctionInvocationAuditService(
     /// Performs record as part of the DevExpress AI function invocation audit service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="result">Result value supplied to the DevExpress AI function invocation audit operation and used when producing its result.</param>
+    /// <param name="request">Invocation routing metadata; parameters are never persisted.</param>
+    /// <param name="context">Server-owned execution context captured at admission.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    public async Task RecordAsync(DxAiFunctionInvocationResult result, CancellationToken cancellationToken = default)
+    public async Task RecordAsync(DxAiFunctionInvocationResult result, DxAiFunctionInvocationRequest request, AmbientLocalGptContextSnapshot context, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -45,7 +47,18 @@ public sealed class DxAiFunctionInvocationAuditService(
                 FunctionName = result.FunctionName,
                 Status = result.Status,
                 Succeeded = result.Succeeded,
-                CreatedAtUtc = DateTime.UtcNow
+                CreatedAtUtc = DateTime.UtcNow,
+                CouncilRunId = context.CouncilRunId,
+                ChatRunId = context.ExecutionIdentity?.ChatRunId,
+                CouncilRound = context.CouncilRunId.HasValue ? context.CouncilRound : null,
+                Phase = context.Phase,
+                ProjectId = context.ExecutionIdentity is null ? request.ProjectId : context.ExecutionIdentity.ProjectId,
+                ProjectRevisionId = context.ExecutionIdentity is null ? request.ProjectVersionId : context.ExecutionIdentity.ProjectRevisionId,
+                HandlerDispatched = result.HandlerDispatched,
+                DescriptorReadOnly = result.DescriptorReadOnly,
+                SchemaHash = result.SchemaHash,
+                RequestedBy = context.CouncilRunId.HasValue && request.RequestedBy is { Length: > 0 } actor &&
+                    actor.StartsWith("Ollama:", StringComparison.Ordinal) ? actor[..Math.Min(actor.Length, 256)] : context.ActorDisplayName
             };
             if (entity is null)
             {

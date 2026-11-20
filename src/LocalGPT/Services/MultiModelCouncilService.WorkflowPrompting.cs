@@ -243,7 +243,7 @@ namespace LocalGPT.Services
                         1);
                 var routeLabel = $"{GetCouncilExecutionHostKey(modelName)} · {plan.LaneKey}";
                 liveCouncilSessions.BeginParticipantActivity((result.ChatRunId ?? result.RunId), activityKey, modelName, phase, definition.Role, routeLabel);
-                liveCouncilSessions.SetParticipantActivityStatus((result.ChatRunId ?? result.RunId), activityKey, $"Running on {routeLabel}.");
+                liveCouncilSessions.SetParticipantActivityStatus((result.ChatRunId ?? result.RunId), activityKey, $"Running on {routeLabel}.", admitted: true);
 
                 // Configured single/sequential workflow steps must expose the same rich producer-side lane as
                 // parallel Council phases. Keep that lane current on every provider fragment, but coalesce the
@@ -271,7 +271,7 @@ namespace LocalGPT.Services
                 try
                 {
                     using var participantCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
-                    using (ambientContext.PushCouncil(result.RunId, round, phase))
+                    using (ambientContext.PushCouncil(result.RunId, round, phase, executionIdentity: new CouncilExecutionIdentity(result.ChatRunId ?? result.RunId, result.ProjectId, result.ProjectRevisionId)))
                     {
                         participantStep = await RunParticipantAsync(
                             baseUri,

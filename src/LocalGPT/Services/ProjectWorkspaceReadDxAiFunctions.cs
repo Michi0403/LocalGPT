@@ -7,12 +7,14 @@ namespace LocalGPT.Services;
 /// <param name="json">Devexpress ai function json service dependency used by the list project workspace files function workflow to provide the corresponding application capability.</param>
 /// <param name="projects">Local gpt project service dependency used by the list project workspace files function workflow to provide the corresponding application capability.</param>
 /// <param name="sessionContext">Chat session context dependency used by the list project workspace files function workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Server-owned execution binding for a Council request.</param>
 /// <param name="councilRuntime">Council runtime service dependency used by the list project workspace files function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListProjectWorkspaceFilesFunction(
     IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     IChatSessionContext sessionContext,
+    IAmbientLocalGptContext ambientContext,
     CouncilRuntimeService councilRuntime,
     ILogger<ListProjectWorkspaceFilesFunction> logger) : IDxAiFunctionHandler
 {
@@ -41,7 +43,8 @@ public sealed class ListProjectWorkspaceFilesFunction(
             var binding = json.Bind<ProjectWorkspaceListParameters>(request.Parameters);
             if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
             var parameters = binding.Value;
-            var projectId = parameters.ProjectId ?? sessionContext.ProjectId;
+            var executionIdentity = ambientContext.Current.ExecutionIdentity;
+            var projectId = parameters.ProjectId ?? (executionIdentity is null ? sessionContext.ProjectId : executionIdentity.ProjectId);
             if (projectId is not Guid id)
                 return new DxAiFunctionInvocationResult { Status = "NoProject", Error = "No project is linked to this chat. Select a project in Chat Configuration or provide projectId." };
 
@@ -67,6 +70,7 @@ public sealed class ListProjectWorkspaceFilesFunction(
 /// <param name="json">Devexpress ai function json service dependency used by the read project workspace file function workflow to provide the corresponding application capability.</param>
 /// <param name="projects">Local gpt project service dependency used by the read project workspace file function workflow to provide the corresponding application capability.</param>
 /// <param name="sessionContext">Chat session context dependency used by the read project workspace file function workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Server-owned execution binding for a Council request.</param>
 /// <param name="documents">Safe text document service dependency used by the read project workspace file function workflow to provide the corresponding application capability.</param>
 /// <param name="councilRuntime">Council runtime service dependency used by the read project workspace file function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
@@ -74,6 +78,7 @@ public sealed class ReadProjectWorkspaceFileFunction(
     IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     IChatSessionContext sessionContext,
+    IAmbientLocalGptContext ambientContext,
     ISafeTextDocumentService documents,
     CouncilRuntimeService councilRuntime,
     ILogger<ReadProjectWorkspaceFileFunction> logger) : IDxAiFunctionHandler
@@ -103,7 +108,8 @@ public sealed class ReadProjectWorkspaceFileFunction(
             var binding = json.Bind<ProjectWorkspaceReadParameters>(request.Parameters);
             if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
             var parameters = binding.Value;
-            var projectId = parameters.ProjectId ?? sessionContext.ProjectId;
+            var executionIdentity = ambientContext.Current.ExecutionIdentity;
+            var projectId = parameters.ProjectId ?? (executionIdentity is null ? sessionContext.ProjectId : executionIdentity.ProjectId);
             if (projectId is not Guid id)
                 return new DxAiFunctionInvocationResult { Status = "NoProject", Error = "No project is linked to this chat. Select a project in Chat Configuration or provide projectId." };
 

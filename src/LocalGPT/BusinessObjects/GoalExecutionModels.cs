@@ -156,6 +156,10 @@ public sealed class GoalExecutionStepReceipt
     public string StepKey { get; set; } = string.Empty;
     /// <summary>Actual Council run identity for this attempt.</summary><value>The Council run ID.</value>
     public Guid CouncilRunId { get; set; }
+    /// <summary>Actual project identity returned by this attempt, never inherited from an unrelated run.</summary>
+    public Guid? ProjectId { get; set; }
+    /// <summary>Actual revision identity returned by this attempt.</summary>
+    public Guid? ProjectRevisionId { get; set; }
     /// <summary>Status of the step at the last durable checkpoint.</summary><value>The observed execution state.</value>
     public GoalExecutionState State { get; set; }
     /// <summary>Successful Council answer retained for dependent steps; never inferred to verify external effects.</summary><value>Response from the Council.</value>

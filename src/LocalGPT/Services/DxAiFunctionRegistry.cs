@@ -98,16 +98,25 @@ public sealed class DxAiFunctionRegistry(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
     {
+        var context = ambientContext.Current;
         try
         {
             var result = await InvokeCoreAsync(functionName, request, cancellationToken).ConfigureAwait(false);
+            result.HandlerDispatched ??= false;
             if (!request.PreviewOnly)
-                await audit.RecordAsync(result, CancellationToken.None).ConfigureAwait(false);
+                await audit.RecordAsync(result, request, context, CancellationToken.None).ConfigureAwait(false);
             return result;
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "DX function {FunctionName} failed outside the normal operation result boundary.", functionName);
+            if (request is { PreviewOnly: false, OperationId: Guid operationId })
+                await audit.RecordAsync(new DxAiFunctionInvocationResult
+                {
+                    OperationId = operationId, FunctionName = functionName, Succeeded = false,
+                    Status = exception is OperationCanceledException ? "CancelledUnknown" : "FailedUnknown",
+                    HandlerDispatched = null
+                }, request, context, CancellationToken.None).ConfigureAwait(false);
             throw;
         }
     }
@@ -213,6 +222,7 @@ public sealed class DxAiFunctionRegistry(
             || (!descriptor.IsReadOnly && !descriptor.IsCoordinationOnly)
             || (request.AutomaticInvocation && !descriptor.SupportsAutomaticInvocation);
 
+        var schemaHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(descriptor.ParameterSchemaJson ?? string.Empty)));
         var parameterValidationError = ValidateInvocationParameters(descriptor, request.Parameters);
         if (!string.IsNullOrWhiteSpace(parameterValidationError))
         {
@@ -223,6 +233,8 @@ public sealed class DxAiFunctionRegistry(
                 OperationId = operationId,
                 Status = "InvalidParameters",
                 Error = parameterValidationError,
+                DescriptorReadOnly = descriptor.IsReadOnly,
+                SchemaHash = schemaHash,
                 ValidationIssues = [BuildValidationIssue(parameterValidationError)]
             };
         }
@@ -236,6 +248,8 @@ public sealed class DxAiFunctionRegistry(
                 FunctionName = functionName,
                 OperationId = operationId,
                 Status = "StalePreview",
+                DescriptorReadOnly = descriptor.IsReadOnly,
+                SchemaHash = schemaHash,
                 Error = "Parameters, function descriptor or saved policy changed after preview. Preview this exact call again."
             };
         }
@@ -247,6 +261,8 @@ public sealed class DxAiFunctionRegistry(
                 OperationId = operationId,
                 Succeeded = true,
                 Status = "PreviewReady",
+                DescriptorReadOnly = descriptor.IsReadOnly,
+                SchemaHash = schemaHash,
                 Value = new DxAiFunctionInvocationPreview
                 {
                     FunctionName = functionName,
@@ -291,6 +307,8 @@ public sealed class DxAiFunctionRegistry(
                     FunctionName = functionName,
                     OperationId = operationId,
                     Status = "HumanApprovalDeclined",
+                DescriptorReadOnly = descriptor.IsReadOnly,
+                SchemaHash = schemaHash,
                     Error = string.IsNullOrWhiteSpace(gate.DecisionReason)
                         ? "The local human declined this exact function invocation."
                         : gate.DecisionReason,
@@ -318,6 +336,8 @@ public sealed class DxAiFunctionRegistry(
                     FunctionName = functionName,
                     OperationId = operationId,
                     Status = "HumanApprovalPending",
+                DescriptorReadOnly = descriptor.IsReadOnly,
+                SchemaHash = schemaHash,
                     Error = "This exact function invocation is waiting in the Human Collaboration Inbox. Other council work may continue; an approved deferred invocation can run immediately from the Human Collaboration Inbox or on a council heartbeat.",
                     Value = new
                     {
@@ -355,6 +375,9 @@ public sealed class DxAiFunctionRegistry(
             };
             result.FunctionName = functionName;
             result.OperationId = operationId;
+            result.HandlerDispatched = true;
+            result.DescriptorReadOnly = descriptor.IsReadOnly;
+            result.SchemaHash = schemaHash;
             publisherMediaDelivery.Record(ambientContext.Current.CouncilRunId, result);
             logger.LogInformation(
                 "DXAIFunction {FunctionName} completed with status {FunctionStatus} and success={Succeeded}.",
@@ -375,6 +398,9 @@ public sealed class DxAiFunctionRegistry(
             {
                 FunctionName = functionName,
                 OperationId = operationId,
+                HandlerDispatched = true,
+                DescriptorReadOnly = descriptor.IsReadOnly,
+                SchemaHash = schemaHash,
                 Status = "InvalidParameters",
                 Error = "The function parameters could not be parsed."
             };
@@ -386,6 +412,9 @@ public sealed class DxAiFunctionRegistry(
             {
                 FunctionName = functionName,
                 OperationId = operationId,
+                HandlerDispatched = true,
+                DescriptorReadOnly = descriptor.IsReadOnly,
+                SchemaHash = schemaHash,
                 Status = "Failed",
                 Error = "The function failed. Review LocalGPT application logs using the operation ID."
             };
@@ -679,8 +708,10 @@ public sealed class DxAiFunctionRegistry(
             if (schema.TryGetProperty("enum", out var enumElement) && enumElement.ValueKind == JsonValueKind.Array)
             {
                 var raw = value.GetRawText();
-                if (!enumElement.EnumerateArray().Any(candidate => string.Equals(candidate.GetRawText(), raw, StringComparison.Ordinal)))
-                    return $"Parameter '{path}' is not one of the registered allowed values.";
+                if (!enumElement.EnumerateArray().Any(candidate => candidate.ValueKind == JsonValueKind.String && value.ValueKind == JsonValueKind.String
+                    ? string.Equals(candidate.GetString(), value.GetString(), StringComparison.Ordinal)
+                    : string.Equals(candidate.GetRawText(), raw, StringComparison.Ordinal)))
+                    return $"Parameter '{path}' is not one of the registered allowed values: {enumElement.GetRawText()}.";
             }
 
             if (value.ValueKind == JsonValueKind.Object)
@@ -722,7 +753,7 @@ public sealed class DxAiFunctionRegistry(
                         foreach (var proposedProperty in value.EnumerateObject())
                         {
                             if (!allowed.Contains(proposedProperty.Name))
-                                return $"Parameter '{path}.{proposedProperty.Name}' is not allowed by the registered schema.";
+                                return $"Parameter '{path}.{proposedProperty.Name}' is not allowed by the registered schema. Registered fields: {string.Join(", ", allowed.OrderBy(name => name, StringComparer.Ordinal))}.";
                         }
                     }
                 }
@@ -962,7 +993,7 @@ public sealed class CreateCodeGenerationReviewFunction(
         "POST",
         "/api/dxai/functions/codegen.review.create/invoke",
         "Create a database-backed change review containing the exact proposed files, CodeDOM types, output targets, current project-state summary, council summary, safety summary, and immutable review hash.",
-        "For Council drafts call begin with goal, outputs and draftManifest (relative paths mapped to short work orders), optional draftSharedContract and draftDependencies. If the configured Council assigns file authors, let the scheduler commit the individual file responses. In older sequential workflows call next and complete with exactly one file until readyToSubmit. Call submit without files to freeze the complete draft and queue approval. For a completed file-authored review, repair with draftRepairReviewId, draftRepairReviewHash and draftManifest containing only exact faulty or missing paths and concrete repair work orders; the successor preserves all other source and needs fresh approval. For a direct review, goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; Put every real source file (including .csproj and Program.cs) in files with its complete content; codeDomTypes is only a one-method string stub demo and is rejected unless files with content are also supplied.",
+        "For Council drafts set draftOperation to begin with goal, outputs and draftManifest (relative paths mapped to short work orders), optional draftSharedContract and draftDependencies. Do not include files or codeDomTypes in begin. The schema enum is authoritative; omit draftOperation for a direct review. If the configured Council assigns file authors, let the scheduler commit the individual file responses. In older sequential workflows call next and complete with exactly one file until readyToSubmit. Call submit without files to freeze the complete draft and queue approval. For a completed file-authored review, repair with draftRepairReviewId, draftRepairReviewHash and draftManifest containing only exact faulty or missing paths and concrete repair work orders; the successor preserves all other source and needs fresh approval. For a direct review, goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; Put every real source file (including .csproj and Program.cs) in files with its complete content; codeDomTypes is only a one-method string stub demo and is rejected unless files with content are also supplied.",
         "Coordination-only review metadata. It does not build, execute, load, or integrate generated code; the proposal is written to CouncilArtifacts for inspection. LocalGPT itself immediately raises the approval-gated codegen.review.execute (write + build) request in the human inbox, so do not ask the human for this approval with human.collaboration.request; continue with other work or wait for the build result.",
         IsReadOnly: false,
         AvailableToAi: true,
@@ -976,7 +1007,7 @@ public sealed class CreateCodeGenerationReviewFunction(
           "type": "object",
           "description": "CreateCodeGenerationReviewRequest with exact reviewed files, CodeDOM types, and output targets.",
           "properties": {
-            "draftOperation": {"type":"string","enum":["begin","next","complete","submit","repair"]},
+            "draftOperation": {"type":"string","enum":["begin","next","complete","submit","repair"],"description":"begin: goal and draftManifest, no files or codeDomTypes. next: claim work. complete: assigned file content. submit: completed draft without files. repair: exact prior review ID/hash and repair manifest. Omit for direct non-draft review."},
             "draftWorkspaceMode": {"type":"string","enum":["ReviewedSourceDraft","HyperlightSourceDraft"]},
             "draftGuestLanguageKey": {"type":"string"},
             "draftSharedContract": {"type":"string"},

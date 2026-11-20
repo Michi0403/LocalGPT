@@ -2,6 +2,49 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $required = @(
+    # Technical truth is collected by the coordinator, not voted into existence by models.
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkAuthority.cs'; Tokens = @('GetCompilerInstallationsAsync', 'LastValidationSucceeded', 'ApprovedLocalKnowledgeReferences', 'researchPolicy.IsStrict', 'localgpt.knowledge.remote.inspect', 'outcome.HandlerDispatched != true', 'outcome.DescriptorReadOnly != true', 'channel-version', 'MatchingReleaseMetadataRetrieved', 'SHA256.HashData(bytes)', 'FileWorkReceiptJson = receipt', 'PreserveFileWorkTechnicalEvidenceAsync', 'overwrite: false') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs'; Tokens = @('BuildFileWorkAuthorityAsync', 'ExistingSourceAvailable = existingSourceAvailable', 'selectedProject!.TrackedFiles.Any', 'CouncilFileWorkPlanPrerequisiteNotice') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('TechnicalAuthority = technicalAuthority', 'plan.DraftSharedContract = JsonSerializer.Serialize', 'workspaceMode.GetString() == "ExistingRepository" && !existingSourceAvailable', 'existingSourceAvailable && policy.AllowLegacyReviewedFallback', 'BoundProjectId = result.ProjectId') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.RunOrchestration.cs'; Tokens = @('!compactSourcePreparation', '!result.CoordinatedSourceWork && result.ChangeReview is null', 'councilSpooler.Complete(result, interrupted: true)', 'enableAutomaticTools: !result.CoordinatedSourceWork') }
+    @{ Path = 'src/LocalGPT/Services/DxAiFunctionRegistry.cs'; Tokens = @('registered allowed values: {enumElement.GetRawText()}', 'Registered fields:', 'candidate.GetString(), value.GetString()', 'begin: goal and draftManifest, no files or codeDomTypes') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Draft.cs'; Tokens = @('draftOperation=begin forbids files', 'draftOperation=begin forbids codeDomTypes', 'draftOperation=begin requires a nonempty goal', 'draftOperation=begin requires a nonempty draftManifest') }
+    @{ Path = 'src/LocalGPT/Services/Council/CouncilSpoolerService.cs'; Tokens = @('UpdateIdentity(MultiModelCouncilResult result)', 'interrupted ? runtimePolicy.GetString("CouncilSpoolerInterrupted")', 'FunctionActivity = ReadGatewayActivity(step)') }
+    @{ Path = 'src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs'; Tokens = @('var interruptedSnapshot = councilSpooler.GetSnapshot(councilRunId)', 'receipt.ProjectId = interruptedSnapshot?.ProjectId', 'receipt.ProjectRevisionId = interruptedSnapshot?.ProjectRevisionId') }
+    @{ Path = 'src/LocalGPT/Services/CouncilLiveSessionService.cs'; Tokens = @('activity.AdmittedAtUtc ??=', 'activity.CompletedAtUtc ??=', 'AdmittedAtUtc = activity.AdmittedAtUtc, CompletedAtUtc = activity.CompletedAtUtc', 'Guid? executionRunId = null', 'executionPrefix is null || activity.ActivityKey.StartsWith(executionPrefix, StringComparison.Ordinal)') }
+    @{ Path = 'src/LocalGPT/Components/Shared/LiveCouncilLaneBoard.razor'; Tokens = @('CouncilLiveSessions.GetParticipantActivitiesForDisplay(runId, executionRunId)') }
+    @{ Path = 'src/LocalGPT/Components/Layout/CouncilSourceProgressPanel.razor'; Tokens = @('Spooler.Changed += OnSpoolerChanged', 'Spooler.Changed -= OnSpoolerChanged', 'LiveCouncilLaneBoard', 'IconCssClass="IconCssClass"', 'CouncilRunStepSummary.StartedAtUtc', 'CouncilRunStepSummary.CompletedAtUtc') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftTargetValidation.cs'; Tokens = @('IsContradictoryFrameworkInspection', 'runtime.codegen.review-target-replacement', 'DtdProcessing.Prohibit', 'PackageVersion', 'declared = declared.Where') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftInspection.cs'; Tokens = @('IsContradictoryFrameworkInspection(plan.Goal, decision.Diagnostic)', 'CouncilFileWorkConflictingFrameworkReviewNotice') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Draft.cs'; Tokens = @('ValidateDraftProjectTarget(plan.Goal, candidate.RelativePath, candidate.Content)', 'ValidateDraftProjectTarget(plan.Goal, file.RelativePath, file.Content)') }
+    @{ Path = 'src/LocalGPT/Services/ProjectMaintenanceDxAiFunctions.cs'; Tokens = @('parameters.SummaryOnly ?? (request.AutomaticInvocation && unmaterialized)', 'TrackedFileCount = files.Count', 'summaryOnly = false') }
+    @{ Path = 'src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs'; Tokens = @('receipt.ProjectId = councilResult.ProjectId', 'receipt.ProjectRevisionId = councilResult.ProjectRevisionId') }
+    @{ Path = 'src/LocalGPT/Services/Council/CouncilSpoolerService.cs'; Tokens = @('snapshot.ProjectId = result.ProjectId', 'snapshot.ProjectRevisionId = result.ProjectRevisionId', 'snapshot.DevelopmentArtifactVerified = result.DevelopmentArtifactVerified') }
+    # Keep proposals separate from verified file dependencies; restore the approved source-only build route.
+    # Correlate native calls to the run-owned project; never accept participant markup as coordinated delivery.
+    @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.ToolExecution.cs'; Tokens = @('councilExecutionIdentity.ProjectId', 'councilExecutionIdentity.ProjectRevisionId', 'result.OperationId', 'result.HandlerDispatched', 'result.SchemaHash') }
+    @{ Path = 'src/LocalGPT/Services/ProviderModelRuntimeService.cs'; Tokens = @('ambientContext.Current.ExecutionIdentity') }
+    @{ Path = 'src/LocalGPT/Services/ProjectMaintenanceDxAiFunctions.cs'; Tokens = @('parameters.ProjectId ?? identity?.ProjectId', 'identity?.ProjectRevisionId') }
+    @{ Path = 'src/LocalGPT/Services/DxAiFunctionRegistry.cs'; Tokens = @('result.HandlerDispatched ??= false', 'result.HandlerDispatched = true', 'SchemaHash = schemaHash', 'CancelledUnknown', 'FailedUnknown') }
+    @{ Path = 'src/LocalGPT/Services/DxAiFunctionInvocationAuditService.cs'; Tokens = @('context.ExecutionIdentity?.ChatRunId', 'HandlerDispatched = result.HandlerDispatched', 'SchemaHash = result.SchemaHash') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('EnableManifestRecovery', 'alternativeRouteObserved || uncertainBegin', 'created.Status != "InvalidParameters"', 'SourceManifestMissing', 'sourceReceipt.Status == "SourceOnly"', 'MissingRequirements = ["Successful build verification"]', 'FileWorkReceiptJson = receiptJson') }
+    @{ Path = 'src/LocalGPT/Services/CouncilDevelopmentDxAiFunctions.cs'; Tokens = @('review.IsSourceDraftReview && !review.ApprovalConsumed', 'Status = "SourceOnly"', 'actualHash != file.ContentHash') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.WorkspaceAndResearchGates.cs'; Tokens = @('result.CoordinatedSourceWork', 'return result.DevelopmentArtifactVerified;') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkManifest.cs'; Tokens = @('SeparateManifestPackageProposals(plan)', 'UnverifiedExternalReferencesByProject', 'paths.Contains', 'sourceExtensions.Contains', 'runtime.codegen.package-proposal-id') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('PreviousCandidate = previousCandidate', 'CouncilFileWorkPlanShapeInstruction', 'attemptedArchitects.Add(architect)', 'var rejectedProposal = JsonSerializer.Serialize(explicitPlan)', 'attemptedManifests.Add(candidate)', 'RequiredDotNetTargets = requiredTargets', 'AttachedWorkspaceNames = request.AttachedWorkspaceNames, Evidence = evidence', 'hasAttachedEvidence || item.ModelName is', 'previousCandidate = string.Empty;', 'policy.PreferPlanningCapacity') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.RunOrchestration.cs'; Tokens = @('CouncilFileWorkProjectIdentityInstruction', 'ProjectId = result.ProjectId', 'ProjectRevisionId = result.ProjectRevisionId') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Execution.cs'; Tokens = @('var explicitSolutions = reviewedSources.Where', 'buildTargets.AddRange(explicitTargets.Select(source => ResolveInsideRoot(workspaceRoot, source.RelativePath)).Where(File.Exists))', 'request.UserConfirmedBuild') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkManifest.cs'; Tokens = @('draftDependencies', 'JsonValueKind.String', 'runtime.codegen.explicit-dotnet-target', 'ReadSourceManifest(string answer, string goal)') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.LiveInputAndHealth.cs'; Tokens = @('MinimumModelHealthFailureRounds', 'independentFailures', 'measured.Any') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftAssignments.cs'; Tokens = @('GetCouncilDraftRunIdsAsync', 'BuildDraftProgressTree') }
+    @{ Path = 'src/LocalGPT/Services/Council/CouncilSpoolerService.cs'; Tokens = @('GetRunStepSummaries', 'RecordedStepCount') }
+    @{ Path = 'src/LocalGPT/Components/Layout/CouncilSourceProgressPanel.razor'; Tokens = @('draftRuns', 'otherRuns', 'DxTreeView', 'DxFlyout', 'GetRunStepSummaries', 'DetailRowTemplate') }
+    # Reject incompatible or repeated source plans before beginning a draft. Build and package remain separate outcomes.
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkManifest.cs'; Tokens = @('GetExplicitFileWorkTargets(goal)', 'runtime.codegen.explicit-project-output', 'Requested target {requested[0]}') }
+    @{ Path = 'src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs'; Tokens = @('CouncilFileWorkPlanPacketInstruction', 'CouncilFileWorkRepeatedManifestNotice', '"preferPlanningCapacity": true', 'runtime.codegen.explicit-project-output') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Draft.cs'; Tokens = @('output.Kind = NormalizeOutputKind(output.Kind)', 'manifest.ContainsKey(parent)', 'EnsureCouncilRunProjectAsync') }
+    @{ Path = 'src/LocalGPT/Services/ArtifactBuildExecutor.cs'; Tokens = @('target.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)', 'if (!userConfirmed)', 'IsInsideRoot(target, root)') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Execution.cs'; Tokens = @('ArtifactBuildExecutionResult buildResult;', 'exception is not OperationCanceledException', ':BuildCheckError', 'ZipFile.CreateFromDirectory', 'BuildCompletedSuccessfully(entity.BuildStatus)') }
     # Preserve exact candidate evidence and bounded same-draft recovery.
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftInspection.cs'; Tokens = @('requiredNegativeInspections', 'rejectedBy', 'PreviousDecisions') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('MaximumDraftRecoveryPasses', 'DraftRecoveryAdditionalAttempts', 'RecoveryGuidance') }
@@ -40,7 +83,7 @@ $required = @(
     @{ Path = 'src/LocalGPT/Services/GoalExecutionService.SemanticPlanning.cs'; Tokens = @( 'hardwareRoadPlanner.BuildPlans', 'road.EffectiveMaxContextTokens', 'fitContextToRequest: true') }
     @{ Path = 'src/LocalGPT/Services/GoalExecutionService.KeyaccountManager.cs'; Tokens = @( 'hardwareRoadPlanner.BuildPlans', 'road.EffectiveMaxContextTokens', 'fitContextToRequest: true') }
     @{ Path = 'src/LocalGPT/Services/ConfigurationSteward/ConfigurationStewardService.cs'; Tokens = @( 'hardwareRoadPlanner.BuildPlans', 'road.EffectiveMaxContextTokens', 'fitContextToRequest: true') }
-    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.LiveInputAndHealth.cs'; Tokens = @( '!step.IsInfrastructureFailure', 'if (failures.Count == 0)') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.LiveInputAndHealth.cs'; Tokens = @( '!step.IsInfrastructureFailure', 'var failures = measured.Where(step => !string.IsNullOrWhiteSpace(step.Error)).ToList();', 'var independentFailures = failures.Select(step => step.Round).Distinct().Count();', 'var minimumFailures = Math.Max(2, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumModelHealthFailureRounds);', 'if (independentFailures < minimumFailures || measured.Any(step => string.IsNullOrWhiteSpace(step.Error) && !string.IsNullOrWhiteSpace(step.VisibleContent)))') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.RoundRecovery.cs'; Tokens = @( 'failedStep?.IsContextBudgetFailure == true') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.PhaseExecution.cs'; Tokens = @('var publishCompletedFirst = hostCount > 1 ||', 'if (presentationOrder is not null && !publishCompletedFirst)', 'await foreach (var modelName in presentationOrder.ReadAllAsync().ConfigureAwait(false))', 'liveCouncilSessions.AppendParticipantActivity((result.ChatRunId ?? result.RunId), activityKey, text)', 'await Task.WhenAll(hostTasks)', 'await Task.WhenAll(tasks)', 'foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue') }
     @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.Transport.cs'; Tokens = @( 'request.ContextCeiling', 'FitOllamaRequestContext(budget, model, logger)') }
@@ -97,6 +140,10 @@ $required = @(
 )
 $findings = [Collections.Generic.List[string]]::new()
 $phaseSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/MultiModelCouncilService.PhaseExecution.cs'))
+# Previous errors may affect ordering, but cannot silently remove selected routes from future phases.
+if ($phaseSource -match 'participants\.Where\(model\s*=>\s*exactAssignments\s*\|\|\s*!failedModels\.Contains') {
+    $findings.Add('MultiModelCouncilService.PhaseExecution.cs: retain selected participants after a transient error; the host admission and explicit run settings own exclusion.')
+}
 # A completed remote lane must be queued only after its stream is closed. The
 # single reader can then drain it without waiting for another provider's stream.
 if ($phaseSource -notmatch 'participantStream\?\.Writer\.TryComplete\(\);\s*if \(publishCompletedFirst\)\s*presentationOrder\?\.Writer\.TryWrite\(modelName\);') {
@@ -582,6 +629,62 @@ else {
         if (-not $declared.Contains($name)) {
             $findings.Add('CouncilTeamConfigurationService.cs: XML documentation references an absent constructor parameter: ' + $name + ' (CS1572).')
         }
+    }
+}
+
+# Exercise the actual persisted reviewer-replacement pattern against the supplied failure shape.
+$seedSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs'))
+$replacementSeed = [regex]::Match($seedSource, 'new\("runtime\.codegen\.review-target-replacement",\s*@"(?<pattern>[^"]+)"')
+if (-not $replacementSeed.Success) {
+    $findings.Add('Technical evidence: reviewer replacement regex seed missing.')
+}
+else {
+    $replacement = [regex]::new($replacementSeed.Groups['pattern'].Value, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    foreach ($case in @(
+        @{ Text = "Change TargetFramework to 'net8.0'"; Major = '8' },
+        @{ Text = 'Switch to .NET 6'; Major = '6' },
+        @{ Text = 'Set TargetFramework = net10.0'; Major = '10' }
+    )) {
+        $match = $replacement.Match($case.Text)
+        if (-not $match.Success -or $match.Groups['major'].Value -ne $case.Major) {
+            $findings.Add('Technical evidence: unexpected replacement classification: ' + $case.Text)
+        }
+    }
+    if ($replacement.IsMatch('A dependency formerly supported net8.0; verify its current API.')) {
+        $findings.Add('Technical evidence: a reference to an older framework is not a downgrade proposal.')
+    }
+}
+
+# A newly allocated project ID must never select the legacy route by itself.
+$fileWorkSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'))
+$routeReject = $fileWorkSource.IndexOf('workspaceMode.GetString() == "ExistingRepository" && !existingSourceAvailable')
+$legacyExit = $fileWorkSource.IndexOf('if (plan.DraftWorkspaceMode == "ExistingRepository")')
+if ($routeReject -lt 0 -or $legacyExit -lt 0 -or $routeReject -ge $legacyExit -or $fileWorkSource.Contains('ExistingProjectId = result.ProjectId')) {
+    $findings.Add('Coordinated source routing: reject a contradictory greenfield manifest before legacy routing; provisioned IDs are not source evidence.')
+}
+$configuredSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs'))
+$authorityIndex = $configuredSource.IndexOf('await BuildFileWorkAuthorityAsync')
+$readinessIndex = $configuredSource.IndexOf('await RunConfiguredAllMembersReadinessPreflightAsync')
+if ($authorityIndex -lt 0 -or $readinessIndex -lt 0 -or $authorityIndex -ge $readinessIndex) {
+    $findings.Add('Technical evidence must precede configured readiness and Intake.')
+}
+
+# Pin the registered draft operation contract, not model-invented choices.
+$registrySource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/DxAiFunctionRegistry.cs'))
+$draftEnum = [regex]::Match($registrySource, '"draftOperation"\s*:\s*\{\s*"type"\s*:\s*"string"\s*,\s*"enum"\s*:\s*(?<values>\[[^\]]+\])')
+if (-not $draftEnum.Success) {
+    $findings.Add('Draft operation: registered enum missing.')
+}
+else {
+    # Windows PowerShell 5.1 can return a JSON array as one pipeline object.
+    # Assign first, then explicitly enumerate the parsed values on both runtimes.
+    $parsedOperations = ConvertFrom-Json -InputObject $draftEnum.Groups['values'].Value
+    $operations = @(foreach ($operation in $parsedOperations) { $operation })
+    if (($operations -join ',') -cne 'begin,next,complete,submit,repair') {
+        $findings.Add('Draft operation: exact enum changed without updating the operation contract.')
+    }
+    foreach ($invalidOperation in @('Create','Update','Draft','New')) {
+        if ($operations -ccontains $invalidOperation) { $findings.Add('Draft operation: invalid alias admitted: ' + $invalidOperation) }
     }
 }
 

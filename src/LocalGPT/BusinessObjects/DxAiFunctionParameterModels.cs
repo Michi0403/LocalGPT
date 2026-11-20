@@ -366,13 +366,15 @@ public sealed class ProjectMaintenanceGetParameters
     /// <summary>
     /// Gets or sets the stable project identifier used to identify or correlate this project maintenance get parameters instance with related application state.
     /// </summary>
-    /// <value>The project identifier value exposed by <see cref="ProjectMaintenanceGetParameters"/>.</value>
-    public Guid ProjectId { get; set; }
+    /// <value>The project identifier value exposed by <see cref="ProjectMaintenanceGetParameters"/>; omitted uses the bound Council project.</value>
+    public Guid? ProjectId { get; set; }
     /// <summary>
     /// Gets or sets the stable revision identifier used to identify or correlate this project maintenance get parameters instance with related application state.
     /// </summary>
     /// <value>The revision identifier value exposed by <see cref="ProjectMaintenanceGetParameters"/>.</value>
     public Guid? RevisionId { get; set; }
+    /// <summary>Requests compact project identity, counts and toolchain status instead of full maintenance details; omitted allows the automatic greenfield summary.</summary>
+    public bool? SummaryOnly { get; set; }
 }
 
 /// <summary>

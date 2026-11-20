@@ -186,12 +186,14 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
     /// <param name="councilRound">Council round value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
     /// <param name="phase">Phase value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
     /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="executionIdentity">Immutable project binding for this run, inherited only within the same execution.</param>
     /// <returns>The i disposable produced by the operation.</returns>
     public IDisposable PushCouncil(
         Guid councilRunId,
         int councilRound,
         string phase,
-        string? correlationId = null) {
+        string? correlationId = null,
+        CouncilExecutionIdentity? executionIdentity = null) {
     try
     {
         return Push(new AmbientLocalGptContextSnapshot(
@@ -201,7 +203,10 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
             CouncilRunId: councilRunId,
             CouncilRound: Math.Max(0, councilRound),
             Phase: Normalize(phase, 120),
-            Source: "MultiModelCouncilService"));
+            Source: "MultiModelCouncilService")
+        {
+            ExecutionIdentity = executionIdentity ?? (Current.CouncilRunId == councilRunId ? Current.ExecutionIdentity : null)
+        });
     }
     catch (Exception __serviceMethodException)
     {

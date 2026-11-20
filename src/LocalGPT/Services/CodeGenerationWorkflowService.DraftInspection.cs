@@ -81,6 +81,12 @@ public sealed partial class CodeGenerationWorkflowService
                     if (dependency is null || Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(dependency.Content))) != hash)
                         throw new InvalidOperationException("A reviewed dependency changed; a fresh inspection is necessary.");
                 }
+                // A model vote cannot authorize changing a user-pinned framework. Retain the candidate
+                // and require another valid independent inspection; never convert this into acceptance.
+                if (decision.Accepted == false && new[] { ".csproj", ".fsproj", ".vbproj", ".props", ".targets" }.Contains(Path.GetExtension(packet.Path), StringComparer.OrdinalIgnoreCase) &&
+                    string.IsNullOrEmpty(ValidateDraftProjectTarget(plan.Goal, file.RelativePath, file.Content)) &&
+                    IsContradictoryFrameworkInspection(plan.Goal, decision.Diagnostic))
+                    throw new ArgumentException(runtimePolicy.GetString("CouncilFileWorkConflictingFrameworkReviewNotice"));
                 decision.Path = packet.Path;
                 decision.DependencyHashes = new Dictionary<string, string>(packet.DependencyHashes, StringComparer.OrdinalIgnoreCase);
                 var matching = plan.DraftInspections.Where(item =>

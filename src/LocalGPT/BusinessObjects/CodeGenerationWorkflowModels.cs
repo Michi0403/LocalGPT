@@ -817,6 +817,13 @@ public sealed class DxAiFunctionParameterBinding<T> where T : new()
 /// </summary>
 public sealed class DxAiFunctionInvocationResult
 {
+    /// <summary>Whether the registry reached the registered handler, rather than rejecting or deferring the request before dispatch; null means unknown.</summary>
+    public bool? HandlerDispatched { get; set; }
+    /// <summary>Read-only classification from the live function descriptor, not the model's assertion.</summary>
+    public bool? DescriptorReadOnly { get; set; }
+    /// <summary>SHA-256 of the registered parameter schema used for dispatch; empty when a descriptor was not resolved.</summary>
+    public string SchemaHash { get; set; } = string.Empty;
+
     /// <summary>
     /// Gets or sets the function name value that forms part of the DevExpress AI function invocation state consumed or produced by the surrounding workflow.
     /// </summary>

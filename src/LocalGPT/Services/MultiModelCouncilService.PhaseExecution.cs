@@ -92,7 +92,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase);
+                using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase, executionIdentity: new CouncilExecutionIdentity(result.ChatRunId ?? result.RunId, result.ProjectId, result.ProjectRevisionId));
                 var runConfiguration = runConfigurations.Get(result.RunId);
                 if (runConfiguration is { IsRunning: true })
                 {
@@ -100,20 +100,11 @@ namespace LocalGPT.Services
                     maxParallelModels = Math.Max(1, runConfiguration.MaxParallelModels);
                     modelTimeoutSeconds = Math.Clamp(runConfiguration.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumModelTimeoutSeconds);
                 }
-                var failedModels = result.Steps
-                    .Where(step => !string.IsNullOrWhiteSpace(step.Error) && !step.IsContextBudgetFailure)
-                    .Select(step => step.ModelName)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var phaseParticipants = OrderParticipantsByObservedHealth(
-                    result,
-                    participants.Where(model => exactAssignments || !failedModels.Contains(model))).ToList();
-                if (phaseParticipants.Count == 0)
-                    phaseParticipants.Add(SelectHealthyParticipant(result, participants));
-                if (phaseParticipants.Count < participants.Count)
-                {
-                    var excluded = participants.Where(model => !phaseParticipants.Contains(model, StringComparer.OrdinalIgnoreCase));
-                    progressMessage?.Invoke($"Council recovery omitted previously failed provider routes from {phase}: {string.Join(", ", excluded)}. The decision is scoped to this run.");
-                }
+                // A failed attempt is not an exclusion decision. Re-admit selected routes at each
+                // phase so a restarted host can participate; the admission and runtime lease gates
+                // still enforce explicit approved exclusions and live user settings.
+                var phaseParticipants = OrderParticipantsByObservedHealth(result, participants)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 var hostCount = phaseParticipants
                     .Select(GetCouncilExecutionHostKey)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -249,7 +240,7 @@ namespace LocalGPT.Services
                                 gateAcquired = true;
                             }
 
-                            liveCouncilSessions.SetParticipantActivityStatus((result.ChatRunId ?? result.RunId), activityKey, $"Running on {routeLabel}.");
+                            liveCouncilSessions.SetParticipantActivityStatus((result.ChatRunId ?? result.RunId), activityKey, $"Running on {routeLabel}.", admitted: true);
                             var participantPrompt = promptFactory(modelName);
                             if (exactAssignments)
                                 participantStreamUpdate?.Invoke("\n\n<details class=\"council-step\"><summary>" + WebUtility.HtmlEncode($"{modelName} — {phase} / {role} · {runtimePolicy.GetString("CouncilFileWorkInstructionLabel")}") +
@@ -356,9 +347,9 @@ namespace LocalGPT.Services
                                                     {
                                                         using var takeoverCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
                                                         takeoverCancellation.Token.ThrowIfCancellationRequested();
-                                                        using var takeoverScope = ambientContext.PushCouncil(result.RunId, round, takeoverPhase);
+                                                        using var takeoverScope = ambientContext.PushCouncil(result.RunId, round, takeoverPhase, executionIdentity: new CouncilExecutionIdentity(result.ChatRunId ?? result.RunId, result.ProjectId, result.ProjectRevisionId));
                                                         liveCouncilSessions.BeginParticipantActivity(chatRunId, replacementActivityKey, replacementModel, takeoverPhase, role, $"{hostKeys[replacementModel]} · {replacementPlan.LaneKey}");
-                                                        liveCouncilSessions.SetParticipantActivityStatus(chatRunId, replacementActivityKey, notice);
+                                                        liveCouncilSessions.SetParticipantActivityStatus(chatRunId, replacementActivityKey, notice, admitted: true);
                                                         progressMessage?.Invoke(notice);
                                                         var takeoverNotice = Environment.NewLine + Environment.NewLine + "> " + WebUtility.HtmlEncode(notice) + Environment.NewLine + Environment.NewLine;
                                                         participantStream?.Writer.TryWrite(takeoverNotice);

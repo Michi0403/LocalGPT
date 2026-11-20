@@ -407,6 +407,9 @@ public sealed class CouncilExecutionRuntimeParameters
     /// </summary>
     /// <value>The maximum member recovery attempts value exposed by <see cref="CouncilExecutionRuntimeParameters"/>.</value>
     public int MaximumMemberRecoveryAttempts { get; set; }
+    /// <summary>Minimum distinct logical failure rounds before requesting a next-run health exclusion for a model without a useful answer.</summary>
+    /// <value>At least two independent rounds; existing saved settings inherit this default.</value>
+    public int MinimumModelHealthFailureRounds { get; set; } = 2;
     /// <summary>Database-backed bound for retrying missing registered function receipts after a configured team workflow.</summary>
     /// <value>Maximum configured same-team required-function repair attempts per rule.</value>
     public int MaximumCompletionRecoveryAttempts { get; set; } = 10;

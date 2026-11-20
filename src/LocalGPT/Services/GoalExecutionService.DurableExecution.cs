@@ -283,6 +283,11 @@ public sealed partial class GoalExecutionService
                 }
                 catch (OperationCanceledException)
                 {
+                    var interruptedSnapshot = councilSpooler.GetSnapshot(councilRunId);
+                    receipt.ProjectId = interruptedSnapshot?.ProjectId ?? receipt.ProjectId;
+                    receipt.ProjectRevisionId = interruptedSnapshot?.ProjectRevisionId ?? receipt.ProjectRevisionId;
+                    if (developmentTeam && interruptedSnapshot?.CoordinatedSourceWork == true)
+                        checkpoint.KeyaccountExpectedArtifacts = Math.Max(1, checkpoint.KeyaccountExpectedArtifacts);
                     receipt.State = GoalExecutionState.Interrupted;
                     checkpoint.State = GoalExecutionState.Interrupted;
                     await ledger.SaveAsync(checkpoint, CancellationToken.None).ConfigureAwait(false);
@@ -297,6 +302,8 @@ public sealed partial class GoalExecutionService
                     outcome.MissingRequirements.Add("CouncilStepFailedWithUnknownEffects");
                     break;
                 }
+                receipt.ProjectId = councilResult.ProjectId;
+                receipt.ProjectRevisionId = councilResult.ProjectRevisionId;
                 receipt.Answer = councilResult.FinalAnswer;
                 receipt.Evidence = ObserveCouncil(councilResult);
                 var requiresDevelopmentArtifact = developmentTeam && councilResult.CoordinatedSourceWork;

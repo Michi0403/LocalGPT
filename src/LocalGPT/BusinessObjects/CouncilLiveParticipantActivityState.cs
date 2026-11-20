@@ -75,6 +75,10 @@ internal sealed class CouncilLiveParticipantActivityState(
     /// </summary>
     /// <value>The started at UTC value exposed by <see cref="CouncilLiveParticipantActivityState"/>.</value>
     public DateTime StartedAtUtc { get; } = DateTime.UtcNow;
+    /// <summary>Time when the scheduler started the participant turn; not proof of provider acceptance.</summary>
+    public DateTime? AdmittedAtUtc { get; set; }
+    /// <summary>Time the participant lane was closed, including cancellation.</summary>
+    public DateTime? CompletedAtUtc { get; set; }
     /// <summary>
     /// Gets or sets the updated at UTC associated with this council live participant activity state, using the time semantics implied by the member name.
     /// </summary>

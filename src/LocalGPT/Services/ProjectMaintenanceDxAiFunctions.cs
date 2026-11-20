@@ -11,10 +11,12 @@ namespace LocalGPT.Services;
 /// <param name="json">Devexpress ai function json service dependency used by the get project maintenance function workflow to provide the corresponding application capability.</param>
 /// <param name="projects">Local gpt project service dependency used by the get project maintenance function workflow to provide the corresponding application capability.</param>
 /// <param name="maintenance">Project maintenance service dependency used by the get project maintenance function workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Run-owned Council project and revision context.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     IProjectMaintenanceService maintenance,
+    IAmbientLocalGptContext ambientContext,
     ILogger<GetProjectMaintenanceFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -24,10 +26,10 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.maintenance.get", "POST", "/api/dxai/functions/project.maintenance.get/invoke",
         "Read one project's solution path, workspace resolution, tracked file paths and regex metadata, compiler installations, revisions, and build verification state before maintaining source.",
-        "JSON parameters: projectId required; revisionId optional.",
+        "JSON parameters: projectId required outside a bound Council; omit it to use the current Council project. revisionId optional. Use summaryOnly=true for compact identity, counts and observed SDK status; automatic calls for unmaterialized projects default to this summary. Use summaryOnly=false for full details.",
         "Read-only metadata. Absolute paths are returned only for the user-selected local project and remain reference data, not permission to read or write files.",
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
-        ParameterSchemaJson: """{"type":"object","properties":{"projectId":{"type":"string","format":"uuid"},"revisionId":{"type":["string","null"],"format":"uuid"}},"required":["projectId"],"additionalProperties":false}""");
+        ParameterSchemaJson: """{"type":"object","properties":{"projectId":{"type":"string","format":"uuid"},"revisionId":{"type":["string","null"],"format":"uuid"},"summaryOnly":{"type":"boolean"}},"additionalProperties":false}""");
 
     /// <summary>
     /// Performs invoke for <see cref="GetProjectMaintenanceFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get project maintenance function workflow.
@@ -43,13 +45,38 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
             if (!binding.Succeeded)
                 return json.InvalidParameters(binding.Error);
             var parameters = binding.Value;
-            var details = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
+            var identity = ambientContext.Current.ExecutionIdentity;
+            if ((parameters.ProjectId ?? identity?.ProjectId) is not Guid projectId || projectId == Guid.Empty)
+                return json.InvalidParameters("Supply an existing projectId or use a Council with a bound project.");
+            var revisionId = parameters.RevisionId ?? (identity?.ProjectId == projectId ? identity?.ProjectRevisionId : null);
+            var details = await projects.GetProjectAsync(projectId, cancellationToken).ConfigureAwait(false);
             if (details is null) return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The project was not found." };
-            var workspace = await maintenance.ResolveWorkspaceAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
-            var workspaceRoots = await maintenance.GetWorkspaceRootsAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
+            var workspace = await maintenance.ResolveWorkspaceAsync(projectId, cancellationToken).ConfigureAwait(false);
             var compilers = await maintenance.GetCompilerInstallationsAsync(cancellationToken).ConfigureAwait(false);
-            var files = await maintenance.GetTrackedFilesAsync(parameters.ProjectId, parameters.RevisionId, cancellationToken).ConfigureAwait(false);
-            logger.LogDebug("DXAIFunction returned project maintenance metadata for project {ProjectId} with {FileCount} tracked file(s).", parameters.ProjectId, files.Count);
+            var files = await maintenance.GetTrackedFilesAsync(projectId, revisionId, cancellationToken).ConfigureAwait(false);
+            var unmaterialized = string.IsNullOrWhiteSpace(details.Project.RootPath) &&
+                string.IsNullOrWhiteSpace(details.Project.SolutionPath) && files.Count == 0 &&
+                details.Revisions.All(item => string.IsNullOrWhiteSpace(item.SourceRootPath) && string.IsNullOrWhiteSpace(item.SolutionPath));
+            if (parameters.SummaryOnly ?? (request.AutomaticInvocation && unmaterialized))
+            {
+                return json.Success(new
+                {
+                    SummaryOnly = true, HasMaterializedSource = !unmaterialized,
+                    Project = new { details.Project.Id, details.Project.Name, details.Project.ProjectType, details.Project.CurrentVersion, details.Project.RootPath, details.Project.SolutionPath },
+                    Workspace = workspace,
+                    Revisions = details.Revisions.Where(item => revisionId == null || item.Id == revisionId)
+                        .Select(item => new { item.Id, item.RevisionName, item.IsCurrent, item.CompileVerified, item.CouncilVerified, item.SourceRootPath, item.SolutionPath }),
+                    Compilers = compilers.Where(item => item.IsEnabled &&
+                        (!unmaterialized || !string.Equals(details.Project.ProjectType, "DotNetSolution", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(item.Language, "DotNet", StringComparison.OrdinalIgnoreCase)))
+                        .Select(item => new { item.Id, item.Name, item.Language, item.Version, item.LastValidatedAtUtc, item.LastValidationSucceeded, item.IsDefaultForLanguage }),
+                    TrackedFileCount = files.Count, ArtifactCount = details.Artifacts.Count,
+                    VersionCount = details.Versions.Count, BuildVerificationCount = details.BuildVerifications.Count,
+                    DetailFunction = "project.maintenance.get", DetailParameters = new { projectId, revisionId, summaryOnly = false }
+                });
+            }
+            var workspaceRoots = await maintenance.GetWorkspaceRootsAsync(projectId, cancellationToken).ConfigureAwait(false);
+            logger.LogDebug("DXAIFunction returned project maintenance metadata for project {ProjectId} with {FileCount} tracked file(s).", projectId, files.Count);
             return json.Success(new
             {
             Project = new { details.Project.Id, details.Project.Name, details.Project.ProjectType, details.Project.CurrentVersion, details.Project.RootPath, details.Project.SolutionPath, details.Project.SolutionSearchPattern, details.Project.FileIncludePattern, details.Project.FileExcludePattern },

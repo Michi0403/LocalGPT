@@ -74,6 +74,7 @@ public sealed partial class OllamaThinkingChatClient
                     {
                         FunctionName = call.Function.Name,
                         Status = "NotFound",
+                        HandlerDispatched = false,
                         Error = "The requested automatic function is not registered.",
                         Succeeded = false
                     };
@@ -87,10 +88,10 @@ public sealed partial class OllamaThinkingChatClient
                             Parameters = arguments,
                             AutomaticInvocation = true,
                             UserConfirmed = false,
-                            RequestedBy = $"Ollama:{model}",
+                            RequestedBy = $"Ollama:{model} @ {http.BaseAddress?.Authority}",
                             ConversationId = sessionContext?.ConversationId,
-                            ProjectId = sessionContext?.ProjectId,
-                            ProjectVersionId = sessionContext?.ProjectVersionId,
+                            ProjectId = councilExecutionIdentity is null ? sessionContext?.ProjectId : councilExecutionIdentity.ProjectId,
+                            ProjectVersionId = councilExecutionIdentity is null ? sessionContext?.ProjectVersionId : councilExecutionIdentity.ProjectRevisionId,
                             ApplicationVersion = sessionContext?.ApplicationVersion ?? string.Empty
                         },
                         cancellationToken).ConfigureAwait(false);
@@ -391,6 +392,10 @@ public sealed partial class OllamaThinkingChatClient
                 {
                     Truncated = true,
                     result.FunctionName,
+                    result.OperationId,
+                    result.HandlerDispatched,
+                    result.DescriptorReadOnly,
+                    result.SchemaHash,
                     result.Status,
                     result.Succeeded,
                     OriginalCharacters = json.Length,

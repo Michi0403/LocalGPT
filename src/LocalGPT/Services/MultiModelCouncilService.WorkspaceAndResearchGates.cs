@@ -109,6 +109,9 @@ namespace LocalGPT.Services
         {
             try
             {
+                // Coordinated delivery is decided by the actual verifier and existing archive, never by participant markup.
+                if (result.CoordinatedSourceWork && string.Equals(functionName, "council.development.artifact.verify", StringComparison.OrdinalIgnoreCase))
+                    return result.DevelopmentArtifactVerified;
                 var gatewayPrefix = $"{functionName} -> Completed";
                 var nativeResultMarker = $"<summary>Function result · {functionName} · Completed</summary>";
                 return result.Steps.Any(step =>
@@ -344,7 +347,7 @@ namespace LocalGPT.Services
                     return string.Empty;
 
                 var pendingFunction = definition.WaitForDeferredApprovalsBeforeNextStep ? null : "council.x.revisit";
-                using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase);
+                using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase, executionIdentity: new CouncilExecutionIdentity(result.ChatRunId ?? result.RunId, result.ProjectId, result.ProjectRevisionId));
                 var outcomes = new List<DeferredDxAiExecutionOutcome>();
                 var waitingStepAdded = false;
                 while (true)

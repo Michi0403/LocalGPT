@@ -27,6 +27,9 @@ public sealed record AmbientLocalGptContextSnapshot(
     Guid? ApprovalRequestId = null,
     string Source = "")
 {
+    /// <summary>Immutable Council project binding; correlation only, never authority to access or mutate a workspace.</summary>
+    public CouncilExecutionIdentity? ExecutionIdentity { get; init; }
+
     /// <summary>
     /// Gets or sets the created at UTC associated with this ambient LocalGPT context snapshot state, using the time semantics implied by the member name.
     /// </summary>

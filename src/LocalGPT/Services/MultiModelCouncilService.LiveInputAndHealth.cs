@@ -381,15 +381,17 @@ namespace LocalGPT.Services
         {
             try
             {
-                var failures = result.Steps
-                    .Where(step => string.Equals(step.ModelName, modelName, StringComparison.OrdinalIgnoreCase)
-                        && !step.IsInfrastructureFailure && !string.IsNullOrWhiteSpace(step.Error))
-                    .Select(step => $"{step.Phase}: {step.Error}")
-                    .Take(4)
-                    .ToList();
-                if (failures.Count == 0)
+                var measured = result.Steps.Where(step => string.Equals(step.ModelName, modelName, StringComparison.OrdinalIgnoreCase)
+                    && !step.IsInfrastructureFailure).ToList();
+                var failures = measured.Where(step => !string.IsNullOrWhiteSpace(step.Error)).ToList();
+                var independentFailures = failures.Select(step => step.Round).Distinct().Count();
+                var minimumFailures = Math.Max(2, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumModelHealthFailureRounds);
+                // Repeated attempts in one slot are not independent observations. A useful
+                // contribution is a reason to retain this member rather than request exclusion.
+                if (independentFailures < minimumFailures || measured.Any(step => string.IsNullOrWhiteSpace(step.Error) && !string.IsNullOrWhiteSpace(step.VisibleContent)))
                     return;
-                var spec = CreateModelHealthExclusionRequest(modelName, result.RunId, string.Join(" | ", failures));
+                var diagnostics = failures.Select(step => $"{step.Phase}: {step.Error}").Take(4).ToList();
+                var spec = CreateModelHealthExclusionRequest(modelName, result.RunId, string.Join(" | ", diagnostics));
                 await humanCollaboration.AuthorizeOrEnqueueAsync(spec, cancellationToken: cancellationToken).ConfigureAwait(false);
                 result.Warnings.Add($"A local approval was queued to exclude {modelName} from one subsequent Council run. This does not permanently disable the model.");
             }

@@ -14,6 +14,14 @@ public sealed class CouncilSpoolerSnapshot
     /// <summary>Correlates delegated runs to the originating chat without merging their execution receipts.</summary>
     /// <value>The originating chat run identifier when recorded.</value>
     public Guid? ChatRunId { get; set; }
+    /// <summary>Observed run-owned project identity, if assigned.</summary>
+    public Guid? ProjectId { get; set; }
+    /// <summary>Observed run-owned revision identity, if assigned.</summary>
+    public Guid? ProjectRevisionId { get; set; }
+    /// <summary>Whether coordinated source delivery was attempted; null for historical snapshots without this observation.</summary>
+    public bool? CoordinatedSourceWork { get; set; }
+    /// <summary>Actual development-artifact verification outcome, independent of transcript completion.</summary>
+    public bool? DevelopmentArtifactVerified { get; set; }
     /// <summary>
     /// Gets or sets the started at UTC associated with this council spooler snapshot state, using the time semantics implied by the member name.
     /// </summary>
@@ -79,8 +87,18 @@ public sealed class CouncilSpoolerSnapshot
 /// <summary>Lightweight persisted Council run header; intentionally contains no model thinking or transcript payloads.</summary>
 public sealed class CouncilSpoolerRunSummary
 {
+    /// <summary>Originating Chat session, when the Council was delegated.</summary>
+    public Guid? ChatRunId { get; init; }
     /// <summary>Stable run identifier.</summary>
     public Guid RunId { get; init; }
+    /// <summary>Run-owned project identity when retained.</summary>
+    public Guid? ProjectId { get; init; }
+    /// <summary>Run-owned revision identity when retained.</summary>
+    public Guid? ProjectRevisionId { get; init; }
+    /// <summary>Observed coordinated-source flag; null for old snapshots.</summary>
+    public bool? CoordinatedSourceWork { get; init; }
+    /// <summary>Verified artifact outcome; null when not observed.</summary>
+    public bool? DevelopmentArtifactVerified { get; init; }
     /// <summary>UTC time when the run started.</summary>
     public DateTime StartedAtUtc { get; init; }
     /// <summary>Current or final run status.</summary>
@@ -89,8 +107,10 @@ public sealed class CouncilSpoolerRunSummary
     public string Phase { get; init; } = string.Empty;
     /// <summary>Selected saved team key.</summary>
     public string CouncilTeamKey { get; init; } = string.Empty;
+    /// <summary>Number of recorded steps, including recovery and orchestration steps, without loading their text.</summary>
+    public int RecordedStepCount { get; init; }
     /// <summary>Distinguishable run label for a recent history selector.</summary>
-    public string DisplayLabel => $"{StartedAtUtc.ToLocalTime():g} · {CouncilTeamKey} · {Phase} · {RunId:N}";
+    public string DisplayLabel => $"{StartedAtUtc.ToLocalTime():g} · {CouncilTeamKey} · {Phase} · {Status} · {RecordedStepCount} steps · {RunId:N}";
 }
 
 /// <summary>Compact outcome of one retained Council member step, without prompts, thinking or answer text.</summary>

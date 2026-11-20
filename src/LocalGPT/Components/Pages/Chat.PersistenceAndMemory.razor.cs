@@ -604,12 +604,20 @@ namespace LocalGPT.Components.Pages
         var selectedDetails = selectedProjectId is Guid id
             ? await ProjectService.GetProjectAsync(id, cancellationToken).ConfigureAwait(false)
             : null;
+        cancellationToken.ThrowIfCancellationRequested();
         await InvokeAsync(() =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             ChatProjects = projects;
-            SelectedChatProjectDetails = selectedDetails;
+            if (SessionContext.ProjectId == selectedProjectId)
+                SelectedChatProjectDetails = selectedDetails;
         }).ConfigureAwait(false);
-    
+
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Logger.LogDebug("Chat project loading cancelled by its owning operation.");
+            throw;
         }
         catch (Exception __componentMethodException)
         {

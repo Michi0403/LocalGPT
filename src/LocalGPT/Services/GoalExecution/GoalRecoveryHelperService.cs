@@ -406,7 +406,7 @@ public sealed partial class GoalRecoveryHelperService : IGoalRecoveryHelperServi
             memo.RequestId = gate.RequestId ?? memo.RequestId;
             if (gate.IsAuthorized || gate.IsDeclined)
             {
-                memo.IsAuthorized = gate.IsAuthorized;
+                memo.IsAuthorized = gate.IsAuthorized && !gate.IsDeclined;
                 memo.IsDecided = true;
             }
         }

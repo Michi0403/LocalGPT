@@ -1,0 +1,7 @@
+.CouncilSourceProgressPanel ::deep .council-progress-run-button {
+    display: block;
+    width: 100%;
+    margin-block: .25rem;
+    text-align: start;
+    white-space: normal;
+}

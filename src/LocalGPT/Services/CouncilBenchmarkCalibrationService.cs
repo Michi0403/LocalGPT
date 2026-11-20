@@ -114,7 +114,7 @@ public sealed class CouncilBenchmarkCalibrationService(
                     liveSessions.SetParticipantActivityStatus(
                         request.CouncilRunId,
                         activityKey,
-                        $"Measuring {targetIndex + 1}/{queue.Count} on host queue {GetBenchmarkHostKey(target.Endpoint)} · live provider calls in progress.");
+                        $"Measuring {targetIndex + 1}/{queue.Count} on host queue {GetBenchmarkHostKey(target.Endpoint)} · live provider calls in progress.", admitted: true);
                     liveSessions.AppendParticipantActivity(
                         request.CouncilRunId,
                         activityKey,

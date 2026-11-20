@@ -54,9 +54,10 @@ public sealed class ArtifactBuildExecutor(
         if (!File.Exists(target))
             return Result("TargetMissing", null, startedAt, string.Empty, "Build target does not exist.");
         if (!target.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) &&
+            !target.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase) &&
             !target.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
         {
-            return Result("Denied", null, startedAt, string.Empty, "Only .sln and .csproj targets are allowed.");
+            return Result("Denied", null, startedAt, string.Empty, "Only .sln, .slnx and .csproj targets are allowed.");
         }
 
         string? normalizedOutput = null;

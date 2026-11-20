@@ -37,8 +37,12 @@ public sealed class CouncilFileWorkRuntimeParameters
     public int MaximumDraftRecoveryPasses { get; set; } = 2;
     /// <summary>Additional author attempts per missing path in each explicitly supervised recovery pass.</summary>
     public int DraftRecoveryAdditionalAttempts { get; set; } = 2;
+    /// <summary>Prefers eligible architect roads with sufficient configured output and context capacity over speed alone, without increasing their limits.</summary>
+    public bool PreferPlanningCapacity { get; set; } = true;
     /// <summary>Maximum attempts to obtain a valid explicit plan before declaring a blocker.</summary>
     public int MaximumPlanAttempts { get; set; }
+    /// <summary>Permits one supervised same-run planning correction after ordinary attempts, when no uncertain begin or deferred approval exists.</summary>
+    public bool EnableManifestRecovery { get; set; } = true;
     /// <summary>Maximum targeted build-repair generations after the initial approved build.</summary>
     public int MaximumRepairGenerations { get; set; }
     /// <summary>Maximum optimistic-concurrency conflicts before the caller reports a persistent draft failure.</summary>

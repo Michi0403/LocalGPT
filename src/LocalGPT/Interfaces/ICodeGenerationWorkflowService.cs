@@ -14,6 +14,12 @@ public interface ICodeGenerationWorkflowService
     /// <returns>The active draft or latest submitted draft review, if present.</returns>
     Task<CodeGenerationDraftProgress?> GetCouncilDraftProgressAsync(Guid runId, CancellationToken cancellationToken, bool includePathHistory = false);
 
+    /// <summary>Finds originating runs with a persisted coordinated source draft lineage without reading source payloads.</summary>
+    /// <param name="runIds">Bounded recent Council identifiers to check.</param>
+    /// <param name="cancellationToken">Cancels the read-only lookup.</param>
+    /// <returns>Distinct originating run identifiers with draft evidence.</returns>
+    Task<IReadOnlyList<Guid>> GetCouncilDraftRunIdsAsync(IReadOnlyList<Guid> runIds, CancellationToken cancellationToken);
+
     /// <summary>Reserves distinct dependency-ready files for an authorized batch of model routes.</summary>
     /// <param name="runId">Council execution identifier.</param>
     /// <param name="modelNames">Eligible provider-qualified routes in scheduling order.</param>

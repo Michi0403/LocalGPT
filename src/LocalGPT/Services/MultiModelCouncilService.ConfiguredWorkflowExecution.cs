@@ -57,6 +57,60 @@ namespace LocalGPT.Services
                 if (configuredSteps.Count == 0)
                     throw new InvalidOperationException($"Council team '{team.DisplayName}' has no enabled workflow step.");
 
+                var filePolicy = runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson");
+                var configuredFileWork = filePolicy.Enabled && string.Equals(team.Key, filePolicy.TeamKey, StringComparison.OrdinalIgnoreCase) &&
+                    configuredSteps.Any(item => item.Key == filePolicy.PlanStepKey) &&
+                    configuredSteps.Any(item => item.Key == filePolicy.GenerationStepKey) &&
+                    configuredSteps.Any(item => item.Key == filePolicy.VerificationStepKey);
+                var existingSourceAvailable = false;
+                object? technicalAuthority = null;
+                if (configuredFileWork)
+                {
+                    // Provisioning a project is not evidence of existing source. Only a caller-bound
+                    // revision with recorded source or explicitly supplied attachments can qualify.
+                    existingSourceAvailable = request.AttachedWorkspaceNames.Count > 0;
+                    if (!request.CreateProjectForRun && request.ProjectId is Guid selectedProjectId &&
+                        selectedProjectId == result.ProjectId && result.ProjectRevisionId is Guid selectedRevisionId)
+                    {
+                        var selectedProject = await projectService.GetProjectAsync(selectedProjectId, cancellationToken).ConfigureAwait(false);
+                        var selectedRevision = selectedProject?.Revisions.FirstOrDefault(item => item.Id == selectedRevisionId);
+                        existingSourceAvailable |= selectedRevision is not null &&
+                            (!string.IsNullOrWhiteSpace(selectedRevision.SourceSnapshotHash) ||
+                             (!string.IsNullOrWhiteSpace(selectedRevision.SourceRootPath) && Directory.Exists(selectedRevision.SourceRootPath) &&
+                              selectedProject!.TrackedFiles.Any(item => item.RevisionId == selectedRevisionId && File.Exists(item.AbsolutePath))));
+                    }
+                    if (!existingSourceAvailable)
+                        result.CoordinatedSourceWork = true; // Intent, not proof of a persisted draft or successful artifact.
+                    councilSpooler.UpdateIdentity(result);
+                    // The same server-owned snapshot reaches Intake, planning and the persisted draft.
+                    var goal = string.IsNullOrWhiteSpace(request.GoalText) ? request.Prompt : request.GoalText;
+                    var requiredTargets = GetExplicitFileWorkTargets(goal);
+                    var excludeDevExpress = runtimePolicy.GetPattern("runtime.codegen.explicit-no-devexpress").IsMatch(goal);
+                    var planningStep = configuredSteps.Single(item => item.Key == filePolicy.PlanStepKey);
+                    var researchPolicy = councilAutomaticFunctionPolicy.Resolve(team, planningStep, false, request.RequestedOrganicCapabilities);
+                    technicalAuthority = await BuildFileWorkAuthorityAsync(result, request, researchPolicy, goal, requiredTargets,
+                        excludeDevExpress, 0, planningStep.Phase, cancellationToken).ConfigureAwait(false);
+                    var routeReceipt = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        result.RunId, result.ProjectId, result.ProjectRevisionId,
+                        CallerSelectedProjectId = request.ProjectId, CallerSelectedRevisionId = request.ProjectRevisionId,
+                        request.CreateProjectForRun, ExistingSourceAvailable = existingSourceAvailable,
+                        RequiredDotNetTargets = requiredTargets, ExcludeDevExpress = excludeDevExpress
+                    });
+                    var routeStep = new MultiModelCouncilStep
+                    {
+                        ModelName = "LocalGPT: source route gate", Role = "Source routing", Phase = "Intake",
+                        Content = routeReceipt, VisibleContent = routeReceipt, FileWorkReceiptJson = routeReceipt,
+                        StartedAtUtc = DateTime.UtcNow, CompletedAtUtc = DateTime.UtcNow
+                    };
+                    MultiModelCouncilServiceAddOrderedStep(result, routeStep, logger);
+                    request.StepCompleted?.Invoke(routeStep);
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap,
+                        runtimePolicy.GetString("CouncilFileWorkIdentityHeading"),
+                        runtimePolicy.GetString("CouncilFileWorkSourceRouteInstruction") + "\n" + routeReceipt + "\n" +
+                        System.Text.Json.JsonSerializer.Serialize(technicalAuthority), logger);
+                }
+
                 var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
                 var leaderModel = SelectHealthyParticipant(result, participants, requestedLeader);
                 var roleAssignments = BuildConfiguredRoleAssignments(result, request, team, participants);
@@ -87,14 +141,20 @@ namespace LocalGPT.Services
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var firstStep = configuredSteps[stepIndex];
-                    var filePolicy = runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson");
-                    if (filePolicy.Enabled && string.Equals(team.Key, filePolicy.TeamKey, StringComparison.OrdinalIgnoreCase) &&
-                        firstStep.Key == filePolicy.PlanStepKey && configuredSteps.Any(item => item.Key == filePolicy.GenerationStepKey) &&
-                        configuredSteps.Any(item => item.Key == filePolicy.VerificationStepKey))
+                    if (configuredFileWork && !existingSourceAvailable &&
+                        stepIndex > configuredSteps.FindIndex(item => item.Key == filePolicy.PlanStepKey))
+                    {
+                        // An X-Round may not bypass the source manifest and assignment prerequisites.
+                        var notice = runtimePolicy.GetString("CouncilFileWorkPlanPrerequisiteNotice");
+                        result.Warnings.Add(notice);
+                        request.ProgressMessage?.Invoke(notice);
+                        return notice;
+                    }
+                    if (configuredFileWork && firstStep.Key == filePolicy.PlanStepKey)
                     {
                         var delivered = await RunCoordinatedFileWorkAsync(result, request, team, configuredSteps, filePolicy,
                             baseUri, participants, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu, maxContextTokens,
-                            modelTimeoutSeconds, state.Round, roleAssignments, cancellationToken).ConfigureAwait(false);
+                            modelTimeoutSeconds, state.Round, roleAssignments, existingSourceAvailable, technicalAuthority!, cancellationToken).ConfigureAwait(false);
                         if (delivered is not null)
                         {
                             result.CoordinatedSourceWork = true;
@@ -779,7 +839,7 @@ namespace LocalGPT.Services
                         selectedModel, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{selectedModel}",
                         request.ResourceLoadPercent, request.MaxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
                 MultiModelCouncilStep? step;
-                using (ambientContext.PushCouncil(result.RunId, directive.Round, phase))
+                using (ambientContext.PushCouncil(result.RunId, directive.Round, phase, executionIdentity: new CouncilExecutionIdentity(result.ChatRunId ?? result.RunId, result.ProjectId, result.ProjectRevisionId)))
                 {
                     step = await RunParticipantAsync(
                         baseUri,

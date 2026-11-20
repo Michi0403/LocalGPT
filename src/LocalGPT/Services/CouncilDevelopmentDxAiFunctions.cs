@@ -241,8 +241,11 @@ public sealed class VerifyCouncilDevelopmentArtifactFunction(
             {
                 var review = await reviews.GetReviewAsync(reviewId, cancellationToken).ConfigureAwait(false);
                 if (review is null) return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "Selected code-generation review was not found." };
-                if (review.Status != CodeGenerationReviewStatuses.Generated && review.Status != CodeGenerationReviewStatuses.BuildPassed)
+                if (review.Status != CodeGenerationReviewStatuses.Generated && review.Status != CodeGenerationReviewStatuses.BuildPassed &&
+                    !(review.IsSourceDraftReview && review.ApprovalConsumed && review.Status == CodeGenerationReviewStatuses.BuildFailed))
                     return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed generation has not produced a successful artifact; current status: " + review.Status };
+                if (review.IsSourceDraftReview && !review.ApprovalConsumed)
+                    return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "The exact coordinated review approval has not been consumed." };
                 if (string.IsNullOrWhiteSpace(review.ZipFileName) ||
                     Path.GetFileName(review.ZipFileName) != review.ZipFileName)
                     return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed generation has no safe source ZIP name." };
@@ -253,8 +256,6 @@ public sealed class VerifyCouncilDevelopmentArtifactFunction(
                     return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed generation ZIP contains no files." };
                 if (review.IsSourceDraftReview)
                 {
-                    if (review.Status != CodeGenerationReviewStatuses.BuildPassed)
-                        return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Coordinated solution build has not passed." };
                     foreach (var file in review.Files)
                     {
                         var matches = archive.Entries.Where(entry => string.Equals(entry.FullName.Replace('\\', '/'), file.RelativePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)).ToList();
@@ -266,6 +267,15 @@ public sealed class VerifyCouncilDevelopmentArtifactFunction(
                             return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "ZIP source differs from approved file: " + file.RelativePath };
                     }
                 }
+                if (review.IsSourceDraftReview && review.Status != CodeGenerationReviewStatuses.BuildPassed)
+                    return new DxAiFunctionInvocationResult
+                    {
+                        Status = "SourceOnly",
+                        Succeeded = false,
+                        Error = "Coordinated solution build has not passed.",
+                        Value = new { review.Id, review.Status, review.BuildStatus, review.ReviewHash, review.WorkspaceName,
+                            DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(review.ZipFileName)}" }
+                    };
                 return json.Success(new { Mode = "ReviewedGeneration", review.Id, review.Status, review.BuildStatus,
                     review.ReviewHash, review.WorkspaceName,
                     DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(review.ZipFileName)}",

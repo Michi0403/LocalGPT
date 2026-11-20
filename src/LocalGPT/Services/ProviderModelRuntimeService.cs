@@ -28,6 +28,7 @@ namespace LocalGPT.Services;
 /// <param name="functionRegistry">Devexpress ai function registry dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 /// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 /// <param name="sessionContext">Scoped chat/project identity propagated into provider-native automatic functions.</param>
+/// <param name="ambientContext">Server-owned Council identity, independent of the current Chat selection.</param>
 /// <param name="runtimePolicy">Database-backed runtime policy used for provider discovery and session defaults.</param>
 /// <param name="functionPolicy">Resolves the compact native tool set attached to plain chat sessions that have no Council step.</param>
 public sealed class ProviderModelRuntimeService(
@@ -41,6 +42,7 @@ public sealed class ProviderModelRuntimeService(
     IDxAiFunctionRegistry functionRegistry,
     IDxAiFunctionCallRecoveryService functionCallRecovery,
     IChatSessionContext sessionContext,
+    IAmbientLocalGptContext ambientContext,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ICouncilAutomaticFunctionPolicyService functionPolicy) : IProviderModelRuntimeService
 {
@@ -580,7 +582,8 @@ public sealed class ProviderModelRuntimeService(
                         throwOnFailure,
                         automaticFunctionAllowList,
                         sessionContext,
-                        fitContextToRequest),
+                        fitContextToRequest,
+                        ambientContext.Current.ExecutionIdentity),
                     loggerFactory.CreateLogger($"AI.Ollama.{model.StableId}"));
             }
 

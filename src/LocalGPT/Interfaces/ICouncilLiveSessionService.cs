@@ -54,7 +54,8 @@ public interface ICouncilLiveSessionService
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <param name="activityKey">Activity key value supplied to the council live session operation and used when producing its result.</param>
     /// <param name="statusMessage">Status message value supplied to the council live session operation and used when producing its result.</param>
-    void SetParticipantActivityStatus(Guid runId, string activityKey, string statusMessage);
+    /// <param name="admitted">True only when the owning scheduler starts the participant turn.</param>
+    void SetParticipantActivityStatus(Guid runId, string activityKey, string statusMessage, bool admitted = false);
     /// <summary>
     /// Stores the authoritative final answer for one participant independently from its incremental provider stream.
     /// </summary>
@@ -113,8 +114,9 @@ public interface ICouncilLiveSessionService
     IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivities(Guid runId);
     /// <summary>Returns participant lanes projected to a browser-safe live window. Authoritative final answers remain complete while large transient streams are head/tail windowed.</summary>
     /// <param name="runId">Identifier of the live Council run.</param>
+    /// <param name="executionRunId">Optional Council execution identity within the live Chat; null returns all lanes.</param>
     /// <returns>Participant activity snapshots bounded for recurrent browser rendering.</returns>
-    IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivitiesForDisplay(Guid runId);
+    IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivitiesForDisplay(Guid runId, Guid? executionRunId = null);
     /// <summary>Returns complete, untruncated participant lanes for the plain-text ASCII terminal, reusing unchanged lane text snapshots.</summary>
     /// <param name="runId">Identifier of the live Council run.</param>
     /// <returns>Complete participant activity snapshots, or an empty collection when the run is unknown.</returns>

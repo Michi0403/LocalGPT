@@ -21,4 +21,6 @@ public sealed record CodeGenerationDraftProgress(
 {
     /// <summary>Read-only file progress projected from the persisted manifest, assignments and inspections.</summary>
     public IReadOnlyList<CodeGenerationDraftPathProgress> Paths { get; init; } = [];
+    /// <summary>Hierarchical view of the same persisted path receipts, prepared only for the detailed progress request.</summary>
+    public IReadOnlyList<CodeGenerationDraftTreeNode> Tree { get; init; } = [];
 }

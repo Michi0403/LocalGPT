@@ -55,6 +55,12 @@ public sealed partial class CodeGenerationWorkflowService
                     string.Equals(file.RelativePath, path, StringComparison.OrdinalIgnoreCase))))
                     throw new ArgumentException($"Complete the remaining {manifest.Count - plan.Files.Count} workspace file(s) before submitting.");
 
+                foreach (var candidate in plan.Files)
+                {
+                    var diagnostic = ValidateDraftProjectTarget(plan.Goal, candidate.RelativePath, candidate.Content);
+                    if (!string.IsNullOrWhiteSpace(diagnostic))
+                        throw new ArgumentException($"{candidate.RelativePath}: {diagnostic}");
+                }
                 var review = await CreateReviewCoreAsync(plan, draft, cancellationToken).ConfigureAwait(false);
                 return (new { ReviewId = review.Id, review.ReviewHash, review.Status, FileCount = manifest.Count }, review);
             }
@@ -79,6 +85,8 @@ public sealed partial class CodeGenerationWorkflowService
                         throw new ArgumentException($"The file exceeds the configured maximum of {maximum} bytes.");
                     file.RelativePath = nextFile.Key;
                     file.Purpose = nextFile.Value;
+                    var targetDiagnostic = ValidateDraftProjectTarget(plan.Goal, file.RelativePath, file.Content);
+                    if (!string.IsNullOrWhiteSpace(targetDiagnostic)) throw new ArgumentException(targetDiagnostic);
                     plan.Files.Add(file);
                     var payload = JsonSerializer.Serialize(plan, JsonOptions);
                     var changed = await db.CodeGenerationChangeReviews
@@ -122,16 +130,39 @@ public sealed partial class CodeGenerationWorkflowService
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(request.Goal) || request.DraftManifest is not { Count: > 0 } paths ||
-                request.Files is { Count: > 0 } || request.CodeDomTypes is { Count: > 0 })
-                throw new ArgumentException("Begin requires a goal and file manifest. Send each file's content separately.");
+            if (request.Files is { Count: > 0 })
+                throw new ArgumentException("draftOperation=begin forbids files. Send each assigned file with complete after the manifest is persisted.");
+            if (request.CodeDomTypes is { Count: > 0 })
+                throw new ArgumentException("draftOperation=begin forbids codeDomTypes. Supply source work orders in draftManifest.");
+            if (string.IsNullOrWhiteSpace(request.Goal))
+                throw new ArgumentException("draftOperation=begin requires a nonempty goal.");
+            if (request.DraftManifest is not { Count: > 0 } paths)
+                throw new ArgumentException("draftOperation=begin requires a nonempty draftManifest mapping relative paths to work orders.");
 
             var manifest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var hasDotNetProject = paths.Keys.Any(path => string.Equals(Path.GetExtension(path), ".csproj", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(Path.GetExtension(path), ".fsproj", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(Path.GetExtension(path), ".vbproj", StringComparison.OrdinalIgnoreCase));
             foreach (var (path, workOrder) in paths)
             {
+                if (path.TrimEnd().EndsWith('/') || path.TrimEnd().EndsWith('\\'))
+                    throw new ArgumentException("Manifest entries must name files, not directories.");
                 var relativePath = NormalizeRelativePath(path);
+                var segments = relativePath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+                if (hasDotNetProject && segments.Any(segment => string.Equals(segment, "obj", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(segment, "bin", StringComparison.OrdinalIgnoreCase)))
+                    throw new ArgumentException($"Manifest path '{relativePath}' is a compiler-output directory, not authored project source.");
                 if (relativePath == "." || string.Equals(relativePath, "CHANGE_REVIEW.md", StringComparison.OrdinalIgnoreCase) || !manifest.TryAdd(relativePath, workOrder))
                     throw new ArgumentException("The file manifest must contain distinct relative file paths.");
+            }
+
+            foreach (var path in manifest.Keys)
+            {
+                for (var parent = Path.GetDirectoryName(path); !string.IsNullOrEmpty(parent); parent = Path.GetDirectoryName(parent))
+                {
+                    if (manifest.ContainsKey(parent))
+                        throw new ArgumentException($"Manifest path '{parent}' is both a file and a directory.");
+                }
             }
 
             if (request.DraftWorkspaceMode is not ("ReviewedSourceDraft" or "HyperlightSourceDraft"))
@@ -142,6 +173,12 @@ public sealed partial class CodeGenerationWorkflowService
             var policy = runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson");
             if (manifest.Count > Math.Max(1, policy.MaximumManifestFiles) || manifest.Values.Any(string.IsNullOrWhiteSpace))
                 throw new ArgumentException("The draft manifest exceeds the configured file count or contains an empty work order.");
+            // Validate the registered output contract before creating the run-owned project or draft.
+            foreach (var output in request.Outputs ?? [])
+            {
+                if (output is null) throw new ArgumentException("Manifest output entries must be objects.");
+                output.Kind = NormalizeOutputKind(output.Kind);
+            }
             request.DraftInspections = [];
             request.DraftManifest = manifest;
             request.DraftDependencies = NormalizeDraftDependencies(manifest, request.DraftDependencies);

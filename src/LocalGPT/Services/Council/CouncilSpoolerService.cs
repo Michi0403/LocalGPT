@@ -100,6 +100,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                 {
                     RunId = result.RunId,
                     ChatRunId = result.ChatRunId,
+                    ProjectId = result.ProjectId, ProjectRevisionId = result.ProjectRevisionId,
                     StartedAtUtc = result.StartedAtUtc,
                     UpdatedAtUtc = DateTime.UtcNow,
                     Status = vocabulary.Get().CouncilSpoolerRunning,
@@ -120,6 +121,30 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         throw;
     }
 }
+
+    /// <inheritdoc />
+    public void UpdateIdentity(MultiModelCouncilResult result)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(result);
+            lock (mutationGate)
+            {
+                if (!runs.TryGetValue(result.RunId, out var snapshot)) return;
+                snapshot.ProjectId = result.ProjectId;
+                snapshot.ProjectRevisionId = result.ProjectRevisionId;
+                snapshot.CoordinatedSourceWork = result.CoordinatedSourceWork;
+                snapshot.DevelopmentArtifactVerified = result.DevelopmentArtifactVerified;
+                snapshot.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            NotifyChanged();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Recording Council project identity failed for {RunId}.", result.RunId);
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs update as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -193,7 +218,8 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     /// </summary>
     /// <param name="result">Result value supplied to the council spooler operation and used when producing its result.</param>
     /// <param name="failed">Value indicating whether failed should apply to this operation.</param>
-    public void Complete(MultiModelCouncilResult result, bool failed = false)
+    /// <param name="interrupted">Whether execution was interrupted rather than completed.</param>
+    public void Complete(MultiModelCouncilResult result, bool failed = false, bool interrupted = false)
     {
     try
     {
@@ -206,7 +232,12 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                     runs[result.RunId] = snapshot;
                 }
                 snapshot.ChatRunId = result.ChatRunId;
-                snapshot.Status = failed ? vocabulary.Get().CouncilSpoolerFailed : vocabulary.Get().CouncilSpoolerCompleted;
+                snapshot.ProjectId = result.ProjectId;
+                snapshot.ProjectRevisionId = result.ProjectRevisionId;
+                snapshot.CoordinatedSourceWork = result.CoordinatedSourceWork;
+                snapshot.DevelopmentArtifactVerified = result.DevelopmentArtifactVerified;
+                snapshot.Status = interrupted ? runtimePolicy.GetString("CouncilSpoolerInterrupted") :
+                    failed ? vocabulary.Get().CouncilSpoolerFailed : vocabulary.Get().CouncilSpoolerCompleted;
                 snapshot.CompletedAtUtc = result.CompletedAtUtc ?? DateTime.UtcNow;
                 snapshot.UpdatedAtUtc = DateTime.UtcNow;
                 snapshot.FinalAnswer = result.FinalAnswer;
@@ -274,9 +305,54 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                 .Take(Math.Clamp(take, 1, QueryParameters.CouncilSpoolerMaximum))
                 .Select(item => new CouncilSpoolerRunSummary
                 {
-                    RunId = item.RunId, StartedAtUtc = item.StartedAtUtc,
-                    Status = item.Status, Phase = item.Phase, CouncilTeamKey = item.CouncilTeamKey
+                    RunId = item.RunId, ChatRunId = item.ChatRunId, StartedAtUtc = item.StartedAtUtc,
+                    ProjectId = item.ProjectId, ProjectRevisionId = item.ProjectRevisionId,
+                    CoordinatedSourceWork = item.CoordinatedSourceWork, DevelopmentArtifactVerified = item.DevelopmentArtifactVerified,
+                    Status = item.Status, Phase = item.Phase, CouncilTeamKey = item.CouncilTeamKey, RecordedStepCount = item.Steps.Count
                 }).ToList();
+        }
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<CouncilRunStepSummary> GetRunStepSummaries(Guid runId)
+    {
+        try
+        {
+            lock (mutationGate)
+            {
+                if (!runs.TryGetValue(runId, out var snapshot)) return [];
+                return snapshot.Steps.OrderBy(step => step.SortOrder).Select(step => new CouncilRunStepSummary(
+                    step.SortOrder, step.Round, step.Phase, step.Role, step.ModelName, step.StartedAtUtc,
+                    step.CompletedAtUtc, step.DurationSeconds, step.EffectiveMaxContextTokens,
+                    step.EffectiveMaxOutputTokens, step.IsInfrastructureFailure, step.Error ?? string.Empty)
+                    { FunctionActivity = ReadGatewayActivity(step) }).ToList();
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading recorded Council step metadata failed for {RunId}.", runId);
+            throw;
+        }
+    }
+
+    /// <summary>Projects only the registered gateway receipt identity, never untrusted model-generated function prose.</summary>
+    /// <param name="step">Stored coordinator step.</param>
+    /// <returns>Exact function name and status, or empty for any other step.</returns>
+    private string ReadGatewayActivity(MultiModelCouncilStep step)
+    {
+        if (step.ModelName != "LocalGPT DXFunction gateway" || string.IsNullOrWhiteSpace(step.FileWorkReceiptJson)) return string.Empty;
+        try
+        {
+            using var json = JsonDocument.Parse(step.FileWorkReceiptJson);
+            if (json.RootElement.TryGetProperty("FunctionName", out var name) && name.ValueKind == JsonValueKind.String &&
+                json.RootElement.TryGetProperty("Status", out var status) && status.ValueKind == JsonValueKind.String)
+                return $"{name.GetString()} · {status.GetString()}";
+            return string.Empty;
+        }
+        catch (JsonException exception)
+        {
+            logger.LogWarning(exception, "Invalid retained coordinator receipt at step {Step}.", step.SortOrder);
+            return string.Empty;
         }
     }
 
@@ -441,7 +517,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                 // mark previously-running checkpoints as failed/recoverable context instead of pretending.
                 if (snapshot.Status == vocabulary.Get().CouncilSpoolerRunning)
                 {
-                    snapshot.Status = vocabulary.Get().CouncilSpoolerFailed;
+                    snapshot.Status = runtimePolicy.GetString("CouncilSpoolerInterrupted");
                     snapshot.CompletedAtUtc ??= DateTime.UtcNow;
                     snapshot.Warnings.Add("The LocalGPT process restarted. The saved transcript remains rejoinable, but the former in-flight model call cannot be resumed automatically.");
                 }
@@ -463,6 +539,8 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     {
         RunId = source.RunId,
         ChatRunId = source.ChatRunId,
+        ProjectId = source.ProjectId, ProjectRevisionId = source.ProjectRevisionId,
+        CoordinatedSourceWork = source.CoordinatedSourceWork, DevelopmentArtifactVerified = source.DevelopmentArtifactVerified,
         StartedAtUtc = source.StartedAtUtc,
         UpdatedAtUtc = source.UpdatedAtUtc,
         CompletedAtUtc = source.CompletedAtUtc,

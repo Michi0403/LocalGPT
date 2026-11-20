@@ -464,7 +464,7 @@ namespace LocalGPT.Services
                 runConfigurations.BeginRound(result.RunId, round, phase);
                 humanCollaboration.UpdateCouncilRun(result.RunId, round, phase);
                 councilSpooler.Update(result.RunId, round, phase);
-                using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase);
+                using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase, executionIdentity: new CouncilExecutionIdentity(result.ChatRunId ?? result.RunId, result.ProjectId, result.ProjectRevisionId));
                 var deferredOutcomes = await deferredDxAiInvocations.ExecuteApprovedForHeartbeatAsync(
                     result.RunId,
                     round,

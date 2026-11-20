@@ -4,6 +4,8 @@
 @inject ILogger<CouncilSourceProgressPanel> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject ISupervisedTaskRunner TaskRunner
+@implements IDisposable
 
 <div class="razor-component-boundary">
     <DxFormLayout CssClass="razor-component-layout-owner CouncilSourceProgressPanel">
@@ -13,10 +15,28 @@
                 <DxPopup @bind-Visible="visible" HeaderText="Council session progress" Width="90vw" Height="85dvh" CloseOnOutsideClick="true">
                     <BodyContentTemplate Context="sourceProgressPopupContext">
                         <DxFormLayout CssClass="razor-section-layout-owner">
-                            <DxFormLayoutItem Caption="Council run" ColSpanMd="9">
+                            <DxFormLayoutItem Caption="Council runs" ColSpanMd="9">
                                 <Template Context="sourceProgressRunContext">
-                                    <DxComboBox Data="@runs" Value="@selected" TextFieldName="@nameof(CouncilSpoolerRunSummary.DisplayLabel)"
-                                                ValueChanged="@((CouncilSpoolerRunSummary? run) => SelectAsync(run))" Enabled="@(!busy)" />
+                                    <DxAccordion>
+                                        <Items>
+                                            <DxAccordionItem Text="Runs with source evidence">
+                                                <ContentTemplate Context="draftRunContext">
+                                                    @foreach (var run in draftRuns)
+                                                    {
+                                                        <DxButton @key="run.RunId" Text="@run.DisplayLabel" Click="@(async () => await SelectAsync(run))" Enabled="@(!busy)" CssClass="council-progress-run-button" />
+                                                    }
+                                                </ContentTemplate>
+                                            </DxAccordionItem>
+                                            <DxAccordionItem Text="Runs without a persisted source draft" Expanded="true">
+                                                <ContentTemplate Context="otherRunContext">
+                                                    @foreach (var run in otherRuns)
+                                                    {
+                                                        <DxButton @key="run.RunId" Text="@run.DisplayLabel" Click="@(async () => await SelectAsync(run))" Enabled="@(!busy)" CssClass="council-progress-run-button" />
+                                                    }
+                                                </ContentTemplate>
+                                            </DxAccordionItem>
+                                        </Items>
+                                    </DxAccordion>
                                 </Template>
                             </DxFormLayoutItem>
                             <DxFormLayoutItem ColSpanMd="3">
@@ -28,11 +48,49 @@
                                 <Template Context="sourceProgressBodyContext">
                                     @if (selected is not null)
                                     {
-                                        <p>@selected.RunId · @selected.StartedAtUtc.ToLocalTime().ToString("g") · @selected.Phase · @selected.Status</p>
+                                        <p>@selected.DisplayLabel</p>
+                                        <p>Project: @selected.ProjectId · revision: @selected.ProjectRevisionId</p>
+                                        @if (selected.CoordinatedSourceWork == true)
+                                        {
+                                            <p>Source delivery required · verified artifact: @(selected.DevelopmentArtifactVerified == true ? "Yes" : "Not verified")</p>
+                                        }
+                                        <LiveCouncilLaneBoard RunId="@(selected.ChatRunId ?? selected.RunId)" ExecutionRunId="@selected.RunId" />
                                     }
                                     @if (!string.IsNullOrWhiteSpace(feedback))
                                     {
                                         <p role="status">@feedback</p>
+                                    }
+                                    @if (selected is not null)
+                                    {
+                                        <DxAccordion>
+                                            <Items>
+                                                <DxAccordionItem Text="Recorded rounds and lanes" Expanded="@(progress is null)">
+                                                    <ContentTemplate Context="recordedLanesContext">
+                                                        <p>Completed step evidence; active unrecorded lanes remain in the live Council. Token ceilings are not measured consumption.</p>
+                                                        <DxGrid Data="@laneSteps" PageSize="12" ShowSearchBox="true" TextWrapEnabled="true">
+                                                            <Columns>
+                                                                <DxGridDataColumn FieldName="@nameof(CouncilRunStepSummary.Round)" Caption="Round" Width="75px" />
+                                                                <DxGridDataColumn FieldName="@nameof(CouncilRunStepSummary.Phase)" />
+                                                                <DxGridDataColumn FieldName="@nameof(CouncilRunStepSummary.Role)" />
+                                                                <DxGridDataColumn FieldName="@nameof(CouncilRunStepSummary.ModelName)" Caption="Route" />
+                                                                <DxGridDataColumn FieldName="@nameof(CouncilRunStepSummary.StartedAtUtc)" Caption="Start UTC" DisplayFormat="yyyy-MM-dd HH:mm:ss" />
+                                                                <DxGridDataColumn FieldName="@nameof(CouncilRunStepSummary.CompletedAtUtc)" Caption="End UTC" DisplayFormat="yyyy-MM-dd HH:mm:ss" />
+                                                                <DxGridDataColumn FieldName="@nameof(CouncilRunStepSummary.DurationSeconds)" Caption="Seconds" Width="95px" />
+                                                                <DxGridDataColumn FieldName="@nameof(CouncilRunStepSummary.FunctionActivity)" Caption="Gateway function" />
+                                                                <DxGridDataColumn FieldName="@nameof(CouncilRunStepSummary.Error)" Caption="Diagnostic" />
+                                                            </Columns>
+                                                            <DetailRowTemplate Context="laneDetailContext">
+                                                                @if (laneDetailContext.DataItem is CouncilRunStepSummary lane)
+                                                                {
+                                                                    <p>Started UTC: @lane.StartedAtUtc · Completed UTC: @lane.CompletedAtUtc</p>
+                                                                    <p>Context ceiling: @lane.ContextCeiling · Output ceiling: @lane.OutputCeiling · Infrastructure failure: @lane.InfrastructureFailure</p>
+                                                                }
+                                                            </DetailRowTemplate>
+                                                        </DxGrid>
+                                                    </ContentTemplate>
+                                                </DxAccordionItem>
+                                            </Items>
+                                        </DxAccordion>
                                     }
                                     @if (progress is { } snapshot)
                                     {
@@ -44,6 +102,31 @@
                                             <Items>
                                                 <DxAccordionItem Text="Source files and current assignments" Expanded="true">
                                                     <ContentTemplate Context="sourceProgressFilesContext">
+                                                        <DxComboBox TData="string" TValue="string" Data="@viewModes" @bind-Value="viewMode" />
+                                                        @if (viewMode == "Tree")
+                                                        {
+                                                            <div id="council-progress-file-tree">
+                                                                <DxTreeView Data="@snapshot.Tree" NodeClick="OnTreeNodeClick">
+                                                                    <DataMappings>
+                                                                        <DxTreeViewDataMapping Text="Name" Children="Children" IconCssClass="IconCssClass" />
+                                                                    </DataMappings>
+                                                                </DxTreeView>
+                                                            </div>
+                                                            <DxFlyout @bind-IsOpen="fileDetailsOpen" PositionTarget="#council-progress-file-tree" Position="@FlyoutPosition.BottomStart" HeaderVisible="true" HeaderText="File evidence">
+                                                                <BodyContentTemplate Context="fileFlyoutContext">
+                                                                    @if (selectedFile is { } file)
+                                                                    {
+                                                                        <p>@file.Path</p>
+                                                                        <p>Route: @file.ModelName · Attempt: @file.Attempt · Inspected: @file.InspectionAccepted</p>
+                                                                        <p>SHA-256: @file.Sha256</p>
+                                                                        <p>Dependencies: @file.DependencyDisplay</p>
+                                                                        <p>@file.Diagnostic</p>
+                                                                    }
+                                                                </BodyContentTemplate>
+                                                            </DxFlyout>
+                                                        }
+                                                        else
+                                                        {
                                                         <DxGrid Data="@snapshot.Paths" PageSize="12" KeyFieldName="@nameof(CodeGenerationDraftPathProgress.Path)" ShowSearchBox="true" TextWrapEnabled="true">
                                                             <Columns>
                                                                 <DxGridDataColumn FieldName="@nameof(CodeGenerationDraftPathProgress.Path)" Caption="File" />
@@ -76,6 +159,8 @@
                                                                 }
                                                             </DetailRowTemplate>
                                                         </DxGrid>
+                                                        }
+
                                                     </ContentTemplate>
                                                 </DxAccordionItem>
                                                 <DxAccordionItem Text="Approval, build and archive state">
@@ -102,13 +187,100 @@
 @code {
     /// <summary>Controls whether the read-only source progress popup is displayed.</summary>
     private bool visible;
+    /// <summary>Stops refreshing when the owning circuit is disposed.</summary>
+    private readonly CancellationTokenSource refreshCancellation = new();
+    /// <summary>Whether the owning circuit has been disposed.</summary>
+    private bool disposed;
+    /// <summary>Coalesces spool changes while one refresh is running.</summary>
+    private int refreshPending;
+    /// <summary>Owns the single supervised spool refresh worker.</summary>
+    private int refreshWorkerRunning;
+
+    /// <summary>Subscribe to persisted Council events without copying provider streams.</summary>
+    protected override void OnInitialized()
+    {
+        try { Spooler.Changed += OnSpoolerChanged; }
+        catch (Exception exception) { Logger.LogError(exception, "Subscribing to Council source progress failed."); throw; }
+    }
+
+    /// <summary>Schedule an awaited renderer refresh for a committed spool change.</summary>
+    private void OnSpoolerChanged()
+    {
+        try
+        {
+            if (disposed || !visible) return;
+            Interlocked.Exchange(ref refreshPending, 1);
+            if (Interlocked.CompareExchange(ref refreshWorkerRunning, 1, 0) == 0)
+                TaskRunner.Run(nameof(CouncilSourceProgressPanel), nameof(RefreshChangedAsync), _ => RefreshChangedAsync(), refreshCancellation.Token);
+        }
+        catch (Exception exception)
+        {
+            Interlocked.Exchange(ref refreshWorkerRunning, 0);
+            Logger.LogWarning(exception, "Scheduling Council source progress refresh failed.");
+        }
+    }
+
+    /// <summary>Refresh committed evidence on the owning renderer; retain an explicitly selected run.</summary>
+    private async Task RefreshChangedAsync()
+    {
+        try
+        {
+            while (!refreshCancellation.IsCancellationRequested && Interlocked.Exchange(ref refreshPending, 0) != 0)
+            {
+                var defer = false;
+                await InvokeAsync(async () =>
+                {
+                    if (disposed || !visible) return;
+                    if (busy) { defer = true; Interlocked.Exchange(ref refreshPending, 1); return; }
+                    await RefreshAsync();
+                    if (!disposed) StateHasChanged();
+                }).ConfigureAwait(false);
+                if (defer) break;
+            }
+        }
+        catch (OperationCanceledException) when (refreshCancellation.IsCancellationRequested) { }
+        catch (ObjectDisposedException) { }
+        catch (Exception exception) { Logger.LogWarning(exception, "Refreshing live source evidence failed."); }
+        finally
+        {
+            Interlocked.Exchange(ref refreshWorkerRunning, 0);
+            if (!disposed && !busy && Volatile.Read(ref refreshPending) != 0) OnSpoolerChanged();
+        }
+    }
+
+    /// <summary>Detach the spool subscription and cancel the circuit's pending evidence refresh.</summary>
+    public void Dispose()
+    {
+        try
+        {
+            disposed = true;
+            Spooler.Changed -= OnSpoolerChanged;
+            refreshCancellation.Cancel();
+            refreshCancellation.Dispose();
+        }
+        catch (Exception exception) { Logger.LogWarning(exception, "Disposing Council source progress failed."); }
+    }
     /// <summary>Prevents overlapping refresh requests for this circuit.</summary>
     private bool busy;
     /// <summary>Recent lightweight Council headers, without provider transcripts.</summary>
     private IReadOnlyList<CouncilSpoolerRunSummary> runs = [];
+    /// <summary>Runs with a known persisted coordinated source draft.</summary>
+    private IReadOnlyList<CouncilSpoolerRunSummary> draftRuns = [];
+    /// <summary>Runs still without coordinated source evidence, explicitly separated from draft-bearing runs.</summary>
+    private IReadOnlyList<CouncilSpoolerRunSummary> otherRuns = [];
+    /// <summary>Supported visual presentations of the same read-only source projection.</summary>
+    private IReadOnlyList<string> viewModes = ["Grid", "Tree"];
+    /// <summary>Selected file presentation, preserving the existing grid by default.</summary>
+    private string viewMode = "Grid";
+    /// <summary>Whether the selected tree file details are displayed.</summary>
+    private bool fileDetailsOpen;
+    /// <summary>Selected file evidence, or null for a folder.</summary>
+    private CodeGenerationDraftPathProgress? selectedFile;
     /// <summary>Selected run whose authoritative source draft is inspected.</summary>
     private CouncilSpoolerRunSummary? selected;
-    /// <summary>Materialized source evidence, refreshed only by an awaited user action.</summary>
+    /// <summary>Completed lane metadata for the selected run, without transcript buffers.</summary>
+    private IReadOnlyList<CouncilRunStepSummary> laneSteps = [];
+    /// <summary>Materialized source evidence, refreshed by user selection and committed spool changes.</summary>
     private CodeGenerationDraftProgress? progress;
     /// <summary>User-visible status for an empty or unavailable source draft.</summary>
     private string feedback = string.Empty;
@@ -119,6 +291,9 @@
         try
         {
             visible = true;
+            selected = null; // The spooler prioritizes live runs; history is selected explicitly after opening.
+            selectedFile = null;
+            fileDetailsOpen = false;
             await RefreshAsync();
         }
         catch (Exception exception)
@@ -134,7 +309,10 @@
     {
         try
         {
+            if (busy) return;
             selected = run;
+            fileDetailsOpen = false;
+            selectedFile = null;
             await RefreshAsync();
         }
         catch (Exception exception)
@@ -144,24 +322,51 @@
         }
     }
 
+    /// <summary>Shows the exact selected file's persisted evidence without interpreting folder names or model prose.</summary>
+    /// <param name="args">DevExpress tree node selection event.</param>
+    private void OnTreeNodeClick(TreeViewNodeClickEventArgs args)
+    {
+        try
+        {
+            selectedFile = (args.NodeInfo.DataItem as CodeGenerationDraftTreeNode)?.File;
+            fileDetailsOpen = selectedFile is not null;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Reading selected Council source tree node failed.");
+        }
+    }
+
     /// <summary>Refreshes a compact persisted projection without loading model streams or mutating the source workspace.</summary>
     private async Task RefreshAsync()
     {
-        if (busy) return;
+        if (disposed || busy) return;
         busy = true;
         try
         {
+            var cancellationToken = refreshCancellation.Token;
             runs = Spooler.GetRecentSummaries(50);
+            var draftIds = await Workflow.GetCouncilDraftRunIdsAsync(runs.Select(run => run.RunId).ToList(), cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            draftRuns = runs.Where(run => draftIds.Contains(run.RunId)).ToList();
+            otherRuns = runs.Where(run => !draftIds.Contains(run.RunId)).ToList();
             selected = runs.FirstOrDefault(run => run.RunId == selected?.RunId) ?? runs.FirstOrDefault();
-            progress = selected is null ? null : await Workflow.GetCouncilDraftProgressAsync(selected.RunId, CancellationToken.None, includePathHistory: true);
-            feedback = progress is null ? "No coordinated source draft has been persisted for this run." : string.Empty;
+            var selectedPath = selectedFile?.Path;
+            laneSteps = selected is null ? [] : Spooler.GetRunStepSummaries(selected.RunId);
+            progress = selected is null ? null : await Workflow.GetCouncilDraftProgressAsync(selected.RunId, cancellationToken, includePathHistory: true);
+            cancellationToken.ThrowIfCancellationRequested();
+            selectedFile = selectedPath is null ? null : progress?.Paths.FirstOrDefault(item => item.Path == selectedPath);
+            fileDetailsOpen &= selectedFile is not null;
+            feedback = progress is null ? "No coordinated source draft has been persisted for this run. The run status and recorded step count above are available before planning completes." : string.Empty;
         }
+        catch (OperationCanceledException) when (refreshCancellation.IsCancellationRequested) { }
         catch (Exception exception)
         {
             Logger.LogError(exception, "Reading Council source progress failed.");
             progress = null;
+            laneSteps = [];
             feedback = "Source progress unavailable; see application diagnostics.";
         }
-        finally { busy = false; }
+        finally { busy = false; if (!disposed && Volatile.Read(ref refreshPending) != 0) OnSpoolerChanged(); }
     }
 }

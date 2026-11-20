@@ -145,6 +145,27 @@ public sealed class DxAiFunctionInvocationPreview
 /// <summary>Sanitized durable invocation metadata, not arguments, prompts or tool output.</summary>
 public sealed class DxAiFunctionInvocationAuditEntry
 {
+    /// <summary>Authoritative Council execution identifier supplied by the ambient server context.</summary>
+    public Guid? CouncilRunId { get; set; }
+    /// <summary>Stable parent Chat run when available, distinct from a database conversation.</summary>
+    public Guid? ChatRunId { get; set; }
+    /// <summary>Logical round from the server-owned execution context.</summary>
+    public int? CouncilRound { get; set; }
+    /// <summary>Server-recorded workflow phase.</summary>
+    public string Phase { get; set; } = string.Empty;
+    /// <summary>Project identifier bound by the Council or supplied by the invocation request outside Council.</summary>
+    public Guid? ProjectId { get; set; }
+    /// <summary>Project revision associated with the recorded invocation.</summary>
+    public Guid? ProjectRevisionId { get; set; }
+    /// <summary>Actual registry dispatch state, or null for unknown and legacy operations.</summary>
+    public bool? HandlerDispatched { get; set; }
+    /// <summary>Live registered descriptor's read-only classification, when known.</summary>
+    public bool? DescriptorReadOnly { get; set; }
+    /// <summary>Schema digest of the resolved registered function, not an argument digest.</summary>
+    public string SchemaHash { get; set; } = string.Empty;
+    /// <summary>Provider/caller label supplied to the invocation; not proof of identity or permission.</summary>
+    public string RequestedBy { get; set; } = string.Empty;
+
     /// <summary>
     /// Gets or sets the stable operation identifier used to identify or correlate this DevExpress AI function invocation audit instance with related application state.
     /// </summary>

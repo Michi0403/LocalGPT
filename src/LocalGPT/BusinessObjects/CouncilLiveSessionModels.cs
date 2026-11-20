@@ -50,7 +50,13 @@ public sealed record CouncilLiveParticipantActivitySnapshot(
     string FinalContent,
     bool IsRunning,
     DateTime StartedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc)
+{
+    /// <summary>Scheduler admission time, when observed; not provider acceptance time.</summary>
+    public DateTime? AdmittedAtUtc { get; init; }
+    /// <summary>Actual lane closure time, when observed.</summary>
+    public DateTime? CompletedAtUtc { get; init; }
+}
 
 
 /// <summary>Lightweight attachment state used when a browser circuit joins an already running Council without copying transcript or participant stream buffers.</summary>

@@ -9,9 +9,11 @@ public interface IDxAiFunctionInvocationAuditService
     /// Performs record as part of the DevExpress AI function invocation audit service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="result">Result value supplied to the DevExpress AI function invocation audit operation and used when producing its result.</param>
+    /// <param name="request">Invocation routing metadata; parameters are never persisted.</param>
+    /// <param name="context">Server-owned execution context captured at admission.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    Task RecordAsync(DxAiFunctionInvocationResult result, CancellationToken cancellationToken = default);
+    Task RecordAsync(DxAiFunctionInvocationResult result, DxAiFunctionInvocationRequest request, AmbientLocalGptContextSnapshot context, CancellationToken cancellationToken = default);
     /// <summary>
     /// Retrieves recent as part of the DevExpress AI function invocation audit service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

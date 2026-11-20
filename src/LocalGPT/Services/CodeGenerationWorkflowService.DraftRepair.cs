@@ -21,9 +21,15 @@ public sealed partial class CodeGenerationWorkflowService
             foreach (var (rawPath, rawDependencies) in dependencies ?? [])
             {
                 var path = NormalizeRelativePath(rawPath);
+                if (rawDependencies is null || rawDependencies.Any(string.IsNullOrWhiteSpace))
+                    throw new ArgumentException($"Draft dependency owner '{path}' requires a list of nonempty prerequisite paths.");
                 var direct = rawDependencies.Select(NormalizeRelativePath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                if (!manifest.ContainsKey(path) || direct.Any(dependency => !manifest.ContainsKey(dependency)) ||
-                    !normalized.TryAdd(path, direct))
+                if (!manifest.ContainsKey(path))
+                    throw new ArgumentException($"Draft dependency owner '{path}' is not a source manifest path.");
+                var unknown = direct.FirstOrDefault(dependency => !manifest.ContainsKey(dependency));
+                if (unknown is not null)
+                    throw new ArgumentException($"Draft dependency '{unknown}' for '{path}' is not a source manifest path.");
+                if (!normalized.TryAdd(path, direct))
                     throw new ArgumentException("Draft dependencies must name distinct paths in the source manifest.");
             }
             var resolved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

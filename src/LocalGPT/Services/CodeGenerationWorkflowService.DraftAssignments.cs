@@ -50,11 +50,64 @@ public sealed partial class CodeGenerationWorkflowService
                 row.ReviewHash, row.BuildStatus, row.WorkspaceName, row.ZipFileName,
                 manifest.Keys.Where(path => !hashes.ContainsKey(path)).ToList(), hashes, isDraft,
                 plan?.DraftWorkspaceMode ?? payload!.DraftWorkspaceMode,
-                plan?.DraftGuestLanguageKey ?? payload!.DraftGuestLanguageKey) { Paths = paths };
+                plan?.DraftGuestLanguageKey ?? payload!.DraftGuestLanguageKey) { Paths = paths, Tree = BuildDraftProgressTree(paths) };
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Reading source draft progress for Council {RunId} failed.", runId);
+            throw;
+        }
+    }
+
+    /// <summary>Creates a stable folder hierarchy from canonical manifest paths for the read-only tree view.</summary>
+    /// <param name="paths">Current committed and missing file projections.</param>
+    /// <returns>Directory and file nodes ordered by canonical path.</returns>
+    private IReadOnlyList<CodeGenerationDraftTreeNode> BuildDraftProgressTree(IReadOnlyList<CodeGenerationDraftPathProgress> paths)
+    {
+        try
+        {
+            var roots = new List<CodeGenerationDraftTreeNode>();
+            foreach (var path in paths.OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase))
+            {
+                var parts = path.Path.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+                var children = roots;
+                for (var index = 0; index < parts.Length - 1; index++)
+                {
+                    var folder = children.FirstOrDefault(node => node.File is null && string.Equals(node.Name, parts[index], StringComparison.OrdinalIgnoreCase));
+                    if (folder is null)
+                    {
+                        folder = new CodeGenerationDraftTreeNode { Name = parts[index] };
+                        children.Add(folder);
+                    }
+                    children = folder.Children;
+                }
+                if (parts.Length > 0)
+                    children.Add(new CodeGenerationDraftTreeNode { Name = $"{parts[^1]} · {(!string.IsNullOrWhiteSpace(path.Sha256) ? path.InspectionAccepted ? "Inspected" : "Stored" : "Missing")}", Path = path.Path, File = path });
+            }
+            return roots;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Preparing Council source progress tree failed.");
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Guid>> GetCouncilDraftRunIdsAsync(IReadOnlyList<Guid> runIds, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var ids = runIds.Distinct().Take(50).ToArray();
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            return await db.CodeGenerationChangeReviews.AsNoTracking()
+                .Where(row => row.CouncilRunId.HasValue && ids.Contains(row.CouncilRunId.Value) &&
+                    (row.Id == row.CouncilRunId.Value || row.Status == DraftStatus))
+                .Select(row => row.CouncilRunId!.Value).Distinct().ToListAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading Council draft run index failed.");
             throw;
         }
     }

@@ -194,7 +194,8 @@ public sealed class CouncilLiveSessionService(
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <param name="activityKey">Activity key value supplied to the council live session operation and used when producing its result.</param>
     /// <param name="statusMessage">Status message value supplied to the council live session operation and used when producing its result.</param>
-    public void SetParticipantActivityStatus(Guid runId, string activityKey, string statusMessage)
+    /// <param name="admitted">True only when the owning scheduler starts the participant turn.</param>
+    public void SetParticipantActivityStatus(Guid runId, string activityKey, string statusMessage, bool admitted = false)
     {
         try
         {
@@ -204,6 +205,7 @@ public sealed class CouncilLiveSessionService(
             {
                 if (!state.ParticipantActivities.TryGetValue(activityKey, out var activity))
                     return;
+                if (admitted && activity.IsRunning) activity.AdmittedAtUtc ??= DateTime.UtcNow;
                 activity.StatusMessage = string.IsNullOrWhiteSpace(statusMessage) ? "Council participant is running." : statusMessage.Trim();
                 activity.UpdatedAtUtc = DateTime.UtcNow;
                 state.UpdatedAtUtc = activity.UpdatedAtUtc;
@@ -263,6 +265,7 @@ public sealed class CouncilLiveSessionService(
                 if (!state.ParticipantActivities.TryGetValue(activityKey, out var activity))
                     return;
                 activity.IsRunning = false;
+                activity.CompletedAtUtc ??= DateTime.UtcNow;
                 activity.StatusMessage = string.IsNullOrWhiteSpace(statusMessage) ? "Participant completed; ordered transcript integration is pending." : statusMessage.Trim();
                 activity.UpdatedAtUtc = DateTime.UtcNow;
                 state.UpdatedAtUtc = activity.UpdatedAtUtc;
@@ -385,6 +388,7 @@ public sealed class CouncilLiveSessionService(
                 {
                     activity.IsRunning = false;
                     activity.StatusMessage = "Council completed; this participant lane is closed.";
+                    activity.CompletedAtUtc ??= completedAtUtc;
                     activity.UpdatedAtUtc = completedAtUtc;
                 }
                 state.UpdatedAtUtc = completedAtUtc;
@@ -426,6 +430,7 @@ public sealed class CouncilLiveSessionService(
                 {
                     activity.IsRunning = false;
                     activity.StatusMessage = "Council cancellation requested; this participant lane is closed.";
+                    activity.CompletedAtUtc ??= cancelledAtUtc;
                     activity.UpdatedAtUtc = cancelledAtUtc;
                 }
                 state.UpdatedAtUtc = cancelledAtUtc;
@@ -506,7 +511,7 @@ public sealed class CouncilLiveSessionService(
                         activity.FinalContent,
                         activity.IsRunning,
                         activity.StartedAtUtc,
-                        activity.UpdatedAtUtc))
+                        activity.UpdatedAtUtc) { AdmittedAtUtc = activity.AdmittedAtUtc, CompletedAtUtc = activity.CompletedAtUtc })
                     .ToArray();
             }
         }
@@ -571,7 +576,7 @@ public sealed class CouncilLiveSessionService(
                             activity.FinalContent,
                             activity.IsRunning,
                             activity.StartedAtUtc,
-                            activity.UpdatedAtUtc);
+                            activity.UpdatedAtUtc) { AdmittedAtUtc = activity.AdmittedAtUtc, CompletedAtUtc = activity.CompletedAtUtc };
                     })
                     .ToArray();
             }
@@ -585,8 +590,9 @@ public sealed class CouncilLiveSessionService(
 
     /// <summary>Returns browser-safe participant projections without repeatedly copying and Markdown-rendering every historical transient token.</summary>
     /// <param name="runId">Identifier of the live Council run.</param>
+    /// <param name="executionRunId">Optional Council execution identity within the live Chat; null returns all lanes.</param>
     /// <returns>Bounded participant activity snapshots suitable for recurrent Blazor rendering.</returns>
-    public IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivitiesForDisplay(Guid runId)
+    public IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivitiesForDisplay(Guid runId, Guid? executionRunId = null)
     {
         try
         {
@@ -594,7 +600,9 @@ public sealed class CouncilLiveSessionService(
                 return [];
             lock (state.SyncRoot)
             {
+                var executionPrefix = executionRunId is Guid owner ? $"{owner:N}:" : null;
                 return state.ParticipantActivities.Values
+                    .Where(activity => executionPrefix is null || activity.ActivityKey.StartsWith(executionPrefix, StringComparison.Ordinal))
                     .OrderBy(activity => activity.StartedAtUtc)
                     .Select(activity => new CouncilLiveParticipantActivitySnapshot(
                         activity.ActivityKey,
@@ -612,7 +620,7 @@ public sealed class CouncilLiveSessionService(
                             : WindowForDisplay(activity.FinalContent, CompletedParticipantFinalDisplayCharacters, "completed participant answer"),
                         activity.IsRunning,
                         activity.StartedAtUtc,
-                        activity.UpdatedAtUtc))
+                        activity.UpdatedAtUtc) { AdmittedAtUtc = activity.AdmittedAtUtc, CompletedAtUtc = activity.CompletedAtUtc })
                     .ToArray();
             }
         }
@@ -796,7 +804,7 @@ public sealed class CouncilLiveSessionService(
                             activity.FinalContent,
                             activity.IsRunning,
                             activity.StartedAtUtc,
-                            activity.UpdatedAtUtc))
+                            activity.UpdatedAtUtc) { AdmittedAtUtc = activity.AdmittedAtUtc, CompletedAtUtc = activity.CompletedAtUtc })
                         .ToArray());
             }
     

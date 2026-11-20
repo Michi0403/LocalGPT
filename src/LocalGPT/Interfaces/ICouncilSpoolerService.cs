@@ -16,6 +16,9 @@ public interface ICouncilSpoolerService
     /// </summary>
     /// <param name="result">Result value supplied to the council spooler operation and used when producing its result.</param>
     void Begin(MultiModelCouncilResult result);
+    /// <summary>Retains the actual project identity and delivery intent independently of final answer generation.</summary>
+    /// <param name="result">Run-owned identity and observed artifact state.</param>
+    void UpdateIdentity(MultiModelCouncilResult result);
     /// <summary>
     /// Performs update as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -34,7 +37,8 @@ public interface ICouncilSpoolerService
     /// </summary>
     /// <param name="result">Result value supplied to the council spooler operation and used when producing its result.</param>
     /// <param name="failed">Value indicating whether failed should apply to this operation.</param>
-    void Complete(MultiModelCouncilResult result, bool failed = false);
+    /// <param name="interrupted">Whether execution was interrupted rather than completed.</param>
+    void Complete(MultiModelCouncilResult result, bool failed = false, bool interrupted = false);
     /// <summary>
     /// Retrieves snapshots as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -46,6 +50,10 @@ public interface ICouncilSpoolerService
     /// <param name="take">Maximum number of recent run headers.</param>
     /// <returns>Recent run headers.</returns>
     IReadOnlyList<CouncilSpoolerRunSummary> GetRecentSummaries(int take = 50);
+    /// <summary>Reads completed step metadata for one retained Council without cloning its prompt or transcript buffers.</summary>
+    /// <param name="runId">Existing Council execution ID.</param>
+    /// <returns>Recorded step summaries in execution order, including failures.</returns>
+    IReadOnlyList<CouncilRunStepSummary> GetRunStepSummaries(Guid runId);
     /// <summary>Returns compact member outcomes of recent retained runs (no prompts, thinking or answer text) as recovery evidence.</summary>
     /// <param name="takeRuns">Maximum number of recent runs to read.</param>
     /// <param name="excludeRunId">Run to leave out, normally the run that asks for evidence.</param>

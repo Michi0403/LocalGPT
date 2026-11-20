@@ -26,6 +26,7 @@ namespace LocalGPT.Services;
 /// <param name="vocabulary">Database-owned status vocabulary for deferred invocation states.</param>
 /// <param name="hardwareRoadPlanner">Existing provider-qualified hardware-road planner shared with Council execution.</param>
 /// <param name="staffing">Distinct-model staffing estimate for saved Council teams.</param>
+/// <param name="councilSpooler">Retained project and execution identity when a cancelled Council cannot return its result.</param>
 public sealed partial class GoalExecutionService(
     IRuntimeCapabilityDirectoryService directory,
     ICouncilTeamConfigurationService teams,
@@ -43,6 +44,7 @@ public sealed partial class GoalExecutionService(
     ILocalGptVocabularyService vocabulary,
     ICouncilTeamStaffingEstimator staffing,
     ICouncilHardwareRoadPlanner hardwareRoadPlanner,
+    ICouncilSpoolerService councilSpooler,
     ILogger<GoalExecutionService> logger) : IGoalExecutionService
 {
     /// <inheritdoc />

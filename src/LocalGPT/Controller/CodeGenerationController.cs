@@ -12,12 +12,14 @@ namespace LocalGPT.Controller;
 /// <param name="workflow">Code generation workflow service dependency used by the code generation workflow to provide the corresponding application capability.</param>
 /// <param name="catalog">Local gpt catalog service dependency used by the code generation workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="spooler">Read-only retained Council step metadata for source progress.</param>
 [ApiController]
 [Route("api/code-generation/reviews")]
 public sealed class CodeGenerationController(
     ICodeGenerationWorkflowService workflow,
     LocalGptCatalogService catalog,
-    ILogger<CodeGenerationController> logger) : ControllerBase
+    ILogger<CodeGenerationController> logger,
+    ICouncilSpoolerService spooler) : ControllerBase
 {
     /// <summary>
     /// Gets the source-generation capability map used by DXAiChat and the AI Council.
@@ -104,6 +106,42 @@ public sealed class CodeGenerationController(
         {
             logger.LogError(ex, "Could not load code-generation review {ReviewId}.", reviewId);
             return Results.InternalServerError("Could not load the review. Review LocalGPT application logs.");
+        }
+    }
+
+    /// <summary>Lists draft-bearing Council identifiers among the requested recent run identifiers.</summary>
+    /// <param name="runIds">Recent Council run identifiers, at most 50.</param>
+    /// <param name="cancellationToken">Cancels the read-only query.</param>
+    /// <returns>Identifiers for which coordinated draft evidence exists.</returns>
+    [HttpGet("council/draft-runs")]
+    public async Task<IResult> GetCouncilDraftRuns([FromQuery] Guid[] runIds, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (runIds.Length > 50) return Results.BadRequest();
+            return Results.Ok(await workflow.GetCouncilDraftRunIdsAsync(runIds, cancellationToken).ConfigureAwait(false));
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not load the Council draft run index.");
+            return Results.InternalServerError();
+        }
+    }
+
+    /// <summary>Reads recorded Council activity metadata including steps before source planning completes.</summary>
+    /// <param name="runId">Existing Council execution identifier.</param>
+    /// <returns>Read-only compact step metadata, not raw reasoning or source.</returns>
+    [HttpGet("council/{runId:guid}/steps")]
+    public IResult GetCouncilSteps(Guid runId)
+    {
+        try
+        {
+            return Results.Ok(spooler.GetRunStepSummaries(runId));
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not load recorded Council step metadata for {RunId}.", runId);
+            return Results.InternalServerError();
         }
     }
 

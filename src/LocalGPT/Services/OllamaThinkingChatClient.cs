@@ -102,6 +102,8 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     private readonly HashSet<string>? automaticFunctionAllowList;
     /// <summary>Stores the current scoped chat/project identity so provider-native tool calls resolve conversation-owned resources such as ASCII games.</summary>
     private readonly IChatSessionContext? sessionContext;
+    /// <summary>Immutable Council project binding captured when this provider client was opened.</summary>
+    private readonly CouncilExecutionIdentity? councilExecutionIdentity;
     /// <summary>
     /// Stores the internal throw on failure state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
     /// </summary>
@@ -131,6 +133,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     /// <param name="automaticFunctionAllowList">Optional native-function preference/allow-list. Null or empty advertises all registered automatic-safe functions; a nonempty list advertises the named functions. The Council policy determines whether names are preferences or a strict boundary.</param>
     /// <param name="sessionContext">Optional scoped chat/project identity propagated into provider-native automatic DXFunction calls.</param>
     /// <param name="fitContextToRequest">Whether to use the smallest measured allocation within the selected road for normal inference.</param>
+    /// <param name="councilExecutionIdentity">Run-owned project binding, when this client runs inside a Council phase.</param>
     public OllamaThinkingChatClient(
         OllamaCoreOptions options,
         ILogger logger,
@@ -148,7 +151,8 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
         bool throwOnFailure = false,
         IReadOnlyCollection<string>? automaticFunctionAllowList = null,
         IChatSessionContext? sessionContext = null,
-        bool fitContextToRequest = false)
+        bool fitContextToRequest = false,
+        CouncilExecutionIdentity? councilExecutionIdentity = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         this.fitContextToRequest = fitContextToRequest;
@@ -165,6 +169,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
         this.functionCallRecovery = functionCallRecovery;
         automaticToolsEnabled = enableAutomaticTools;
         this.sessionContext = sessionContext;
+        this.councilExecutionIdentity = councilExecutionIdentity;
         this.automaticFunctionAllowList = automaticFunctionAllowList is { Count: > 0 }
             ? automaticFunctionAllowList.Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase)
             : null;

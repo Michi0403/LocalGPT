@@ -39,6 +39,8 @@ namespace LocalGPT.Services
         /// Stores the council knowledge service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly ICouncilKnowledgeService knowledgeService;
+        /// <summary>Reads the persisted local toolchain inventory without changing the configured default.</summary>
+        private readonly IProjectMaintenanceService projectMaintenance;
         /// <summary>
         /// Stores the local GPT project service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
@@ -173,6 +175,7 @@ namespace LocalGPT.Services
         /// <param name="chatMemory">Injected dependency used by the service.</param>
         /// <param name="artifactService">Injected dependency used by the service.</param>
         /// <param name="knowledgeService">Injected dependency used by the service.</param>
+        /// <param name="projectMaintenance">Existing local compiler inventory service.</param>
         /// <param name="projectService">Injected dependency used by the service.</param>
         /// <param name="projectArchitecture">Injected dependency used by the service.</param>
         /// <param name="codeGenerationWorkflow">Injected dependency used by the service.</param>
@@ -215,6 +218,7 @@ namespace LocalGPT.Services
             IChatMemoryService chatMemory,
             ICouncilArtifactService artifactService,
             ICouncilKnowledgeService knowledgeService,
+            IProjectMaintenanceService projectMaintenance,
             ILocalGptProjectService projectService,
             IProjectArchitectureService projectArchitecture,
             ICodeGenerationWorkflowService codeGenerationWorkflow,
@@ -257,6 +261,7 @@ namespace LocalGPT.Services
             this.chatMemory = chatMemory;
             this.artifactService = artifactService;
             this.knowledgeService = knowledgeService;
+            this.projectMaintenance = projectMaintenance;
             this.projectService = projectService;
             this.projectArchitecture = projectArchitecture;
             this.codeGenerationWorkflow = codeGenerationWorkflow;

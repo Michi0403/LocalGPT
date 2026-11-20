@@ -28,12 +28,14 @@ public interface IAmbientLocalGptContext
     /// <param name="councilRound">Council round value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
     /// <param name="phase">Phase value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
     /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="executionIdentity">Optional immutable project binding belonging to this Council run.</param>
     /// <returns>The i disposable produced by the operation.</returns>
     IDisposable PushCouncil(
         Guid councilRunId,
         int councilRound,
         string phase,
-        string? correlationId = null);
+        string? correlationId = null,
+        CouncilExecutionIdentity? executionIdentity = null);
 }
 
 /// <summary>

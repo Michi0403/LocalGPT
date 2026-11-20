@@ -150,7 +150,9 @@ namespace LocalGPT.Services
             else
             {
                 // Every authored source path is already explicit. Scaffolding would introduce unreviewed duplicate project files.
-                var solutions = reviewedSources.Where(source => Path.GetExtension(source.RelativePath) is ".sln" or ".slnx").ToList();
+                var solutions = reviewedSources.Where(source =>
+                    string.Equals(Path.GetExtension(source.RelativePath), ".sln", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(Path.GetExtension(source.RelativePath), ".slnx", StringComparison.OrdinalIgnoreCase)).ToList();
                 buildTargets.AddRange((solutions.Count > 0 ? solutions : reviewedSources.Where(source =>
                     Path.GetExtension(source.RelativePath).Equals(".csproj", StringComparison.OrdinalIgnoreCase)).ToList())
                     .Select(source => ResolveInsideRoot(workspaceRoot, source.RelativePath)));
@@ -204,11 +206,22 @@ namespace LocalGPT.Services
 
             if (request.BuildAfterGeneration)
             {
+                // SourceFiles reviews may already contain a complete project without scaffolded output targets.
+                // Use only the exact approved materialized source paths, never discover unrelated host files.
+                if (buildTargets.Count == 0)
+                {
+                    var explicitSolutions = reviewedSources.Where(source =>
+                        string.Equals(Path.GetExtension(source.RelativePath), ".sln", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(Path.GetExtension(source.RelativePath), ".slnx", StringComparison.OrdinalIgnoreCase)).ToList();
+                    var explicitTargets = explicitSolutions.Count > 0 ? explicitSolutions : reviewedSources.Where(source =>
+                        string.Equals(Path.GetExtension(source.RelativePath), ".csproj", StringComparison.OrdinalIgnoreCase)).ToList();
+                    buildTargets.AddRange(explicitTargets.Select(source => ResolveInsideRoot(workspaceRoot, source.RelativePath)).Where(File.Exists));
+                }
                 if (buildTargets.Count == 0 && !string.IsNullOrWhiteSpace(registeredSolutionPath) && File.Exists(registeredSolutionPath))
                     buildTargets.Add(registeredSolutionPath);
                 if (buildTargets.Count == 0)
                 {
-                    result.Warnings.Add("Build was requested, but the review contains no .sln or .csproj output target.");
+                    result.Warnings.Add("Build was requested, but the review contains no .sln, .slnx or .csproj output target.");
                     entity.BuildStatus = "NoBuildTarget";
                 }
                 else
@@ -217,14 +230,26 @@ namespace LocalGPT.Services
                     var failedDiagnostics = new System.Text.StringBuilder();
                     foreach (var buildTarget in buildTargets.Distinct(StringComparer.OrdinalIgnoreCase))
                     {
-                        var buildResult = await artifactBuildExecutor.BuildAsync(
-                            buildTarget,
-                            workspaceRoot,
-                            "Release",
-                            outputDirectory: null,
-                            requestedTimeout: TimeSpan.FromMinutes(5),
-                            cancellationToken,
-                            userConfirmed: request.UserConfirmedBuild).ConfigureAwait(false);
+                        ArtifactBuildExecutionResult buildResult;
+                        try
+                        {
+                            buildResult = await artifactBuildExecutor.BuildAsync(
+                                buildTarget,
+                                workspaceRoot,
+                                "Release",
+                                outputDirectory: null,
+                                requestedTimeout: TimeSpan.FromMinutes(5),
+                                cancellationToken,
+                                userConfirmed: request.UserConfirmedBuild).ConfigureAwait(false);
+                        }
+                        catch (Exception exception) when (exception is not OperationCanceledException)
+                        {
+                            // A toolchain/preflight exception cannot attest a build, but must not discard the approved source archive.
+                            logger.LogWarning(exception, "Build check failed for review {ReviewId} target {TargetName}; preserving written source.", entity.Id, Path.GetFileName(buildTarget));
+                            buildStatuses.Add($"{Path.GetFileName(buildTarget)}:BuildCheckError");
+                            failedDiagnostics.AppendLine($"{Path.GetFileName(buildTarget)}: BuildCheckError ({exception.GetType().Name})");
+                            continue;
+                        }
                         buildStatuses.Add($"{Path.GetFileName(buildTarget)}:{buildResult.Status}");
                         if (!buildResult.Succeeded)
                         {
@@ -245,6 +270,9 @@ namespace LocalGPT.Services
                     result.BuildDiagnostics = failedDiagnostics.ToString().TrimEnd();
                 }
             }
+
+            if (!request.BuildAfterGeneration)
+                entity.BuildStatus = "Disabled";
 
             var zipFileName = $"localgpt-change-review-{entity.Id:N}.zip";
             var zipPath = Path.Combine(councilArtifacts.ArtifactRoot, zipFileName);

@@ -73,6 +73,8 @@
     /// <value>The live Council run identifier; a changed value restarts the lane projection.</value>
     [Parameter]
     public Guid RunId { get; set; }
+    /// <summary>Optional delegated run filter within the originating Chat session.</summary>
+    [Parameter] public Guid? ExecutionRunId { get; set; }
 
     /// <summary>Gets or sets the activity key whose answer and provider evidence are currently open in the caller's evidence view.</summary>
     /// <value>The inspected activity key, or <see langword="null"/> when no evidence view is open.</value>
@@ -123,6 +125,8 @@
     private string laneSummary = string.Empty;
     /// <summary>Run currently observed by this component.</summary>
     private Guid observedRunId;
+    /// <summary>Run filter within the current Chat session.</summary>
+    private Guid? observedExecutionRunId;
     /// <summary>Lanes whose stream panel the user opened explicitly (finished lanes start collapsed).</summary>
     private readonly HashSet<string> openedLaneKeys = new(StringComparer.Ordinal);
     /// <summary>Lanes whose stream panel the user closed explicitly (running lanes start expanded).</summary>
@@ -150,6 +154,7 @@
         try
         {
             observedRunId = RunId;
+            observedExecutionRunId = ExecutionRunId;
             CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
             ScheduleRefresh(immediate: true);
         }
@@ -166,9 +171,10 @@
         Logger.LogDebug("Component method LiveCouncilLaneBoard.OnParametersSet completed.");
         try
         {
-            if (observedRunId == RunId)
+            if (observedRunId == RunId && observedExecutionRunId == ExecutionRunId)
                 return;
             observedRunId = RunId;
+            observedExecutionRunId = ExecutionRunId;
             lanes = [];
             laneSummary = string.Empty;
             lock (laneToggleGate)
@@ -234,10 +240,11 @@
                 Interlocked.Exchange(ref refreshPending, 0);
 
                 var runId = observedRunId;
-                var projection = await Task.Run(() => BuildLanes(runId), refreshCancellation.Token).ConfigureAwait(false);
+                var executionRunId = observedExecutionRunId;
+                var projection = await Task.Run(() => BuildLanes(runId, executionRunId), refreshCancellation.Token).ConfigureAwait(false);
                 await InvokeAsync(() =>
                 {
-                    if (disposed || runId != observedRunId)
+                    if (disposed || runId != observedRunId || executionRunId != observedExecutionRunId)
                         return;
                     lanes = projection.Lanes;
                     laneSummary = projection.Summary;
@@ -274,11 +281,12 @@
     /// <summary>Builds the lane cards for one run. Only expanded streams are rendered, and an unchanged stream reuses its HTML.</summary>
     /// <param name="runId">Run to project.</param>
     /// <returns>The lane cards and their header summary.</returns>
-    private (IReadOnlyList<LaneView> Lanes, string Summary) BuildLanes(Guid runId)
+    /// <param name="executionRunId">When set, restrict activities to this execution identity in the originating Chat.</param>
+    private (IReadOnlyList<LaneView> Lanes, string Summary) BuildLanes(Guid runId, Guid? executionRunId)
     {
         try
         {
-            var activities = CouncilLiveSessions.GetParticipantActivitiesForDisplay(runId);
+            var activities = CouncilLiveSessions.GetParticipantActivitiesForDisplay(runId, executionRunId);
             HashSet<string> opened;
             HashSet<string> closed;
             lock (laneToggleGate)
@@ -328,7 +336,7 @@
                 result.Add(new LaneView(
                     activity.ActivityKey,
                     activity.ModelName,
-                    $"{activity.Phase} · {activity.Role} · {activity.RouteLabel}",
+                    $"{activity.Phase} · {activity.Role} · {activity.RouteLabel} · Queued UTC {activity.StartedAtUtc:yyyy-MM-dd HH:mm:ss} · Admitted UTC {activity.AdmittedAtUtc?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—"} · Closed UTC {activity.CompletedAtUtc?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—"} · Last activity UTC {activity.UpdatedAtUtc:yyyy-MM-dd HH:mm:ss}",
                     activity.StatusMessage,
                     activity.IsRunning,
                     hasStream,

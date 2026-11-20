@@ -22,6 +22,8 @@ public sealed partial class MultiModelCouncilService
     /// <param name="modelTimeoutSeconds">Configured request deadline.</param>
     /// <param name="firstRound">Next logical Council round number.</param>
     /// <param name="roleAssignments">Existing user-configured role assignments.</param>
+    /// <param name="existingSourceAvailable">Coordinator-established evidence of caller-bound existing source.</param>
+    /// <param name="technicalAuthority">Run-owned technical snapshot captured before Intake.</param>
     /// <param name="cancellationToken">Cancels the workflow without discarding committed receipts.</param>
     /// <returns>Concrete delivery or incomplete-work report, or null for the existing-repository route.</returns>
     private async Task<string?> RunCoordinatedFileWorkAsync(MultiModelCouncilResult result,
@@ -29,7 +31,7 @@ public sealed partial class MultiModelCouncilService
         IReadOnlyList<CouncilWorkflowStepDefinition> steps, CouncilFileWorkRuntimeParameters policy,
         string baseUri, IReadOnlyList<string> participants, IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
         int maxParallelModels, string keepAlive, int? ollamaNumGpu, int maxContextTokens, int modelTimeoutSeconds,
-        int firstRound, IReadOnlyDictionary<string, CouncilRoleRuntimeAssignment> roleAssignments, CancellationToken cancellationToken)
+        int firstRound, IReadOnlyDictionary<string, CouncilRoleRuntimeAssignment> roleAssignments, bool existingSourceAvailable, object technicalAuthority, CancellationToken cancellationToken)
     {
         try
         {
@@ -42,7 +44,7 @@ public sealed partial class MultiModelCouncilService
             // Do not bypass a user-configured required human or human-only role.
             if (steps.Any(step => roleAssignments.TryGetValue(step.Role, out var assigned) &&
                 assigned.HumanParticipationMode is HumanParticipationMode.Required or HumanParticipationMode.HumanOnly))
-                return null;
+                return existingSourceAvailable ? null : runtimePolicy.GetString("CouncilFileWorkHumanRouteBlockedNotice");
             var generationPolicy = councilAutomaticFunctionPolicy.Resolve(team, generateStep, false, request.RequestedOrganicCapabilities);
             var verificationPolicy = councilAutomaticFunctionPolicy.Resolve(team, verifyStep, false, request.RequestedOrganicCapabilities);
             if (!generationPolicy.Enabled || !verificationPolicy.Enabled ||
@@ -50,11 +52,18 @@ public sealed partial class MultiModelCouncilService
                     (!generatedAllowed.Contains("codegen.review.create") || !generatedAllowed.Contains("codegen.review.execute"))) ||
                 (verificationPolicy.IsStrict && verificationPolicy.AutomaticFunctionAllowList is { } verifiedAllowed &&
                     !verifiedAllowed.Contains("council.development.artifact.verify")))
-                return null; // Preserve the existing configured permission route.
+                return existingSourceAvailable ? null : runtimePolicy.GetString("CouncilFileWorkPermissionRouteBlockedNotice"); // Preserve the configured permission boundary.
 
             var routes = OrderParticipantsByObservedHealth(result, participants).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             var architectRoutes = routes.Where(model => !roleAssignments.TryGetValue(planStep.Role, out var assigned) ||
                 assigned.AiParticipants.Contains(model, StringComparer.OrdinalIgnoreCase)).ToList();
+            // A fast classification is not evidence that the same route can author a complete manifest.
+            // Prefer available planning token capacity, retaining the observed-health order for equal roads.
+            if (policy.PreferPlanningCapacity)
+                architectRoutes = architectRoutes.OrderByDescending(model => Math.Min(Math.Max(64, policy.MaximumPlanningOutputTokens),
+                        modelRoutes.TryGetValue(model, out var road) ? road.EffectiveMaxOutputTokens : request.MaxOutputTokens))
+                    .ThenByDescending(model => modelRoutes.TryGetValue(model, out var road) ? road.EffectiveMaxContextTokens : maxContextTokens)
+                    .ToList();
             var authorRoutes = routes.Where(model => !roleAssignments.TryGetValue(generateStep.Role, out var assigned) ||
                 assigned.AiParticipants.Contains(model, StringComparer.OrdinalIgnoreCase)).ToList();
             var curatorRoutes = routes.Where(model => !roleAssignments.TryGetValue(curateStep.Role, out var assigned) ||
@@ -64,8 +73,11 @@ public sealed partial class MultiModelCouncilService
             // The prior transcript remains in the Council archive. Only bounded visible evidence goes to the architect.
             var evidenceBudget = Math.Max(0, policy.MaximumPlanEvidenceCharacters);
             var evidence = new List<object>();
+            var hasAttachedEvidence = request.AttachedWorkspaceNames.Count > 0;
             foreach (var step in result.Steps.Where(item => string.IsNullOrWhiteSpace(item.Error) &&
-                !string.IsNullOrWhiteSpace(item.VisibleContent)).Reverse())
+                !string.IsNullOrWhiteSpace(item.VisibleContent) &&
+                (hasAttachedEvidence || item.ModelName is "LocalGPT: workspace curator gate" or "LocalGPT: continuation workspace curator gate"))
+                .Reverse().OrderByDescending(item => item.ModelName is "LocalGPT: workspace curator gate" or "LocalGPT: continuation workspace curator gate"))
             {
                 if (evidenceBudget <= 0) break;
                 var length = Math.Min(evidenceBudget, step.VisibleContent.Length);
@@ -73,31 +85,84 @@ public sealed partial class MultiModelCouncilService
                 evidenceBudget -= length;
             }
             var goal = string.IsNullOrWhiteSpace(request.GoalText) ? request.Prompt : request.GoalText;
+            var requiredTargets = GetExplicitFileWorkTargets(goal);
+            var excludeDevExpress = runtimePolicy.GetPattern("runtime.codegen.explicit-no-devexpress").IsMatch(goal);
             var progress = await codeGenerationWorkflow.GetCouncilDraftProgressAsync(result.RunId, cancellationToken).ConfigureAwait(false);
             if (progress is null)
             {
                 var planDiagnostic = string.Empty;
+                var previousCandidate = string.Empty;
+                var attemptedArchitects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var attemptedManifests = new HashSet<string>(StringComparer.Ordinal);
                 var beginAttempted = false;
-                var ordinaryRoute = false;
+                var ordinaryRoute = !existingSourceAvailable;
                 var alternativeRouteObserved = false;
-                for (var attempt = 0; attempt < Math.Max(1, policy.MaximumPlanAttempts); attempt++)
+                var planAttempts = Math.Max(1, policy.MaximumPlanAttempts);
+                var manifestRecoveryGuidance = string.Empty;
+                var uncertainBegin = false;
+                for (var attempt = 0; attempt < planAttempts + (policy.EnableManifestRecovery ? 1 : 0); attempt++)
                 {
-                    var architect = architectRoutes[attempt % architectRoutes.Count];
-                    var prompt = policy.PlanPrompt + "\n" + requirementsInstruction + "\n" + JsonSerializer.Serialize(new { Goal = goal, Evidence = evidence, PreviousValidationError = planDiagnostic,
-                        GuestLanguages = fileWorkSandboxes.Languages.Where(language => fileWorkSandboxes.RuntimeReadiness.Any(runtime => runtime.Runtime == language.Runtime && runtime.Provisioned)).Select(language => language.Key).ToList() });
+                    if (attempt == planAttempts)
+                    {
+                        // This is another pure planning call in this run, not a replay of earlier tools or approvals.
+                        if (!ordinaryRoute || alternativeRouteObserved || uncertainBegin ||
+                            (await deferredDxAiInvocations.GetForRunAsync(result.RunId, cancellationToken).ConfigureAwait(false)).Count != 0)
+                            break;
+                        var decision = await aiHelpEscalator.ReportAttemptAsync(new AiHelpAttemptReport
+                        {
+                            TaskId = $"council:{result.RunId:N}:source-manifest", AttemptId = Guid.NewGuid(),
+                            CouncilRunId = result.RunId, Task = goal[..Math.Min(goal.Length, 2000)],
+                            Action = "source manifest recovery", Status = "failed",
+                            Error = new AiHelpFailureEvidence { Code = "SourceManifestMissing", Source = "validator", Message = planDiagnostic }
+                        }, cancellationToken).ConfigureAwait(false);
+                        var notice = runtimePolicy.GetString("CouncilFileWorkManifestRecoveryNotice") + "\n" + JsonSerializer.Serialize(decision);
+                        var recoveryStep = new MultiModelCouncilStep { ModelName = "LocalGPT Nurse", Role = "Source recovery", Round = round++,
+                            Phase = planStep.Phase, Content = notice, VisibleContent = System.Net.WebUtility.HtmlEncode(notice),
+                            StartedAtUtc = DateTime.UtcNow, CompletedAtUtc = DateTime.UtcNow };
+                        MultiModelCouncilServiceAddOrderedStep(result, recoveryStep, logger);
+                        request.StepCompleted?.Invoke(recoveryStep);
+                        request.StreamUpdate?.Invoke("\n\n<pre>" + System.Net.WebUtility.HtmlEncode(notice) + "</pre>\n\n");
+                        if (decision.Type is not ("try_alternative" or "retry_with_guidance")) break;
+                        manifestRecoveryGuidance = decision.Instruction;
+                        previousCandidate = string.Empty;
+                    }
+                    var architect = architectRoutes.FirstOrDefault(model => !attemptedArchitects.Contains(model))
+                        ?? architectRoutes[attempt % architectRoutes.Count];
+                    attemptedArchitects.Add(architect);
+                    var prompt = policy.PlanPrompt + "\n" + requirementsInstruction + "\n" + runtimePolicy.GetString("CouncilFileWorkPlanShapeInstruction") + "\n" +
+                        runtimePolicy.GetString("CouncilFileWorkPlanPacketInstruction") + "\n" + JsonSerializer.Serialize(new
+                        {
+                            Goal = goal, RequiredDotNetTargets = requiredTargets, ExcludeDevExpress = excludeDevExpress,
+                            TechnicalAuthority = technicalAuthority,
+                            BoundProjectId = result.ProjectId, BoundProjectRevisionId = result.ProjectRevisionId,
+                            ExistingSourceAvailable = existingSourceAvailable,
+                            SourceRouteInstruction = runtimePolicy.GetString("CouncilFileWorkSourceRouteInstruction"),
+                            AttachedWorkspaceNames = request.AttachedWorkspaceNames, Evidence = evidence,
+                            PreviousValidationError = planDiagnostic, PreviousCandidate = previousCandidate, RecoveryGuidance = manifestRecoveryGuidance,
+                            GuestLanguages = fileWorkSandboxes.Languages.Where(language => fileWorkSandboxes.RuntimeReadiness.Any(runtime => runtime.Runtime == language.Runtime && runtime.Provisioned)).Select(language => language.Key).ToList()
+                        });
+                    // Never carry malformed or rejected locally validated plans into a fresh architect call.
+                    // A useful structurally valid candidate is retained only for a known gateway validation rejection.
+                    previousCandidate = string.Empty;
                     var replies = await RunFileWorkPhaseAsync(result, request, planStep, baseUri, routes, [architect],
                         round++, planStep.Phase, _ => prompt, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu,
                         maxContextTokens, modelTimeoutSeconds, null, cancellationToken).ConfigureAwait(false);
                     var reply = replies.LastOrDefault(item => string.IsNullOrWhiteSpace(item.Error));
-                    if (reply is null) continue;
+                    if (reply is null)
+                    {
+                        planDiagnostic = replies.LastOrDefault()?.Error ?? runtimePolicy.GetString("CouncilFileWorkNoPlanNotice");
+                        continue;
+                    }
                     try
                     {
                         var explicitPlan = new Dictionary<string, JsonElement>(ReadFileWorkJson<Dictionary<string, JsonElement>>(ReadFileWorkAnswer(reply)), StringComparer.OrdinalIgnoreCase);
                         if (!explicitPlan.TryGetValue("draftWorkspaceMode", out var workspaceMode) || workspaceMode.ValueKind != JsonValueKind.String)
                             throw new ArgumentException("Choose one explicit workspace mode.");
-                        ordinaryRoute = workspaceMode.GetString() == "ReviewedSourceDraft";
-                        alternativeRouteObserved |= !ordinaryRoute;
-                        var plan = ReadSourceManifest(ReadFileWorkAnswer(reply));
+                        if (workspaceMode.GetString() == "ExistingRepository" && !existingSourceAvailable)
+                            throw new ArgumentException(runtimePolicy.GetString("CouncilFileWorkExistingSourceRequiredNotice"));
+                        ordinaryRoute |= workspaceMode.GetString() == "ReviewedSourceDraft";
+                        alternativeRouteObserved |= workspaceMode.GetString() != "ReviewedSourceDraft";
+                        var plan = ReadSourceManifest(ReadFileWorkAnswer(reply), goal);
                         if (plan.DraftWorkspaceMode == "ExistingRepository")
                             return null; // Existing staged-repository approval workflow remains authoritative.
                         if (plan.DraftWorkspaceMode == "HyperlightProject")
@@ -111,6 +176,8 @@ public sealed partial class MultiModelCouncilService
                         if (plan.DraftWorkspaceMode is not ("ReviewedSourceDraft" or "HyperlightSourceDraft"))
                             throw new ArgumentException("Unknown workspace mode.");
                         plan.Goal = goal;
+                        // The coordinator, not model JSON, supplies the persisted technical evidence.
+                        plan.DraftSharedContract = JsonSerializer.Serialize(new { TechnicalAuthority = technicalAuthority, Architecture = plan.DraftSharedContract });
                         plan.CouncilRunId = result.RunId;
                         plan.DraftOperation = "begin";
                         // Never accept IDs, raw files or approval state from the planning model.
@@ -119,34 +186,58 @@ public sealed partial class MultiModelCouncilService
                         if (plan.DraftManifest is not { Count: > 0 } || plan.DraftManifest.Count > Math.Max(1, policy.MaximumManifestFiles) ||
                             plan.DraftManifest.Values.Any(string.IsNullOrWhiteSpace))
                             throw new ArgumentException("Provide distinct relative paths with nonempty string work orders in draftManifest.");
+                        var beginParameters = new { draftOperation = "begin", goal = plan.Goal,
+                            title = plan.Title, draftWorkspaceMode = plan.DraftWorkspaceMode,
+                            draftGuestLanguageKey = plan.DraftGuestLanguageKey, draftManifest = plan.DraftManifest,
+                            draftSharedContract = plan.DraftSharedContract, draftDependencies = plan.DraftDependencies ?? new Dictionary<string, List<string>>(),
+                            outputs = plan.Outputs };
+                        var candidate = JsonSerializer.Serialize(beginParameters);
+                        if (!attemptedManifests.Add(candidate))
+                            throw new ArgumentException(runtimePolicy.GetString("CouncilFileWorkRepeatedManifestNotice"));
                         beginAttempted = true;
+                        uncertainBegin = true;
                         var created = await InvokeFileWorkFunctionAsync(result, request, round - 1, planStep.Phase,
-                            "codegen.review.create", new { draftOperation = "begin", goal = plan.Goal,
-                                title = plan.Title, draftWorkspaceMode = plan.DraftWorkspaceMode,
-                                draftGuestLanguageKey = plan.DraftGuestLanguageKey, draftManifest = plan.DraftManifest,
-                                draftSharedContract = plan.DraftSharedContract, draftDependencies = plan.DraftDependencies ?? new Dictionary<string, List<string>>(),
-                                outputs = plan.Outputs }, cancellationToken).ConfigureAwait(false);
+                            "codegen.review.create", beginParameters, cancellationToken).ConfigureAwait(false);
                         if (!created.Succeeded)
                         {
                             planDiagnostic = created.Error ?? created.Status;
                             // A rejected or interrupted gateway may already have persisted a draft.
                             progress = await codeGenerationWorkflow.GetCouncilDraftProgressAsync(result.RunId, cancellationToken).ConfigureAwait(false);
                             if (progress is not null) break;
+                            var retryNotice = runtimePolicy.GetString("CouncilFileWorkManifestRetryNotice") + " " + planDiagnostic;
+                            result.Warnings.Add(retryNotice);
+                            request.ProgressMessage?.Invoke(retryNotice);
+                            request.StreamUpdate?.Invoke("\n\n> " + System.Net.WebUtility.HtmlEncode(retryNotice) + "\n\n");
+                            if (created.Status != "InvalidParameters")
+                            {
+                                uncertainBegin = true;
+                                break;
+                            }
+                            uncertainBegin = false; // Known validation rejection, with no persisted draft found.
+                            var rejectedProposal = JsonSerializer.Serialize(explicitPlan);
+                            if (rejectedProposal.Length <= Math.Max(0, policy.MaximumPlanEvidenceCharacters))
+                                previousCandidate = rejectedProposal;
                             continue;
                         }
                         progress = await codeGenerationWorkflow.GetCouncilDraftProgressAsync(result.RunId, cancellationToken).ConfigureAwait(false);
                         if (progress is not null) break;
+                        uncertainBegin = true; // Success without persisted state is not a safe replay signal.
+                        break;
                     }
                     catch (Exception exception) when (exception is JsonException or ArgumentException)
                     {
                         planDiagnostic = exception is JsonException jsonError
                             ? $"Invalid JSON field: {jsonError.Path ?? "root"}." : exception.Message;
                         logger.LogInformation("Council {RunId} architect returned an invalid source manifest; diagnostic category {Category}.", result.RunId, exception.GetType().Name);
-                        request.ProgressMessage?.Invoke(runtimePolicy.GetString("CouncilFileWorkManifestRetryNotice") + " " + planDiagnostic);
+                        var notice = runtimePolicy.GetString("CouncilFileWorkManifestRetryNotice") + " " + planDiagnostic;
+                        result.Warnings.Add(notice);
+                        request.ProgressMessage?.Invoke(notice);
+                        request.StreamUpdate?.Invoke("\n\n> " + System.Net.WebUtility.HtmlEncode(notice) + "\n\n");
+                        if (uncertainBegin) break;
                     }
                 }
-                // The old reviewed generation path remains available only before any draft
-                // creation was attempted, with an explicit ordinary workspace decision and no prior tool effects.
+                // Never route a missing greenfield manifest into generic Generation/Curation.
+                // Only a source-bearing caller context can opt into the legacy reviewed route.
                 if (progress is null && !beginAttempted && ordinaryRoute && !alternativeRouteObserved && result.Steps.All(item =>
                         !item.Content.Contains("Function call ·", StringComparison.OrdinalIgnoreCase) &&
                         !item.Content.Contains("Function result ·", StringComparison.OrdinalIgnoreCase) &&
@@ -154,7 +245,7 @@ public sealed partial class MultiModelCouncilService
                         !(item.Error?.Contains("priorToolActivity=true", StringComparison.OrdinalIgnoreCase) ?? false)) &&
                     (await deferredDxAiInvocations.GetForRunAsync(result.RunId, cancellationToken).ConfigureAwait(false)).Count == 0)
                 {
-                    if (policy.AllowLegacyReviewedFallback)
+                    if (existingSourceAvailable && policy.AllowLegacyReviewedFallback)
                     {
                         result.Warnings.Add(runtimePolicy.GetString("CouncilFileWorkLegacyFallbackNotice"));
                         return null;
@@ -167,6 +258,8 @@ public sealed partial class MultiModelCouncilService
             // Propagate authoritative identity, not identifiers reconstructed from model text.
             result.ProjectId = progress.ProjectId;
             result.ProjectRevisionId = progress.ProjectRevisionId;
+            result.CoordinatedSourceWork = true;
+            councilSpooler.UpdateIdentity(result);
             // A failed review transport is not a negative inspection of the source bytes.
             var attemptedInspections = new HashSet<(Guid DraftId, string Path, string Hash, string DependencyRevision, string Reviewer)>();
             var draftRecoveryPass = 0;
@@ -261,7 +354,7 @@ public sealed partial class MultiModelCouncilService
                                         catch (Exception exception) when (exception is ArgumentException or JsonException or InvalidOperationException)
                                         {
                                             logger.LogWarning("Council inspection of {Path} returned no valid decision ({Category}); the source candidate remains unchanged.", inspection.Path, exception.GetType().Name);
-                                            step.FileWorkReceiptJson = JsonSerializer.Serialize(new { inspection.Path, inspection.DraftId, inspection.Sha256, Accepted = (bool?)null, Error = exception.GetType().Name });
+                                            step.FileWorkReceiptJson = JsonSerializer.Serialize(new { inspection.Path, inspection.DraftId, inspection.Sha256, Accepted = (bool?)null, Error = exception.GetType().Name, Diagnostic = exception.Message });
                                         }
                                     }, cancellationToken).ConfigureAwait(false);
                             }
@@ -305,7 +398,7 @@ public sealed partial class MultiModelCouncilService
                                 continue;
                             }
                         }
-                        return runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" + JsonSerializer.Serialize(progress);
+                        return FormatIncompleteFileWork(result, progress);
                     }
                     draftRecoveryPass = 0;
                     recoveryGuidance = string.Empty;
@@ -346,7 +439,15 @@ public sealed partial class MultiModelCouncilService
                         var zipPath = Path.Combine(artifactService.ArtifactRoot, review.ZipFileName);
                         if (File.Exists(zipPath))
                         {
-                            if (!result.Artifacts.Any(artifact => string.Equals(artifact.FilePath, zipPath, StringComparison.OrdinalIgnoreCase)))
+                            var existingArtifact = result.Artifacts.FirstOrDefault(artifact => string.Equals(artifact.FilePath, zipPath, StringComparison.OrdinalIgnoreCase));
+                            if (existingArtifact is not null)
+                            {
+                                existingArtifact.QualityStatus = CodeGenerationReviewStatuses.BuildPassed;
+                                existingArtifact.ContractStatus = "Verified";
+                                existingArtifact.ContractChecks = ["council.development.artifact.verify"];
+                                existingArtifact.MissingRequirements = [];
+                            }
+                            else
                                 result.Artifacts.Add(new CouncilArtifact
                                 {
                                     Name = review.ZipFileName, Kind = "SourceZip", FilePath = zipPath,
@@ -360,9 +461,36 @@ public sealed partial class MultiModelCouncilService
                     }
                     return runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" + verified.Error;
                 }
+                // A real approved source archive remains useful even if the compiler is unavailable or reports defects.
+                // Only the registered verifier may attest that the archive contains the approved bytes; SourceOnly never satisfies delivery.
+                if ((progress.Status is CodeGenerationReviewStatuses.BuildFailed or CodeGenerationReviewStatuses.Generated) &&
+                    result.ChangeReview is { ApprovalConsumed: true, IsSourceDraftReview: true } sourceReview &&
+                    sourceReview.CouncilRunId == result.RunId && !string.IsNullOrWhiteSpace(sourceReview.ZipFileName) &&
+                    Path.GetFileName(sourceReview.ZipFileName) == sourceReview.ZipFileName)
+                {
+                    var sourceReceipt = await InvokeFileWorkFunctionAsync(result, request, round, verifyStep.Phase,
+                        "council.development.artifact.verify", new { reviewId = sourceReview.Id }, cancellationToken).ConfigureAwait(false);
+                    var sourceZip = Path.Combine(artifactService.ArtifactRoot, sourceReview.ZipFileName);
+                    if (!sourceReceipt.Succeeded && sourceReceipt.Status == "SourceOnly" && File.Exists(sourceZip) &&
+                        !result.Artifacts.Any(artifact => string.Equals(artifact.FilePath, sourceZip, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var sourceArtifact = new CouncilArtifact
+                        {
+                            Name = sourceReview.ZipFileName, Kind = "SourceZip", FilePath = sourceZip,
+                            DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(sourceReview.ZipFileName)}",
+                            QualityStatus = sourceReview.Status, ContractStatus = "SourceOnly",
+                            ContractChecks = ["Approved source hashes verified"], MissingRequirements = ["Successful build verification"]
+                        };
+                        result.Artifacts.Add(sourceArtifact);
+                        var notice = runtimePolicy.GetString("CouncilFileWorkSourceOnlyNotice") + " " + sourceArtifact.DownloadUrl;
+                        result.Warnings.Add(notice);
+                        request.ProgressMessage?.Invoke(notice);
+                        request.StreamUpdate?.Invoke("\n\n" + System.Net.WebUtility.HtmlEncode(notice) + "\n\n");
+                    }
+                }
                 if (progress.Status != CodeGenerationReviewStatuses.BuildFailed || generation == policy.MaximumRepairGenerations ||
                     string.IsNullOrWhiteSpace(buildEvidence))
-                    return runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" + JsonSerializer.Serialize(progress);
+                    return FormatIncompleteFileWork(result, progress);
                 // Corrective work can name only actual manifest paths and actual compiler diagnostics.
                 var repairer = curatorRoutes.OrderByDescending(model => modelRoutes.TryGetValue(model, out var road) ? road.EffectiveMaxContextTokens : maxContextTokens).First();
                 var repairPrompt = policy.RepairPrompt + "\n" + JsonSerializer.Serialize(new { progress.CompletedFiles, BuildEvidence = buildEvidence });
@@ -381,7 +509,7 @@ public sealed partial class MultiModelCouncilService
                 progress = await codeGenerationWorkflow.GetCouncilDraftProgressAsync(result.RunId, cancellationToken).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("The corrective draft disappeared.");
             }
-            return runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" + JsonSerializer.Serialize(progress);
+            return FormatIncompleteFileWork(result, progress);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception)
@@ -496,25 +624,52 @@ public sealed partial class MultiModelCouncilService
     {
         try
         {
-            using var scope = ambientContext.PushCouncil(result.RunId, round, phase);
+            using var scope = ambientContext.PushCouncil(result.RunId, round, phase, executionIdentity: new CouncilExecutionIdentity(result.ChatRunId ?? result.RunId, result.ProjectId, result.ProjectRevisionId));
+            var startedAt = DateTime.UtcNow;
             var outcome = await fileWorkFunctions.InvokeAsync(functionName, new DxAiFunctionInvocationRequest
             {
                 Parameters = JsonSerializer.SerializeToElement(parameters, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
                 AutomaticInvocation = true, ConversationId = result.ChatRunId ?? result.RunId,
                 ProjectId = result.ProjectId, ProjectVersionId = result.ProjectRevisionId
             }, cancellationToken).ConfigureAwait(false);
-            var visible = functionName + " -> " + outcome.Status + "\n" + JsonSerializer.Serialize(outcome.Value);
+            var receiptJson = JsonSerializer.Serialize(new
+            {
+                outcome.OperationId, outcome.HandlerDispatched, outcome.DescriptorReadOnly, outcome.SchemaHash,
+                outcome.FunctionName, outcome.Status, outcome.Succeeded, outcome.Value, outcome.Error
+            });
+            var visible = functionName + " -> " + outcome.Status + "\n" + receiptJson;
             var step = new MultiModelCouncilStep { ModelName = "LocalGPT DXFunction gateway", Round = round, Phase = phase,
                 Role = "Source workspace", CouncilMembers = result.ModelNames.ToList(), Content = visible, VisibleContent = visible,
+                FileWorkReceiptJson = receiptJson,
                 Error = outcome.Succeeded ? string.Empty : outcome.Error ?? outcome.Status,
-                StartedAtUtc = DateTime.UtcNow, CompletedAtUtc = DateTime.UtcNow };
+                StartedAtUtc = startedAt, CompletedAtUtc = DateTime.UtcNow };
             MultiModelCouncilServiceAddOrderedStep(result, step, logger);
             request.StepCompleted?.Invoke(step);
             request.ProgressMessage?.Invoke(functionName + " -> " + outcome.Status);
-            request.StreamUpdate?.Invoke("\n\n" + functionName + " -> " + outcome.Status + "\n\n");
+            request.StreamUpdate?.Invoke("\n\n" + System.Net.WebUtility.HtmlEncode(functionName + " -> " + outcome.Status + " · " + outcome.OperationId.ToString("D")) + "\n\n");
             return outcome;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) { logger.LogError(exception, "Council file-work function {Function} failed.", functionName); throw; }
     }
+
+    /// <summary>Reports retained source and any independently hash-checked but uncompiled downloads without claiming successful delivery.</summary>
+    /// <param name="result">Owning Council result.</param>
+    /// <param name="progress">Latest persisted draft or review progress.</param>
+    /// <returns>Incomplete delivery report with links to available source-only archives.</returns>
+    private string FormatIncompleteFileWork(MultiModelCouncilResult result, object progress)
+    {
+        try
+        {
+            var downloads = result.Artifacts.Where(artifact => artifact.ContractStatus == "SourceOnly")
+                .Select(artifact => $"{runtimePolicy.GetString("CouncilFileWorkSourceOnlyNotice")} [{artifact.Name}]({artifact.DownloadUrl})");
+            return runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" + JsonSerializer.Serialize(progress) + "\n" + string.Join("\n", downloads);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not format incomplete Council file-work evidence for {RunId}.", result.RunId);
+            throw;
+        }
+    }
+
 }
