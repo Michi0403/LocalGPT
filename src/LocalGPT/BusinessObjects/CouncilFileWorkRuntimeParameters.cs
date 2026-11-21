@@ -43,6 +43,8 @@ public sealed class CouncilFileWorkRuntimeParameters
     public int MaximumPlanAttempts { get; set; }
     /// <summary>Permits one supervised same-run planning correction after ordinary attempts, when no uncertain begin or deferred approval exists.</summary>
     public bool EnableManifestRecovery { get; set; } = true;
+    /// <summary>Maximum bounded pre-approval manifest/source amendment attempts per Council run.</summary>
+    public int MaximumDraftAmendments { get; set; } = 2;
     /// <summary>Maximum targeted build-repair generations after the initial approved build.</summary>
     public int MaximumRepairGenerations { get; set; }
     /// <summary>Maximum optimistic-concurrency conflicts before the caller reports a persistent draft failure.</summary>

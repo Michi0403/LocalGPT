@@ -34,6 +34,9 @@ public sealed class CodeGenerationReviewStatuses
     /// <summary>
     /// Defines the build failed constant used by <see cref="CodeGenerationReviewStatuses"/> so callers and internal logic share the same stable value.
     /// </summary>
+    public const string BuildDisabled = "BuildDisabled";
+    /// <summary>A requested compiler verification could not begin because there was no build target.</summary>
+    public const string BuildNotAttempted = "BuildNotAttempted";
     public const string BuildFailed = "BuildFailed";
     /// <summary>
     /// Defines the failed constant used by <see cref="CodeGenerationReviewStatuses"/> so callers and internal logic share the same stable value.
@@ -307,13 +310,16 @@ public sealed class CodeGenerationOutputSpec
 /// </summary>
 public sealed class CreateCodeGenerationReviewRequest
 {
-    /// <summary>Optional Council draft operation: begin, next, complete, repair, or submit.</summary>
+    /// <summary>Optional Council draft operation: begin, next, complete, amend, repair, or submit.</summary>
     public string? DraftOperation { get; set; }
 
     /// <summary>Authoritative workspace mode for this source-draft lineage. ReviewedSourceDraft is the existing approved artifact-workspace route.</summary>
     public string DraftWorkspaceMode { get; set; } = "ReviewedSourceDraft";
     /// <summary>One installed isolated guest language selected for the entire draft, when guest authoring is requested.</summary>
     public string DraftGuestLanguageKey { get; set; } = string.Empty;
+
+    /// <summary>Coordinator-owned, run-bound requirement-to-file evidence, never a model assertion of build success.</summary>
+    public List<CodeGenerationSourceRequirement> DraftRequirements { get; set; } = [];
 
     /// <summary>Independent candidate inspection history maintained by the Council coordinator.</summary>
     public List<CodeGenerationDraftInspectionDecision> DraftInspections { get; set; } = [];
@@ -331,11 +337,29 @@ public sealed class CreateCodeGenerationReviewRequest
     /// <summary>Server-owned assignment history persisted inside the existing draft payload.</summary>
     public List<CodeGenerationDraftAssignment> DraftAssignments { get; set; } = [];
 
+    /// <summary>Exact active draft ID for a source-only additive manifest amendment.</summary>
+    public Guid? DraftAmendmentDraftId { get; set; }
+
+    /// <summary>Hash of the original manifest, preventing stale replans from modifying another revision.</summary>
+    public string DraftAmendmentManifestHash { get; set; } = string.Empty;
+
+    /// <summary>Exact committed source hashes for existing draft files that must be reopened for correction.</summary>
+    public Dictionary<string, string> DraftAmendmentReopenHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Number of committed additive/reopen amendments in this active draft; server-owned.</summary>
+    public int DraftAmendmentCount { get; set; }
+
+    /// <summary>Count of previously attempted authors at the time each file was explicitly reopened.</summary>
+    public Dictionary<string, int> DraftReopenAttemptOffsets { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Immutable review to copy when preparing a targeted corrective draft.</summary>
     public Guid? DraftRepairReviewId { get; set; }
 
     /// <summary>Exact hash of the immutable base review for a repair.</summary>
     public string DraftRepairReviewHash { get; set; } = string.Empty;
+
+    /// <summary>Exact previously approved source hashes for intentionally removed paths in a successor repair review.</summary>
+    public Dictionary<string, string> DraftRepairRemoveHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Server-owned previous source of explicitly reopened paths; supplied only to their authors.</summary>
     public Dictionary<string, string> DraftRepairSources { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -473,6 +497,9 @@ public sealed class CodeGenerationReviewPayload
     public string DraftWorkspaceMode { get; set; } = "ReviewedSourceDraft";
     /// <summary>One installed isolated guest language selected for the entire draft, when guest authoring is requested.</summary>
     public string DraftGuestLanguageKey { get; set; } = string.Empty;
+    /// <summary>Run-bound human requirements and file coverage, not a compiler verification receipt.</summary>
+    public List<CodeGenerationSourceRequirement> DraftRequirements { get; set; } = [];
+
     /// <summary>Independent inspection evidence, separate from compilation and build evidence.</summary>
     public List<CodeGenerationDraftInspectionDecision> DraftInspections { get; set; } = [];
 

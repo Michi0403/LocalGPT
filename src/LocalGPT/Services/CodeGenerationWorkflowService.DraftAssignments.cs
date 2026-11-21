@@ -50,7 +50,7 @@ public sealed partial class CodeGenerationWorkflowService
                 row.ReviewHash, row.BuildStatus, row.WorkspaceName, row.ZipFileName,
                 manifest.Keys.Where(path => !hashes.ContainsKey(path)).ToList(), hashes, isDraft,
                 plan?.DraftWorkspaceMode ?? payload!.DraftWorkspaceMode,
-                plan?.DraftGuestLanguageKey ?? payload!.DraftGuestLanguageKey) { Paths = paths, Tree = BuildDraftProgressTree(paths) };
+                plan?.DraftGuestLanguageKey ?? payload!.DraftGuestLanguageKey) { AmendmentCount = plan?.DraftAmendmentCount ?? 0, ManifestSha256 = ComputeDraftManifestHash(manifest), ManifestWorkOrders = new Dictionary<string, string>(manifest, StringComparer.OrdinalIgnoreCase), Paths = paths, Tree = BuildDraftProgressTree(paths) };
         }
         catch (Exception exception)
         {
@@ -137,7 +137,7 @@ public sealed partial class CodeGenerationWorkflowService
                     continue;
                 var prior = plan.DraftAssignments.Where(item => string.Equals(item.RelativePath, path,
                     StringComparison.OrdinalIgnoreCase)).ToList();
-                if (prior.Count >= maximumAttempts)
+                if (prior.Count - plan.DraftReopenAttemptOffsets.GetValueOrDefault(path) >= maximumAttempts)
                     continue;
                 var dependencies = plan.DraftDependencies?.GetValueOrDefault(path) ?? [];
                 if (dependencies.Any(dependency => !completed.ContainsKey(dependency)))
@@ -235,6 +235,9 @@ public sealed partial class CodeGenerationWorkflowService
                 if (source is not null)
                 {
                     var targetDiagnostic = ValidateDraftProjectTarget(plan.Goal, current.RelativePath, source);
+                    if (string.IsNullOrWhiteSpace(targetDiagnostic))
+                        targetDiagnostic = ValidateDraftSourceReferences(current.RelativePath, source,
+                            plan.DraftManifest ?? new Dictionary<string, string>());
                     if (!string.IsNullOrEmpty(targetDiagnostic))
                     {
                         diagnostic = targetDiagnostic;
@@ -323,8 +326,11 @@ public sealed partial class CodeGenerationWorkflowService
                 "The source draft has no manifest."), StringComparer.OrdinalIgnoreCase);
             plan.DraftDependencies = new Dictionary<string, List<string>>(plan.DraftDependencies ?? [], StringComparer.OrdinalIgnoreCase);
             plan.DraftRepairSources = new Dictionary<string, string>(plan.DraftRepairSources ?? [], StringComparer.OrdinalIgnoreCase);
+            plan.DraftAmendmentReopenHashes = new Dictionary<string, string>(plan.DraftAmendmentReopenHashes ?? [], StringComparer.OrdinalIgnoreCase);
+            plan.DraftReopenAttemptOffsets = new Dictionary<string, int>(plan.DraftReopenAttemptOffsets ?? [], StringComparer.OrdinalIgnoreCase);
             plan.DraftAssignments ??= [];
             plan.DraftInspections ??= [];
+            plan.DraftRequirements ??= [];
             plan.Files ??= [];
             return plan;
         }

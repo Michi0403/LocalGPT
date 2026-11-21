@@ -17,6 +17,16 @@ public interface IHumanCollaborationService
     event Action<HumanCouncilContribution>? DirectUserMessageQueued;
 
     /// <summary>
+    /// Returns resolved non-approval answers for one exact Council run, including answers already consumed by the heartbeat.
+    /// These are requirement evidence, never authorization for side effects.
+    /// </summary>
+    /// <param name="councilRunId">Identity of the Council run whose resolved decisions are requested.</param>
+    /// <param name="cancellationToken">Cancellation token for the read.</param>
+    /// <returns>The run-bound, resolved source-planning decisions.</returns>
+    Task<IReadOnlyList<CouncilSourceHumanDecision>> GetSourcePlanningDecisionsAsync(
+        Guid councilRunId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves snapshot as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="includeResolved">Value indicating whether include resolved should apply to this operation.</param>

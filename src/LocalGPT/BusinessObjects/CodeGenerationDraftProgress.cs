@@ -19,6 +19,12 @@ public sealed record CodeGenerationDraftProgress(
     string BuildStatus, string WorkspaceName, string ZipFileName, IReadOnlyList<string> MissingPaths,
     IReadOnlyDictionary<string, string> CompletedFiles, bool IsDraft, string WorkspaceMode, string GuestLanguageKey)
 {
+    /// <summary>Persisted number of pre-approval source amendment commits, bounded by the current Council policy.</summary>
+    public int AmendmentCount { get; init; }
+    /// <summary>Exact hash of the persisted source manifest; the coordinator uses it to fence additive replans.</summary>
+    public string ManifestSha256 { get; init; } = string.Empty;
+    /// <summary>Current manifest paths and short work orders; not accepted file bytes.</summary>
+    public IReadOnlyDictionary<string, string> ManifestWorkOrders { get; init; } = new Dictionary<string, string>();
     /// <summary>Read-only file progress projected from the persisted manifest, assignments and inspections.</summary>
     public IReadOnlyList<CodeGenerationDraftPathProgress> Paths { get; init; } = [];
     /// <summary>Hierarchical view of the same persisted path receipts, prepared only for the detailed progress request.</summary>

@@ -20,8 +20,8 @@ public sealed partial class CodeGenerationWorkflowService
         {
             var runId = request.CouncilRunId ?? throw new ArgumentException("An active Council run is required.");
             var operation = request.DraftOperation;
-            if (operation is not ("begin" or "next" or "complete" or "submit" or "repair"))
-                throw new ArgumentException("Select begin, next, complete, submit or repair.");
+            if (operation is not ("begin" or "next" or "complete" or "submit" or "amend" or "repair"))
+                throw new ArgumentException("Select begin, next, complete, amend, submit or repair.");
 
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var database = db.ConfigureAwait(false);
@@ -37,6 +37,9 @@ public sealed partial class CodeGenerationWorkflowService
                     throw new ArgumentException("Begin the Council source draft before taking a file.");
                 draft = await BeginDraftAsync(db, runId, request, cancellationToken).ConfigureAwait(false);
             }
+
+            if (operation == "amend")
+                return await AmendDraftManifestAsync(db, runId, draft, request, cancellationToken).ConfigureAwait(false);
 
             if (draft.Status != DraftStatus)
             {
@@ -55,12 +58,17 @@ public sealed partial class CodeGenerationWorkflowService
                     string.Equals(file.RelativePath, path, StringComparison.OrdinalIgnoreCase))))
                     throw new ArgumentException($"Complete the remaining {manifest.Count - plan.Files.Count} workspace file(s) before submitting.");
 
+                var humanDecisions = await humanCollaboration.GetSourcePlanningDecisionsAsync(runId, cancellationToken).ConfigureAwait(false);
+                var closureDiagnostic = ValidateCompletedSourceCoverage(plan, humanDecisions);
+                if (!string.IsNullOrWhiteSpace(closureDiagnostic))
+                    throw new ArgumentException("Source review blocked by incomplete or invalid project: " + closureDiagnostic);
                 foreach (var candidate in plan.Files)
                 {
                     var diagnostic = ValidateDraftProjectTarget(plan.Goal, candidate.RelativePath, candidate.Content);
                     if (!string.IsNullOrWhiteSpace(diagnostic))
                         throw new ArgumentException($"{candidate.RelativePath}: {diagnostic}");
                 }
+                plan.DraftRequirements = BuildSourceRequirementGraph(plan.Goal, manifest, humanDecisions, plan.Files);
                 var review = await CreateReviewCoreAsync(plan, draft, cancellationToken).ConfigureAwait(false);
                 return (new { ReviewId = review.Id, review.ReviewHash, review.Status, FileCount = manifest.Count }, review);
             }
@@ -86,6 +94,8 @@ public sealed partial class CodeGenerationWorkflowService
                     file.RelativePath = nextFile.Key;
                     file.Purpose = nextFile.Value;
                     var targetDiagnostic = ValidateDraftProjectTarget(plan.Goal, file.RelativePath, file.Content);
+                    if (string.IsNullOrWhiteSpace(targetDiagnostic))
+                        targetDiagnostic = ValidateDraftSourceReferences(file.RelativePath, file.Content, manifest);
                     if (!string.IsNullOrWhiteSpace(targetDiagnostic)) throw new ArgumentException(targetDiagnostic);
                     plan.Files.Add(file);
                     var payload = JsonSerializer.Serialize(plan, JsonOptions);
@@ -180,9 +190,20 @@ public sealed partial class CodeGenerationWorkflowService
                 output.Kind = NormalizeOutputKind(output.Kind);
             }
             request.DraftInspections = [];
+            var decisions = await humanCollaboration.GetSourcePlanningDecisionsAsync(runId, cancellationToken).ConfigureAwait(false);
+            var missingRequirement = ValidateSourceManifestCoverage(request.Goal, manifest, decisions);
+            if (!string.IsNullOrWhiteSpace(missingRequirement))
+                throw new ArgumentException("Source manifest does not meet the protected goal and human decisions: " + missingRequirement);
             request.DraftManifest = manifest;
+            request.DraftRequirements = BuildSourceRequirementGraph(request.Goal, manifest, decisions);
             request.DraftDependencies = NormalizeDraftDependencies(manifest, request.DraftDependencies);
             request.DraftAssignments = [];
+            request.DraftAmendmentCount = 0;
+            request.DraftAmendmentDraftId = null;
+            request.DraftAmendmentManifestHash = string.Empty;
+            request.DraftAmendmentReopenHashes = new(StringComparer.OrdinalIgnoreCase);
+            request.DraftReopenAttemptOffsets = new(StringComparer.OrdinalIgnoreCase);
+            request.DraftRepairRemoveHashes = new(StringComparer.OrdinalIgnoreCase);
             request.DraftRepairSources = new(StringComparer.OrdinalIgnoreCase);
             request.DraftRepairReviewId = null;
             request.DraftRepairReviewHash = string.Empty;

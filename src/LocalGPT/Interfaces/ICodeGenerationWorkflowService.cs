@@ -14,6 +14,12 @@ public interface ICodeGenerationWorkflowService
     /// <returns>The active draft or latest submitted draft review, if present.</returns>
     Task<CodeGenerationDraftProgress?> GetCouncilDraftProgressAsync(Guid runId, CancellationToken cancellationToken, bool includePathHistory = false);
 
+    /// <summary>Checks source graph closure of the current active draft against the latest run-bound human decisions, without modifying it.</summary>
+    /// <param name="runId">Council execution owning the active source draft.</param>
+    /// <param name="cancellationToken">Cancels this read-only preflight.</param>
+    /// <returns>Empty when structurally complete, otherwise an actionable diagnostic.</returns>
+    Task<string> GetSourceDraftClosureDiagnosticAsync(Guid runId, CancellationToken cancellationToken);
+
     /// <summary>Finds originating runs with a persisted coordinated source draft lineage without reading source payloads.</summary>
     /// <param name="runIds">Bounded recent Council identifiers to check.</param>
     /// <param name="cancellationToken">Cancels the read-only lookup.</param>

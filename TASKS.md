@@ -634,3 +634,69 @@ The confirmed November 20 run 94c2deb5-c339-40bc-b8bd-06b397d50aac is the regres
 - [ ] Owner: run original unmodified PowerShell compatibility and text-service ownership guards, the updated Council guard, full Debug/Release build, and the 7.6.2 runtime acceptance sequence above. Specifically verify both filtered and unfiltered live lanes and canceled-run durable identity. No PowerShell execution or .NET build performed in editing environment.
 
 All 7.6.2 runtime acceptance requirements and unresolved work packages remain open. Owner log reached LocalGPT compilation on the fourth attempt after local interventions; that does not validate the original archive, and the exact local interventions were not supplied. This candidate is derived from the original 7.6.2 archive, not the owner's locally modified checkout.
+
+## 7.6.4 — TwitchManager requirements-to-source closure (evidence: run a3519523-acf0-4856-b58a-4aaaace0ec49, 2026-11-20)
+
+Complete technical analysis and explicit repair workflow: `maintenance/workflows/TWITCHMANAGER-SOURCE-CLOSURE-7.6.4.md`. Original 7.6.3 review ZIP held four generated source paths plus review document: no SQLite data layer, host services or Blazor root; solution referenced itself and absent projects; user selected SQLite and DotnetTwitchDashboard before source planning; build executor returned Disabled with no actual compiler receipt. SHA-256 source export was correct; source completeness was not.
+
+### Source-level work implemented in this candidate (runtime acceptance **not yet verified**)
+
+- [x] P0-764-01: read run-bound Human Collaboration answers after Answered **or Consumed** (but not approvals), without reconsumption; record provenance in each source plan attempt and persisted draft shared contract. Avoid outdated consultant opinions replacing user choices.
+- [x] P0-764-02: reject missing Blazor host/root source, explicit Twitch/timeline source work, selected SQLite persistence, missing solution and recognized user-selected solution name *before* persisting manifest; recheck again against complete reviewed source on submit.
+- [x] P0-764-03: validate Visual Studio `.sln` header, Global block, project GUIDs and references; `.slnx` XML and project paths; `.csproj`/other MSBuild project references, with source-root containment and exact manifest presence. Check on candidate completion and submit; independent reviewer acceptance cannot override malformed source.
+- [x] P0-764-04: revalidate source contract and current run's decisions before consuming approval or materializing any source in ExecuteReviewAsync; retain correct source/review for authorized targeted repair.
+- [x] P0-764-05: distinguish requested-but-disabled or non-executed builds from real compiler failure, propagate to source-only verifier and repair eligibility without treating disabled build as verified application.
+- [x] P0-764-06: extend maintained PowerShell Council source contracts to assert the new read/plan/begin/complete/submit/execute ordering and distinct status propagation; no architecture gate weakened.
+
+### Remaining work / next phases (not closed by 7.6.4)
+
+- [ ] OWNER: run PowerShell compatibility, architecture, source ownership and Council assertions; compile and retest negative/positive source contracts on Windows. Editor did not run .NET or PowerShell.
+- [ ] P0-764-07: safe additive manifest amendment *before* source approval and targeted repair of already approved earlier incomplete reviews; require proposal diff, existing hash retention, independent inspection, exact fresh approval and task graph invalidation only for affected dependents. Never synthesize files after approval or replay old effects.
+- [ ] P0-764-08: general provider/solution-name typed decision parsing for arbitrary free-text options (SQLite selected flow is guarded here), explicit conflict resolution, typed storage provider/namespace/service contract closure, alternative Blazor hosting and source layout support without arbitrary hard-coded file naming; add owner tests for SQL Server, PostgreSQL, minimal Blazor, multiproject and .slnx.
+- [ ] P1-764-09: preserve actual tracked file/path/hash structure in child ProjectStructureJson after successful scan; link review artifacts to project records without confusing source-only with runnable application.
+- [ ] P1-764-10: nurse and learning attribution for malformed .sln accepted by reviewer, incomplete manifest vs correct exporter, context-budget rejections vs model performance, disabled-build vs compiler error; no positive training label without verified runnable artifact.
+- [ ] P1-764-11: dependency-aware parallel authoring/review **after** sequential reviewed delivery is proven; maintain one exclusive worker per file and per-host PAS resource constraints. Benchmark Steam Deck and RTX 3060 on identical model/quantization/task/context/energy data; do not infer raw capability from anecdote.
+- [ ] Retain **all** earlier 7.6.2/7.6.3 acceptance tasks, SQ-00–SQ-08 Substandard Squirrel/NUTS roadmap, approval/governance restrictions, backlog and goal success threshold. NUTS deferred until evidence labels and end-to-end delivery are trustworthy.
+
+
+## 7.6.5 — transactional source-graph correction (source implementation, runtime acceptance pending)
+
+Workflow and owner acceptance: `maintenance/workflows/COUNCIL-SOURCE-AMENDMENT-AND-REPAIR-7.6.5.md`. Change basis: the Nov 20 TwitchManager immutable review contained four source paths and correct source ZIP hashes, but not the chosen SQLite storage code, selected `DotnetTwitchDashboard` name or valid project references. The 7.6.4 version adds initial source-closure gates but did not yet implement bounded additive corrections of an already populated active draft.
+
+- [x] **P0-764-07, active draft**: implement registered `amend` with exact draft ID + exact current manifest SHA256; additional-only manifest paths, hash-bound reopen of existing source, dependency DAG and current Human Collaboration checks, configured amendment cap and optimistic database update. No implicit reapproval, source overwrite or file-system write. Coordinator emits a bounded minimal delta from a real pre-submit closure diagnostic and resumes sequential assignment/reinspection with stored source hashes/history retained.
+- [x] **P0-764-07, executed review repair**: allow explicit hash-bound removal of obsolete reviewed paths when creating a successor draft; reject repairs without consumed previous approval, preserve previous immutable review and require new independent approval. Existing complete-review build repair remains supported.
+- [x] **P1-764-09, evidence portion**: persist `CodeGenerationSourceRequirement` origin/path/bytes mapping on draft creation and review. It proves only declared obligations and observed source hashes, not semantic correctness or build success. Full post-export ProjectStructureJson reconciliation remains open.
+- [x] Enforce strict source-file ↔ manifest equality and duplicate-path rejection on completed review, reject malformed/unknown project references and check protected user provider decisions against source. This also covers old immutable reviews before approval consumption without rewriting them. Repair the `CodeGenerationReviewPayload` validator overload mismatch in 7.6.4.
+- [x] Update registered `draftOperation` enum and maintained PowerShell Council source contract, retain PS 5.1-safe JSON deserialization and forbid unapproved writes. No existing architecture guard disabled.
+- [ ] **OWNER BUILD**: run `build/Assert-PowerShellCompatibility.ps1`, `build/Assert-CouncilXRoundWiring.ps1`, `build/Assert-ApplicationStaticPolicy.ps1`, `build/Assert-TextServiceOwnership.ps1`, then full Debug/Release build on configured Windows .NET 10 SDK. None performed by the editor; resolve actual diagnostics without bypassing guards.
+- [ ] **OWNER RUN**: reproduce the Nov 20 SQLite/name selection with real current decisions. Confirm full manifest on first try or exact active-draft amendment, reviewed .sln references, SQLite package/provider C# source, fresh approval, materialized source and ZIP before treating Council status Completed as delivery. Test explicit wrong-hash/no-approval/concurrent amendments. A SourceOnly receipt is not a successful executable build.
+- [ ] **P0-764-08 remains**: general semantic parsing of arbitrary Human Collaboration answers and arbitrary project architectures; currently only known .NET web/Blazor/Twitch/provider/solution-name evidence is deterministically covered. Free-text unknown choices remain visible and tracked as `NeedsSemanticVerification`, not silently interpreted.
+- [ ] **P1-764-09 remains**: complete ProjectStructureJson and filesystem/source state reconciliation against reviewed project records and materialized artifact paths.
+- [ ] **P1-764-10 remains**: fully verified Nurse/root-cause and training feedback loop, model-vs-infrastructure failure attribution and persistent specialist learning; the requirement coverage graph is evidence collection only.
+- [ ] **P1-764-11 remains**: dependency-aware parallel authoring/inspection after iterative source work passes owner acceptance; independent Steam Deck/RTX 3060 benchmark, without changing hardware roads.
+- [ ] Keep all earlier 7.6.2/7.6.3 acceptance tasks and SQ-00–SQ-08 NUTS roadmap open. No model training, online GitHub operations, saved hardware policy changes, PublisherStudio edits or .NET builds in this source-only candidate.
+
+
+## 7.6.6 — immutable review goal build repair (source candidate; owner build pending)
+
+Evidence: owner Visual Studio Debug build, 2026-11-21 09:19:49, CS1061 at `src/LocalGPT/Services/CodeGenerationWorkflowService.Execution.cs:71`. All prior maintained PowerShell architecture/source guards passed; C# compilation stopped because `CodeGenerationReviewPayload` has no `Goal` property. The user-visible validation and artifact behaviors of 7.6.5 have not been runtime exercised by this build.
+
+- [x] Correct the pre-approval `ValidateDraftProjectTarget` argument from nonexistent `reviewedPayload.Goal` to authoritative `entity.Goal` already used for `ValidateCompletedSourceCoverage` in that review. Preserve all decision, approval, manifest, solution/reference and source-byte gates.
+- [x] Extend the maintained PowerShell Council source-contract guard to require the persisted review goal in both pre-approval validators and prohibit `reviewedPayload.Goal`. No PowerShell architecture guard relaxed; no Python repository test added.
+- [x] Increase LocalGPT version 7.6.5 → 7.6.6 and document the precise diagnostic in `maintenance/changelogs/CHANGELOG-v7.6.6-IMMUTABLE-REVIEW-GOAL-BUILD-REPAIR.md`.
+- [ ] **OWNER BUILD**: rerun existing `build/Assert-CouncilXRoundWiring.ps1` and full Windows .NET 10 Debug/Release build. This source-only candidate has not been compiled or PowerShell-executed by the editor. Resolve any subsequent diagnostics with their exact source references, without bypassing architecture policy.
+- [ ] **OWNER RUNTIME ACCEPTANCE**: confirm selected SQLite and solution name persist through Planning → source manifest → independent review → fresh approval → correct `.sln` project references and persisted ZIP; require real build verification before labeling an application runnable.
+- [ ] Preserve every earlier outstanding 7.6.2–7.6.5 task and the Substandard Squirrel/NUTS roadmap; source work stays iterative pending end-to-end verification. PublisherStudio untouched.
+
+## 7.6.7 — XML documentation compiler correction (source candidate; owner build pending)
+
+**Evidence:** Owner Windows .NET 10 Debug build, 2026-11-21 09:35:21. All maintained PowerShell source/architecture guards completed; compiler then reported `CS1572` twice and `CS1573` twice. The new human-source-decisions method had inherited `includeResolved` and `take` tags from `GetSnapshotAsync`, lacked a `councilRunId` tag, and the DI constructor lacked a `humanCollaboration` tag.
+
+- [x] Move complete `GetSnapshotAsync` documentation directly above its signature, without modifying signature or behavior.
+- [x] Document `GetSourcePlanningDecisionsAsync` with its exact `councilRunId` and `cancellationToken` parameters and return type.
+- [x] Document the preexisting `humanCollaboration` injection parameter in `CodeGenerationWorkflowService` without changing DI wiring.
+- [x] Extend **existing** PowerShell `Assert-CouncilXRoundWiring.ps1` with adjacency/parameter assertions for these contracts. PS 5.1-compatible, no architecture gate weakened.
+- [x] Increment LocalGPT 7.6.6 → 7.6.7, add version-specific changelog, preserve all earlier cumulative entries and unchanged PublisherStudio.
+- [ ] **OWNER BUILD:** rerun maintained PowerShell guards and full Windows .NET 10 Debug/Release builds. Editor did not execute PowerShell or .NET; build success not claimed.
+- [ ] **OWNER RUNTIME ACCEPTANCE:** verify exact human SQLite/name choices, complete manifest, correct `.sln` references, reviewed SQLite source, legitimate approval, real materialization, and separately measured build and downloadable artifact status.
+- [ ] Keep all previously open 7.6.2–7.6.6 tasks and Substandard Squirrel/NUTS benchmarking and nursing roadmap. No additional generated-source or training functionality was changed in this narrow build repair.

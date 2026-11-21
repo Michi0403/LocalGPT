@@ -242,7 +242,8 @@ public sealed class VerifyCouncilDevelopmentArtifactFunction(
                 var review = await reviews.GetReviewAsync(reviewId, cancellationToken).ConfigureAwait(false);
                 if (review is null) return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "Selected code-generation review was not found." };
                 if (review.Status != CodeGenerationReviewStatuses.Generated && review.Status != CodeGenerationReviewStatuses.BuildPassed &&
-                    !(review.IsSourceDraftReview && review.ApprovalConsumed && review.Status == CodeGenerationReviewStatuses.BuildFailed))
+                    !(review.IsSourceDraftReview && review.ApprovalConsumed &&
+                        review.Status is CodeGenerationReviewStatuses.BuildFailed or CodeGenerationReviewStatuses.BuildDisabled or CodeGenerationReviewStatuses.BuildNotAttempted))
                     return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed generation has not produced a successful artifact; current status: " + review.Status };
                 if (review.IsSourceDraftReview && !review.ApprovalConsumed)
                     return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "The exact coordinated review approval has not been consumed." };

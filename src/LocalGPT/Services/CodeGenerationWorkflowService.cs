@@ -36,6 +36,8 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         private readonly IProjectMaintenanceService projectMaintenance;
         /// <summary>Stores the database-first project architecture service used to bind greenfield Python generation to a durable project/revision.</summary>
         private readonly IProjectArchitectureService projectArchitecture;
+        /// <summary>Run-scoped, persisted human choices for the immutable source contract.</summary>
+        private readonly IHumanCollaborationService humanCollaboration;
         /// <summary>
         /// Stores the regex pattern service dependency used by <see cref="CodeGenerationWorkflowService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
@@ -59,6 +61,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         /// <param name="artifactBuildExecutor">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="projectMaintenance">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="projectArchitecture">Injected project architecture service used for database-first greenfield projects.</param>
+        /// <param name="humanCollaboration">Injected human-collaboration service providing resolved Council decisions for source planning.</param>
         /// <param name="regexPatterns">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="runtimePolicy">Database-backed runtime regex/text policy.</param>
         /// <param name="platform">Injected platform runtime service providing cross-platform filesystem semantics.</param>
@@ -71,6 +74,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             IArtifactBuildExecutor artifactBuildExecutor,
             IProjectMaintenanceService projectMaintenance,
             IProjectArchitectureService projectArchitecture,
+            IHumanCollaborationService humanCollaboration,
             IRegexPatternService regexPatterns,
             ILocalGptRuntimePolicyDataService runtimePolicy,
             IPlatformRuntimeService platform,
@@ -83,6 +87,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             this.artifactBuildExecutor = artifactBuildExecutor;
             this.projectMaintenance = projectMaintenance;
             this.projectArchitecture = projectArchitecture;
+            this.humanCollaboration = humanCollaboration;
             this.regexPatterns = regexPatterns;
             this.runtimePolicy = runtimePolicy;
             this.platform = platform;
@@ -166,6 +171,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
                 DraftWorkspaceMode = request.DraftWorkspaceMode,
                 DraftGuestLanguageKey = request.DraftGuestLanguageKey,
                 DraftInspections = draft is null ? [] : request.DraftInspections,
+                DraftRequirements = draft is null ? [] : request.DraftRequirements,
                 DraftSharedContract = draft is null ? string.Empty : request.DraftSharedContract,
                 DraftDependencies = draft is null ? null : request.DraftDependencies,
                 DraftAssignments = draft is null ? [] : request.DraftAssignments,

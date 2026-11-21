@@ -85,6 +85,9 @@ public sealed partial class MultiModelCouncilService
                 evidenceBudget -= length;
             }
             var goal = string.IsNullOrWhiteSpace(request.GoalText) ? request.Prompt : request.GoalText;
+            // A heartbeat may already have marked these answered questions as Consumed.
+            // The run-scoped decisions remain authoritative for source planning regardless.
+            var sourceDecisions = await humanCollaboration.GetSourcePlanningDecisionsAsync(result.RunId, cancellationToken).ConfigureAwait(false);
             var requiredTargets = GetExplicitFileWorkTargets(goal);
             var excludeDevExpress = runtimePolicy.GetPattern("runtime.codegen.explicit-no-devexpress").IsMatch(goal);
             var progress = await codeGenerationWorkflow.GetCouncilDraftProgressAsync(result.RunId, cancellationToken).ConfigureAwait(false);
@@ -126,14 +129,17 @@ public sealed partial class MultiModelCouncilService
                         manifestRecoveryGuidance = decision.Instruction;
                         previousCandidate = string.Empty;
                     }
+                    // Human answers may arrive after an earlier planner attempt. Rebind before each new proposal.
+                    sourceDecisions = await humanCollaboration.GetSourcePlanningDecisionsAsync(result.RunId, cancellationToken).ConfigureAwait(false);
                     var architect = architectRoutes.FirstOrDefault(model => !attemptedArchitects.Contains(model))
                         ?? architectRoutes[attempt % architectRoutes.Count];
                     attemptedArchitects.Add(architect);
-                    var prompt = policy.PlanPrompt + "\n" + requirementsInstruction + "\n" + runtimePolicy.GetString("CouncilFileWorkPlanShapeInstruction") + "\n" +
+                    var prompt = policy.PlanPrompt + "\n" + requirementsInstruction + "\n" +
+                        runtimePolicy.GetString("CouncilFileWorkHumanDecisionInstruction") + "\n" + runtimePolicy.GetString("CouncilFileWorkPlanShapeInstruction") + "\n" +
                         runtimePolicy.GetString("CouncilFileWorkPlanPacketInstruction") + "\n" + JsonSerializer.Serialize(new
                         {
                             Goal = goal, RequiredDotNetTargets = requiredTargets, ExcludeDevExpress = excludeDevExpress,
-                            TechnicalAuthority = technicalAuthority,
+                            TechnicalAuthority = technicalAuthority, HumanDecisions = sourceDecisions,
                             BoundProjectId = result.ProjectId, BoundProjectRevisionId = result.ProjectRevisionId,
                             ExistingSourceAvailable = existingSourceAvailable,
                             SourceRouteInstruction = runtimePolicy.GetString("CouncilFileWorkSourceRouteInstruction"),
@@ -177,7 +183,7 @@ public sealed partial class MultiModelCouncilService
                             throw new ArgumentException("Unknown workspace mode.");
                         plan.Goal = goal;
                         // The coordinator, not model JSON, supplies the persisted technical evidence.
-                        plan.DraftSharedContract = JsonSerializer.Serialize(new { TechnicalAuthority = technicalAuthority, Architecture = plan.DraftSharedContract });
+                        plan.DraftSharedContract = JsonSerializer.Serialize(new { TechnicalAuthority = technicalAuthority, HumanDecisions = sourceDecisions, Architecture = plan.DraftSharedContract });
                         plan.CouncilRunId = result.RunId;
                         plan.DraftOperation = "begin";
                         // Never accept IDs, raw files or approval state from the planning model.
@@ -402,6 +408,30 @@ public sealed partial class MultiModelCouncilService
                     }
                     draftRecoveryPass = 0;
                     recoveryGuidance = string.Empty;
+                    // Prevent an incomplete four-file source graph from becoming a review. When
+                    // the bytes are locally complete but source contracts fail, request only an
+                    // additive or explicitly hash-fenced correction, not another initial begin.
+                    var closureDiagnostic = await codeGenerationWorkflow.GetSourceDraftClosureDiagnosticAsync(result.RunId,
+                        cancellationToken).ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(closureDiagnostic))
+                    {
+                        if (progress.AmendmentCount >= Math.Max(0, policy.MaximumDraftAmendments))
+                            return runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" +
+                                "The persistent source amendment limit was reached: " + closureDiagnostic;
+                        var amendmentRound = round;
+                        round += Math.Max(1, Math.Min(Math.Max(0, policy.MaximumDraftAmendments), architectRoutes.Count));
+                        if (await TryAmendIncompleteSourceDraftAsync(result, request, policy, planStep,
+                            baseUri, routes, architectRoutes, modelRoutes, maxParallelModels, keepAlive, ollamaNumGpu,
+                            maxContextTokens, modelTimeoutSeconds, amendmentRound, progress, closureDiagnostic,
+                            cancellationToken).ConfigureAwait(false))
+                        {
+                            progress = await codeGenerationWorkflow.GetCouncilDraftProgressAsync(result.RunId, cancellationToken).ConfigureAwait(false)
+                                ?? throw new InvalidOperationException("The amended source draft disappeared.");
+                            generation--; // This is the same pre-approval draft, not another build generation.
+                            continue;
+                        }
+                        return runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" + closureDiagnostic;
+                    }
                     // Submitting through the existing handler creates the immutable review and its exact deferred approval.
                     var submission = await InvokeFileWorkFunctionAsync(result, request, round, generateStep.Phase,
                         "codegen.review.create", new { draftOperation = "submit" }, cancellationToken).ConfigureAwait(false);
@@ -463,7 +493,8 @@ public sealed partial class MultiModelCouncilService
                 }
                 // A real approved source archive remains useful even if the compiler is unavailable or reports defects.
                 // Only the registered verifier may attest that the archive contains the approved bytes; SourceOnly never satisfies delivery.
-                if ((progress.Status is CodeGenerationReviewStatuses.BuildFailed or CodeGenerationReviewStatuses.Generated) &&
+                if ((progress.Status is CodeGenerationReviewStatuses.BuildFailed or CodeGenerationReviewStatuses.Generated or
+                    CodeGenerationReviewStatuses.BuildDisabled or CodeGenerationReviewStatuses.BuildNotAttempted) &&
                     result.ChangeReview is { ApprovalConsumed: true, IsSourceDraftReview: true } sourceReview &&
                     sourceReview.CouncilRunId == result.RunId && !string.IsNullOrWhiteSpace(sourceReview.ZipFileName) &&
                     Path.GetFileName(sourceReview.ZipFileName) == sourceReview.ZipFileName)

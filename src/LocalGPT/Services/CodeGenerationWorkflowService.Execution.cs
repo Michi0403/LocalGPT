@@ -56,6 +56,24 @@ namespace LocalGPT.Services
         if (request.BuildAfterGeneration && !request.UserConfirmedBuild)
             throw new InvalidOperationException("A separate current human confirmation is required before invoking the bounded .NET build.");
 
+        // Even a review created by an earlier binary must not consume approval or write bytes
+        // unless the complete project and the current run's resolved human decisions agree.
+        var reviewedPayload = DeserializePayload(entity.PayloadJson);
+        if (reviewedPayload.DraftManifest is not null)
+        {
+            var runId = entity.CouncilRunId ?? throw new InvalidOperationException("A reviewed Council source draft must retain its run identity.");
+            var decisions = await humanCollaboration.GetSourcePlanningDecisionsAsync(runId, cancellationToken).ConfigureAwait(false);
+            var diagnostic = ValidateCompletedSourceCoverage(reviewedPayload, entity.Goal, decisions);
+            if (!string.IsNullOrWhiteSpace(diagnostic))
+                throw new InvalidOperationException("Approval has not been consumed. Source structure needs a new reviewed repair: " + diagnostic);
+            foreach (var source in reviewedPayload.Files)
+            {
+                diagnostic = ValidateDraftProjectTarget(entity.Goal, source.RelativePath, source.Content);
+                if (!string.IsNullOrWhiteSpace(diagnostic))
+                    throw new InvalidOperationException("Approval has not been consumed. " + source.RelativePath + ": " + diagnostic);
+            }
+        }
+
         entity.Status = CodeGenerationReviewStatuses.Generating;
         entity.DecisionNote = ValueOrFallback(request.DecisionNote, "Approved by the current user.");
         entity.DecidedAtUtc = DateTime.UtcNow;
@@ -281,11 +299,17 @@ namespace LocalGPT.Services
             ZipFile.CreateFromDirectory(workspaceRoot, zipPath, CompressionLevel.Optimal, includeBaseDirectory: false);
 
             entity.ZipFileName = zipFileName;
-            entity.Status = request.BuildAfterGeneration
-                ? BuildCompletedSuccessfully(entity.BuildStatus)
-                    ? CodeGenerationReviewStatuses.BuildPassed
-                    : CodeGenerationReviewStatuses.BuildFailed
-                : CodeGenerationReviewStatuses.Generated;
+            // A disabled or unavailable toolchain is not a compiler failure. The approved source
+            // remains downloadable, while verified delivery still requires an actual successful build.
+            entity.Status = !request.BuildAfterGeneration ? CodeGenerationReviewStatuses.Generated
+                : BuildCompletedSuccessfully(entity.BuildStatus) ? CodeGenerationReviewStatuses.BuildPassed
+                : entity.BuildStatus.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Any(item => item.EndsWith(":BuildFailed", StringComparison.OrdinalIgnoreCase))
+                    ? CodeGenerationReviewStatuses.BuildFailed
+                : entity.BuildStatus.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Any(item => item.EndsWith(":Disabled", StringComparison.OrdinalIgnoreCase))
+                    ? CodeGenerationReviewStatuses.BuildDisabled
+                : CodeGenerationReviewStatuses.BuildNotAttempted;
             entity.CompletedAtUtc = DateTime.UtcNow;
             entity.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

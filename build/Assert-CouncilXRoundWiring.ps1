@@ -7,7 +7,7 @@ $required = @(
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs'; Tokens = @('BuildFileWorkAuthorityAsync', 'ExistingSourceAvailable = existingSourceAvailable', 'selectedProject!.TrackedFiles.Any', 'CouncilFileWorkPlanPrerequisiteNotice') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('TechnicalAuthority = technicalAuthority', 'plan.DraftSharedContract = JsonSerializer.Serialize', 'workspaceMode.GetString() == "ExistingRepository" && !existingSourceAvailable', 'existingSourceAvailable && policy.AllowLegacyReviewedFallback', 'BoundProjectId = result.ProjectId') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.RunOrchestration.cs'; Tokens = @('!compactSourcePreparation', '!result.CoordinatedSourceWork && result.ChangeReview is null', 'councilSpooler.Complete(result, interrupted: true)', 'enableAutomaticTools: !result.CoordinatedSourceWork') }
-    @{ Path = 'src/LocalGPT/Services/DxAiFunctionRegistry.cs'; Tokens = @('registered allowed values: {enumElement.GetRawText()}', 'Registered fields:', 'candidate.GetString(), value.GetString()', 'begin: goal and draftManifest, no files or codeDomTypes') }
+    @{ Path = 'src/LocalGPT/Services/DxAiFunctionRegistry.cs'; Tokens = @('registered allowed values: {enumElement.GetRawText()}', 'Registered fields:', 'candidate.GetString(), value.GetString()', 'For an active draft, amend with its exact draftAmendmentDraftId') }
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Draft.cs'; Tokens = @('draftOperation=begin forbids files', 'draftOperation=begin forbids codeDomTypes', 'draftOperation=begin requires a nonempty goal', 'draftOperation=begin requires a nonempty draftManifest') }
     @{ Path = 'src/LocalGPT/Services/Council/CouncilSpoolerService.cs'; Tokens = @('UpdateIdentity(MultiModelCouncilResult result)', 'interrupted ? runtimePolicy.GetString("CouncilSpoolerInterrupted")', 'FunctionActivity = ReadGatewayActivity(step)') }
     @{ Path = 'src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs'; Tokens = @('var interruptedSnapshot = councilSpooler.GetSnapshot(councilRunId)', 'receipt.ProjectId = interruptedSnapshot?.ProjectId', 'receipt.ProjectRevisionId = interruptedSnapshot?.ProjectRevisionId') }
@@ -15,6 +15,17 @@ $required = @(
     @{ Path = 'src/LocalGPT/Components/Shared/LiveCouncilLaneBoard.razor'; Tokens = @('CouncilLiveSessions.GetParticipantActivitiesForDisplay(runId, executionRunId)') }
     @{ Path = 'src/LocalGPT/Components/Layout/CouncilSourceProgressPanel.razor'; Tokens = @('Spooler.Changed += OnSpoolerChanged', 'Spooler.Changed -= OnSpoolerChanged', 'LiveCouncilLaneBoard', 'IconCssClass="IconCssClass"', 'CouncilRunStepSummary.StartedAtUtc', 'CouncilRunStepSummary.CompletedAtUtc') }
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftTargetValidation.cs'; Tokens = @('IsContradictoryFrameworkInspection', 'runtime.codegen.review-target-replacement', 'DtdProcessing.Prohibit', 'PackageVersion', 'declared = declared.Where') }
+    # 7.6.4: the real 20 Nov Twitch review lost consumed SQLite/name decisions, omitted the host/data graph,
+    # accepted a malformed solution, and labeled disabled compilation as an actual build failure.
+    @{ Path = 'src/LocalGPT/Services/HumanCollaborationService.SourceDecisions.cs'; Tokens = @('item.CouncilRunId == councilRunId', 'item.Status == answered || item.Status == consumed', 'item.RequestKind != approvalKind', 'item.UserResponse', 'DecidedAtUtc') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('GetSourcePlanningDecisionsAsync(result.RunId', 'HumanDecisions = sourceDecisions', 'CouncilFileWorkHumanDecisionInstruction') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.SourceClosure.cs'; Tokens = @('ValidateSourceManifestCoverage', 'GetSelectedSolutionName', 'Human-selected SQLite', 'Program.cs', 'App.razor', 'ValidateDraftSourceReferences', 'Solution is missing the Visual Studio solution-format header', 'Guid.TryParse(fields[7]', 'Solution references', 'ProjectReference', 'ValidateCompletedSourceCoverage', 'injected project contract') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Draft.cs'; Tokens = @('ValidateSourceManifestCoverage(request.Goal, manifest, decisions)', 'ValidateCompletedSourceCoverage(plan, humanDecisions)', 'ValidateDraftSourceReferences(file.RelativePath, file.Content, manifest)') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftAssignments.cs'; Tokens = @('ValidateDraftSourceReferences(current.RelativePath, source', 'plan.DraftManifest') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Execution.cs'; Tokens = @('CodeGenerationReviewStatuses.BuildDisabled', 'CodeGenerationReviewStatuses.BuildNotAttempted', 'BuildCompletedSuccessfully(entity.BuildStatus)') }
+    @{ Path = 'src/LocalGPT/Services/CouncilDevelopmentDxAiFunctions.cs'; Tokens = @('CodeGenerationReviewStatuses.BuildDisabled', 'CodeGenerationReviewStatuses.BuildNotAttempted', 'Status = "SourceOnly"') }
+    @{ Path = 'src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs'; Tokens = @('CouncilFileWorkHumanDecisionInstruction', 'Human answers are requirements, not permission') }
+
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftInspection.cs'; Tokens = @('IsContradictoryFrameworkInspection(plan.Goal, decision.Diagnostic)', 'CouncilFileWorkConflictingFrameworkReviewNotice') }
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Draft.cs'; Tokens = @('ValidateDraftProjectTarget(plan.Goal, candidate.RelativePath, candidate.Content)', 'ValidateDraftProjectTarget(plan.Goal, file.RelativePath, file.Content)') }
     @{ Path = 'src/LocalGPT/Services/ProjectMaintenanceDxAiFunctions.cs'; Tokens = @('parameters.SummaryOnly ?? (request.AutomaticInvocation && unmaterialized)', 'TrackedFileCount = files.Count', 'summaryOnly = false') }
@@ -680,12 +691,128 @@ else {
     # Assign first, then explicitly enumerate the parsed values on both runtimes.
     $parsedOperations = ConvertFrom-Json -InputObject $draftEnum.Groups['values'].Value
     $operations = @(foreach ($operation in $parsedOperations) { $operation })
-    if (($operations -join ',') -cne 'begin,next,complete,submit,repair') {
+    if (($operations -join ',') -cne 'begin,next,complete,amend,submit,repair') {
         $findings.Add('Draft operation: exact enum changed without updating the operation contract.')
     }
     foreach ($invalidOperation in @('Create','Update','Draft','New')) {
         if ($operations -ccontains $invalidOperation) { $findings.Add('Draft operation: invalid alias admitted: ' + $invalidOperation) }
     }
+}
+
+
+# The source-only check must be inside both the pre-authoring begin and final submit path;
+# approval and exporter paths must not be the only places where closure is tested.
+$draftService = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CodeGenerationWorkflowService.Draft.cs'))
+$beginIndex = $draftService.IndexOf('ValidateSourceManifestCoverage(request.Goal, manifest, decisions)')
+$persistIndex = $draftService.IndexOf('db.CodeGenerationChangeReviews.Add(draft)')
+$submitIndex = $draftService.IndexOf('ValidateCompletedSourceCoverage(plan, humanDecisions)')
+$reviewIndex = $draftService.IndexOf('CreateReviewCoreAsync(plan, draft, cancellationToken)')
+if ($beginIndex -lt 0 -or $persistIndex -lt 0 -or $beginIndex -ge $persistIndex) { $findings.Add('Council manifest coverage must block draft persistence before authoring.') }
+if ($submitIndex -lt 0 -or $reviewIndex -lt 0 -or $submitIndex -ge $reviewIndex) { $findings.Add('Source-closure validation must precede immutable review creation.') }
+
+# 7.6.6: an immutable review payload does not have Goal; the persisted review entity does.
+# The pre-approval execution gate must validate the same recorded goal used by source closure.
+$reviewExecutionSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CodeGenerationWorkflowService.Execution.cs'))
+if (-not $reviewExecutionSource.Contains('ValidateCompletedSourceCoverage(reviewedPayload, entity.Goal, decisions)') -or
+    -not $reviewExecutionSource.Contains('ValidateDraftProjectTarget(entity.Goal, source.RelativePath, source.Content)')) {
+    $findings.Add('Reviewed-source execution must validate the persisted review goal, not a property absent from CodeGenerationReviewPayload.')
+}
+if ($reviewExecutionSource.Contains('reviewedPayload.Goal')) {
+    $findings.Add('CodeGenerationReviewPayload has no Goal property; use the authoritative persisted review entity.')
+}
+
+# The source file is rejected before its hash is accepted as a candidate; never accept malformed bytes
+# merely because a model reviewer voted yes for that hash.
+$assignmentSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftAssignments.cs'))
+$referencesIndex = $assignmentSource.IndexOf('ValidateDraftSourceReferences(current.RelativePath, source')
+$hashIndex = $assignmentSource.IndexOf('var candidateHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)))')
+if ($referencesIndex -lt 0 -or $hashIndex -lt 0 -or $referencesIndex -ge $hashIndex) { $findings.Add('Deterministic reference validation must precede candidate hashing and inspection.') }
+
+# 7.6.5: a persisted source graph may be amended only by an exact-id/hash-fenced transaction,
+# and an approved review may never be silently replaced with source from an old draft.
+$amendment = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftRepair.cs'))
+$amendmentCoordinator = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkAmendment.cs'))
+$sourceClosure = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CodeGenerationWorkflowService.SourceClosure.cs'))
+foreach ($requiredText in @('DraftAmendmentDraftId', 'DraftAmendmentManifestHash', 'ComputeDraftManifestHash(original)',
+    'DraftAmendmentReopenHashes', 'DraftAmendmentCount', 'SaveDraftPlanAsync',
+    'NormalizeDraftDependencies(expanded, edges)', 'ValidateSourceManifestCoverage(plan.Goal, expanded, humanDecisions)',
+    '!head.ApprovalConsumed', 'DraftRepairRemoveHashes', 'DraftRepairReviewHash')) {
+    if (-not $amendment.Contains($requiredText)) { $findings.Add('Source amendment/repair authority missing: ' + $requiredText) }
+}
+foreach ($requiredText in @('GetSourcePlanningDecisionsAsync(result.RunId', 'GetCouncilDraftProgressAsync(result.RunId',
+    'StoredSourceHashes = current.CompletedFiles', 'draftOperation = "amend"', 'draftAmendmentManifestHash = current.ManifestSha256',
+    'submitted.Status != "InvalidParameters"')) {
+    if (-not $amendmentCoordinator.Contains($requiredText)) { $findings.Add('Source coordinator amendment boundary missing: ' + $requiredText) }
+}
+foreach ($requiredText in @('GetSourceDraftClosureDiagnosticAsync(result.RunId',
+    'TryAmendIncompleteSourceDraftAsync(', 'generation--; // This is the same pre-approval draft')) {
+    if (-not $fileWorkSource.Contains($requiredText)) { $findings.Add('Pre-review source closure retry missing: ' + $requiredText) }
+}
+foreach ($requiredText in @('sourcePaths.Distinct(StringComparer.OrdinalIgnoreCase)',
+    'sourcePaths.Count != manifestPaths.Count', 'ValidateDraftSourceReferences(file.RelativePath, file.Content, manifest)',
+    'BuildSourceRequirementGraph')) {
+    if (-not $sourceClosure.Contains($requiredText)) { $findings.Add('Immutable source graph validation missing: ' + $requiredText) }
+}
+$registered = $registrySource.Contains('"amend","submit","repair"')
+if (-not $registered) { $findings.Add('Registered draft enum does not include the exact amendment operation.') }
+$contract = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Interfaces/ICodeGenerationWorkflowService.cs'))
+if (-not $contract.Contains('GetSourceDraftClosureDiagnosticAsync(')) { $findings.Add('Missing read-only source closure service contract.') }
+
+# 7.6.7: keep XML parameter documentation adjacent to the declaration it documents.
+# The application treats CS1572/CS1573 as errors; orphaned tags prevent compilation.
+$humanInterface = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Interfaces/IHumanCollaborationService.cs'))
+$sourceDecisionIndex = $humanInterface.IndexOf('Task<IReadOnlyList<CouncilSourceHumanDecision>> GetSourcePlanningDecisionsAsync(')
+$snapshotIndex = $humanInterface.IndexOf('Task<HumanCollaborationSnapshot> GetSnapshotAsync(')
+if ($sourceDecisionIndex -lt 0 -or $snapshotIndex -le $sourceDecisionIndex) {
+    $findings.Add('Human Collaboration source-planning and snapshot declarations are missing or reordered.')
+} else {
+    $sourceDecisionDocStart = $humanInterface.LastIndexOf('/// <summary>', $sourceDecisionIndex)
+    $snapshotDocStart = $humanInterface.LastIndexOf('/// <summary>', $snapshotIndex)
+    if ($sourceDecisionDocStart -lt 0 -or $snapshotDocStart -le $sourceDecisionIndex) {
+        $findings.Add('Human Collaboration XML documentation must precede both declared methods.')
+    } else {
+        $sourceDecisionDoc = $humanInterface.Substring($sourceDecisionDocStart, $sourceDecisionIndex - $sourceDecisionDocStart)
+        $snapshotDoc = $humanInterface.Substring($snapshotDocStart, $snapshotIndex - $snapshotDocStart)
+        if (-not $sourceDecisionDoc.Contains('<param name="councilRunId">') -or
+            -not $sourceDecisionDoc.Contains('<param name="cancellationToken">') -or
+            $sourceDecisionDoc.Contains('<param name="includeResolved">') -or
+            $sourceDecisionDoc.Contains('<param name="take">') -or
+            [regex]::Matches($sourceDecisionDoc, '///\s*<summary>').Count -ne 1) {
+            $findings.Add('Source-planning XML documentation must match councilRunId and cancellationToken only.')
+        }
+        foreach ($parameter in @('includeResolved', 'take', 'cancellationToken')) {
+            if (-not $snapshotDoc.Contains('<param name="' + $parameter + '">')) {
+                $findings.Add('Human Collaboration GetSnapshotAsync XML parameter documentation missing: ' + $parameter)
+            }
+        }
+        if ($snapshotDoc.Contains('<param name="councilRunId">')) {
+            $findings.Add('Human Collaboration snapshot XML documentation contains an unrelated Council run parameter.')
+        }
+    }
+}
+$workflowConstructorSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CodeGenerationWorkflowService.cs'))
+$constructorIndex = $workflowConstructorSource.IndexOf('public CodeGenerationWorkflowService(')
+if ($constructorIndex -lt 0) {
+    $findings.Add('CodeGenerationWorkflowService DI constructor is missing.')
+} else {
+    $constructorDocStart = $workflowConstructorSource.LastIndexOf('/// <summary>', $constructorIndex)
+    if ($constructorDocStart -lt 0) {
+        $findings.Add('CodeGenerationWorkflowService constructor XML documentation is missing.')
+    } else {
+        $constructorDoc = $workflowConstructorSource.Substring($constructorDocStart, $constructorIndex - $constructorDocStart)
+        if (-not $constructorDoc.Contains('<param name="humanCollaboration">') -or
+            [regex]::Matches($constructorDoc, '<param name="').Count -ne 12) {
+            $findings.Add('CodeGenerationWorkflowService constructor XML documentation must match all 12 injected collaborators.')
+        }
+    }
+}
+
+# The 20 November fixture: no Program.cs, App.razor, persistence or service source;
+# a self-referencing solution and absent additional projects cannot be promoted.
+$fixturePaths = @('src/TwitchManager.csproj', 'src/TwitchManager.sln', 'src/TwitchManager/Pages/Index.razor', 'src/TwitchManager/Pages/Timelines.razor')
+if ($fixturePaths -contains 'src/Program.cs' -or $fixturePaths -contains 'src/App.razor' -or
+    @($fixturePaths | Where-Object { $_ -match '(?i)(database|sqlite|context|service)\.cs$' }).Count -gt 0) {
+    $findings.Add('Negative four-file Twitch source manifest fixture is no longer representative.')
 }
 
 if ($findings.Count -gt 0) { foreach ($finding in $findings) { Write-Error $finding -ErrorAction Continue }; throw ('Source contract audit failed: ' + $findings.Count + ' finding(s).') }
