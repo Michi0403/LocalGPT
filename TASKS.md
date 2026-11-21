@@ -39,7 +39,7 @@ the owner's `LocalGPT-7.6.5-TASKS.md`; keep it. Version rollover: next 7.7.0.
 3. **#59 Regex layout check** at manifest `begin` (FileWorkManifest/DraftTargetValidation) using the regex service:
    wwwroot/Pages/Services/Models under project dir; Solution output needs .sln/.slnx; Razor/wwwroot only with Sdk.Web;
    referenced types (e.g. `App`) need their files; TFM = run evidence. Return correction packet before authoring.
-4. **#61** Reject echoed work-order packet JSON stored as file content (Index.html case); type-fit check per extension.
+4. **#61** DONE in 7.7.0 (uncompiled, see changelog): echoed work-order packet JSON rejected as file content. Still open: type-fit check per extension.
    Inspectors must use run evidence (net10 is released LTS), not "preview" memory claims.
 5. **#62 rest**: DecisionNote must name the real approval request id/decider (no "current user" fallback on reuse);
    UI list of active reusable approvals with revoke.
