@@ -25,10 +25,35 @@ public sealed partial class CodeGenerationWorkflowService
     }
 
     /// <summary>Rejects a generated project that silently changes an unambiguous user-specified .NET target.</summary>
-    /// <param name="goal">Original user goal, not curator-generated instructions.</param>
-    /// <param name="path">Reserved candidate path.</param>
-    /// <param name="source">Exact candidate source bytes as UTF-8 text.</param>
     /// <returns>A concrete target/XML diagnostic or an empty value when this check does not find a defect.</returns>
+    /// <summary>
+    /// Checks a greenfield manifest layout from its paths alone, before any model authors content.
+    /// </summary>
+    /// <param name="manifest">Normalized relative paths of the requested draft.</param>
+    /// <returns>A correction for the author, or an empty value when the layout is consistent.</returns>
+    private string ValidateManifestLayout(IReadOnlyDictionary<string, string> manifest)
+    {
+        var paths = manifest.Keys.Select(path => path.Replace('\\', '/')).ToList();
+        var projectDirectories = paths
+            .Where(path => string.Equals(Path.GetExtension(path), ".csproj", StringComparison.OrdinalIgnoreCase))
+            .Select(path => (Path.GetDirectoryName(path) ?? string.Empty).Replace('\\', '/').TrimEnd('/'))
+            .ToList();
+        if (projectDirectories.Count == 0) return string.Empty; // Existing-repository edits and non-project drafts are not layout-checked here.
+        var hasRazor = paths.Any(path => string.Equals(Path.GetExtension(path), ".razor", StringComparison.OrdinalIgnoreCase));
+        var hasRootComponent = paths.Any(path => string.Equals(Path.GetFileName(path), "App.razor", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileName(path), "_Imports.razor", StringComparison.OrdinalIgnoreCase));
+        if (hasRazor && !hasRootComponent) return runtimePolicy.GetString("CouncilManifestRazorRootMissingNotice");
+        foreach (var path in paths)
+        {
+            var isWwwroot = path.StartsWith("wwwroot/", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("/wwwroot/", StringComparison.OrdinalIgnoreCase);
+            if (!isWwwroot) continue;
+            if (!projectDirectories.Any(directory => directory.Length == 0 || path.StartsWith(directory + "/", StringComparison.OrdinalIgnoreCase)))
+                return runtimePolicy.GetString("CouncilManifestWwwrootOutsideProjectNotice");
+        }
+        return string.Empty;
+    }
+
     private string ValidateDraftProjectTarget(string goal, string path, string source)
     {
         try

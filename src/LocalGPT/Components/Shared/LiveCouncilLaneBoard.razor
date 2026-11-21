@@ -336,7 +336,7 @@
                 result.Add(new LaneView(
                     activity.ActivityKey,
                     activity.ModelName,
-                    $"{activity.Phase} · {activity.Role} · {activity.RouteLabel} · Queued {activity.StartedAtUtc:yyyy-MM-dd HH:mm:ss} UTC ({activity.StartedAtUtc.ToLocalTime():HH:mm:ss zzz}) · Admitted {(activity.AdmittedAtUtc is { } admitted ? admitted.ToString("yyyy-MM-dd HH:mm:ss") + " UTC (" + admitted.ToLocalTime().ToString("HH:mm:ss zzz") + ")" : "—")} · Closed {(activity.CompletedAtUtc is { } closed ? closed.ToString("yyyy-MM-dd HH:mm:ss") + " UTC (" + closed.ToLocalTime().ToString("HH:mm:ss zzz") + ")" : "—")} · Last activity {activity.UpdatedAtUtc:yyyy-MM-dd HH:mm:ss} UTC ({activity.UpdatedAtUtc.ToLocalTime():HH:mm:ss zzz})",
+                    $"{activity.Phase} · {activity.Role} · {activity.RouteLabel} · Queued {activity.StartedAtUtc:yyyy-MM-dd HH:mm:ss} UTC ({activity.StartedAtUtc.ToLocalTime():HH:mm:ss zzz}) · Admitted {(activity.AdmittedAtUtc is { } lanesAdmittedUtc ? lanesAdmittedUtc.ToString("yyyy-MM-dd HH:mm:ss") + " UTC (" + lanesAdmittedUtc.ToLocalTime().ToString("HH:mm:ss zzz") + ")" : "—")} · Closed {(activity.CompletedAtUtc is { } lanesCompletedUtc ? lanesCompletedUtc.ToString("yyyy-MM-dd HH:mm:ss") + " UTC (" + lanesCompletedUtc.ToLocalTime().ToString("HH:mm:ss zzz") + ")" : "—")} · Last activity {activity.UpdatedAtUtc:yyyy-MM-dd HH:mm:ss} UTC ({activity.UpdatedAtUtc.ToLocalTime():HH:mm:ss zzz})",
                     activity.StatusMessage,
                     activity.IsRunning,
                     hasStream,

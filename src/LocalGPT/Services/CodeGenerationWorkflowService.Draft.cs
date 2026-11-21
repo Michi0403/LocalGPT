@@ -175,6 +175,10 @@ public sealed partial class CodeGenerationWorkflowService
                 }
             }
 
+            var layoutDiagnostic = ValidateManifestLayout(manifest);
+            if (!string.IsNullOrWhiteSpace(layoutDiagnostic))
+                throw new ArgumentException(layoutDiagnostic);
+
             if (request.DraftWorkspaceMode is not ("ReviewedSourceDraft" or "HyperlightSourceDraft"))
                 throw new ArgumentException("Select one supported source-draft workspace mode.");
             if (request.DraftWorkspaceMode == "HyperlightSourceDraft" && string.IsNullOrWhiteSpace(request.DraftGuestLanguageKey))
