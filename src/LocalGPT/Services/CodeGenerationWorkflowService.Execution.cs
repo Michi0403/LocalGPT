@@ -286,6 +286,12 @@ namespace LocalGPT.Services
                     entity.BuildStatus = string.Join(";", buildStatuses);
                     result.BuildStatus = entity.BuildStatus;
                     result.BuildDiagnostics = failedDiagnostics.ToString().TrimEnd();
+                    // Persist the compiler evidence next to the source so the owner, the ZIP and a later
+                    // repair round see the exact errors instead of only a status token.
+                    await File.WriteAllTextAsync(
+                        Path.Combine(workspaceRoot, "BUILD_DIAGNOSTICS.md"),
+                        $"# Build diagnostics for review {entity.Id:N}{Environment.NewLine}{Environment.NewLine}Status: {entity.BuildStatus}{Environment.NewLine}{Environment.NewLine}```text{Environment.NewLine}{(string.IsNullOrWhiteSpace(result.BuildDiagnostics) ? "(no compiler diagnostics captured)" : result.BuildDiagnostics)}{Environment.NewLine}```{Environment.NewLine}",
+                        cancellationToken).ConfigureAwait(false);
                 }
             }
 

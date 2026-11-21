@@ -1,5 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using LocalGPT.BusinessObjects.EFCore;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 namespace LocalGPT.Services;
@@ -8,7 +10,14 @@ namespace LocalGPT.Services;
 /// Represents a browse local path function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 /// <param name="paths">Local path explorer service dependency used by the browse local path function workflow to provide the corresponding application capability.</param>
-public sealed class BrowseLocalPathFunction(ILocalPathExplorerService paths) : IDxAiFunctionHandler
+/// <param name="artifacts">Council artifact service that supplies the generated-workspace root guarded for project-bound automatic calls.</param>
+/// <param name="dbContextFactory">Database context factory used to resolve which reviewed workspaces belong to the caller's bound project.</param>
+/// <param name="runtimePolicy">Runtime policy data service that supplies the refusal text for foreign generated workspaces.</param>
+public sealed class BrowseLocalPathFunction(
+    ILocalPathExplorerService paths,
+    ICouncilArtifactService artifacts,
+    IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
+    ILocalGptRuntimePolicyDataService runtimePolicy) : IDxAiFunctionHandler
 {
     /// <summary>
     /// Gets the descriptor value that forms part of the browse local path function state consumed or produced by the surrounding workflow.
@@ -38,6 +47,16 @@ public sealed class BrowseLocalPathFunction(ILocalPathExplorerService paths) : I
             var value = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
                 ? new LocalPathBrowseRequest()
                 : request.Parameters.Deserialize<LocalPathBrowseRequest>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true }) ?? new();
+            if (request.AutomaticInvocation && request.ProjectId is Guid boundProjectId
+                && !string.IsNullOrWhiteSpace(value.Path) && !IsOwnedOrOutsideArtifactRoot(value.Path, boundProjectId))
+            {
+                return Task.FromResult(new DxAiFunctionInvocationResult
+                {
+                    Succeeded = false,
+                    Status = "Denied",
+                    Error = runtimePolicy.GetString("CouncilForeignArtifactBrowseDenied")
+                });
+            }
             return Task.FromResult(new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = paths.Browse(value) });
     
     }
@@ -47,6 +66,30 @@ public sealed class BrowseLocalPathFunction(ILocalPathExplorerService paths) : I
         throw;
     }
 }
+
+    /// <summary>
+    /// Determines whether a requested path is outside the generated-artifact root, or inside it only within a
+    /// reviewed workspace that belongs to the caller's bound project. The artifact root itself is not owned.
+    /// </summary>
+    /// <param name="requestedPath">Path requested by the automatic function call.</param>
+    /// <param name="boundProjectId">Project bound to the calling Council run.</param>
+    /// <returns><see langword="true"/> when the path may be browsed by the bound automatic caller.</returns>
+    private bool IsOwnedOrOutsideArtifactRoot(string requestedPath, Guid boundProjectId)
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(artifacts.ArtifactRoot));
+        string full;
+        try { full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(requestedPath)); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return true; }
+        if (!full.Equals(root, StringComparison.OrdinalIgnoreCase)
+            && !full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return true;
+        using var db = dbContextFactory.CreateDbContext();
+        var ownedReviewIds = db.CodeGenerationChangeReviews.AsNoTracking()
+            .Where(review => review.ProjectId == boundProjectId)
+            .Select(review => review.Id)
+            .ToList();
+        return ownedReviewIds.Any(id => full.Contains(id.ToString("N"), StringComparison.OrdinalIgnoreCase));
+    }
 }
 
 /// <summary>

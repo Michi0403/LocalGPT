@@ -149,9 +149,13 @@ namespace LocalGPT.Services
                 ? string.Equals(saved.CorrelationId, correlationId, StringComparison.Ordinal)
                 : string.Equals(saved.ParameterFingerprint, parameterFingerprint, StringComparison.Ordinal);
 
+            // A consequential (write/build/execute) approval belongs to the exact task it was given for:
+            // its fingerprint binds the review, hash and project. A saved session/persistent reuse scope must
+            // never authorize a different review or project (owner rule, 7.6.9 security fix).
             if (saved.Status == vocabulary.Get().HumanStatusPending ||
                 requestKind != vocabulary.Get().HumanRequestApproval ||
-                saved.ApprovalReuseScope == HumanApprovalReuseScope.ExactRequestOnce)
+                saved.ApprovalReuseScope == HumanApprovalReuseScope.ExactRequestOnce ||
+                saved.IsSensitive)
             {
                 return exactRequest;
             }

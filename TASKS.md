@@ -1,3 +1,84 @@
+# LocalGPT — open tasks after the 21 Nov 2026 frontend test (source 7.6.9)
+
+Continuable by any autocoder, ChatGPT or the owner. Read AGENTS.md / CLAUDE.md first. Rules: no const/static
+tunables, DB-owned runtime text/regex, DI services only, every change = new version + changelog in
+`maintenance/changelogs`, owner compiles in Visual Studio. The full earlier plan (P0-762-01…P1-762-10) is in
+the owner's `LocalGPT-7.6.5-TASKS.md`; keep it. Version rollover: next 7.7.0.
+
+## State at hand-off
+- 7.6.8 (tested live): ArtifactBuilds/NativeCommands enabled in both appsettings (builds had been `Disabled` since
+  16 Nov); `localgpt.path.browse` + `council.artifact_workspaces` deny foreign CouncilArtifacts workspaces for
+  project-bound automatic calls (verified: Denied in run a142abf7); "Join live Council" button in Running session tools.
+- 7.6.9 (built, NOT yet tested): approval scope fix in `HumanCollaborationService.Policy.IsReusableDecisionForRequest`
+  (sensitive = write/build/execute approvals only match the exact request); `BUILD_DIAGNOSTICS.md` written into the
+  generated workspace/ZIP on every build. Changelogs: `CHANGELOG-v7.6.8-…`, `CHANGELOG-v7.6.9-…`.
+- Test run a142abf7 (Program Compiler team, 33 members, 4 hosts, ~55 min): greenfield route ok, .NET 10 evidence first,
+  draft in own project with 7 files, net10.0 + 10.0.0 packages, real build ran → `TwitchDashboard.csproj:BuildFailed`.
+  ZIP: `CouncilArtifacts/localgpt-change-review-a142abf7….zip`; workspace `Workspaces/LocalGPT-CodeGeneration/review-a142…`.
+  Visible causes: `Program.cs` uses `App` but no `App.razor`/`_Imports.razor` planned; `wwwroot` outside project dir.
+  Exact compiler errors were not persisted (fixed in 7.6.9). Final answer hallucinated `TwitchManager.zip`.
+- 7.6.9 debug build was started from Visual Studio at 12:56; verify it launched (`assembly=7.6.9` in LocalGPT.log).
+- Not committed/pushed yet (7.6.8 + 7.6.9 + this file). Pull first, then commit; don't commit build-generated docs ZIPs.
+
+## Priority order
+1. **#63 Build-route catalog (started, no code yet).** Discover AVAILABLE routes at run start inside the technical
+   evidence step (`MultiModelCouncilService.FileWorkAuthority.BuildFileWorkAuthorityAsync`): local SDKs/toolchains
+   (`ToolchainDiscoveryService`) incl. SDK templates (`dotnet new blazor/console/webapi`) as project base; Hyperlight
+   sandbox per language (`HyperlightUnikraftSessionSandboxProvider` languages: python, dotnet, powershell, node,
+   quickjs, php, java, bash) for task-based runs or small wasm add-ins; CodeDOM (.NET only, generic DX function path,
+   `CodeDomSourceService`); "install with LocalGPT's help" (scoped install approval). Ask the user ONE poll via
+   `human.collaboration.request` listing only available routes for the requested language (combinations allowed).
+   Persist choice per project + chat/session; it becomes protected run evidence and drives manifest validation,
+   materialization and build/verify. Code anchor: `BuildFileWorkAuthorityAsync` already adds
+   `RecordedLocalSdkInventory` from `projectMaintenance.GetCompilerInstallationsAsync` (only `dotnet-sdk`, only when
+   exactly one .NET target) → generalize to an `AvailableBuildRoutes` observation for any requested language
+   (all compiler installations + `IToolchainDiscoveryService.DiscoverAsync`, Hyperlight languages from the sandbox
+   provider, CodeDOM when .NET), then raise the poll from the coordinator (not from a model). Includes #55 (owner: "Compiled with your dotnet? CodeDOM? Hyperlight?").
+2. **Test 7.6.9**: rerun the Twitch one-liner on Program Compiler team; read `BUILD_DIAGNOSTICS.md`; confirm no build
+   runs without a fresh exact approval (old approval 22BD5384… must now queue a new inbox request).
+3. **#59 Regex layout check** at manifest `begin` (FileWorkManifest/DraftTargetValidation) using the regex service:
+   wwwroot/Pages/Services/Models under project dir; Solution output needs .sln/.slnx; Razor/wwwroot only with Sdk.Web;
+   referenced types (e.g. `App`) need their files; TFM = run evidence. Return correction packet before authoring.
+4. **#61** Reject echoed work-order packet JSON stored as file content (Index.html case); type-fit check per extension.
+   Inspectors must use run evidence (net10 is released LTS), not "preview" memory claims.
+5. **#62 rest**: DecisionNote must name the real approval request id/decider (no "current user" fallback on reuse);
+   UI list of active reusable approvals with revoke.
+6. Seed team `csharp-modern-host-development` disables organic functions in Planning/Implementation/Curation/Release and
+   requires no functions → prose only. Enable file-work functions or stop routing build requests to it.
+7. gpt-oss:20b leads only because it is first/`configured=True` in the preset; choose leader/architect from the preset
+   ranking or role binding (gemma4:26b / qwen3.5:9b were stronger).
+8. **#58** Human answers that resolve a council-wide blocker (credentials, structure approval) reach all members as
+   short authoritative outcome; detail stays with the asker (keep task-relevant context narrow).
+9. **#60** Startup timeouts (e.g. laguna-xs.2 120s) = settings mismatch: show num_ctx/num_predict vs advertised ctx,
+   size/quant, host VRAM, load time, keep_alive=0 reload; calibrate per route before failover (links P0-05).
+10. net6/7 package pins (deepseek): reject framework-provided Microsoft.AspNetCore.*/Microsoft.Extensions.* pins in
+    net10 Web SDK projects in DraftTargetValidation.
+11. **#53** Time zones: UI shows UTC (09:38) vs user's 10:38 Europe/Berlin. Display user/browser zone, label UTC; give
+    models one consistent clock with explicit zone.
+12. **#54** Prompt was sent twice ("…artifacts.Plan and build…") because composer text survived a stopped send.
+13. **#56** "Assign Council roles" popup opens behind Chat configuration (z-order/nesting).
+14. **#57** Bidirectional role↔model assignment: team-wise plus general default roles per model; Data management →
+    Common roles → Edit role shows the same assignment window from the role side (shared component, existing
+    CouncilRoleModelBindings/RoleIndexes).
+15. Join live: selection stays on a stopped run; consider auto-selecting the live run when the selected one is not running.
+16. Provider not restored right after restart once (came up as single gemma4:e2b, restored ~20 s later).
+17. Greenfield run without ChatUpload workspace: give the run its own fresh working directory (owner request).
+18. 1-Wire: PublisherStudio last exchanged TCP work with LocalGPT on 19 Nov (13 Hello, 5 CouncilRequest, 4 WorkResult);
+    since then only receives UDP beacons. LocalGPT beacon advertises ServicePort 41140 (launchSettings
+    `--onewire-port 41140`) while PublisherStudio dials 51140 → check port mismatch, then test media workflow.
+19. Earlier open: Council member selection not persisted (`LastCouncilModelKeys`); media install-approval → resume goal;
+    sandbox `<details>` collapse; raw `<details>` text in live lane; Qwen3.5:9B as tool-call specialist candidate.
+
+## Owner principles (keep)
+- Every build route possible, but only from what is installed/available; the user chooses; choice persists per project.
+- Approvals come only from the task/project they were given for — never reused across projects or reviews.
+- Data must be maintainable from every entry point (bidirectional).
+- Small models need narrow, task-relevant context and one consistent clock.
+
+---
+
+# Previous TASKS.md (restored verbatim from git HEAD; still open unless noted above)
+
 # LocalGPT — next implementation tasks and regression evidence
 
 **Prepared 20 November 2026. Source baseline 7.6.1. Next candidate 7.6.2.** This is an implementation contract and evidence ledger, not a claim that 7.6.2 has been implemented. No application source, saved teams, DB records, hardware roads, or PublisherStudio files were changed in this task. Keep all earlier unresolved tasks (full 7.6.1 ledger appended below). The release cannot be declared repaired until the owner-side acceptance gates pass.

@@ -1,3 +1,5 @@
+using LocalGPT.BusinessObjects.EFCore;
+using Microsoft.EntityFrameworkCore;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.IO.Compression;
@@ -12,6 +14,7 @@ namespace LocalGPT.Services;
 /// <param name="json">Devexpress ai function json service dependency used by the list artifact workspaces function workflow to provide the corresponding application capability.</param>
 /// <param name="artifacts">Council artifact service dependency used by the list artifact workspaces function workflow to provide the corresponding application capability.</param>
 /// <param name="runtime">Council runtime service dependency used by the list artifact workspaces function workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Database context factory used to restrict project-bound automatic listings to that project's own review workspaces.</param>
 /// <param name="catalog">Local gpt catalog service dependency used by the list artifact workspaces function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListArtifactWorkspacesFunction(
@@ -19,6 +22,7 @@ public sealed class ListArtifactWorkspacesFunction(
     ICouncilArtifactService artifacts,
     CouncilRuntimeService runtime,
     LocalGptCatalogService catalog,
+    IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ILogger<ListArtifactWorkspacesFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -62,7 +66,23 @@ public sealed class ListArtifactWorkspacesFunction(
             var configuredMaximum = Math.Max(1, catalog.MaxFiles);
             var requestedTake = binding.Value.Take.GetValueOrDefault();
             var take = requestedTake > 0 ? Math.Min(requestedTake, configuredMaximum) : configuredMaximum;
-            var workspaces = runtime.EnumerateArtifactWorkspaces(artifacts.ArtifactRoot, take, logger);
+            IReadOnlyList<ArtifactWorkspaceSummary> workspaces = runtime.EnumerateArtifactWorkspaces(artifacts.ArtifactRoot, take, logger);
+            if (request.AutomaticInvocation && request.ProjectId is Guid boundProjectId)
+            {
+                // A project-bound Council run may only see generated workspaces of its own reviews;
+                // earlier runs' output is not source evidence for the current project.
+                using var db = dbContextFactory.CreateDbContext();
+                var ownedReviewIds = db.CodeGenerationChangeReviews.AsNoTracking()
+                    .Where(review => review.ProjectId == boundProjectId)
+                    .Select(review => review.Id)
+                    .ToList()
+                    .Select(id => id.ToString("N"))
+                    .ToList();
+                workspaces = workspaces
+                    .Where(workspace => ownedReviewIds.Any(id => workspace.WorkspaceName.Contains(id, StringComparison.OrdinalIgnoreCase)
+                        || workspace.RootPath.Contains(id, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+            }
             logger.LogInformation("DXFunction listed {WorkspaceCount} generated artifact workspace(s); source content was omitted.", workspaces.Count);
             return Task.FromResult(json.Success(new
             {

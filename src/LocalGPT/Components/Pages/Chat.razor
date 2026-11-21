@@ -1013,6 +1013,14 @@
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="RejoinSelectedCouncilSessionAsync" />
             }
+            else if (RunningLiveCouncilSessions.Count > 0 && AttachedLiveCouncilRunId != RunningLiveCouncilSessions[0].RunId)
+            {
+                var joinableLiveSession = RunningLiveCouncilSessions[0];
+                <DxButton CssClass="localgpt-rounded-action localgpt-action-primary" Text="@($"Join live Council {ShortCouncilRunId(joinableLiveSession.RunId)}")"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Click="@(() => JoinCouncilSessionAsync(joinableLiveSession.RunId))" />
+            }
             @if (SelectedCouncilRunId is not null)
             {
                 <DxButton Text="Load selected transcript &amp; evidence" Click="OpenSelectedCouncilHistoryAsync" />
