@@ -6,7 +6,7 @@ tunables, DB-owned runtime text/regex, DI services only, every change = new vers
 the owner's `LocalGPT-7.6.5-TASKS.md`; keep it. Version rollover: next 7.7.0.
 
 ## State at hand-off
-- 7.6.8 (tested live): ArtifactBuilds/NativeCommands enabled in both appsettings (builds had been `Disabled` since
+- DONE + committed (4465e3aa), 7.6.8 (tested live): ArtifactBuilds/NativeCommands enabled in both appsettings (builds had been `Disabled` since
   16 Nov); `localgpt.path.browse` + `council.artifact_workspaces` deny foreign CouncilArtifacts workspaces for
   project-bound automatic calls (verified: Denied in run a142abf7); "Join live Council" button in Running session tools.
 - 7.6.9 (built, NOT yet tested): approval scope fix in `HumanCollaborationService.Policy.IsReusableDecisionForRequest`
@@ -60,7 +60,7 @@ the owner's `LocalGPT-7.6.5-TASKS.md`; keep it. Version rollover: next 7.7.0.
 14. **#57** Bidirectional role↔model assignment: team-wise plus general default roles per model; Data management →
     Common roles → Edit role shows the same assignment window from the role side (shared component, existing
     CouncilRoleModelBindings/RoleIndexes).
-15. Join live: selection stays on a stopped run; consider auto-selecting the live run when the selected one is not running.
+15. Join live (button part DONE in 7.6.8): selection stays on a stopped run; consider auto-selecting the live run when the selected one is not running.
 16. Provider not restored right after restart once (came up as single gemma4:e2b, restored ~20 s later).
 17. Greenfield run without ChatUpload workspace: give the run its own fresh working directory (owner request).
 18. 1-Wire: PublisherStudio last exchanged TCP work with LocalGPT on 19 Nov (13 Hello, 5 CouncilRequest, 4 WorkResult);
