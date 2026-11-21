@@ -209,12 +209,12 @@
             </label>
             <BoundedNumberEditor Label="Council answer tokens"
                                  HelpText="Maximum answer tokens for the DXAiChat AI Council session."
-                                 Min="256" Max="262144" Step="1024"
+                                 Min="@Catalog.MinCouncilOutputTokens" Max="@Catalog.MaxCouncilOutputTokens" Step="1024"
                                  Value="@CouncilEditorMaxOutputTokens"
                                  ValueChanged="OnCouncilMaxOutputTokensChangedAsync" />
             <BoundedNumberEditor Label="Council context tokens"
                                  HelpText="Maximum context window requested for Council and detected model sessions."
-                                 Min="2048" Max="262144" Step="2048"
+                                 Min="@Catalog.MinCouncilContextTokens" Max="@Catalog.MaxCouncilContextTokens" Step="2048"
                                  Value="@CouncilEditorMaxContextTokens"
                                  ValueChanged="OnCouncilMaxContextTokensChangedAsync" />
             <BoundedNumberEditor Label="Peer review rounds"

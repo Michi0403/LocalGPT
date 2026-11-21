@@ -115,9 +115,9 @@
         var normalized = Math.Clamp(value, Min, Max);
         if (normalizedStep > 1)
         {
-            var offset = normalized - Min;
-            normalized = Min + (int)Math.Round(offset / (double)normalizedStep) * normalizedStep;
-            normalized = Math.Clamp(normalized, Min, Max);
+            var offset = (long)normalized - Min;
+            var stepped = Min + (long)Math.Round(offset / (double)normalizedStep) * normalizedStep;
+            normalized = (int)Math.Clamp(stepped, Min, Max);
         }
 
         Value = normalized;

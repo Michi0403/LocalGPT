@@ -219,8 +219,8 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                 var preparedResponse = await SendAsync(conversation, options, stream: false, cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(preparedResponse.PreflightFailure))
                 {
-                    // The goal observer handles this machine-readable failure. No exception
-                    // escapes the provider and no known-oversized request reaches Ollama.
+                    // Retain the existing failure channel for unrelated request preparation
+                    // errors. A heuristic context estimate no longer emits this failure.
                     return CreateFailureResponse(automaticToolTrace.ToString() +
                         preparedResponse.PreflightFailure + (round > 0 ? ";priorToolActivity=true;" : string.Empty));
                 }
@@ -316,9 +316,8 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                 var preparedRequest = await CreateRequestAsync(conversation, options, stream: true, cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(preparedRequest.PreflightFailure))
                 {
-                    // Council receives a provider result rather than an exception. Its
-                    // participant executor marks this as a failed step; GoalExecutionService
-                    // uses the existing checkpoint and replanning/subagent wiring.
+                    // Keep the existing structured preparation-failure channel.
+                    // Estimated context overflow is never returned through it.
                     yield return CreateStreamingUpdate(preparedRequest.PreflightFailure +
                         (round > 0 ? ";priorToolActivity=true;" : string.Empty));
                     yield break;
@@ -722,8 +721,8 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
         catch (Exception ex)
         {
             logger.LogError(ex, "Ollama request failed for model {Model}; streaming={Streaming}.", model, stream);
-            // Transport failures follow existing provider policy; context preflight
-            // is returned explicitly above and is never an exception at this call site.
+            // Transport failures follow existing provider policy; provider HTTP
+            // context rejections are logged by the existing response validator.
             return (null, null);
         }
     }

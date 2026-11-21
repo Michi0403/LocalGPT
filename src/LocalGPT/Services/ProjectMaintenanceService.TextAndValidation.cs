@@ -24,7 +24,11 @@ namespace LocalGPT.Services
     private bool IsTextExtension(string extension) {
     try
     {
-        return new[] { ".cs", ".razor", ".csproj", ".sln", ".slnx", ".json", ".xml", ".props", ".targets", ".ps1", ".cmd", ".md", ".yml", ".yaml", ".java", ".py", ".ino", ".pde", ".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".ini", ".toml", ".cfg", ".conf", ".cmake", ".kconfig", ".sdkconfig", ".txt", ".css", ".js", ".ts", ".html" }.Contains(extension.ToLowerInvariant());
+        return runtimePolicy.GetCollection("TextExtensions").Any(value =>
+                string.Equals(value, extension, StringComparison.OrdinalIgnoreCase)) ||
+            runtimePolicy.GetCollection("SourceExtensions").Any(value =>
+                string.Equals(value, extension, StringComparison.OrdinalIgnoreCase)) ||
+            runtimePolicy.GetPattern("runtime.project.solution-file-extension").IsMatch("file" + extension);
     }
     catch (Exception __serviceMethodException)
     {

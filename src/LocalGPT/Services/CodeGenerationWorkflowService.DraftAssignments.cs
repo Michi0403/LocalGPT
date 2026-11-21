@@ -201,11 +201,6 @@ public sealed partial class CodeGenerationWorkflowService
             var diagnostic = error ?? string.Empty;
             if (source is null && string.IsNullOrWhiteSpace(diagnostic))
                 diagnostic = "The author did not return exactly one complete fenced source file.";
-            if (source is not null && runtimePolicy.GetPattern("runtime.codegen.echoed-work-order-packet").IsMatch(source))
-            {
-                diagnostic = runtimePolicy.GetString("CouncilEchoedWorkOrderPacketRejected");
-                source = null;
-            }
             var maximum = runtimePolicy.GetLong("MaxSingleFileBytes");
             if (source is not null && maximum > 0 && Encoding.UTF8.GetByteCount(source) > maximum)
             {

@@ -1,5 +1,6 @@
 @using LocalGPT.BusinessObjects
 @inject IProviderRuntimeManagementService RuntimeManagement
+@inject LocalGptCatalogService Catalog
 @inject IOllamaProcessService OllamaProcesses
 @inject ILogger<ProviderRuntimeManagementPanel> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
@@ -50,10 +51,10 @@
         <DxFormLayout CssClass="provider-runtime-form">
             <DxFormLayoutGroup Caption="@T("LocalGPT generation defaults")" ColSpanMd="12">
                 <DxFormLayoutItem Caption="@T("Default maximum output tokens")" ColSpanMd="6">
-                    <DxSpinEdit @bind-Value="management.DefaultMaxOutputTokens" Min="128" Max="1048576" Increment="256" />
+                    <DxSpinEdit @bind-Value="management.DefaultMaxOutputTokens" Min="@Catalog.MinOutputTokens" Max="@Catalog.MaxOutputTokens" Increment="256" />
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption="@T("Default context tokens")" ColSpanMd="6">
-                    <DxSpinEdit @bind-Value="management.DefaultContextTokens" Min="128" Max="1048576" Increment="256" />
+                    <DxSpinEdit @bind-Value="management.DefaultContextTokens" Min="@Catalog.MinContextTokens" Max="@Catalog.MaxContextTokens" Increment="256" />
                 </DxFormLayoutItem>
                 <DxFormLayoutItem ColSpanMd="12">
                     <div class="provider-runtime-actions">
@@ -179,7 +180,7 @@
                             </label>
                             <label class="provider-runtime-field">
                                 <span>@T("Runtime context tokens (0 = Ollama default)")</span>
-                                <DxSpinEdit @bind-Value="management.Ollama.ContextLengthTokens" Min="0" Max="1048576" Increment="256" />
+                                <DxSpinEdit @bind-Value="management.Ollama.ContextLengthTokens" Min="0" Max="@Catalog.MaxContextTokens" Increment="256" />
                             </label>
                             <label class="provider-runtime-field">
                                 <span>@T("Keep alive (empty = Ollama default)")</span>
@@ -240,7 +241,7 @@
                         </label>
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="@T("Load context tokens (0 = automatic)")" ColSpanMd="4">
-                        <DxSpinEdit @bind-Value="management.LmStudio.ContextLengthTokens" Min="0" Max="1048576" Increment="256" />
+                        <DxSpinEdit @bind-Value="management.LmStudio.ContextLengthTokens" Min="0" Max="@Catalog.MaxContextTokens" Increment="256" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="@T("GPU offload")" ColSpanMd="4">
                         <DxComboBox Data="@gpuOffloadChoices" @bind-Value="management.LmStudio.GpuOffload" />

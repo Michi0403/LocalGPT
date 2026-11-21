@@ -12,10 +12,12 @@ namespace LocalGPT.Services.ConfigurationSteward;
 /// </summary>
 /// <param name="dbContextFactory">LocalGPT database read for the stored row.</param>
 /// <param name="systemVariables">Definitions of the built-in default and the legacy default value.</param>
+/// <param name="roadConfiguration">The live Council road defaults and interpolation owner.</param>
 /// <param name="logger">Logger for check diagnostics.</param>
 public sealed class CouncilLoadDefaultHealthCheck(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ISystemVariableDefinitionService systemVariables,
+    ICouncilHardwareRoadConfigurationService roadConfiguration,
     ILogger<CouncilLoadDefaultHealthCheck> logger) : IConfigurationHealthCheck
 {
     /// <inheritdoc />
@@ -38,8 +40,8 @@ public sealed class CouncilLoadDefaultHealthCheck(
             if (stored >= policy.MinimumRecommendedCouncilLoadPercent)
                 return [];
 
-            var (output, context) = Interpolate(policy, stored);
-            var (recommendedOutput, recommendedContext) = Interpolate(policy, policy.RecommendedCouncilLoadPercent);
+            var (output, context) = Interpolate(stored);
+            var (recommendedOutput, recommendedContext) = Interpolate(policy.RecommendedCouncilLoadPercent);
             var finding = new ConfigurationFinding
             {
                 Key = CheckKey,
@@ -53,7 +55,7 @@ public sealed class CouncilLoadDefaultHealthCheck(
                 Evidence =
                 [
                     new() { Source = $"SystemVariables.{name}", ObservedValue = row.ValueString, Reference = $"built-in default {systemVariables.DefaultCouncilResourceLoadPercent.DefaultValue}", Note = $"Row last updated {row.LastUpdated:u}." },
-                    new() { Source = "Automatic hardware road (reference values of ConfigurationStewardPolicyJson)", ObservedValue = $"{output} output / {context} context tokens at {stored}%", Reference = $"{recommendedOutput} output / {recommendedContext} context tokens at {policy.RecommendedCouncilLoadPercent}%", Note = "Custom hardware roads interpolate their own minimum and maximum the same way." }
+                    new() { Source = "Automatic hardware road (persisted Council runtime defaults)", ObservedValue = $"{output} output / {context} context tokens at {stored}%", Reference = $"{recommendedOutput} output / {recommendedContext} context tokens at {policy.RecommendedCouncilLoadPercent}%", Note = "Custom hardware roads interpolate their own minimum and maximum the same way." }
                 ],
                 Options =
                 [
@@ -85,17 +87,16 @@ public sealed class CouncilLoadDefaultHealthCheck(
         }
     }
 
-    /// <summary>Interpolates the reference automatic road at a load percentage, like the hardware road planner.</summary>
-    /// <param name="policy">Steward policy with the reference road values.</param>
+    /// <summary>Interpolates the actual runtime-policy-backed automatic road at a load percentage, like the scheduler.</summary>
     /// <param name="loadPercent">Load percentage.</param>
     /// <returns>Output and context tokens.</returns>
-    private (int Output, int Context) Interpolate(ConfigurationStewardPolicy policy, int loadPercent)
+    private (int Output, int Context) Interpolate(int loadPercent)
     {
         try
         {
-            var fraction = Math.Clamp(loadPercent, 0, 100) / 100d;
-            var output = policy.ReferenceAutoRoadMinimumOutputTokens + (int)Math.Round((policy.ReferenceAutoRoadMaximumOutputTokens - policy.ReferenceAutoRoadMinimumOutputTokens) * fraction);
-            var context = policy.ReferenceAutoRoadMinimumContextTokens + (int)Math.Round((policy.ReferenceAutoRoadMaximumContextTokens - policy.ReferenceAutoRoadMinimumContextTokens) * fraction);
+            var route = roadConfiguration.CreateDefaultRoute("Automatic Council road");
+            var output = roadConfiguration.Interpolate(route.MinOutputTokens, route.MaxOutputTokens, loadPercent);
+            var context = roadConfiguration.Interpolate(route.MinContextTokens, route.MaxContextTokens, loadPercent);
             return (output, context);
         }
         catch (Exception exception)

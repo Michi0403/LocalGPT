@@ -721,14 +721,15 @@ public sealed class HardwarePerformancePresetService(
             var successfulProfiles = target.Profiles
                 .Where(profile => profile.Tasks.Count > 0 && profile.Tasks.Any(task => task.Succeeded))
                 .ToList();
+            var defaultRoad = roadConfiguration.CreateDefaultRoute(target.Model.SelectionKey);
             var minOutput = successfulProfiles.Count == 0
-                ? Math.Min(256, target.Recommendation.OutputTokens)
+                ? Math.Min(defaultRoad.MinOutputTokens, target.Recommendation.OutputTokens)
                 : successfulProfiles.Min(profile => profile.OutputTokens);
             var maxOutput = successfulProfiles.Count == 0
                 ? target.Recommendation.OutputTokens
                 : successfulProfiles.Max(profile => profile.OutputTokens);
             var minContext = successfulProfiles.Count == 0
-                ? Math.Min(2048, target.Recommendation.ContextTokens)
+                ? Math.Min(defaultRoad.MinContextTokens, target.Recommendation.ContextTokens)
                 : successfulProfiles.Min(profile => profile.ContextTokens);
             var maxContext = successfulProfiles.Count == 0
                 ? target.Recommendation.ContextTokens

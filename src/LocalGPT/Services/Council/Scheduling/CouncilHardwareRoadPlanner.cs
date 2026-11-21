@@ -43,19 +43,17 @@ public sealed class CouncilHardwareRoadPlanner(
             {
                 var modelName = participant.Trim();
                 routes.TryGetValue(modelName, out var route);
-                route ??= new OneWireCouncilModelRoute
+                if (route is null)
                 {
-                    ModelName = modelName,
-                    HardwareKind = fallbackOllamaNumGpu == 0 ? OneWireHardwareKind.Cpu : OneWireHardwareKind.Auto,
-                    HardwareIndex = fallbackOllamaNumGpu == 0 ? 0 : -1,
-                    HardwareName = fallbackOllamaNumGpu == 0 ? "CPU" : "Automatic",
-                    MinOutputTokens = 256,
-                    MaxOutputTokens = Math.Max(256, requestedMaxOutputTokens),
-                    MinContextTokens = 2048,
-                    MaxContextTokens = Math.Max(2048, requestedMaxContextTokens),
-                    OllamaNumGpu = fallbackOllamaNumGpu,
-                    MaxConcurrentModelsOnLane = 1
-                };
+                    route = configuration.CreateDefaultRoute(modelName, requestedMaxOutputTokens, requestedMaxContextTokens);
+                    if (fallbackOllamaNumGpu == 0)
+                    {
+                        route.HardwareKind = OneWireHardwareKind.Cpu;
+                        route.HardwareIndex = 0;
+                        route.HardwareName = "CPU";
+                    }
+                    route.OllamaNumGpu = fallbackOllamaNumGpu;
+                }
 
                 route = configuration.Normalize(route);
                 var minOutput = route.MinOutputTokens;

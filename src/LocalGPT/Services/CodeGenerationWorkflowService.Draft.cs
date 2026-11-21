@@ -150,9 +150,7 @@ public sealed partial class CodeGenerationWorkflowService
                 throw new ArgumentException("draftOperation=begin requires a nonempty draftManifest mapping relative paths to work orders.");
 
             var manifest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var hasDotNetProject = paths.Keys.Any(path => string.Equals(Path.GetExtension(path), ".csproj", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(Path.GetExtension(path), ".fsproj", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(Path.GetExtension(path), ".vbproj", StringComparison.OrdinalIgnoreCase));
+            var hasDotNetProject = paths.Keys.Any(IsSourceProjectPath);
             foreach (var (path, workOrder) in paths)
             {
                 if (path.TrimEnd().EndsWith('/') || path.TrimEnd().EndsWith('\\'))
@@ -174,10 +172,6 @@ public sealed partial class CodeGenerationWorkflowService
                         throw new ArgumentException($"Manifest path '{parent}' is both a file and a directory.");
                 }
             }
-
-            var layoutDiagnostic = ValidateManifestLayout(manifest);
-            if (!string.IsNullOrWhiteSpace(layoutDiagnostic))
-                throw new ArgumentException(layoutDiagnostic);
 
             if (request.DraftWorkspaceMode is not ("ReviewedSourceDraft" or "HyperlightSourceDraft"))
                 throw new ArgumentException("Select one supported source-draft workspace mode.");

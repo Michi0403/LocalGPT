@@ -103,11 +103,11 @@
                 </label>
                 <label>
                     Max output tokens
-                    <DxSpinEdit @bind-Value="Request.MaxOutputTokens" MinValue="64" MaxValue="262144" Increment="1024" />
+                    <DxSpinEdit @bind-Value="Request.MaxOutputTokens" MinValue="@CouncilCatalog.MinOutputTokens" MaxValue="@CouncilCatalog.MaxOutputTokens" Increment="1024" />
                 </label>
                 <label>
                     Context tokens
-                    <DxSpinEdit @bind-Value="Request.MaxContextTokens" MinValue="2048" MaxValue="262144" Increment="2048" />
+                    <DxSpinEdit @bind-Value="Request.MaxContextTokens" MinValue="@CouncilCatalog.MinContextTokens" MaxValue="@CouncilCatalog.MaxContextTokens" Increment="2048" />
                 </label>
                 <label>
                     Timeout seconds

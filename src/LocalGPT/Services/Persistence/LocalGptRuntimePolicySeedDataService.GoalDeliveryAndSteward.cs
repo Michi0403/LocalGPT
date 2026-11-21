@@ -23,6 +23,7 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
   "thinkingReserveTokens": 2048,
   "contextSafetyMarginTokens": 512,
   "contextGrowthStepTokens": 1024,
+  "useEstimatedContextFitting": false,
   "maximumFittedContextTokens": 32768,
   "assumedProviderDefaultContextTokens": 4096,
   "maximumOutputTokens": 262144,

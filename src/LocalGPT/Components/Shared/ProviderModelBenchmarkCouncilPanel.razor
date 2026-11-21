@@ -2,6 +2,7 @@
 @using System.Text.Json
 @implements IDisposable
 @inject IProviderModelBenchmarkService BenchmarkService
+@inject LocalGptCatalogService Catalog
 @inject CouncilTextService CouncilText
 @inject ILogger<ProviderModelBenchmarkCouncilPanel> Logger
 @inject IProviderModelReviewerPolicyService ReviewerPolicy
@@ -41,11 +42,11 @@
         <BoundedNumberEditor Label="Stop threshold" Min="0" Max="50" Suffix="%" Value="@improvementThreshold" ValueChanged="@(value => improvementThreshold = value)" />
         @if (profileMode == ProviderModelBenchmarkProfileMode.EvenlySpaced)
         {
-            <BoundedNumberEditor Label="Minimum context" Min="2048" Max="@maximumContext" Step="1024" Value="@minimumContext" ValueChanged="@(value => minimumContext = value)" />
+            <BoundedNumberEditor Label="Minimum context" Min="@Catalog.MinContextTokens" Max="@maximumContext" Step="1024" Value="@minimumContext" ValueChanged="@(value => minimumContext = value)" />
             <BoundedNumberEditor Label="Minimum output" Min="128" Max="@maximumOutput" Step="128" Value="@minimumOutput" ValueChanged="@(value => minimumOutput = value)" />
         }
-        <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="OnMaximumContextChanged" />
-        <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="OnMaximumOutputChanged" />
+        <BoundedNumberEditor Label="Maximum context" Min="@Catalog.MinContextTokens" Max="@Catalog.MaxContextTokens" Step="1024" Value="@maximumContext" ValueChanged="OnMaximumContextChanged" />
+        <BoundedNumberEditor Label="Maximum output" Min="128" Max="@Catalog.MaxOutputTokens" Step="128" Value="@maximumOutput" ValueChanged="OnMaximumOutputChanged" />
         <label class="benchmark-option">
             <DxCheckBox @bind-Checked="stopWhenImprovementStalls" />
             <span>Allow improvement-based early stop</span>

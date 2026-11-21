@@ -150,6 +150,7 @@ public sealed class OneWireOperationExecutor(
                 var width = GetInt(parametersInner, "pixelWidth", GetInt(parametersInner, "PixelWidth", 0));
                 var height = GetInt(parametersInner, "pixelHeight", GetInt(parametersInner, "PixelHeight", 0));
                 var council = scope.ServiceProvider.GetRequiredService<IMultiModelCouncilService>();
+                var councilPolicy = scope.ServiceProvider.GetRequiredService<ILocalGptRuntimePolicyDataService>();
                 var request = new MultiModelCouncilRequest
                 {
                     Prompt = $"""
@@ -165,8 +166,8 @@ public sealed class OneWireOperationExecutor(
                     UseOrganicCouncilWorkflow = true,
                     MaxRounds = 1,
                     MaxParallelModels = 1,
-                    MaxOutputTokens = 1200,
-                    MaxContextTokens = 16384,
+                    MaxOutputTokens = councilPolicy.GetInt("DefaultCouncilOutputTokens"),
+                    MaxContextTokens = councilPolicy.GetInt("DefaultCouncilContextTokens"),
                     AllowParallelHardwareRoads = false,
                     IncludeMemory = false,
                     SaveToMemory = false,

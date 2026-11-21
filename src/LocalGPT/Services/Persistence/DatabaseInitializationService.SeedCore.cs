@@ -147,17 +147,8 @@ public sealed partial class DatabaseInitializationService
                     continue;
                 }
 
-                // Lossless default evolution: only replace values that exactly match a previous built-in default.
-                // Any user-edited value remains authoritative.
-                if ((item.Name.Equals("DefaultCouncilOutputTokens", StringComparison.OrdinalIgnoreCase)
-                        || item.Name.Equals("DefaultCouncilContextTokens", StringComparison.OrdinalIgnoreCase))
-                    && row.ValueString == "262144"
-                    && item.Value != row.ValueString)
-                {
-                    row.ValueString = item.Value;
-                    row.DataType = item.DataType;
-                    row.LastUpdated = DateTime.UtcNow;
-                }
+                // Do not infer that an existing Council token budget equals a retired
+                // seed: 262144 may be a deliberate user setting and must survive startup.
 
                 if (item.Name.Equals("CouncilDxMaximumResultCharacters", StringComparison.OrdinalIgnoreCase)
                     && row.ValueString == "32000"

@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Looks up the largest context window an Ollama model was trained for so a saved context size above that limit is not sent to the provider.
+    /// Reads the Ollama-advertised model context for diagnostic guidance without overriding the caller's configured num_ctx.
     /// </summary>
     public sealed partial class CouncilRuntimeService
     {
@@ -13,7 +13,7 @@ namespace LocalGPT.Services
         private readonly ConcurrentDictionary<string, int> ollamaModelMaximumContextTokens = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Returns the maximum context length Ollama reports for a model through <c>/api/show</c> (<c>model_info</c> key ending in the
+        /// Returns the advertised context length Ollama reports for a model through <c>/api/show</c> (<c>model_info</c> key ending in the
         /// runtime value <c>OllamaModelContextLengthKeySuffix</c>). The answer is cached per host and model for the process.
         /// </summary>
         /// <param name="http">HTTP client of the calling chat client; its base address selects the Ollama host.</param>

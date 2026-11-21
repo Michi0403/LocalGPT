@@ -83,7 +83,7 @@ public sealed partial class CodeGenerationWorkflowService
                 }
                 // A model vote cannot authorize changing a user-pinned framework. Retain the candidate
                 // and require another valid independent inspection; never convert this into acceptance.
-                if (decision.Accepted == false && new[] { ".csproj", ".fsproj", ".vbproj", ".props", ".targets" }.Contains(Path.GetExtension(packet.Path), StringComparer.OrdinalIgnoreCase) &&
+                if (decision.Accepted == false && IsSourceBuildDeclarationPath(packet.Path) &&
                     string.IsNullOrEmpty(ValidateDraftProjectTarget(plan.Goal, file.RelativePath, file.Content)) &&
                     IsContradictoryFrameworkInspection(plan.Goal, decision.Diagnostic))
                     throw new ArgumentException(runtimePolicy.GetString("CouncilFileWorkConflictingFrameworkReviewNotice"));

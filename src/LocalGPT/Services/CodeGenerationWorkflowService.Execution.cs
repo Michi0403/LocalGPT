@@ -169,10 +169,9 @@ namespace LocalGPT.Services
             {
                 // Every authored source path is already explicit. Scaffolding would introduce unreviewed duplicate project files.
                 var solutions = reviewedSources.Where(source =>
-                    string.Equals(Path.GetExtension(source.RelativePath), ".sln", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(Path.GetExtension(source.RelativePath), ".slnx", StringComparison.OrdinalIgnoreCase)).ToList();
+                    IsSourceSolutionPath(source.RelativePath)).ToList();
                 buildTargets.AddRange((solutions.Count > 0 ? solutions : reviewedSources.Where(source =>
-                    Path.GetExtension(source.RelativePath).Equals(".csproj", StringComparison.OrdinalIgnoreCase)).ToList())
+                    IsSourceProjectPath(source.RelativePath)).ToList())
                     .Select(source => ResolveInsideRoot(workspaceRoot, source.RelativePath)));
             }
 
@@ -181,7 +180,10 @@ namespace LocalGPT.Services
             {
                 // The generated workspace becomes a NEW child revision. The reviewed base revision keeps its source root
                 // and snapshot hash, so the original version stays recoverable and every generation is its own version.
-                registeredSolutionPath = FindPreferredSolutionPath(workspaceRoot, clonedSolutionPath);
+                registeredSolutionPath = reviewedSources
+                    .Where(source => IsSourceSolutionPath(source.RelativePath))
+                    .Select(source => ResolveInsideRoot(workspaceRoot, source.RelativePath))
+                    .FirstOrDefault(File.Exists) ?? FindPreferredSolutionPath(workspaceRoot, clonedSolutionPath);
                 var baseRevision = await db.LocalGptProjectRevisions.AsNoTracking()
                     .SingleOrDefaultAsync(revision => revision.Id == baseRevisionId && revision.ProjectId == registeredProjectId, cancellationToken)
                     .ConfigureAwait(false)
@@ -229,17 +231,46 @@ namespace LocalGPT.Services
                 if (buildTargets.Count == 0)
                 {
                     var explicitSolutions = reviewedSources.Where(source =>
-                        string.Equals(Path.GetExtension(source.RelativePath), ".sln", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(Path.GetExtension(source.RelativePath), ".slnx", StringComparison.OrdinalIgnoreCase)).ToList();
+                        IsSourceSolutionPath(source.RelativePath)).ToList();
                     var explicitTargets = explicitSolutions.Count > 0 ? explicitSolutions : reviewedSources.Where(source =>
-                        string.Equals(Path.GetExtension(source.RelativePath), ".csproj", StringComparison.OrdinalIgnoreCase)).ToList();
+                        IsSourceProjectPath(source.RelativePath)).ToList();
                     buildTargets.AddRange(explicitTargets.Select(source => ResolveInsideRoot(workspaceRoot, source.RelativePath)).Where(File.Exists));
+                }
+                if (buildTargets.Count == 0)
+                {
+                    // Plain-file reviews are not limited to CodeDOM or MSBuild. Recognize
+                    // configured project targets through the persisted workspace regex,
+                    // but only among explicitly reviewed/materialized source files.
+                    var configuredRoots = await projectMaintenance.GetWorkspaceRootsAsync(entity.ProjectId, cancellationToken).ConfigureAwait(false);
+                    var registeredRoots = configuredRoots.Where(item => item.IsEnabled &&
+                            item.PreferredCompilerInstallationId.HasValue && !string.IsNullOrWhiteSpace(item.BuildArguments) &&
+                            ((entity.ProjectId.HasValue && item.ProjectId == entity.ProjectId) ||
+                             (!string.IsNullOrWhiteSpace(item.RootPath) && platform.IsSameOrDescendantPath(item.RootPath, workspaceRoot))))
+                        .OrderByDescending(item => entity.ProjectId.HasValue && item.ProjectId == entity.ProjectId)
+                        .ThenBy(item => item.Priority);
+                    foreach (var configuredRoot in registeredRoots)
+                    {
+                        try
+                        {
+                            var matches = reviewedSources.Where(source =>
+                                System.Text.RegularExpressions.Regex.IsMatch(source.RelativePath.Replace('\\', '/'), configuredRoot.SolutionPattern,
+                                    System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+                                    runtimePolicy.RegexTimeout)).ToList();
+                            if (matches.Count == 0) continue;
+                            buildTargets.AddRange(matches.Select(source => ResolveInsideRoot(workspaceRoot, source.RelativePath)).Where(File.Exists));
+                            break;
+                        }
+                        catch (Exception exception) when (exception is ArgumentException or System.Text.RegularExpressions.RegexMatchTimeoutException)
+                        {
+                            logger.LogWarning(exception, "Configured workspace build-target regex was invalid; no source build target was selected from it.");
+                        }
+                    }
                 }
                 if (buildTargets.Count == 0 && !string.IsNullOrWhiteSpace(registeredSolutionPath) && File.Exists(registeredSolutionPath))
                     buildTargets.Add(registeredSolutionPath);
                 if (buildTargets.Count == 0)
                 {
-                    result.Warnings.Add("Build was requested, but the review contains no .sln, .slnx or .csproj output target.");
+                    result.Warnings.Add("Build was requested, but the reviewed source contains no configured solution file or compiler project target.");
                     entity.BuildStatus = "NoBuildTarget";
                 }
                 else
@@ -258,7 +289,8 @@ namespace LocalGPT.Services
                                 outputDirectory: null,
                                 requestedTimeout: TimeSpan.FromMinutes(5),
                                 cancellationToken,
-                                userConfirmed: request.UserConfirmedBuild).ConfigureAwait(false);
+                                userConfirmed: request.UserConfirmedBuild,
+                                projectId: entity.ProjectId).ConfigureAwait(false);
                         }
                         catch (Exception exception) when (exception is not OperationCanceledException)
                         {
@@ -286,12 +318,6 @@ namespace LocalGPT.Services
                     entity.BuildStatus = string.Join(";", buildStatuses);
                     result.BuildStatus = entity.BuildStatus;
                     result.BuildDiagnostics = failedDiagnostics.ToString().TrimEnd();
-                    // Persist the compiler evidence next to the source so the owner, the ZIP and a later
-                    // repair round see the exact errors instead of only a status token.
-                    await File.WriteAllTextAsync(
-                        Path.Combine(workspaceRoot, "BUILD_DIAGNOSTICS.md"),
-                        $"# Build diagnostics for review {entity.Id:N}{Environment.NewLine}{Environment.NewLine}Status: {entity.BuildStatus}{Environment.NewLine}{Environment.NewLine}```text{Environment.NewLine}{(string.IsNullOrWhiteSpace(result.BuildDiagnostics) ? "(no compiler diagnostics captured)" : result.BuildDiagnostics)}{Environment.NewLine}```{Environment.NewLine}",
-                        cancellationToken).ConfigureAwait(false);
                 }
             }
 

@@ -64,7 +64,7 @@ public sealed partial class OllamaThinkingChatClient
     /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
     /// <param name="stream">Value indicating whether stream should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>Prepared request or a context-fit failure for the owning Council and GoalExecutionService.</returns>
+    /// <returns>Prepared request; estimated context demand is logged rather than treated as a provider failure.</returns>
     private async Task<(OllamaChatRequest? Request, string? PreflightFailure)> CreateRequestAsync(
         IReadOnlyList<OllamaChatMessage> messages,
         ChatOptions? options,
@@ -78,11 +78,11 @@ public sealed partial class OllamaThinkingChatClient
             bool? think = councilRuntime.OllamaThinkingChatClientShouldSkipExplicitThinking(http.BaseAddress, model, logger) ? null : true;
             var tools = BuildAutomaticTools();
             var modelMaximumContext = await councilRuntime.OllamaThinkingChatClientResolveModelMaximumContextAsync(http, model, logger, cancellationToken).ConfigureAwait(false);
-            // Ollama silently drops the oldest prompt content (system prompt and native tool schemas first) when
-            // prompt + output exceed num_ctx, and thinking tokens count against num_predict. Size both per request.
+            // Ollama may truncate an overlong prompt, and thinking counts against num_predict.
+            // Estimate the complete request to guide safe compaction, but never reject it locally.
             var budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
                 contextLength,
-                options?.MaxOutputTokens ?? 2048,
+                options?.MaxOutputTokens ?? councilRuntime.OllamaThinkingChatClientDefaultOutputTokens,
                 think == true,
                 MeasureRequestCharacters(requestMessages, tools),
                 model,
@@ -104,7 +104,7 @@ public sealed partial class OllamaThinkingChatClient
                     message.Thinking = null;
                     compactedTurns++;
                     budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
-                        contextLength, options?.MaxOutputTokens ?? 2048, think == true,
+                        contextLength, options?.MaxOutputTokens ?? councilRuntime.OllamaThinkingChatClientDefaultOutputTokens, think == true,
                         MeasureRequestCharacters(requestMessages, tools), model, logger, modelMaximumContext);
                 }
                 if (compactedTurns > 0)
@@ -122,31 +122,22 @@ public sealed partial class OllamaThinkingChatClient
                 {
                     tools = compactTools;
                     budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
-                        contextLength, options?.MaxOutputTokens ?? 2048, think == true,
+                        contextLength, options?.MaxOutputTokens ?? councilRuntime.OllamaThinkingChatClientDefaultOutputTokens, think == true,
                         MeasureRequestCharacters(requestMessages, tools), model, logger, modelMaximumContext);
                 }
             }
             if (tools is { Count: 0 })
                 tools = null;
-            // Provider preflight owns only the fit check. It must neither throw a
-            // routine context-capacity exception nor send a request known not to fit.
-            // Return an observable failure to the existing Council -> GoalExecution path.
+            // A serialized-byte estimate cannot prove an Ollama tokenizer/context failure.
+            // Keep the useful compacting and broker steps above, but never turn the
+            // remaining estimate into a synthetic provider rejection. The exact request
+            // and the caller-selected num_ctx are presented to Ollama for its decision.
             if (budget.PromptExceedsMaximum)
-            {
-                var diagnostic =
-                    $"OllamaContextBudgetExceeded;required={budget.RequiredContextTokens};" +
-                    $"allowed={budget.NumCtx.GetValueOrDefault()};output={budget.NumPredict};" +
-                    $"max={modelMaximumContext.GetValueOrDefault()}; " +
-                    $"The request for {model} needs about {budget.RequiredContextTokens:N0} context tokens, " +
-                    $"but at most {budget.NumCtx:N0} are allowed. " +
-                    $"Configured num_ctx={contextLength?.ToString() ?? "provider default"}; " +
-                    $"advertised model context={modelMaximumContext?.ToString() ?? "unknown"}.";
-                logger.LogWarning(
-                    "Ollama preflight cannot fit model {Model}: estimated {Required} tokens, " +
-                    "effective context {Allowed}. Returning an observed failure to Council/GoalExecution.",
-                    model, budget.RequiredContextTokens, budget.NumCtx);
-                return (null, diagnostic);
-            }
+                logger.LogInformation(
+                    "Sending Ollama request for {Model} despite an estimated context overflow: estimated {Required}, configured {Configured}, advertised {Advertised}. Ollama owns the actual fit decision.",
+                    model, budget.RequiredContextTokens,
+                    budget.NumCtx?.ToString() ?? "provider default",
+                    modelMaximumContext?.ToString() ?? "unknown");
             return (new OllamaChatRequest
             {
                 Model = model,

@@ -45,8 +45,8 @@ public sealed class OllamaChatRequest
     /// </summary>
     /// <value>The options value exposed by <see cref="OllamaChatRequest"/>.</value>
     public OllamaRequestOptions? Options { get; set; }
-    /// <summary>Local hardware ceiling retained across compatibility retries; never sent to Ollama.</summary>
-    /// <value>The original effective hardware and model ceiling in tokens.</value>
+    /// <summary>Caller-configured hardware-road context retained across compatibility retries; never sent as a separate wire field.</summary>
+    /// <value>The original configured context allocation, without a model_info-derived clamp.</value>
     [JsonIgnore]
     public int? ContextCeiling { get; set; }
 }

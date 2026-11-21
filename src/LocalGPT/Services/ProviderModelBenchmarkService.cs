@@ -479,9 +479,9 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
                 HardwareKind = OneWireHardwareKind.Auto,
                 HardwareIndex = -1,
                 HardwareName = "Benchmark recommendation",
-                MinOutputTokens = Math.Min(256, target.Recommendation.OutputTokens),
+                MinOutputTokens = Math.Min(runtimePolicy.GetInt("MinCouncilOutputTokens"), target.Recommendation.OutputTokens),
                 MaxOutputTokens = target.Recommendation.OutputTokens,
-                MinContextTokens = Math.Min(2048, target.Recommendation.ContextTokens),
+                MinContextTokens = Math.Min(runtimePolicy.GetInt("MinCouncilContextTokens"), target.Recommendation.ContextTokens),
                 MaxContextTokens = target.Recommendation.ContextTokens,
                 OllamaNumGpu = target.Model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
                     ? target.Recommendation.OllamaNumGpu

@@ -67,6 +67,7 @@ public sealed partial class LocalGptRuntimePolicySeedDataService : ILocalGptRunt
                     new("LearnBaseDuplicatePolicySummary", "Duplicate handling: each project path and known docs-corpus section gets a stable database id. Re-importing the same source updates/upserts the existing knowledge row instead of adding another copy.", "System.String"),
                     new("MinCouncilOutputTokens", "256", "System.Int32"),
                     new("DefaultCouncilOutputTokens", "4096", "System.Int32"),
+                    new("DefaultOllamaRequestOutputTokens", "2048", "System.Int32"),
                     new("MaxCouncilOutputTokens", "2147483647", "System.Int32"),
                     new("MinCouncilContextTokens", "2048", "System.Int32"),
                     new("DefaultCouncilContextTokens", "32768", "System.Int32"),

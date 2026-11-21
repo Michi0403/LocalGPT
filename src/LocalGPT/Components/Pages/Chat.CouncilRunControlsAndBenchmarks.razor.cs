@@ -349,7 +349,8 @@ namespace LocalGPT.Components.Pages
         try
         {
             var synchronized = CouncilHardwareRoads
-                .Synchronize(SelectedCouncilModelNames, CouncilModelRoutes)
+                .Synchronize(SelectedCouncilModelNames, CouncilModelRoutes,
+                    ResolveCouncilOutputTokens(), ResolveCouncilContextTokens())
                 .Select(CloneRoute)
                 .ToList();
 

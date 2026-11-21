@@ -17,6 +17,7 @@ public interface IArtifactBuildExecutor
     /// <param name="requestedTimeout">Requested timeout value supplied to the artifact build executor operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="projectId">Optional registered project whose compiler/workspace policy applies to generated artifacts.</param>
     /// <returns>The artifact build execution result produced by the operation.</returns>
     Task<ArtifactBuildExecutionResult> BuildAsync(
         string targetPath,
@@ -25,5 +26,6 @@ public interface IArtifactBuildExecutor
         string? outputDirectory,
         TimeSpan requestedTimeout,
         CancellationToken cancellationToken = default,
-        bool userConfirmed = false);
+        bool userConfirmed = false,
+        Guid? projectId = null);
 }

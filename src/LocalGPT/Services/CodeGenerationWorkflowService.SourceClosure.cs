@@ -8,6 +8,34 @@ namespace LocalGPT.Services;
 /// No files are created here and no unapproved source bytes are modified.</summary>
 public sealed partial class CodeGenerationWorkflowService
 {
+    /// <summary>Recognizes solution paths using the existing database-backed workspace file pattern.
+    /// Compiler installations identify executable toolchains, not preferred project filenames.</summary>
+    /// <param name="path">Manifest-relative source path.</param>
+    /// <returns>Whether this path matches the configured solution-file pattern.</returns>
+    private bool IsSourceSolutionPath(string path) =>
+        runtimePolicy.GetPattern("runtime.project.solution-file-extension").IsMatch(path.Replace('\\', '/'));
+
+    /// <summary>Recognizes an MSBuild project filename by its project-document suffix, without assuming C#, F#, VB,
+    /// a particular basename, or a fixed project folder. Source XML is checked separately.</summary>
+    /// <param name="path">Manifest-relative source path.</param>
+    /// <returns>Whether the path identifies an MSBuild project file.</returns>
+    private bool IsSourceProjectPath(string path)
+    {
+        var extension = Path.GetExtension(path);
+        return extension.Length > 1 && extension.EndsWith("proj", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Determines whether the source uses an MSBuild XML declaration format.</summary>
+    /// <param name="path">Manifest-relative source path.</param>
+    /// <returns>Whether source XML/project-target checks apply.</returns>
+    private bool IsSourceBuildDeclarationPath(string path)
+    {
+        var extension = Path.GetExtension(path);
+        return IsSourceProjectPath(path) ||
+            extension.Equals(".props", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".targets", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Reads the current draft and protected human decisions before any approval is proposed.</summary>
     public async Task<string> GetSourceDraftClosureDiagnosticAsync(Guid runId, CancellationToken cancellationToken)
     {
@@ -46,25 +74,24 @@ public sealed partial class CodeGenerationWorkflowService
                     "ManifestDeclared" : "SourcePresent"
             });
         }
-        if (goal.Contains("blazor", StringComparison.OrdinalIgnoreCase))
+        if (runtimePolicy.GetPattern("runtime.codegen.explicit-dotnet-target").IsMatch(goal) ||
+            goal.Contains("blazor", StringComparison.OrdinalIgnoreCase) ||
+            goal.Contains("asp.net", StringComparison.OrdinalIgnoreCase))
         {
-            Map("goal:blazor-host", "OriginalGoal", "Blazor application host", (path, _) =>
-                string.Equals(Path.GetFileName(path), "Program.cs", StringComparison.OrdinalIgnoreCase));
-            Map("goal:blazor-root", "OriginalGoal", "Blazor root component", (path, _) =>
-                string.Equals(Path.GetFileName(path), "App.razor", StringComparison.OrdinalIgnoreCase));
-            Map("goal:web-project", "OriginalGoal", "Actual .NET project declaration", (path, _) =>
-                path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase));
+            Map("goal:project", "OriginalGoal", "Compiler project definition", (path, _) => IsSourceProjectPath(path));
+            if (goal.Contains("blazor", StringComparison.OrdinalIgnoreCase))
+            {
+                Map("goal:components", "OriginalGoal", "Blazor component source", (path, _) =>
+                    Path.GetExtension(path).Equals(".razor", StringComparison.OrdinalIgnoreCase) ||
+                    Path.GetExtension(path).Equals(".cshtml", StringComparison.OrdinalIgnoreCase));
+                Map("goal:hosting", "OriginalGoal", "Application startup/hosting implementation", (path, work) =>
+                    !IsSourceSolutionPath(path) && !IsSourceBuildDeclarationPath(path) &&
+                    (work.Contains("host", StringComparison.OrdinalIgnoreCase) ||
+                     work.Contains("startup", StringComparison.OrdinalIgnoreCase) ||
+                     work.Contains("bootstrap", StringComparison.OrdinalIgnoreCase) ||
+                     work.Contains("entry point", StringComparison.OrdinalIgnoreCase)));
+            }
         }
-        if (goal.Contains("twitch", StringComparison.OrdinalIgnoreCase))
-            Map("goal:twitch-service", "OriginalGoal", "Twitch service/source implementation", (path, work) =>
-                path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) &&
-                (path.Contains("twitch", StringComparison.OrdinalIgnoreCase) ||
-                 work.Contains("twitch", StringComparison.OrdinalIgnoreCase)));
-        if (goal.Contains("timeline", StringComparison.OrdinalIgnoreCase))
-            Map("goal:timeline-service", "OriginalGoal", "Configurable timeline service/source", (path, work) =>
-                path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) &&
-                (path.Contains("timeline", StringComparison.OrdinalIgnoreCase) ||
-                 work.Contains("timeline", StringComparison.OrdinalIgnoreCase)));
         foreach (var decision in decisions)
         {
             var decisionId = $"human:{decision.RequestId:N}";
@@ -72,19 +99,18 @@ public sealed partial class CodeGenerationWorkflowService
             {
                 var provider = GetSelectedDatabaseProvider(decision.Answer);
                 Map(decisionId + ":storage", decisionId, decision.Answer, (path, work) =>
-                    path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) &&
+                    Path.GetExtension(path).Equals(".cs", StringComparison.OrdinalIgnoreCase) &&
                     (!string.IsNullOrWhiteSpace(provider) &&
-                    (path.Contains(provider, StringComparison.OrdinalIgnoreCase) ||
-                     work.Contains(provider, StringComparison.OrdinalIgnoreCase) ||
+                    (work.Contains(provider, StringComparison.OrdinalIgnoreCase) ||
                      work.Contains("persist", StringComparison.OrdinalIgnoreCase) ||
-                     work.Contains("database", StringComparison.OrdinalIgnoreCase))));
+                     work.Contains("database", StringComparison.OrdinalIgnoreCase) ||
+                     work.Contains("storage", StringComparison.OrdinalIgnoreCase))));
             }
             var choice = GetSelectedSolutionName([decision]);
             if (!string.IsNullOrWhiteSpace(choice))
                 Map(decisionId + ":solution", decisionId, decision.Answer, (path, _) =>
                     string.Equals(Path.GetFileNameWithoutExtension(path), choice, StringComparison.OrdinalIgnoreCase) &&
-                    (path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) ||
-                     path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)));
+                    IsSourceSolutionPath(path));
             if (!IsDatabaseChoice(decision) && string.IsNullOrWhiteSpace(choice))
                 requirements.Add(new CodeGenerationSourceRequirement
                 {
@@ -100,44 +126,36 @@ public sealed partial class CodeGenerationWorkflowService
         IReadOnlyList<CouncilSourceHumanDecision> decisions)
     {
         var entries = manifest.Select(item => (Path: item.Key.Replace('\\', '/'), Work: item.Value)).ToList();
-        bool HasFile(string file) => entries.Any(item => string.Equals(Path.GetFileName(item.Path), file, StringComparison.OrdinalIgnoreCase));
-        bool HasExtension(string extension) => entries.Any(item => string.Equals(Path.GetExtension(item.Path), extension, StringComparison.OrdinalIgnoreCase));
-        bool HasPurpose(string extension, params string[] words) => entries.Any(item =>
-            string.Equals(Path.GetExtension(item.Path), extension, StringComparison.OrdinalIgnoreCase) &&
-            words.Any(word => item.Path.Contains(word, StringComparison.OrdinalIgnoreCase) ||
-                item.Work.Contains(word, StringComparison.OrdinalIgnoreCase)));
+        bool HasImplementationPurpose(params string[] words) => entries.Any(item =>
+            !IsSourceSolutionPath(item.Path) && !IsSourceBuildDeclarationPath(item.Path) &&
+            words.Any(word => item.Work.Contains(word, StringComparison.OrdinalIgnoreCase)));
         bool Wants(string keyword) => goal.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+        var hasProject = entries.Any(item => IsSourceProjectPath(item.Path));
+        var hasSolution = entries.Any(item => IsSourceSolutionPath(item.Path));
+        var requestedDotNet = runtimePolicy.GetPattern("runtime.codegen.explicit-dotnet-target").IsMatch(goal);
         var selectedProvider = decisions.Reverse().Where(IsDatabaseChoice)
             .Select(decision => GetSelectedDatabaseProvider(decision.Answer))
             .FirstOrDefault(provider => !string.IsNullOrWhiteSpace(provider)) ?? string.Empty;
         var selectedName = GetSelectedSolutionName(decisions);
-        if (HasExtension(".csproj") && (Wants("blazor") || Wants("aspnet") || Wants("asp.net")))
+        if ((requestedDotNet || Wants("blazor") || Wants("aspnet") || Wants("asp.net")) && !hasProject)
+            return "A requested .NET application requires an authored project definition. Use the project filename and toolchain selected for this workspace.";
+        if (Wants("blazor") && hasProject)
         {
-            if (!HasFile("Program.cs"))
-                return "Required .NET web host is absent from draftManifest: include Program.cs with application DI and hosting.";
-            if (!HasFile("App.razor") && !HasPurpose(".cshtml", "host", "app"))
-                return "Required Blazor root host is absent from draftManifest: include App.razor or an explicit .cshtml host.";
-            if (!HasExtension(".razor"))
-                return "Required Blazor component source is absent from draftManifest.";
+            if (!entries.Any(item => Path.GetExtension(item.Path).Equals(".razor", StringComparison.OrdinalIgnoreCase) ||
+                Path.GetExtension(item.Path).Equals(".cshtml", StringComparison.OrdinalIgnoreCase)))
+                return "A Blazor application requires component or host markup in the source manifest; use the selected template's paths.";
+            if (!HasImplementationPurpose("host", "startup", "bootstrap", "entry point"))
+                return "The Blazor application's source manifest must explicitly assign application startup/hosting work; no specific file basename or folder is required.";
         }
-        if (Wants("solution") && HasExtension(".csproj") && !HasExtension(".sln") && !HasExtension(".slnx"))
-            return "The requested .NET solution needs a .sln or .slnx entry in draftManifest.";
-        if (Wants("twitch") && !HasPurpose(".cs", "twitch", "stream service", "stream api"))
-            return "Twitch behavior has no C# implementation work order; pages alone do not implement the Twitch API.";
-        if (Wants("timeline") && !HasPurpose(".cs", "timeline", "schedule", "configuration"))
-            return "Configurable timelines need a C# domain/service work order, not only a Razor display page.";
-        if (!string.IsNullOrWhiteSpace(selectedProvider))
-        {
-            if (!HasExtension(".csproj") || !HasPurpose(".cs", selectedProvider, "dbcontext", "repository", "persist", "database"))
-                return $"Human-selected database provider '{selectedProvider}' requires a project and concrete C# persistence/data work in draftManifest.";
-            if (!HasFile("Program.cs") && (Wants("blazor") || Wants("aspnet") || Wants("asp.net")))
-                return $"Human-selected database provider '{selectedProvider}' needs the web application's service registration/host.";
-        }
+        if (Wants("solution") && hasProject && !hasSolution)
+            return "The requested solution is absent from the manifest; use the workspace's configured solution-file naming convention.";
+        if (!string.IsNullOrWhiteSpace(selectedProvider) &&
+            !HasImplementationPurpose(selectedProvider, "database", "persist", "storage", "repository", "dbcontext"))
+            return $"Human-selected database provider '{selectedProvider}' has no explicit persistence implementation work order in the manifest.";
         if (!string.IsNullOrWhiteSpace(selectedName) &&
-            !entries.Any(item => (string.Equals(Path.GetExtension(item.Path), ".sln", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(Path.GetExtension(item.Path), ".slnx", StringComparison.OrdinalIgnoreCase)) &&
+            !entries.Any(item => IsSourceSolutionPath(item.Path) &&
                 string.Equals(Path.GetFileNameWithoutExtension(item.Path), selectedName, StringComparison.OrdinalIgnoreCase)))
-            return $"Human-selected solution name '{selectedName}' is missing from draftManifest; do not rename it without a new decision.";
+            return $"Human-selected solution name '{selectedName}' is missing from the configured solution paths; do not rename it without a new decision.";
         return string.Empty;
     }
 
@@ -185,7 +203,7 @@ public sealed partial class CodeGenerationWorkflowService
                 ? words[^1] : string.Empty;
             if (name.Length is > 0 and <= 100 && char.IsLetter(name[0]) &&
                 name.All(character => char.IsLetterOrDigit(character) || character is '_' or '-') &&
-                !string.Equals(name, "sqlite", StringComparison.OrdinalIgnoreCase))
+                (!IsDatabaseChoice(decision) || words.Length > 1))
                 return name;
         }
         return string.Empty;
@@ -217,8 +235,9 @@ public sealed partial class CodeGenerationWorkflowService
     {
         try
         {
-            var extension = Path.GetExtension(path);
-            if (string.Equals(extension, ".sln", StringComparison.OrdinalIgnoreCase))
+            var solution = IsSourceSolutionPath(path);
+            if (solution && !Path.GetExtension(path).Equals(".slnx", StringComparison.OrdinalIgnoreCase) &&
+                !content.TrimStart().StartsWith("<", StringComparison.Ordinal))
             {
                 var lines = content.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
                 if (lines.Length < 4 || !lines[0].TrimStart('\uFEFF').StartsWith("Microsoft Visual Studio Solution File, Format Version ", StringComparison.Ordinal))
@@ -231,15 +250,15 @@ public sealed partial class CodeGenerationWorkflowService
                 if (projects.Count == 0) return "Solution declares no projects.";
                 foreach (var line in projects)
                 {
-                    var fields = line.Split('"');
+                    var fields = line.Split('\"');
                     if (fields.Length < 8 || !Guid.TryParse(fields[1], out var typeGuid) ||
                         !Guid.TryParse(fields[7], out var projectGuid) || projectGuid == Guid.Empty)
                         return "Solution has an invalid project type or project GUID (placeholders are forbidden).";
                     if (!projectGuids.Add(projectGuid)) return "Solution declares a duplicate project GUID.";
-                    if (typeGuid == Guid.Parse("66A26720-8FB5-11D2-AA7E-00C04F688DDE")) continue; // Solution folder.
+                    if (typeGuid == Guid.Parse("66A26720-8FB5-11D2-AA7E-00C04F688DDE")) continue;
                     var reference = fields[5];
-                    if (!new[] { ".csproj", ".fsproj", ".vbproj" }.Contains(Path.GetExtension(reference), StringComparer.OrdinalIgnoreCase))
-                        return "A solution project entry must reference an actual .csproj, .fsproj or .vbproj file.";
+                    if (!IsSourceProjectPath(reference))
+                        return "Solution project entry does not reference a compiler project file.";
                     var target = ResolveDraftReference(path, reference);
                     if (!manifest.Keys.Any(file => string.Equals(file.Replace('\\', '/'), target, StringComparison.OrdinalIgnoreCase)))
                         return $"Solution references '{target}' but no such project is in the source manifest.";
@@ -247,30 +266,29 @@ public sealed partial class CodeGenerationWorkflowService
                 }
                 return ValidateSolutionProjectCoverage(path, projectPaths, manifest);
             }
-            if (string.Equals(extension, ".slnx", StringComparison.OrdinalIgnoreCase) ||
-                new[] { ".csproj", ".fsproj", ".vbproj" }.Contains(extension, StringComparer.OrdinalIgnoreCase))
+            if (solution || IsSourceProjectPath(path))
             {
                 using var reader = XmlReader.Create(new StringReader(content), new XmlReaderSettings
                 { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
                 var document = XDocument.Load(reader);
-                var rootName = string.Equals(extension, ".slnx", StringComparison.OrdinalIgnoreCase) ? "Solution" : "Project";
+                var rootName = solution ? "Solution" : "Project";
                 if (document.Root?.Name.LocalName != rootName) return $"Expected {rootName} XML root.";
                 var references = document.Descendants().Where(element =>
-                    element.Name.LocalName == (rootName == "Solution" ? "Project" : "ProjectReference"))
-                    .Select(element => (string?)element.Attribute(rootName == "Solution" ? "Path" : "Include")).ToList();
-                if (rootName == "Solution" && references.Count == 0) return "Solution XML declares no projects.";
+                    element.Name.LocalName == (solution ? "Project" : "ProjectReference"))
+                    .Select(element => (string?)element.Attribute(solution ? "Path" : "Include")).ToList();
+                if (solution && references.Count == 0) return "Solution XML declares no projects.";
                 var projectPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var reference in references)
                 {
                     if (string.IsNullOrWhiteSpace(reference)) return $"{rootName} contains a project reference without a path.";
-                    if (!new[] { ".csproj", ".fsproj", ".vbproj" }.Contains(Path.GetExtension(reference), StringComparer.OrdinalIgnoreCase))
-                        return $"{rootName} project reference '{reference}' is not a recognized .NET project file.";
+                    if (!IsSourceProjectPath(reference))
+                        return $"{rootName} project reference '{reference}' is not a compiler project file.";
                     var target = ResolveDraftReference(path, reference);
                     if (!manifest.Keys.Any(file => string.Equals(file.Replace('\\', '/'), target, StringComparison.OrdinalIgnoreCase)))
                         return $"{rootName} references '{target}' but no such project is in the source manifest.";
-                    projectPaths.Add(target);
+                    if (!projectPaths.Add(target)) return $"{rootName} declares a duplicate project file reference.";
                 }
-                if (rootName == "Solution")
+                if (solution)
                     return ValidateSolutionProjectCoverage(path, projectPaths, manifest);
             }
             return string.Empty;
@@ -283,12 +301,10 @@ public sealed partial class CodeGenerationWorkflowService
     private string ValidateSolutionProjectCoverage(string solutionPath, IReadOnlySet<string> referenced,
         IReadOnlyDictionary<string, string> manifest)
     {
-        var solutions = manifest.Keys.Count(path => new[] { ".sln", ".slnx" }
-            .Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase));
+        var solutions = manifest.Keys.Count(IsSourceSolutionPath);
         if (solutions != 1) return string.Empty; // Multiple solutions can intentionally partition projects.
         var missing = manifest.Keys.Select(path => path.Replace('\\', '/'))
-            .Where(path => new[] { ".csproj", ".fsproj", ".vbproj" }
-                .Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+            .Where(IsSourceProjectPath)
             .FirstOrDefault(path => !referenced.Contains(path));
         return missing is null ? string.Empty :
             $"Solution '{solutionPath}' omits manifest project '{missing}'; connect the project using its actual relative path.";
@@ -329,37 +345,20 @@ public sealed partial class CodeGenerationWorkflowService
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
         if (!string.IsNullOrWhiteSpace(provider))
         {
-            var declarations = files.Values.Where(file => new[] { ".csproj", ".fsproj", ".vbproj", ".props", ".targets" }
-                .Contains(Path.GetExtension(file.RelativePath), StringComparer.OrdinalIgnoreCase)).ToList();
+            var declarations = files.Values.Where(file => IsSourceBuildDeclarationPath(file.RelativePath)).ToList();
             var providerTokens = string.Equals(provider, "MariaDb", StringComparison.OrdinalIgnoreCase)
                 ? new[] { "MariaDb", "MySql", "Pomelo" } : string.Equals(provider, "MySql", StringComparison.OrdinalIgnoreCase)
                 ? new[] { "MySql", "Pomelo" } : new[] { provider };
             if (!declarations.Any(file => providerTokens.Any(token => file.Content.Contains(token, StringComparison.OrdinalIgnoreCase))))
                 return $"Human-selected {provider} database has no reviewed project/central provider dependency declaration (for example: Human-selected SQLite requires a SQLite provider).";
-            if (!files.Values.Any(file => string.Equals(Path.GetExtension(file.RelativePath), ".cs", StringComparison.OrdinalIgnoreCase) &&
+            if (!files.Values.Any(file => !IsSourceBuildDeclarationPath(file.RelativePath) &&
+                !IsSourceSolutionPath(file.RelativePath) &&
                 providerTokens.Any(token => file.Content.Contains(token, StringComparison.OrdinalIgnoreCase))))
-                return $"Human-selected {provider} database has no reviewed C# provider configuration or persistence source.";
+                return $"Human-selected {provider} database has no reviewed provider configuration or persistence source.";
         }
-        // An injected project-owned contract must actually exist in the reviewed C# sources.
-        var ownSource = files.Values.Where(file => string.Equals(Path.GetExtension(file.RelativePath), ".cs", StringComparison.OrdinalIgnoreCase))
-            .Select(file => file.Content).ToList();
-        var projectRoots = files.Values.Where(file => string.Equals(Path.GetExtension(file.RelativePath), ".csproj", StringComparison.OrdinalIgnoreCase))
-            .Select(file => Path.GetFileNameWithoutExtension(file.RelativePath.Replace('\\', '/'))).ToList();
-        foreach (var razor in files.Values.Where(file => string.Equals(Path.GetExtension(file.RelativePath), ".razor", StringComparison.OrdinalIgnoreCase)))
-        {
-            var usesAppContracts = razor.Content.Split('\n').Any(line =>
-                projectRoots.Any(root => line.Trim().StartsWith("@using " + root + ".Contracts", StringComparison.Ordinal)));
-            if (!usesAppContracts) continue;
-            foreach (var line in razor.Content.Split('\n').Select(value => value.Trim()))
-            {
-                if (!line.StartsWith("@inject I", StringComparison.Ordinal)) continue;
-                var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length < 3) continue;
-                var type = parts[1];
-                if (!ownSource.Any(code => code.Contains("interface " + type, StringComparison.Ordinal)))
-                    return $"{razor.RelativePath}: injected project contract '{type}' has no reviewed C# interface declaration.";
-            }
-        }
+        // Project filenames do not define CLR namespaces or DI contracts. Compiler verification
+        // and independent source inspection own symbol resolution; never invent a namespace
+        // from a .proj basename or reject valid external DI interfaces here.
         return string.Empty;
     }
 }

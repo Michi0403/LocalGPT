@@ -54,16 +54,16 @@
                             <DxTextBox Text="@route.HardwareName" TextChanged="@((string value) => SetText(route, nameof(route.HardwareName), value))" NullText="CPU, GPU 0, RTX 3060, iGPU…" />
                         </label>
                         <label>Min output
-                            <DxSpinEdit Value="@route.MinOutputTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MinOutputTokens), value))" MinValue="1" MaxValue="262144" Increment="256" />
+                            <DxSpinEdit Value="@route.MinOutputTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MinOutputTokens), value))" MinValue="1" MaxValue="@RoadConfiguration.MaximumRoadOutputTokens" Increment="256" />
                         </label>
                         <label>Max output
-                            <DxSpinEdit Value="@route.MaxOutputTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MaxOutputTokens), value))" MinValue="1" MaxValue="262144" Increment="256" />
+                            <DxSpinEdit Value="@route.MaxOutputTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MaxOutputTokens), value))" MinValue="1" MaxValue="@RoadConfiguration.MaximumRoadOutputTokens" Increment="256" />
                         </label>
                         <label>Min context
-                            <DxSpinEdit Value="@route.MinContextTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MinContextTokens), value))" MinValue="256" MaxValue="1048576" Increment="1024" />
+                            <DxSpinEdit Value="@route.MinContextTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MinContextTokens), value))" MinValue="256" MaxValue="@RoadConfiguration.MaximumRoadContextTokens" Increment="1024" />
                         </label>
                         <label>Max context
-                            <DxSpinEdit Value="@route.MaxContextTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MaxContextTokens), value))" MinValue="256" MaxValue="1048576" Increment="1024" />
+                            <DxSpinEdit Value="@route.MaxContextTokens" ValueChanged="@((int value) => SetInt(route, nameof(route.MaxContextTokens), value))" MinValue="256" MaxValue="@RoadConfiguration.MaximumRoadContextTokens" Increment="1024" />
                         </label>
                         @if (string.IsNullOrWhiteSpace(route.ProviderKind) || route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
                         {

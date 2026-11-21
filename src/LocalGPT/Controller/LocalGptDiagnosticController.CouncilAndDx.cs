@@ -84,7 +84,7 @@ namespace LocalGPT.Controller
 
                 return Results.Ok(new
                 {
-                    HardwareProfile = "Configured local workstation: 7900 XTX 24GB VRAM, i7-14700K, 64GB RAM. Avoid simultaneous heavy 20B/27B/30B GPU loads.",
+                    HardwareProfile = "Hardware varies by configured provider host. Verify each host's actual capabilities and benchmark results before running heavy models.",
                     AvailableModels = available,
                     RecommendedMatrix = new[]
                     {

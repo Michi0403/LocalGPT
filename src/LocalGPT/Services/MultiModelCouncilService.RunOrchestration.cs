@@ -44,7 +44,6 @@ namespace LocalGPT.Services
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var baseUri = councilText.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? catalog.DefaultOllamaUri, logger);
                 var selectedParticipants = await SelectParticipantsAsync(request, baseUri, cancellationToken).ConfigureAwait(false);
-                request.ModelRoutes = QualifyModelRoutes(request.ModelRoutes, request.ModelSelections);
                 var participantSelection = await ApplyApprovedOneRunModelExclusionsAsync(selectedParticipants, organicTeam, cancellationToken).ConfigureAwait(false);
                 var participants = participantSelection.Active;
                 var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? catalog.DefaultMaxParallelModels : request.MaxParallelModels, 1, catalog.MaxParticipants);
@@ -52,6 +51,8 @@ namespace LocalGPT.Services
                     request.MaxContextTokens <= 0 ? catalog.DefaultContextTokens : request.MaxContextTokens,
                     catalog.MinContextTokens,
                     catalog.MaxContextTokens);
+                request.ModelRoutes = QualifyModelRoutes(
+                    request.ModelRoutes, request.ModelSelections, request.MaxOutputTokens, maxContextTokens);
                 var modelTimeoutSeconds = Math.Clamp(request.ModelTimeoutSeconds <= 0 ? runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").DefaultModelTimeoutSeconds : request.ModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MinimumModelTimeoutSeconds, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumModelTimeoutSeconds);
                 var keepAlive = MultiModelCouncilServiceGetCouncilKeepAlive(request, participants.Count, maxParallelModels, logger);
                 var ollamaNumGpu = request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu;

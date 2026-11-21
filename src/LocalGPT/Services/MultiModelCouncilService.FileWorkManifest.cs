@@ -92,9 +92,7 @@ public sealed partial class MultiModelCouncilService
                     (outputs.Any(output => output.Kind is "Solution" or "ClassLibrary" or "ConsoleApplication" or "LocalGptAddon") ||
                         runtimePolicy.GetPattern("runtime.codegen.explicit-project-output").IsMatch(goal)) &&
                     plan.DraftManifest is { Count: > 0 } manifest &&
-                    !manifest.Keys.Any(path => string.Equals(Path.GetExtension(path), ".csproj", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(Path.GetExtension(path), ".fsproj", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(Path.GetExtension(path), ".vbproj", StringComparison.OrdinalIgnoreCase)))
+                    !manifest.Keys.Any(path => Path.GetExtension(path).EndsWith("proj", StringComparison.OrdinalIgnoreCase)))
                     throw new ArgumentException($"The requested {requested[0]} solution requires its actual project file in draftManifest.");
             }
             if (plan.DraftWorkspaceMode == "ReviewedSourceDraft")
@@ -118,14 +116,16 @@ public sealed partial class MultiModelCouncilService
                 return;
             var paths = manifest.Keys.Select(path => path.Replace('\\', '/')).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var sourceExtensions = paths.Select(path => Path.GetExtension(path)).Where(extension => !string.IsNullOrEmpty(extension)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            sourceExtensions.UnionWith(new[] { ".cs", ".fs", ".vb", ".csproj", ".fsproj", ".vbproj", ".sln", ".slnx", ".razor", ".cshtml", ".json", ".xml", ".props", ".targets", ".dll", ".exe", ".js", ".ts", ".css", ".html", ".md", ".txt", ".config", ".yaml", ".yml", ".resx", ".ps1", ".py" });
+            sourceExtensions.UnionWith(runtimePolicy.GetCollection("SourceExtensions"));
+            sourceExtensions.UnionWith(runtimePolicy.GetCollection("TextExtensions"));
+            sourceExtensions.UnionWith(runtimePolicy.GetCollection("BinaryExtensions"));
             var packagePattern = runtimePolicy.GetPattern("runtime.codegen.package-proposal-id");
             var proposals = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             foreach (var (path, direct) in dependencies)
             {
                 // Only MSBuild project files can own these proposals. Exact file references always win.
                 if (!paths.Contains(path.Replace('\\', '/')) || direct is null ||
-                    !new[] { ".csproj", ".fsproj", ".vbproj" }.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)) continue;
+                    !Path.GetExtension(path).EndsWith("proj", StringComparison.OrdinalIgnoreCase)) continue;
                 var external = direct.Where(dependency => !string.IsNullOrWhiteSpace(dependency) &&
                     !paths.Contains(dependency.Replace('\\', '/')) &&
                     !sourceExtensions.Contains(Path.GetExtension(dependency)) &&

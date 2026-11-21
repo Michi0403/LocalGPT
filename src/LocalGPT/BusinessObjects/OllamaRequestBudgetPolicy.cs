@@ -2,7 +2,7 @@ namespace LocalGPT.BusinessObjects;
 
 /// <summary>
 /// Database-backed sizing rules (runtime value <c>OllamaRequestBudgetPolicyJson</c>) that keep one native Ollama chat
-/// request inside its context window: conversation messages, native tool schemas, model thinking and the visible answer.
+/// request demand for diagnostics and optional context fitting, including conversation, native tools and output.
 /// </summary>
 public sealed class OllamaRequestBudgetPolicy
 {
@@ -18,12 +18,16 @@ public sealed class OllamaRequestBudgetPolicy
     /// <value>Safety margin in tokens.</value>
     public int ContextSafetyMarginTokens { get; set; } = 512;
 
+    /// <summary>Gets or sets whether ordinary inference may shrink a configured context based on an approximate token estimate.</summary>
+    /// <value>False preserves the complete selected road context; true opts into approximate context fitting.</value>
+    public bool UseEstimatedContextFitting { get; set; } = false;
+
     /// <summary>Gets or sets the legacy context growth granularity retained for persisted policy compatibility.</summary>
     /// <value>Legacy growth step in tokens; requests no longer grow a selected hardware context.</value>
     public int ContextGrowthStepTokens { get; set; } = 1024;
 
     /// <summary>Gets or sets the legacy fitted-context ceiling retained for persisted policy compatibility.</summary>
-    /// <value>Legacy fitted-context limit; the selected hardware road and model maximum now remain authoritative.</value>
+    /// <value>Legacy fitted-context limit; it is retained for persisted policy compatibility.</value>
     public int MaximumFittedContextTokens { get; set; } = 32768;
 
     /// <summary>Gets or sets the context Ollama is assumed to use when LocalGPT sends no explicit context size.</summary>

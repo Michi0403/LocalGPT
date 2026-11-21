@@ -136,7 +136,7 @@ namespace LocalGPT.Services
                 if (!string.Equals(sourceHash, destinationHash, StringComparison.Ordinal))
                     throw new IOException($"The isolated copy of '{file.ProjectRelativePath}' did not preserve the approved file bytes.");
                 result.WrittenFiles.Add(relativePath.Replace('\\', '/'));
-                if (Path.GetExtension(relativePath).Equals(".sln", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(relativePath).Equals(".slnx", StringComparison.OrdinalIgnoreCase))
+                if (IsSourceSolutionPath(relativePath))
                     solutionPath = destination;
             }
             logger.LogInformation("Cloned {FileCount} approved tracked file(s) into isolated maintenance workspace for project {ProjectId} revision {RevisionId}; paths omitted from logs.", approved.Count, projectId, revisionId);
@@ -191,8 +191,8 @@ namespace LocalGPT.Services
             return clonedSolutionPath;
         try
         {
-            return Directory.EnumerateFiles(workspaceRoot, "*.sln", SearchOption.AllDirectories)
-                .Concat(Directory.EnumerateFiles(workspaceRoot, "*.slnx", SearchOption.AllDirectories))
+            return Directory.EnumerateFiles(workspaceRoot, "*", SearchOption.AllDirectories)
+                .Where(IsSourceSolutionPath)
                 .OrderBy(path => path.Count(character => character == Path.DirectorySeparatorChar))
                 .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
                 .FirstOrDefault() ?? string.Empty;

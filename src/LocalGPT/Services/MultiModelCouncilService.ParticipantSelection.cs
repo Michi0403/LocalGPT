@@ -230,10 +230,14 @@ namespace LocalGPT.Services
         /// </summary>
         /// <param name="routes">One wire council model route dependency used by the multi model council workflow to provide the corresponding application capability.</param>
         /// <param name="references">Provider model reference dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="requestedMaxOutputTokens">Output ceiling explicitly requested for the current run.</param>
+        /// <param name="requestedMaxContextTokens">Context ceiling explicitly requested for the current run.</param>
         /// <returns>The collection produced by the operation.</returns>
         private List<OneWireCouncilModelRoute> QualifyModelRoutes(
             IEnumerable<OneWireCouncilModelRoute>? routes,
-            IReadOnlyList<ProviderModelReference> references)
+            IReadOnlyList<ProviderModelReference> references,
+            int requestedMaxOutputTokens,
+            int requestedMaxContextTokens)
         {
     try
     {
@@ -247,7 +251,10 @@ namespace LocalGPT.Services
                         || model.ModelName.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase)).ToList();
                     if (matches.Count > 1 && matches.All(model => !model.SelectionKey.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase)))
                         continue;
-                    var reference = matches.FirstOrDefault();
+                    // An exact provider-qualified match must win over a same-name model on another host.
+                    var reference = matches.FirstOrDefault(model =>
+                        model.SelectionKey.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase))
+                        ?? matches.FirstOrDefault();
                     if (reference is not null)
                     {
                         route.ModelName = reference.SelectionKey;
@@ -264,24 +271,14 @@ namespace LocalGPT.Services
                 {
                     if (qualified.Any(route => route.ModelName.Equals(reference.SelectionKey, StringComparison.OrdinalIgnoreCase)))
                         continue;
-                    qualified.Add(new OneWireCouncilModelRoute
-                    {
-                        ModelName = reference.SelectionKey,
-                        ProviderKind = reference.ProviderKind,
-                        ProviderName = reference.ProviderName,
-                        ProviderEndpoint = reference.Endpoint,
-                        ProviderModelName = reference.ModelName,
-                        HardwareKind = OneWireHardwareKind.Auto,
-                        HardwareIndex = -1,
-                        HardwareName = reference.IsLocal ? "Automatic local provider road" : "Remote provider route",
-                        MinOutputTokens = 256,
-                        MaxOutputTokens = 4096,
-                        MinContextTokens = 2048,
-                        MaxContextTokens = 32768,
-                        OllamaNumGpu = null,
-                        IsEnabled = true,
-                        MaxConcurrentModelsOnLane = 1
-                    });
+                    var automatic = hardwareRoadConfiguration.CreateDefaultRoute(
+                        reference.SelectionKey, requestedMaxOutputTokens, requestedMaxContextTokens);
+                    automatic.ProviderKind = reference.ProviderKind;
+                    automatic.ProviderName = reference.ProviderName;
+                    automatic.ProviderEndpoint = reference.Endpoint;
+                    automatic.ProviderModelName = reference.ModelName;
+                    automatic.HardwareName = reference.IsLocal ? "Automatic local provider road" : "Remote provider route";
+                    qualified.Add(automatic);
                 }
 
                 return qualified

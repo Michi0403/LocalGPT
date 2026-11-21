@@ -22,7 +22,7 @@ public sealed partial class DatabaseInitializationService
     try
     {
             var existing = await db.CouncilModelPresets.ToListAsync(token).ConfigureAwait(false);
-            var legacy = CreateDefaultCouncilModelPresets(legacy: true);
+            var previousBounded = CreateDefaultCouncilModelPresets(bounded: true);
             var presets = CreateDefaultCouncilModelPresets();
             foreach (var preset in presets)
             {
@@ -37,7 +37,7 @@ public sealed partial class DatabaseInitializationService
                 }
 
                 // Only evolve an unchanged shipped preset; retain user selections, IDs and custom roads.
-                var previous = legacy.Single(item => item.Name == preset.Name);
+                var previous = previousBounded.Single(item => item.Name == preset.Name);
                 if (row.IsArchived || row.Description != previous.Description || row.ModelNamesJson != previous.ModelNamesJson
                     || row.ModelRoutesJson != previous.ModelRoutesJson || row.MaxOutputTokens != previous.MaxOutputTokens
                     || row.MaxContextTokens != previous.MaxContextTokens || row.MaxParallelModels != previous.MaxParallelModels
@@ -51,7 +51,7 @@ public sealed partial class DatabaseInitializationService
                 row.MaxContextTokens = preset.MaxContextTokens;
                 row.MaxParallelModels = preset.MaxParallelModels;
                 row.UpdatedAtUtc = DateTime.UtcNow;
-                logger.LogInformation("Updated unchanged built-in Council preset {PresetName} with bounded hardware roads.", row.Name);
+                logger.LogInformation("Restored authored hardware-road template for unchanged built-in Council preset {PresetName}.", row.Name);
             }
     
     }
@@ -66,9 +66,9 @@ public sealed partial class DatabaseInitializationService
 }
 
     /// <summary>Builds the authoritative maintained model presets for additive repairs and post-commit verification.</summary>
-    /// <param name="legacy">Reconstructs the previous shipped defaults for non-destructive seed evolution.</param>
+    /// <param name="bounded">Reconstructs the previously shipped bounded template for non-destructive seed evolution.</param>
     /// <returns>The maintained preset templates.</returns>
-    private CouncilModelPreset[] CreateDefaultCouncilModelPresets(bool legacy = false)
+    private CouncilModelPreset[] CreateDefaultCouncilModelPresets(bool bounded = false)
     {
         try
         {
@@ -170,7 +170,7 @@ public sealed partial class DatabaseInitializationService
                     includeMemory: false,
                     createProjectPerRun: false)
             };
-            if (!legacy)
+            if (bounded)
             {
                 foreach (var preset in presets)
                 {

@@ -164,7 +164,7 @@
                                 TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
                 </label>
                 <label>@T("ProjectMaintenance.ProjectTypeRegex", "Project type regex")<DxTextBox @bind-Text="workspaceEdit.ProjectTypePattern" NullText="(?i)DotNet.*" /></label>
-                <label>@T("ProjectMaintenance.SolutionRegex", "Solution regex")<DxTextBox @bind-Text="workspaceEdit.SolutionPattern" /></label>
+                <label>@T("ProjectMaintenance.SolutionRegex", "Build target regex (workspace)")<DxTextBox @bind-Text="workspaceEdit.SolutionPattern" /></label>
                 <label>@T("ProjectMaintenance.EnvironmentKind", "Local environment kind")<DxComboBox Data="@EnvironmentKindOptions" @bind-Value="workspaceEdit.EnvironmentKind" /></label>
                 <label>@T("ProjectMaintenance.EnvironmentRoot", "Environment root")
                     <div class="path-picker-row"><DxTextBox @bind-Text="workspaceEdit.EnvironmentRootPath" NullText="Optional local environment folder" /><DxButton CssClass="btn btn-outline-secondary" Click='@(() => OpenPathExplorer("EnvironmentRoot"))'>Browse…</DxButton></div>
@@ -176,7 +176,7 @@
                                 TextFieldName="@nameof(LocalGptSelectionOption<Guid?>.Label)" />
                 </label>
                 <label>@T("Common.Priority", "Priority")<DxSpinEdit @bind-Value="workspaceEdit.Priority" /></label>
-                <label class="span-all">@T("ProjectMaintenance.WorkspaceBuildArguments", "Workspace build arguments")<DxMemo @bind-Text="workspaceEdit.BuildArguments" Rows="2" NullText="run -e localgpt-esp32" /></label>
+                <label class="span-all">@T("ProjectMaintenance.WorkspaceBuildArguments", "Workspace build arguments")<DxMemo @bind-Text="workspaceEdit.BuildArguments" Rows="2" NullText="Example: -m compileall {target}; placeholders: {target}, {targetDirectory}, {configuration}, {outputDirectory}" /></label>
                 <label class="span-all">@T("ProjectMaintenance.WorkspaceEnvironmentJson", "Environment variables JSON")<DxMemo @bind-Text="workspaceEdit.EnvironmentVariablesJson" Rows="3" /></label>
                 <label class="span-all">@T("ProjectMaintenance.DefaultSubdirectories", "Expected project subdirectories JSON")<DxMemo @bind-Text="workspaceEdit.DefaultSubdirectoriesJson" Rows="3" /></label>
                 <label class="span-all">@T("ProjectMaintenance.ExpectedStructureRegex", "Expected project structure regex")<DxMemo @bind-Text="workspaceEdit.ExpectedStructureRegex" Rows="3" NullText="(?s)(^|\n)src/.*(^|\n)(platformio\.ini|CMakeLists\.txt)$" /></label>

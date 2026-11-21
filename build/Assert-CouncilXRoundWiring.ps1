@@ -19,7 +19,7 @@ $required = @(
     # accepted a malformed solution, and labeled disabled compilation as an actual build failure.
     @{ Path = 'src/LocalGPT/Services/HumanCollaborationService.SourceDecisions.cs'; Tokens = @('item.CouncilRunId == councilRunId', 'item.Status == answered || item.Status == consumed', 'item.RequestKind != approvalKind', 'item.UserResponse', 'DecidedAtUtc') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('GetSourcePlanningDecisionsAsync(result.RunId', 'HumanDecisions = sourceDecisions', 'CouncilFileWorkHumanDecisionInstruction') }
-    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.SourceClosure.cs'; Tokens = @('ValidateSourceManifestCoverage', 'GetSelectedSolutionName', 'Human-selected SQLite', 'Program.cs', 'App.razor', 'ValidateDraftSourceReferences', 'Solution is missing the Visual Studio solution-format header', 'Guid.TryParse(fields[7]', 'Solution references', 'ProjectReference', 'ValidateCompletedSourceCoverage', 'injected project contract') }
+    @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.SourceClosure.cs'; Tokens = @('ValidateSourceManifestCoverage', 'GetSelectedSolutionName', 'IsSourceSolutionPath', 'runtime.project.solution-file-extension', 'IsSourceProjectPath', 'IsSourceBuildDeclarationPath', 'no specific file basename', 'ValidateDraftSourceReferences', 'Solution is missing the Visual Studio solution-format header', 'Guid.TryParse(fields[7]', 'Solution references', 'ProjectReference', 'ValidateCompletedSourceCoverage', 'Compiler verification') }
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Draft.cs'; Tokens = @('ValidateSourceManifestCoverage(request.Goal, manifest, decisions)', 'ValidateCompletedSourceCoverage(plan, humanDecisions)', 'ValidateDraftSourceReferences(file.RelativePath, file.Content, manifest)') }
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftAssignments.cs'; Tokens = @('ValidateDraftSourceReferences(current.RelativePath, source', 'plan.DraftManifest') }
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Execution.cs'; Tokens = @('CodeGenerationReviewStatuses.BuildDisabled', 'CodeGenerationReviewStatuses.BuildNotAttempted', 'BuildCompletedSuccessfully(entity.BuildStatus)') }
@@ -54,7 +54,7 @@ $required = @(
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkManifest.cs'; Tokens = @('GetExplicitFileWorkTargets(goal)', 'runtime.codegen.explicit-project-output', 'Requested target {requested[0]}') }
     @{ Path = 'src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs'; Tokens = @('CouncilFileWorkPlanPacketInstruction', 'CouncilFileWorkRepeatedManifestNotice', '"preferPlanningCapacity": true', 'runtime.codegen.explicit-project-output') }
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Draft.cs'; Tokens = @('output.Kind = NormalizeOutputKind(output.Kind)', 'manifest.ContainsKey(parent)', 'EnsureCouncilRunProjectAsync') }
-    @{ Path = 'src/LocalGPT/Services/ArtifactBuildExecutor.cs'; Tokens = @('target.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)', 'if (!userConfirmed)', 'IsInsideRoot(target, root)') }
+    @{ Path = 'src/LocalGPT/Services/ArtifactBuildExecutor.cs'; Tokens = @('runtime.project.solution-file-extension', 'GetCompilerInstallationsAsync', 'GetWorkspaceRootsAsync', 'CompilerNotValidated', 'FileName = compiler.ExecutablePath', 'if (!userConfirmed)', 'IsInsideRoot(target, root)') }
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.Execution.cs'; Tokens = @('ArtifactBuildExecutionResult buildResult;', 'exception is not OperationCanceledException', ':BuildCheckError', 'ZipFile.CreateFromDirectory', 'BuildCompletedSuccessfully(entity.BuildStatus)') }
     # Preserve exact candidate evidence and bounded same-draft recovery.
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftInspection.cs'; Tokens = @('requiredNegativeInspections', 'rejectedBy', 'PreviousDecisions') }
@@ -815,5 +815,35 @@ if ($fixturePaths -contains 'src/Program.cs' -or $fixturePaths -contains 'src/Ap
     $findings.Add('Negative four-file Twitch source manifest fixture is no longer representative.')
 }
 
+# 7.6.8: source layouts belong to the caller-bound project and compiler conventions,
+# never a universal App.razor, _Imports.razor, Program.cs or wwwroot placement rule.
+$closureSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CodeGenerationWorkflowService.SourceClosure.cs'))
+$sourceFormats = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftTargetValidation.cs'))
+$artifactExecutorSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/ArtifactBuildExecutor.cs'))
+$projectTextSource = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/ProjectMaintenanceService.TextAndValidation.cs'))
+$manifestNormalizer = [IO.File]::ReadAllText((Join-Path $root 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkManifest.cs'))
+if ($draftService.Contains('ValidateManifestLayout(') -or $sourceFormats.Contains('ValidateManifestLayout(')) {
+    $findings.Add('Project authorship must not be blocked by hardcoded Razor/wwwroot layout checks.')
+}
+if ($closureSource.Contains('Path.GetFileName(path), "Program.cs"') -or
+    $closureSource.Contains('Path.GetFileName(path), "App.razor"') -or
+    $closureSource.Contains('Path.GetFileName(item.Path), "Program.cs"')) {
+    $findings.Add('Source closure must not infer a compiler template layout from fixed basename strings.')
+}
+if (-not $artifactExecutorSource.Contains('GetRequiredService<IProjectMaintenanceService>()') -or
+    -not $artifactExecutorSource.Contains('FileName = compiler.ExecutablePath') -or
+    $artifactExecutorSource.Contains('FileName = "dotnet"')) {
+    $findings.Add('Approved artifact builds must use the registered, validated compiler executable, never PATH.')
+}
+if (-not $projectTextSource.Contains('runtimePolicy.GetCollection("TextExtensions")') -or
+    -not $manifestNormalizer.Contains('runtimePolicy.GetCollection("SourceExtensions")')) {
+    $findings.Add('Maintained source-extension catalogs must remain database-backed.')
+}
+if (-not $reviewExecutionSource.Contains('IsSourceSolutionPath(source.RelativePath)') -or
+    -not $reviewExecutionSource.Contains('IsSourceProjectPath(source.RelativePath)')) {
+    $findings.Add('Reviewed source build-target selection must use registered solution and project classifiers.')
+}
+
 if ($findings.Count -gt 0) { foreach ($finding in $findings) { Write-Error $finding -ErrorAction Continue }; throw ('Source contract audit failed: ' + $findings.Count + ' finding(s).') }
+& (Join-Path $PSScriptRoot 'Assert-CompilerAgnosticArtifactBuild.ps1')
 Write-Host 'Maintained PowerShell source contract audit passed.'

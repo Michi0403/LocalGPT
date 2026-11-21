@@ -109,6 +109,8 @@ namespace LocalGPT.Services
         /// Stores the council hardware road planner dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly ICouncilHardwareRoadPlanner hardwareRoadPlanner;
+        /// <summary>Authoritative service for constructing unsaved Council hardware roads from runtime configuration.</summary>
+        private readonly ICouncilHardwareRoadConfigurationService hardwareRoadConfiguration;
         /// <summary>
         /// Stores the council run configuration service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
@@ -195,6 +197,7 @@ namespace LocalGPT.Services
         /// <param name="councilDxPolicy">Injected dependency used by the service.</param>
         /// <param name="councilDxFunctions">Injected dependency used by the service.</param>
         /// <param name="hardwareRoadPlanner">Injected dependency used by the service.</param>
+        /// <param name="hardwareRoadConfiguration">Constructs automatic roads from the persisted runtime policy and run budgets.</param>
         /// <param name="runConfigurations">Injected dependency used by the service.</param>
         /// <param name="modelSelfAssessment">Injected dependency used by the service.</param>
         /// <param name="featureReports">Injected dependency used by the service.</param>
@@ -238,6 +241,7 @@ namespace LocalGPT.Services
             ICouncilDxFunctionPolicyDataService councilDxPolicy,
             ICouncilDxFunctionOrchestrator councilDxFunctions,
             ICouncilHardwareRoadPlanner hardwareRoadPlanner,
+            ICouncilHardwareRoadConfigurationService hardwareRoadConfiguration,
             ICouncilRunConfigurationService runConfigurations,
             IModelCapabilitySelfAssessmentService modelSelfAssessment,
             IAiFeatureReportService featureReports,
@@ -281,6 +285,7 @@ namespace LocalGPT.Services
             this.councilDxPolicy = councilDxPolicy;
             this.councilDxFunctions = councilDxFunctions;
             this.hardwareRoadPlanner = hardwareRoadPlanner;
+            this.hardwareRoadConfiguration = hardwareRoadConfiguration;
             this.runConfigurations = runConfigurations;
             this.modelSelfAssessment = modelSelfAssessment;
             this.featureReports = featureReports;

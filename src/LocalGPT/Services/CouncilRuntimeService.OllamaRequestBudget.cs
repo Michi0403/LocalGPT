@@ -3,18 +3,45 @@ using LocalGPT.BusinessObjects;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Sizes native Ollama requests so the prompt, the native tool schemas, model thinking and the visible answer fit
-    /// the context window instead of being silently truncated by the provider.
+    /// Estimates native Ollama prompt and output demand for diagnostics and optional allocation fitting.
+    /// An estimate cannot prove the provider's actual token count or replace its context decision.
     /// </summary>
     public sealed partial class CouncilRuntimeService
     {
         /// <summary>Runtime value that stores the <see cref="OllamaRequestBudgetPolicy"/> document.</summary>
         private const string OllamaRequestBudgetPolicyKey = "OllamaRequestBudgetPolicyJson";
 
+        /// <summary>Visible-answer default for native Ollama requests without caller-supplied ChatOptions, read from persisted runtime policy.</summary>
+        /// <value>Configured default native Ollama output tokens.</value>
+        public int OllamaThinkingChatClientDefaultOutputTokens => runtimePolicy.GetInt("DefaultOllamaRequestOutputTokens");
+
+        /// <summary>Classifies explicit Ollama provider context errors without interpreting LocalGPT's own size estimate as a failure.</summary>
+        /// <param name="error">Provider HTTP response body or exception text.</param>
+        /// <returns>Whether the provider identified a context-capacity problem.</returns>
+        public bool OllamaThinkingChatClientIsProviderContextRejection(string? error)
+        {
+            if (string.IsNullOrWhiteSpace(error))
+                return false;
+            return (error.Contains("context", StringComparison.OrdinalIgnoreCase) ||
+                    error.Contains("num_ctx", StringComparison.OrdinalIgnoreCase)) &&
+                   (error.Contains("exceed", StringComparison.OrdinalIgnoreCase) ||
+                    error.Contains("too long", StringComparison.OrdinalIgnoreCase) ||
+                    error.Contains("too large", StringComparison.OrdinalIgnoreCase) ||
+                    error.Contains("maximum", StringComparison.OrdinalIgnoreCase) ||
+                    error.Contains("limit", StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Reads the operator's choice to use approximate rather than full configured Ollama context allocations.</summary>
+        /// <param name="logger">Logger of the calling Ollama client.</param>
+        /// <returns>True only when the persisted request policy opts into estimated fitting.</returns>
+        public bool OllamaThinkingChatClientUseEstimatedContextFitting(ILogger logger) =>
+            ReadOllamaRequestBudgetPolicy(logger).UseEstimatedContextFitting;
+
         /// <summary>
         /// Computes the effective <c>num_predict</c> and <c>num_ctx</c> for one Ollama chat request. Explicit thinking
         /// receives its own output reserve so it no longer consumes the visible answer budget, and the context window
-        /// is capped by the selected hardware road and the advertised model maximum. Oversized work is returned for replanning.
+        /// follows the configured hardware road, not the model_info advisory value. Estimates are diagnostic;
+        /// actual context validation belongs to Ollama, which can use a different tokenizer or runtime configuration.
         /// </summary>
         /// <param name="configuredContextTokens">Context chosen by the hardware road or caller; <see langword="null"/> means provider default.</param>
         /// <param name="requestedOutputTokens">Visible-answer budget requested by the caller.</param>
@@ -44,58 +71,32 @@ namespace LocalGPT.Services
                 var charactersPerToken = policy.CharactersPerToken is > 0.5 and < 16 ? policy.CharactersPerToken : 3.2;
                 var promptTokens = (int)Math.Min(int.MaxValue / 4, Math.Ceiling(Math.Max(0, promptCharacters) / charactersPerToken));
                 var required = (int)Math.Min(int.MaxValue / 2, (long)promptTokens + numPredict + Math.Max(0, policy.ContextSafetyMarginTokens));
-                var configuredBeforeModelLimit = configuredContextTokens;
-                var modelLimit = modelMaximumContextTokens is > 0 ? modelMaximumContextTokens : null;
-                if (modelLimit is not null && configuredContextTokens is > 0)
-                    configuredContextTokens = Math.Min(configuredContextTokens.Value, modelLimit.Value);
-                var current = configuredContextTokens is > 0
-                    ? configuredContextTokens.Value
-                    : Math.Max(256, policy.AssumedProviderDefaultContextTokens);
-                if (modelLimit is not null)
-                    current = Math.Min(current, modelLimit.Value);
-                if (required <= current)
-                {
-                    if (modelLimit is not null)
-                        logger.LogInformation(
-                            "Ollama context for model {Model}: configured {Configured}, model maximum {ModelMaximum}, effective context {Context} tokens, effective output {NumPredict} tokens (configuration is unchanged).",
-                            modelName, configuredBeforeModelLimit?.ToString() ?? "provider default", modelLimit, current, numPredict);
-                    logger.LogDebug(
-                        "Ollama request for model {Model} fits its context: estimated prompt {PromptTokens} tokens, output {NumPredict} tokens (thinking reserve {ThinkingReserved}), context {Context}.",
-                        modelName, promptTokens, numPredict, thinkingRequested, configuredContextTokens?.ToString() ?? "provider default");
-                    return new OllamaRequestBudget(numPredict, current, promptTokens, required, false, false);
-                }
-
-                // The model's theoretical limit is not a memory budget. The selected
-                // road (or conservative explicit default) is the maximum allocation.
-                var ceiling = current;
-                var exceeds = required > ceiling;
-                if (exceeds)
-                {
-                    // The configured output stays the upper bound; only this request's output is reduced so it fits.
-                    var margin = Math.Max(0, policy.ContextSafetyMarginTokens);
-                    var minimumFitted = Math.Max(64, policy.MinimumFittedOutputTokens);
-                    var fittedOutput = (int)Math.Min(numPredict, Math.Max(minimumFitted, (long)ceiling - promptTokens - margin));
-                    if (fittedOutput < numPredict)
-                    {
-                        logger.LogInformation(
-                            "Fitted the Ollama output for model {Model} to the context: configured output {ConfiguredOutput} tokens, fitted output {FittedOutput} tokens, prompt estimate {PromptTokens} tokens, context {Ceiling} tokens (configuration is unchanged).",
-                            modelName, numPredict, fittedOutput, promptTokens, ceiling);
-                        numPredict = fittedOutput;
-                        required = (int)Math.Min(int.MaxValue / 2, (long)promptTokens + numPredict + margin);
-                        exceeds = required > ceiling;
-                    }
-                }
-                if (exceeds)
-                {
-                    logger.LogWarning(
-                        "Ollama request for model {Model} needs about {Required} context tokens (prompt {PromptTokens}, output {NumPredict}) but the selected hardware context is {Ceiling}; the request will not be sent. Split the work into smaller bounded requests.",
-                        modelName, required, promptTokens, numPredict, ceiling);
-                }
-                if (modelLimit is not null)
+                // The provider's model_info context_length is capability metadata, not a
+                // command to override an explicitly selected hardware-road num_ctx. Ollama
+                // owns validation of the actual request; this estimate is diagnostic only.
+                var configuredContext = configuredContextTokens is > 0 ? configuredContextTokens : null;
+                var assumedContext = Math.Max(256, policy.AssumedProviderDefaultContextTokens);
+                var comparisonContext = configuredContext ?? assumedContext;
+                var exceedsEstimate = required > comparisonContext;
+                if (modelMaximumContextTokens is > 0 && configuredContext is > 0 &&
+                    configuredContext > modelMaximumContextTokens)
                     logger.LogInformation(
-                        "Ollama context for model {Model}: configured {Configured}, model maximum {ModelMaximum}, effective context {Context} tokens, effective output {NumPredict} tokens (configuration is unchanged).",
-                        modelName, configuredBeforeModelLimit?.ToString() ?? "provider default", modelLimit, ceiling, numPredict);
-                return new OllamaRequestBudget(numPredict, ceiling, promptTokens, required, false, exceeds);
+                        "Ollama model {Model} advertises {Advertised} context tokens; the selected hardware road requests {Configured}. Sending that configured num_ctx unchanged and letting Ollama validate it.",
+                        modelName, modelMaximumContextTokens, configuredContext);
+                if (exceedsEstimate)
+                    logger.LogWarning(
+                        "Ollama estimated context demand for {Model}: prompt {PromptTokens}, output {OutputTokens}, safety margin {Margin}, total {Required}, " +
+                        "configured context {Configured} (advertised model context {Advertised}). This is not an Ollama rejection; the request will be sent without reducing the caller's output or selected road context.",
+                        modelName, promptTokens, numPredict, Math.Max(0, policy.ContextSafetyMarginTokens), required,
+                        configuredContext?.ToString() ?? $"provider default (estimated {assumedContext})",
+                        modelMaximumContextTokens?.ToString() ?? "unknown");
+                else
+                    logger.LogDebug(
+                        "Ollama estimated context for {Model}: prompt {PromptTokens}, output {OutputTokens}, total {Required}; configured {Configured}, advertised {Advertised} (provider determines actual fit).",
+                        modelName, promptTokens, numPredict, required,
+                        configuredContext?.ToString() ?? "provider default",
+                        modelMaximumContextTokens?.ToString() ?? "unknown");
+                return new OllamaRequestBudget(numPredict, configuredContext, promptTokens, required, false, exceedsEstimate);
             }
             catch (Exception ex)
             {
@@ -109,7 +110,7 @@ namespace LocalGPT.Services
         /// <param name="budget">Measured request including output and safety reserve.</param>
         /// <param name="modelName">Selected provider model for diagnostics.</param>
         /// <param name="logger">Calling provider logger.</param>
-        /// <returns>The allocation, bounded by the original hardware and model ceiling.</returns>
+        /// <returns>The allocation within the explicitly configured road, or the provider default when unspecified.</returns>
         public int? FitOllamaRequestContext(OllamaRequestBudget budget, string modelName, ILogger logger)
         {
             try
@@ -119,7 +120,7 @@ namespace LocalGPT.Services
                 var increment = Math.Max(1, ReadOllamaRequestBudgetPolicy(logger).ContextGrowthStepTokens);
                 var rounded = ((long)budget.RequiredContextTokens + increment - 1) / increment * increment;
                 var fitted = (int)Math.Min(ceiling, rounded);
-                logger.LogInformation("Ollama model {Model}: allocated context {Allocated}, hardware/model ceiling {Ceiling}, required estimate {Required}.",
+                logger.LogInformation("Ollama model {Model}: opt-in estimated context allocation {Allocated}, configured road ceiling {Ceiling}, required estimate {Required}.",
                     modelName, fitted, ceiling, budget.RequiredContextTokens);
                 return fitted;
             }

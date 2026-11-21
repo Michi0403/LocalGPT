@@ -450,15 +450,16 @@ namespace LocalGPT.Components.Pages
         {
         SelectedModelPreset = preset;
         ModelPresetName = preset.Name;
+        CouncilMaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
+        CouncilMaxContextTokens = Math.Clamp(preset.MaxContextTokens, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
         CouncilModelRoutes = CouncilHardwareRoads.ResolvePresetRoutes(
             JsonSerializer.Deserialize<List<string>>(preset.ModelNamesJson) ?? [],
-            ParseModelRoutes(preset.ModelRoutesJson), OllamaCandidates).ToList();
+            ParseModelRoutes(preset.ModelRoutesJson), OllamaCandidates,
+            CouncilMaxOutputTokens, CouncilMaxContextTokens).ToList();
         SelectedCouncilModelNames = CouncilModelRoutes.Select(route => route.ModelName).ToList();
         SynchronizeSelectedCouncilRoutes();
         var loadOverrides = CouncilModelRoutes.Where(route => route.LoadPercentOverride.HasValue).Select(route => route.LoadPercentOverride!.Value).Distinct().ToList();
         if (loadOverrides.Count == 1) CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(loadOverrides[0] / 5d) * 5, 0, 100);
-        CouncilMaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
-        CouncilMaxContextTokens = Math.Clamp(preset.MaxContextTokens, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
         IncludeCouncilMemory = preset.IncludeMemory;
         GenerateCouncilArtifacts = preset.GenerateArtifacts;
         CreateProjectPerCouncilRun = preset.CreateProjectPerRun;
@@ -744,7 +745,14 @@ namespace LocalGPT.Components.Pages
         }
         else
         {
+            var previousOutputTokens = CouncilMaxOutputTokens;
             CouncilMaxOutputTokens = value;
+            if (SelectedModelPreset is null && SelectedHardwarePerformancePreset is null)
+            {
+                foreach (var route in CouncilModelRoutes)
+                    CouncilHardwareRoads.TryRefreshAutomaticRoadBudget(route,
+                        previousOutputTokens, CouncilMaxContextTokens, CouncilMaxOutputTokens, CouncilMaxContextTokens);
+            }
             SelectedModelPreset = null;
             SynchronizeSelectedCouncilRoutes();
             SavePreparationConfiguration();
@@ -780,7 +788,14 @@ namespace LocalGPT.Components.Pages
         }
         else
         {
+            var previousContextTokens = CouncilMaxContextTokens;
             CouncilMaxContextTokens = value;
+            if (SelectedModelPreset is null && SelectedHardwarePerformancePreset is null)
+            {
+                foreach (var route in CouncilModelRoutes)
+                    CouncilHardwareRoads.TryRefreshAutomaticRoadBudget(route,
+                        CouncilMaxOutputTokens, previousContextTokens, CouncilMaxOutputTokens, CouncilMaxContextTokens);
+            }
             SelectedModelPreset = null;
             SynchronizeSelectedCouncilRoutes();
             SavePreparationConfiguration();

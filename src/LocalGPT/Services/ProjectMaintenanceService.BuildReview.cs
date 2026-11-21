@@ -66,11 +66,22 @@ namespace LocalGPT.Services
             if (trackedFiles.Count == 0)
                 throw new InvalidOperationException("Scan the selected revision before running its build verification.");
             var beforeState = await CaptureTrackedSourceStateAsync(trackedFiles, requireStoredHashMatch: true, cancellationToken).ConfigureAwait(false);
+            if (target == root && workspace?.PreferredCompilerInstallationId == compiler.Id &&
+                !string.IsNullOrWhiteSpace(workspace.BuildArguments) && !string.IsNullOrWhiteSpace(workspace.SolutionPattern))
+            {
+                // An unbound revision need not contain a .NET solution. Resolve the
+                // compiler's configured build target from approved, hashed source only.
+                var targetPattern = CompileRegex(workspace.SolutionPattern, nameof(workspace.SolutionPattern),
+                    runtimePolicy.GetPattern("runtime.project.solution-file-extension").ToString());
+                target = trackedFiles.Where(item => targetPattern.IsMatch(item.ProjectRelativePath.Replace('\\', '/')) &&
+                        IsPathInside(root, item.AbsolutePath))
+                    .Select(item => item.AbsolutePath).FirstOrDefault(File.Exists) ?? root;
+            }
 
             var arguments = !string.IsNullOrWhiteSpace(request.Arguments)
                 ? request.Arguments.Trim()
                 : !string.IsNullOrWhiteSpace(workspace?.BuildArguments)
-                    ? workspace.BuildArguments.Trim()
+                    ? ProjectBuildArgumentTemplate.Expand(workspace.BuildArguments.Trim(), target, request.Configuration, null)
                     : DefaultBuildArguments(compiler.Language, target, request.Configuration);
             var executionEnvironmentJson = MergeEnvironmentJson(compiler.EnvironmentVariablesJson, workspace?.EnvironmentVariablesJson);
             var parameters = runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>("ProjectMaintenanceRuntimeParametersJson");

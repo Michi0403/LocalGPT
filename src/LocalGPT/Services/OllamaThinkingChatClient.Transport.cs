@@ -21,7 +21,7 @@ public sealed partial class OllamaThinkingChatClient
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="completionOption">Completion option value supplied to the Ollama thinking chat operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The provider HTTP response or a local context preflight failure before sending.</returns>
+    /// <returns>The provider HTTP response; estimates cannot prevent HTTP submission.</returns>
     private async Task<(HttpResponseMessage? Response, string? PreflightFailure)> SendRequestWithToolFallbackAsync(
         OllamaChatRequest request,
         HttpCompletionOption completionOption,
@@ -54,6 +54,12 @@ public sealed partial class OllamaThinkingChatClient
                 return (response, null);
             }
 
+            // Ollama may reject a real context violation with HTTP 400. Do not mistake
+            // that response for a thinking/tool compatibility problem or resend the same
+            // oversized payload through several feature-probing requests.
+            if (await IsOllamaContextRejectionAsync(response, cancellationToken).ConfigureAwait(false))
+                return (response, null);
+
             // A normal chat can have hundreds of eligible DXFunctions. Some Ollama models
             // reject that much native JSON schema metadata even though they support tools.
             // Retry once with the shared discovery broker and upload-workspace readers
@@ -71,7 +77,8 @@ public sealed partial class OllamaThinkingChatClient
                     "Ollama model {Model} native-tool compatibility retry: {OriginalToolCount} schemas reduced to {CompactToolCount}; HTTP {StatusCode}. Shared discovery/invocation and workspace tools remain available.",
                     model, originalToolCount, compactTools.Count, (int)compactResponse.StatusCode);
                 if (compactResponse.IsSuccessStatusCode ||
-                    compactResponse.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
+                    compactResponse.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented) ||
+                    await IsOllamaContextRejectionAsync(compactResponse, cancellationToken).ConfigureAwait(false))
                     return (compactResponse, null);
                 response = compactResponse;
             }
@@ -91,7 +98,8 @@ public sealed partial class OllamaThinkingChatClient
                     councilRuntime.OllamaThinkingChatClientRememberExplicitThinkingRejected(http.BaseAddress, model, logger);
                     return (withoutThinking, null);
                 }
-                if (withoutThinking.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
+                if (withoutThinking.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented) ||
+                    await IsOllamaContextRejectionAsync(withoutThinking, cancellationToken).ConfigureAwait(false))
                     return (withoutThinking, null);
 
                 // If tools are present, the rejection can still be tool metadata rather than thinking.
@@ -110,7 +118,8 @@ public sealed partial class OllamaThinkingChatClient
                         councilRuntime.OllamaThinkingChatClientRememberNativeToolsRejected(http.BaseAddress, model, logger);
                         return (withoutTools, null);
                     }
-                    if (withoutTools.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
+                    if (withoutTools.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented) ||
+                        await IsOllamaContextRejectionAsync(withoutTools, cancellationToken).ConfigureAwait(false))
                         return (withoutTools, null);
 
                     // Both optional request features are now independently implicated: tools still failed
@@ -225,13 +234,35 @@ public sealed partial class OllamaThinkingChatClient
         }
     }
 
+    /// <summary>Detects explicit provider context errors so compatibility probes do not replay them as tool or thinking failures.</summary>
+    /// <param name="response">Unsuccessful Ollama response to classify without modifying its status or error body.</param>
+    /// <param name="cancellationToken">Cancellation token of the request.</param>
+    /// <returns>Whether Ollama reported a context-capacity rejection.</returns>
+    private async Task<bool> IsOllamaContextRejectionAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var error = await councilRuntime.OllamaThinkingChatClientReadErrorBodyAsync(response, cancellationToken, logger).ConfigureAwait(false);
+            return councilRuntime.OllamaThinkingChatClientIsProviderContextRejection(error);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not classify Ollama error response for {Model}; retaining normal provider compatibility behavior.", model);
+            return false;
+        }
+    }
+
     /// <summary>
     /// Performs send request once for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="completionOption">Completion option value supplied to the Ollama thinking chat operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The provider HTTP response or a local context preflight failure before sending.</returns>
+    /// <returns>The provider HTTP response; estimates cannot prevent HTTP submission.</returns>
     private async Task<(HttpResponseMessage? Response, string? PreflightFailure)> SendRequestOnceAsync(
         OllamaChatRequest request,
         HttpCompletionOption completionOption,
@@ -240,24 +271,20 @@ public sealed partial class OllamaThinkingChatClient
     try
     {
             cancellationToken.ThrowIfCancellationRequested();
-            // Compatibility probes can attach a textual tool directory after the original
-            // fit check. Recheck the exact payload against its already allocated context.
+            // A compatibility probe may change the tool schema or textual instructions.
+            // Re-estimate for diagnostics, but the provider's tokenizer owns rejection.
+            // Re-running an estimated fit must not silently lower an existing num_ctx.
             var requestOptions = request.Options!;
             var budget = councilRuntime.OllamaThinkingChatClientResolveRequestBudget(
                 request.ContextCeiling ?? requestOptions.NumCtx, requestOptions.NumPredict, false,
-                MeasureRequestCharacters(request.Messages, request.Tools), model, logger, request.ContextCeiling ?? requestOptions.NumCtx);
+                MeasureRequestCharacters(request.Messages, request.Tools), model, logger);
             if (budget.PromptExceedsMaximum)
-            {
-                var diagnostic = $"OllamaContextBudgetExceeded;required={budget.RequiredContextTokens};" +
-                    $"allowed={budget.NumCtx.GetValueOrDefault()};output={budget.NumPredict}; " +
-                    $"The request for {model} no longer fits after transport preparation.";
-                logger.LogWarning("Ollama transport preflight failed for {Model}: estimated {Required}, allowed {Allowed}.",
-                    model, budget.RequiredContextTokens, budget.NumCtx);
-                return (null, diagnostic);
-            }
-            // NumPredict already includes the thinking reserve from the initial request.
-            requestOptions.NumPredict = budget.NumPredict;
-            if (fitContextToRequest)
+                logger.LogWarning(
+                    "Ollama transport estimate for {Model}: required {Required}, configured context {Configured}; submitting to provider rather than inventing a context rejection.",
+                    model, budget.RequiredContextTokens, requestOptions.NumCtx?.ToString() ?? "provider default");
+            // Estimated-size fitting is opt-in. Its default-off behavior is essential:
+            // a byte-count heuristic cannot safely shrink the hardware road's context.
+            if (fitContextToRequest && councilRuntime.OllamaThinkingChatClientUseEstimatedContextFitting(logger))
                 requestOptions.NumCtx = councilRuntime.FitOllamaRequestContext(budget, model, logger);
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
             {
