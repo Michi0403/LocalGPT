@@ -47,7 +47,9 @@ foreach ($file in $maintainedFiles) {
         $errors.Add("Discarded asynchronous work is forbidden; await it or use ISupervisedTaskRunner: $relative")
     }
 
-    if ($text -match '(?m)^\s*(?!await\s).*DevExpressThemeChangeService\s*\.\s*SetTheme\s*\(') {
+    $themeCalls = [regex]::Matches($text, '\bDevExpressThemeChangeService\s*\.\s*SetTheme\s*\(').Count
+    $awaitedThemeCalls = [regex]::Matches($text, '\bawait\s+DevExpressThemeChangeService\s*\.\s*SetTheme\s*\(').Count
+    if ($themeCalls -ne $awaitedThemeCalls) {
         $errors.Add("Every DevExpress theme change must be awaited: $relative")
     }
 

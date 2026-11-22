@@ -94,19 +94,19 @@ if ([string]::IsNullOrWhiteSpace($projectNavigationBlock)) {
 # share navigation names such as Artifacts and BuildVerifications. Global token counts would reject valid
 # reverse navigations and hide the actual architectural contract that each FK must target the right owner.
 foreach ($relationshipToken in @(
-    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithOne("GameProfile")',
-    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Artifacts")',
-    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Requirements")',
-    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Revisions")',
-    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Topics")',
-    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Versions")',
-    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision")' + "`n" + '                        .WithMany("Artifacts")',
-    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision")' + "`n" + '                        .WithMany("Requirements")',
-    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRequirement", "Requirement")' + "`n" + '                        .WithMany("Artifacts")',
-    'b.HasOne("LocalGPT.BusinessObjects.ProjectCompilerInstallation", "CompilerInstallation")' + "`n" + '                        .WithMany("BuildVerifications")',
-    'b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")' + "`n" + '                        .WithMany("ProjectTopicLinks")',
-    'b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")' + "`n" + '                        .WithMany("RegexPatternLinks")',
-    'b.HasOne("LocalGPT.BusinessObjects.RegexPattern", "RegexPattern")' + "`n" + '                        .WithMany("KnowledgeLinks")'
+    ('b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithOne("GameProfile")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Artifacts")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Requirements")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Revisions")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Topics")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Versions")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision")' + "`n" + '                        .WithMany("Artifacts")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision")' + "`n" + '                        .WithMany("Requirements")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRequirement", "Requirement")' + "`n" + '                        .WithMany("Artifacts")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.ProjectCompilerInstallation", "CompilerInstallation")' + "`n" + '                        .WithMany("BuildVerifications")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")' + "`n" + '                        .WithMany("ProjectTopicLinks")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")' + "`n" + '                        .WithMany("RegexPatternLinks")'),
+    ('b.HasOne("LocalGPT.BusinessObjects.RegexPattern", "RegexPattern")' + "`n" + '                        .WithMany("KnowledgeLinks")')
 )) {
     if ($snapshot.IndexOf($relationshipToken, [StringComparison]::Ordinal) -lt 0) {
         $errors.Add("Snapshot relationship contract is missing: $relationshipToken")
@@ -134,9 +134,15 @@ foreach ($contextToken in @(
 }
 
 
+foreach ($pattern in @(
+    'b\.Property<string>\("ModelRoutesJson"\)\s*\.IsRequired\(\)\s*\.HasColumnType\("TEXT"\)',
+    'b\.Property<bool>\("AllowParallelHardwareRoads"\)\s*\.HasColumnType\("INTEGER"\)')) {
+    if ($snapshot -cnotmatch $pattern) {
+        $errors.Add("EF snapshot must retain property mapping '$pattern'.")
+    }
+}
+
 foreach ($token in @(
-    'b.Property<string>("ModelRoutesJson").IsRequired().HasColumnType("TEXT")',
-    'b.Property<bool>("AllowParallelHardwareRoads").HasColumnType("INTEGER")',
     'modelBuilder.Entity("LocalGPT.BusinessObjects.OrganicSkillDefinition", b =>',
     'modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectOrganicSkillLink", b =>',
     'modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilMemberOrganicSkillLink", b =>',

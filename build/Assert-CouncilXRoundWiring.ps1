@@ -103,10 +103,10 @@ $required = @(
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.ConfiguredWorkflowExecution.cs'; Tokens = @('ChatRunId = request.ChatRunId ?? result.RunId', 'StepCompleted = request.StepCompleted') }
     @{ Path = 'src/LocalGPT/Services/Council/CouncilSpoolerService.cs'; Tokens = @('GetChatSnapshots(Guid chatRunId)', 'ChatRunId = result.ChatRunId') }
     @{ Path = 'src/LocalGPT/Services/Council/Scheduling/CouncilHardwareRoadConfigurationService.cs'; Tokens = @('ResolvePresetRoutes', 'identity.ModelNamesEquivalent(route.ModelName, candidate.ModelName)', 'runtimePolicy.GetInt("DefaultCouncilContextTokens")') }
-    @{ Path = 'src/LocalGPT/Services/Persistence/DatabaseInitializationService.SeedPresets.cs'; Tokens = @('CreateDefaultCouncilModelPresets(legacy: true)', 'row.ModelRoutesJson != previous.ModelRoutesJson', 'preset.MaxParallelModels = 1') }
-    @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs'; Tokens = @('ToOllamaMessages(message, toolNames)', 'MeasureRequestCharacters', 'GetDiscoveryBrokerTools(tools)', 'OllamaContextBudgetExceeded;') }
+    @{ Path = 'src/LocalGPT/Services/Persistence/DatabaseInitializationService.SeedPresets.cs'; Tokens = @('CreateDefaultCouncilModelPresets(bounded: true)', 'row.ModelRoutesJson != previous.ModelRoutesJson', 'preset.MaxParallelModels = 1') }
+    @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.Conversation.cs'; Tokens = @('ToOllamaMessages(message, toolNames)', 'MeasureRequestCharacters', 'GetDiscoveryBrokerTools(tools)', 'ContextCeiling = budget.NumCtx') }
     @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.MessageMapping.cs'; Tokens = @('OfType<FunctionCallContent>()', 'OfType<FunctionResultContent>()', 'toolNames.TryGetValue(result.CallId', 'Images = message.Images?.ToList()') }
-    @{ Path = 'src/LocalGPT/Services/CouncilRuntimeService.OllamaRequestBudget.cs'; Tokens = @('var ceiling = current;', 'current = Math.Min(current, modelLimit.Value)', 'numPredict, ceiling, promptTokens, required, false, exceeds') }
+    @{ Path = 'src/LocalGPT/Services/CouncilRuntimeService.OllamaRequestBudget.cs'; Tokens = @('numPredict, configuredContext, promptTokens, required, false, exceedsEstimate', 'Math.Min(ceiling, rounded)') }
     @{ Path = 'src/LocalGPT/Services/OllamaThinkingChatClient.Transport.cs'; Tokens = @('MeasureRequestCharacters(request.Messages, request.Tools)', 'requestOptions.NumCtx', 'budget.PromptExceedsMaximum') }
     @{ Path = 'src/LocalGPT/Services/GoalExecutionService.ContextRecovery.cs'; Tokens = @('priorToolActivity=true', 'TryReplanRemainingAsync', 'The selected hardware-road limits remain unchanged.') }
     @{ Path = 'src/LocalGPT/Services/GoalExecutionService.DurableExecution.cs'; Tokens = @('remainingSteps = checkpoint.Steps.Skip(failedIndex)', 'proposal.Steps.Count > availableSlots', 'contextFailure && replacements.Count != proposal!.Steps.Count') }
@@ -846,4 +846,5 @@ if (-not $reviewExecutionSource.Contains('IsSourceSolutionPath(source.RelativePa
 
 if ($findings.Count -gt 0) { foreach ($finding in $findings) { Write-Error $finding -ErrorAction Continue }; throw ('Source contract audit failed: ' + $findings.Count + ' finding(s).') }
 & (Join-Path $PSScriptRoot 'Assert-CompilerAgnosticArtifactBuild.ps1')
+& (Join-Path $PSScriptRoot 'Assert-CouncilRoadRuntimePolicy.ps1')
 Write-Host 'Maintained PowerShell source contract audit passed.'

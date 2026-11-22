@@ -1,4 +1,4 @@
-﻿using LocalGPT.BusinessObjects;
+using LocalGPT.BusinessObjects;
 using LocalGPT.Components.Shared;
 
 namespace LocalGPT.Components.Pages;
@@ -62,8 +62,8 @@ public partial class Chat
         .Select(language => new LocalGptSelectionOption<string>(language.Key, language.DisplayName))
         .Concat(new[]
         {
-            new LocalGptSelectionOption<string>("browser-wasix-c", "C Â· Browser WASIX / Clang"),
-            new LocalGptSelectionOption<string>("browser-wasix-cpp", "C++ Â· Browser WASIX / Clang")
+            new LocalGptSelectionOption<string>("browser-wasix-c", "C · Browser WASIX / Clang"),
+            new LocalGptSelectionOption<string>("browser-wasix-cpp", "C++ · Browser WASIX / Clang")
         }).ToArray();
 
     /// <summary>Distinguishes browser-only choices from backend guest execution.</summary>
@@ -135,9 +135,16 @@ public partial class Chat
 
     private Task RefreshSandboxExecutionAsync() => InvokeAsync(StateHasChanged);
 
-    private async Task OnSandboxExecutionChangedAsync()
+    private void OnSandboxExecutionChanged()
     {
-        if (!isDisposed && interactiveAttached)
-            await InvokeAsync(StateHasChanged);
+        if (isDisposed || !interactiveAttached)
+            return;
+
+        TaskRunner.Run(nameof(Chat), nameof(OnSandboxExecutionChanged), cancellationToken =>
+            InvokeAsync(() =>
+            {
+                if (!cancellationToken.IsCancellationRequested && !isDisposed && interactiveAttached)
+                    StateHasChanged();
+            }));
     }
 }

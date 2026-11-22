@@ -146,6 +146,7 @@ namespace LocalGPT
                 }
                 builder.Services.AddSingleton<IOllamaProcessService, OllamaProcessService>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
+                builder.Services.AddSingleton<ProjectBuildArgumentTemplate>();
                 builder.Services.AddSingleton<IArtifactBuildExecutor, ArtifactBuildExecutor>();
                 builder.Services.AddSingleton<IBuildDiagnosticSummaryService, BuildDiagnosticSummaryService>();
                 builder.Services.AddSingleton<ICouncilArtifactService, CouncilArtifactService>();

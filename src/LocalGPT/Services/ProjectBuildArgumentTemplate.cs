@@ -3,7 +3,7 @@ using System.Text;
 namespace LocalGPT.Services;
 
 /// <summary>Formats saved workspace build arguments without owning compiler selection or inventing build flags.</summary>
-internal class ProjectBuildArgumentTemplate
+public sealed class ProjectBuildArgumentTemplate
 {
     /// <summary>Expands persisted workspace argument templates for any registered language toolchain.</summary>
     public string Expand(string template, string target, string configuration, string? outputDirectory)

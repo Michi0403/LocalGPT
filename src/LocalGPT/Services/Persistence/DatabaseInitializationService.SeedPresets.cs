@@ -65,11 +65,8 @@ public sealed partial class DatabaseInitializationService
     }
 }
 
-    /// <summary>Builds the authoritative maintained model presets for additive repairs and post-commit verification.</summary> /// <remarks>Contract: CreateDefaultCouncilModelPresets(legacy: true)</remarks>
+    /// <summary>Builds the authoritative maintained model presets for additive repairs and post-commit verification.</summary>
     /// <param name="bounded">Reconstructs the previously shipped bounded template for non-destructive seed evolution.</param>
-    /// <returns>The maintained preset templates.</returns>
-        /// <summary>Builds the authoritative maintained model presets for additive repairs and post-commit verification.</summary>
-    /// <param name="bounded">Reconstructs the previously shipped bounded template for non-destructive seed evolution (legacy: true contract).</param>
     /// <returns>The maintained preset templates.</returns>
     private CouncilModelPreset[] CreateDefaultCouncilModelPresets(bool bounded = false)
     {
@@ -302,4 +299,3 @@ public sealed partial class DatabaseInitializationService
 }
 
 }
-

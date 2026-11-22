@@ -46,7 +46,6 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         /// Stores the logger used by <see cref="ProjectMaintenanceService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
         private readonly ILogger<ProjectMaintenanceService> logger;
-
         private readonly ProjectBuildArgumentTemplate argumentTemplate;
 
         /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
@@ -59,6 +58,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         /// <param name="platform">Injected platform runtime service providing cross-platform workspace filesystem semantics.</param>
         /// <param name="buildDiagnostics">Injected compiler error-line extraction used to report failed build verifications.</param>
         /// <param name="logger">Injected dependency used by the ProjectMaintenanceService.</param>
+        /// <param name="argumentTemplate">Formatter for saved workspace compiler arguments.</param>
         public ProjectMaintenanceService(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
             IDatabaseInitializationService databaseInitializer,
@@ -68,7 +68,8 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             IToolchainKnowledgeService toolchainKnowledge,
             IPlatformRuntimeService platform,
             IBuildDiagnosticSummaryService buildDiagnostics,
-            ILogger<ProjectMaintenanceService> logger), ProjectBuildArgumentTemplate argumentTemplate, ProjectBuildArgumentTemplate argumentTemplate
+            ILogger<ProjectMaintenanceService> logger,
+            ProjectBuildArgumentTemplate argumentTemplate)
         {
             this.dbContextFactory = dbContextFactory;
             this.databaseInitializer = databaseInitializer;
@@ -79,7 +80,6 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             this.platform = platform;
             this.buildDiagnostics = buildDiagnostics;
             this.logger = logger;
-
             this.argumentTemplate = argumentTemplate;
         }
 

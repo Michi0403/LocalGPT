@@ -5,8 +5,8 @@ Set-StrictMode -Version Latest
 
 $root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $errors = [System.Collections.Generic.List[string]]::new()
-$projectFiles = Get-ChildItem -LiteralPath $root -Recurse -Filter *.csproj -File |
-    Where-Object { $_.FullName -notmatch '[\\/](bin|obj|artifacts)[\\/]' }
+$projectFiles = @(Get-ChildItem -LiteralPath $root -Recurse -Filter *.csproj -File |
+    Where-Object { $_.FullName -notmatch '[\\/](bin|obj|artifacts)[\\/]' })
 
 if ($projectFiles.Count -eq 0) {
     $errors.Add('No C# project files were found.')
@@ -22,9 +22,8 @@ foreach ($project in $projectFiles) {
     }
 
     $projectDirectory = $project.DirectoryName
-    foreach ($reference in @($xml.Project.ItemGroup.ProjectReference)) {
-        if ($null -eq $reference) { continue }
-        $include = [string]$reference.Include
+    foreach ($reference in $xml.SelectNodes("/*[local-name()='Project']/*[local-name()='ItemGroup']/*[local-name()='ProjectReference'][@Include]")) {
+        $include = $reference.GetAttribute('Include')
         if ([string]::IsNullOrWhiteSpace($include)) { continue }
         $target = [IO.Path]::GetFullPath((Join-Path $projectDirectory $include))
         if (-not (Test-Path -LiteralPath $target -PathType Leaf)) {

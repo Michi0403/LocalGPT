@@ -72,7 +72,7 @@ $minecraftService = Read-RepositoryText 'src/LocalGPT/Services/MinecraftModWorks
 foreach ($required in @(
     'public async Task<MinecraftModWorkspace> CreateWorkspaceAsync',
     'return await workspaceTask.ConfigureAwait(false);',
-    'private LocalGptCatalogService.WorkspaceLayout CreateWorkspaceLayout',
+    'private WorkspaceLayout CreateWorkspaceLayout',
     'private WorkspaceLayout CreateDatapackLayout')) {
     if (-not ($minecraftService.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Minecraft workspace workflow must retain '$required'.")
