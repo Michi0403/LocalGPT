@@ -847,5 +847,6 @@ if (-not $reviewExecutionSource.Contains('IsSourceSolutionPath(source.RelativePa
 
 if ($findings.Count -gt 0) { foreach ($finding in $findings) { Write-Error $finding -ErrorAction Continue }; throw ('Source contract audit failed: ' + $findings.Count + ' finding(s).') }
 & (Join-Path $PSScriptRoot 'Assert-CompilerAgnosticArtifactBuild.ps1')
+& (Join-Path $PSScriptRoot 'Assert-ReviewedArtifactReceipts.ps1')
 & (Join-Path $PSScriptRoot 'Assert-CouncilRoadRuntimePolicy.ps1')
 Write-Host 'Maintained PowerShell source contract audit passed.'

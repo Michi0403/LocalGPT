@@ -241,12 +241,11 @@ public sealed class VerifyCouncilDevelopmentArtifactFunction(
             {
                 var review = await reviews.GetReviewAsync(reviewId, cancellationToken).ConfigureAwait(false);
                 if (review is null) return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "Selected code-generation review was not found." };
-                if (review.Status != CodeGenerationReviewStatuses.Generated && review.Status != CodeGenerationReviewStatuses.BuildPassed &&
-                    !(review.IsSourceDraftReview && review.ApprovalConsumed &&
-                        review.Status is CodeGenerationReviewStatuses.BuildFailed or CodeGenerationReviewStatuses.BuildDisabled or CodeGenerationReviewStatuses.BuildNotAttempted))
-                    return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed generation has not produced a successful artifact; current status: " + review.Status };
-                if (review.IsSourceDraftReview && !review.ApprovalConsumed)
-                    return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "The exact coordinated review approval has not been consumed." };
+                if (!review.ApprovalConsumed || review.Status is not
+                    (CodeGenerationReviewStatuses.Generated or CodeGenerationReviewStatuses.BuildPassed or
+                     CodeGenerationReviewStatuses.BuildFailed or CodeGenerationReviewStatuses.BuildDisabled or
+                     CodeGenerationReviewStatuses.BuildNotAttempted))
+                    return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed generation has not produced approved source; current status: " + review.Status };
                 if (string.IsNullOrWhiteSpace(review.ZipFileName) ||
                     Path.GetFileName(review.ZipFileName) != review.ZipFileName)
                     return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed generation has no safe source ZIP name." };
@@ -255,25 +254,24 @@ public sealed class VerifyCouncilDevelopmentArtifactFunction(
                 using var archive = ZipFile.OpenRead(zip);
                 if (!archive.Entries.Any(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal)))
                     return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed generation ZIP contains no files." };
-                if (review.IsSourceDraftReview)
+                // Every review contains immutable source hashes, not just coordinated drafts.
+                // A source-only receipt must never attest unreviewed or modified ZIP bytes.
+                foreach (var file in review.Files)
                 {
-                    foreach (var file in review.Files)
-                    {
-                        var matches = archive.Entries.Where(entry => string.Equals(entry.FullName.Replace('\\', '/'), file.RelativePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)).ToList();
-                        if (matches.Count != 1)
-                            return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed source path is missing or ambiguous in ZIP: " + file.RelativePath };
-                        await using var content = matches[0].Open();
-                        var actualHash = Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(content, cancellationToken).ConfigureAwait(false));
-                        if (actualHash != file.ContentHash)
-                            return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "ZIP source differs from approved file: " + file.RelativePath };
-                    }
+                    var matches = archive.Entries.Where(entry => string.Equals(entry.FullName.Replace('\\', '/'), file.RelativePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (matches.Count != 1)
+                        return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "Reviewed source path is missing or ambiguous in ZIP: " + file.RelativePath };
+                    await using var content = matches[0].Open();
+                    var actualHash = Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(content, cancellationToken).ConfigureAwait(false));
+                    if (actualHash != file.ContentHash)
+                        return new DxAiFunctionInvocationResult { Status = "NotReady", Error = "ZIP source differs from approved file: " + file.RelativePath };
                 }
-                if (review.IsSourceDraftReview && review.Status != CodeGenerationReviewStatuses.BuildPassed)
+                if (review.Status != CodeGenerationReviewStatuses.BuildPassed)
                     return new DxAiFunctionInvocationResult
                     {
                         Status = "SourceOnly",
                         Succeeded = false,
-                        Error = "Coordinated solution build has not passed.",
+                        Error = "Generated source was checked against the reviewed files, but build verification has not passed.",
                         Value = new { review.Id, review.Status, review.BuildStatus, review.ReviewHash, review.WorkspaceName,
                             DownloadUrl = $"/__artifacts/council/{Uri.EscapeDataString(review.ZipFileName)}" }
                     };

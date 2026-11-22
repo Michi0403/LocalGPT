@@ -325,6 +325,9 @@ namespace LocalGPT.Services
                 entity.BuildStatus = "Disabled";
 
             var zipFileName = $"localgpt-change-review-{entity.Id:N}.zip";
+            // Project-bound generation can write to a different workspace root. The
+            // application-owned download directory must exist independently of it.
+            Directory.CreateDirectory(councilArtifacts.ArtifactRoot);
             var zipPath = Path.Combine(councilArtifacts.ArtifactRoot, zipFileName);
             if (File.Exists(zipPath))
                 File.Delete(zipPath);
