@@ -39,7 +39,8 @@ $required = @(
     @{ Path = 'src/LocalGPT/Services/DxAiFunctionRegistry.cs'; Tokens = @('result.HandlerDispatched ??= false', 'result.HandlerDispatched = true', 'SchemaHash = schemaHash', 'CancelledUnknown', 'FailedUnknown') }
     @{ Path = 'src/LocalGPT/Services/DxAiFunctionInvocationAuditService.cs'; Tokens = @('context.ExecutionIdentity?.ChatRunId', 'HandlerDispatched = result.HandlerDispatched', 'SchemaHash = result.SchemaHash') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('EnableManifestRecovery', 'alternativeRouteObserved || uncertainBegin', 'created.Status != "InvalidParameters"', 'SourceManifestMissing', 'sourceReceipt.Status == "SourceOnly"', 'MissingRequirements = ["Successful build verification"]', 'FileWorkReceiptJson = receiptJson') }
-    @{ Path = 'src/LocalGPT/Services/CouncilDevelopmentDxAiFunctions.cs'; Tokens = @('review.IsSourceDraftReview && !review.ApprovalConsumed', 'Status = "SourceOnly"', 'actualHash != file.ContentHash') }
+    # 7.7.5: approval, SHA-256 source integrity and source-only status apply to every review, not only coordinated drafts.
+    @{ Path = 'src/LocalGPT/Services/CouncilDevelopmentDxAiFunctions.cs'; Tokens = @('!review.ApprovalConsumed', 'Status = "SourceOnly"', 'actualHash != file.ContentHash') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.WorkspaceAndResearchGates.cs'; Tokens = @('result.CoordinatedSourceWork', 'return result.DevelopmentArtifactVerified;') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkManifest.cs'; Tokens = @('SeparateManifestPackageProposals(plan)', 'UnverifiedExternalReferencesByProject', 'paths.Contains', 'sourceExtensions.Contains', 'runtime.codegen.package-proposal-id') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWork.cs'; Tokens = @('PreviousCandidate = previousCandidate', 'CouncilFileWorkPlanShapeInstruction', 'attemptedArchitects.Add(architect)', 'var rejectedProposal = JsonSerializer.Serialize(explicitPlan)', 'attemptedManifests.Add(candidate)', 'RequiredDotNetTargets = requiredTargets', 'AttachedWorkspaceNames = request.AttachedWorkspaceNames, Evidence = evidence', 'hasAttachedEvidence || item.ModelName is', 'previousCandidate = string.Empty;', 'policy.PreferPlanningCapacity') }
@@ -79,7 +80,8 @@ $required = @(
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftInspection.cs'; Tokens = @('decision.Accepted == true', 'plan.Files.Remove(file)', 'packet.DependencyHashes') }
     @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.FileWorkGuest.cs'; Tokens = @('session.sandbox.run', 'run.SourceSha256 == sourceHash', 'guest.OutputTruncated', 'CompleteDraftFileAsync') }
     @{ Path = 'src/LocalGPT/Services/CodeGenerationWorkflowService.DraftGuest.cs'; Tokens = @('actualId != assignment.Id', 'assignment.RelativePath', 'Convert.FromBase64String') }
-    @{ Path = 'src/LocalGPT/Services/CouncilDevelopmentDxAiFunctions.cs'; Tokens = @('review.IsSourceDraftReview', 'actualHash != file.ContentHash') }
+    # Reject missing/ambiguous entries and changed bytes independently of the review's draft origin.
+    @{ Path = 'src/LocalGPT/Services/CouncilDevelopmentDxAiFunctions.cs'; Tokens = @('foreach (var file in review.Files)', 'if (matches.Count != 1)', 'actualHash != file.ContentHash') }
     # Startup delay is route infrastructure, not model competence. Keep host handoff scoped to the configured role and preserve Stop evidence.
     @{ Path = 'src/LocalGPT/BusinessObjects/MultiModelCouncilModels.cs'; Tokens = @('IsProviderStartupTimeout =>', 'IsContextBudgetFailure || IsProviderStartupTimeout || HostUnreachable') }
     @{ Path = 'src/LocalGPT/BusinessObjects/ServiceRuntimeParameterModels.cs'; Tokens = @('MaximumProviderStartupWaitSeconds') }
