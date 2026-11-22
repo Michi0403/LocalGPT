@@ -144,7 +144,11 @@ public sealed class OneWireOperationExecutor(
                 var parametersInner = item.Request.Properties is not null && item.Request.Properties.TryGetValue("Parameters", out var parameterElementOuter)
                     ? parameterElementOuter.Clone()
                     : JsonSerializer.SerializeToElement(new { }, codec.JsonOptions);
-                var userPrompt = GetString(parametersInner, "prompt", "Describe meaningful screen changes and suggest the next safe action.");
+                var promptConfig = scope.ServiceProvider.GetRequiredService<IPromptConfigService>();
+                var userPrompt = GetString(parametersInner, "prompt", string.Empty);
+                if (string.IsNullOrWhiteSpace(userPrompt))
+                    userPrompt = await promptConfig.GetPromptAsync("OneWireScreenReaderDefaultRequest", cancellationToken: cancellationToken).ConfigureAwait(false);
+                var evidencePrompt = await promptConfig.GetPromptAsync("OneWireScreenReaderEvidence", cancellationToken: cancellationToken).ConfigureAwait(false);
                 var selector = GetString(parametersInner, "selector", "body");
                 var dataIncluded = GetBoolean(parametersInner, "dataIncluded") || GetBoolean(parametersInner, "DataIncluded");
                 var width = GetInt(parametersInner, "pixelWidth", GetInt(parametersInner, "PixelWidth", 0));
@@ -153,13 +157,7 @@ public sealed class OneWireOperationExecutor(
                 var councilPolicy = scope.ServiceProvider.GetRequiredService<ILocalGptRuntimePolicyDataService>();
                 var request = new MultiModelCouncilRequest
                 {
-                    Prompt = $"""
-    Recurring screen-reader evidence arrived from an explicitly connected organic plugin.
-    User instruction: {userPrompt}
-    Captured selector: {selector}
-    Image metadata: {width}x{height}; inline image data included: {dataIncluded}.
-    Analyze only the supplied evidence. Report meaningful changes, uncertainties, and one safe next action. Do not claim visual details that cannot be derived by the configured model.
-    """,
+                    Prompt = string.Format(System.Globalization.CultureInfo.InvariantCulture, evidencePrompt, userPrompt, selector, width, height, dataIncluded),
                     CouncilTeamKey = "general",
                     ExternalProjectContextJson = parametersInner.GetRawText(),
                     OneWireCorrelationId = item.CorrelationId.ToString("D"),

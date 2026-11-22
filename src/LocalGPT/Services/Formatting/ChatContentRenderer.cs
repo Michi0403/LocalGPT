@@ -16,12 +16,19 @@ namespace LocalGPT.Services.Formatting;
 /// </summary>
 /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the chat content workflow to provide the corresponding application capability.</param>
 /// <param name="structuredText">Structured text translation service dependency used by the chat content workflow to provide the corresponding application capability.</param>
+/// <param name="artifacts">Provides the directory backing Council download URLs.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ChatContentRenderer(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     IStructuredTextTranslationService structuredText,
+    ICouncilArtifactService artifacts,
     ILogger<ChatContentRenderer> logger) : IChatContentRenderer
 {
+    /// <summary>Matches the opening href emitted by the Markdown renderer for links.</summary>
+    private readonly Regex RenderedLinkTarget = runtimePolicy.GetPattern("runtime.render.link-target");
+
+    private const string CouncilArtifactPathPrefix = "/__artifacts/council/";
+
     /// <summary>
     /// Stores the internal harmony marker regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
@@ -195,7 +202,7 @@ public sealed class ChatContentRenderer(
             if (string.IsNullOrWhiteSpace(normalized))
                 return string.Empty;
 
-            return RenderCouncilTranscriptPanels(normalized);
+            return RenderedLinkTarget.Replace(RenderCouncilTranscriptPanels(normalized), RemoveMissingCouncilArtifactTarget);
         }
         catch (Exception ex)
         {
@@ -204,6 +211,25 @@ public sealed class ChatContentRenderer(
                 "Chat content rendering failed. LocalGPT will show a safely encoded plain-text fallback; message content was omitted from logs.");
             return BuildSafeFallback(content);
         }
+    }
+
+    /// <summary>Leaves speculative artifact names readable without presenting them as downloads.</summary>
+    private string RemoveMissingCouncilArtifactTarget(Match link)
+    {
+        var path = WebUtility.HtmlDecode(link.Groups[1].Value);
+        if (Uri.TryCreate(path, UriKind.Absolute, out var url) && url.IsLoopback &&
+            (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps))
+            path = url.AbsolutePath;
+
+        if (!path.StartsWith(CouncilArtifactPathPrefix, StringComparison.OrdinalIgnoreCase))
+            return link.Value;
+
+        var fileName = Uri.UnescapeDataString(path[CouncilArtifactPathPrefix.Length..]);
+        if (fileName.Length == 0 || fileName.AsSpan().IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            !File.Exists(Path.Combine(artifacts.ArtifactRoot, fileName)))
+            return "<a";
+
+        return link.Value;
     }
 
     /// <summary>

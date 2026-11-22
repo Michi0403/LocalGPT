@@ -85,11 +85,21 @@ public sealed partial class DatabaseInitializationService
                     continue;
                 }
 
+                var text = item.Text;
+                if (item.Key == "AiBootstrapFunctionDiscoveryInstruction" && item.Language == "en")
+                {
+                    text = await db.SystemVariables.AsNoTracking()
+                        .Where(variable => variable.Name == item.Key)
+                        .OrderByDescending(variable => variable.LastUpdated)
+                        .Select(variable => variable.ValueString)
+                        .FirstOrDefaultAsync(token).ConfigureAwait(false) ?? text;
+                }
+
                 db.Prompts.Add(new PromptConfig
                 {
                     Key = item.Key,
                     Language = item.Language,
-                    Text = item.Text,
+                    Text = text,
                     LastUpdated = DateTime.UtcNow
                 });
             }

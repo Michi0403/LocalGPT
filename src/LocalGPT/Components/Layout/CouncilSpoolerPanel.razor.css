@@ -15,7 +15,28 @@
     transform: translateX(-2px);
     box-shadow: 0 .6rem 1.3rem #0006;
 }
-.council-spooler-panel { z-index: 12020; pointer-events: auto; }
+.council-spooler-panel {
+    z-index: 12020;
+    pointer-events: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: max-content;
+    align-content: start;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+}
+
+.council-spooler-panel > header div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.council-spooler-panel > header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bs-body-bg);
+}
 
 
 @media (max-width: 780px) {

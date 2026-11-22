@@ -12,10 +12,12 @@ namespace LocalGPT.Services.OneWire;
 /// </summary>
 /// <param name="options">Options containing the configured local AI providers.</param>
 /// <param name="runtimePolicy">Database-backed operator policy used for OCR resource and timeout limits.</param>
+/// <param name="promptConfig">Provides the persisted model prompts.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalVisionOcrService(
     IOptionsMonitor<LocalGPT.BusinessObjects.ConfigurationRoot> options,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    IPromptConfigService promptConfig,
     ILogger<LocalVisionOcrService> logger) : ILocalVisionOcrService
 {
     /// <summary>
@@ -57,7 +59,7 @@ public sealed class LocalVisionOcrService(
                     {
                         Role = "user",
                         Content = string.IsNullOrWhiteSpace(request.Prompt)
-                            ? "Recognize all visible text in this image. Preserve reading order and line breaks. Return only the recognized text; mark uncertain fragments with [?]."
+                            ? await promptConfig.GetPromptAsync("LocalVisionOcrDefault", cancellationToken: cancellationToken).ConfigureAwait(false)
                             : request.Prompt.Trim(),
                         Images = [imageBase64]
                     }

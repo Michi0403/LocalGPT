@@ -184,7 +184,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IOneWireCouncilHostEnrollmentService, OneWireCouncilHostEnrollmentService>();
                 builder.Services.AddSingleton<IAsciiSemanticActionService, AsciiSemanticActionService>();
                 builder.Services.AddSingleton<IKnowledgeRegexLinkService, KnowledgeRegexLinkService>();
-                builder.Services.AddScoped<IPromptConfigService, PromptConfigService>();
+                builder.Services.AddSingleton<IPromptConfigService, PromptConfigService>();
                 builder.Services.AddScoped<IChatAsciiExperienceState, ChatAsciiExperienceState>();
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
                 builder.Services.AddScoped<IFirstRunOnboardingService, FirstRunOnboardingService>();

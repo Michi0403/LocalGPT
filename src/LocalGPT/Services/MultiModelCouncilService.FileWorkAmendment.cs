@@ -23,12 +23,7 @@ public sealed partial class MultiModelCouncilService
         // A received human answer is part of the source requirements even after its heartbeat consumed it.
         var decisions = await humanCollaboration.GetSourcePlanningDecisionsAsync(result.RunId, cancellationToken).ConfigureAwait(false);
         var goal = string.IsNullOrWhiteSpace(request.GoalText) ? request.Prompt : request.GoalText;
-        var instruction = "Return ONLY one JSON object containing draftManifest (ONLY NEW relative file paths with nonempty work orders), " +
-            "draftDependencies (prerequisites for new files and optionally newly added dependencies on old files), " +
-            "and reopenPaths (ONLY existing files whose exact stored bytes must be rewritten to resolve the diagnostic). " +
-            "Do not return source code, existing manifest entries, approvals, project IDs or a new workspace mode. " +
-            "Preserve all accepted source hashes unless the named file genuinely needs a targeted replacement. " +
-            "The coordinator binds exact existing SHA256 values and rejects stale or contradictory amendments.";
+        var instruction = await promptConfig.GetPromptAsync("CouncilFileWorkAmendment", cancellationToken: cancellationToken).ConfigureAwait(false);
         var previousError = closureDiagnostic;
         var tried = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var attempts = Math.Min(Math.Max(0, policy.MaximumDraftAmendments), architects.Count);

@@ -287,8 +287,16 @@ public sealed partial class MultiModelCouncilService
                             var byModel = packets.ToDictionary(packet => packet.Assignment.ModelName, StringComparer.OrdinalIgnoreCase);
                             var phase = $"{generateStep.Phase} · X-Round {generation + 1}.{batch + 1}";
                             await RunFileWorkPhaseAsync(result, request, generateStep, baseUri, routes, byModel.Keys.ToList(),
-                                round++, phase, model => (progress.WorkspaceMode == "HyperlightSourceDraft" ? policy.GuestAuthorPrompt : policy.AuthorPrompt)
-                                    + "\n" + requirementsInstruction + "\n" + JsonSerializer.Serialize(new { progress.WorkspaceMode, progress.GuestLanguageKey, RecoveryGuidance = recoveryGuidance, Packet = byModel[model] }), modelRoutes, maxParallelModels, keepAlive,
+                                round++, phase, model =>
+                                {
+                                    var packet = byModel[model];
+                                    var guest = progress.WorkspaceMode == "HyperlightSourceDraft";
+                                    var evidence = guest
+                                        ? JsonSerializer.Serialize(new { progress.WorkspaceMode, progress.GuestLanguageKey, RecoveryGuidance = recoveryGuidance, Packet = packet })
+                                        : JsonSerializer.Serialize(new { packet.Assignment.RelativePath, packet.Goal, packet.SharedContract,
+                                            packet.Dependencies, packet.PreviousSource, RecoveryGuidance = recoveryGuidance, packet.WorkOrder });
+                                    return (guest ? policy.GuestAuthorPrompt : policy.AuthorPrompt) + "\n" + requirementsInstruction + "\n" + evidence;
+                                }, modelRoutes, maxParallelModels, keepAlive,
                                 ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, async step =>
                                 {
                                     if (progress.WorkspaceMode == "HyperlightSourceDraft") return; // Import only real, approved guest output after the batch.

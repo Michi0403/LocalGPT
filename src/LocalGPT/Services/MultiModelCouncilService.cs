@@ -27,6 +27,7 @@ namespace LocalGPT.Services
         /// Stores the AI context bootstrap service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly IAiContextBootstrapService bootstrapService;
+        private readonly IPromptConfigService promptConfig;
         /// <summary>
         /// Stores the chat memory service dependency used by <see cref="MultiModelCouncilService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
@@ -213,11 +214,13 @@ namespace LocalGPT.Services
         /// <param name="councilRuntime">Injected dependency used by the service.</param>
         /// <param name="councilText">Injected dependency used by the service.</param>
         /// <param name="catalog">Injected dependency used by the service.</param>
+        /// <param name="promptConfig">Provides the persisted Council prompts.</param>
         /// <param name="publisherMediaDelivery">Associates generated media with the paired peer that requested the run.</param>
         public MultiModelCouncilService(
             ILocalGptVocabularyService vocabulary,
             IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
             IAiContextBootstrapService bootstrapService,
+            IPromptConfigService promptConfig,
             IChatMemoryService chatMemory,
             ICouncilArtifactService artifactService,
             ICouncilKnowledgeService knowledgeService,
@@ -262,6 +265,7 @@ namespace LocalGPT.Services
             this.vocabulary = vocabulary;
             this.optionsRoot = optionsRoot;
             this.bootstrapService = bootstrapService;
+            this.promptConfig = promptConfig;
             this.chatMemory = chatMemory;
             this.artifactService = artifactService;
             this.knowledgeService = knowledgeService;

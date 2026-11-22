@@ -189,23 +189,14 @@ namespace LocalGPT.Services
         /// </summary>
         /// <param name="modelName">Model name value supplied to the council text operation and used when producing its result.</param>
         /// <param name="userPrompt">User prompt value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="template">Persisted model prompt template.</param>
         /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         /// <returns>The string produced by the operation.</returns>
-        public string MultiModelCouncilServiceCreateProposalPrompt(string modelName, string userPrompt, ILogger logger)
+        public string MultiModelCouncilServiceCreateProposalPrompt(string template, string modelName, string userPrompt, ILogger logger)
         {
             try
             {
-                return $"""
-            User request:
-            {userPrompt}
-
-            Your task as {modelName}:
-            1. Start with a concise user-visible final answer/proposal.
-            2. Name assumptions and risks.
-            3. Separate "Current facts" from "Proposed design".
-            4. Keep the answer structured and suitable for peer review by other models.
-            5. Do not spend the whole budget on hidden analysis; final visible text is mandatory.
-            """;
+                return string.Format(CultureInfo.InvariantCulture, template, userPrompt, modelName);
             }
             catch (Exception ex)
             {
@@ -221,24 +212,17 @@ namespace LocalGPT.Services
         /// <param name="userPrompt">User prompt value supplied to the council text operation and used when producing its result.</param>
         /// <param name="transcript">Transcript value supplied to the council text operation and used when producing its result.</param>
         /// <param name="selfReview">Value indicating whether self review should apply to this operation.</param>
+        /// <param name="template">Persisted model prompt template.</param>
+        /// <param name="selfReviewInstruction">Persisted instruction for a single participant.</param>
+        /// <param name="peerReviewInstruction">Persisted instruction for multiple participants.</param>
         /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         /// <returns>The string produced by the operation.</returns>
-        public string MultiModelCouncilServiceCreateCritiquePrompt(string modelName, string userPrompt, string transcript, bool selfReview, ILogger logger)
+        public string MultiModelCouncilServiceCreateCritiquePrompt(string template, string selfReviewInstruction, string peerReviewInstruction, string modelName, string userPrompt, string transcript, bool selfReview, ILogger logger)
         {
             try
             {
-                return $"""
-                    User request:
-                    {userPrompt}
-
-                    Council transcript so far:
-                    {transcript}
-
-                    Your task as {modelName}:
-                    {(selfReview ? "Self-review your own proposal." : "Review the other models' proposals and your own proposal.")}
-                    Identify mistakes, missing safety/ethics concerns, missing implementation details, and improvements.
-                    Return corrections and a revised recommendation. Be cooperative and concise.
-                    """;
+                var reviewTask = selfReview ? selfReviewInstruction : peerReviewInstruction;
+                return string.Format(CultureInfo.InvariantCulture, template, userPrompt, transcript, modelName, reviewTask);
             }
             catch (Exception ex)
             {
@@ -252,62 +236,14 @@ namespace LocalGPT.Services
         /// </summary>
         /// <param name="userPrompt">User prompt value supplied to the council text operation and used when producing its result.</param>
         /// <param name="transcript">Transcript value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="template">Persisted model prompt template.</param>
         /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         /// <returns>The string produced by the operation.</returns>
-        public string MultiModelCouncilServiceCreateConsensusPrompt(string userPrompt, string transcript, ILogger logger)
+        public string MultiModelCouncilServiceCreateConsensusPrompt(string template, string userPrompt, string transcript, ILogger logger)
         {
             try
             {
-                return $$"""
-                            User request:
-                            {{userPrompt}}
-
-                            Full council transcript:
-                            {{transcript}}
-
-                            Write the consensus answer.
-                            Requirements:
-                            - Merge the best ideas from all participants.
-                            - Include corrections from critiques.
-                            - Separate final answer, implementation steps, risks, and needs verification.
-                            - Separate implemented/current LocalGPT behavior from proposed future improvements.
-                            - Keep unsupported claims out of the final answer.
-                            - Unless the user explicitly requested JSON itself, the visible consensus must be normal prose/Markdown rather than a JSON work order. For source/code requests, include concrete source snippets, file paths and implementation content in the visible consensus before any machine-readable block.
-                            - When, and only when, the user explicitly requested source, plugin/addon, script, DLL, executable, or solution generation, include one exact machine-readable proposal after the visible consensus using this shape:
-                              <localgpt-change-review>
-                              {
-                                "files": [
-                                  {
-                                    "relativePath": "src/Feature.cs",
-                                    "content": "exact proposed source",
-                                    "purpose": "why this file exists"
-                                  }
-                                ],
-                                "codeDomTypes": [
-                                  {
-                                    "relativePath": "src/GeneratedFeature.cs",
-                                    "namespace": "LocalGPT.Generated",
-                                    "typeName": "GeneratedFeature",
-                                    "methodName": "Describe",
-                                    "methodResult": "reviewed result",
-                                    "summary": "reviewed CodeDOM type"
-                                  }
-                                ],
-                                "outputs": [
-                                  {
-                                    "kind": "SourceFiles|ClassLibrary|ConsoleApplication|Solution|LocalGptAddon|CSharpScript|JavaScriptModule",
-                                    "name": "ProjectName",
-                                    "relativeDirectory": "generated",
-                                    "targetFramework": "net10.0",
-                                    "rootNamespace": "LocalGPT.Generated",
-                                    "description": "reviewed output"
-                                  }
-                                ]
-                              }
-                              </localgpt-change-review>
-                            - The block is a proposal, not permission. Use relative paths only, include the exact files needed for the requested milestone, omit secrets and commands, and never claim it was written, built, loaded, or executed.
-                            - If exact source cannot be proposed safely or reliably, omit the block and explain what information is missing.
-                            """;
+                return string.Format(CultureInfo.InvariantCulture, template, userPrompt, transcript);
             }
             catch (Exception ex)
             {
@@ -322,27 +258,14 @@ namespace LocalGPT.Services
         /// <param name="userPrompt">User prompt value supplied to the council text operation and used when producing its result.</param>
         /// <param name="transcript">Transcript value supplied to the council text operation and used when producing its result.</param>
         /// <param name="consensus">Consensus value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="template">Persisted model prompt template.</param>
         /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         /// <returns>The string produced by the operation.</returns>
-        public string MultiModelCouncilServiceCreateVerificationPrompt(string userPrompt, string transcript, string consensus, ILogger logger)
+        public string MultiModelCouncilServiceCreateVerificationPrompt(string template, string userPrompt, string transcript, string consensus, ILogger logger)
         {
             try
             {
-                return $"""
-            User request:
-            {userPrompt}
-
-            Council transcript:
-            {transcript}
-
-            Consensus answer to verify:
-            {consensus}
-
-            Verify the consensus for correctness, ethics, missing implementation details, and unsupported claims.
-            If the consensus contains a <localgpt-change-review> block, verify that its JSON matches the visible plan, uses relative paths, contains no secrets or autonomous execution, and has the files/output type needed for the requested milestone.
-            If the block needs correction, include one complete replacement <localgpt-change-review> block in your response; LocalGPT will use the last valid block as the reviewed proposal.
-            If it is acceptable, say so and add only necessary cautions. If it needs changes, provide corrected wording.
-            """;
+                return string.Format(CultureInfo.InvariantCulture, template, userPrompt, transcript, consensus);
             }
             catch (Exception ex)
             {

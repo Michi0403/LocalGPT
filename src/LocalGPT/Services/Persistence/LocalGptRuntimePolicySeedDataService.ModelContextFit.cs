@@ -21,7 +21,6 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
                 new("CouncilPlaceholderTokenPrefix", "<unused", "System.String"),
                 new("CouncilPlaceholderOutputMinimumPercent", "50", "System.Int32"),
                 new("AiBootstrapReferenceContextPercent", "15", "System.Int32"),
-                new("AiBootstrapFunctionDiscoveryInstruction", "Use the native functions advertised for the current role. Where permitted, discover other registered functions using dxai.tools.discover, preview their exact contract and invoke through the existing dispatcher. The complete directory remains available through /api/dxai/functions; visibility never grants authorization. Use targeted local evidence instead of loading unrelated inventories and histories.", "System.String")
             ];
         }
         catch (Exception exception)

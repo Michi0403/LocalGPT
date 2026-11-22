@@ -396,7 +396,7 @@ public sealed class CouncilExecutionRuntimeParameters
     public int MaximumModelTimeoutSeconds { get; set; }
     /// <summary>Maximum wait for the initial Ollama inference response headers, separate from the overall generation timeout.</summary>
     /// <value>Seconds, capped by the selected model timeout; existing saved policy documents inherit this default.</value>
-    public int MaximumProviderStartupWaitSeconds { get; set; } = 120;
+    public int MaximumProviderStartupWaitSeconds { get; set; } = 300;
     /// <summary>
     /// Gets or sets the maximum role compliance retries value that forms part of the council execution runtime parameters state consumed or produced by the surrounding workflow.
     /// </summary>

@@ -123,7 +123,8 @@ $required = @(
     @{ Path = 'src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.GameProjectTemplates.cs'; Tokens = @('"game-development-baseline"', '"chat.upload_workspace_files"', '"chat.upload_workspace_file"', '"game-development-mechanics"', '"game-development-ai"') }
     @{ Path = 'src/LocalGPT/BusinessObjects/OrganicCouncilModels.cs'; Tokens = @('StrictTeamAllowList = 5', 'StrictStepAllowList = 6', 'bool IsStrict = false') }
     @{ Path = 'src/LocalGPT/Components/Pages/CouncilTeams.razor.cs'; Tokens = @('CouncilAutomaticFunctionPolicyMode.StrictTeamAllowList', 'CouncilAutomaticFunctionPolicyMode.StrictStepAllowList') }
-    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.WorkflowPrompting.cs'; Tokens = @('Tool initiative:', 'Repair boundary:', 'automaticFunctionPolicy.IsStrict') }
+    @{ Path = 'src/LocalGPT/Services/MultiModelCouncilService.WorkflowPrompting.cs'; Tokens = @('CouncilWorkflowToolInitiative', 'CouncilWorkflowRepairBoundary', 'automaticFunctionPolicy.IsStrict') }
+    @{ Path = 'src/LocalGPT/Services/Persistence/InitialDataCatalog.cs'; Tokens = @('new("CouncilWorkflowToolInitiative", "en", "- Tool initiative:', 'new("CouncilWorkflowRepairBoundary", "en", "- Repair boundary:') }
     @{ Path = 'src/LocalGPT/Services/CouncilRoleAssignmentService.cs'; Tokens = @('AssignAsync', 'UserConfirmed', 'teams.SaveAsync', 'RestrictSelectedRolesToAssignedPool', 'item.IsInstalled') }
     @{ Path = 'src/LocalGPT/Services/CouncilRoleAssignmentIndexService.cs'; Tokens = @('SynchronizeAsync', 'CouncilRoleIndexes', 'CouncilRoleModelBindings') }
     @{ Path = 'src/LocalGPT/Components/Shared/ProviderModelRoleEditor.razor'; Tokens = @('ShowSearchBox="true"', 'Save role assignments', 'ListRenderMode.Virtual', 'DxComboBox TData="TeamOption" TValue="string"', 'ValueChanged="@(async (string key) => await TeamChangedAsync(key))"', 'ValuesChanged="@(async (IEnumerable<string> values) => await SelectedChangedAsync(values))"') }

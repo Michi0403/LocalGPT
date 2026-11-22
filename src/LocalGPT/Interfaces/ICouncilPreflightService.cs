@@ -27,9 +27,11 @@ public interface ICouncilPreflightService
     /// <param name="modelName">Model name value supplied to the council preflight operation and used when producing its result.</param>
     /// <param name="participants">String dependency used by the council preflight workflow to provide the corresponding application capability.</param>
     /// <param name="report">Report value supplied to the council preflight operation and used when producing its result.</param>
+    /// <param name="instructions">Persisted model readiness instructions.</param>
     /// <returns>The string produced by the operation.</returns>
     string BuildMemberReadinessPrompt(
         string modelName,
         IReadOnlyList<string> participants,
-        CouncilPreflightReport report);
+        CouncilPreflightReport report,
+        string instructions);
 }

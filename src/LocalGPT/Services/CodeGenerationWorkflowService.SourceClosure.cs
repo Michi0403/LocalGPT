@@ -273,6 +273,14 @@ public sealed partial class CodeGenerationWorkflowService
                 var document = XDocument.Load(reader);
                 var rootName = solution ? "Solution" : "Project";
                 if (document.Root?.Name.LocalName != rootName) return $"Expected {rootName} XML root.";
+                if (IsSourceProjectPath(path) && manifest.TryGetValue(path, out var workOrder) &&
+                    runtimePolicy.GetPattern("runtime.codegen.console-project-work-order").IsMatch(workOrder))
+                {
+                    var outputs = document.Descendants().Where(element => element.Name.LocalName == "OutputType").ToList();
+                    if (outputs.Count == 1 && outputs[0].Value.Trim().Equals("Library", StringComparison.OrdinalIgnoreCase) &&
+                        !outputs[0].AncestorsAndSelf().Any(element => element.Attribute("Condition") is not null))
+                        return "The console application work order requires an executable. The project declares OutputType Library.";
+                }
                 var references = document.Descendants().Where(element =>
                     element.Name.LocalName == (solution ? "Project" : "ProjectReference"))
                     .Select(element => (string?)element.Attribute(solution ? "Path" : "Include")).ToList();

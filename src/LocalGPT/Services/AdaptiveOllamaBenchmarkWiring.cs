@@ -15,6 +15,7 @@ namespace LocalGPT.Services;
 /// <param name="hardwareInventory">Best-effort local hardware discovery dependency.</param>
 /// <param name="configuredHostHardware">Durable configured-host hardware dependency; confirmed host facts override weak automatic discovery.</param>
 /// <param name="modelPresets">Model preset service dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+/// <param name="promptConfig">Provides the persisted model prompts.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
 public sealed class AdaptiveOllamaBenchmarkWiring(
@@ -23,6 +24,7 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     IConfiguredAiHostHardwareService configuredHostHardware,
     IModelPresetService modelPresets,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    IPromptConfigService promptConfig,
     ILogger<AdaptiveOllamaBenchmarkWiring> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -214,7 +216,7 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
             var deterministicTaskCount = options.IncludePeerAuthoredTask
                 ? Math.Max(1, options.MaxTasks - 1)
                 : options.MaxTasks;
-            var tasks = BuildDeterministicTasks(deterministicTaskCount);
+            var tasks = await BuildDeterministicTasksAsync(deterministicTaskCount, cancellationToken).ConfigureAwait(false);
             if (options.IncludePeerAuthoredTask && tasks.Count < options.MaxTasks)
             {
                 var author = selected[0];
@@ -390,8 +392,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     /// Builds deterministic tasks for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
     /// <param name="maximumTasks">Maximum tasks value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token for prompt retrieval.</param>
     /// <returns>The collection produced by the operation.</returns>
-    private List<AdaptiveOllamaBenchmarkTask> BuildDeterministicTasks(int maximumTasks)
+    private async Task<List<AdaptiveOllamaBenchmarkTask>> BuildDeterministicTasksAsync(int maximumTasks, CancellationToken cancellationToken)
     {
         try
         {
@@ -400,21 +403,21 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
                 new()
                 {
                     Name = "Structured response",
-                    Prompt = "Return one compact JSON object with keys action, x and y. Set action to move, x to 3 and y to 4. Emit JSON only.",
+                    Prompt = await promptConfig.GetPromptAsync("AdaptiveOllamaBenchmarkStructuredResponse", cancellationToken: cancellationToken).ConfigureAwait(false),
                     ExpectedTokens = ["action", "move", "3", "4"],
                     ExpectJson = true
                 },
                 new()
                 {
                     Name = "Shared game control",
-                    Prompt = "You control the same 2.5D ASCII game interface as a human. The player is at (2,2), faces east, an enemy is visible at (5,2), and ammo is available. Reply with exactly one control from MOVE_FORWARD, TURN_LEFT, TURN_RIGHT, SHOOT, DUCK or USE.",
+                    Prompt = await promptConfig.GetPromptAsync("AdaptiveOllamaBenchmarkSharedGameControl", cancellationToken: cancellationToken).ConfigureAwait(false),
                     ExpectedTokens = ["SHOOT"],
                     ExpectJson = false
                 },
                 new()
                 {
                     Name = ".NET repair",
-                    Prompt = "In one sentence, explain why a singleton service must not resolve a scoped dependency from the root IServiceProvider and name the correct lifetime rule.",
+                    Prompt = await promptConfig.GetPromptAsync("AdaptiveOllamaBenchmarkDotNetRepair", cancellationToken: cancellationToken).ConfigureAwait(false),
                     ExpectedTokens = ["singleton", "scoped", "scope"],
                     ExpectJson = false
                 }
@@ -455,7 +458,7 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
             var response = await GenerateAsync(
                 http,
                 DisplayModelName(author),
-                "Write one short, objective benchmark prompt for another local model. It must test practical reasoning for a C# or ASCII-game task and must have a clearly checkable answer. Return only the prompt, no analysis and no answer.",
+                await promptConfig.GetPromptAsync("AdaptiveOllamaBenchmarkPeerTaskAuthor", cancellationToken: cancellationToken).ConfigureAwait(false),
                 profile,
                 options.MaxSecondsPerCall,
                 cancellationToken).ConfigureAwait(false);

@@ -309,6 +309,7 @@ namespace LocalGPT.Services
                 if (organicTeam.AllMembersReadinessPreflightMode == CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault)
                 {
                     var readinessBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Readiness and introductions", bootstrap, cancellationToken).ConfigureAwait(false);
+                    var readinessInstructions = await promptConfig.GetPromptAsync("CouncilPreflightInstructions", cancellationToken: cancellationToken).ConfigureAwait(false);
                     await RunPhaseAsync(
                         result,
                         baseUri,
@@ -316,7 +317,7 @@ namespace LocalGPT.Services
                         round: 0,
                         phase: "Readiness",
                         role: "Hardware, skill, DXFunction and organic-organ readiness introduction",
-                        promptFactory: modelName => councilPreflight.BuildMemberReadinessPrompt(modelName, participants, preflight),
+                        promptFactory: modelName => councilPreflight.BuildMemberReadinessPrompt(modelName, participants, preflight, readinessInstructions),
                         readinessBootstrap,
                         request.MaxOutputTokens,
                         maxParallelModels,
@@ -422,6 +423,12 @@ namespace LocalGPT.Services
                 }
 
                 baseBootstrap = bootstrap;
+                var legacyProposal = await promptConfig.GetPromptAsync("CouncilLegacyProposal", cancellationToken: cancellationToken).ConfigureAwait(false);
+                var legacyCritique = await promptConfig.GetPromptAsync("CouncilLegacyCritique", cancellationToken: cancellationToken).ConfigureAwait(false);
+                var legacyConsensus = await promptConfig.GetPromptAsync("CouncilLegacyConsensus", cancellationToken: cancellationToken).ConfigureAwait(false);
+                var legacyVerification = await promptConfig.GetPromptAsync("CouncilLegacyVerification", cancellationToken: cancellationToken).ConfigureAwait(false);
+                var legacyCritiqueSelfReview = await promptConfig.GetPromptAsync("CouncilLegacyCritiqueSelfReview", cancellationToken: cancellationToken).ConfigureAwait(false);
+                var legacyCritiquePeerReview = await promptConfig.GetPromptAsync("CouncilLegacyCritiquePeerReview", cancellationToken: cancellationToken).ConfigureAwait(false);
                 var proposalBootstrap = await PrepareHumanHeartbeatAsync(
                     result,
                     request,
@@ -437,7 +444,7 @@ namespace LocalGPT.Services
                     round: 1,
                     phase: "Proposal",
                     role: "Independent proposal",
-                    promptFactory: modelName => councilText.MultiModelCouncilServiceCreateProposalPrompt(modelName, request.Prompt, logger),
+                    promptFactory: modelName => councilText.MultiModelCouncilServiceCreateProposalPrompt(legacyProposal, modelName, request.Prompt, logger),
                     proposalBootstrap,
                     request.MaxOutputTokens,
                     maxParallelModels,
@@ -475,7 +482,7 @@ namespace LocalGPT.Services
                         phase: phaseName,
                         role: round == 1 ? "Peer correction" : "Negotiated refinement",
                         promptFactory: modelName => AppendHumanPeerReviewInstruction(
-                            councilText.MultiModelCouncilServiceCreateCritiquePrompt(modelName, request.Prompt, transcript, participants.Count == 1, logger)),
+                            councilText.MultiModelCouncilServiceCreateCritiquePrompt(legacyCritique, legacyCritiqueSelfReview, legacyCritiquePeerReview, modelName, request.Prompt, transcript, participants.Count == 1, logger)),
                         phaseBootstrap,
                         request.MaxOutputTokens,
                         maxParallelModels,
@@ -543,7 +550,7 @@ namespace LocalGPT.Services
                                 round: consensusRound,
                                 phase: "Consensus",
                                 role: "Consensus writer",
-                                prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateConsensusPrompt(request.Prompt, finalTranscript, logger)),
+                                prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateConsensusPrompt(legacyConsensus, request.Prompt, finalTranscript, logger)),
                                 consensusBootstrap,
                                 request.MaxOutputTokens,
                                 keepAlive,
@@ -601,7 +608,7 @@ namespace LocalGPT.Services
                                 round: verificationRound,
                                 phase: "Verification",
                                 role: "Peer verifier",
-                                prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateVerificationPrompt(request.Prompt, councilText.MultiModelCouncilServiceBuildTranscript(GetCouncilWorkflowContextSteps(result.Steps, organicTeam), logger), consensusStep.VisibleContent, logger)),
+                                prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateVerificationPrompt(legacyVerification, request.Prompt, councilText.MultiModelCouncilServiceBuildTranscript(GetCouncilWorkflowContextSteps(result.Steps, organicTeam), logger), consensusStep.VisibleContent, logger)),
                                 verificationBootstrap,
                                 request.MaxOutputTokens,
                                 keepAlive,
@@ -666,6 +673,7 @@ namespace LocalGPT.Services
                 if (result.Steps.Count > stepCountBeforeFinalHumanHeartbeat)
                 {
                     request.ProgressMessage?.Invoke("A late human contribution joined before completion. The council is integrating it without restarting the whole run.");
+                    var integrationVerificationPrompt = await promptConfig.GetPromptAsync("CouncilLegacyVerification", cancellationToken: cancellationToken).ConfigureAwait(false);
                     var integrationModel = SelectHealthyParticipant(result, participants);
                     MultiModelCouncilStep? humanIntegrationStep;
                     using (ambientContext.PushCouncil(result.RunId, finalHumanRound, "Human follow-up integration", executionIdentity: new CouncilExecutionIdentity(result.ChatRunId ?? result.RunId, result.ProjectId, result.ProjectRevisionId)))
@@ -677,7 +685,7 @@ namespace LocalGPT.Services
                             finalHumanRound,
                             "Human follow-up integration",
                             "Peer integrator",
-                            AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateVerificationPrompt(
+                            AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateVerificationPrompt(integrationVerificationPrompt,
                                 request.Prompt,
                                 councilText.MultiModelCouncilServiceBuildTranscript(GetCouncilWorkflowContextSteps(result.Steps, organicTeam), logger),
                                 result.FinalAnswer,
@@ -750,7 +758,7 @@ namespace LocalGPT.Services
                     result.FinalAnswer = $"## Council work incomplete{Environment.NewLine}{warning}{Environment.NewLine}{Environment.NewLine}{result.FinalAnswer}";
                 }
 
-                result.UserPoll = councilRuntime.MultiModelCouncilServiceBuildUserPoll(result, logger);
+                result.UserPoll = await councilRuntime.MultiModelCouncilServiceBuildUserPollAsync(result, promptConfig, logger, cancellationToken).ConfigureAwait(false);
                 var adviceOnlyPrompt = councilRuntime.IsAdviceOnlyPrompt(result.Prompt, logger) ?? false;
                 // Acceptance is a gate, not a remark: a run without its required function receipts
                 // never turns its prose into implementation artifacts or change reviews.

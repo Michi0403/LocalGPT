@@ -71,6 +71,7 @@ namespace LocalGPT.Services
         {
             try
             {
+                var workflowPrompts = await LoadWorkflowPromptsAsync(cancellationToken).ConfigureAwait(false);
                 var nextAutomaticRound = state.Round;
                 var expandedStepIndex = state.ExpandedStepIndex;
                 var previousStep = state.PreviousStep;
@@ -381,6 +382,7 @@ namespace LocalGPT.Services
                                         phase,
                                         definition.Role,
                                         modelName => RenderConfiguredWorkflowPrompt(
+                                            workflowPrompts,
                                             definition,
                                             team,
                                             request,
@@ -434,6 +436,7 @@ namespace LocalGPT.Services
                                         phase,
                                         definition.Role,
                                         modelName => RenderConfiguredWorkflowPrompt(
+                                            workflowPrompts,
                                             definition,
                                             team,
                                             request,

@@ -3,6 +3,7 @@ using DevExpress.Xpo;
 using DevExpress.XtraCharts;
 using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.AI;
 using System.Collections.Concurrent;
@@ -127,8 +128,10 @@ namespace LocalGPT.Services
         /// <summary>Executes the multi model council service build user poll operation.</summary>
         /// <param name="result">Input value for result.</param>
         /// <param name="logger">Input value for logger.</param>
+        /// <param name="promptConfig">Provides the persisted follow-up prompts.</param>
+        /// <param name="cancellationToken">Cancellation token for prompt retrieval.</param>
         /// <returns>The operation result.</returns>
-        public CouncilUserPoll? MultiModelCouncilServiceBuildUserPoll(MultiModelCouncilResult result, ILogger logger)
+        public async Task<CouncilUserPoll?> MultiModelCouncilServiceBuildUserPollAsync(MultiModelCouncilResult result, IPromptConfigService promptConfig, ILogger logger, CancellationToken cancellationToken)
         {
             try
             {
@@ -145,14 +148,19 @@ namespace LocalGPT.Services
                 if (failedModels.Count == 0 && !promptLooksFrustrated && !needsAiHostSetupDecision && !needsImplementationPathDecision)
                     return null;
 
+                var prompts = (await promptConfig.ListPromptsAsync("en", cancellationToken).ConfigureAwait(false))
+                    .Where(prompt => prompt.Key.StartsWith("CouncilPoll", StringComparison.Ordinal))
+                    .GroupBy(prompt => prompt.Key, StringComparer.Ordinal)
+                    .ToDictionary(group => group.Key, group => group.MaxBy(prompt => prompt.LastUpdated)!.Text, StringComparer.Ordinal);
+
                 if (promptLooksFrustrated)
-                    return MultiModelCouncilServiceBuildFrustrationPoll(result, failedModels, logger);
+                    return MultiModelCouncilServiceBuildFrustrationPoll(result, failedModels, prompts, logger);
 
                 if (needsAiHostSetupDecision)
-                    return MultiModelCouncilServiceBuildAiHostSetupPoll(result, failedModels, logger);
+                    return MultiModelCouncilServiceBuildAiHostSetupPoll(result, failedModels, prompts, logger);
 
                 if (needsImplementationPathDecision)
-                    return MultiModelCouncilServiceBuildImplementationPathPoll(result, failedModels, logger);
+                    return MultiModelCouncilServiceBuildImplementationPathPoll(result, failedModels, prompts, logger);
 
                 if (failedModels.Count == 0)
                     return null;
@@ -166,7 +174,7 @@ namespace LocalGPT.Services
                     {
                         Label = "Exclude faulty members",
                         Kind = CouncilUserPollOptionKind.ExcludeUnavailableMembers,
-                        FollowUpPrompt = $"Exclude these council member(s) from the next round unless the user re-adds them: {string.Join(", ", failedModels)}. Continue with the remaining selected models, preserve the prior transcript, and clearly note that the exclusion was user-confirmed."
+                        FollowUpPrompt = string.Format(System.Globalization.CultureInfo.InvariantCulture, prompts.GetValueOrDefault("CouncilPollExcludeUnavailable", string.Empty), string.Join(", ", failedModels))
                     });
                 }
 
@@ -175,17 +183,17 @@ namespace LocalGPT.Services
                     new CouncilUserPollOption
                 {
                     Label = "Wait and retry missing models",
-                    FollowUpPrompt = "Wait until all requested Ollama models are installed and visible, then rerun the same council prompt. Every participant must read the prior transcript, acknowledge the user selected retry, and produce updated proposals."
+                    FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollRetryAll", string.Empty)
                 },
                 new CouncilUserPollOption
                 {
                     Label = "Proceed with available models",
-                    FollowUpPrompt = "Continue with only the currently available models. Every participant must acknowledge which models were unavailable and avoid claiming absent models agreed."
+                    FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollContinueAvailable", string.Empty)
                 },
                 new CouncilUserPollOption
                 {
                     Label = "Ask a shorter tie-break question",
-                    FollowUpPrompt = "Ask the user one focused follow-up question that resolves the blocked decision, then rerun the council using the user's answer as binding context."
+                    FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollAskFollowUp", string.Empty)
                 }
                 ]);
 
@@ -208,8 +216,9 @@ namespace LocalGPT.Services
         /// <param name="result">Input value for result.</param>
         /// <param name="failedModels">Input value for failedModels.</param>
         /// <param name="logger">Input value for logger.</param>
+        /// <param name="prompts">Persisted follow-up prompts for the poll options.</param>
         /// <returns>The operation result.</returns>
-        public CouncilUserPoll? MultiModelCouncilServiceBuildImplementationPathPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
+        private CouncilUserPoll? MultiModelCouncilServiceBuildImplementationPathPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, IReadOnlyDictionary<string, string> prompts, ILogger logger)
         {
             try
             {
@@ -227,22 +236,22 @@ namespace LocalGPT.Services
                         new CouncilUserPollOption
                     {
                         Label = "Ask architecture first",
-                        FollowUpPrompt = "Stop generation and ask the user for the minimum missing architecture decisions. Include target platform/runtime, language/framework, UI stack if any, data/persistence model, solution shape, deployment target, and expected downloadable artifacts. Do not generate files until the user answers."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollAskArchitecture", string.Empty)
                     },
                     new CouncilUserPollOption
                     {
                         Label = "Sandbox prototype first",
-                        FollowUpPrompt = "Use a harmless sandbox artifact or temporary workspace first. Generate downloadable example files only after the user confirms the architecture, name the smoke tests, and do not integrate changes into the real project until the user approves the prototype direction."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollPrototype", string.Empty)
                     },
                     new CouncilUserPollOption
                     {
                         Label = "Use repository default",
-                        FollowUpPrompt = "Use the target repository's existing architecture and libraries. If the repo is LocalGPT, prefer .NET 10, ASP.NET Core/Blazor Server InteractiveServer, DevExpress Blazor where suitable, EF/SQLite for persistent app state, backend services for native/file operations, and safe download routes. If a different repo is targeted, inspect that repo before choosing."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollUseRepositoryStack", string.Empty)
                     },
                     new CouncilUserPollOption
                     {
                         Label = "Target-specific stack",
-                        FollowUpPrompt = "Do not force LocalGPT's Blazor/DevExpress defaults. Choose the stack that matches the requested product: datapack for vanilla Minecraft data/commands, Fabric/NeoForge/Paper for Java mod/plugin work, ASP.NET Core API for service work, WebView2/WinUI for Windows desktop wrapper work, CLI/tooling for automation, or another explicit user-chosen target."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollUseRequestedStack", string.Empty)
                     }
                     ]
                 };
@@ -259,8 +268,9 @@ namespace LocalGPT.Services
         /// <param name="result">Input value for result.</param>
         /// <param name="failedModels">Input value for failedModels.</param>
         /// <param name="logger">Input value for logger.</param>
+        /// <param name="prompts">Persisted follow-up prompts for the poll options.</param>
         /// <returns>The operation result.</returns>
-        public CouncilUserPoll? MultiModelCouncilServiceBuildAiHostSetupPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
+        private CouncilUserPoll? MultiModelCouncilServiceBuildAiHostSetupPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, IReadOnlyDictionary<string, string> prompts, ILogger logger)
         {
             try
             {
@@ -280,22 +290,22 @@ namespace LocalGPT.Services
                         new CouncilUserPollOption
                     {
                         Label = "Use llama.cpp GGUF",
-                        FollowUpPrompt = "Continue the same generated AI-host workspace using a user-approved llama.cpp style runner executable boundary and GGUF model files. Add settings for NativeRunnerExecutable, ModelSearchRoots, context size, GPU/layer policy, and per-model session scheduling. Keep no upstream AI-host proxy fallback."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollNativeRunner", string.Empty)
                     },
                     new CouncilUserPollOption
                     {
                         Label = "Use Python.NET runner",
-                        FollowUpPrompt = "Continue the same generated AI-host workspace with a Python.NET runner boundary. Require user-approved Python runtime path, PYTHONNET_PYDLL, package list, model roots, and a safe backend service contract. Keep the UI in .NET/DevExpress and do not execute unapproved Python code."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollPythonRunner", string.Empty)
                     },
                     new CouncilUserPollOption
                     {
                         Label = "Keep setup-needed",
-                        FollowUpPrompt = "Keep the artifact buildable and explicit with Setup Needed banners, no proxy fallback, provider-compatible API routes, SQLite settings, and clear user instructions. Do not pretend native inference works until a runner executable and compatible model-file format are supplied."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollSetupNeeded", string.Empty)
                     },
                     new CouncilUserPollOption
                     {
                         Label = "Custom runner contract",
-                        FollowUpPrompt = "Ask the user for a custom native runner executable, model-file format, arguments, streaming protocol, cancellation behavior, and hardware policy, then continue the generated workspace with those exact choices."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollAskRunner", string.Empty)
                     }
                     ]
                 };
@@ -312,8 +322,9 @@ namespace LocalGPT.Services
         /// <param name="result">Input value for result.</param>
         /// <param name="failedModels">Input value for failedModels.</param>
         /// <param name="logger">Input value for logger.</param>
+        /// <param name="prompts">Persisted follow-up prompts for the poll options.</param>
         /// <returns>The operation result.</returns>
-        public CouncilUserPoll? MultiModelCouncilServiceBuildFrustrationPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, ILogger logger)
+        private CouncilUserPoll? MultiModelCouncilServiceBuildFrustrationPoll(MultiModelCouncilResult result, IReadOnlyList<string> failedModels, IReadOnlyDictionary<string, string> prompts, ILogger logger)
         {
             try
             {
@@ -330,17 +341,17 @@ namespace LocalGPT.Services
                         new CouncilUserPollOption
                     {
                         Label = "Stabilize first",
-                        FollowUpPrompt = "Treat the user's frustration as a signal to stabilize the system first. Ask the models to produce a minimal reproduction checklist, current failure symptoms, logs to inspect, and the smallest safe next command. Document any missing LocalGPT feature as a database memory item."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollStabilize", string.Empty)
                     },
                     new CouncilUserPollOption
                     {
                         Label = "Implement missing feature",
-                        FollowUpPrompt = "Ask the models to identify the missing LocalGPT feature causing the user's frustration, propose the smallest implementation, and document the requested feature plus rationale in SQLite memory before coding."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollIdentifyMissingFeature", string.Empty)
                     },
                     new CouncilUserPollOption
                     {
                         Label = "Reduce scope",
-                        FollowUpPrompt = "Ask the models to reduce the task to the safest next milestone, name what will not be attempted yet, and document blocked or missing features in SQLite memory for later council rounds."
+                        FollowUpPrompt = prompts.GetValueOrDefault("CouncilPollReduceScope", string.Empty)
                     }
                     ]
                 };

@@ -43,15 +43,8 @@ namespace LocalGPT.Services
             try
             {
                 var messages = originalMessages.ToList();
-                messages.Add(new ChatMessage(ChatRole.User, $"""
-                CORRECTIVE ROLE EXECUTION — this is your one bounded retry.
-                Your assigned Council role is: {role}.
-                Your current workflow phase is: {phase}.
-                The role task and all required input were already supplied above. The original user request is background context, not a replacement task.
-                Do not decline merely because you are an AI/model, do not ask for the task again, do not delegate your role, and do not redesign the Council workflow.
-                Execute the assigned role task now with the information and capabilities actually available to you. If some detail is uncertain, make the best bounded attempt and state that uncertainty inside the result.
-                Return only the substantive result required by this role.
-                """));
+                messages.Add(new ChatMessage(ChatRole.User, string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    await promptConfig.GetPromptAsync("CouncilRoleComplianceRecovery", cancellationToken: cancellationToken).ConfigureAwait(false), role, phase)));
 
                 var builder = new StringBuilder();
                 // Council recovery streams are bounded workflow steps: the repetition guard is always on (6.9.4).
@@ -181,17 +174,14 @@ namespace LocalGPT.Services
                     partial = partial[^partialLimit..];
                 var taskSection = string.IsNullOrWhiteSpace(taskExcerpt)
                     ? string.Empty
-                    : $"The task is unchanged. Excerpt of the original request you must finish:\n<<<\n{taskExcerpt}\n>>>\n";
+                    : string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        await promptConfig.GetPromptAsync("CouncilFinalRecoveryTaskExcerpt", cancellationToken: cancellationToken).ConfigureAwait(false), taskExcerpt);
                 var partialSection = string.IsNullOrWhiteSpace(partial) || !MultiModelCouncilServiceIsSubstantiveCouncilContent(partial, logger)
                     ? string.Empty
-                    : $"Your visible answer so far ended here; continue it without repeating it and without answering a different question:\n<<<\n{partial}\n>>>\n";
-                messages.Add(new ChatMessage(ChatRole.User, $"""
-                Your previous {phase} response for LocalGPT produced provider thinking/status but no substantive user-visible final answer.
-                {taskSection}{partialSection}Preserve normal provider-supplied thinking/self-correction if your runtime emits it, and use an exact registered DXFunction only when genuinely needed. LocalGPT keeps provider thinking and tool activity visibly separated from the final answer.
-                If this step's job is to call a registered DXFunction (for example the next codegen.review.create draft operation), do not describe or plan the call: put the exact <localgpt-dx-call> tag with the complete JSON parameters (for a draft completion, only the one file requested by next) directly after "Final answer:". LocalGPT executes it.
-                Focus on finishing this task rather than restarting the analysis from scratch. Deliver the requested result itself; do not describe LocalGPT, the Council or your readiness instead. Keep thinking short. You must emit a substantive final visible answer now in concise Markdown.
-                Start the visible answer with: Final answer:
-                """));
+                    : string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        await promptConfig.GetPromptAsync("CouncilFinalRecoveryPartialAnswer", cancellationToken: cancellationToken).ConfigureAwait(false), partial);
+                messages.Add(new ChatMessage(ChatRole.User, string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        await promptConfig.GetPromptAsync("CouncilFinalRecoveryInstruction", cancellationToken: cancellationToken).ConfigureAwait(false), phase, taskSection, partialSection)));
                 logger.LogInformation(
                     "Council final-answer recovery for {ModelName} in {Phase} restates {TaskCharacters} task characters and continues {PartialCharacters} partial visible characters.",
                     modelName, phase, taskExcerpt.Length, partialSection.Length == 0 ? 0 : partial.Length);
