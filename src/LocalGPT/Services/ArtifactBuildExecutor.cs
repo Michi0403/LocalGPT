@@ -21,7 +21,7 @@ public sealed class ArtifactBuildExecutor(
     IPlatformRuntimeService platform,
     IServiceScopeFactory scopeFactory,
     ILocalGptRuntimePolicyDataService runtimePolicy,
-    ILogger<ArtifactBuildExecutor> logger) : IArtifactBuildExecutor
+    ILogger<ArtifactBuildExecutor> logger, ProjectBuildArgumentTemplate argumentTemplate : IArtifactBuildExecutor
 {
 
     /// <summary>
@@ -220,7 +220,7 @@ public sealed class ArtifactBuildExecutor(
             if (normalizedOutput is not null && !template.Contains("{outputDirectory}", StringComparison.OrdinalIgnoreCase))
                 return Result("BuildArgumentsInvalid", null, startedAt, string.Empty,
                     "An output directory was requested, but the workspace build arguments do not use {outputDirectory}.");
-            var arguments = ProjectBuildArgumentTemplate.Expand(template, target, configuration, normalizedOutput);
+            var arguments = argumentTemplate.Expand(template, target, configuration, normalizedOutput);
             var invocation = platform.PrepareToolchainProcessInvocation(compiler.ExecutablePath, arguments);
             startInfo.FileName = invocation.ExecutablePath;
             startInfo.Arguments = invocation.Arguments;
@@ -288,7 +288,7 @@ public sealed class ArtifactBuildExecutor(
     }
 
     /// <summary>Recognizes the existing .NET compiler registration only for legacy .NET builds.</summary>
-    private static bool IsDotNetCompiler(ProjectCompilerInstallation item) =>
+    private bool IsDotNetCompiler(ProjectCompilerInstallation item) =>
         string.Equals(item.Language, "DotNet", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(item.KnowledgeProfileKey, "dotnet-sdk", StringComparison.OrdinalIgnoreCase);
 

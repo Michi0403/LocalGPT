@@ -81,7 +81,7 @@ namespace LocalGPT.Services
             var arguments = !string.IsNullOrWhiteSpace(request.Arguments)
                 ? request.Arguments.Trim()
                 : !string.IsNullOrWhiteSpace(workspace?.BuildArguments)
-                    ? ProjectBuildArgumentTemplate.Expand(workspace.BuildArguments.Trim(), target, request.Configuration, null)
+                    ? argumentTemplate.Expand(workspace.BuildArguments.Trim(), target, request.Configuration, null)
                     : DefaultBuildArguments(compiler.Language, target, request.Configuration);
             var executionEnvironmentJson = MergeEnvironmentJson(compiler.EnvironmentVariablesJson, workspace?.EnvironmentVariablesJson);
             var parameters = runtimePolicy.GetJson<ProjectMaintenanceRuntimeParameters>("ProjectMaintenanceRuntimeParametersJson");

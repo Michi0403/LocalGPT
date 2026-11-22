@@ -892,7 +892,7 @@ namespace LocalGPT.Components.Pages
         try
         {
             TaskRunner.Run(
-                nameof(Chat),
+                        await AttachToLiveCouncilSessionAsync(runId).ConfigureAwait(false);
                 "RefreshAttachedLiveCouncilSession",
                 async cancellationToken =>
                 {
@@ -901,7 +901,7 @@ namespace LocalGPT.Components.Pages
                         await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
                         if (cancellationToken.IsCancellationRequested || isDisposed)
                             return;
-                        _ = await AttachToLiveCouncilSessionAsync(runId).ConfigureAwait(false);
+                            // Ignoring result on intentional ignore pathawait AttachToLiveCouncilSessionAsync(runId).ConfigureAwait(false);
                     }
                     finally
                     {

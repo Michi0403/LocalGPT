@@ -47,6 +47,8 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         /// </summary>
         private readonly ILogger<ProjectMaintenanceService> logger;
 
+        private readonly ProjectBuildArgumentTemplate argumentTemplate;
+
         /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
         /// <param name="dbContextFactory">Injected dependency used by the ProjectMaintenanceService.</param>
         /// <param name="databaseInitializer">Injected dependency used by the ProjectMaintenanceService.</param>
@@ -66,7 +68,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             IToolchainKnowledgeService toolchainKnowledge,
             IPlatformRuntimeService platform,
             IBuildDiagnosticSummaryService buildDiagnostics,
-            ILogger<ProjectMaintenanceService> logger)
+            ILogger<ProjectMaintenanceService> logger), ProjectBuildArgumentTemplate argumentTemplate, ProjectBuildArgumentTemplate argumentTemplate
         {
             this.dbContextFactory = dbContextFactory;
             this.databaseInitializer = databaseInitializer;
@@ -77,6 +79,8 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             this.platform = platform;
             this.buildDiagnostics = buildDiagnostics;
             this.logger = logger;
+
+            this.argumentTemplate = argumentTemplate;
         }
 
     /// <summary>
