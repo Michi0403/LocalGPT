@@ -1187,7 +1187,15 @@ public sealed class CreateCodeGenerationReviewFunction(
                     return json.InvalidParameters(exception.Message);
                 }
             }
-            var review = await workflow.CreateReviewAsync(parameters, cancellationToken).ConfigureAwait(false);
+            CodeGenerationReviewSnapshot review;
+            try
+            {
+                review = await workflow.CreateReviewAsync(parameters, cancellationToken).ConfigureAwait(false);
+            }
+            catch (ArgumentException exception)
+            {
+                return json.InvalidParameters(exception.Message);
+            }
             logger.LogInformation("DXAIFunction created review {ReviewId} with hash prefix {HashPrefix}.", review.Id, review.ReviewHash[..Math.Min(12, review.ReviewHash.Length)]);
             await RaiseExecuteApprovalAsync(review, request, cancellationToken).ConfigureAwait(false);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = review.Status, Value = review };

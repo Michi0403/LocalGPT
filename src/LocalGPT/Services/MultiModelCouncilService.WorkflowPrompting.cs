@@ -727,6 +727,14 @@ namespace LocalGPT.Services
                     .AppendLine("EXECUTION PRIORITY")
                     .AppendLine(workflowPrompts.GetValueOrDefault("CouncilWorkflowExecutionPriority", string.Empty))
                     .AppendLine(workflowPrompts.GetValueOrDefault("CouncilWorkflowRoleCompliance", string.Empty));
+                if (request.GenerateImplementationArtifact && request.UseChangeReviewWorkflow &&
+                    councilRuntime.MultiModelCouncilServiceHasExplicitArtifactIntent(request.Prompt, logger))
+                {
+                    if ((request.ProjectId is null || request.CreateProjectForRun) && request.AttachedWorkspaceNames.Count == 0)
+                        finalPrompt.AppendLine().AppendLine(workflowPrompts.GetValueOrDefault("CouncilWorkflowNewArtifactVerification", string.Empty));
+                    if (definition.ProducesFinalAnswer)
+                        finalPrompt.AppendLine().AppendLine(workflowPrompts.GetValueOrDefault("CouncilWorkflowReviewedArtifactOutput", string.Empty));
+                }
                 return finalPrompt.ToString().Trim();
         
     }

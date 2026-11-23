@@ -52,7 +52,7 @@ public sealed class CouncilCodeGenerationPlanService(
             logger.LogDebug("No council answer was supplied for code-generation plan parsing.");
             return new CouncilCodeGenerationPlanResult
             {
-                Warning = "The council answer was empty, so LocalGPT used the bounded fallback generation plan."
+                Warning = "The Council answer was empty. No source plan was available to prepare for approval."
             };
         }
 
@@ -103,10 +103,10 @@ public sealed class CouncilCodeGenerationPlanService(
                 }
             }
 
-            logger.LogInformation("No valid embedded council change-review JSON block was found; the bounded fallback plan will be used.");
+            logger.LogInformation("No valid embedded council change-review JSON block was found.");
             return new CouncilCodeGenerationPlanResult
             {
-                Warning = "The council did not emit a valid structured change-review block, so LocalGPT used the bounded fallback generation plan."
+                Warning = "The Council did not emit a valid structured change-review block."
             };
         }
         catch (RegexMatchTimeoutException ex)
@@ -114,7 +114,7 @@ public sealed class CouncilCodeGenerationPlanService(
             logger.LogWarning(ex, "Council change-review plan parsing timed out; answer content was omitted from logs.");
             return new CouncilCodeGenerationPlanResult
             {
-                Warning = "Structured change-review parsing timed out, so LocalGPT used the bounded fallback generation plan."
+                Warning = "Structured change-review parsing timed out. No source plan was available to prepare for approval."
             };
         }
     }

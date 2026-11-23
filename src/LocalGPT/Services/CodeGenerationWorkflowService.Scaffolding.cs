@@ -125,6 +125,19 @@ namespace LocalGPT.Services
                     throw new InvalidOperationException($"Unsupported output kind {output.Kind}.");
             }
 
+            // Reviewed or cloned MSBuild documents are build inputs, not scaffold destinations.
+            if (output.Kind is CodeGenerationOutputKinds.Solution or CodeGenerationOutputKinds.ConsoleApplication or CodeGenerationOutputKinds.ClassLibrary)
+            {
+                var existingTarget = output.Kind == CodeGenerationOutputKinds.Solution
+                    ? new[] { ".slnx", ".sln" }.Select(extension => Path.Combine(outputRoot, output.Name + extension)).FirstOrDefault(File.Exists)
+                    : Path.Combine(outputRoot, $"{output.Name}.csproj");
+                if (File.Exists(existingTarget))
+                {
+                    buildTargets.Add(existingTarget!);
+                    return;
+                }
+            }
+
             var projectRoot = output.Kind == CodeGenerationOutputKinds.Solution
                 ? Path.Combine(outputRoot, output.Name)
                 : outputRoot;

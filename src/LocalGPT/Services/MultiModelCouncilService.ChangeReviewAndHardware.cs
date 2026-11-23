@@ -20,17 +20,18 @@ namespace LocalGPT.Services
         /// </summary>
         /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
         /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="parsedPlan">Structured file plan extracted from the Council or its bounded recovery response.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
         /// <returns>The prepared change review, or <see langword="null"/> when the final answer carries no structured file plan.</returns>
         private async Task<CodeGenerationReviewSnapshot?> CreateCouncilChangeReviewAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
+            CouncilCodeGenerationPlanResult parsedPlan,
             CancellationToken cancellationToken)
         {
     try
     {
                 var targetArea = councilText.DetectTargetArea(request.Prompt, result.FinalAnswer, logger);
-                var parsedPlan = codeGenerationPlanService.Parse(result.FinalAnswer);
                 if (!parsedPlan.Found)
                 {
                     // Without an exact file plan there is nothing reviewable to generate. Placeholder example
@@ -75,7 +76,29 @@ namespace LocalGPT.Services
                     Outputs = outputs
                 };
 
-                var review = await codeGenerationWorkflow.CreateReviewAsync(reviewRequest, cancellationToken).ConfigureAwait(false);
+                var round = result.Steps.Select(step => step.Round).DefaultIfEmpty(0).Max();
+                var outcome = await InvokeFileWorkFunctionAsync(result, request, round, "Artifact review",
+                    "codegen.review.create", new
+                    {
+                        reviewRequest.ProjectId,
+                        reviewRequest.ProjectRevisionId,
+                        reviewRequest.ProjectTopicId,
+                        reviewRequest.CouncilRunId,
+                        reviewRequest.Title,
+                        reviewRequest.Goal,
+                        reviewRequest.CurrentProjectState,
+                        reviewRequest.CouncilSummary,
+                        reviewRequest.ChangeSummary,
+                        reviewRequest.SafetySummary,
+                        reviewRequest.Files,
+                        reviewRequest.CodeDomTypes,
+                        reviewRequest.Outputs
+                    }, cancellationToken).ConfigureAwait(false);
+                if (!outcome.Succeeded || outcome.Value is not CodeGenerationReviewSnapshot review)
+                {
+                    result.Warnings.Add($"The artifact review gateway did not return a review ({outcome.Status}).");
+                    return null;
+                }
                 logger.LogInformation(
                     "Council run {RunId} created change review {ReviewId} with hash prefix {HashPrefix}.",
                     result.RunId,

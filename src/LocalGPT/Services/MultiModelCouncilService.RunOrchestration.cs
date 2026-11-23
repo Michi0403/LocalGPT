@@ -783,7 +783,45 @@ namespace LocalGPT.Services
                 }
                 else if (requestedGeneration && request.UseChangeReviewWorkflow)
                 {
-                    result.ChangeReview = await CreateCouncilChangeReviewAsync(request, result, cancellationToken).ConfigureAwait(false);
+                    var artifactPlan = codeGenerationPlanService.Parse(result.FinalAnswer);
+                    var synthesis = organicTeam.WorkflowSteps.LastOrDefault(step => step.IsEnabled && step.ProducesFinalAnswer);
+                    var author = synthesis is null ? null : result.Steps.LastOrDefault(step =>
+                        step.WorkflowStepKey == synthesis.Key && string.IsNullOrEmpty(step.Error) &&
+                        participants.Contains(step.ModelName, StringComparer.OrdinalIgnoreCase));
+                    if (!artifactPlan.Found && synthesis is not null && author is not null &&
+                        (request.ProjectId is null || request.CreateProjectForRun) && request.AttachedWorkspaceNames.Count == 0)
+                    {
+                        var prompts = await LoadWorkflowPromptsAsync(cancellationToken).ConfigureAwait(false);
+                        if (prompts.TryGetValue("CouncilWorkflowArtifactPlanRecovery", out var artifactInstruction))
+                        {
+                            var goal = string.IsNullOrWhiteSpace(request.GoalText) ? request.Prompt : request.GoalText;
+                            var replies = await RunFileWorkPhaseAsync(result, request, synthesis, baseUri, participants,
+                                [author.ModelName], result.Steps.Max(step => step.Round) + 1, "Artifact source plan",
+                                _ => artifactInstruction + "\n\n" + goal, modelRoutes, maxParallelModels, keepAlive,
+                                ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, null, cancellationToken).ConfigureAwait(false);
+                            var reply = replies.LastOrDefault(step => string.IsNullOrEmpty(step.Error));
+                            if (reply is not null)
+                            {
+                                try
+                                {
+                                    var payload = ReadFileWorkJson<CodeGenerationReviewPayload>(ReadFileWorkAnswer(reply));
+                                    if (payload.Files is { Count: > 0 } && payload.Outputs is { Count: > 0 })
+                                    {
+                                        payload.CodeDomTypes ??= [];
+                                        artifactPlan = new CouncilCodeGenerationPlanResult
+                                        {
+                                            Found = true, Payload = payload, SourceFormat = "Artifact source plan"
+                                        };
+                                    }
+                                }
+                                catch (System.Text.Json.JsonException)
+                                {
+                                    // The exact-response parser already recorded the malformed response without its contents.
+                                }
+                            }
+                        }
+                    }
+                    result.ChangeReview = await CreateCouncilChangeReviewAsync(request, result, artifactPlan, cancellationToken).ConfigureAwait(false);
                     if (result.ChangeReview is null)
                     {
                         result.Warnings.Add(

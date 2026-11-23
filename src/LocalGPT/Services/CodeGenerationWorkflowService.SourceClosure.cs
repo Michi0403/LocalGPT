@@ -231,7 +231,7 @@ public sealed partial class CodeGenerationWorkflowService
     }
 
     /// <summary>Per-file deterministic checks before storing candidate bytes, independent of a model review vote.</summary>
-    private string ValidateDraftSourceReferences(string path, string content, IReadOnlyDictionary<string, string> manifest)
+    private string ValidateDraftSourceReferences(string path, string content, IReadOnlyDictionary<string, string> manifest, bool requireAllReferences = true)
     {
         try
         {
@@ -292,11 +292,11 @@ public sealed partial class CodeGenerationWorkflowService
                     if (!IsSourceProjectPath(reference))
                         return $"{rootName} project reference '{reference}' is not a compiler project file.";
                     var target = ResolveDraftReference(path, reference);
-                    if (!manifest.Keys.Any(file => string.Equals(file.Replace('\\', '/'), target, StringComparison.OrdinalIgnoreCase)))
+                    if (requireAllReferences && !manifest.Keys.Any(file => string.Equals(file.Replace('\\', '/'), target, StringComparison.OrdinalIgnoreCase)))
                         return $"{rootName} references '{target}' but no such project is in the source manifest.";
                     if (!projectPaths.Add(target)) return $"{rootName} declares a duplicate project file reference.";
                 }
-                if (solution)
+                if (solution && requireAllReferences)
                     return ValidateSolutionProjectCoverage(path, projectPaths, manifest);
             }
             return string.Empty;

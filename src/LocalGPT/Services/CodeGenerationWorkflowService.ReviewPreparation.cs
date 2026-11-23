@@ -197,7 +197,15 @@ namespace LocalGPT.Services
             if (request.CodeDomTypes.Count > 0 && !request.Files.Any(file => !string.IsNullOrWhiteSpace(file.Content)))
                 throw new ArgumentException("codeDomTypes only emit a one-method string stub (an interface or service declared there becomes a sealed class whose method returns its own return-type name). Resend codegen.review.create with files[] where each entry has relativePath and the COMPLETE source text in content, including the .csproj, Program.cs and every type; keep codeDomTypes empty.", nameof(request));
             foreach (var file in request.Files)
-                _ = NormalizeRelativePath(file.RelativePath);
+            {
+                var path = NormalizeRelativePath(file.RelativePath);
+                if (!Path.GetExtension(path).Equals(".slnx", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var error = ValidateDraftSourceReferences(path, file.Content, new Dictionary<string, string>(), requireAllReferences: false);
+                if (!string.IsNullOrEmpty(error))
+                    throw new ArgumentException($"{path}: {error}", nameof(request));
+            }
             foreach (var type in request.CodeDomTypes)
                 _ = NormalizeRelativePath(type.RelativePath);
             foreach (var output in request.Outputs)
