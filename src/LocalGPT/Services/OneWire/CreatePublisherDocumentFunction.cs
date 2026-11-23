@@ -34,7 +34,7 @@ public sealed class CreatePublisherDocumentFunction(
         Name: "publisher.document.create.request",
         Method: "POST",
         Route: "/api/onewire/peers/connected/documents/create",
-        Purpose: "Creates an approved PublisherStudio document and returns a download in Chat. Use kind spreadsheet with CSV for XLSX, text with plain text for DOCX, or pdf with plain text for PDF. Omit sessionId when there is one editor. If the peer reports multiple editors, call publisher.sessions.list. Read the result through organic.plugin.work.read and use its downloadUrl.",
+        Purpose: "Creates an approved PublisherStudio document and returns a download in Chat. Use kind spreadsheet (XLSX), xls or csv with CSV content; for documents send plain text with kind text (DOCX), pdf, rtf, odt, html, txt, epub, doc (Word 97-2003) or mht. Omit sessionId when there is one editor. If the peer reports multiple editors, call publisher.sessions.list. Read the result through organic.plugin.work.read and use its downloadUrl.",
         Parameters: "kind, title, content, presentation, page, sessionId, peerId, workOrderKey",
         SafetyNotes: "Requires fresh LocalGPT approval and a fresh PublisherStudio approval for every request. Content is validated by PublisherStudio before anything is inserted; the insertion is undoable.",
         IsReadOnly: false,
@@ -44,7 +44,7 @@ public sealed class CreatePublisherDocumentFunction(
         SupportsAutomaticInvocation: false,
         Source: "OneWire",
         ParameterSchemaJson: """
-        {"type":"object","required":["kind","content"],"properties":{"kind":{"type":"string","enum":["spreadsheet","text","pdf"]},"title":{"type":"string","maxLength":120},"content":{"type":"string","description":"CSV for a spreadsheet; plain text for Word and PDF."},"presentation":{"type":"string","enum":["visible","silent"]},"page":{"type":"integer","minimum":1},"sessionId":{"type":"string","description":"Only when several PublisherStudio editors are open; take it from publisher.sessions.list."},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}
+        {"type":"object","required":["kind","content"],"properties":{"kind":{"type":"string","enum":["spreadsheet","text","pdf","rtf","odt","html","txt","epub","doc","mht","xls","csv"]},"title":{"type":"string","maxLength":120},"content":{"type":"string","description":"CSV for spreadsheet, xls and csv; plain text for every document kind."},"presentation":{"type":"string","enum":["visible","silent"]},"page":{"type":"integer","minimum":1},"sessionId":{"type":"string","description":"Only when several PublisherStudio editors are open; take it from publisher.sessions.list."},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}
         """,
         IsCoordinationOnly: true,
         SupportsDeferredApprovalRequest: true,
@@ -64,8 +64,8 @@ public sealed class CreatePublisherDocumentFunction(
                 return organicSupport.Invalid("Parameters must be a JSON object.");
             var kind = organicSupport.GetString(request.Parameters, "kind").Trim().ToLowerInvariant();
             var content = organicSupport.GetString(request.Parameters, "content");
-            if (kind is not ("spreadsheet" or "text" or "pdf"))
-                return organicSupport.Invalid("kind must be 'spreadsheet', 'text', or 'pdf'.");
+            if (kind is not ("spreadsheet" or "text" or "pdf" or "rtf" or "odt" or "html" or "txt" or "epub" or "doc" or "mht" or "xls" or "csv"))
+                return organicSupport.Invalid("kind must be 'spreadsheet', 'text' (Word), 'pdf', 'rtf', 'odt', 'html', 'txt', 'epub', 'doc', 'mht', 'xls', or 'csv'.");
             if (string.IsNullOrWhiteSpace(content))
                 return organicSupport.Invalid("content is required (CSV text for a spreadsheet, plain text for a text document).");
             var presentation = organicSupport.GetString(request.Parameters, "presentation", "visible").Trim().ToLowerInvariant();
