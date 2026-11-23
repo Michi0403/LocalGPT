@@ -147,4 +147,5 @@ if ($violations.Count -gt 0) {
     foreach ($violation in $violations) { Write-Host "Repository PowerShell boundary: $violation" -ForegroundColor Red }
     throw "PowerShell-only build/publish boundary failed with $($violations.Count) issue(s)."
 }
+& (Join-Path $PSScriptRoot 'Assert-PublisherDocumentFormats.ps1')
 Write-Host "PowerShell-only architecture, Debug and Release entrypoints verified ($($releaseScripts.Count) scripts)."
