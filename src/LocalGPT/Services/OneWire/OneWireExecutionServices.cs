@@ -1132,13 +1132,6 @@ public sealed class OneWireWorkProcessorHostedService(
             try { item = await spooler.DequeueAsync(stoppingToken).ConfigureAwait(false); }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             spooler.MarkRunning(item.Id);
-            if (string.Equals(item.Request.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(item.Request.TargetPeerId) &&
-                !string.Equals(item.Request.TargetPeerId, "localgpt", StringComparison.OrdinalIgnoreCase))
-            {
-                logger.LogDebug("1-Wire work item {WorkItemId} is awaiting execution by external peer {PeerId}.", item.Id, item.Request.TargetPeerId);
-                continue;
-            }
             try
             {
                 var result = await executor.ExecuteAsync(item, stoppingToken).ConfigureAwait(false);

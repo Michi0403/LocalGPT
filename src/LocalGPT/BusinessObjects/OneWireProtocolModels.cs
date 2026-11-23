@@ -72,9 +72,9 @@ public sealed class OneWireWorkItem
     [System.Text.Json.Serialization.JsonIgnore]
     public byte[]? DocumentBytes { get; set; }
 
-    /// <summary>Indicates whether the received document is a spreadsheet.</summary>
+    /// <summary>Identifies the approved document format returned by PublisherStudio.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsSpreadsheetDocument { get; set; }
+    public string? DocumentKind { get; set; }
     /// <summary>
     /// Gets or sets the error value that forms part of the one wire work item state consumed or produced by the surrounding workflow.
     /// </summary>

@@ -456,6 +456,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     {
     try
     {
+            var awaitsPeer = string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(envelope.TargetPeerId)
+                && !string.Equals(envelope.TargetPeerId, "localgpt", StringComparison.OrdinalIgnoreCase);
             var item = new OneWireWorkItem
             {
                 CorrelationId = envelope.CorrelationId,
@@ -466,11 +469,14 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 NotBeforeUtc = envelope.NotBeforeUtc,
                 Request = envelope,
                 DocumentConversationId = documentConversationId,
-                Status = OneWireWorkStatus.Queued
+                Status = awaitsPeer ? OneWireWorkStatus.Running : OneWireWorkStatus.Queued
             };
             workItems[item.Id] = item;
-            queue.Enqueue(item.Id);
-            signal.Release();
+            if (!awaitsPeer)
+            {
+                queue.Enqueue(item.Id);
+                signal.Release();
+            }
             logger.LogInformation("Queued 1-Wire work item {WorkItemId} for {CapabilityKey}.", item.Id, item.CapabilityKey);
             return item;
     
@@ -735,16 +741,28 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
             result.Remove(bytesKey);
             var kindKey = keys.FirstOrDefault(key => string.Equals(key, "kind", StringComparison.OrdinalIgnoreCase));
             var kind = kindKey is null ? null : result[kindKey]?.GetValue<string>();
-            if (kind is "spreadsheet" or "text" && !string.IsNullOrEmpty(encoded))
+            if (item.Request.Properties is not { } properties ||
+                !properties.TryGetValue("Parameters", out var parameters) ||
+                !parameters.TryGetProperty("kind", out var requestedKind) ||
+                !string.Equals(kind, requestedKind.GetString(), StringComparison.Ordinal))
+                throw new InvalidDataException("The returned document format differs from the approved request.");
+            if (kind is "spreadsheet" or "text" or "pdf" && !string.IsNullOrEmpty(encoded))
             {
                 var bytes = Convert.FromBase64String(encoded);
-                using var stream = new MemoryStream(bytes, writable: false);
-                using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
-                var documentPart = kind == "spreadsheet" ? "xl/workbook.xml" : "word/document.xml";
-                if (archive.GetEntry("[Content_Types].xml") is null || archive.GetEntry(documentPart) is null)
-                    throw new InvalidDataException("The returned file does not contain the expected Open XML parts.");
-
-                item.IsSpreadsheetDocument = kind == "spreadsheet";
+                if (kind == "pdf")
+                {
+                    if (!bytes.AsSpan().StartsWith("%PDF-"u8))
+                        throw new InvalidDataException("The returned file does not contain a PDF header.");
+                }
+                else
+                {
+                    using var stream = new MemoryStream(bytes, writable: false);
+                    using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
+                    var documentPart = kind == "spreadsheet" ? "xl/workbook.xml" : "word/document.xml";
+                    if (archive.GetEntry("[Content_Types].xml") is null || archive.GetEntry(documentPart) is null)
+                        throw new InvalidDataException("The returned file does not contain the expected Open XML parts.");
+                }
+                item.DocumentKind = kind;
                 item.DocumentBytes = bytes;
                 result["downloadUrl"] = $"/api/onewire/work/{item.Id:D}/document";
             }

@@ -34,7 +34,7 @@ public sealed class CreatePublisherDocumentFunction(
         Name: "publisher.document.create.request",
         Method: "POST",
         Route: "/api/onewire/peers/connected/documents/create",
-        Purpose: "Creates a new spreadsheet or a new text document in the connected PublisherStudio publication after the user approved it in LocalGPT and in PublisherStudio. Use this to create new documents. For a spreadsheet, content is CSV text (first row = headers); for text, content is the plain text. Use publisher.sessions.list instead of asking the user for session ids; sessionId is only needed when several PublisherStudio editors are open. presentation is visible (default, selects the new object for the user) or silent (keeps the user's page and selection). Read the result through organic.plugin.work.read. Include the returned downloadUrl as a clickable Markdown link in the final chat answer when present. The result also contains the created object id, kind, title and page. If no file is returned, report its status without inventing a download.",
+        Purpose: "Creates an approved PublisherStudio document and returns a download in Chat. Use kind spreadsheet with CSV for XLSX, text with plain text for DOCX, or pdf with plain text for PDF. Omit sessionId when there is one editor. If the peer reports multiple editors, call publisher.sessions.list. Read the result through organic.plugin.work.read and use its downloadUrl.",
         Parameters: "kind, title, content, presentation, page, sessionId, peerId, workOrderKey",
         SafetyNotes: "Requires fresh LocalGPT approval and a fresh PublisherStudio approval for every request. Content is validated by PublisherStudio before anything is inserted; the insertion is undoable.",
         IsReadOnly: false,
@@ -44,7 +44,7 @@ public sealed class CreatePublisherDocumentFunction(
         SupportsAutomaticInvocation: false,
         Source: "OneWire",
         ParameterSchemaJson: """
-        {"type":"object","required":["kind","content"],"properties":{"kind":{"type":"string","enum":["spreadsheet","text"]},"title":{"type":"string","maxLength":120},"content":{"type":"string","description":"CSV text for a spreadsheet; plain text for a text document."},"presentation":{"type":"string","enum":["visible","silent"]},"page":{"type":"integer","minimum":1},"sessionId":{"type":"string","description":"Only when several PublisherStudio editors are open; take it from publisher.sessions.list."},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}
+        {"type":"object","required":["kind","content"],"properties":{"kind":{"type":"string","enum":["spreadsheet","text","pdf"]},"title":{"type":"string","maxLength":120},"content":{"type":"string","description":"CSV for a spreadsheet; plain text for Word and PDF."},"presentation":{"type":"string","enum":["visible","silent"]},"page":{"type":"integer","minimum":1},"sessionId":{"type":"string","description":"Only when several PublisherStudio editors are open; take it from publisher.sessions.list."},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}
         """,
         IsCoordinationOnly: true,
         SupportsDeferredApprovalRequest: true,
@@ -64,8 +64,8 @@ public sealed class CreatePublisherDocumentFunction(
                 return organicSupport.Invalid("Parameters must be a JSON object.");
             var kind = organicSupport.GetString(request.Parameters, "kind").Trim().ToLowerInvariant();
             var content = organicSupport.GetString(request.Parameters, "content");
-            if (kind is not ("spreadsheet" or "text"))
-                return organicSupport.Invalid("kind must be 'spreadsheet' or 'text'.");
+            if (kind is not ("spreadsheet" or "text" or "pdf"))
+                return organicSupport.Invalid("kind must be 'spreadsheet', 'text', or 'pdf'.");
             if (string.IsNullOrWhiteSpace(content))
                 return organicSupport.Invalid("content is required (CSV text for a spreadsheet, plain text for a text document).");
             var presentation = organicSupport.GetString(request.Parameters, "presentation", "visible").Trim().ToLowerInvariant();

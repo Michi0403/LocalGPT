@@ -6,7 +6,7 @@
 | --- | --- |
 | LocalGPT origin | `http://127.0.0.1:5000` |
 | Build toolchain | .NET SDK 10.0.404, discovered and validated in `/install?section=toolchains` |
-| Artifact builds | Enabled by the shipped configuration. Check `/install` for a persisted override from an older install. |
+| Artifact generation | Use the team's file-delivery workflow or select **Prepare code-generation change review** for the run. |
 | Approval | Exact request once, consumed after use |
 | Runtime data root | Check Runtime Storage in `/install`. The default Windows location is `%LOCALAPPDATA%\LocalGPT`. |
 

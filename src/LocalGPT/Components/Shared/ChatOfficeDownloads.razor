@@ -19,7 +19,12 @@
                             {
                                 <li @key="document.Id">
                                     <a href="@($"/api/onewire/work/{document.Id:D}/document")">
-                                        @(document.IsSpreadsheetDocument ? "Download Excel workbook" : "Download Word document")
+                                        @(document.DocumentKind switch
+                                        {
+                                            "spreadsheet" => "Download Excel workbook",
+                                            "pdf" => "Download PDF",
+                                            _ => "Download Word document"
+                                        })
                                     </a>
                                 </li>
                             }

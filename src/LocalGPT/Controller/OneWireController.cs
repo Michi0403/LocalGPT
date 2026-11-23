@@ -145,9 +145,13 @@ public sealed class OneWireController(
             return NotFound();
 
         Response.Headers["Cache-Control"] = "private, no-store";
-        return item.IsSpreadsheetDocument
-            ? File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "PublisherStudio.xlsx")
-            : File(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "PublisherStudio.docx");
+        return item.DocumentKind switch
+        {
+            "spreadsheet" => File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "PublisherStudio.xlsx"),
+            "text" => File(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "PublisherStudio.docx"),
+            "pdf" => File(bytes, "application/pdf", "PublisherStudio.pdf"),
+            _ => NotFound()
+        };
     }
 
     /// <summary>

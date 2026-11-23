@@ -62,8 +62,6 @@ namespace LocalGPT
                 builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
                 builder.Services.Configure<NativeCommandOptions>(
                     builder.Configuration.GetSection(NativeCommandOptions.SectionName));
-                builder.Services.Configure<ArtifactBuildOptions>(
-                    builder.Configuration.GetSection(ArtifactBuildOptions.SectionName));
                 builder.Services.Configure<RemoteWebEndpointOptions>(
                     builder.Configuration.GetSection(RemoteWebEndpointOptions.SectionName));
                 builder.Services.Configure<McpGatewayOptions>(

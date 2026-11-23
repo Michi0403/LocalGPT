@@ -192,7 +192,7 @@ Original request:
                 "Treat the workbook/session as authoritative; inspect before proposing and require current user approval before mutation.",
                 "Run hand-eye packages sequentially per work order and carry each result into the next council heartbeat.",
                 "Do not overlap browser input with the user's active gesture owner.",
-                "To create a new spreadsheet call publisher.document.create.request with CSV content; find open sessions with publisher.sessions.list instead of asking the user for session ids."
+                "For a downloadable workbook call publisher.document.create.request with kind spreadsheet and CSV. For a plain-text PDF report use kind pdf. Omit sessionId with one editor and use publisher.sessions.list if several are open. Read the approved result with organic.plugin.work.read and include its downloadUrl in Chat."
             ]
         },
         new()

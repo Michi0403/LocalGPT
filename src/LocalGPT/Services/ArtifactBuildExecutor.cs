@@ -1,6 +1,5 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.RegularExpressions;
 using System.Text.Json;
@@ -11,14 +10,12 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Represents an artifact build executor application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
-/// <param name="options">Options containing the caller-supplied values that control this operation.</param>
 /// <param name="platform">Platform runtime service used for cross-platform process and filesystem behavior during artifact builds.</param>
 /// <param name="scopeFactory">Creates an operation-scoped compiler inventory service without capturing scoped state in the singleton executor.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="argumentTemplate">Formatter for saved workspace compiler arguments.</param>
 /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the artifact build executor workflow to provide the corresponding application capability.</param>
 public sealed class ArtifactBuildExecutor(
-    IOptionsMonitor<ArtifactBuildOptions> options,
     IPlatformRuntimeService platform,
     IServiceScopeFactory scopeFactory,
     ILocalGptRuntimePolicyDataService runtimePolicy,
@@ -51,10 +48,6 @@ public sealed class ArtifactBuildExecutor(
         var startedAt = DateTime.UtcNow;
         if (!userConfirmed)
             return Result("HumanConfirmationRequired", null, startedAt, string.Empty, "Fresh human confirmation is required for this exact artifact build.");
-
-        var settings = options.CurrentValue;
-        if (!settings.Enabled)
-            return Result("Disabled", null, startedAt, string.Empty, "Artifact builds are disabled by configuration.");
 
         var root = NormalizeDirectory(allowedRoot);
         var target = Path.GetFullPath(targetPath);
@@ -176,9 +169,10 @@ public sealed class ArtifactBuildExecutor(
 
         var minimumTimeoutSeconds = Math.Max(1, runtimePolicy.GetInt("ArtifactBuildMinimumTimeoutSeconds"));
         var maximumTimeoutSeconds = Math.Max(minimumTimeoutSeconds, runtimePolicy.GetInt("ArtifactBuildMaximumTimeoutSeconds"));
-        var configuredSeconds = settings.MaxDurationSeconds <= 0 ? maximumTimeoutSeconds : Math.Clamp(settings.MaxDurationSeconds, minimumTimeoutSeconds, maximumTimeoutSeconds);
-        var requestedSeconds = requestedTimeout <= TimeSpan.Zero ? configuredSeconds : (int)Math.Min(int.MaxValue, Math.Ceiling(requestedTimeout.TotalSeconds));
-        var timeoutSeconds = Math.Clamp(Math.Min(configuredSeconds, Math.Max(minimumTimeoutSeconds, requestedSeconds)), minimumTimeoutSeconds, maximumTimeoutSeconds);
+        var requestedSeconds = requestedTimeout <= TimeSpan.Zero
+            ? 180
+            : (int)Math.Min(int.MaxValue, Math.Ceiling(requestedTimeout.TotalSeconds));
+        var timeoutSeconds = Math.Clamp(requestedSeconds, minimumTimeoutSeconds, maximumTimeoutSeconds);
 
         var startInfo = new ProcessStartInfo
         {
