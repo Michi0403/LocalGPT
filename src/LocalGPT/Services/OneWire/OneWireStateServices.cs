@@ -723,6 +723,51 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Checks that a returned PublisherStudio document really is the approved format before it is offered for download.
+    /// </summary>
+    /// <param name="kind">Approved document kind.</param>
+    /// <param name="bytes">Returned file bytes.</param>
+    private void ValidateReturnedDocument(string kind, byte[] bytes)
+    {
+        switch (kind)
+        {
+            case "pdf":
+                if (!bytes.AsSpan().StartsWith("%PDF-"u8))
+                    throw new InvalidDataException("The returned file does not contain a PDF header.");
+                return;
+            case "rtf":
+                if (!bytes.AsSpan().StartsWith(@"{\rtf"u8))
+                    throw new InvalidDataException("The returned file does not contain an RTF header.");
+                return;
+            case "html":
+            case "txt":
+                // Strict UTF-8 decoding rejects binary data; HTML must also contain an html element.
+                var text = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(bytes);
+                if (kind == "html" && !text.Contains("<html", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("The returned file does not contain an HTML document.");
+                return;
+        }
+
+        using var stream = new MemoryStream(bytes, writable: false);
+        using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
+        string? ReadMimetype()
+        {
+            using var reader = new StreamReader(archive.GetEntry("mimetype")?.Open() ?? Stream.Null);
+            return reader.ReadToEnd().Trim();
+        }
+        var valid = kind switch
+        {
+            "spreadsheet" => archive.GetEntry("[Content_Types].xml") is not null && archive.GetEntry("xl/workbook.xml") is not null,
+            "text" => archive.GetEntry("[Content_Types].xml") is not null && archive.GetEntry("word/document.xml") is not null,
+            "odt" => ReadMimetype() == "application/vnd.oasis.opendocument.text" && archive.GetEntry("content.xml") is not null,
+            "epub" => ReadMimetype() == "application/epub+zip" && archive.GetEntry("META-INF/container.xml") is not null,
+            _ => false
+        };
+        if (!valid)
+            throw new InvalidDataException($"The returned file does not contain the expected {kind} document parts.");
+    }
+
     /// <summary>Extracts a completed PublisherStudio document before storing model-visible metadata.</summary>
     /// <param name="item">The correlated outgoing work item.</param>
     /// <param name="resultJson">The paired peer's result.</param>
@@ -746,22 +791,10 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 !parameters.TryGetProperty("kind", out var requestedKind) ||
                 !string.Equals(kind, requestedKind.GetString(), StringComparison.Ordinal))
                 throw new InvalidDataException("The returned document format differs from the approved request.");
-            if (kind is "spreadsheet" or "text" or "pdf" && !string.IsNullOrEmpty(encoded))
+            if (kind is "spreadsheet" or "text" or "pdf" or "rtf" or "odt" or "html" or "txt" or "epub" && !string.IsNullOrEmpty(encoded))
             {
                 var bytes = Convert.FromBase64String(encoded);
-                if (kind == "pdf")
-                {
-                    if (!bytes.AsSpan().StartsWith("%PDF-"u8))
-                        throw new InvalidDataException("The returned file does not contain a PDF header.");
-                }
-                else
-                {
-                    using var stream = new MemoryStream(bytes, writable: false);
-                    using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
-                    var documentPart = kind == "spreadsheet" ? "xl/workbook.xml" : "word/document.xml";
-                    if (archive.GetEntry("[Content_Types].xml") is null || archive.GetEntry(documentPart) is null)
-                        throw new InvalidDataException("The returned file does not contain the expected Open XML parts.");
-                }
+                ValidateReturnedDocument(kind, bytes);
                 item.DocumentKind = kind;
                 item.DocumentBytes = bytes;
                 result["downloadUrl"] = $"/api/onewire/work/{item.Id:D}/document";

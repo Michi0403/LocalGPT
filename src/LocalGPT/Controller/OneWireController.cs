@@ -150,6 +150,11 @@ public sealed class OneWireController(
             "spreadsheet" => File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "PublisherStudio.xlsx"),
             "text" => File(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "PublisherStudio.docx"),
             "pdf" => File(bytes, "application/pdf", "PublisherStudio.pdf"),
+            "rtf" => File(bytes, "application/rtf", "PublisherStudio.rtf"),
+            "odt" => File(bytes, "application/vnd.oasis.opendocument.text", "PublisherStudio.odt"),
+            "html" => File(bytes, "text/html; charset=utf-8", "PublisherStudio.html"),
+            "txt" => File(bytes, "text/plain; charset=utf-8", "PublisherStudio.txt"),
+            "epub" => File(bytes, "application/epub+zip", "PublisherStudio.epub"),
             _ => NotFound()
         };
     }
