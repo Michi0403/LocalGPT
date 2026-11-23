@@ -235,6 +235,7 @@ function Assert-LocalGptDocumentationPayload {
 
 $appVersion = & (Join-Path $root 'build/Get-ProjectVersion.ps1') -ProjectPath $appProject
 $setupVersion = & (Join-Path $root 'build/Get-ProjectVersion.ps1') -ProjectPath $setupProject
+# Every publish below passes these versions explicitly, so a csproj edit during a long release run cannot mix versions between RIDs.
 if ($appVersion -notmatch '^\d+\.[0-9]\.[0-9]$') {
     throw "LocalGPT application release version '$appVersion' must follow the repository's Major.Minor.Patch convention with single-digit minor/patch fields. Update LocalGPT.csproj before packaging."
 }
@@ -770,6 +771,7 @@ function Publish-UnixRuntime {
         Invoke-DotNet -Arguments @(
             'publish', $appProject, '-c', $Configuration, '-r', $Rid, '--no-restore', '-o', $publishFolder,
             '--self-contained', $selfContained,
+            "-p:Version=$appVersion",
             '-p:PublishSingleFile=false',
             '-p:BuildLocalGptDocumentation=false',
             '-p:SeedLocalGptGitHubPagesSnapshotOnBuild=false',
@@ -802,6 +804,7 @@ function Publish-UnixRuntime {
         Invoke-DotNet -Arguments @(
             'publish', $setupProject, '-c', $Configuration, '-r', $Rid,
             '-o', $setupPublishFolder, '--self-contained', 'true',
+            "-p:Version=$setupVersion",
             '-p:PublishSingleFile=true',
             '-p:IncludeNativeLibrariesForSelfExtract=true',
             '-p:EnableCompressionInSingleFile=true'
@@ -856,6 +859,7 @@ function Publish-Runtime {
     Invoke-DotNet -Arguments @(
         "publish", $appProject,
         "-c", $Configuration,
+        "-p:Version=$appVersion",
         "-p:PublishProfile=$($profile.AppProfile)",
         "-p:PublishDir=$appPublishDir",
         "-p:PublishUrl=$appPublishDir",
@@ -868,6 +872,7 @@ function Publish-Runtime {
     Invoke-DotNet -Arguments @(
         "publish", $setupProject,
         "-c", $Configuration,
+        "-p:Version=$setupVersion",
         "-p:PublishProfile=$($profile.SetupProfile)",
         "-p:PublishDir=$setupPublishDir",
         "-p:PublishUrl=$setupPublishDir"
