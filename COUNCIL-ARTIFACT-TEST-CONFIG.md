@@ -1,4 +1,4 @@
-# LocalGPT 7.7.6 · Workshop Wren
+# LocalGPT 7.7.6 · Unremarkable Wren
 
 ## Windows test configuration
 
