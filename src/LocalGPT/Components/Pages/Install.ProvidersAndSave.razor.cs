@@ -869,6 +869,7 @@ namespace LocalGPT.Components.Pages
         try
         {
             var (ok, msg) = await Probe.TestLocalOpenAICompatAsync(host, default).ConfigureAwait(false);
+            RecordHostTestResult(host.Endpoint, ok, msg);
             await Append((ok ? "OK" : "FAIL") + $" OpenAI-compatible {host.Endpoint}: " + msg).ConfigureAwait(false);
             if (ok) Notifier.ShowSuccess(toastName, host.Endpoint, "Provider reachable");
             else Notifier.ShowWarning(toastName, msg, "Provider test failed");
@@ -890,6 +891,7 @@ namespace LocalGPT.Components.Pages
         try
         {
             var (ok, msg) = await Probe.TestOllamaAsync(host, default).ConfigureAwait(false);
+            RecordHostTestResult(host.Uri, ok, msg);
             await Append((ok ? "OK" : "FAIL") + $" Ollama {host.Uri}: " + msg).ConfigureAwait(false);
             if (ok) Notifier.ShowSuccess(toastName, host.Uri, "Provider reachable");
             else Notifier.ShowWarning(toastName, msg, "Provider test failed");
@@ -1176,6 +1178,52 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    
+    /// <summary>
+    /// Last per-host test outcome keyed by the endpoint text shown in the host row, so the result stays visible
+    /// on that row after the toast disappears.
+    /// </summary>
+    private readonly Dictionary<string, (bool Ok, string Message, DateTimeOffset CheckedAt)> hostTestResults = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Stores the outcome of a per-host connection test and re-renders the page.</summary>
+    /// <param name="endpoint">Endpoint text of the tested host row.</param>
+    /// <param name="ok">Whether the host answered.</param>
+    /// <param name="message">Provider message returned by the probe.</param>
+    private void RecordHostTestResult(string? endpoint, bool ok, string? message)
+    {
+        try
+        {
+            hostTestResults[endpoint?.Trim() ?? string.Empty] = (ok, message ?? string.Empty, DateTimeOffset.Now);
+            _ = InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not record the provider host test result.");
+        }
+    }
+
+    /// <summary>Returns the visible status line for a host row, or an empty string when the host was not tested yet.</summary>
+    /// <param name="endpoint">Endpoint text of the host row.</param>
+    /// <returns>Status text for the host row.</returns>
+    private string HostTestStatus(string? endpoint)
+    {
+        if (!hostTestResults.TryGetValue(endpoint?.Trim() ?? string.Empty, out var result))
+            return string.Empty;
+        var verdict = result.Ok
+            ? T("Install.HostTest.Reachable", "Reachable")
+            : T("Install.HostTest.Unreachable", "Not reachable");
+        return $"{verdict} · {result.CheckedAt:HH:mm:ss}" + (result.Ok || string.IsNullOrWhiteSpace(result.Message) ? string.Empty : " · " + result.Message);
+    }
+
+    /// <summary>Returns whether the last test of a host row succeeded; null when it was not tested yet.</summary>
+    /// <param name="endpoint">Endpoint text of the host row.</param>
+    /// <returns>The last outcome or null.</returns>
+    private bool? HostTestOk(string? endpoint)
+        => hostTestResults.TryGetValue(endpoint?.Trim() ?? string.Empty, out var result) ? result.Ok : null;
+
+    /// <summary>Caption of an additional provider host group: the endpoint, or a placeholder for a new empty row.</summary>
+    /// <param name="endpoint">Endpoint text of the host row.</param>
+    /// <returns>The group caption.</returns>
+    private string HostGroupCaption(string? endpoint)
+        => string.IsNullOrWhiteSpace(endpoint) ? T("Install.HostGroup.New", "New host") : endpoint.Trim();
     }
 }

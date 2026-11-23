@@ -2433,5 +2433,8 @@
   "Install.Certificate.ExtendedKeyUsages": "Extended Key Usage (combine purposes)",
   "Install.Certificate.EkuHelp": "Choose the intended certificate purposes. ServerAuthentication is mandatory if you assign this certificate to the HTTPS listener.",
   "Install.Certificate.CaMode": "Certificate authority",
-  "Install.Certificate.CaHelp": "Issue a CA certificate (requires KeyCertSign and no end-entity EKUs)"
+  "Install.Certificate.CaHelp": "Issue a CA certificate (requires KeyCertSign and no end-entity EKUs)",
+  "Install.HostTest.Reachable": "到達可能",
+  "Install.HostTest.Unreachable": "到達不可",
+  "Install.HostGroup.New": "新しいホスト"
 }

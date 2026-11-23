@@ -1272,3 +1272,23 @@
         width: 100%;
     }
 }
+
+/* Additional provider hosts: one bordered row per host with its last test result kept visible. */
+::deep .additional-provider-host {
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 8px;
+    margin-top: .5rem;
+}
+
+.host-test-status {
+    margin-top: .35rem;
+    font-size: .85rem;
+}
+
+.host-test-ok {
+    color: var(--bs-success, #198754);
+}
+
+.host-test-fail {
+    color: var(--bs-danger, #dc3545);
+}

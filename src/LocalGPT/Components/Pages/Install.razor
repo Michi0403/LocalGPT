@@ -449,10 +449,6 @@
                         <DxButton Text="Download Model" Click="DownloadModel" /> *@
                         <DxButton Text="Start Local Server" Click="StartLocal" />
                         <DxButton Text="Test Connection" Click="TestLocal" />
-                        <DxButton Text="Save provider settings"
-                                  RenderStyle="ButtonRenderStyle.Primary"
-                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
-                                  Click="Save" />
                     </div>
 
                     <DxFormLayoutItem Caption="Additional OpenAI-compatible hosts">
@@ -463,29 +459,40 @@
                     </DxFormLayoutItem>
                     @foreach (var host in AdditionalOpenAiCompatibleHosts)
                     {
-                        <DxFormLayoutItem Caption="Endpoint">
+                        @* One full-width group per host keeps endpoint, key, model and actions on the host's own row. *@
+                        <DxFormLayoutGroup Caption="@HostGroupCaption(host.Endpoint)" ColSpanMd="12" CssClass="additional-provider-host">
+                        <DxFormLayoutItem Caption="Endpoint" ColSpanMd="5">
                             <DxTextBox @bind-Text="host.Endpoint" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="API Key">
+                        <DxFormLayoutItem Caption="API Key" ColSpanMd="3">
                             <DxTextBox @bind-Text="host.ApiKey" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Preferred model">
+                        <DxFormLayoutItem Caption="Preferred model" ColSpanMd="4">
                             <DxTextBox @bind-Text="host.ModelName" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem>
+                        <DxFormLayoutItem ColSpanMd="12">
                             <div class="configured-provider-actions">
                                 <DxButton Text="Test connection" Click="@(() => TestOpenAiCompatibleHostAsync(host))" />
-                                <DxButton Text="Save provider settings"
-                                          RenderStyle="ButtonRenderStyle.Primary"
-                                          RenderStyleMode="ButtonRenderStyleMode.Contained"
-                                          Click="Save" />
                                 <DxButton Text="Remove"
                                           RenderStyle="ButtonRenderStyle.Danger"
                                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                                           Click="@(() => RemoveOpenAiCompatibleHostAsync(host))" />
                             </div>
+                            @if (HostTestOk(host.Endpoint) is bool tested)
+                            {
+                                <div class="host-test-status @(tested ? "host-test-ok" : "host-test-fail")" role="status">@HostTestStatus(host.Endpoint)</div>
+                            }
                         </DxFormLayoutItem>
+                        </DxFormLayoutGroup>
                     }
+
+                    @* A single save for the whole tab: it stores the primary endpoint and every additional host together. *@
+                    <div class="configured-provider-actions">
+                        <DxButton Text="Save provider settings"
+                                  RenderStyle="ButtonRenderStyle.Primary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Click="Save" />
+                    </div>
                 </DxFormLayoutTabPage>
 
                 <DxFormLayoutTabPage Caption="Ollama">
@@ -498,10 +505,6 @@
                     </DxFormLayoutItem>
                     <div class="configured-provider-actions">
                         <DxButton Text="Test Connection" Click="TestOllama" />
-                        <DxButton Text="Save provider settings"
-                                  RenderStyle="ButtonRenderStyle.Primary"
-                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
-                                  Click="Save" />
                     </div>
 
                     <DxFormLayoutItem Caption="Additional Ollama hosts / preferred models">
@@ -513,26 +516,37 @@
 
                     @foreach (var ollama in AdditionalOllamaModels)
                     {
-                        <DxFormLayoutItem Caption="URI">
+                        @* One full-width group per host keeps URI, model and actions on the host's own row. *@
+                        <DxFormLayoutGroup Caption="@HostGroupCaption(ollama.Uri)" ColSpanMd="12" CssClass="additional-provider-host">
+                        <DxFormLayoutItem Caption="URI" ColSpanMd="7">
                             <DxTextBox @bind-Text="ollama.Uri" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Model">
+                        <DxFormLayoutItem Caption="Model" ColSpanMd="5">
                             <DxTextBox @bind-Text="ollama.ModelName" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem>
+                        <DxFormLayoutItem ColSpanMd="12">
                             <div class="configured-provider-actions">
                                 <DxButton Text="Test connection" Click="@(() => TestOllamaHostAsync(ollama))" />
-                                <DxButton Text="Save provider settings"
-                                          RenderStyle="ButtonRenderStyle.Primary"
-                                          RenderStyleMode="ButtonRenderStyleMode.Contained"
-                                          Click="Save" />
                                 <DxButton Text="Remove"
                                           RenderStyle="ButtonRenderStyle.Danger"
                                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                                           Click="@(() => RemoveOllamaModelAsync(ollama))" />
                             </div>
+                            @if (HostTestOk(ollama.Uri) is bool tested)
+                            {
+                                <div class="host-test-status @(tested ? "host-test-ok" : "host-test-fail")" role="status">@HostTestStatus(ollama.Uri)</div>
+                            }
                         </DxFormLayoutItem>
+                        </DxFormLayoutGroup>
                     }
+
+                    @* A single save for the whole tab: it stores the primary host and every additional host together. *@
+                    <div class="configured-provider-actions">
+                        <DxButton Text="Save provider settings"
+                                  RenderStyle="ButtonRenderStyle.Primary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Click="Save" />
+                    </div>
                 </DxFormLayoutTabPage>
 
                 <DxFormLayoutTabPage Caption="OpenAI (Cloud)">

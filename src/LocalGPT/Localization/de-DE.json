@@ -2433,5 +2433,8 @@
   "Install.Certificate.ExtendedKeyUsages": "Erweiterte Schlüsselverwendung (kombinierbar)",
   "Install.Certificate.EkuHelp": "Zertifikatszwecke auswählen. ServerAuthentication ist erforderlich, wenn das Zertifikat für den HTTPS-Endpunkt verwendet wird.",
   "Install.Certificate.CaMode": "Zertifizierungsstelle",
-  "Install.Certificate.CaHelp": "CA-Zertifikat ausstellen (benötigt KeyCertSign und keine Endentitäts-EKUs)"
+  "Install.Certificate.CaHelp": "CA-Zertifikat ausstellen (benötigt KeyCertSign und keine Endentitäts-EKUs)",
+  "Install.HostTest.Reachable": "Erreichbar",
+  "Install.HostTest.Unreachable": "Nicht erreichbar",
+  "Install.HostGroup.New": "Neuer Host"
 }
