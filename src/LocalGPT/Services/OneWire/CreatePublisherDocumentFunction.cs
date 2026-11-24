@@ -38,7 +38,7 @@ public sealed class CreatePublisherDocumentFunction(
         Parameters: "kind, title, content, presentation, page, sessionId, peerId, workOrderKey",
         SafetyNotes: "Requires fresh LocalGPT approval and a fresh PublisherStudio approval for every request. Content is validated by PublisherStudio before anything is inserted; the insertion is undoable.",
         IsReadOnly: false,
-        AvailableToAi: true,
+        AvailableToAi: false,
         RequiresHumanConfirmation: true,
         SupportsDirectInvocation: true,
         SupportsAutomaticInvocation: false,

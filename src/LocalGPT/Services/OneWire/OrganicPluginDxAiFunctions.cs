@@ -5,8 +5,7 @@ using System.Text.Json;
 namespace LocalGPT.Services.OneWire;
 
 /// <summary>
-/// Generic escape hatch for explicitly advertised organic capabilities. Dedicated handlers below keep the
-/// common spreadsheet workflow discoverable to every normal LocalGPT chat without requiring a Council run.
+/// Queues explicitly advertised organic capabilities using the connected peer catalog.
 /// </summary>
 /// <param name="organicSupport">Organic devexpress function support dependency used by the invoke organic plugin function workflow to provide the corresponding application capability.</param>
 /// <param name="connections">One wire connection registry dependency used by the invoke organic plugin function workflow to provide the corresponding application capability.</param>
@@ -64,8 +63,8 @@ public sealed class InvokeOrganicPluginFunction(
             if (peer is null || !connections.IsConnected(peerId))
                 return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The requested organic plugin peer is not connected." };
             var capability = organicSupport.FindCapability(peer, capabilityKey);
-            if (capability is null)
-                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The connected peer did not advertise this capability as enabled and online." };
+            if (capability is not { IsExposedToPeer: true, AllowPeerInvocation: true })
+                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The connected peer did not advertise this capability as available for peer invocation." };
 
             var payload = request.Parameters.TryGetProperty("payload", out var payloadElement)
                 ? payloadElement.Clone()
@@ -82,7 +81,7 @@ public sealed class InvokeOrganicPluginFunction(
                 DateTimeOffset.TryParse(organicSupport.GetString(request.Parameters, "notBeforeUtc"), out var notBefore) ? notBefore : null,
                 request.UserConfirmed,
                 request.Parameters.TryGetProperty("interactionValue", out var interaction) ? interaction.GetRawText() : payload.GetRawText());
-            return await QueueAndSendAsync(envelope, cancellationToken).ConfigureAwait(false);
+            return await QueueAndSendAsync(envelope, request.ConversationId, cancellationToken).ConfigureAwait(false);
     
     }
     catch (Exception __serviceMethodException)
@@ -99,13 +98,14 @@ public sealed class InvokeOrganicPluginFunction(
     /// Performs queue and send for <see cref="InvokeOrganicPluginFunction"/>, keeping the operation consistent with the state and invariants of the surrounding invoke organic plugin function workflow.
     /// </summary>
     /// <param name="envelope">Envelope value supplied to the invoke organic plugin function operation and used when producing its result.</param>
+    /// <param name="conversationId">Chat that receives any downloadable result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
-    private async Task<DxAiFunctionInvocationResult> QueueAndSendAsync(OneWireEnvelope envelope, CancellationToken cancellationToken)
+    private async Task<DxAiFunctionInvocationResult> QueueAndSendAsync(OneWireEnvelope envelope, Guid? conversationId, CancellationToken cancellationToken)
     {
     try
     {
-            var work = spooler.Enqueue(envelope);
+            var work = spooler.Enqueue(envelope, conversationId);
             if (!await connections.SendAsync(envelope.TargetPeerId, envelope, cancellationToken).ConfigureAwait(false))
             {
                 spooler.Fail(work.Id, "The organic plugin disconnected before the request was sent.");

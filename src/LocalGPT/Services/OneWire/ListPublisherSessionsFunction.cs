@@ -38,7 +38,7 @@ public sealed class ListPublisherSessionsFunction(
         Parameters: "peerId, workOrderKey",
         SafetyNotes: "Read-only. Returns only titles and ids, never document content. PublisherStudio applies its own per-capability permission rule.",
         IsReadOnly: true,
-        AvailableToAi: true,
+        AvailableToAi: false,
         RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true,
         SupportsAutomaticInvocation: true,

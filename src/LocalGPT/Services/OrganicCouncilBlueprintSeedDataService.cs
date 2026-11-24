@@ -76,7 +76,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
                 "The first answer round is a blind independent best-of-N pass: participants receive the same user task but no peer answers, so strong minority solutions and model diversity remain observable.",
                 "Review happens only after the independent candidate answers are frozen. Reviewers may compare them, but must not rewrite history or erase the original per-model outputs.",
                 "Final consensus may synthesize or select the strongest evidence, while the individual candidate and review steps remain first-class Council transcript artifacts.",
-                "When the task asks for a new spreadsheet or text document in a connected PublisherStudio, use publisher.document.create.request (spreadsheet content is CSV) and find open sessions with publisher.sessions.list; never ask the user for session ids."
+                "For document and spreadsheet tasks, read the connected PublisherStudio capability teaching and invoke its advertised methods through organic.plugin.invoke. Discover editor sessions through the peer catalog when the export requires one."
             ]
         },
         new()
@@ -192,7 +192,7 @@ Original request:
                 "Treat the workbook/session as authoritative; inspect before proposing and require current user approval before mutation.",
                 "Run hand-eye packages sequentially per work order and carry each result into the next council heartbeat.",
                 "Do not overlap browser input with the user's active gesture owner.",
-                "For a downloadable workbook call publisher.document.create.request with kind spreadsheet and CSV. For a plain-text PDF report use kind pdf. Omit sessionId with one editor and use publisher.sessions.list if several are open. Read the approved result with organic.plugin.work.read and include its downloadUrl in Chat."
+                "For a downloadable document, call organic.plugin.invoke using the connected PublisherStudio peer ID, advertised capability key, and parameters from that peer's schema as payload. Read the approved result with organic.plugin.work.read and include its downloadUrl in Chat."
             ]
         },
         new()

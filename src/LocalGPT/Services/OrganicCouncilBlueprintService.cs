@@ -114,18 +114,19 @@ public sealed class OrganicCouncilBlueprintService(
             var connectedCapabilities = peers.GetPeers()
                 .Where(peer => peer.IsConnected)
                 .SelectMany(peer => peer.Capabilities.Select(capability => new { peer.PeerId, peer.DisplayName, Capability = capability }))
-                .Where(item => item.Capability.IsEnabled && item.Capability.IsOnline && item.Capability.IsExposedToPeer)
+                .Where(item => item.Capability.IsEnabled && item.Capability.IsOnline && item.Capability.IsExposedToPeer && item.Capability.AllowPeerInvocation)
                 .OrderBy(item => item.Capability.Key, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             if (connectedCapabilities.Count > 0)
             {
                 builder.AppendLine("Connected organic 1-Wire capability teaching:")
-                    .AppendLine("Every member must use the exact advertised input contract, carry the WorkResult CorrelationId into the next heartbeat, and never infer permission from capability visibility.");
+                    .AppendLine("Use organic.plugin.invoke with the advertised peerId, capabilityKey and payload schema. Carry the WorkResult CorrelationId into the next heartbeat. Capability visibility does not authorize execution.");
                 foreach (var item in connectedCapabilities.Where(item => request.RequestedOrganicCapabilities.Contains(item.Capability.Key, StringComparer.OrdinalIgnoreCase) || team.PreferredCapabilities.Contains(item.Capability.Key, StringComparer.OrdinalIgnoreCase)))
                 {
                     var capability = item.Capability;
                     builder.AppendLine($"- {capability.Key} from {item.DisplayName} ({item.PeerId})")
                         .AppendLine($"  Input: {capability.InputContract}")
+                        .AppendLine($"  Payload schema: {capability.ParameterSchemaJson}")
                         .AppendLine($"  Output: {capability.OutputContract}")
                         .AppendLine($"  Security: {capability.SecurityContract}")
                         .AppendLine($"  Organic use: {capability.OrganicUseCase}")

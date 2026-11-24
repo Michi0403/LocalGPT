@@ -97,7 +97,7 @@ public sealed class CouncilPreflightService(
             report.CapabilityTeachings = oneWirePeers.GetPeers()
                 .Where(peer => peer.IsConnected)
                 .SelectMany(peer => peer.Capabilities.Select(capability => new { Peer = peer, Capability = capability }))
-                .Where(item => item.Capability.IsEnabled && item.Capability.IsOnline && item.Capability.IsExposedToPeer)
+                .Where(item => item.Capability.IsEnabled && item.Capability.IsOnline && item.Capability.IsExposedToPeer && item.Capability.AllowPeerInvocation)
                 .OrderBy(item => item.Peer.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(item => item.Capability.Key, StringComparer.OrdinalIgnoreCase)
                 .Take(120)
@@ -105,7 +105,7 @@ public sealed class CouncilPreflightService(
                 {
                     var capability = item.Capability;
                     var roles = capability.SuggestedCouncilRoles.Count == 0 ? "not role-restricted" : string.Join(", ", capability.SuggestedCouncilRoles);
-                    return $"{item.Peer.DisplayName}/{capability.Key} | input: {capability.InputContract} | output: {capability.OutputContract} | security: {capability.SecurityContract} | organic use: {capability.OrganicUseCase} | suggested roles: {roles}";
+                    return $"{item.Peer.DisplayName} ({item.Peer.PeerId})/{capability.Key} | input: {capability.InputContract} | payload schema: {capability.ParameterSchemaJson} | output: {capability.OutputContract} | security: {capability.SecurityContract} | organic use: {capability.OrganicUseCase} | suggested roles: {roles}";
                 })
                 .ToList();
 
