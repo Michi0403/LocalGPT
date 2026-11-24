@@ -767,12 +767,6 @@ namespace LocalGPT.Components.Pages
         ? null
         : ModelPresets.FirstOrDefault(item => item.Id == SelectedModelPreset.Id);
     /// <summary>
-    /// Gets the currently selected Council team instance for the compact prompt-line selector.
-    /// </summary>
-    /// <value>The service-backed team whose stable key matches <see cref="SelectedCouncilTeamKey"/>, or <see langword="null"/> when the team is unavailable.</value>
-    OrganicCouncilTeamDefinition? SelectedQuickCouncilTeam => CouncilTeams.FirstOrDefault(team =>
-        string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase));
-    /// <summary>
     /// Gets or sets the chat projects collection maintained or exposed by this chat instance for downstream processing.
     /// </summary>
     /// <value>The chat projects value exposed by <see cref="Chat"/>.</value>
@@ -1778,26 +1772,6 @@ namespace LocalGPT.Components.Pages
         catch (Exception __componentMethodException)
         {
             Logger.LogError(__componentMethodException, "Component method Chat.OnCouncilTeamChanged failed.");
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Applies a Council team selected from the compact prompt-line DevExpress selector through the same preparation path used by Chat configuration.
-    /// </summary>
-    /// <param name="team">Service-backed Council team selected by the user.</param>
-    /// <returns>A task that completes after prompt suggestions and preparation state have been synchronized.</returns>
-    private async Task OnQuickCouncilTeamChangedAsync(OrganicCouncilTeamDefinition? team)
-    {
-        try
-        {
-        await OnCouncilTeamChanged(new ChangeEventArgs { Value = team?.Key ?? string.Empty }).ConfigureAwait(false);
-        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
-    
-        }
-        catch (Exception __componentMethodException)
-        {
-            Logger.LogError(__componentMethodException, "Component method Chat.OnQuickCouncilTeamChangedAsync failed.");
             throw;
         }
     }

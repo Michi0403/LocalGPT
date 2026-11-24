@@ -429,6 +429,16 @@ namespace LocalGPT.Services
                 var legacyVerification = await promptConfig.GetPromptAsync("CouncilLegacyVerification", cancellationToken: cancellationToken).ConfigureAwait(false);
                 var legacyCritiqueSelfReview = await promptConfig.GetPromptAsync("CouncilLegacyCritiqueSelfReview", cancellationToken: cancellationToken).ConfigureAwait(false);
                 var legacyCritiquePeerReview = await promptConfig.GetPromptAsync("CouncilLegacyCritiquePeerReview", cancellationToken: cancellationToken).ConfigureAwait(false);
+                var deliveryCapabilities = request.RequestedOrganicCapabilities.Concat(organicTeam.PreferredCapabilities)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                var legacyToolPolicy = councilAutomaticFunctionPolicy.Resolve(organicTeam, new CouncilWorkflowStepDefinition
+                {
+                    Key = "legacy-delivery",
+                    CanUseOrganicFunctions = true
+                }, requestedCapabilities: deliveryCapabilities);
+                const string deliveryInstruction = "When the user asks you to deliver a result through an advertised capability, use the native tool to submit the finished payload from the advertised schema before writing your response. If the transcript already shows that delivery is pending or complete, report that receipt. Report a download only when the tool supplies a download URL.";
+                var critiqueRounds = Math.Clamp(request.MaxRounds, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumCritiqueRounds);
+                var soloProposalDelivers = critiqueRounds == 0 && participants.Count == 1 && deliveryCapabilities.Length > 0;
                 var proposalBootstrap = await PrepareHumanHeartbeatAsync(
                     result,
                     request,
@@ -444,7 +454,8 @@ namespace LocalGPT.Services
                     round: 1,
                     phase: "Proposal",
                     role: "Independent proposal",
-                    promptFactory: modelName => councilText.MultiModelCouncilServiceCreateProposalPrompt(legacyProposal, modelName, request.Prompt, logger),
+                    promptFactory: modelName => councilText.MultiModelCouncilServiceCreateProposalPrompt(legacyProposal, modelName, request.Prompt, logger)
+                        + (soloProposalDelivers ? Environment.NewLine + deliveryInstruction : string.Empty),
                     proposalBootstrap,
                     request.MaxOutputTokens,
                     maxParallelModels,
@@ -457,9 +468,9 @@ namespace LocalGPT.Services
                     request.StepCompleted,
                     modelRoutes,
                     request.AllowParallelHardwareRoads,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken,
+                    automaticFunctionAllowList: legacyToolPolicy.AutomaticFunctionAllowList).ConfigureAwait(false);
 
-                var critiqueRounds = Math.Clamp(request.MaxRounds, 0, runtimePolicy.GetJson<CouncilExecutionRuntimeParameters>("CouncilExecutionRuntimeParametersJson").MaximumCritiqueRounds);
                 if (critiqueRounds == 0)
                     result.Warnings.Add("Low-resource council mode: critique/refinement rounds are skipped for this run.");
                 for (var round = 1; round <= critiqueRounds; round++)
@@ -550,7 +561,8 @@ namespace LocalGPT.Services
                                 round: consensusRound,
                                 phase: "Consensus",
                                 role: "Consensus writer",
-                                prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateConsensusPrompt(legacyConsensus, request.Prompt, finalTranscript, logger)),
+                                prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateConsensusPrompt(legacyConsensus, request.Prompt, finalTranscript, logger))
+                                    + (deliveryCapabilities.Length > 0 ? Environment.NewLine + deliveryInstruction : string.Empty),
                                 consensusBootstrap,
                                 request.MaxOutputTokens,
                                 keepAlive,
@@ -559,7 +571,8 @@ namespace LocalGPT.Services
                                 modelTimeoutSeconds,
                                 consensusStreamUpdate,
                                 cancellationToken,
-                                progressMessage: request.ProgressMessage).ConfigureAwait(false);
+                                progressMessage: request.ProgressMessage,
+                                automaticFunctionAllowList: legacyToolPolicy.AutomaticFunctionAllowList).ConfigureAwait(false);
                         }
                         ArgumentNullException.ThrowIfNull(consensusStep);
                         liveCouncilSessions.SetParticipantActivityResult(

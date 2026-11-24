@@ -935,10 +935,11 @@
 
             <DxFormLayout>
                 <DxFormLayoutItem Caption='@Localization.GetText("Team")' ColSpanMd="3">
-                    <DxComboBox Data="@CouncilTeams"
-                                Value="@SelectedQuickCouncilTeam"
-                                TextFieldName="@nameof(OrganicCouncilTeamDefinition.DisplayName)"
-                                ValueChanged="@((OrganicCouncilTeamDefinition team) => OnQuickCouncilTeamChangedAsync(team))"
+                    <DxComboBox Data="@CouncilTeamOptions"
+                                Value="@SelectedCouncilTeamKey"
+                                ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)"
+                                ValueChanged="@((string value) => OnCouncilTeamChanged(new ChangeEventArgs { Value = value }))"
                                 NullText='@Localization.GetText("Council team")' />
                 </DxFormLayoutItem>
                 <DxFormLayoutItem Caption='@Localization.GetText("Models")' ColSpanMd="3">

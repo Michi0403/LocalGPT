@@ -120,7 +120,7 @@ public sealed class OrganicCouncilBlueprintService(
             if (connectedCapabilities.Count > 0)
             {
                 builder.AppendLine("Connected organic 1-Wire capability teaching:")
-                    .AppendLine("Use organic.plugin.invoke with the advertised peerId, capabilityKey and payload schema. If approval is pending, report it and wait for the human decision. Read the result through organic.plugin.work.read using the returned correlation ID and share the returned download URL in Chat when available. Capability visibility does not authorize execution.");
+                    .AppendLine("Use organic.plugin.invoke with the advertised peerId, capabilityKey and payload schema. If approval is pending, report it and wait for the human decision. Once the invocation returns a workItemId, use that value with organic.plugin.work.read and share the returned download URL in Chat when available. Capability visibility does not authorize execution.");
                 foreach (var item in connectedCapabilities.Where(item =>
                     request.RequestedOrganicCapabilities.Contains(item.Capability.Key, StringComparer.OrdinalIgnoreCase) ||
                     team.PreferredCapabilities.Contains(item.Capability.Key, StringComparer.OrdinalIgnoreCase) ||

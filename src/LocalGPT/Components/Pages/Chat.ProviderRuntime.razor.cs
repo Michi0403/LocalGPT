@@ -280,8 +280,12 @@ namespace LocalGPT.Components.Pages
             var userConfirmedArtifactBuild = GenerateCouncilArtifacts;
             GenerateCouncilArtifacts = false;
 
+            ActiveConversationId ??= Guid.NewGuid();
+            SessionContext.SetConversation(ActiveConversationId);
+
             var request = new MultiModelCouncilRequest
             {
+                ChatSession = SessionContext.Snapshot(),
                 ModelNames = (CouncilRuntime.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
                 ModelSelections = selectedProviderModels,
                 UnavailableModelSelections = (DiagnosticCouncilModelNames.Count > 0

@@ -18,6 +18,10 @@ namespace LocalGPT.BusinessObjects
         [JsonIgnore]
         public Guid? ChatRunId { get; set; }
 
+        /// <summary>Captures the originating Chat session for tools executed in a separate Council scope.</summary>
+        [JsonIgnore]
+        public ChatSessionContextSnapshot? ChatSession { get; set; }
+
         /// <summary>
         /// Gets or sets the prompt value that forms part of the multi model council state consumed or produced by the surrounding workflow.
         /// </summary>

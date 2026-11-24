@@ -105,7 +105,8 @@ public sealed class CouncilAutomaticFunctionPolicyService(
             var capabilityFunctions = ResolveCapabilityFunctions(requestedCapabilities);
             if (preferred.Count == 0)
             {
-                if (string.Equals(ReadUnlistedStepToolMode(), AllPolicyApprovedMode, StringComparison.OrdinalIgnoreCase))
+                if (capabilityFunctions.Count == 0 &&
+                    string.Equals(ReadUnlistedStepToolMode(), AllPolicyApprovedMode, StringComparison.OrdinalIgnoreCase))
                 {
                     return new CouncilAutomaticFunctionPolicyResolution(
                         true,

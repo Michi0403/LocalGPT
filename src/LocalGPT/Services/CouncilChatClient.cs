@@ -236,6 +236,8 @@ public sealed partial class CouncilChatClient(
             var scope = serviceScopeFactory.CreateAsyncScope();
             await using (scope.ConfigureAwait(false))
             {
+                if (request.ChatSession is { } chatSession)
+                    scope.ServiceProvider.GetRequiredService<IChatSessionContext>().Restore(chatSession);
                 var goalService = scope.ServiceProvider.GetRequiredService<IGoalExecutionService>();
                 var goal = await goalService.ExecuteAsync(new GoalExecutionRequest
                 {
@@ -331,6 +333,8 @@ public sealed partial class CouncilChatClient(
             var scope = serviceScopeFactory.CreateAsyncScope();
             await using (scope.ConfigureAwait(false))
             {
+                if (request.ChatSession is { } chatSession)
+                    scope.ServiceProvider.GetRequiredService<IChatSessionContext>().Restore(chatSession);
                 var goalService = scope.ServiceProvider.GetRequiredService<IGoalExecutionService>();
                 var goal = await goalService.ExecuteAsync(new GoalExecutionRequest
                 {
