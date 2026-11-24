@@ -806,10 +806,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 return resultJson;
             var keys = result.Select(property => property.Key).ToArray();
             var bytesKey = keys.FirstOrDefault(key => string.Equals(key, "documentBytes", StringComparison.OrdinalIgnoreCase));
-            if (bytesKey is null)
+            var hasTransfer = keys.Any(key => string.Equals(key, "transfer", StringComparison.OrdinalIgnoreCase));
+            if (bytesKey is null && !hasTransfer)
                 return resultJson;
-            var encoded = result[bytesKey]?.GetValue<string>();
-            result.Remove(bytesKey);
             var kindKey = keys.FirstOrDefault(key => string.Equals(key, "kind", StringComparison.OrdinalIgnoreCase));
             var kind = kindKey is null ? null : result[kindKey]?.GetValue<string>();
             if (item.Request.Properties is not { } properties ||
@@ -817,6 +816,11 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 !parameters.TryGetProperty("kind", out var requestedKind) ||
                 !string.Equals(kind, requestedKind.GetString(), StringComparison.Ordinal))
                 throw new InvalidDataException("The returned document format differs from the approved request.");
+            if (hasTransfer && bytesKey is null)
+                return ReadPeerFileResult(item, resultJson);
+            var encoded = bytesKey is null ? null : result[bytesKey]?.GetValue<string>();
+            if (bytesKey is not null)
+                result.Remove(bytesKey);
             if (kind is "spreadsheet" or "text" or "pdf" or "rtf" or "odt" or "html" or "txt" or "epub" or "doc" or "mht" or "xls" or "csv" && !string.IsNullOrEmpty(encoded))
             {
                 var bytes = Convert.FromBase64String(encoded);
@@ -919,7 +923,10 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
             if (bytes.LongLength != item.DocumentTransferLength ||
                 !string.Equals(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)), expected, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("The assembled file does not match the length and SHA-256 that PublisherStudio announced.");
-            ValidateReturnedPeerFile(mimeType, bytes);
+            if (item.CapabilityKey == "publisher.document.create" && item.DocumentKind is { } documentKind)
+                ValidateReturnedDocument(documentKind, bytes);
+            else
+                ValidateReturnedPeerFile(mimeType, bytes);
             Mutate(id, current =>
             {
                 current.DocumentBytes = bytes;
@@ -995,6 +1002,7 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 "image/jpeg" => At(0, [0xFF, 0xD8, 0xFF]),
                 "image/gif" => At(0, "GIF8"u8),
                 "image/webp" => At(0, "RIFF"u8) && At(8, "WEBP"u8),
+                "image/avif" => At(4, "ftyp"u8) && (At(8, "avif"u8) || At(8, "avis"u8)),
                 "image/bmp" => At(0, "BM"u8),
                 "image/tiff" => At(0, [0x49, 0x49, 0x2A, 0x00]) || At(0, [0x4D, 0x4D, 0x00, 0x2A]),
                 "image/svg+xml" => Utf8().Contains("<svg", StringComparison.OrdinalIgnoreCase),

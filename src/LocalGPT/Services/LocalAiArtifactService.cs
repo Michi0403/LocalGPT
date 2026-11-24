@@ -40,7 +40,8 @@ public sealed class LocalAiArtifactService(
 
                 var name = Uri.UnescapeDataString(match.Groups["name"].Value);
                 var artifact = Resolve(id, name);
-                if (artifact is not { SupportsPreview: true })
+                if (artifact is null ||
+                    (!artifact.SupportsPreview && !artifact.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)))
                     continue;
 
                 seen.Add(id);

@@ -18,11 +18,17 @@
     }
     @foreach (var segment in renderedSegments)
     {
-        <div @key="segment.Key" class="localgpt-live-council-chat-segment">@((MarkupString)segment.Html)</div>
+        <div @key="segment.Key" class="localgpt-live-council-chat-segment">
+            @((MarkupString)segment.Html)
+            <ChatArtifactPreview Content="@segment.Html" />
+        </div>
     }
     @if (!string.IsNullOrEmpty(renderedTail))
     {
-        <div class="localgpt-live-council-chat-segment is-live">@((MarkupString)renderedTail)</div>
+        <div class="localgpt-live-council-chat-segment is-live">
+            @((MarkupString)renderedTail)
+            <ChatArtifactPreview Content="@renderedTail" />
+        </div>
     }
 </div>
     </Template>

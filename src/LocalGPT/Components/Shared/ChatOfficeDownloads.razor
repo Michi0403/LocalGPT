@@ -12,12 +12,28 @@
         <DxFormLayout CssClass="razor-component-layout-owner ChatOfficeDownloads">
             <DxFormLayoutItem ColSpanMd="12">
                 <Template Context="officeDownloadContext">
-                    <div aria-label="PublisherStudio documents">
-                        <strong>PublisherStudio documents</strong>
+                    <div aria-label="PublisherStudio files">
+                        <strong>PublisherStudio files</strong>
                         <ul>
                             @foreach (var document in documents)
                             {
                                 <li @key="document.Id">
+                                    @{
+                                        var mediaUrl = $"/api/onewire/work/{document.Id:D}/media";
+                                        var mediaLabel = document.DocumentFileName ?? document.DocumentKind;
+                                    }
+                                    @if (document.SupportsImagePreview)
+                                    {
+                                        <img src="@mediaUrl" alt="@mediaLabel" loading="lazy" style="display:block;max-width:100%;max-height:70vh;" />
+                                    }
+                                    else if (document.SupportsVideoPreview)
+                                    {
+                                        <video src="@mediaUrl" aria-label="@mediaLabel" controls preload="none" style="display:block;max-width:100%;max-height:70vh;"></video>
+                                    }
+                                    else if (document.SupportsAudioPreview)
+                                    {
+                                        <audio src="@mediaUrl" aria-label="@mediaLabel" controls preload="none"></audio>
+                                    }
                                     <a href="@($"/api/onewire/work/{document.Id:D}/document")">
                                         @(document.DocumentKind switch
                                         {

@@ -165,6 +165,22 @@ public sealed class OneWireController(
         };
     }
 
+    /// <summary>Streams a verified raster image, video or audio result for the local Chat preview.</summary>
+    /// <param name="id">Identifier of the approved work item.</param>
+    /// <returns>The inline media file, or a not-found response.</returns>
+    [HttpGet("work/{id:guid}/media")]
+    public IActionResult WorkMedia(Guid id)
+    {
+        if (!transportSecurityPolicy.IsLoopback(HttpContext.Connection.RemoteIpAddress) ||
+            work.Get(id) is not { Status: OneWireWorkStatus.Completed, DocumentBytes: { } bytes, DocumentMimeType: { } mimeType } item ||
+            !(item.SupportsImagePreview || item.SupportsVideoPreview || item.SupportsAudioPreview))
+            return NotFound();
+
+        Response.Headers["Cache-Control"] = "private, no-store";
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return File(bytes, mimeType, enableRangeProcessing: true);
+    }
+
     /// <summary>
     /// Returns the council teams projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>

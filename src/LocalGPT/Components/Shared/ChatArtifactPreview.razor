@@ -7,6 +7,11 @@
 
 @foreach (var item in previews)
 {
+    @if (!item.SupportsPreview)
+    {
+        <a @key="item.ArtifactId" href="@item.DownloadUrl" download="@item.FileName">Download @item.FileName</a>
+        continue;
+    }
     <details class="localgpt-artifact-preview" @key="item.ArtifactId">
         <summary>Preview @item.FileName</summary>
         @if (item.SupportsImagePreview)

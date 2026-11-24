@@ -21,7 +21,9 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
             };
             var preferred = new List<string>
             {
-                "localai.models.installed", "localai.huggingface.search", "localai.model.install",
+                "localai.runtime.status", "localai.runtime.configuration", "toolchain.discover", "localai.models.installed",
+                "localai.python.configure", "localai.python.environment.create", "localai.python.package.install",
+                "localai.sources.known", "localai.huggingface.search", "localai.model.install",
                 "initial.setup.canirun.recommendations",
                 "publisher.media.capabilities", "publisher.file.formats", "publisher.browser.view.inspect",
                 "publisher.panel.modules.inspect", "publisher.panel.module.invoke"
@@ -49,7 +51,8 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     "Determine whether the user made a choice from their own messages. A Council step's recommendation or a generic request to create media does not select a workflow.",
                     "If a choice is still needed, ask in the user-visible response and stop before generation, editor input or model setup. If the user already chose a path, use it. If export is requested, use the currently advertised formats and ask for the target only when required.",
                     "Use localai.models.installed as the source for specialized generator availability and installation IDs. Ollama chat, vision analysis and OCR inventories cannot establish image or video generation capability. Use LocalGPT's Local AI setup for specialized model suggestions or installation.",
-                    "If the user explicitly asks to install a missing model, use the registered Hugging Face catalog and request localai.model.install for a compatible model through the normal approval gate. Check the installation receipt and refresh localai.models.installed before attempting generation.",
+                    "On a fresh installation, check localai.runtime.status and toolchain.discover before selecting a model. Surface missing runtimes and the corresponding /install setup steps. Prefer known catalog sources, released checkpoint formats and an installation that does not require remote code. Check the model requirements against the observed hardware and request the normal approval for the exact model.",
+                    "If the requested generation needs setup, queue the appropriate approval card for the next missing prerequisite or compatible Hugging Face model. Wait for its actual approval result before dependent actions. Check the installation receipt and refresh localai.models.installed before attempting generation.",
                     "Never claim a video/image/audio was created unless an actual output file or validated media receipt exists.",
                     "Do not send hardware details to CanIRun.ai without its existing fresh human approval. Review installed models and source evidence first; never hard-code model rankings.",
                     "No publication, browser or filesystem mutations without an exact scoped publisher command and its existing approval/review path.",

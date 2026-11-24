@@ -80,6 +80,18 @@ public sealed class OneWireWorkItem
     [System.Text.Json.Serialization.JsonIgnore]
     public string? DocumentMimeType { get; set; }
 
+    /// <summary>Whether the verified file can be displayed in a raster image element.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SupportsImagePreview => DocumentMimeType is "image/png" or "image/jpeg" or "image/gif" or "image/webp" or "image/avif" or "image/bmp";
+
+    /// <summary>Whether the verified file can be offered to a video player.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SupportsVideoPreview => DocumentMimeType?.StartsWith("video/", StringComparison.Ordinal) == true;
+
+    /// <summary>Whether the verified file can be offered to an audio player.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SupportsAudioPreview => DocumentMimeType?.StartsWith("audio/", StringComparison.Ordinal) == true;
+
     /// <summary>Sanitized download name of a verified file returned by a PublisherStudio media or export capability.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string? DocumentFileName { get; set; }
