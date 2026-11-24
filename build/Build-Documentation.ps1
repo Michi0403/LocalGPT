@@ -16,6 +16,10 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 Set-StrictMode -Version Latest
 
+if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
+    Import-Module ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Utility.psd1')) -ErrorAction Stop
+}
+
 function Set-Utf8TextFileIdempotent {
     param(
         [Parameter(Mandatory = $true)][string]$Path,

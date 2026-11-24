@@ -928,7 +928,9 @@ namespace LocalGPT.Services
                 };
                 failedResult.CompletedAtUtc = DateTime.UtcNow;
                 if (string.IsNullOrWhiteSpace(failedResult.FinalAnswer))
-                    failedResult.FinalAnswer = "The council run failed before a complete answer could be produced. Partial Council steps remain available below.";
+                    failedResult.FinalAnswer = ex is InsufficientCouncilModelsException
+                        ? ex.Message
+                        : "The council run failed before a complete answer could be produced. Partial Council steps remain available below.";
                 failedResult.Warnings.Add($"{ex.GetType().Name}: {ex.Message}");
                 failedResult.LogPath = await WriteLogAsync(failedResult, CancellationToken.None, logger).ConfigureAwait(false);
                 await WriteMissingFeatureReportAsync(failedResult, CancellationToken.None).ConfigureAwait(false);

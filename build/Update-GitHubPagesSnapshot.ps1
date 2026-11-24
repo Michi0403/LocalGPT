@@ -7,6 +7,10 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
+    Import-Module ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Utility.psd1')) -ErrorAction Stop
+}
+
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $projectFile = Join-Path $repositoryRoot 'src/LocalGPT/LocalGPT.csproj'
 if (-not (Test-Path -LiteralPath $projectFile -PathType Leaf)) {

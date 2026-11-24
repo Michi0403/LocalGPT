@@ -706,7 +706,9 @@ namespace LocalGPT.Services
                     logger.LogWarning(ex, "Council participant {ModelName} failed in {Phase}.", modelName, phase);
                     // A context rejection is deterministic at this prompt and model limit.
                     // Do not promise or attempt an identical safe-limit retry.
-                    var contextOverflow = ex.Message.Contains("OllamaContextBudgetExceeded;", StringComparison.OrdinalIgnoreCase) ||
+                    const string contextDiagnostic = "OllamaContextBudgetExceeded;";
+                    var hasContextDiagnostic = ex.Message.Contains(contextDiagnostic, StringComparison.OrdinalIgnoreCase);
+                    var contextOverflow = hasContextDiagnostic ||
                         councilRuntime.OllamaThinkingChatClientIsProviderContextRejection(ex.Message);
                     var failureNotice = $"{modelName} failed during {phase}: {ex.Message}";
                     var retryFailedMember = allowRecovery && ex is not ProviderStreamRepetitionException && !contextOverflow;
@@ -739,7 +741,7 @@ namespace LocalGPT.Services
                         StartedAtUtc = started,
                         CompletedAtUtc = DateTime.UtcNow,
                         DurationSeconds = stopwatch.Elapsed.TotalSeconds,
-                        Error = ex.Message,
+                        Error = contextOverflow && !hasContextDiagnostic ? $"{contextDiagnostic} {ex.Message}" : ex.Message,
                         RepetitionWatchdogStopped = ex is ProviderStreamRepetitionException,
                         HostUnreachable = ex is not ProviderStreamRepetitionException && IsCouncilHostUnavailableForCurrentRun(modelName)
                     };

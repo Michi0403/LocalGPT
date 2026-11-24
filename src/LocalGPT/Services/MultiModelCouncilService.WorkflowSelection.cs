@@ -510,11 +510,10 @@ namespace LocalGPT.Services
                             {
                                 if (!string.IsNullOrWhiteSpace(definition.DistinctAiAssignmentGroup))
                                 {
-                                    var alreadyUsed = participants.Count - pool.Count;
                                     var pairedReservation = pairingReservationMultiplier > 1
                                         ? $" and must reserve one distinct paired AI for each '{normalizedRole}' member"
                                         : string.Empty;
-                                    throw new InvalidOperationException(
+                                    throw new InsufficientCouncilModelsException(
                                         $"Role '{normalizedRole}' requires at least {requestedMinimum} unused AI model(s) in distinct assignment group '{definition.DistinctAiAssignmentGroup}'{pairedReservation}, " +
                                         $"but the {pool.Count} remaining model(s) support only {selectablePoolCount}. Select more distinct models or lower the saved role range.");
                                 }
@@ -527,7 +526,7 @@ namespace LocalGPT.Services
                             var effectiveMinimum = Math.Min(requestedMinimum, selectablePoolCount);
                             var effectiveMaximum = Math.Min(requestedMaximum, selectablePoolCount);
                             if (effectiveMaximum <= 0)
-                                throw new InvalidOperationException($"Role '{normalizedRole}' has no available AI model in this run after paired-role reservations.");
+                                throw new InsufficientCouncilModelsException($"Role '{normalizedRole}' has no available AI model after paired-role reservations. Select more distinct models for team '{team.DisplayName}'.");
 
                             selectedCount = DeterministicallySelectConfiguredRoleCount(
                                 result.RunId, team.Key, normalizedRole, effectiveMinimum, effectiveMaximum);
@@ -539,7 +538,7 @@ namespace LocalGPT.Services
                             var pairedReservation = pairingReservationMultiplier > 1
                                 ? $" while reserving {selectedCount} distinct paired-role model(s)"
                                 : string.Empty;
-                            throw new InvalidOperationException(
+                            throw new InsufficientCouncilModelsException(
                                 $"Role '{normalizedRole}' requires {selectedCount} distinct AI model(s){pairedReservation}, but only {pool.Count} remain after {alreadyUsed} model(s) were assigned. " +
                                 $"Select more distinct models for team '{team.DisplayName}'.");
                         }
@@ -590,5 +589,6 @@ namespace LocalGPT.Services
             }
         }
 
+        private sealed class InsufficientCouncilModelsException(string message) : InvalidOperationException(message);
     }
 }

@@ -25,6 +25,7 @@ namespace LocalGPT.Services
             return (error.Contains("context", StringComparison.OrdinalIgnoreCase) ||
                     error.Contains("num_ctx", StringComparison.OrdinalIgnoreCase)) &&
                    (error.Contains("exceed", StringComparison.OrdinalIgnoreCase) ||
+                    error.Contains("longer than the context length", StringComparison.OrdinalIgnoreCase) ||
                     error.Contains("too long", StringComparison.OrdinalIgnoreCase) ||
                     error.Contains("too large", StringComparison.OrdinalIgnoreCase) ||
                     error.Contains("maximum", StringComparison.OrdinalIgnoreCase) ||
