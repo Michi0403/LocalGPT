@@ -121,9 +121,16 @@ public sealed class OrganicCouncilBlueprintService(
             {
                 builder.AppendLine("Connected organic 1-Wire capability teaching:")
                     .AppendLine("Use organic.plugin.invoke with the advertised peerId, capabilityKey and payload schema. If approval is pending, report it and wait for the human decision. Once the invocation returns a workItemId, use that value with organic.plugin.work.read and share the returned download URL in Chat when available. Capability visibility does not authorize execution.");
+                // Capabilities a peer adds later reach a team through the skills its preferred capabilities advertise,
+                // so new media and export functions need no seed change to be taught.
+                var preferredSkills = connectedCapabilities
+                    .Where(item => team.PreferredCapabilities.Contains(item.Capability.Key, StringComparer.OrdinalIgnoreCase))
+                    .SelectMany(item => item.Capability.Skills.Select(skill => (item.PeerId, Skill: skill)))
+                    .ToHashSet();
                 foreach (var item in connectedCapabilities.Where(item =>
                     request.RequestedOrganicCapabilities.Contains(item.Capability.Key, StringComparer.OrdinalIgnoreCase) ||
                     team.PreferredCapabilities.Contains(item.Capability.Key, StringComparer.OrdinalIgnoreCase) ||
+                    item.Capability.Skills.Any(skill => preferredSkills.Contains((item.PeerId, skill))) ||
                     request.Prompt.Contains(item.Capability.Key, StringComparison.OrdinalIgnoreCase)))
                 {
                     var capability = item.Capability;

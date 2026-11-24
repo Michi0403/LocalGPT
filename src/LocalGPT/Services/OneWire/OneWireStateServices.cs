@@ -437,6 +437,12 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 
     /// <inheritdoc/>
     public event Action<Guid>? DocumentAvailable;
+
+    /// <inheritdoc/>
+    public event Action<Guid>? PeerFileTransferOffered;
+
+    /// <inheritdoc/>
+    public event Action<Guid>? ExternalResultApplied;
     /// <summary>
     /// Stores the internal queue state used by <see cref="OneWireWorkSpooler"/> while executing its surrounding workflow.
     /// </summary>
@@ -688,6 +694,7 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                     current.ResultJson = resultJson;
                     current.Error = error;
                 });
+                ExternalResultApplied?.Invoke(item.Id);
                 return;
             }
             if (status is OneWireWorkStatus.Cancelled)
@@ -698,19 +705,26 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                     current.ResultJson = resultJson;
                     current.Error = error;
                 });
+                ExternalResultApplied?.Invoke(item.Id);
                 return;
             }
             if (!string.IsNullOrWhiteSpace(error) || status is OneWireWorkStatus.Failed)
             {
                 Fail(item.Id, error);
+                ExternalResultApplied?.Invoke(item.Id);
                 return;
             }
 
             if (item.CapabilityKey == "publisher.document.create")
                 resultJson = ReadDocumentResult(item, resultJson);
+            else if (item.CapabilityKey.StartsWith("publisher.", StringComparison.OrdinalIgnoreCase))
+                resultJson = ReadPeerFileResult(item, resultJson);
             Complete(item.Id, resultJson);
             if (item.DocumentBytes is not null && item.DocumentConversationId is Guid conversationId)
                 DocumentAvailable?.Invoke(conversationId);
+            if (item.DocumentBytes is null && item.DocumentTransferId is not null)
+                PeerFileTransferOffered?.Invoke(item.Id);
+            ExternalResultApplied?.Invoke(item.Id);
     
     }
     catch (Exception __serviceMethodException)
@@ -817,6 +831,194 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
         {
             logger.LogWarning("Rejected invalid PublisherStudio document result for work {WorkItemId} ({ErrorType}).", item.Id, exception.GetType().Name);
             return new JsonObject { ["downloadError"] = "PublisherStudio returned invalid document data." }.ToJsonString();
+        }
+    }
+
+    /// <summary>
+    /// Extracts a file returned by any other PublisherStudio capability (media conversion, publication or website export).
+    /// The peer names the kind, MIME type and file name; LocalGPT only offers the file after its content matches that MIME type.
+    /// </summary>
+    /// <param name="item">The correlated outgoing work item.</param>
+    /// <param name="resultJson">The paired peer's result.</param>
+    /// <returns>The result without file bytes, including the local download path when the file was verified.</returns>
+    private string ReadPeerFileResult(OneWireWorkItem item, string resultJson)
+    {
+        try
+        {
+            if (JsonNode.Parse(resultJson) is not JsonObject result)
+                return resultJson;
+            string? Take(string name)
+            {
+                var key = result.Select(property => property.Key).FirstOrDefault(candidate => string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase));
+                if (key is null) return null;
+                var value = result[key] is JsonValue node && node.TryGetValue<string>(out var text) ? text : null;
+                if (name == "documentBytes") result.Remove(key);
+                return value;
+            }
+            var encoded = Take("documentBytes");
+            var transferKey = result.Select(property => property.Key).FirstOrDefault(key => string.Equals(key, "transfer", StringComparison.OrdinalIgnoreCase));
+            var transfer = transferKey is null ? null : result[transferKey] as JsonObject;
+            if (string.IsNullOrEmpty(encoded) && transfer is null)
+                return resultJson;
+            var kind = (Take("kind") ?? string.Empty).Trim().ToLowerInvariant();
+            var mimeType = (Take("mimeType") ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant();
+            var fileName = Path.GetFileName(Take("fileName") ?? string.Empty);
+            foreach (var invalid in Path.GetInvalidFileNameChars())
+                fileName = fileName.Replace(invalid, '-');
+            if (kind.Length == 0 || kind.Any(character => !char.IsAsciiLetterOrDigit(character)) || mimeType.Length == 0)
+                throw new InvalidDataException("The returned file has no valid kind or MIME type.");
+            if (fileName.Length == 0 || !string.Equals(Path.GetExtension(fileName).TrimStart('.'), kind, StringComparison.OrdinalIgnoreCase))
+                fileName = $"PublisherStudio.{kind}";
+
+            if (string.IsNullOrEmpty(encoded))
+            {
+                // Large files arrive in chunks: record the announcement; the transfer service reads and verifies the chunks.
+                string? Field(string name) => transfer!.FirstOrDefault(property => string.Equals(property.Key, name, StringComparison.OrdinalIgnoreCase)).Value is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+                var lengthNode = transfer!.FirstOrDefault(property => string.Equals(property.Key, "length", StringComparison.OrdinalIgnoreCase)).Value;
+                var transferId = Field("transferId");
+                var sha256 = Field("sha256");
+                if (!Guid.TryParse(transferId, out _) || lengthNode is not JsonValue lengthValue || !lengthValue.TryGetValue<long>(out var length) || length <= 0 ||
+                    sha256 is not { Length: 64 } || !sha256.All(char.IsAsciiHexDigit))
+                    throw new InvalidDataException("The announced file transfer is incomplete.");
+                item.DocumentKind = kind;
+                item.DocumentMimeType = mimeType;
+                item.DocumentFileName = fileName;
+                item.DocumentTransferId = transferId;
+                item.DocumentTransferLength = length;
+                item.DocumentTransferSha256 = sha256;
+                result["downloadPending"] = true;
+                logger.LogInformation("PublisherStudio announced a {Kind} file of {Bytes} bytes for work {WorkItemId}; reading it in chunks.", kind, length, item.Id);
+                return result.ToJsonString();
+            }
+
+            var bytes = Convert.FromBase64String(encoded);
+            ValidateReturnedPeerFile(mimeType, bytes);
+            item.DocumentKind = kind;
+            item.DocumentMimeType = mimeType;
+            item.DocumentFileName = fileName;
+            item.DocumentBytes = bytes;
+            result["downloadUrl"] = $"/api/onewire/work/{item.Id:D}/document";
+            logger.LogInformation("Verified a {Kind} file ({MimeType}, {Bytes} bytes) returned by {CapabilityKey} for work {WorkItemId}.", kind, mimeType, bytes.Length, item.CapabilityKey, item.Id);
+            return result.ToJsonString();
+        }
+        catch (Exception exception) when (exception is System.Text.Json.JsonException or InvalidOperationException or FormatException or InvalidDataException)
+        {
+            logger.LogWarning("Rejected invalid PublisherStudio file result for work {WorkItemId} ({ErrorType}).", item.Id, exception.GetType().Name);
+            return new JsonObject { ["downloadError"] = "PublisherStudio returned a file that does not match its declared format." }.ToJsonString();
+        }
+    }
+
+    /// <inheritdoc/>
+    public void AttachPeerFile(Guid id, byte[] bytes)
+    {
+        try
+        {
+            var item = Get(id) ?? throw new KeyNotFoundException("The work item that announced the file no longer exists.");
+            if (item.DocumentMimeType is not { Length: > 0 } mimeType || item.DocumentTransferSha256 is not { } expected)
+                throw new InvalidOperationException("The work item has no pending PublisherStudio file transfer.");
+            if (bytes.LongLength != item.DocumentTransferLength ||
+                !string.Equals(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)), expected, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("The assembled file does not match the length and SHA-256 that PublisherStudio announced.");
+            ValidateReturnedPeerFile(mimeType, bytes);
+            Mutate(id, current =>
+            {
+                current.DocumentBytes = bytes;
+                current.DocumentTransferId = null;
+                if (JsonNode.Parse(current.ResultJson) is JsonObject result)
+                {
+                    result.Remove("downloadPending");
+                    result["downloadUrl"] = $"/api/onewire/work/{current.Id:D}/document";
+                    current.ResultJson = result.ToJsonString();
+                }
+            });
+            logger.LogInformation("Verified the chunked {Kind} file ({Bytes} bytes) for work {WorkItemId}.", item.DocumentKind, bytes.Length, id);
+            if (item.DocumentConversationId is Guid conversationId)
+                DocumentAvailable?.Invoke(conversationId);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Rejected the assembled PublisherStudio file for work {WorkItemId}.", id);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void FailPeerFile(Guid id, string reason)
+    {
+        try
+        {
+            Mutate(id, current =>
+            {
+                current.DocumentTransferId = null;
+                var result = JsonNode.Parse(string.IsNullOrWhiteSpace(current.ResultJson) ? "{}" : current.ResultJson) as JsonObject ?? new JsonObject();
+                result.Remove("downloadPending");
+                result["downloadError"] = reason;
+                current.ResultJson = result.ToJsonString();
+            });
+            logger.LogWarning("The chunked PublisherStudio file for work {WorkItemId} could not be read: {Reason}", id, reason);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not record the failed PublisherStudio file transfer for work {WorkItemId}.", id);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void CompactResult(Guid id)
+    {
+        try
+        {
+            Mutate(id, current => current.ResultJson = new JsonObject { ["chunk"] = "consumed" }.ToJsonString());
+            logger.LogTrace("Compacted consumed chunk result {WorkItemId}.", id);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not compact chunk result {WorkItemId}.", id);
+            throw;
+        }
+    }
+
+    /// <summary>Checks that a returned media or export file really has the content of its declared MIME type.</summary>
+    /// <param name="mimeType">Declared lower-case MIME type without parameters.</param>
+    /// <param name="bytes">Returned file bytes.</param>
+    private void ValidateReturnedPeerFile(string mimeType, byte[] bytes)
+    {
+        try
+        {
+            bool At(int offset, ReadOnlySpan<byte> signature) => bytes.Length >= offset + signature.Length && bytes.AsSpan(offset, signature.Length).SequenceEqual(signature);
+            string Utf8() => new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(bytes);
+            var family = mimeType.Split('/')[0];
+            var valid = mimeType switch
+            {
+                "image/png" => At(0, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+                "image/jpeg" => At(0, [0xFF, 0xD8, 0xFF]),
+                "image/gif" => At(0, "GIF8"u8),
+                "image/webp" => At(0, "RIFF"u8) && At(8, "WEBP"u8),
+                "image/bmp" => At(0, "BM"u8),
+                "image/tiff" => At(0, [0x49, 0x49, 0x2A, 0x00]) || At(0, [0x4D, 0x4D, 0x00, 0x2A]),
+                "image/svg+xml" => Utf8().Contains("<svg", StringComparison.OrdinalIgnoreCase),
+                "text/html" => Utf8().Contains("<html", StringComparison.OrdinalIgnoreCase),
+                "application/pdf" => At(0, "%PDF-"u8),
+                "application/zip" or "application/x-zip-compressed" => At(0, [0x50, 0x4B, 0x03, 0x04]) || At(0, [0x50, 0x4B, 0x05, 0x06]),
+                "video/webm" or "audio/webm" or "video/x-matroska" or "audio/x-matroska" => At(0, [0x1A, 0x45, 0xDF, 0xA3]),
+                "video/ogg" or "audio/ogg" or "application/ogg" => At(0, "OggS"u8),
+                "audio/mpeg" => At(0, "ID3"u8) || (bytes.Length > 1 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0),
+                "audio/aac" => At(0, "ID3"u8) || (bytes.Length > 1 && bytes[0] == 0xFF && (bytes[1] & 0xF6) == 0xF0),
+                "audio/wav" or "audio/x-wav" or "audio/wave" => At(0, "RIFF"u8) && At(8, "WAVE"u8),
+                "video/x-msvideo" => At(0, "RIFF"u8) && At(8, "AVI "u8),
+                "audio/flac" or "audio/x-flac" => At(0, "fLaC"u8),
+                "video/mp2t" => bytes.Length > 0 && bytes[0] == 0x47,
+                _ when family is "video" or "audio" && At(4, "ftyp"u8) => true,
+                _ => throw new InvalidDataException($"LocalGPT cannot verify returned {mimeType} files.")
+            };
+            if (!valid)
+                throw new InvalidDataException($"The returned file does not contain {mimeType} data.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "A returned PublisherStudio file failed {MimeType} verification.", mimeType);
+            throw;
         }
     }
 

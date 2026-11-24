@@ -75,6 +75,26 @@ public sealed class OneWireWorkItem
     /// <summary>Identifies the approved document format returned by PublisherStudio.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string? DocumentKind { get; set; }
+
+    /// <summary>MIME type of a verified file returned by a PublisherStudio media or export capability.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? DocumentMimeType { get; set; }
+
+    /// <summary>Sanitized download name of a verified file returned by a PublisherStudio media or export capability.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? DocumentFileName { get; set; }
+
+    /// <summary>PublisherStudio transfer that still has to be read in chunks through <c>publisher.file.read</c>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? DocumentTransferId { get; set; }
+
+    /// <summary>Announced length of a chunked PublisherStudio file, in bytes.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public long DocumentTransferLength { get; set; }
+
+    /// <summary>Announced SHA-256 (hex) of a chunked PublisherStudio file; the assembled file must match it.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? DocumentTransferSha256 { get; set; }
     /// <summary>
     /// Gets or sets the error value that forms part of the one wire work item state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -176,6 +196,10 @@ public sealed class OneWireOptions
     public int MaximumMessageBytes { get; set; } = OneWireProtocol.MaximumMessageBytes;
     /// <summary>Minutes after a PublisherStudio Council starts that its generated media can be retrieved by that peer.</summary>
     public int PublisherMediaDeliveryMinutes { get; set; } = 120;
+    /// <summary>Seconds LocalGPT waits for one chunk of a large PublisherStudio file (<c>OneWire:PeerFileChunkTimeoutSeconds</c>).</summary>
+    public int PeerFileChunkTimeoutSeconds { get; set; } = 60;
+    /// <summary>Largest PublisherStudio file LocalGPT assembles from chunks, in bytes (<c>OneWire:MaximumPeerFileBytes</c>).</summary>
+    public int MaximumPeerFileBytes { get; set; } = 256 * 1024 * 1024;
     /// <summary>Gets or sets the traffic journal settings (section <c>OneWire:Traffic</c>).</summary>
     /// <value>The live traffic logging and view settings.</value>
     public OneWireTrafficOptions Traffic { get; set; } = new();

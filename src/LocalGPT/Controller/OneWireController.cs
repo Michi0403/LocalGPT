@@ -159,6 +159,8 @@ public sealed class OneWireController(
             "xls" => File(bytes, "application/vnd.ms-excel", "PublisherStudio.xls"),
             "csv" => File(bytes, "text/csv; charset=utf-8", "PublisherStudio.csv"),
             "mht" => File(bytes, "multipart/related", "PublisherStudio.mht"),
+            // Media and export files were verified against their declared MIME type when they arrived.
+            _ when item.DocumentMimeType is { Length: > 0 } mimeType => File(bytes, mimeType, item.DocumentFileName ?? $"PublisherStudio.{item.DocumentKind}"),
             _ => NotFound()
         };
     }

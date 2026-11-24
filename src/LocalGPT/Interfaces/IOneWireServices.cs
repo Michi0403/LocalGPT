@@ -401,6 +401,26 @@ public interface IOneWireWorkSpooler
     /// <param name="id">Identifier of the resource to use for this operation.</param>
     /// <param name="error">Error value supplied to the one wire work spooler operation and used when producing its result.</param>
     void Fail(Guid id, string error);
+
+    /// <summary>Raised when a PublisherStudio result announces a large file that must be read in chunks.</summary>
+    event Action<Guid>? PeerFileTransferOffered;
+
+    /// <summary>Raised after a paired peer's result, failure, decline or cancellation was applied to an outgoing work item.</summary>
+    event Action<Guid>? ExternalResultApplied;
+
+    /// <summary>Verifies an assembled chunked file against its announced SHA-256 and MIME type and offers it for download.</summary>
+    /// <param name="id">Outgoing work item that announced the transfer.</param>
+    /// <param name="bytes">Assembled file bytes.</param>
+    void AttachPeerFile(Guid id, byte[] bytes);
+
+    /// <summary>Records that a chunked file could not be assembled, so the Chat shows the reason instead of a pending download.</summary>
+    /// <param name="id">Outgoing work item that announced the transfer.</param>
+    /// <param name="reason">Explanation for the user.</param>
+    void FailPeerFile(Guid id, string reason);
+
+    /// <summary>Drops the large chunk payload of a consumed <c>publisher.file.read</c> result.</summary>
+    /// <param name="id">Chunk work item.</param>
+    void CompactResult(Guid id);
     /// <summary>
     /// Applies external result for <see cref="IOneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>

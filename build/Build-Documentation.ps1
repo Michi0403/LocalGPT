@@ -252,14 +252,19 @@ if ($documentationSystemMemoryBytes -gt 0) {
     }
 }
 # Windows workstations with sufficient memory can print larger parts and start fewer browser processes.
+# Owner-measured: 100-page parts print reliably with 64 GB; 16 GB workstations handle parts well above 8 pages.
+# The small default above stays for macOS. FUTURE2_DOCUMENTATION_BROWSER_PDF_CHUNK_PAGES still overrides both.
 if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) {
     if ($documentationSystemMemoryBytes -gt 48GB) {
-        $browserPdfChunkPages = 75
+        $browserPdfChunkPages = 100
     }
     elseif ($documentationSystemMemoryBytes -gt 32GB) {
-        $browserPdfChunkPages = 50
+        $browserPdfChunkPages = 75
     }
     elseif ($documentationSystemMemoryBytes -gt 24GB) {
+        $browserPdfChunkPages = 50
+    }
+    elseif ($documentationSystemMemoryBytes -gt 12GB) {
         $browserPdfChunkPages = 32
     }
 }

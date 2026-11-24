@@ -32,7 +32,8 @@
                                             "xls" => "Download Excel 97-2003 workbook",
                                             "csv" => "Download CSV table",
                                             "mht" => "Download single-file web archive",
-                                            _ => "Download Word document"
+                                            "text" => "Download Word document",
+                                            _ => $"Download {document.DocumentFileName ?? document.DocumentKind}"
                                         })
                                     </a>
                                 </li>

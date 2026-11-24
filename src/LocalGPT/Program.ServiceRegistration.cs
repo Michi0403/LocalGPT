@@ -410,6 +410,7 @@ namespace LocalGPT
                 builder.Services.AddHostedService<OneWireDiscoveryHostedService>();
                 builder.Services.AddHostedService<OneWireCouncilApprovalProcessorHostedService>();
                 builder.Services.AddHostedService<OneWireWorkProcessorHostedService>();
+                builder.Services.AddHostedService<LocalGPT.Services.OneWire.PublisherFileTransferHostedService>();
                 builder.Services.AddSingleton<IOrganicAddonManifestService, OrganicAddonManifestService>();
                 builder.Services.AddScoped<IOrganicSkillRegistryService, OrganicSkillRegistryService>();
                 builder.Services.AddScoped<IModelCapabilitySelfAssessmentService, LocalGPT.Services.Council.Skills.ModelCapabilitySelfAssessmentService>();
