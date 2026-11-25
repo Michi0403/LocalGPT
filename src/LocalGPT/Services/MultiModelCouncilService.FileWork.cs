@@ -532,13 +532,29 @@ public sealed partial class MultiModelCouncilService
                     return FormatIncompleteFileWork(result, progress);
                 // Corrective work can name only actual manifest paths and actual compiler diagnostics.
                 var repairer = curatorRoutes.OrderByDescending(model => modelRoutes.TryGetValue(model, out var road) ? road.EffectiveMaxContextTokens : maxContextTokens).First();
-                var repairPrompt = policy.RepairPrompt + "\n" + JsonSerializer.Serialize(new { progress.CompletedFiles, BuildEvidence = buildEvidence });
+                // Only paths and compiler output are supplied: small models tend to echo a path→hash object back
+                // instead of answering, which is not a corrective manifest.
+                var repairPrompt = policy.RepairPrompt + "\n" + JsonSerializer.Serialize(new { ManifestPaths = progress.CompletedFiles.Keys, BuildEvidence = buildEvidence });
                 var repairReplies = await RunFileWorkPhaseAsync(result, request, curateStep, baseUri, routes, [repairer], round++,
                     $"{curateStep.Phase} · build repair {generation + 1}", _ => repairPrompt, modelRoutes, maxParallelModels,
                     keepAlive, ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, null, cancellationToken).ConfigureAwait(false);
                 var repairReply = repairReplies.LastOrDefault(step => string.IsNullOrWhiteSpace(step.Error));
                 if (repairReply is null) break;
-                var repair = ReadFileWorkJson<Dictionary<string, string>>(ReadFileWorkAnswer(repairReply));
+                Dictionary<string, string> repair;
+                try
+                {
+                    repair = ReadFileWorkJson<Dictionary<string, string>>(ReadFileWorkAnswer(repairReply));
+                }
+                catch (JsonException exception)
+                {
+                    // An unusable repair answer ends the repair attempts like an empty one; the persisted draft,
+                    // approvals and build evidence stay authoritative instead of aborting the whole file work.
+                    logger.LogWarning(exception, "Council {RunId} build repair answer was not a path-to-work-order JSON object.", result.RunId);
+                    var notice = runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" + exception.Message;
+                    result.Warnings.Add(notice);
+                    request.ProgressMessage?.Invoke(notice);
+                    break;
+                }
                 if (repair.Count == 0 || repair.Values.Any(string.IsNullOrWhiteSpace) ||
                     progress.CompletedFiles.Count + repair.Keys.Count(path => !progress.CompletedFiles.ContainsKey(path)) > Math.Max(1, policy.MaximumManifestFiles)) break;
                 var reopened = await InvokeFileWorkFunctionAsync(result, request, round, generateStep.Phase, "codegen.review.create",

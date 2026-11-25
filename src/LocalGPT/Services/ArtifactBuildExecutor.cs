@@ -149,7 +149,7 @@ public sealed class ArtifactBuildExecutor(
         }
         if (compiler is null)
             return Result("CompilerNotSelected", null, startedAt, string.Empty,
-                "No unambiguous validated compiler is selected. Assign a preferred compiler to the workspace or register the .NET SDK for the legacy .NET target.");
+                "No unambiguous validated compiler is selected. Open Setup › Toolchains and use 'Discover and save toolchains' (a new installation has no registered compilers yet), then assign a preferred compiler to the workspace or set the .NET SDK as language default for the legacy .NET target.");
 
         // A validated .NET toolchain retains its historic project-document fallback,
         // even when a workspace specifies only solution filenames. Other languages may

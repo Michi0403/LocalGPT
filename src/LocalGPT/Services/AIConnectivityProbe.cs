@@ -76,6 +76,25 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     }
 
     /// <summary>
+    /// Returns the bounded wait for a manual provider host test, taken from
+    /// <c>ServiceTimingRuntimeParametersJson.aiDiscoveryTimeoutSeconds</c> (the same value discovery uses).
+    /// </summary>
+    /// <returns>The HTTP timeout for one host test request.</returns>
+    private TimeSpan GetHostTestTimeout()
+    {
+        try
+        {
+            var seconds = runtimePolicy.GetJson<ServiceTimingRuntimeParameters>("ServiceTimingRuntimeParametersJson").AiDiscoveryTimeoutSeconds;
+            return seconds > 0 ? TimeSpan.FromSeconds(seconds) : Timeout.InfiniteTimeSpan;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "ServiceTimingRuntimeParametersJson.aiDiscoveryTimeoutSeconds could not be read for the provider host test.");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Performs test Ollama for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
     /// </summary>
     /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
@@ -85,7 +104,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     {
         try
         {
-            using var http = new HttpClient { BaseAddress = new Uri(options.Uri) };
+            // A manual host test uses the same bounded wait as discovery, so an offline host answers within
+            // ServiceTimingRuntimeParametersJson.aiDiscoveryTimeoutSeconds instead of the 100 s HttpClient default.
+            using var http = new HttpClient { BaseAddress = new Uri(options.Uri), Timeout = GetHostTestTimeout() };
             return await aiDiscovery.GetAsync(http, "/api/tags", cancellationToken, logger).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -110,7 +131,7 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         try
         {
             var endpoint = councilText.NormalizeOpenAIEndpoint(options.Endpoint, logger);
-            using var http = new HttpClient { BaseAddress = new Uri(endpoint) };
+            using var http = new HttpClient { BaseAddress = new Uri(endpoint), Timeout = GetHostTestTimeout() };
             if (!string.IsNullOrWhiteSpace(options.ApiKey))
             {
                 http.DefaultRequestHeaders.Authorization =
