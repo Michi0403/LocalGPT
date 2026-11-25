@@ -116,6 +116,9 @@ public sealed class CouncilSpoolerRunSummary
 /// <summary>Compact outcome of one retained Council member step, without prompts, thinking or answer text.</summary>
 public sealed class CouncilMemberOutcome
 {
+    /// <summary>Observed answer failure shared by Goal Execution, Nursing and training review. Provider failures are omitted.</summary>
+    public GoalMemberFailureKind? AnswerGap { get; init; }
+
     /// <summary>Gets the Council run identifier.</summary>
     /// <value>The retained run.</value>
     public Guid RunId { get; init; }

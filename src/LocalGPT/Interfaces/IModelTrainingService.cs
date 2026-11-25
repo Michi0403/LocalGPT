@@ -23,6 +23,14 @@ public interface IModelTrainingService
     /// <returns>The new job folder and the number of training and evaluation samples written.</returns>
     Task<(string JobFolder, int TrainSamples, int EvalSamples)> BuildIdentityDatasetAsync(string modelKey, CancellationToken cancellationToken = default);
 
+    /// <summary>Prepares a LoRA dataset from exact, user-verified knowledge revisions and a separate evaluation split.</summary>
+    /// <param name="modelKey">Name used for the new training job.</param>
+    /// <param name="samples">Approved prompts, knowledge IDs, content hashes and split assignments.</param>
+    /// <param name="cancellationToken">Cancellation token for reading knowledge and writing the dataset.</param>
+    /// <returns>The new job folder and the number of samples in each split.</returns>
+    Task<(string JobFolder, int TrainSamples, int EvalSamples)> BuildKnowledgeDatasetAsync(
+        string modelKey, IReadOnlyList<LocalGPT.BusinessObjects.ModelTrainingKnowledgeSample> samples, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Writes the trainer configuration for one prepared job and runs the trainer; the base model is never modified and the output folder must not exist yet.
     /// </summary>

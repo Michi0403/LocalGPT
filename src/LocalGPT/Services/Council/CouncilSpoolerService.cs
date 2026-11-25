@@ -383,6 +383,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                         Succeeded = string.IsNullOrWhiteSpace(step.Error) && !string.IsNullOrWhiteSpace(step.VisibleContent),
                         Failed = !string.IsNullOrWhiteSpace(step.Error),
                         HostUnreachable = step.HostUnreachable,
+                        AnswerGap = step.RepetitionWatchdogStopped ? GoalMemberFailureKind.RepetitionWatchdog
+                            : !step.HostUnreachable && string.IsNullOrWhiteSpace(step.Error) && string.IsNullOrWhiteSpace(step.VisibleContent)
+                                ? GoalMemberFailureKind.EmptyAnswer : null,
                         DurationSeconds = step.DurationSeconds
                     }))
                     .ToList();

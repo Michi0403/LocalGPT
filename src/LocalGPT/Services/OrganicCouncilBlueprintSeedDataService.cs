@@ -102,6 +102,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
         CreatePublisherPanelTeam(),
         CreateDynamicWebResearchTeam(),
         CreateAdaptiveBenchmarkTeam(),
+        CreateNeuralTrainingTeam(),
         CreateGameProjectDiscoveryTeam(),
         CreateGameProjectDevelopmentTeam(),
         CreateGameSceneArtTeam(),

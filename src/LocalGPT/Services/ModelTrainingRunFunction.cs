@@ -18,7 +18,7 @@ public sealed class ModelTrainingRunFunction(IModelTrainingService training, IDx
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.training.run", "POST", "/api/dxai/functions/localgpt.training.run/invoke",
         "Trains a LoRA adapter (and a merged copy when the trainer supports it) from a prepared job folder on a safetensors base model. The base model is never changed and nothing is imported into a provider automatically. Run localgpt.training.probe first and train only when it says the model fits.",
-        "jobFolder (from localgpt.training.identity.prepare) and baseModelFolder (a local Hugging Face safetensors model folder outside the training root) are required.",
+        "jobFolder (from localgpt.training.identity.prepare or localgpt.training.knowledge.prepare) and baseModelFolder (a local Hugging Face safetensors model folder outside the training root) are required.",
         "Long-running process that uses the GPU or CPU and writes a new output folder inside the job folder; requires Human Collaboration approval. GGUF files are refused as a base and an existing output folder is never overwritten.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false,
         SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler",

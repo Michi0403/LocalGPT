@@ -25,8 +25,9 @@ namespace LocalGPT.Services;
 /// <param name="projectMaintenance">Project maintenance service that provides the stored toolchain installations.</param>
 /// <param name="peers">One wire peer registry used to list peer names and versions.</param>
 /// <param name="connections">One wire connection registry used to keep only connected peers.</param>
+/// <param name="knowledge">Council knowledge service that provides reviewed source revisions for training.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-public sealed class ModelTrainingService(
+public sealed partial class ModelTrainingService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILocalGptApplicationPathService paths,
     ILocalAiRuntimeService runtime,
@@ -37,6 +38,7 @@ public sealed class ModelTrainingService(
     IProjectMaintenanceService projectMaintenance,
     IOneWirePeerRegistry peers,
     IOneWireConnectionRegistry connections,
+    ICouncilKnowledgeService knowledge,
     ILogger<ModelTrainingService> logger) : IModelTrainingService
 {
     /// <summary>
@@ -87,10 +89,7 @@ public sealed class ModelTrainingService(
     {
         try
         {
-            var key = (modelKey ?? string.Empty).Trim();
-            var maximumLength = runtimePolicy.GetInt("ModelTrainingModelKeyMaximumLength");
-            if (key.Length == 0 || key.Length > maximumLength || key.Any(character => !(char.IsLetterOrDigit(character) || character is '-' or '_' or '.')))
-                throw new InvalidOperationException($"modelKey must have 1 to {maximumLength} letters, digits, '-', '_' or '.' (limit: runtime value ModelTrainingModelKeyMaximumLength).");
+            var key = ValidateTrainingModelKey(modelKey);
 
             var defaults = ReadTrainingDefaults();
             var evalFraction = defaults["eval_fraction"]?.GetValue<double>()
@@ -167,7 +166,7 @@ public sealed class ModelTrainingService(
             var trainFile = Path.Combine(job, runtimePolicy.GetString("ModelTrainingTrainFileName"));
             var evalFile = Path.Combine(job, runtimePolicy.GetString("ModelTrainingEvalFileName"));
             if (!File.Exists(trainFile) || !File.Exists(evalFile))
-                throw new InvalidOperationException("The job folder lacks its dataset files (runtime values ModelTrainingTrainFileName and ModelTrainingEvalFileName); prepare it with localgpt.training.identity.prepare.");
+                throw new InvalidOperationException("Prepare the job first with localgpt.training.identity.prepare or localgpt.training.knowledge.prepare.");
 
             var baseFolder = Path.GetFullPath(baseModelFolder);
             if (!Directory.Exists(baseFolder))
