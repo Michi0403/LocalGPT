@@ -437,8 +437,9 @@ namespace LocalGPT.Components.Pages
     /// <param name="messages">Blazor chat message dependency used by the chat workflow to provide the corresponding application capability.</param>
     /// <param name="force">Value indicating whether force should apply to this operation.</param>
     /// <param name="showToast">Value indicating whether show toast should apply to this operation.</param>
+    /// <param name="expectedCouncilRunId">Exact live run that still owns this projection when saving a follow-up.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task PersistMessagesAsync(IReadOnlyList<BlazorChatMessage> messages, bool force, bool showToast)
+    private async Task PersistMessagesAsync(IReadOnlyList<BlazorChatMessage> messages, bool force, bool showToast, Guid? expectedCouncilRunId = null)
     {
         try
         {
@@ -448,6 +449,10 @@ namespace LocalGPT.Components.Pages
             await chatConversationSaveGate.WaitAsync().ConfigureAwait(false);
             try
             {
+            if (ChatClientProvider.SelectedSession is not { } session
+                || (expectedCouncilRunId is Guid expectedRunId && AttachedLiveCouncilRunId != expectedRunId))
+                return;
+
             var signature = CouncilText.CreateMessageSignature(messages, Logger);
             if (!force && signature == lastSavedSignature)
                 return;
@@ -456,9 +461,11 @@ namespace LocalGPT.Components.Pages
             {
                 isMemoryBusy = true;
                 var savedConversationId = await ChatMemory.SaveConversationAsync(
-                    ChatClientProvider.SelectedSession.Name,
+                    session.Name,
                     messages,
                     ActiveConversationId).ConfigureAwait(false);
+                if (expectedCouncilRunId is Guid requestedRunId && AttachedLiveCouncilRunId != requestedRunId)
+                    return;
                 if (savedConversationId is not Guid persistedId)
                 {
                     memoryStatus = "The conversation could not be saved. See local application logs.";

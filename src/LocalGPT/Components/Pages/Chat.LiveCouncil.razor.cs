@@ -91,6 +91,8 @@ namespace LocalGPT.Components.Pages
         if (liveSnapshot is not null)
         {
             var attached = await AttachToLiveCouncilSessionAsync(runId, reloadChatControl: true).ConfigureAwait(false);
+            if (RejoinCouncilRunId != runId)
+                return;
             if (!attached)
             {
                 Logger.LogWarning("Selected Council {RunId} has a live transcript but this circuit could not attach; retaining durable evidence.", runId);
@@ -119,7 +121,7 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the chat box shows the restored conversation.</returns>
     private async Task RestoreCouncilChatFromSpoolAsync(Guid runId, CouncilSpoolerSnapshot receipt)
     {
-        if (isDisposed || ChatClientProvider is null || receipt.RunId != runId)
+        if (isDisposed || !IsCouncilAttachmentRequested(runId) || ChatClientProvider is null || receipt.RunId != runId)
         {
             Logger.LogInformation("Council {RunId} chat restore skipped: the chat circuit or provider list is not ready.", runId);
             return;
@@ -181,7 +183,7 @@ namespace LocalGPT.Components.Pages
             var applied = false;
             await InvokeAsync(() =>
             {
-                if (isDisposed || SelectedCouncilRunId != runId || DxAiChat is null)
+                if (isDisposed || !IsCouncilAttachmentRequested(runId) || DxAiChat is null)
                     return;
                 // Do not merge messages from a different run or provider into this Council.
                 councilSession.Messages.Clear();
@@ -461,11 +463,6 @@ namespace LocalGPT.Components.Pages
             await InvokeAsync(() =>
             {
                 collaborationSnapshot = snapshot;
-                if (SelectedCouncilRunId is null && activeLiveSessions.FirstOrDefault() is { } newestLiveSession)
-                {
-                    SelectedCouncilRunId = newestLiveSession.RunId;
-                    ScheduleAutomaticLiveCouncilAttach();
-                }
                 if (SelectedCouncilRunId is Guid selectedRunId
                     && collaborationSnapshot.ActiveRuns.All(run => run.RunId != selectedRunId)
                     && !activeLiveRunIds.Contains(selectedRunId)
@@ -522,9 +519,10 @@ namespace LocalGPT.Components.Pages
         await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         if (!attached)
             Logger.LogWarning("Benchmark Council {RunId} started, but the current browser circuit could not attach to its live UI.", runId);
+        if (AttachedLiveCouncilRunId != runId)
+            return;
         await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").AsTask()).ConfigureAwait(false);
-        var isRunning = CouncilLiveSessions.GetSummary(runId)?.IsRunning == true;
-        await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", isRunning).AsTask()).ConfigureAwait(false);
+        await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", ActiveLiveCouncilSession?.RunId).AsTask()).ConfigureAwait(false);
         await InvokeAsync(() => Notifier.ShowSuccess(toastName, $"Benchmark Council {ShortCouncilRunId(runId)} is now visible in Chat.", "Benchmark joined")).ConfigureAwait(false);
     
         }
@@ -600,6 +598,8 @@ namespace LocalGPT.Components.Pages
                 }
             }
         }
+        if (RejoinCouncilRunId != selectedRunId)
+            return;
         if (!attached)
         {
             // A failed live UI attachment must not strand the user at an empty chat.
@@ -620,7 +620,7 @@ namespace LocalGPT.Components.Pages
         // Rejoining restores the already captured transcript/evidence automatically.
         // The historical projection is independent of DevExpress message-template caching.
         openedCouncilArchive = CouncilSpooler.GetSnapshot(selectedRunId);
-        await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", true).AsTask()).ConfigureAwait(false);
+        await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", ActiveLiveCouncilSession?.RunId).AsTask()).ConfigureAwait(false);
         await InvokeAsync(() => Notifier.ShowSuccess(toastName, $"Rejoined Council {ShortCouncilRunId(selectedRunId)} with live stop, message and transcript controls.", "Council rejoined")).ConfigureAwait(false);
     
     }
@@ -710,16 +710,16 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Performs queue live council user message for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
+    /// <param name="councilRunId">The run displayed when the user sent the message.</param>
     /// <param name="content">Content value supplied to the chat operation and used when producing its result.</param>
     /// <param name="files">Live council upload file dependency used by the chat workflow to provide the corresponding application capability.</param>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     [JSInvokable]
-    public async Task<bool> QueueLiveCouncilUserMessageAsync(string content, IReadOnlyList<LiveCouncilUploadFile>? files)
+    public async Task<bool> QueueLiveCouncilUserMessageAsync(Guid councilRunId, string content, IReadOnlyList<LiveCouncilUploadFile>? files)
     {
         var activeRun = ActiveCouncilRun;
-        var activeRunId = activeRun?.RunId ?? ActiveLiveCouncilSession?.RunId;
         var uploadedFiles = files?.Where(file => file is not null && !string.IsNullOrWhiteSpace(file.Name)).ToList() ?? [];
-        if (activeRunId is not Guid councilRunId || (string.IsNullOrWhiteSpace(content) && uploadedFiles.Count == 0) || isDisposed)
+        if (ActiveLiveCouncilSession?.RunId != councilRunId || (string.IsNullOrWhiteSpace(content) && uploadedFiles.Count == 0) || isDisposed)
             return false;
 
         try
@@ -753,7 +753,10 @@ namespace LocalGPT.Components.Pages
                 deliveredContent = $"{normalizedContent}\n\n{CouncilText.BuildUploadWorkspaceSystemPrompt(uploadWorkspace, Logger)}";
             }
 
-            liveCouncilUploadStatus = "Uploads indexed. Waiting for the next Council heartbeat to incorporate new evidence.";
+            if (ActiveLiveCouncilSession?.RunId != councilRunId || isDisposed)
+                return false;
+
+            liveCouncilUploadStatus = string.Empty;
             await HumanCollaboration.QueueUserMessageAsync(
                 councilRunId,
                 deliveredContent,
@@ -768,29 +771,23 @@ namespace LocalGPT.Components.Pages
                 ChatRole.User,
                 displayContent,
                 new List<AIChatUploadFileInfo>());
-            PendingLiveCouncilUserMessages.Add(chatMessage);
-            if (ChatClientProvider?.SelectedSession is not null)
+            await InvokeAsync(async () =>
             {
-                ChatClientProvider.SelectedSession.Messages.Add(chatMessage);
-                canonicalConversationMessages.Clear();
-                canonicalConversationMessages.AddRange(ChatClientProvider.SelectedSession.Messages);
-            }
+                if (isDisposed || AttachedLiveCouncilRunId != councilRunId)
+                    return;
 
-            // Keep the user message inside the authoritative Blazor/DevExpress message model. The old JavaScript
-            // shadow bubble lived inside a renderer-owned message subtree and was repeatedly removed/re-added on
-            // Council heartbeats, which produced visible flicker. Reload only for this explicit human send event.
-            await InvokeAsync(() =>
-            {
-                LoadSelectedSessionMessages();
-                StateHasChanged();
+                PendingLiveCouncilUserMessages.Add(chatMessage);
+                if (ChatClientProvider?.SelectedSession is { } session)
+                {
+                    session.Messages.Add(chatMessage);
+                    canonicalConversationMessages.Clear();
+                    canonicalConversationMessages.AddRange(session.Messages);
+                    LoadSelectedSessionMessages();
+                    StateHasChanged();
+                    await PersistMessagesAsync(session.Messages.ToList(), force: true, showToast: false,
+                        expectedCouncilRunId: councilRunId);
+                }
             }).ConfigureAwait(false);
-
-            // Durable recovery for another browser tab: persist the accepted continuation
-            // before waiting for the next periodic autosave or the slowest Council member.
-            if (ChatClientProvider?.SelectedSession is not null)
-                await PersistMessagesAsync(ChatClientProvider.SelectedSession.Messages.ToList(), force: true, showToast: false).ConfigureAwait(false);
-            liveCouncilUploadStatus = string.Empty;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
 
             ComponentActivity.RecordInformation(
                 nameof(Chat),
@@ -879,7 +876,7 @@ namespace LocalGPT.Components.Pages
         if (isDisposed)
             return;
 
-        var attachedToChangedRun = AttachedLiveCouncilRunId == runId || RejoinCouncilRunId == runId;
+        var attachedToChangedRun = IsCouncilAttachmentRequested(runId);
         if (!attachedToChangedRun || (ownsLiveCouncilStream && AttachedLiveCouncilRunId == runId))
         {
             ScheduleLiveCouncilListRefresh();
@@ -907,7 +904,7 @@ namespace LocalGPT.Components.Pages
                     {
                         Interlocked.Exchange(ref liveCouncilRefreshScheduled, 0);
                         ScheduleLiveCouncilListRefresh();
-                        if (!isDisposed
+                        if (!isDisposed && IsCouncilAttachmentRequested(runId)
                             && CouncilLiveSessions.GetSummary(runId) is { } latest
                             && latest.IsRunning
                             && latest.UpdatedAtUtc > lastAttachedLiveCouncilUpdatedAtUtc)
@@ -954,11 +951,6 @@ namespace LocalGPT.Components.Pages
                                 // Dispatcher entry does not guarantee the owning circuit survived the delay.
                                 if (cancellationToken.IsCancellationRequested || isDisposed || !interactiveAttached)
                                     return;
-                                if (SelectedCouncilRunId is null && CouncilLiveSessions.GetActiveSummaries().FirstOrDefault() is { } newestLiveSession)
-                                {
-                                    SelectedCouncilRunId = newestLiveSession.RunId;
-                                    ScheduleAutomaticLiveCouncilAttach();
-                                }
                                 if (!isDisposed && !cancellationToken.IsCancellationRequested)
                                     StateHasChanged();
                             }).ConfigureAwait(false);
@@ -989,13 +981,16 @@ namespace LocalGPT.Components.Pages
     
     }
 
-    /// <summary>Attaches the current browser circuit to server-owned Council state without copying the live transcript into DevExpress while the run is active.</summary>
+    private bool IsCouncilAttachmentRequested(Guid runId) =>
+        (RejoinCouncilRunId ?? AttachedLiveCouncilRunId) == runId;
+
+    /// <summary>Attaches the current browser circuit to server-owned Council state.</summary>
     /// <param name="runId">Identifier of the Council run to attach.</param>
     /// <param name="reloadChatControl">Whether the DevExpress chat message collection must be rebound for this circuit.</param>
     /// <returns><see langword="true"/> when the attachment was established; otherwise <see langword="false"/>.</returns>
     private async Task<bool> AttachToLiveCouncilSessionAsync(Guid runId, bool reloadChatControl = false)
     {
-        if (isDisposed || DxAiChat is null || ChatClientProvider is null)
+        if (isDisposed || !IsCouncilAttachmentRequested(runId) || DxAiChat is null || ChatClientProvider is null)
             return false;
 
         var gateEntered = false;
@@ -1008,7 +1003,7 @@ namespace LocalGPT.Components.Pages
                 return false;
             }
             gateEntered = true;
-            if (isDisposed || DxAiChat is null || ChatClientProvider is null)
+            if (isDisposed || !IsCouncilAttachmentRequested(runId) || DxAiChat is null || ChatClientProvider is null)
                 return false;
 
             var snapshot = CouncilLiveSessions.GetAttachmentSnapshot(runId);
@@ -1056,79 +1051,32 @@ namespace LocalGPT.Components.Pages
             if (councilSession is null)
                 return false;
 
-            // Recovery first loads the persisted Chat into its original provider session.
-            // A Council run uses a different DevExpress session: transfer that same history
-            // into the visible Council session before attaching the run marker. Otherwise
-            // a successful reload appears to erase the previous conversation.
-            if (firstAttachmentToRun && ActiveConversationId is Guid &&
-                ChatClientProvider.SelectedSession is { } restoredChatSession &&
-                !ReferenceEquals(restoredChatSession, councilSession) &&
-                restoredChatSession.Messages.Count > 0)
-            {
-                // The Council session may already hold a small run marker or recent user
-                // continuations. Merge by the longest ordered overlap instead of clearing
-                // those messages or duplicating the restored prefix.
-                var restoredMessages = restoredChatSession.Messages.ToList();
-                var visibleMessages = councilSession.Messages.ToList();
-                var overlap = 0;
-                for (var count = Math.Min(restoredMessages.Count, visibleMessages.Count); count > 0; count--)
-                {
-                    var same = true;
-                    for (var index = 0; index < count; index++)
-                    {
-                        var prior = restoredMessages[restoredMessages.Count - count + index];
-                        var current = visibleMessages[index];
-                        if (prior.Role != current.Role ||
-                            !string.Equals(prior.Content, current.Content, StringComparison.Ordinal))
-                        {
-                            same = false;
-                            break;
-                        }
-                    }
-                    if (!same) continue;
-                    overlap = count;
-                    break;
-                }
-                councilSession.Messages.Clear();
-                councilSession.Messages.AddRange(restoredMessages);
-                councilSession.Messages.AddRange(visibleMessages.Skip(overlap));
-                Logger.LogInformation("Rejoined Council {RunId} using the already restored Chat {ConversationId}; no new conversation was created.", runId, ActiveConversationId);
-            }
-
-            // A new browser tab owns a different circuit. Restore only the SQLite chat history
-            // whose persisted Council marker matches this exact run; never load an unrelated
-            // conversation merely because it was saved more recently.
-            if (firstAttachmentToRun && ActiveConversationId is null && !councilSession.Messages.Any(message =>
+            var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
+            bool ContainsRunMarker(IEnumerable<BlazorChatMessage> messages) => messages.Any(message =>
                 message.Role == ChatMessageRole.Assistant &&
-                CouncilText.ContainsText(message.Content, $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->", StringComparison.Ordinal)))
+                CouncilText.ContainsText(message.Content, marker, StringComparison.Ordinal));
+
+            ChatMemoryConversationSnapshot? restoredConversation = null;
+            var needsSavedConversation = firstAttachmentToRun && ActiveConversationId is null;
+            if (needsSavedConversation ||
+                (firstAttachmentToRun && !ContainsRunMarker(ChatClientProvider.SelectedSession?.Messages ?? [])))
             {
                 try
                 {
-                    var markerToRecover = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
                     var recentConversations = await ChatMemory.GetConversationsAsync(
                         take: 25, cancellationToken: componentLifetimeToken).ConfigureAwait(false);
                     foreach (var summary in recentConversations
                         .Where(item => string.Equals(item.ProviderName, councilSession.Name, StringComparison.OrdinalIgnoreCase))
                         .Take(12))
                     {
+                        if (!IsCouncilAttachmentRequested(runId))
+                            return false;
                         var restored = await ChatMemory.LoadConversationAsync(summary.Id, componentLifetimeToken).ConfigureAwait(false);
-                        if (restored is null || !restored.Messages.Any(message =>
-                            message.Role == ChatMessageRole.Assistant &&
-                            CouncilText.ContainsText(message.Content, markerToRecover, StringComparison.Ordinal)))
-                            continue;
-                        await InvokeAsync(() =>
+                        if (restored is not null && HasCouncilRunMarker(restored, marker))
                         {
-                            if (isDisposed)
-                                return;
-                            councilSession.Messages.Clear();
-                            councilSession.Messages.AddRange(restored.Messages);
-                            ActiveConversationId = restored.Id;
-                            SessionContext.SetConversation(restored.Id);
-                            canonicalConversationMessages.Clear();
-                            canonicalConversationMessages.AddRange(restored.Messages);
-                        }).ConfigureAwait(false);
-                        Logger.LogInformation("Restored saved Council conversation {ConversationId} for rejoining run {RunId}.", restored.Id, runId);
-                        break;
+                            restoredConversation = restored;
+                            break;
+                        }
                     }
                 }
                 catch (OperationCanceledException) when (componentLifetimeToken.IsCancellationRequested || isDisposed)
@@ -1144,7 +1092,6 @@ namespace LocalGPT.Components.Pages
             // A running Council is represented in DevExpress by a tiny marker only. The Razor template
             // reads transcript and participant lanes directly from the server-owned live-session service.
             // When the run finishes, materialize the transcript once so persisted chat history remains complete.
-            var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
             var completedTranscript = snapshot.IsRunning ? string.Empty : CouncilText.SelectMostCompleteCouncilMessage(
                 string.Empty, marker, CouncilLiveSessions.GetTranscript(runId),
                 CouncilText.BuildCouncilChatTranscriptFromSpool(CouncilSpooler.GetChatSnapshots(runId), marker));
@@ -1152,8 +1099,62 @@ namespace LocalGPT.Components.Pages
                 ? marker
                 : completedTranscript;
 
+            var applied = false;
             await InvokeAsync(() =>
             {
+                if (isDisposed || !IsCouncilAttachmentRequested(runId))
+                    return;
+
+                if (firstAttachmentToRun)
+                {
+                    var current = ChatClientProvider.SelectedSession;
+                    var retainsCurrentConversation = current is not null && ContainsRunMarker(current.Messages);
+                    if (retainsCurrentConversation && current is { } restoredChatSession
+                        && !ReferenceEquals(restoredChatSession, councilSession))
+                    {
+                        var restoredMessages = restoredChatSession.Messages.ToList();
+                        var visibleMessages = councilSession.Messages.ToList();
+                        if (!ContainsRunMarker(visibleMessages))
+                            visibleMessages.Clear();
+
+                        var overlap = 0;
+                        for (var count = Math.Min(restoredMessages.Count, visibleMessages.Count); count > 0; count--)
+                        {
+                            if (!restoredMessages.TakeLast(count).Zip(visibleMessages.Take(count))
+                                .All(pair => pair.First.Role == pair.Second.Role
+                                    && string.Equals(pair.First.Content, pair.Second.Content, StringComparison.Ordinal)))
+                                continue;
+                            overlap = count;
+                            break;
+                        }
+
+                        councilSession.Messages.Clear();
+                        councilSession.Messages.AddRange(restoredMessages);
+                        councilSession.Messages.AddRange(visibleMessages.Skip(overlap));
+                    }
+                    else if (!retainsCurrentConversation)
+                    {
+                        councilSession.Messages.Clear();
+                        ActiveConversationId = restoredConversation?.Id;
+                        if (restoredConversation is not null)
+                        {
+                            councilSession.Messages.AddRange(restoredConversation.Messages);
+                            SessionContext.Restore(new ChatSessionContextSnapshot(
+                                restoredConversation.Id, restoredConversation.ProjectId, restoredConversation.ProjectVersionId,
+                                SessionContext.ApplicationVersion));
+                        }
+                        else
+                        {
+                            SessionContext.SetConversation(null);
+                        }
+                        SelectedConversation = SavedConversations.FirstOrDefault(item => item.Id == ActiveConversationId);
+                        lastSavedSignature = string.Empty;
+                    }
+                    PendingLiveCouncilUserMessages.Clear();
+                    RunningCouncilContribution = string.Empty;
+                    liveCouncilUploadStatus = string.Empty;
+                }
+
                 AttachedLiveCouncilRunId = runId;
                 RejoinCouncilRunId = runId;
                 ownsLiveCouncilStream = false;
@@ -1225,10 +1226,14 @@ namespace LocalGPT.Components.Pages
 
                 if (shouldReloadChatControl && ReferenceEquals(ChatClientProvider.SelectedSession, councilSession) && DxAiChat is not null)
                     DxAiChat.LoadMessages(councilSession.Messages);
+                applied = true;
                 StateHasChanged();
             }).ConfigureAwait(false);
 
-            if (shouldReloadChatControl && !string.IsNullOrWhiteSpace(composerDraft))
+            if (!applied || !IsCouncilAttachmentRequested(runId))
+                return false;
+
+            if (!firstAttachmentToRun && shouldReloadChatControl && !string.IsNullOrWhiteSpace(composerDraft))
             {
                 try
                 {
@@ -1279,73 +1284,19 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>
-    /// Attaches DXAiChat to the running Council that the session list selected automatically for this circuit.
-    /// </summary>
-    /// <remarks>
-    /// A second browser window has its own circuit and per-tab sessionStorage, so it never receives a rejoin run id.
-    /// The session list still auto-selects the newest running Council, which made the live panel and the ASCII mirror
-    /// show the run while DXAiChat stayed empty and the composer remained bound to an unrelated provider session.
-    /// Only an otherwise empty Chat is attached; a window that already shows its own conversation keeps it and can
-    /// still use the explicit rejoin control. Each run is attempted once per circuit.
-    /// </remarks>
-    private void ScheduleAutomaticLiveCouncilAttach()
-    {
-        try
-        {
-            if (isDisposed || automaticLiveCouncilAttachSuppressed || !chatRuntimeStarted || DxAiChat is null || ChatClientProvider is null)
-                return;
-            if (SelectedCouncilRunId is not Guid runId || automaticLiveCouncilAttachRunId == runId)
-                return;
-            if (AttachedLiveCouncilRunId is not null || RejoinCouncilRunId is not null || ownsLiveCouncilStream)
-                return;
-            if (ActiveConversationId is not null || canonicalConversationMessages.Count > 0
-                || ChatClientProvider.SelectedSession?.Messages.Count > 0)
-                return;
-            if (CouncilLiveSessions.GetSummary(runId)?.IsRunning != true)
-                return;
-
-            automaticLiveCouncilAttachRunId = runId;
-            TaskRunner.Run(
-                nameof(Chat),
-                "AutomaticLiveCouncilAttach",
-                async cancellationToken =>
-                {
-                    if (cancellationToken.IsCancellationRequested || isDisposed)
-                        return;
-                    var attached = await AttachToLiveCouncilSessionAsync(runId, reloadChatControl: true).ConfigureAwait(false);
-                    if (attached)
-                        Logger.LogInformation("Attached this browser window to running Council {RunId} after the session list selected it.", runId);
-                    else
-                    {
-                        // A failed attach is not a completed attempt. The next live-session
-                        // notification may retry in this circuit without creating another run.
-                        if (automaticLiveCouncilAttachRunId == runId)
-                            automaticLiveCouncilAttachRunId = null;
-                        Logger.LogDebug("Automatic attachment to running Council {RunId} was not completed; a future notification may retry.", runId);
-                    }
-                },
-                componentLifetimeToken);
-        }
-        catch (ObjectDisposedException) when (isDisposed)
-        {
-            Logger.LogDebug("Skipped automatic live Council attachment because the Chat circuit ended.");
-        }
-        catch (Exception exception)
-        {
-            Logger.LogError(exception, "Component method Chat.LiveCouncil.ScheduleAutomaticLiveCouncilAttach failed.");
-        }
-    }
-
-    /// <summary>
     /// Stops active council run for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
     /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     [JSInvokable]
     public async Task<bool> StopActiveCouncilRunAsync()
     {
+        return ActiveLiveCouncilSession is { } session && await StopCouncilRunAsync(session.RunId).ConfigureAwait(false);
+    }
+
+    private async Task<bool> StopCouncilRunAsync(Guid runId)
+    {
         Logger.LogDebug("Component method Chat.LiveCouncil.StopActiveCouncilRunAsync completed.");
-        var activeRunId = ResolveRunningCouncilRunId();
-        if (activeRunId is not Guid runId)
+        if (ActiveLiveCouncilSession?.RunId != runId || isDisposed)
             return false;
 
         var cancelled = CouncilLiveSessions.Cancel(runId);
@@ -1357,7 +1308,7 @@ namespace LocalGPT.Components.Pages
         try
         {
             await JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer",
-                CouncilLiveSessions.GetSummary(runId)?.IsRunning == true).ConfigureAwait(false);
+                ActiveLiveCouncilSession?.RunId).ConfigureAwait(false);
         }
         catch (JSDisconnectedException)
         {
@@ -1368,33 +1319,6 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>
-    /// Resolves running council run identifier for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
-    /// </summary>
-    /// <returns>The GUID produced by the operation.</returns>
-    private Guid? ResolveRunningCouncilRunId()
-    {
-        try
-        {
-        // An explicit selection has priority; a newly started stream may not yet be
-        // attached to the circuit, but its server-owned run must still be stoppable.
-        Guid?[] candidates = [SelectedCouncilRunId, AttachedLiveCouncilRunId, RejoinCouncilRunId];
-        foreach (var candidate in candidates)
-        {
-            if (candidate is Guid runId && CouncilLiveSessions.GetSummary(runId)?.IsRunning == true)
-                return runId;
-        }
-
-        return null;
-    
-        }
-        catch (Exception __componentMethodException)
-        {
-            Logger.LogError(__componentMethodException, "Component method Chat.LiveCouncil.ResolveRunningCouncilRunId failed.");
-            throw;
-        }
-    }
-
-    /// <summary>
     /// Stops selected council session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
@@ -1402,7 +1326,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-        if (await StopActiveCouncilRunAsync().ConfigureAwait(false))
+        if (ActiveLiveCouncilSession is { } session && await StopCouncilRunAsync(session.RunId).ConfigureAwait(false))
         {
             Notifier.ShowSuccess(toastName, "The selected Council run received an explicit stop request.", "Council stopped");
             await RefreshHumanCollaborationAsync().ConfigureAwait(false);
@@ -1428,9 +1352,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-        var runId = SelectedCouncilRunId
-            ?? ActiveCouncilRun?.RunId
-            ?? AttachedLiveCouncilRunId;
+        var runId = ActiveLiveCouncilSession?.RunId;
         if (runId is not Guid activeRunId)
         {
             Notifier.ShowError(toastName, "No running Council round is available to skip.", "Skip round");

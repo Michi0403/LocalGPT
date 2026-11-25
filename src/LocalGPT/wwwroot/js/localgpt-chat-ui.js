@@ -12,7 +12,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     const hostSelector = '[data-testid="dxaichat-host"]';
     let scheduled = false;
     let councilComposerDotNet = null;
-    let councilComposerActive = false;
+    let councilComposerRunId = null;
     let councilComposerSubmitting = false;
     let liveUserMessageSequence = 0;
     let layoutPulseTimer = 0;
@@ -564,7 +564,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             if (!(host instanceof HTMLElement)
                 || !(composer instanceof HTMLElement)
                 || !(editor instanceof HTMLElement)
-                || councilComposerActive) return;
+                || councilComposerRunId) return;
 
             const text = editorText(editor);
             const files = [...pendingUploadFiles(composer)];
@@ -591,7 +591,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
 
     function captureNativeSendDraft(event) {
         try {
-            if (councilComposerActive) return;
+            if (councilComposerRunId) return;
             const target = event?.target;
             if (!(target instanceof Element)) return;
             const host = target.closest(hostSelector);
@@ -814,7 +814,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
-    function appendLiveUserMessage(host, content, fileNames = []) {
+    function followAcceptedCouncilMessage(host) {
         try {
             // The .NET callback has already inserted the accepted message into the authoritative DxAIChat
             // session and performs one renderer-affine LoadMessages call. Do not mirror the same message with a
@@ -826,7 +826,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             const state = bindSlowScroll(host, region);
             if (state.follow && !state.userInteracting) scheduleSlowFollow(host, region);
         } catch (error) {
-            diagnostics.report('localgpt-chat-ui.appendLiveUserMessage', error);
+            diagnostics.report('localgpt-chat-ui.followAcceptedCouncilMessage', error);
             throw error;
         }
     }
@@ -849,24 +849,23 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                     const currentComposer = button.closest('.localgpt-chat-composer') || composer;
                     const content = editorText(currentEditor).trim();
                     const pendingFiles = pendingUploadFiles(currentComposer);
-                    if (!councilComposerActive || !councilComposerDotNet || councilComposerSubmitting) return;
+                    if (!councilComposerRunId || !councilComposerDotNet || councilComposerSubmitting) return;
+                    const runId = councilComposerRunId;
                     councilComposerSubmitting = true;
                     button.disabled = true;
                     try {
                         if (content || pendingFiles.length > 0) {
                             const filePayloads = await readPendingUploadFiles(currentComposer);
-                            const accepted = await councilComposerDotNet.invokeMethodAsync('QueueLiveCouncilUserMessageAsync', content, filePayloads);
-                            if (accepted) {
-                                appendLiveUserMessage(
-                                    host,
-                                    content || 'Attached files',
-                                    filePayloads.map(file => file.name));
+                            if (councilComposerRunId !== runId) return;
+                            const accepted = await councilComposerDotNet.invokeMethodAsync('QueueLiveCouncilUserMessageAsync', runId, content, filePayloads);
+                            if (accepted && councilComposerRunId === runId) {
+                                followAcceptedCouncilMessage(host);
                                 clearEditor(currentEditor);
                                 clearPendingUploadFiles(currentComposer);
                             }
                         } else {
                             const stopped = await councilComposerDotNet.invokeMethodAsync('StopActiveCouncilRunAsync');
-                            if (stopped) councilComposerActive = false;
+                            if (stopped && councilComposerRunId === runId) councilComposerRunId = null;
                         }
                     } finally {
                         councilComposerSubmitting = false;
@@ -902,11 +901,13 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             if (nativeStop instanceof HTMLElement && !nativeStop.hasAttribute('data-localgpt-council-stop-bridge')) {
                 nativeStop.setAttribute('data-localgpt-council-stop-bridge', 'true');
                 nativeStop.addEventListener('click', diagnostics.guard('localgpt-chat-ui.nativeCouncilStop.click', () => {
+                    const runId = councilComposerRunId;
+                    const councilComposerActive = Boolean(runId);
                     if (!councilComposerActive || !councilComposerDotNet) return;
                     councilComposerDotNet.invokeMethodAsync('StopActiveCouncilRunAsync')
                         .then(stopped => {
-                            if (stopped) {
-                                councilComposerActive = false;
+                            if (stopped && councilComposerRunId === runId) {
+                                councilComposerRunId = null;
                                 scheduleApply();
                             }
                         })
@@ -919,8 +920,8 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 return /send|submit|paper-plane|arrow-right/i.test(buttonMarker)
                     && !/attach|upload|file|paperclip|clip|stop|cancel generation|abort|square/i.test(buttonMarker);
             }) || null;
-            nativeSend?.classList.toggle('localgpt-council-native-send-hidden', councilComposerActive && hasMessage);
-            const showLiveAction = councilComposerActive && (hasMessage || nativeStop === null);
+            nativeSend?.classList.toggle('localgpt-council-native-send-hidden', Boolean(councilComposerRunId) && hasMessage);
+            const showLiveAction = councilComposerRunId && (hasMessage || nativeStop === null);
             liveAction?.classList.toggle('localgpt-live-send-visible', showLiveAction);
             if (liveAction instanceof HTMLButtonElement) {
                 liveAction.disabled = councilComposerSubmitting;
@@ -1154,7 +1155,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                     editor.addEventListener('input', diagnostics.guard('localgpt-chat-ui.liveCouncilInput', () =>
                         updateCouncilComposer(host, editor, composer)));
                     editor.addEventListener('keydown', diagnostics.guard('localgpt-chat-ui.liveCouncilInput.keydown', event => {
-                        if (!councilComposerActive
+                        if (!councilComposerRunId
                             || event.key !== 'Enter'
                             || event.shiftKey
                             || event.isComposing
@@ -1599,19 +1600,19 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                         diagnostics.report('localgpt-chat-ui.stabilizeLayout', error);
                     }
                 },
-                registerCouncilComposer(dotNetReference, isActive) {
+                registerCouncilComposer(dotNetReference, runId) {
                     try {
                         councilComposerDotNet = dotNetReference || councilComposerDotNet;
-                        councilComposerActive = Boolean(isActive);
+                        councilComposerRunId = runId || null;
                         scheduleApply();
                     } catch (error) {
                         diagnostics.report('localgpt-chat-ui.registerCouncilComposer', error);
                         throw error;
                     }
                 },
-                refreshCouncilComposer(isActive) {
+                refreshCouncilComposer(runId) {
                     try {
-                        councilComposerActive = Boolean(isActive);
+                        councilComposerRunId = runId || null;
                         scheduleApply();
                     } catch (error) {
                         diagnostics.report('localgpt-chat-ui.refreshCouncilComposer', error);
@@ -1736,6 +1737,16 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                         diagnostics.report('localgpt-chat-ui.submitPrompt', error);
                         return false;
                     }
+                },
+                resetComposerForNewChat() {
+                    councilComposerRunId = null;
+                    const host = document.getElementById('localgpt-chat-host');
+                    nativeSendDraftRecovery.delete(host);
+                    host?.querySelectorAll('.localgpt-chat-composer').forEach(composer => {
+                        clearEditor(composer.querySelector('textarea,[contenteditable="true"],[role="textbox"]'));
+                        clearPendingUploadFiles(composer);
+                    });
+                    scheduleApply();
                 },
                 clearLiveUserMessages() {
                     try {

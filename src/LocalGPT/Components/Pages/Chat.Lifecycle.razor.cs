@@ -39,7 +39,9 @@ namespace LocalGPT.Components.Pages
     public partial class Chat
     {
     /// <summary>Tracks the last live-Council availability published to the browser composer bridge so streaming renders do not repeat JS interop.</summary>
-    private bool? lastCouncilComposerAvailability;
+    private bool councilComposerRegistered;
+    private Guid? lastCouncilComposerRunId;
+    private int chatControlGeneration;
     /// <summary>Tracks the last Council run id published to the reconnect bridge so streaming token renders remain renderer-light.</summary>
     private Guid? lastReconnectCouncilRunId;
     /// <summary>Tracks whether the reconnect bridge has received its initial null/non-null run value.</summary>
@@ -83,14 +85,15 @@ namespace LocalGPT.Components.Pages
                 ScheduleChatRuntimeActivation();
             }
 
-            var composerAvailable = IsLiveCouncilInteractionAvailable;
-            if (chatInteropReference is not null && lastCouncilComposerAvailability != composerAvailable)
+            var composerRunId = ActiveLiveCouncilSession?.RunId;
+            if (chatInteropReference is not null && (!councilComposerRegistered || lastCouncilComposerRunId != composerRunId))
             {
                 await JS.InvokeVoidAsync(
                     "localGptChatUi.registerCouncilComposer",
                     chatInteropReference,
-                    composerAvailable).ConfigureAwait(true);
-                lastCouncilComposerAvailability = composerAvailable;
+                    composerRunId).ConfigureAwait(true);
+                lastCouncilComposerRunId = composerRunId;
+                councilComposerRegistered = true;
             }
 
             // Preserve the exact saved Chat identity independently of the Council run.
@@ -100,9 +103,9 @@ namespace LocalGPT.Components.Pages
                 await JS.InvokeVoidAsync("localGptReconnect.setConversation", conversationId.ToString()).ConfigureAwait(true);
                 lastReconnectConversationId = conversationId;
             }
-            var recoverableCouncilRunId = ResolveRunningCouncilRunId();
+            var recoverableCouncilRunId = AttachedLiveCouncilRunId;
             if (recoverableCouncilRunId is null && openedCouncilArchive is { } selectedArchive
-                && SelectedCouncilRunId == selectedArchive.RunId)
+                && RejoinCouncilRunId == selectedArchive.RunId)
                 recoverableCouncilRunId = selectedArchive.RunId;
             // A completed selected run must survive a full browser reload just like a live one.
             // Do not publish an unverified stale ID before background restoration finishes.
@@ -119,13 +122,13 @@ namespace LocalGPT.Components.Pages
         {
             // JS interop is cancelled during circuit reconnect/navigation. Treat this as a transient UI condition;
             // the next render republishes the composer/rejoin state instead of faulting the server-side component.
-            lastCouncilComposerAvailability = null;
+            councilComposerRegistered = false;
             reconnectCouncilRunPublished = false;
             Logger.LogDebug(exception, "Chat JS interop was cancelled while the interactive circuit was changing state.");
         }
         catch (JSDisconnectedException exception)
         {
-            lastCouncilComposerAvailability = null;
+            councilComposerRegistered = false;
             reconnectCouncilRunPublished = false;
             Logger.LogDebug(exception, "Chat JS interop stopped because the browser circuit disconnected.");
         }
@@ -277,21 +280,19 @@ namespace LocalGPT.Components.Pages
             if (RejoinCouncilRunId is Guid rejoinRunId)
             {
                 var attached = await AttachToLiveCouncilSessionAsync(rejoinRunId, reloadChatControl: !initialMessagesLoaded).ConfigureAwait(false);
-                // Restoring a run also restores its already recorded transcript and evidence;
-                // the user must not need to click "Load selected transcript & evidence".
-                openedCouncilArchive = CouncilSpooler.GetSnapshot(rejoinRunId);
-                if (openedCouncilArchive is not null || attached)
-                    SelectedCouncilRunId = rejoinRunId;
-                // A finished Council no longer has a live snapshot. Rehydrate its exact
-                // saved Chat or spool-backed projection instead of showing an empty DxAIChat.
-                if (!attached && openedCouncilArchive is { } restoredArchive)
-                    await RestoreCouncilChatFromSpoolAsync(rejoinRunId, restoredArchive).ConfigureAwait(false);
+                if (RejoinCouncilRunId == rejoinRunId)
+                {
+                    openedCouncilArchive = CouncilSpooler.GetSnapshot(rejoinRunId);
+                    if (openedCouncilArchive is not null || attached)
+                        SelectedCouncilRunId = rejoinRunId;
+                    if (!attached && openedCouncilArchive is { } restoredArchive)
+                        await RestoreCouncilChatFromSpoolAsync(rejoinRunId, restoredArchive).ConfigureAwait(false);
+                }
             }
 
             StartAutoSaveLoop();
             StartInitialModelRefresh();
             ScheduleDirectCouncilStarterDispatch();
-            ScheduleAutomaticLiveCouncilAttach();
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
             Logger.LogInformation($"Chat runtime activated after DevExpress initialization completed; the UI remains responsive while supervised work runs off-dispatcher.");
             ComponentActivity.RecordInformation(nameof(Chat), nameof(TryStartChatRuntimeAsync), "The Chat runtime activated after the DevExpress initialization callback completed.");
@@ -316,7 +317,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            if (ChatClientProvider?.SelectedSession is null || DxAiChat is null)
+            if (!chatRuntimeStarted || ChatClientProvider?.SelectedSession is null || DxAiChat is null)
                 return;
 
             await PersistCurrentConversationAsync(force: true, showToast: false);
@@ -333,10 +334,14 @@ namespace LocalGPT.Components.Pages
             feedbackStatus = string.Empty;
             lastSavedSignature = string.Empty;
             memoryStatus = "New empty chat started.";
-            automaticLiveCouncilAttachSuppressed = true;
-            DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
+            RequestedRejoinCouncilRunId = null;
+            RequestedRejoinConversationId = null;
             RejoinCouncilRunId = null;
+            pendingCouncilChatRestoreRunId = null;
             AttachedLiveCouncilRunId = null;
+            PendingLiveCouncilUserMessages.Clear();
+            RunningCouncilContribution = string.Empty;
+            liveCouncilUploadStatus = string.Empty;
             attachedLiveCouncilSnapshot = null;
             ownsLiveCouncilStream = false;
             lastAttachedLiveCouncilUpdatedAtUtc = default;
@@ -344,6 +349,9 @@ namespace LocalGPT.Components.Pages
             openedCouncilArchive = null;
             openedCouncilEvidenceStep = null;
             LoadCouncilRunConfiguration(null);
+            // A new control detaches the old response stream from this chat while a server-owned Council continues.
+            chatControlGeneration++;
+            await JS.InvokeVoidAsync("localGptChatUi.resetComposerForNewChat");
             await JS.InvokeVoidAsync("localGptReconnect.clearCouncilRun");
             await JS.InvokeVoidAsync("localGptReconnect.clearConversation");
             lastReconnectConversationId = null;
@@ -980,6 +988,9 @@ namespace LocalGPT.Components.Pages
             lastSavedSignature = string.Empty;
             RejoinCouncilRunId = null;
             AttachedLiveCouncilRunId = null;
+            PendingLiveCouncilUserMessages.Clear();
+            RunningCouncilContribution = string.Empty;
+            liveCouncilUploadStatus = string.Empty;
             attachedLiveCouncilSnapshot = null;
             SelectedCouncilRunId = null;
             ownsLiveCouncilStream = false;

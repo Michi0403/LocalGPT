@@ -856,7 +856,7 @@ namespace LocalGPT.Services
                         result.Warnings.Add("A non-blocking coordination poll is included for follow-up choices.");
                     result.Artifacts.AddRange(await artifactService.CreateImplementationArtifactsAsync(request, result, cancellationToken).ConfigureAwait(false));
                 }
-                else if (request.GenerateImplementationArtifact && !request.UserConfirmedArtifactBuild)
+                else if (requestedGeneration && !request.UserConfirmedArtifactBuild)
                 {
                     result.Warnings.Add("Implementation artifacts were not generated because a fresh human confirmation for the legacy direct sandbox build was not supplied.");
                 }

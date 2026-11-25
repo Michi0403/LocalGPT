@@ -277,9 +277,6 @@ namespace LocalGPT.Components.Pages
                 .FirstOrDefault(model => model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
                 ?.Endpoint;
 
-            // Artifact generation is an opt-out chat setting: it stays as the user left it for later runs.
-            var userConfirmedArtifactBuild = GenerateCouncilArtifacts;
-
             ActiveConversationId ??= Guid.NewGuid();
             SessionContext.SetConversation(ActiveConversationId);
 
@@ -312,8 +309,7 @@ namespace LocalGPT.Components.Pages
                 OllamaNumGpu = ResolveOllamaNumGpu(),
                 IncludeMemory = IncludeCouncilMemory,
                 SaveToMemory = true,
-                GenerateImplementationArtifact = userConfirmedArtifactBuild,
-                UserConfirmedArtifactBuild = userConfirmedArtifactBuild,
+                GenerateImplementationArtifact = GenerateCouncilArtifacts,
                 Title = $"DXAiChat AI Council · {CouncilTeams.FirstOrDefault(team => team.Key == SelectedCouncilTeamKey)?.DisplayName ?? SelectedCouncilTeamKey}",
                 UseOrganicCouncilWorkflow = true,
                 CouncilTeamKey = string.IsNullOrWhiteSpace(SelectedCouncilTeamKey) ? "general" : SelectedCouncilTeamKey,

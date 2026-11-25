@@ -60,6 +60,15 @@ A step that produces thinking but no substantive final answer receives at most o
 
 Peer verification is advisory. A failed verifier can be recorded as a warning while a valid result remains available, but the UI must not relabel unrelated notices as successful verification.
 
+### Verify a C# download on a fresh installation
+
+1. Open **Install → Toolchains** and select **Discover and save toolchains**. Check that the .NET SDK for your intended target framework is listed.
+2. In Chat, select **Start new chat**, choose the **Program Compiler** Council team, and select provider-qualified models that have passed a benchmark on their host. Keep **Council downloadable artifacts** enabled in **AI Council controls**. For the first test, turn off **Council uses memory** to keep the model's context focused on the request.
+3. Ask for a small result with a concrete delivery target. For example, ask for a C# console solution that accepts an integer, prints `Odd` or `Even`, and includes a downloadable ZIP containing the solution and verified build output.
+4. Open **Approvals & team** when a review is requested. Inspect the proposed files and approve the build for that run. Open that run's saved transcript to see the build outcome, completed steps, and errors. Check the Chat download and confirm that the ZIP contains the solution and build output.
+
+You can start a new chat while a Council is running. To send a follow-up to that Council, open its transcript from **Running session tools** or **Join live transcript** first.
+
 ## Human participation
 
 A human can join a running Council, answer a question, approve a proposed boundary, or provide a correction. Human participation does not turn every human message into unrestricted authority; the application still binds decisions to the current request, action, target, and approval scope.
@@ -131,7 +140,7 @@ The Chat configuration exposes the scheduler at two levels. **Load balancing** s
 
 LocalGPT now sizes each native Ollama request before sending it:
 
-- **Context fits the prompt.** LocalGPT counts the characters of the messages and the attached tool schemas. If they would not fit the configured context together with the answer, the context of that one request is raised, never above `OllamaRequestBudgetPolicyJson.maximumFittedContextTokens` (default 32768). Previously Ollama silently cut the oldest prompt content: system prompt, task and tool list.
+- **Context budget.** By default, LocalGPT uses the context configured for the model. With `OllamaRequestBudgetPolicyJson.useEstimatedContextFitting` enabled, it can raise the context for an individual request up to the configured fitting ceiling. If a run reports a context limit error, try a fresh chat with a smaller request, turn off Council memory for the test, or use a provider and model configured for a larger context.
 - **Thinking has its own budget.** When LocalGPT asks a model to think, `thinkingReserveTokens` (default 2048) is added to the output limit. Thinking no longer uses up the visible answer, which caused truncated stories and empty answers.
 - **Compact tool set.** A Council step without a saved tool preference no longer attaches all registered tools (200+). It attaches:
   - the base set `CouncilBaseNativeFunctions`;

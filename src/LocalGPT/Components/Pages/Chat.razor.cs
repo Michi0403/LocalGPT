@@ -964,15 +964,6 @@ namespace LocalGPT.Components.Pages
     /// Stores the internal live council list refresh scheduled state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>
     int liveCouncilListRefreshScheduled;
-    /// <summary>
-    /// Remembers the running Council this circuit already tried to attach to automatically after the session list
-    /// selected it, so a failed or declined automatic attachment is not retried on every live update.
-    /// </summary>
-    Guid? automaticLiveCouncilAttachRunId;
-    /// <summary>
-    /// Set when the user explicitly starts a new chat; a running Council must then not be attached automatically again.
-    /// </summary>
-    bool automaticLiveCouncilAttachSuppressed;
     /// <summary>Whether the Live Council feed also renders the ordered transcript (it is always rendered inside the Council chat message).</summary>
     bool liveFeedTranscriptVisible;
     /// <summary>Council run whose chat restore was requested before the provider sessions (including the Council session) existed.</summary>
@@ -1075,20 +1066,11 @@ namespace LocalGPT.Components.Pages
     /// Gets the active live council session value that forms part of the chat state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The active live council session value exposed by <see cref="Chat"/>.</value>
-    CouncilLiveSessionSummary? ActiveLiveCouncilSession
-    {
-        get
-        {
-            Guid?[] candidateRunIds = [SelectedCouncilRunId, AttachedLiveCouncilRunId, RejoinCouncilRunId];
-            foreach (var candidateRunId in candidateRunIds)
-            {
-                if (candidateRunId is Guid runId && CouncilLiveSessions.GetSummary(runId) is { IsRunning: true } snapshot)
-                    return snapshot;
-            }
-
-            return null;
-        }
-    }
+    CouncilLiveSessionSummary? ActiveLiveCouncilSession =>
+        AttachedLiveCouncilRunId is Guid runId
+        && CouncilLiveSessions.GetSummary(runId) is { IsRunning: true } session
+            ? session
+            : null;
     /// <summary>
     /// Gets a value indicating whether live council interaction available applies to the chat state.
     /// </summary>
@@ -1137,23 +1119,10 @@ namespace LocalGPT.Components.Pages
     /// Gets the active council run value that forms part of the chat state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The active council run value exposed by <see cref="Chat"/>.</value>
-    HumanCouncilRunSnapshot? ActiveCouncilRun
-    {
-        get
-        {
-            Guid?[] candidateRunIds = [SelectedCouncilRunId, AttachedLiveCouncilRunId, RejoinCouncilRunId];
-            foreach (var candidateRunId in candidateRunIds)
-            {
-                if (candidateRunId is Guid runId
-                    && collaborationSnapshot.ActiveRuns.FirstOrDefault(run => run.RunId == runId) is { } activeRun)
-                {
-                    return activeRun;
-                }
-            }
-
-            return null;
-        }
-    }
+    HumanCouncilRunSnapshot? ActiveCouncilRun =>
+        ActiveLiveCouncilSession is { } session
+            ? collaborationSnapshot.ActiveRuns.FirstOrDefault(run => run.RunId == session.RunId)
+            : null;
     /// <summary>
     /// Stores the internal auto save failure notified state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>

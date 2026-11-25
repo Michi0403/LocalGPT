@@ -71,6 +71,7 @@
                       RenderStyle="ButtonRenderStyle.Primary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       IconCssClass="oi oi-plus"
+                      Enabled="@chatRuntimeStarted"
                       Click="ClearHistoryAsync" />
             <DxButton Text="@AsciiTerminalButtonText"
                       CssClass="@AsciiTerminalButtonCssClass"
@@ -199,7 +200,7 @@
                                      Value="@LimitedGpuLayers"
                                      ValueChanged="OnLimitedGpuLayersChanged" />
             }
-            <label class="inline-dx-check" title="When the AI Council session is selected, it can generate downloadable code, DLL, solution, or datapack artifacts for implementation requests.">
+            <label class="inline-dx-check" title="Ask the selected Council team to prepare downloadable files for implementation requests. Builds can require a separate review.">
                 <DxCheckBox @bind-Checked="GenerateCouncilArtifacts" />
                 <span>Council downloadable artifacts</span>
             </label>
@@ -657,7 +658,7 @@
         {
             var newestLiveSession = RunningLiveCouncilSessions[0];
             <div class="chat-live-session-inline-info" aria-live="off">
-                <span><strong>Live Council @ShortCouncilRunId(newestLiveSession.RunId)</strong> is running and can be joined without stopping it.</span>
+                <span><strong>Live Council @ShortCouncilRunId(newestLiveSession.RunId)</strong> is running in a separate chat. Join its transcript to send it a message.</span>
                 <DxButton CssClass="localgpt-rounded-action localgpt-action-primary" Text="Join live transcript"
                           RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
@@ -670,6 +671,14 @@
                 <summary>Saved Council transcript · @ShortCouncilRunId(archive.RunId) · @archive.Status · @archive.Phase</summary>
                 <div class="chat-council-history-content">
                     <p>Evidence from this exact backend run, including completed steps and failure details.</p>
+                    @if (archive.CoordinatedSourceWork == true)
+                    {
+                        <p data-testid="chat-council-build-outcome">
+                            @(archive.DevelopmentArtifactVerified == true
+                                ? "Verified build recorded."
+                                : "No verified build was recorded. Check the saved steps and any source download for this run.")
+                        </p>
+                    }
                     @if (!string.IsNullOrWhiteSpace(archive.Prompt))
                     {
                         <details><summary>Original Council request (full text)</summary><pre>@archive.Prompt</pre></details>
@@ -708,7 +717,7 @@
             <ChatOfficeDownloads @key="conversationId" ConversationId="conversationId" />
         }
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
-            <DxAIChat Initialized="ChatInitialized"
+            <DxAIChat @key="chatControlGeneration" Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"
                       ResponseContentFormat="ResponseContentFormat.Markdown"
                       UseStreaming="true"
