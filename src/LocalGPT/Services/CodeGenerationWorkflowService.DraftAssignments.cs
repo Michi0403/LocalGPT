@@ -4,6 +4,8 @@ using System.Text.Json;
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualStudio.SolutionPersistence.Model;
+using Microsoft.VisualStudio.SolutionPersistence.Serializer;
 
 namespace LocalGPT.Services;
 
@@ -124,6 +126,7 @@ public sealed partial class CodeGenerationWorkflowService
                 return [];
             var plan = ReadDraftPlan(row);
             var manifest = plan.DraftManifest!;
+            var generatedSolution = await GenerateDraftSolutionAsync(plan, cancellationToken).ConfigureAwait(false);
             var completed = plan.Files.ToDictionary(file => file.RelativePath, StringComparer.OrdinalIgnoreCase);
             var available = modelNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             var packets = new List<CodeGenerationDraftWorkPacket>();
@@ -174,8 +177,11 @@ public sealed partial class CodeGenerationWorkflowService
                 packets.Add(new CodeGenerationDraftWorkPacket(assignment, plan.Goal, plan.DraftSharedContract,
                     correctiveEvidence, sourceDependencies, plan.DraftRepairSources.GetValueOrDefault(path) ?? string.Empty));
             }
-            if (packets.Count > 0 && !await SaveDraftPlanAsync(db, row, plan, cancellationToken).ConfigureAwait(false))
+            if ((packets.Count > 0 || generatedSolution is not null) &&
+                !await SaveDraftPlanAsync(db, row, plan, cancellationToken).ConfigureAwait(false))
                 throw new InvalidOperationException("The source draft changed during assignment. No file workers were started.");
+            if (generatedSolution is not null)
+                logger.LogInformation("Council {RunId} generated {SolutionPath} with the .NET solution serializer.", runId, generatedSolution);
             logger.LogInformation("Council {RunId} reserved {Count} independent source-file assignments.", runId, packets.Count);
             return packets;
         }
@@ -184,6 +190,47 @@ public sealed partial class CodeGenerationWorkflowService
             logger.LogError(exception, "Reserving source draft assignments failed for Council {RunId}.", runId);
             throw;
         }
+    }
+
+    /// <summary>Generates a new single-project C# solution from the persisted manifest without evaluating its project.</summary>
+    private async Task<string?> GenerateDraftSolutionAsync(CreateCodeGenerationReviewRequest plan,
+        CancellationToken cancellationToken)
+    {
+        if (plan.DraftWorkspaceMode != "ReviewedSourceDraft" || plan.DraftRepairReviewId.HasValue)
+            return null;
+
+        var manifest = plan.DraftManifest!;
+        if (manifest.Keys.Where(IsSourceSolutionPath).ToArray() is not [var solutionPath] ||
+            !Path.GetExtension(solutionPath).Equals(".slnx", StringComparison.OrdinalIgnoreCase) ||
+            manifest.Keys.Where(IsSourceProjectPath).ToArray() is not [var projectPath] ||
+            !Path.GetExtension(projectPath).Equals(".csproj", StringComparison.OrdinalIgnoreCase) ||
+            plan.Files.Any(file => string.Equals(file.RelativePath, solutionPath, StringComparison.OrdinalIgnoreCase)) ||
+            plan.DraftRepairSources.ContainsKey(solutionPath))
+            return null;
+
+        // Relative filenames are sufficient. The serializer never opens the authored project.
+        var solutionDirectory = Path.GetDirectoryName(solutionPath) ?? string.Empty;
+        var relativeProject = Path.GetRelativePath(Path.GetFullPath(solutionDirectory.Length == 0 ? "." : solutionDirectory),
+            Path.GetFullPath(projectPath)).Replace('\\', '/');
+        var solution = new SolutionModel();
+        solution.AddProject(relativeProject, projectTypeName: null, folder: null);
+        using var stream = new MemoryStream();
+        await SolutionSerializers.SlnXml.SaveAsync(stream, solution, cancellationToken).ConfigureAwait(false);
+        stream.Position = 0;
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var source = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        var maximum = runtimePolicy.GetLong("MaxSingleFileBytes");
+        if ((maximum > 0 && Encoding.UTF8.GetByteCount(source) > maximum) ||
+            !string.IsNullOrEmpty(ValidateDraftSourceReferences(solutionPath, source, manifest)))
+            return null;
+
+        plan.Files.Add(new CodeGenerationFileSpec
+        {
+            RelativePath = solutionPath,
+            Content = source,
+            Purpose = manifest[solutionPath]
+        });
+        return solutionPath;
     }
 
     /// <inheritdoc />
