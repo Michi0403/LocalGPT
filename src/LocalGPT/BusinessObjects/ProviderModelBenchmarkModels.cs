@@ -111,6 +111,9 @@ public sealed class ProviderModelBenchmarkRequest
     /// </summary>
     /// <value>The max tasks value exposed by <see cref="ProviderModelBenchmarkRequest"/>.</value>
     public int MaxTasks { get; set; } = 3;
+
+    /// <summary>An optional user-authored NUTS assessment with its own case limit.</summary>
+    public NutsBenchmarkScenario? NutsScenario { get; set; }
     /// <summary>
     /// Gets or sets the max council reviewers value that forms part of the provider model benchmark state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -275,6 +278,15 @@ public sealed class ProviderModelBenchmarkReport
     /// </summary>
     /// <value>The warnings value exposed by <see cref="ProviderModelBenchmarkReport"/>.</value>
     public List<string> Warnings { get; set; } = [];
+
+    /// <summary>The name of the NUTS scenario measured by this report.</summary>
+    public string NutsScenarioName { get; set; } = string.Empty;
+
+    /// <summary>Case-level role evidence for each measured provider and profile.</summary>
+    public List<NutsRoleEvidence> NutsRoleEvidence { get; set; } = [];
+
+    /// <summary>Models that passed every measured case for a configured role on one profile.</summary>
+    public List<NutsRoleEvidence> NutsRoleRecommendations { get; set; } = [];
     /// <summary>
     /// Gets or sets the stable applied preset identifier used to identify or correlate this provider model benchmark report instance with related application state.
     /// </summary>

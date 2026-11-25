@@ -52,6 +52,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     private readonly CouncilTextService councilText;
     /// <summary>Projects provider-native reasoning and function metadata into the same durable user-visible trace used by normal Council execution.</summary>
     private readonly CouncilRuntimeService councilRuntime;
+    private readonly NutsBenchmarkAssessment nutsAssessment;
     /// <summary>
     /// Stores the logger used by <see cref="ProviderModelBenchmarkService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -68,6 +69,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     /// <param name="councilRuntime">Shared provider trace projection used to expose reasoning and function metadata consistently.</param>
     /// <param name="logger">Injected dependency used by the ProviderModelBenchmarkService.</param>
     /// <param name="runtimePolicy">Database-backed runtime-policy service that supplies configurable operational parameters for this component.</param>
+    /// <param name="nutsAssessment">The independent evaluator for NUTS role exercises.</param>
     public ProviderModelBenchmarkService(
         IProviderModelRuntimeService providerModels,
         IModelPresetService modelPresets,
@@ -78,6 +80,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         ILocalGptRuntimePolicyDataService runtimePolicy,
         CouncilTextService councilText,
         CouncilRuntimeService councilRuntime,
+        NutsBenchmarkAssessment nutsAssessment,
         ILogger<ProviderModelBenchmarkService> logger)
     {
         this.providerModels = providerModels;
@@ -89,6 +92,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         this.runtimePolicy = runtimePolicy;
         this.councilText = councilText;
         this.councilRuntime = councilRuntime;
+        this.nutsAssessment = nutsAssessment;
         this.logger = logger;
     }
 
@@ -107,6 +111,10 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         {
             RunId = request.RunId == Guid.Empty ? Guid.NewGuid() : request.RunId
         };
+        var scenario = request.NutsScenario;
+        var scenarioTasks = scenario is null ? null : nutsAssessment.Prepare(scenario);
+        if (scenario is not null)
+            await nutsAssessment.ValidateRolesAsync(scenario, cancellationToken).ConfigureAwait(false);
         var targets = request.Targets
             .Where(model => model is not null && model.SupportsBenchmark && !string.IsNullOrWhiteSpace(model.ModelName))
             .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
@@ -141,7 +149,9 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         var threshold = Math.Clamp(request.ImprovementThresholdPercent, parameters.MinimumImprovementPercent, parameters.MaximumImprovementPercent);
         var stopAfterConsecutiveProfileFailures = Math.Clamp(request.StopAfterConsecutiveProfileFailures, 0, maxProfiles);
         var repetitionRecoveryAttempts = Math.Clamp(request.RepetitionRecoveryAttempts, 0, parameters.MaximumRepetitionRecoveryAttempts);
-        var tasks = BuildTasks(request).Take(maxTasks).ToList();
+        var tasks = scenarioTasks is null
+            ? BuildTasks(request).Take(maxTasks).ToList()
+            : BuildTasks(new ProviderModelBenchmarkRequest { TaskDefinitions = scenarioTasks.ToList() }).ToList();
         var maximumTaskAttemptsPerProfile = tasks.Sum(task =>
             (long)(task.EnforceRoleExecution ? 2 : 1) * (repetitionRecoveryAttempts + 1));
         var maximumMeasurementCalls = (long)targets.Count * maxProfiles * maximumTaskAttemptsPerProfile;
@@ -375,6 +385,8 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
             }
 
             report.CompletedAtUtc = DateTimeOffset.UtcNow;
+            if (scenario is not null)
+                nutsAssessment.Record(scenario, report);
             var succeeded = report.Targets.Count(target => string.IsNullOrWhiteSpace(target.Error)
                 && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName));
             Publish($"\n## Benchmark Council completed\n\n{succeeded}/{report.Targets.Count} target model(s) produced a recommendation. No provider or preset settings were changed automatically.");
