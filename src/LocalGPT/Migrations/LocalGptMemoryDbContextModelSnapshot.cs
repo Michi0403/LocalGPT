@@ -1023,6 +1023,67 @@ namespace LocalGPT.Migrations
                     b.HasIndex("RoleName");
                     b.ToTable("CouncilRoleIndexes", (string)null);
                 });
+            modelBuilder.Entity("LocalGPT.BusinessObjects.ModelAdapterRevision", b =>
+                {
+                    b.Property<string>("AdapterDigest")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AdapterModelKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AdapterPassed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BaseDigest")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BaseModelKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("BasePassed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("BenchmarkRunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CaseCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProfileName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Qualified")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ReviewedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScenarioSha256")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TeamKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+                    b.HasIndex("AdapterModelKey");
+                    b.ToTable("ModelAdapterRevisions", (string)null);
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilRoleModelBinding", b =>
                 {
                     b.Property<string>("TeamKey").HasMaxLength(160).HasColumnType("TEXT");

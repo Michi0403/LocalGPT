@@ -282,6 +282,9 @@ public sealed class ProviderModelBenchmarkReport
     /// <summary>The name of the NUTS scenario measured by this report.</summary>
     public string NutsScenarioName { get; set; } = string.Empty;
 
+    /// <summary>Fingerprint of the held-out case definitions and answer keys.</summary>
+    public string NutsHeldOutScenarioSha256 { get; set; } = string.Empty;
+
     /// <summary>Case-level role evidence for each measured provider and profile.</summary>
     public List<NutsRoleEvidence> NutsRoleEvidence { get; set; } = [];
 
@@ -319,6 +322,9 @@ public sealed class ProviderModelBenchmarkTargetResult
     /// </summary>
     /// <value>The model value exposed by <see cref="ProviderModelBenchmarkTargetResult"/>.</value>
     public ProviderModelReference Model { get; set; } = new();
+
+    /// <summary>Provider revision confirmed unchanged across the held-out benchmark.</summary>
+    public string VerifiedRevisionDigest { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the profiles collection maintained or exposed by this provider model benchmark target instance for downstream processing.
     /// </summary>

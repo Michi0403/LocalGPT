@@ -310,6 +310,9 @@ namespace LocalGPT.BusinessObjects
         bool IsLocal = true,
         bool SupportsBenchmark = true)
     {
+        /// <summary>Content digest reported by the provider for the installed model.</summary>
+        public string RevisionDigest { get; init; } = string.Empty;
+
         /// <summary>
         /// Gets the display name value that forms part of the multi model council model candidate state consumed or produced by the surrounding workflow.
         /// </summary>
@@ -336,7 +339,8 @@ namespace LocalGPT.BusinessObjects
             IsConfigured = IsConfigured,
             IsLoaded = IsLoaded,
             SupportsBenchmark = SupportsBenchmark,
-            Details = Details ?? string.Empty
+            Details = Details ?? string.Empty,
+            RevisionDigest = RevisionDigest
         };
     }
 

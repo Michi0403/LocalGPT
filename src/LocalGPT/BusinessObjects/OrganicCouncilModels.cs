@@ -323,6 +323,8 @@ public sealed class OrganicCouncilRoleDefinition
     /// <summary>Gets or sets the exact provider-qualified identities eligible for this role. Exact-assignment mode runs the saved set; provider-pool random mode samples only this set and may deliberately reuse members when the configured invocation count exceeds its distinct size.</summary>
     /// <value>The provider, endpoint and model selection keys that form the authoritative role pool.</value>
     public List<string> AssignedModelKeys { get; set; } = [];
+    public string ReviewedAdapterModelKey { get; set; } = string.Empty;
+    public string ReviewedAdapterDigest { get; set; } = string.Empty;
 }
 
 /// <summary>Stores project and revision metadata used to route organic Council capabilities.</summary>

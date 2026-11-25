@@ -8,6 +8,9 @@ public sealed class NutsBenchmarkScenario
     /// <summary>The scenario name retained with its benchmark report.</summary>
     public string Name { get; init; } = string.Empty;
 
+    /// <summary>Operator attestation that these cases were excluded from training and tuning.</summary>
+    public bool HeldOut { get; init; }
+
     /// <summary>Ordered cases used for every selected model and profile.</summary>
     public List<NutsBenchmarkCase> Cases { get; init; } = [];
 }

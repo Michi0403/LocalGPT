@@ -211,6 +211,7 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<CouncilTeamConfiguration> CouncilTeamConfigurations => Set<CouncilTeamConfiguration>();
         public DbSet<CouncilRoleIndex> CouncilRoleIndexes => Set<CouncilRoleIndex>();
         public DbSet<CouncilRoleModelBinding> CouncilRoleModelBindings => Set<CouncilRoleModelBinding>();
+        public DbSet<ModelAdapterRevision> ModelAdapterRevisions => Set<ModelAdapterRevision>();
         /// <summary>
         /// Gets the council runtime class configurations value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
@@ -796,6 +797,12 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasOne<CouncilRoleIndex>().WithMany()
                     .HasForeignKey(item => new { item.TeamKey, item.RoleName })
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+            modelBuilder.Entity<ModelAdapterRevision>(entity =>
+            {
+                entity.ToTable("ModelAdapterRevisions");
+                entity.HasKey(item => item.Id);
+                entity.HasIndex(item => item.AdapterModelKey);
             });
             modelBuilder.Entity<CouncilTeamConfiguration>(entity =>
             {

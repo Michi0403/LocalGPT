@@ -223,6 +223,9 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
 
         try
         {
+            var startingRevisions = scenario?.HeldOut == true
+                ? await ReadBenchmarkRevisionsAsync(runToken).ConfigureAwait(false)
+                : null;
             Publish(
                 $"_Limits: {maxSeconds}s per call · context ≤ {maximumContext:N0} · output ≤ {maximumOutput:N0} · stop threshold {threshold:0.#}% · " +
                 $"repetition watchdog recovery ≤ {repetitionRecoveryAttempts} same-subject retr{(repetitionRecoveryAttempts == 1 ? "y" : "ies")} per measured task._\n");
@@ -385,6 +388,17 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
             }
 
             report.CompletedAtUtc = DateTimeOffset.UtcNow;
+            if (startingRevisions is not null)
+            {
+                var endingRevisions = await ReadBenchmarkRevisionsAsync(runToken).ConfigureAwait(false);
+                foreach (var target in report.Targets)
+                {
+                    if (startingRevisions.TryGetValue(target.Model.SelectionKey, out var before)
+                        && endingRevisions.TryGetValue(target.Model.SelectionKey, out var after)
+                        && before.Equals(after, StringComparison.OrdinalIgnoreCase))
+                        target.VerifiedRevisionDigest = after;
+                }
+            }
             if (scenario is not null)
                 nutsAssessment.Record(scenario, report);
             var succeeded = report.Targets.Count(target => string.IsNullOrWhiteSpace(target.Error)

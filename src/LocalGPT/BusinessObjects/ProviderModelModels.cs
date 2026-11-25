@@ -87,6 +87,9 @@ public sealed class ProviderModelReference
     /// <value>The details value exposed by <see cref="ProviderModelReference"/>.</value>
     public string Details { get; set; } = string.Empty;
 
+    /// <summary>Content digest observed in the provider's installed-model catalog.</summary>
+    public string RevisionDigest { get; set; } = string.Empty;
+
     /// <summary>
     /// Gets the stable selection key used to identify or correlate this provider model reference instance with related application state.
     /// </summary>

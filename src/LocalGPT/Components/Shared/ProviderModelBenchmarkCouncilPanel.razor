@@ -7,6 +7,7 @@
 @inject ILogger<ProviderModelBenchmarkCouncilPanel> Logger
 @inject IProviderModelReviewerPolicyService ReviewerPolicy
 @inject NutsBenchmarkAssessment NutsAssessment
+@inject ModelAdapterRevisionService AdapterRevisions
 
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
@@ -34,8 +35,9 @@
         </label>
         <label>
             <span>Scenario JSON</span>
-            <DxMemo @bind-Text="nutsScenarioJson" Rows="12" ReadOnly="@isBusy" />
+            <DxMemo @bind-Text="nutsScenarioJson" BindValueMode="BindValueMode.OnInput" Rows="12" ReadOnly="@isBusy" />
         </label>
+        <small>For LoRA comparison, set heldOut to true only for cases excluded from training and tuning. Select the base model and the provider-published adapter model before running.</small>
     </details>
 
     <div class="benchmark-council-config">
@@ -121,6 +123,27 @@
     {
         @if (!string.IsNullOrEmpty(report.NutsScenarioName))
         {
+            @if (!string.IsNullOrEmpty(report.NutsHeldOutScenarioSha256))
+            {
+                <details open>
+                    <summary>Review an existing LoRA revision</summary>
+                    <p>Select the actual base of the deployed adapter. A review is recorded for the exact benchmark, model digests and role.</p>
+                    <label>
+                        <span>Adapter base model</span>
+                        <DxComboBox Data="@AdapterBaseOptions" @bind-Value="adapterBaseKey" Enabled="@(!isBusy)"
+                                    ValueFieldName="@nameof(LocalGptSelectionOption<string>.Value)"
+                                    TextFieldName="@nameof(LocalGptSelectionOption<string>.Label)" />
+                    </label>
+                    @if (adapterReview is not null && adapterReview.BaseModelKey == adapterBaseKey)
+                    {
+                        <p>@adapterReview.Role · base @adapterReview.BasePassed / @adapterReview.CaseCount · adapter @adapterReview.AdapterPassed / @adapterReview.CaseCount</p>
+                        @if (adapterReview.Qualified)
+                        {
+                            <DxButton Click="AssignAdapterAsync" Enabled="@(!isBusy)">Assign reviewed adapter to this role</DxButton>
+                        }
+                    }
+                </details>
+            }
             <details open>
                 <summary>@report.NutsScenarioName role evidence</summary>
                 <ul>
@@ -136,11 +159,15 @@
                             {
                                 <span> · Unmeasured: @CouncilText.FormatJoinedList(evidence.UnmeasuredCases, ", ")</span>
                             }
+                            @if (CanReviewAdapter(evidence))
+                            {
+                                <DxButton Enabled="@(!isBusy)" Click="@(() => ReviewAdapterAsync(evidence))">Review this adapter role</DxButton>
+                            }
                         </li>
                     }
                 </ul>
             </details>
-            @if (report.NutsRoleRecommendations.Count > 0)
+            @if (report.NutsRoleRecommendations.Count > 0 && string.IsNullOrEmpty(report.NutsHeldOutScenarioSha256))
             {
                 <ul aria-label="Suggested Council role defaults from the scenario">
                     @foreach (var recommendation in report.NutsRoleRecommendations)
@@ -247,6 +274,17 @@
     int maxTasks = 3;
     /// <summary>Uses the NUTS case list for each selected model.</summary>
     bool runNutsScenario;
+    string adapterBaseKey = string.Empty;
+    ModelAdapterRevision? adapterReview;
+
+    private IReadOnlyList<LocalGptSelectionOption<string>> AdapterBaseOptions =>
+        report?.Targets.Where(item => item.VerifiedRevisionDigest.Length > 0)
+            .Select(item => new LocalGptSelectionOption<string>(item.Model.SelectionKey, item.Model.SelectionKey)).ToList() ?? [];
+
+    private bool CanReviewAdapter(NutsRoleEvidence evidence) =>
+        report?.NutsHeldOutScenarioSha256.Length > 0 && !string.IsNullOrWhiteSpace(adapterBaseKey)
+        && evidence.ModelSelectionKey != adapterBaseKey && evidence.UnmeasuredCases.Count == 0
+        && AdapterBaseOptions.Any(option => option.Value == evidence.ModelSelectionKey);
     /// <summary>An editable example with an exact answer key for each role exercise.</summary>
     string nutsScenarioJson = """
         {
@@ -420,6 +458,8 @@
         benchmarkCts = new CancellationTokenSource();
         isBusy = true;
         report = null;
+        adapterReview = null;
+        adapterBaseKey = string.Empty;
         activeRunId = Guid.NewGuid();
         statusText = $"Benchmark Council {activeRunId.Value.ToString("N")[..8]} is running. Open its Chat transcript to watch or stop the live session.";
         try
@@ -508,6 +548,61 @@
         {
             Logger.LogError(exception, "Saving the NUTS role default failed.");
             await InvokeAsync(() => statusText = "The suggested role default could not be saved.").ConfigureAwait(false);
+        }
+        finally
+        {
+            await InvokeAsync(() => isBusy = false).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ReviewAdapterAsync(NutsRoleEvidence evidence)
+    {
+        if (report is null || isBusy || !CanReviewAdapter(evidence))
+            return;
+        isBusy = true;
+        adapterReview = null;
+        try
+        {
+            var review = await AdapterRevisions.ReviewAsync(report.RunId, adapterBaseKey, evidence, CancellationToken.None).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                adapterReview = review;
+                statusText = review.Qualified ? "Qualified adapter revision saved." : "Adapter review saved. A default requires an improvement and a pass on every role case.";
+            }).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException exception)
+        {
+            await InvokeAsync(() => statusText = exception.Message).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Recording the adapter comparison failed.");
+            await InvokeAsync(() => statusText = "The adapter comparison could not be saved.").ConfigureAwait(false);
+        }
+        finally
+        {
+            await InvokeAsync(() => isBusy = false).ConfigureAwait(false);
+        }
+    }
+
+    private async Task AssignAdapterAsync()
+    {
+        if (adapterReview is not { Qualified: true } review || review.BaseModelKey != adapterBaseKey || isBusy)
+            return;
+        isBusy = true;
+        try
+        {
+            await AdapterRevisions.UseForRoleAsync(review.Id, CancellationToken.None).ConfigureAwait(false);
+            await InvokeAsync(() => statusText = $"Assigned the reviewed adapter to {review.TeamKey} / {review.Role}.").ConfigureAwait(false);
+        }
+        catch (InvalidOperationException exception)
+        {
+            await InvokeAsync(() => statusText = exception.Message).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Assigning the reviewed adapter failed.");
+            await InvokeAsync(() => statusText = "The adapter assignment could not be saved.").ConfigureAwait(false);
         }
         finally
         {

@@ -68,6 +68,12 @@ namespace LocalGPT.Services
 
                 if (!Enum.IsDefined(typeof(CouncilRoleAiSelectionMode), role.AiSelectionMode))
                     role.AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected;
+                if (role.AiSelectionMode != CouncilRoleAiSelectionMode.AssignedModels
+                    || !role.AssignedModelKeys.Contains(role.ReviewedAdapterModelKey, StringComparer.OrdinalIgnoreCase))
+                {
+                    role.ReviewedAdapterModelKey = string.Empty;
+                    role.ReviewedAdapterDigest = string.Empty;
+                }
                 if (!Enum.IsDefined(typeof(HumanParticipationMode), role.HumanParticipationMode))
                     role.HumanParticipationMode = HumanParticipationMode.None;
                 if (!Enum.IsDefined(typeof(CouncilRolePerformanceMode), role.PerformanceMode))

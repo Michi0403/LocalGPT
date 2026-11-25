@@ -412,6 +412,12 @@ namespace LocalGPT.Services
                             throw new InvalidOperationException($"Role '{normalizedRole}' has provider-bound AI assignment enabled but no model identity is saved.");
 
                         configuredModelKeys = ResolveConfiguredRoleParticipantKeys(normalizedRole, configuredModelKeys, participants);
+                        if (!string.IsNullOrWhiteSpace(definition.ReviewedAdapterDigest)
+                            && definition.AssignedModelKeys.Contains(definition.ReviewedAdapterModelKey, StringComparer.OrdinalIgnoreCase)
+                            && !request.ModelSelections.Any(model => model.IsReachable
+                                && model.SelectionKey.Equals(definition.ReviewedAdapterModelKey, StringComparison.OrdinalIgnoreCase)
+                                && model.RevisionDigest.Equals(definition.ReviewedAdapterDigest, StringComparison.OrdinalIgnoreCase)))
+                            throw new InvalidOperationException($"The reviewed adapter for role '{normalizedRole}' has changed or is unavailable. Review its current revision or update the saved role assignment.");
                         selectedAiParticipants = configuredModelKeys;
                     }
                     else if (definition.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange)

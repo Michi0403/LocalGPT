@@ -421,6 +421,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IProviderModelReviewerPolicyService, ProviderModelReviewerPolicyService>();
                 builder.Services.AddScoped<IProviderModelBenchmarkService, ProviderModelBenchmarkService>();
                 builder.Services.AddScoped<NutsBenchmarkAssessment>();
+                builder.Services.AddScoped<ModelAdapterRevisionService>();
                 builder.Services.AddScoped<ICouncilBenchmarkCalibrationService, CouncilBenchmarkCalibrationService>();
                 builder.Services.AddScoped<IGoalRecoveryHelperService, LocalGPT.Services.GoalExecution.GoalRecoveryHelperService>();
                 builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();

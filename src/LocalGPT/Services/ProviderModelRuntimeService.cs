@@ -878,13 +878,16 @@ public sealed class ProviderModelRuntimeService(
                     var details = item.TryGetProperty("details", out var detailProperty)
                         ? detailProperty.ToString()
                         : string.Empty;
+                    var digest = item.TryGetProperty("digest", out var digestProperty) && digestProperty.ValueKind == JsonValueKind.String
+                        ? digestProperty.GetString() ?? string.Empty
+                        : string.Empty;
                     results.Add(new MultiModelCouncilModelCandidate(
                         name.Trim(), "Ollama", endpoint,
                         IsInstalled: true, IsConfigured: false, IsLoaded: running.Contains(name),
                         Details: details,
                         ProviderKind: ProviderModelKinds.Ollama,
                         IsLocal: IsLocalEndpoint(endpoint),
-                        SupportsBenchmark: true));
+                        SupportsBenchmark: true) { RevisionDigest = digest });
                 }
             }
             return results;
@@ -965,6 +968,7 @@ public sealed class ProviderModelRuntimeService(
                 IsInstalled = existing.IsInstalled || candidate.IsInstalled,
                 IsConfigured = existing.IsConfigured || candidate.IsConfigured,
                 IsLoaded = existing.IsLoaded || candidate.IsLoaded,
+                RevisionDigest = string.IsNullOrEmpty(candidate.RevisionDigest) ? existing.RevisionDigest : candidate.RevisionDigest,
                 Details = string.Join(" ", new[] { existing.Details, candidate.Details }.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct())
             };
     

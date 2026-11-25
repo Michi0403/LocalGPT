@@ -2,6 +2,7 @@
 @using System.Text.Json
 @implements IDisposable
 @inject IProviderModelBenchmarkService BenchmarkService
+@inject ModelAdapterRevisionService AdapterRevisions
 @inject LocalGptCatalogService Catalog
 @inject CouncilTextService CouncilText
 @inject ILogger<ProviderModelPanel> Logger
@@ -104,6 +105,32 @@
             <div><dt>@T("Council address")</dt><dd>@Model.SelectionKey</dd></div>
             <div><dt>@T("Stable identity")</dt><dd>@Model.StableId</dd></div>
             <div><dt>Council roles</dt><dd><ProviderModelRoleEditor Model="Model" /></dd></div>
+            <div>
+                <dt>LoRA revision reviews</dt>
+                <dd>
+                    <DxButton Click="LoadAdapterReviewsAsync" Enabled="@(!loadingAdapterReviews)">Load saved reviews</DxButton>
+                    @if (!string.IsNullOrEmpty(adapterReviewStatus))
+                    {
+                        <p role="status">@adapterReviewStatus</p>
+                    }
+                    @if (savedAdapterReviews.Count > 0)
+                    {
+                        <ul>
+                            @foreach (var review in savedAdapterReviews)
+                            {
+                                <li>
+                                    @review.AdapterModelKey · @review.TeamKey / @review.Role · @review.AdapterPassed / @review.CaseCount
+                                    · @(review.Qualified ? "Qualified at review" : "Needs improvement")
+                                    @if (review.Qualified)
+                                    {
+                                        <DxButton Click="@(() => UseReviewedAdapterAsync(review.Id))" Enabled="@(!loadingAdapterReviews)">Use for @review.Role</DxButton>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </dd>
+            </div>
             @if (!string.IsNullOrWhiteSpace(Model.Details))
             {
                 <div><dt>@T("Details")</dt><dd>@Model.Details</dd></div>
@@ -352,6 +379,60 @@
     /// Stores the internal status text state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
     /// </summary>
     string statusText = string.Empty;
+    IReadOnlyList<ModelAdapterRevision> savedAdapterReviews = [];
+    string adapterReviewStatus = string.Empty;
+    bool loadingAdapterReviews;
+
+    private async Task UseReviewedAdapterAsync(Guid reviewId)
+    {
+        if (loadingAdapterReviews)
+            return;
+        loadingAdapterReviews = true;
+        try
+        {
+            await AdapterRevisions.UseForRoleAsync(reviewId, CancellationToken.None).ConfigureAwait(false);
+            await InvokeAsync(() => adapterReviewStatus = "Assigned the reviewed adapter revision.").ConfigureAwait(false);
+        }
+        catch (InvalidOperationException exception)
+        {
+            Logger.LogWarning(exception, "The reviewed adapter could not be assigned.");
+            await InvokeAsync(() => adapterReviewStatus = exception.Message).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Assigning the reviewed adapter failed.");
+            await InvokeAsync(() => adapterReviewStatus = "Could not assign the reviewed adapter.").ConfigureAwait(false);
+        }
+        finally
+        {
+            await InvokeAsync(() => loadingAdapterReviews = false).ConfigureAwait(false);
+        }
+    }
+
+    private async Task LoadAdapterReviewsAsync()
+    {
+        if (loadingAdapterReviews)
+            return;
+        loadingAdapterReviews = true;
+        try
+        {
+            var reviews = await AdapterRevisions.GetReviewsAsync(Model.SelectionKey, CancellationToken.None).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                savedAdapterReviews = reviews;
+                adapterReviewStatus = reviews.Count == 0 ? "No saved adapter reviews for this model." : string.Empty;
+            }).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Loading the provider model adapter reviews failed.");
+            await InvokeAsync(() => adapterReviewStatus = "Could not load adapter reviews.").ConfigureAwait(false);
+        }
+        finally
+        {
+            await InvokeAsync(() => loadingAdapterReviews = false).ConfigureAwait(false);
+        }
+    }
     /// <summary>
     /// Stores the internal report state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
     /// </summary>

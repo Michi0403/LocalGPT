@@ -1,3 +1,5 @@
+using System.Net;
+using System.Security.Cryptography;
 using System.Text.Json;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
@@ -66,6 +68,8 @@ public sealed class NutsBenchmarkAssessment(
     internal void Record(NutsBenchmarkScenario scenario, ProviderModelBenchmarkReport report)
     {
         report.NutsScenarioName = scenario.Name.Trim();
+        if (scenario.HeldOut)
+            report.NutsHeldOutScenarioSha256 = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(scenario.Cases, JsonOptions)));
         var roleCases = scenario.Cases.GroupBy(item => (Team: item.TeamKey.Trim().ToUpperInvariant(), Role: item.Role.Trim().ToUpperInvariant())).ToList();
         foreach (var target in report.Targets)
         foreach (var profile in target.Profiles)
@@ -136,21 +140,7 @@ public sealed class NutsBenchmarkAssessment(
             if (!available.Any(model => model.IsInstalled && model.SelectionKey.Equals(recommendation.ModelSelectionKey, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("The recommended model is unavailable on its measured host.");
 
-            var team = await teams.FindTeamAsync(recommendation.TeamKey, cancellationToken).ConfigureAwait(false)
-                ?? throw new InvalidOperationException("The recommended team is unavailable.");
-            var role = team.Roles.SingleOrDefault(role => role.Role.Equals(recommendation.Role, StringComparison.OrdinalIgnoreCase));
-            if (role is null || role.HumanParticipationMode == HumanParticipationMode.HumanOnly
-                || role.AiSelectionMode != CouncilRoleAiSelectionMode.AllSelected || role.AssignedModelKeys.Count > 0)
-                throw new InvalidOperationException("The role already has a selection policy or is unavailable. Existing assignments were kept.");
-
-            role.AiSelectionMode = CouncilRoleAiSelectionMode.AssignedModels;
-            role.AssignedModelKeys = [recommendation.ModelSelectionKey];
-            await teams.SaveAsync(new SaveCouncilTeamConfigurationRequest
-            {
-                Team = team,
-                IsEnabled = team.IsEnabled,
-                UserConfirmed = userConfirmed
-            }, cancellationToken).ConfigureAwait(false);
+            await SaveRoleDefaultAsync(recommendation.TeamKey, recommendation.Role, recommendation.ModelSelectionKey, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -163,11 +153,57 @@ public sealed class NutsBenchmarkAssessment(
         }
     }
 
+    internal async Task SaveRoleDefaultAsync(string teamKey, string roleName, string modelKey, CancellationToken cancellationToken,
+        string reviewedAdapterDigest = "")
+    {
+        try
+        {
+            var team = await teams.FindTeamAsync(teamKey, cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("The recommended team is unavailable.");
+            var role = team.Roles.SingleOrDefault(role => role.Role.Equals(roleName, StringComparison.OrdinalIgnoreCase));
+            if (role is null || role.HumanParticipationMode == HumanParticipationMode.HumanOnly
+                || role.AiSelectionMode != CouncilRoleAiSelectionMode.AllSelected || role.AssignedModelKeys.Count > 0)
+                throw new InvalidOperationException("The role already has a selection policy or is unavailable.");
+
+            role.AiSelectionMode = CouncilRoleAiSelectionMode.AssignedModels;
+            role.AssignedModelKeys = [modelKey];
+            role.ReviewedAdapterModelKey = reviewedAdapterDigest.Length == 0 ? string.Empty : modelKey;
+            role.ReviewedAdapterDigest = reviewedAdapterDigest;
+            await teams.SaveAsync(new SaveCouncilTeamConfigurationRequest
+            {
+                Team = team,
+                IsEnabled = team.IsEnabled,
+                UserConfirmed = true
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "Saving a measured Council role default was canceled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Saving a measured Council role default failed.");
+            throw;
+        }
+    }
+
     private bool Matches(string response, Dictionary<string, JsonElement> expected)
     {
         try
         {
-            using var document = JsonDocument.Parse(response);
+            var normalized = WebUtility.HtmlDecode(response).Trim();
+            if (normalized.StartsWith("```", StringComparison.Ordinal) && normalized.EndsWith("```", StringComparison.Ordinal))
+            {
+                var firstLine = normalized.IndexOf('\n');
+                if (firstLine < 0 || firstLine >= normalized.Length - 3)
+                    return false;
+                var fenceLanguage = normalized[3..firstLine].Trim();
+                if (fenceLanguage.Length != 0 && !fenceLanguage.Equals("json", StringComparison.OrdinalIgnoreCase))
+                    return false;
+                normalized = normalized[(firstLine + 1)..^3].Trim();
+            }
+            using var document = JsonDocument.Parse(normalized);
             var answer = document.RootElement;
             return answer.ValueKind == JsonValueKind.Object
                 && answer.EnumerateObject().Select(property => property.Name).Distinct(StringComparer.Ordinal).Count()
