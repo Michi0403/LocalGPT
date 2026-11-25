@@ -171,6 +171,8 @@ namespace LocalGPT.Services
                     ResilientStep("compiler-intake", "Classify coding intent and relevant evidence", 10, "Intake", "Repository intake and regex analyst", """
 Classify the user's request BEFORE reading any workspace.
 
+LocalGPT has already created the project and revision for this run. Do not create projects, source drafts or reviews in this step, do not call code-generation functions, and do not ask a human for a project ID: the coordinator creates the reviewed source draft in the Planning phase.
+
 If the user explicitly asks to create/code/build a new program, solution, script, library or addon from scratch, treat this as GREENFIELD AUTHORING. Do not inspect an old selected project or uploaded workspace merely because one exists. Use uploaded/project evidence only when the user identifies it as requirements/input/reference for the new artifact. Extract the requested language/framework/version, application kind, required behavior, requested build/test/package action and any explicit output name. When the user specifies .NET 10/C#, honor net10.0 directly. Choose conventional safe defaults for ordinary details instead of asking the user to repeat a clear request.
 
 If the user asks to modify, reconstruct, diagnose or compile an EXISTING project/repository (including a next version of supplied source), classify ExistingProject, inspect its active upload workspace and selected project using bounded list/context/file reads. Use the repository's true version, changelog and PowerShell validation policies. Identify root, project/solution/build files, source folders, toolchain declarations and version metadata. For text/source blobs, infer paths only from evidence actually present.

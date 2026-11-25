@@ -179,6 +179,18 @@ public sealed partial class DatabaseInitializationService
                     logger.LogInformation(
                         "Upgraded the untouched built-in KnowledgeFiles collection with the LocalGPT AI-provider bootstrap reference article.");
                 }
+
+                if (item.Name.Equals("CouncilFileWorkRuntimeParametersJson", StringComparison.OrdinalIgnoreCase))
+                {
+                    var retiredHashes = catalog.Variables.FirstOrDefault(x => x.Name.Equals("CouncilFileWorkRetiredPromptHashesJson", StringComparison.OrdinalIgnoreCase))?.Value;
+                    var upgraded = UpgradeRetiredFileWorkPrompts(row.ValueString, item.Value, retiredHashes);
+                    if (upgraded is not null)
+                    {
+                        row.ValueString = upgraded;
+                        row.LastUpdated = DateTime.UtcNow;
+                        logger.LogInformation("Upgraded untouched built-in file-work prompts in CouncilFileWorkRuntimeParametersJson to the current seed text.");
+                    }
+                }
             }
     
     }
@@ -191,6 +203,45 @@ public sealed partial class DatabaseInitializationService
         throw;
     }
 }
+
+    /// <summary>Replaces only those file-work prompt fields whose stored text is a retired built-in seed text, identified by SHA-256; user-edited prompts and all other fields are kept.</summary>
+    /// <param name="storedJson">Persisted CouncilFileWorkRuntimeParametersJson value.</param>
+    /// <param name="seedJson">Current seed value of CouncilFileWorkRuntimeParametersJson.</param>
+    /// <param name="retiredHashesJson">CouncilFileWorkRetiredPromptHashesJson: field name to list of retired SHA-256 hex hashes.</param>
+    /// <returns>The upgraded JSON, or <see langword="null"/> when nothing matched or the input could not be parsed.</returns>
+    private string? UpgradeRetiredFileWorkPrompts(string? storedJson, string seedJson, string? retiredHashesJson)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(storedJson) || string.IsNullOrWhiteSpace(retiredHashesJson))
+                return null;
+            var retired = JsonSerializer.Deserialize<Dictionary<string, string[]>>(retiredHashesJson);
+            if (System.Text.Json.Nodes.JsonNode.Parse(storedJson) is not System.Text.Json.Nodes.JsonObject stored
+                || System.Text.Json.Nodes.JsonNode.Parse(seedJson) is not System.Text.Json.Nodes.JsonObject seed
+                || retired is null)
+                return null;
+            var changed = false;
+            foreach (var (field, hashes) in retired)
+            {
+                var storedText = stored[field]?.GetValue<string>();
+                var seedText = seed[field]?.GetValue<string>();
+                if (storedText is null || seedText is null || storedText == seedText)
+                    continue;
+                var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(storedText)));
+                if (hashes.Any(x => x.Equals(hash, StringComparison.OrdinalIgnoreCase)))
+                {
+                    stored[field] = seedText;
+                    changed = true;
+                }
+            }
+            return changed ? stored.ToJsonString() : null;
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException)
+        {
+            logger.LogWarning(exception, "CouncilFileWorkRuntimeParametersJson prompt upgrade skipped because a value could not be read; the stored value is kept.");
+            return null;
+        }
+    }
 
     /// <summary>Determines whether a persisted KnowledgeFiles collection is exactly the pre-3.0.5 built-in default so seed evolution never overwrites user edits.</summary>
     /// <param name="value">Persisted JSON collection to compare with the previous built-in default.</param>
