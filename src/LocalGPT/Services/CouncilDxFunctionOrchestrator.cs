@@ -247,7 +247,7 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
             }
 
             sourceStep.VisibleContent = patterns.CouncilDxFunctionCallPattern
-                .Replace(sourceStep.VisibleContent, string.Empty)
+                .Replace(sourceStep.VisibleContent ?? string.Empty, string.Empty)
                 .Trim();
             return output;
         }

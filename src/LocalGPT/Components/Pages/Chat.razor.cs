@@ -242,10 +242,11 @@ namespace LocalGPT.Components.Pages
     /// <value>The Ollama endpoint value exposed by <see cref="Chat"/>.</value>
     string OllamaEndpoint { get; set; } = string.Empty;
     /// <summary>
-    /// Gets or sets a value indicating whether generate council artifacts applies to the chat state.
+    /// Gets or sets a value indicating whether code-generation Council runs build downloadable artifacts.
+    /// On by default and kept across runs; the user opts out in the chat configuration.
     /// </summary>
     /// <value>The generate council artifacts value exposed by <see cref="Chat"/>.</value>
-    bool GenerateCouncilArtifacts { get; set; }
+    bool GenerateCouncilArtifacts { get; set; } = true;
     /// <summary>
     /// Stores the internal show game console state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>

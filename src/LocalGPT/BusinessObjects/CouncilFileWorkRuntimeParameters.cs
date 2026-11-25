@@ -61,4 +61,9 @@ public sealed class CouncilFileWorkRuntimeParameters
     public string CuratorPrompt { get; set; } = string.Empty;
     /// <summary>Instruction for choosing exact repairs from actual compiler diagnostics.</summary>
     public string RepairPrompt { get; set; } = string.Empty;
+    /// <summary>
+    /// Optional step whose function permission authorizes the coordinator's source-workspace calls.
+    /// Empty uses the generation and verification steps, as for the Program Compiler team.
+    /// </summary>
+    public string FunctionPermissionStepKey { get; set; } = string.Empty;
 }

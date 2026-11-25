@@ -211,7 +211,9 @@ namespace LocalGPT.Services
                     logger.LogInformation("Council {RunId} is executing a compact GoalExecution recovery packet " +
                         "in saved team {Team}; original user goal and evidence remain durable.",
                         result.RunId, organicTeam.Key);
-                    request.ProgressMessage?.Invoke("GoalExecution AI · Subagent: compact, evidence-directed Council context active.");
+                    var subagentNotice = "GoalExecution AI · Subagent: compact, evidence-directed Council context active.";
+                    request.ProgressMessage?.Invoke(subagentNotice);
+                    request.StreamUpdate?.Invoke("<p class=\"localgpt-stream-status\">" + System.Net.WebUtility.HtmlEncode(subagentNotice) + "</p>\n\n");
                 }
                 var sourceWorkPolicy = runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson");
                 // A newly provisioned project has no historical repository to teach. Keep the original

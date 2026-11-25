@@ -4,12 +4,12 @@ using LocalGPT.Security;
 using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
-[ApiController]
-[Route("api/council/role-assignments")]
 /// <summary>
 /// Handles council role assignments for model eligibility configuration.
 /// Provides endpoints to list and assign roles within the Council team architecture.
 /// </summary>
+[ApiController]
+[Route("api/council/role-assignments")]
 public sealed class CouncilRoleAssignmentsController(ICouncilRoleAssignmentService assignments,
     ILogger<CouncilRoleAssignmentsController> logger) : ControllerBase
 {

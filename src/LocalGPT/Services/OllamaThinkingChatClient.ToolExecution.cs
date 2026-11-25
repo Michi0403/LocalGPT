@@ -34,7 +34,7 @@ public sealed partial class OllamaThinkingChatClient
             foreach (var call in toolCalls)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var registryName = ResolveRegistryFunctionName(call.Function.Name);
+                var registryName = ResolveRegistryFunctionName(call.Function.Name ?? string.Empty);
                 var arguments = NormalizeArguments(call.Function.Arguments);
                 // Some models (gpt-oss Harmony recipients) emit the envelope itself as the tool name, for example
                 // "localgpt-dx-call" or "assistant" with {"functionName": ..., "parameters": {...}}. Unwrap it so the
@@ -72,10 +72,14 @@ public sealed partial class OllamaThinkingChatClient
                     }
                     result = new DxAiFunctionInvocationResult
                     {
-                        FunctionName = call.Function.Name,
+                        FunctionName = call.Function.Name ?? string.Empty,
                         Status = "NotFound",
                         HandlerDispatched = false,
-                        Error = "The requested automatic function is not registered.",
+                        // Name the functions this request offers so a model that sent an unnamed or unknown
+                        // call can correct itself in its next tool call instead of repeating it.
+                        Error = automaticFunctionAllowList is { Count: > 0 } offeredFunctions
+                            ? "The requested automatic function is not registered. Use one of: " + string.Join(", ", offeredFunctions) + "."
+                            : "The requested automatic function is not registered.",
                         Succeeded = false
                     };
                 }
@@ -101,10 +105,10 @@ public sealed partial class OllamaThinkingChatClient
                 conversation.Add(new OllamaChatMessage
                 {
                     Role = "tool",
-                    ToolName = call.Function.Name,
+                    ToolName = call.Function.Name ?? string.Empty,
                     Content = serializedResult
                 });
-                traces.Add(BuildOllamaFunctionResultTrace(call.Function.Name, result, serializedResult));
+                traces.Add(BuildOllamaFunctionResultTrace(call.Function.Name ?? string.Empty, result, serializedResult));
             }
 
             return traces;

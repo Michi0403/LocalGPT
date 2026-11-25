@@ -45,8 +45,12 @@ public sealed partial class MultiModelCouncilService
             if (steps.Any(step => roleAssignments.TryGetValue(step.Role, out var assigned) &&
                 assigned.HumanParticipationMode is HumanParticipationMode.Required or HumanParticipationMode.HumanOnly))
                 return existingSourceAvailable ? null : runtimePolicy.GetString("CouncilFileWorkHumanRouteBlockedNotice");
-            var generationPolicy = councilAutomaticFunctionPolicy.Resolve(team, generateStep, false, request.RequestedOrganicCapabilities);
-            var verificationPolicy = councilAutomaticFunctionPolicy.Resolve(team, verifyStep, false, request.RequestedOrganicCapabilities);
+            // A listed development team authorizes the coordinator's calls through one configured step
+            // (its build step); the Program Compiler team keeps using its generation and verification steps.
+            var permissionStep = string.IsNullOrWhiteSpace(policy.FunctionPermissionStepKey) ? null
+                : steps.SingleOrDefault(item => item.Key == policy.FunctionPermissionStepKey);
+            var generationPolicy = councilAutomaticFunctionPolicy.Resolve(team, permissionStep ?? generateStep, false, request.RequestedOrganicCapabilities);
+            var verificationPolicy = councilAutomaticFunctionPolicy.Resolve(team, permissionStep ?? verifyStep, false, request.RequestedOrganicCapabilities);
             if (!generationPolicy.Enabled || !verificationPolicy.Enabled ||
                 (generationPolicy.IsStrict && generationPolicy.AutomaticFunctionAllowList is { } generatedAllowed &&
                     (!generatedAllowed.Contains("codegen.review.create") || !generatedAllowed.Contains("codegen.review.execute"))) ||
@@ -551,6 +555,7 @@ public sealed partial class MultiModelCouncilService
                     var notice = runtimePolicy.GetString("CouncilFileWorkIncompleteNotice") + "\n" + exception.Message;
                     result.Warnings.Add(notice);
                     request.ProgressMessage?.Invoke(notice);
+                    request.StreamUpdate?.Invoke("\n\n> " + System.Net.WebUtility.HtmlEncode(notice) + "\n\n");
                     break;
                 }
                 if (repair.Count == 0 || repair.Values.Any(string.IsNullOrWhiteSpace) ||
@@ -600,7 +605,8 @@ public sealed partial class MultiModelCouncilService
     {
         try
         {
-            var filePolicy = runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson");
+            var filePolicy = ResolveFileWorkPolicy(runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson"),
+                request.CouncilTeamKey, out _);
             var workBudget = definition.Key == filePolicy.GenerationStepKey ? filePolicy.MaximumAuthorOutputTokens : filePolicy.MaximumPlanningOutputTokens;
             var fittedRoads = modelRoutes.ToDictionary(item => item.Key, item => item.Value with
             {

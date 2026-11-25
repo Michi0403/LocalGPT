@@ -277,8 +277,8 @@ namespace LocalGPT.Components.Pages
                 .FirstOrDefault(model => model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
                 ?.Endpoint;
 
+            // Artifact generation is an opt-out chat setting: it stays as the user left it for later runs.
             var userConfirmedArtifactBuild = GenerateCouncilArtifacts;
-            GenerateCouncilArtifacts = false;
 
             ActiveConversationId ??= Guid.NewGuid();
             SessionContext.SetConversation(ActiveConversationId);
@@ -455,9 +455,8 @@ namespace LocalGPT.Components.Pages
                 IncludeCouncilMemory = parsedIncludeMemory;
             }
 
-            // Artifact generation is never enabled from a URL. The user must select it
-            // explicitly in the current chat UI, and that confirmation is consumed once.
-            GenerateCouncilArtifacts = false;
+            // Artifact generation is never changed from a URL; it keeps the chat configuration value
+            // (on by default, opt-out in the chat UI).
 
             if (query.TryGetValue("diagCouncilModels", out var councilModels))
             {

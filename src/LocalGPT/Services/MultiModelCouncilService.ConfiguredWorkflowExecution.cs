@@ -57,11 +57,24 @@ namespace LocalGPT.Services
                 if (configuredSteps.Count == 0)
                     throw new InvalidOperationException($"Council team '{team.DisplayName}' has no enabled workflow step.");
 
-                var filePolicy = runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson");
+                var filePolicy = ResolveFileWorkPolicy(runtimePolicy.GetJson<CouncilFileWorkRuntimeParameters>("CouncilFileWorkRuntimeParametersJson"),
+                    team.Key, out var additionalFileWorkTeam);
                 var configuredFileWork = filePolicy.Enabled && string.Equals(team.Key, filePolicy.TeamKey, StringComparison.OrdinalIgnoreCase) &&
                     configuredSteps.Any(item => item.Key == filePolicy.PlanStepKey) &&
                     configuredSteps.Any(item => item.Key == filePolicy.GenerationStepKey) &&
                     configuredSteps.Any(item => item.Key == filePolicy.VerificationStepKey);
+                // Listed development teams take the coordinated route only for new projects with artifacts on;
+                // otherwise they run their own workflow exactly as before.
+                if (configuredFileWork && additionalFileWorkTeam)
+                {
+                    configuredFileWork = CanUseAdditionalTeamFileWork(request, team, configuredSteps, filePolicy);
+                    if (configuredFileWork)
+                    {
+                        var routeNotice = $"GoalExecution AI · {team.DisplayName}: coordinated source route (plan, files, recovery, build, verification, ZIP) active.";
+                        request.ProgressMessage?.Invoke(routeNotice);
+                        request.StreamUpdate?.Invoke("<p class=\"localgpt-stream-status\">" + System.Net.WebUtility.HtmlEncode(routeNotice) + "</p>\n\n");
+                    }
+                }
                 var existingSourceAvailable = false;
                 object? technicalAuthority = null;
                 if (configuredFileWork)

@@ -781,6 +781,17 @@ BLOCKERS: none | <specific missing capability or ambiguity>
   "repairPrompt": "From the actual compiler diagnostics and verified source manifest, identify files needing a targeted corrective generation. Return ONLY a JSON object mapping exact manifest-relative paths to specific evidenced corrective work orders. Do not rename, recreate the project, invent diagnostics, return code, change output mode, or include files without compiler evidence. For environment/toolchain/restore problems that cannot be fixed in source return an empty object."
 }
 """, "LocalGPT.BusinessObjects.CouncilFileWorkRuntimeParameters"),
+                    // Development teams that may use the coordinated source-file route for new projects with artifacts on.
+                    // Remove an entry to keep that team on its own workflow only.
+                    new("CouncilFileWorkAdditionalTeamsJson", """
+{
+  "teams": [
+    { "teamKey": "csharp-modern-host-development", "planStepKey": "development-architecture", "generationStepKey": "development-implementation", "curationStepKey": "development-curation", "verificationStepKey": "development-build", "functionPermissionStepKey": "development-build" },
+    { "teamKey": "powershell-build-development", "planStepKey": "development-architecture", "generationStepKey": "development-implementation", "curationStepKey": "development-curation", "verificationStepKey": "development-build", "functionPermissionStepKey": "development-build" },
+    { "teamKey": "java-hosted-development", "planStepKey": "development-architecture", "generationStepKey": "development-implementation", "curationStepKey": "development-curation", "verificationStepKey": "development-build", "functionPermissionStepKey": "development-build" }
+  ]
+}
+""", "LocalGPT.BusinessObjects.CouncilFileWorkAdditionalTeams"),
                     new("CouncilExecutionRuntimeParametersJson", """
 {
   "minimumModelTimeoutSeconds": 30,
