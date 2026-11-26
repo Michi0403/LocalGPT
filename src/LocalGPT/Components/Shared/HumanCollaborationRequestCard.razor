@@ -28,6 +28,11 @@
                         <dt>Execution gate</dt><dd>@Request.GateMode</dd>
                         <dt>Asked during</dt><dd>Round @Request.RequestedCouncilRound · @Request.RequestedCouncilPhase</dd>
                         <dt>Operation</dt><dd>@Request.OperationKey</dd>
+                        @if (IsApproval)
+                        {
+                            <dt>Request ID</dt><dd><code>@(Request.Id.ToString("N")[..8])</code></dd>
+                            <dt>Requested at</dt><dd>@Request.RequestedAtUtc.ToLocalTime().ToString("g")</dd>
+                        }
                         @if (!string.IsNullOrWhiteSpace(Request.ParameterFingerprint))
                         {
                             <dt>Exact request</dt><dd>@FingerprintPreview</dd>
