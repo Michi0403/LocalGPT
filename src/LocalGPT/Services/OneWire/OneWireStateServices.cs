@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.Collections.Concurrent;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace LocalGPT.Services.OneWire;
@@ -465,6 +466,12 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
             var awaitsPeer = string.Equals(envelope.SourcePeerId, "localgpt", StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(envelope.TargetPeerId)
                 && !string.Equals(envelope.TargetPeerId, "localgpt", StringComparison.OrdinalIgnoreCase);
+            var approvedDocumentKind = envelope.CapabilityKey == "publisher.document.create" &&
+                envelope.Properties?.TryGetValue("Parameters", out var parameters) == true &&
+                parameters.ValueKind == JsonValueKind.Object &&
+                parameters.TryGetProperty("kind", out var kind) && kind.ValueKind == JsonValueKind.String
+                ? kind.GetString()
+                : null;
             var item = new OneWireWorkItem
             {
                 CorrelationId = envelope.CorrelationId,
@@ -475,6 +482,7 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 NotBeforeUtc = envelope.NotBeforeUtc,
                 Request = envelope,
                 DocumentConversationId = documentConversationId,
+                ApprovedDocumentKind = approvedDocumentKind,
                 Status = awaitsPeer ? OneWireWorkStatus.Running : OneWireWorkStatus.Queued
             };
             workItems[item.Id] = item;
@@ -811,10 +819,8 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 return resultJson;
             var kindKey = keys.FirstOrDefault(key => string.Equals(key, "kind", StringComparison.OrdinalIgnoreCase));
             var kind = kindKey is null ? null : result[kindKey]?.GetValue<string>();
-            if (item.Request.Properties is not { } properties ||
-                !properties.TryGetValue("Parameters", out var parameters) ||
-                !parameters.TryGetProperty("kind", out var requestedKind) ||
-                !string.Equals(kind, requestedKind.GetString(), StringComparison.Ordinal))
+            if (item.ApprovedDocumentKind is null ||
+                !string.Equals(kind, item.ApprovedDocumentKind, StringComparison.Ordinal))
                 throw new InvalidDataException("The returned document format differs from the approved request.");
             if (hasTransfer && bytesKey is null)
                 return ReadPeerFileResult(item, resultJson);

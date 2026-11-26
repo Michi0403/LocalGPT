@@ -210,6 +210,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
     {
         try
         {
+            var chatSession = sessionContext?.Snapshot();
             var conversation = await CreateConversationAsync(messages, cancellationToken).ConfigureAwait(false);
             var automaticToolTrace = new StringBuilder();
             OllamaChatResponse? response = null;
@@ -255,7 +256,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                 conversation.Add(CloneMessage(response.Message!));
                 foreach (var call in toolCalls)
                     automaticToolTrace.Append(BuildOllamaFunctionCallTrace(call));
-                var nonStreamingToolResults = await AppendAutomaticToolResultsAsync(conversation, toolCalls, cancellationToken).ConfigureAwait(false);
+                var nonStreamingToolResults = await AppendAutomaticToolResultsAsync(conversation, toolCalls, chatSession, cancellationToken).ConfigureAwait(false);
                 foreach (var trace in nonStreamingToolResults)
                     automaticToolTrace.Append(trace);
             }
@@ -307,6 +308,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
 
         try
         {
+            var chatSession = sessionContext?.Snapshot();
             var missingFinalAnswerNotice = await GetPromptAsync("MissingFinalAnswerNotice", cancellationToken).ConfigureAwait(false);
             var formatter = formatterFactory.Create(protocolResolver.Resolve(providerOptions), missingFinalAnswerNotice);
             var conversation = await CreateConversationAsync(messages, cancellationToken).ConfigureAwait(false);
@@ -606,7 +608,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                     yield return CreateStreamingUpdate(BuildOllamaFunctionCallTrace(call));
                 }
 
-                var streamedToolResults = await AppendAutomaticToolResultsAsync(conversation, toolCalls, cancellationToken).ConfigureAwait(false);
+                var streamedToolResults = await AppendAutomaticToolResultsAsync(conversation, toolCalls, chatSession, cancellationToken).ConfigureAwait(false);
                 foreach (var trace in streamedToolResults)
                     yield return CreateStreamingUpdate(trace);
             }

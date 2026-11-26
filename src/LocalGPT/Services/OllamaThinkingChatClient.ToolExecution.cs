@@ -20,11 +20,13 @@ public sealed partial class OllamaThinkingChatClient
     /// </summary>
     /// <param name="conversation">Conversation value supplied to the Ollama thinking chat operation and used when producing its result.</param>
     /// <param name="toolCalls">Ollama tool call dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="chatSession">Conversation and project identity captured before the provider request.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>User-visible function-result trace fragments produced while appending tool messages.</returns>
     private async Task<IReadOnlyList<string>> AppendAutomaticToolResultsAsync(
         List<OllamaChatMessage> conversation,
         IReadOnlyList<OllamaToolCall> toolCalls,
+        ChatSessionContextSnapshot? chatSession,
         CancellationToken cancellationToken)
     {
         try
@@ -93,10 +95,10 @@ public sealed partial class OllamaThinkingChatClient
                             AutomaticInvocation = true,
                             UserConfirmed = false,
                             RequestedBy = $"Ollama:{model} @ {http.BaseAddress?.Authority}",
-                            ConversationId = sessionContext?.ConversationId,
-                            ProjectId = councilExecutionIdentity is null ? sessionContext?.ProjectId : councilExecutionIdentity.ProjectId,
-                            ProjectVersionId = councilExecutionIdentity is null ? sessionContext?.ProjectVersionId : councilExecutionIdentity.ProjectRevisionId,
-                            ApplicationVersion = sessionContext?.ApplicationVersion ?? string.Empty
+                            ConversationId = chatSession?.ConversationId,
+                            ProjectId = councilExecutionIdentity is null ? chatSession?.ProjectId : councilExecutionIdentity.ProjectId,
+                            ProjectVersionId = councilExecutionIdentity is null ? chatSession?.ProjectVersionId : councilExecutionIdentity.ProjectRevisionId,
+                            ApplicationVersion = chatSession?.ApplicationVersion ?? string.Empty
                         },
                         cancellationToken).ConfigureAwait(false);
                 }

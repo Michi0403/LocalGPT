@@ -718,6 +718,7 @@
         }
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
             <DxAIChat @key="chatControlGeneration" Initialized="ChatInitialized"
+                      MessageSending="CaptureOutgoingConversation"
                       ResponseContentFormat="ResponseContentFormat.Markdown"
                       UseStreaming="true"
                       FileUploadEnabled="true"

@@ -68,6 +68,9 @@ public sealed class OneWireWorkItem
     [System.Text.Json.Serialization.JsonIgnore]
     public Guid? DocumentConversationId { get; set; }
 
+    /// <summary>Preserves the approved document format when transport protection clears the request parameters.</summary>
+    internal string? ApprovedDocumentKind { get; init; }
+
     /// <summary>Contains the file returned by an approved document creation request.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public byte[]? DocumentBytes { get; set; }

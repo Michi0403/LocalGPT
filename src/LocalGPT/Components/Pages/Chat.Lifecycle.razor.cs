@@ -199,6 +199,16 @@ namespace LocalGPT.Components.Pages
         return Task.CompletedTask;
     }
 
+    private void CaptureOutgoingConversation(MessageSendingEventArgs args)
+    {
+        if (isDisposed || args.CancellationToken.IsCancellationRequested)
+            return;
+
+        // A function can defer work before the first message is saved to memory.
+        ActiveConversationId ??= Guid.NewGuid();
+        SessionContext.SetConversation(ActiveConversationId);
+    }
+
     /// <summary>
     /// Performs schedule chat runtime activation for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
