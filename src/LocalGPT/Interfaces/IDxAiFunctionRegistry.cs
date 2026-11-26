@@ -1,4 +1,5 @@
 using LocalGPT.BusinessObjects;
+using System.Text.Json;
 
 namespace LocalGPT.Interfaces;
 
@@ -22,6 +23,13 @@ public interface IDxAiFunctionHandler
     Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>Supplies a parameter schema discovered from a configured integration for one invocation.</summary>
+public interface IDxAiFunctionPayloadSchema
+{
+    /// <summary>Returns the discovered schema, the proposed payload and its path, when available.</summary>
+    (string Schema, JsonElement Payload, string Path)? GetPayloadSchema(JsonElement parameters);
 }
 
 /// <summary>

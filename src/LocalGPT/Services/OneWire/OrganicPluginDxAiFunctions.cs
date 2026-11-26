@@ -17,7 +17,7 @@ public sealed class InvokeOrganicPluginFunction(
     IOneWireConnectionRegistry connections,
     IOneWirePeerRegistry peers,
     IOneWireWorkSpooler spooler,
-    ILogger<InvokeOrganicPluginFunction> logger) : IDxAiFunctionHandler
+    ILogger<InvokeOrganicPluginFunction> logger) : IDxAiFunctionHandler, IDxAiFunctionPayloadSchema
 {
     /// <summary>
     /// Gets the descriptor value that forms part of the invoke organic plugin function state consumed or produced by the surrounding workflow.
@@ -42,6 +42,31 @@ public sealed class InvokeOrganicPluginFunction(
         IsCoordinationOnly: true,
         SupportsDeferredApprovalRequest: true,
         ApprovalRequiredBeforeCompletion: true);
+
+    /// <inheritdoc />
+    public (string Schema, JsonElement Payload, string Path)? GetPayloadSchema(JsonElement parameters)
+    {
+        try
+        {
+            if (parameters.ValueKind != JsonValueKind.Object)
+                return null;
+
+            var peerId = organicSupport.GetString(parameters, "peerId");
+            var capabilityKey = organicSupport.GetString(parameters, "capabilityKey");
+            if (string.IsNullOrWhiteSpace(peerId) || string.IsNullOrWhiteSpace(capabilityKey) ||
+                peers.GetPeer(peerId) is not { } peer ||
+                organicSupport.FindCapability(peer, capabilityKey) is not { IsExposedToPeer: true, AllowPeerInvocation: true } capability)
+                return null;
+
+            parameters.TryGetProperty("payload", out var payload);
+            return (capability.ParameterSchemaJson, payload, "parameters.payload");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not resolve the advertised organic capability schema.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs invoke for <see cref="InvokeOrganicPluginFunction"/>, keeping the operation consistent with the state and invariants of the surrounding invoke organic plugin function workflow.

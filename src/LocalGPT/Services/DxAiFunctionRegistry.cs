@@ -223,7 +223,15 @@ public sealed class DxAiFunctionRegistry(
             || (request.AutomaticInvocation && !descriptor.SupportsAutomaticInvocation);
 
         var schemaHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(descriptor.ParameterSchemaJson ?? string.Empty)));
-        var parameterValidationError = ValidateInvocationParameters(descriptor, request.Parameters);
+        var parameterValidationError = ValidateInvocationParameters(
+            descriptor.Name, descriptor.ParameterSchemaJson, request.Parameters, "parameters");
+        if (string.IsNullOrEmpty(parameterValidationError) &&
+            handler is IDxAiFunctionPayloadSchema payloadSchema &&
+            payloadSchema.GetPayloadSchema(request.Parameters) is { } advertised)
+        {
+            parameterValidationError = ValidateInvocationParameters(
+                descriptor.Name, advertised.Schema, advertised.Payload, advertised.Path);
+        }
         if (!string.IsNullOrWhiteSpace(parameterValidationError))
         {
             logger.LogWarning("Rejected DXAIFunction {FunctionName} before human approval because its proposed parameters do not satisfy the registered schema.", functionName);
@@ -616,29 +624,31 @@ public sealed class DxAiFunctionRegistry(
     /// <summary>
     /// Validates invocation parameters in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
-    /// <param name="descriptor">Descriptor value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="functionName">Registered function name for diagnostics.</param>
+    /// <param name="schema">Registered or advertised schema for the payload.</param>
     /// <param name="parameters">Parameters value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="path">Parameter path for validation feedback.</param>
     /// <returns>The string produced by the operation.</returns>
-    private string ValidateInvocationParameters(DxaichatFunctionInfo descriptor, JsonElement parameters)
+    private string ValidateInvocationParameters(string functionName, string? schema, JsonElement parameters, string path)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(descriptor.ParameterSchemaJson))
+            if (string.IsNullOrWhiteSpace(schema))
                 return string.Empty;
-            using var schemaDocument = JsonDocument.Parse(descriptor.ParameterSchemaJson);
+            using var schemaDocument = JsonDocument.Parse(schema);
             var normalizedParameters = parameters;
             if (normalizedParameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
                 normalizedParameters = JsonSerializer.SerializeToElement(new Dictionary<string, object?>());
-            return ValidateSchemaElement(schemaDocument.RootElement, normalizedParameters, "parameters");
+            return ValidateSchemaElement(schemaDocument.RootElement, normalizedParameters, path);
         }
         catch (JsonException exception)
         {
-            logger.LogError(exception, "Registered parameter schema for DXAIFunction {FunctionName} is invalid.", descriptor.Name);
-            return "LocalGPT's registered function parameter schema is invalid; the action was not queued for approval.";
+            logger.LogError(exception, "Parameter schema for DXAIFunction {FunctionName} is invalid.", functionName);
+            return "The function parameter schema is invalid; the action was not queued for approval.";
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Pre-validating DXAIFunction {FunctionName} parameters failed; parameter content was omitted.", descriptor.Name);
+            logger.LogError(exception, "Pre-validating DXAIFunction {FunctionName} parameters failed; parameter content was omitted.", functionName);
             return "LocalGPT could not validate the proposed function parameters, so the action was not queued for approval.";
         }
     }

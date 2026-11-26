@@ -186,6 +186,7 @@ public sealed partial class CodeGenerationWorkflowService
             {
                 if (output is null) throw new ArgumentException("Manifest output entries must be objects.");
                 output.Kind = NormalizeOutputKind(output.Kind);
+                output.RelativeDirectory = NormalizeRelativePath(output.RelativeDirectory);
             }
             request.DraftInspections = [];
             var decisions = await humanCollaboration.GetSourcePlanningDecisionsAsync(runId, cancellationToken).ConfigureAwait(false);

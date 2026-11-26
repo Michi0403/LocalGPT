@@ -76,6 +76,9 @@ public sealed partial class MultiModelCouncilService
                 foreach (var output in plan.Outputs ?? [])
                 {
                     if (output is null) throw new ArgumentException("Manifest output entries must be objects.");
+                    // In an architect's manifest, a lone slash denotes the new workspace root.
+                    if (output.RelativeDirectory?.Trim() is "/" or "\\")
+                        output.RelativeDirectory = ".";
                     var target = output.TargetFramework ?? string.Empty;
                     var match = targetPattern.Match(target);
                     if (match.Success && match.Length == target.Trim().Length)

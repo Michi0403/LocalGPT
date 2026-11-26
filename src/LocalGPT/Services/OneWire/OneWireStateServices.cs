@@ -1001,6 +1001,11 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
         {
             bool At(int offset, ReadOnlySpan<byte> signature) => bytes.Length >= offset + signature.Length && bytes.AsSpan(offset, signature.Length).SequenceEqual(signature);
             string Utf8() => new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetString(bytes);
+            bool IsJsonObject()
+            {
+                using var document = JsonDocument.Parse(bytes);
+                return document.RootElement.ValueKind == JsonValueKind.Object;
+            }
             var family = mimeType.Split('/')[0];
             var valid = mimeType switch
             {
@@ -1013,6 +1018,7 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
                 "image/tiff" => At(0, [0x49, 0x49, 0x2A, 0x00]) || At(0, [0x4D, 0x4D, 0x00, 0x2A]),
                 "image/svg+xml" => Utf8().Contains("<svg", StringComparison.OrdinalIgnoreCase),
                 "text/html" => Utf8().Contains("<html", StringComparison.OrdinalIgnoreCase),
+                "application/json" => IsJsonObject(),
                 "application/pdf" => At(0, "%PDF-"u8),
                 "application/zip" or "application/x-zip-compressed" => At(0, [0x50, 0x4B, 0x03, 0x04]) || At(0, [0x50, 0x4B, 0x05, 0x06]),
                 "video/webm" or "audio/webm" or "video/x-matroska" or "audio/x-matroska" => At(0, [0x1A, 0x45, 0xDF, 0xA3]),
