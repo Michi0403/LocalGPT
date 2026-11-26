@@ -28,7 +28,7 @@
   </Target>
   <ItemGroup>
     <!-- Keep the .NET 10 security-serviced PKCS version pinned. -->
-    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.15" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\third_party\PDFsharp\src\foundation\src\PDFsharp\src\PdfSharp\PdfSharp.csproj" GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />

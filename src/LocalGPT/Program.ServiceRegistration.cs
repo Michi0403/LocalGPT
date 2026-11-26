@@ -1,6 +1,7 @@
 using Azure;
 using Azure.AI.OpenAI;
 using DevExpress.AIIntegration.Blazor.Chat;
+using DevExpress.AIIntegration.Chat;
 using DevExpress.CodeParser;
 using DevExpress.DataProcessing.InMemoryDataProcessor;
 using DevExpress.XtraCharts;
@@ -430,6 +431,8 @@ namespace LocalGPT
                 builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
                 builder.Services.AddScoped<IChatClient>(sp =>
                     sp.GetRequiredService<IChatClientFactory>().Build());
+                builder.Services.AddScoped<IChatResponseProvider>(sp =>
+                    sp.GetRequiredService<IChatClient>().AsIChatResponseProvider());
 
                 builder.Services.AddDevExpressAI();
                 builder.Services.AddScoped<INotificationService, NotificationService>();

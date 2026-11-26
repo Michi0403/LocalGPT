@@ -16,7 +16,7 @@
     <EmbeddedResource Include="..\..\THIRD-PARTY-NOTICES.txt" LogicalName="LocalGPT.ThirdPartyNotices.txt" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup>

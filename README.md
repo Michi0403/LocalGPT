@@ -121,7 +121,7 @@ See [`src/LocalGPTInstallerConsole/README.md`](src/LocalGPTInstallerConsole/READ
 
 ### Build from source
 
-Local development targets the pinned .NET SDK and DevExpress 25.2.x. DevExpress 25.1+ packages are restored from NuGet.org; the personal **DevExpress .NET license key is separate from package restore credentials** and must remain outside the repository.
+Local development targets the pinned .NET SDK and DevExpress 26.1.x. DevExpress 25.1+ packages are restored from NuGet.org; the personal **DevExpress .NET license key is separate from package restore credentials** and must remain outside the repository.
 
 The PowerShell build entry points are intended to run from Windows PowerShell 5.1 or PowerShell 7 (`pwsh`) on Windows, macOS, and Linux. The optional WinUI/WebView2 wrapper remains a Windows application, but its project enables Windows cross-targeting so a non-Windows developer machine can restore/build the Windows target without pretending that the wrapper is runnable on macOS/Linux.
 

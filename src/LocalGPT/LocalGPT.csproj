@@ -15,7 +15,7 @@
 	  <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
 	  <IsPackable>false</IsPackable>
 	  <CopySatelliteAssemblies>true</CopySatelliteAssemblies>
-	  <DevExpressVersion>25.2.10</DevExpressVersion>
+	  <DevExpressVersion>26.1.6</DevExpressVersion>
 	  <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
 	  <PublishTrimmed>false</PublishTrimmed>
 	  <PublishSingleFile>false</PublishSingleFile>
@@ -129,13 +129,13 @@
     <PackageReference Include="DevExpress.Blazor.PdfViewer" Version="$(DevExpressVersion)" />
     <PackageReference Include="Markdig" Version="1.4.0" />
     <PackageReference Include="MessagePack" Version="3.1.12" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
-	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.13" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.15" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.15" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15">
 	    <PrivateAssets>all</PrivateAssets>
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.15" />
 	  <PackageReference Include="Microsoft.Extensions.AI" Version="10.11.0" />
 	  <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.11.0" />
 	  <PackageReference Include="Microsoft.VisualStudio.SolutionPersistence" Version="1.0.52" />
@@ -147,18 +147,18 @@
 	  <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="3.0.5" />
 	  <PackageReference Include="System.ClientModel" Version="1.16.0" />
 	  <!--<PackageReference Include="SourceGear.sqlite3" Version="3.50.4.5" />-->
-	  <PackageReference Include="System.CodeDom" Version="10.0.13" />
+	  <PackageReference Include="System.CodeDom" Version="10.0.15" />
 	  <PackageReference Include="Azure.AI.OpenAI" Version="2.5.0-beta.1" />
 	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Chat" Version="$(DevExpressVersion)" />
 	  <PackageReference Include="DevExpress.AIIntegration.Blazor.Common" Version="$(DevExpressVersion)" />
 	  <PackageReference Include="DevExpress.AIIntegration.OpenAI" Version="$(DevExpressVersion)" />
-	  <PackageReference Include="System.Composition" Version="10.0.13" />
-	  <PackageReference Include="System.Composition.Convention" Version="10.0.13" />
-	  <PackageReference Include="System.Composition.TypedParts" Version="10.0.13" />
-	  <PackageReference Include="System.Memory.Data" Version="10.0.13" />
-	  <PackageReference Include="System.Numerics.Tensors" Version="10.0.13" />
+	  <PackageReference Include="System.Composition" Version="10.0.15" />
+	  <PackageReference Include="System.Composition.Convention" Version="10.0.15" />
+	  <PackageReference Include="System.Composition.TypedParts" Version="10.0.15" />
+	  <PackageReference Include="System.Memory.Data" Version="10.0.15" />
+	  <PackageReference Include="System.Numerics.Tensors" Version="10.0.15" />
 	  <PackageReference Include="System.Reactive" Version="7.0.0" />
-	  <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+	  <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.15" />
 	  <PackageReference Include="System.ServiceModel.Http" Version="10.0.652802" />
 	  <PackageReference Include="System.ServiceModel.NetTcp" Version="10.0.652802" />
 	  <PackageReference Include="System.ServiceModel.Primitives" Version="10.0.652802" />
