@@ -138,8 +138,12 @@ namespace LocalGPT.Services
     /// <summary>Clones a supplied or edited definition as an explicit user-owned literal workflow.</summary>
     /// <param name="source">Definition whose content should be preserved.</param>
     /// <param name="customKey">Unique custom key allocated for the user-owned copy.</param>
+    /// <param name="suppliedTemplate">Authoritative supplied workflow for resolving implicit built-in roles.</param>
     /// <returns>A deep-cloned user-owned team definition.</returns>
-    private OrganicCouncilTeamDefinition CloneAsUserOwnedDefinition(OrganicCouncilTeamDefinition source, string customKey)
+    private OrganicCouncilTeamDefinition CloneAsUserOwnedDefinition(
+        OrganicCouncilTeamDefinition source,
+        string customKey,
+        OrganicCouncilTeamDefinition suppliedTemplate)
     {
         try
         {
@@ -147,12 +151,28 @@ namespace LocalGPT.Services
             var clone = JsonSerializer.Deserialize<OrganicCouncilTeamDefinition>(json, JsonOptions)
                 ?? throw new InvalidOperationException("Council team cloning returned no definition.");
             clone.Key = customKey;
+            clone.DisplayName = string.IsNullOrWhiteSpace(clone.DisplayName) ? source.Key.Trim() : clone.DisplayName.Trim();
             if (!clone.DisplayName.Contains("custom", StringComparison.OrdinalIgnoreCase))
                 clone.DisplayName = $"{clone.DisplayName} custom";
             clone.IsSystemSeed = false;
             clone.IsUserModified = true;
-            foreach (var step in clone.WorkflowSteps)
+            clone.Roles ??= [];
+            clone.WorkflowSteps ??= [];
+            var roleNames = clone.Roles.Where(role => role is not null)
+                .Select(role => role.Role?.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var step in clone.WorkflowSteps.Where(step => step is not null))
+            {
+                // Built-in default steps can schedule implicit roles. Editable copies use literal role policies.
+                if (roleNames.Count > 0 && step.UseBuiltInBehavior && !string.IsNullOrWhiteSpace(step.Role)
+                    && suppliedTemplate.WorkflowSteps.Any(templateStep => templateStep.UseBuiltInBehavior
+                        && StringComparer.OrdinalIgnoreCase.Equals(step.Key?.Trim(), templateStep.Key)
+                        && StringComparer.OrdinalIgnoreCase.Equals(step.Role.Trim(), templateStep.Role))
+                    && roleNames.Add(step.Role.Trim()))
+                {
+                    clone.Roles.Add(new OrganicCouncilRoleDefinition { Role = step.Role.Trim() });
+                }
                 step.UseBuiltInBehavior = false;
+            }
             return clone;
         }
         catch (Exception __serviceMethodException)

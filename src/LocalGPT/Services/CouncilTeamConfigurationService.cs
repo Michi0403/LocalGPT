@@ -176,12 +176,12 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
             if (!request.UserConfirmed)
                 throw new InvalidOperationException("Fresh human confirmation is required before changing a council team or workflow.");
 
-            NormalizeAndValidateUserDefinition(request.Team);
+            ArgumentException.ThrowIfNullOrWhiteSpace(request.Team.Key);
+            var requestedKey = request.Team.Key.Trim().ToLowerInvariant();
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
-            var requestedKey = request.Team.Key;
             var row = await db.CouncilTeamConfigurations.SingleOrDefaultAsync(item => item.Key == requestedKey, cancellationToken).ConfigureAwait(false);
             var definitionToSave = request.Team;
             if (row is { IsSystemSeed: true })
@@ -191,7 +191,7 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
                     .ToListAsync(cancellationToken)
                     .ConfigureAwait(false);
                 var customKey = CreateUniqueUserCopyKey(requestedKey, existingKeys);
-                definitionToSave = CloneAsUserOwnedDefinition(request.Team, customKey);
+                definitionToSave = CloneAsUserOwnedDefinition(request.Team, customKey, ToDefinition(row));
                 row = new CouncilTeamConfiguration
                 {
                     Id = Guid.NewGuid(),
@@ -200,10 +200,6 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
                     CreatedAtUtc = DateTime.UtcNow
                 };
                 db.CouncilTeamConfigurations.Add(row);
-                logger.LogInformation(
-                    "Preserved supplied Council seed {SeedKey} and redirected the confirmed edit to user-owned team {CustomKey}.",
-                    requestedKey,
-                    customKey);
             }
             else if (row is null)
             {
@@ -217,6 +213,7 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
                 db.CouncilTeamConfigurations.Add(row);
             }
 
+            NormalizeAndValidateUserDefinition(definitionToSave);
             ApplyDefinition(row, definitionToSave);
             row.IsDeleted = false;
             row.IsEnabled = request.IsEnabled;
@@ -226,6 +223,11 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
             row.UpdatedAtUtc = DateTime.UtcNow;
             await roleIndex.SynchronizeAsync(db, definitionToSave, cancellationToken).ConfigureAwait(false);
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            if (!StringComparer.Ordinal.Equals(requestedKey, row.Key))
+                logger.LogInformation(
+                    "Preserved supplied Council seed {SeedKey} and saved the confirmed edit to user-owned team {CustomKey}.",
+                    requestedKey,
+                    row.Key);
             logger.LogInformation(
                 "Saved editable council team {TeamKey} with {RoleCount} role(s), {WorkflowStepCount} workflow step(s) and {ExpandedStepCount} expanded round(s).",
                 row.Key,
@@ -358,7 +360,7 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
             }
             else
             {
-                restored = CloneAsUserOwnedDefinition(template, normalizedTarget);
+                restored = CloneAsUserOwnedDefinition(template, normalizedTarget, template);
             }
             restored.Key = normalizedTarget;
             restored.DisplayName = template.DisplayName;

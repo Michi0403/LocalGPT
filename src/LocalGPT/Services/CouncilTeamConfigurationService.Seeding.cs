@@ -87,7 +87,7 @@ namespace LocalGPT.Services
                             .Concat(db.CouncilTeamConfigurations.Local.Select(item => item.Key))
                             .ToList());
                     var preservedDefinition = ToDefinition(row);
-                    var preservedCopy = CloneAsUserOwnedDefinition(preservedDefinition, customKey);
+                    var preservedCopy = CloneAsUserOwnedDefinition(preservedDefinition, customKey, definition);
                     var customRow = new CouncilTeamConfiguration
                     {
                         Id = Guid.NewGuid(),
